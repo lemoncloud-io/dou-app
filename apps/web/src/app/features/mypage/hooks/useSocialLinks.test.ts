@@ -6,11 +6,20 @@ import { useSocialLinks } from './useSocialLinks';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 const mockIsNative = jest.fn();
-// Who signs a person in, as the host's `signIn` port says.
+const mockCredential = jest.fn();
+// The app's own provider sign-in, as the host's `signIn` port carries it; a browser tab has none.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         get signIn() {
-            return { kind: mockIsNative() ? 'shell' : 'browser', os: null };
+            const tab = require('@chatic/runtime/testing').browserSignIn();
+            if (!mockIsNative()) return tab;
+            return {
+                ...tab,
+                providerSignIn: {
+                    providers: ['google', 'apple'],
+                    credential: (provider: string) => mockCredential(provider),
+                },
+            };
         },
     })
 );
@@ -20,11 +29,6 @@ jest.mock('@chatic/bridges', () => ({
 
 const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
-
-const oauthLoginMock = jest.fn();
-jest.mock('../../../bridge', () => ({
-    appBridge: { oauthLogin: (provider: string) => oauthLoginMock(provider) },
-}));
 
 const verifySocialMock = jest.fn();
 const confirmSocialMock = jest.fn();
@@ -55,7 +59,7 @@ beforeEach(() => {
     mockIsNative.mockReturnValue(true);
     mockIsLinkingSocial = false;
     mockLinked = { phone: 'absent', social: 'absent' };
-    oauthLoginMock.mockResolvedValue({ data: { result: { idToken: 'tok' } } });
+    mockCredential.mockResolvedValue({ idToken: 'tok' });
     verifySocialMock.mockResolvedValue({ linkable: true });
     confirmSocialMock.mockResolvedValue({ linked: true });
 });
@@ -125,7 +129,7 @@ describe('useSocialLinks — 연동 (verify → confirm)', () => {
     // The virtual shell's relay sign-in answers with a relay code instead of a provider token.
     // `link-account` takes the code too, so both steps carry it unchanged.
     it('links with a relay code from the virtual shell, sending the code to verify and confirm', async () => {
-        oauthLoginMock.mockResolvedValue({ data: { result: { provider: 'google', platform: 'ios', code: 'c-1' } } });
+        mockCredential.mockResolvedValue({ provider: 'google', platform: 'ios', code: 'c-1' });
 
         const { result } = renderHook(() => useSocialLinks());
         await act(async () => {
@@ -141,7 +145,7 @@ describe('useSocialLinks — 연동 (verify → confirm)', () => {
     });
 
     it('네이티브 OAuth 취소(null)는 verify도 confirm도 부르지 않고 토스트도 없다', async () => {
-        oauthLoginMock.mockResolvedValue({ data: { result: null } });
+        mockCredential.mockResolvedValue(null);
 
         const { result } = renderHook(() => useSocialLinks());
         await act(async () => {
@@ -191,7 +195,7 @@ describe('useSocialLinks — 연동 (verify → confirm)', () => {
             await result.current.linkProvider('google');
         });
 
-        expect(oauthLoginMock).not.toHaveBeenCalled();
+        expect(mockCredential).not.toHaveBeenCalled();
         expect(verifySocialMock).not.toHaveBeenCalled();
         expect(toastMock).toHaveBeenCalledWith(
             expect.objectContaining({ title: 'mypage.accountInfo.social.mobileOnly' })

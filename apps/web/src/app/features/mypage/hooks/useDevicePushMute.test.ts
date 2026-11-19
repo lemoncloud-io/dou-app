@@ -8,10 +8,15 @@ import { resetHostProfileForTests } from '@chatic/bridges';
 
 import { useDevicePushMute } from './useDevicePushMute';
 
+// The push port's device token, swapped per test; `null` is a host that registers no push device.
+let mockDeviceToken: { fetch: () => Promise<string | null> } | null = null;
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
+        },
+        get push() {
+            return { deviceToken: mockDeviceToken };
         },
         settings: { set: (_key: string, value: boolean) => setPushMutedMock(value), useConfigValue: () => mutedState },
     })
@@ -63,18 +68,24 @@ describe('useDevicePushMute', () => {
         expect(mockHaptic).not.toHaveBeenCalled();
     });
 
-    it('네이티브 셸이 아니면 isSupported=false, 셸이면 true (push 디바이스 존재 여부와 동일 신호)', () => {
+    it('is supported only where push registration happens: a device token and an injected platform', () => {
         const { result, unmount } = renderHook(() => useDevicePushMute(), { wrapper });
-        expect(result.current.isSupported).toBe(false); // jsdom: no shell global
+        expect(result.current.isSupported).toBe(false); // jsdom: no shell global, no token
         unmount();
 
         // A shell that injects its platform before the page boots, when the host profile is built.
         window.CHATIC_APP_PLATFORM = 'ios';
         resetHostProfileForTests();
         try {
+            const { result: noToken, unmount: unmountNoToken } = renderHook(() => useDevicePushMute(), { wrapper });
+            expect(noToken.current.isSupported).toBe(false); // platform alone registers nothing
+            unmountNoToken();
+
+            mockDeviceToken = { fetch: async () => 'token' };
             const { result: shellResult } = renderHook(() => useDevicePushMute(), { wrapper });
             expect(shellResult.current.isSupported).toBe(true);
         } finally {
+            mockDeviceToken = null;
             delete window.CHATIC_APP_PLATFORM;
             resetHostProfileForTests();
         }

@@ -4,20 +4,23 @@ import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged } from '../../bridge/useHandleAppMessage';
 import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
 import { divergenceReporter } from '../../runtime/logging/divergenceReporter';
-import { nativeBadgeReader } from '../../runtime/logging/nativeBadgeReader';
 import { UnreadBadgeRunner } from './UnreadBadgeRunner';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+// The icon badge the frame reads back, as the host's `appShell` port offers it.
+const mockReadBadge = jest.fn();
+let mockIconBadge = true;
+jest.mock('@chatic/runtime', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+    return fakeRuntimeModule({
+        get appShell() {
+            return { ...browserAppShell(), iconBadge: mockIconBadge ? { read: () => mockReadBadge() } : null };
+        },
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud_1' }),
         },
-    })
-);
+    });
+});
 jest.mock('../../bridge/appBridge', () => ({ appBridge: { setBadgeCount: jest.fn() } }));
-jest.mock('../../runtime/logging/nativeBadgeReader', () => ({
-    nativeBadgeReader: { read: jest.fn().mockResolvedValue(null) },
-}));
 jest.mock('../../bridge/useHandleAppMessage', () => ({ useOnBackgroundStatusChanged: jest.fn() }));
 jest.mock('../../runtime/logging/divergenceReporter', () => ({ divergenceReporter: { badge: jest.fn() } }));
 jest.mock('../../hooks', () => ({
@@ -29,7 +32,7 @@ const setBadge = appBridge.setBadgeCount as jest.Mock;
 const useBg = useOnBackgroundStatusChanged as jest.Mock;
 const unreadsMock = useActiveCloudUnreads as jest.Mock;
 const otherMock = useOtherCloudUnread as jest.Mock;
-const fetchBadge = nativeBadgeReader.read as jest.Mock;
+const fetchBadge = mockReadBadge;
 const badgeDivergence = divergenceReporter.badge as jest.Mock;
 
 // Pull the latest foreground handler the component registered so tests can fire it directly.
@@ -38,6 +41,8 @@ const latestForegroundHandler = () => useBg.mock.calls[useBg.mock.calls.length -
 describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        mockIconBadge = true;
+        mockReadBadge.mockResolvedValue(null);
         unreadsMock.mockReturnValue({ total: 3 });
         otherMock.mockReturnValue({ byCloud: { cloud_2: 2 }, total: 2 });
     });
@@ -127,6 +132,18 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
             });
 
             expect(badgeDivergence).toHaveBeenCalledWith({ web: 5, native: 9, active: 3, others: 2 });
+        });
+
+        // A browser has no icon badge to read: the reporter is told the value is unknown, not 0.
+        it('reports the icon as unknown where the frame has no icon badge to read', async () => {
+            mockIconBadge = false;
+
+            await act(async () => {
+                render(<UnreadBadgeRunner />);
+            });
+
+            expect(fetchBadge).not.toHaveBeenCalled();
+            expect(badgeDivergence).toHaveBeenCalledWith({ web: 5, native: null, active: 3, others: 2 });
         });
 
         it('total이 바뀔 때마다 대조하지는 않는다 (fire-and-forget 쓰기와 경합한다)', async () => {

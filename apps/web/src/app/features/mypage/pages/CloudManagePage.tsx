@@ -30,9 +30,9 @@ import { useOwnedClouds } from '../hooks/useOwnedClouds';
 export const CloudManagePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    // Subscribing is offered where the app signs a person in (`runtime.signIn`): a subscription
-    // follows the social account, which only the app signs in with. Elsewhere the empty state says so.
-    const isOnMobileApp = runtime.signIn.kind === 'shell';
+    // Subscribing is offered where the host sells in its app store (`runtime.checkout`), which is the
+    // phone app. Elsewhere the empty state says a subscription takes the app.
+    const sellsInStore = runtime.checkout.kind === 'store';
 
     const { clouds, isPendingClouds } = useOwnedClouds();
     const { isLoading: isSceneLoading, hasSubscription, banner } = useCloudManageScene();
@@ -64,10 +64,10 @@ export const CloudManagePage = () => {
                     {t('mypage.cloudManage.emptyTitle')}
                 </span>
                 <span className="text-center text-[14px] text-description">
-                    {isOnMobileApp ? t('mypage.cloudManage.emptyDescription') : t('mypage.subscription.mobileOnly')}
+                    {sellsInStore ? t('mypage.cloudManage.emptyDescription') : t('mypage.subscription.mobileOnly')}
                 </span>
             </div>
-            {isOnMobileApp && (
+            {sellsInStore && (
                 <Button size="lg" fullWidth onClick={() => navigate(ROUTES.subscription.guide)}>
                     {t('mypage.subscription.subscribe')}
                 </Button>

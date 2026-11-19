@@ -3,7 +3,6 @@ import { useEffect, useReducer } from 'react';
 import { runtime } from '@chatic/runtime';
 import { drawVideoFrame, VIDEO_POSTER } from '@chatic/shared';
 
-import { appBridge } from '../../../bridge/appBridge';
 import { base64ToFile } from '../../../bridge/photoLibrary';
 import { VideoFrames, type VideoFrameRequest } from '../lib/videoFrames';
 
@@ -22,9 +21,14 @@ export type VideoFrameTile =
     | { status: 'element'; url: string }
     | { status: 'none' };
 
-/** The shell's frame, as the poster rule asks for it: 0.5 s in, 400 px on the long edge. */
+/**
+ * The shell's frame, as the poster rule asks for it: 0.5 s in, 400 px on the long edge. Asked only where
+ * the host's `files` port has the app's transfer module (`fromApp`).
+ */
 const readShellFrame = async (url: string): Promise<Blob> => {
-    const { data } = await appBridge.readVideoFrame({
+    const transfers = runtime.files.transfers;
+    if (!transfers) throw new Error('No app transfer module reads video frames on this host');
+    const data = await transfers.readVideoFrame({
         url,
         atMs: VIDEO_POSTER.atSeconds * 1000,
         maxEdge: VIDEO_POSTER.maxEdge,
@@ -38,7 +42,7 @@ let shared: VideoFrames | null = null;
 export const getVideoFrames = (): VideoFrames =>
     (shared ??= new VideoFrames({
         cache: getImageCache(),
-        fromApp: () => runtime.files.kind === 'shell',
+        fromApp: () => runtime.files.transfers !== null,
         readShellFrame,
         fetch: (url, init) => fetch(url, init),
         drawFrame: source => drawVideoFrame(source),

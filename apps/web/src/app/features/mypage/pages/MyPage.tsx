@@ -33,15 +33,17 @@ export const MyPage = () => {
     // Approving is the apps' job, on an account: approving hands on a sign-in, and a guest has none of
     // its own to give. A device that is itself signed in through an approval never approves another —
     // it would sign out with its own approver.
-    // Whether this device is an app that signs in and approves pairings is `runtime.signIn`'s answer.
+    // Whether this device approves pairings, and whether its sign-in is the device's own or a tab's, is
+    // `runtime.signIn`'s answer.
     const isPairedSession = runtime.session.useIsPairedSession();
-    const appSignsIn = runtime.signIn.kind === 'shell';
-    const canApprovePairing = pairingEnabled && appSignsIn && !isGuest && !isPairedSession;
+    const { approvesPairing, sessionScope } = runtime.signIn;
+    const canApprovePairing = pairingEnabled && approvesPairing && !isGuest && !isPairedSession;
     // A browser guest has no account to list devices for; an app guest does have its own device.
-    const canListDevices = pairingEnabled && (!isGuest || appSignsIn);
-    // An app guest signs in before buying, so the row waits for an account. A browser guest is handed
-    // to the website like anyone else — it signs the buyer in itself — so the row is there too.
-    const canOpenSubscription = !isGuest || !appSignsIn;
+    const canListDevices = pairingEnabled && (!isGuest || sessionScope === 'device');
+    // Where the host sells in its store, a guest signs in before buying, so the row waits for an
+    // account. Where it hands the buyer to the website, the website signs the buyer in itself, so a
+    // guest gets the row like anyone else (`runtime.checkout`).
+    const canOpenSubscription = !isGuest || runtime.checkout.kind === 'web';
     // The same chrome as the other tabs: once the cards pass under the header it gains its divider
     // and the title steps down, so the three tabs read alike as they scroll.
     const { scrolled, track: trackScroll } = useScrollChrome();
@@ -144,7 +146,7 @@ export const MyPage = () => {
 
                 {/* A secondary device signs out with the app that approved it — said here, where the
                     user looks for who they are signed in as, since nothing else on the screen shows it. */}
-                {pairingEnabled && appSignsIn && isPairedSession && (
+                {pairingEnabled && sessionScope === 'device' && isPairedSession && (
                     <p
                         className="px-1 text-[13px] leading-[1.5] text-description"
                         data-testid="mypage-secondary-device"

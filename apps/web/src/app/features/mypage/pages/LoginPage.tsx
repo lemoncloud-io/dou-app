@@ -1,5 +1,5 @@
 import { Loader2, Mail, MonitorSmartphone, Smartphone } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
 
@@ -10,10 +10,9 @@ import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { logger } from '@chatic/bridges';
-import type { OAuthCodeResult, OAuthLoginResult } from '@chatic/bridge-messages';
+import type { AppMessageData, OAuthCodeResult, OAuthLoginResult } from '@chatic/bridge-messages';
 
 import { PageHeader } from '../../../ui/components';
-import { appBridge, useOnOAuthLogin } from '../../../bridge';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';
 import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
 import { canGoBackInApp, readHistoryIndex } from '../../../navigation';
@@ -39,10 +38,11 @@ export const LoginPage = () => {
     // Development stages only (see the registry) — a way to switch between seeded test accounts.
     const emailLoginEnabled = runtime.settings.useConfigValue<boolean>('feature.auth.emailLogin') === true;
 
-    // Social sign-in is offered where the app signs in (`runtime.signIn`); Apple's where it does on iOS.
-    const signIn = runtime.signIn;
-    const isOnMobileApp = signIn.kind === 'shell';
-    const isIOS = signIn.os === 'ios';
+    // Social sign-in is offered where the app has its own provider sign-in (`runtime.signIn`), with the
+    // providers it lists — Apple's only on iOS.
+    const providerSignIn = runtime.signIn.providerSignIn;
+    const offersSocial = providerSignIn !== null;
+    const offersApple = providerSignIn?.providers.includes('apple') ?? false;
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } =
         runtime.session.useLoginRelaySocial();
 
@@ -103,17 +103,17 @@ export const LoginPage = () => {
     /**
      * The credential comes back HERE, not from the call that started the flow.
      *
-     * `startOAuthLogin` only fires the request; the provider's UI then belongs to the user for as
+     * `providerSignIn.start` only fires the request; the provider's UI then belongs to the user for as
      * long as they need (account chooser, password, 2FA, consent). The request/response pair this
      * replaces gave that a 15s budget and abandoned anything slower — so a user who really did sign
      * in came back to an error toast and the login screen, because their credential arrived to a
-     * request that had already been given up on and was dropped (see `appBridge.startOAuthLogin`).
+     * request that had already been given up on and was dropped.
      *
      * Every outcome lands on this one channel: success carries the credential, a cancel carries
      * `result: null`, and a native failure carries `success: false`. The credential is a provider
      * token from a native app, or a relay code from the virtual shell's relay sign-in.
      */
-    useOnOAuthLogin(message => {
+    const handleOAuthResult = (message: AppMessageData<'OnOAuthLogin'>) => {
         setIsOAuthPending(false);
         setActiveProvider(null);
 
@@ -158,12 +158,22 @@ export const LoginPage = () => {
                 reportOAuthFailure(e);
             }
         })();
+    };
+
+    // Subscribed once for the screen's lifetime and reading the latest handler through a ref, so a
+    // re-render neither drops an answer in flight nor re-subscribes; unmounting unsubscribes.
+    const handleOAuthResultRef = useRef(handleOAuthResult);
+    useEffect(() => {
+        handleOAuthResultRef.current = handleOAuthResult;
     });
+    useEffect(() => providerSignIn?.onResult(message => handleOAuthResultRef.current(message)), [providerSignIn]);
 
     const handleOAuthLogin = (provider: 'google' | 'apple') => {
+        // Only reachable from the social buttons, which render only where `providerSignIn` exists.
+        if (!providerSignIn) return;
         setIsOAuthPending(true);
         setActiveProvider(provider);
-        appBridge.startOAuthLogin(provider);
+        providerSignIn.start(provider);
     };
 
     const isLoading = isOAuthPending || isLoginRelaySocialPending || isCodeExchangePending;
@@ -182,7 +192,7 @@ export const LoginPage = () => {
                     <BrandMark height={40} />
                 </div>
 
-                {isOnMobileApp && (
+                {offersSocial && (
                     <div className="flex flex-col gap-3">
                         <button
                             onClick={() => handleOAuthLogin('google')}
@@ -199,7 +209,7 @@ export const LoginPage = () => {
                             {t('mypageLogin.continueWithGoogle')}
                         </button>
 
-                        {isIOS && (
+                        {offersApple && (
                             <button
                                 onClick={() => handleOAuthLogin('apple')}
                                 disabled={isLoading}
@@ -232,8 +242,8 @@ export const LoginPage = () => {
                  * browser it is the one way in. There the warning is also the only mention of social,
                  * which is why the browser drops the divider and folds "social is app-only" into it.
                  */}
-                <div className={cn('flex flex-col gap-3', isOnMobileApp && 'mt-8')}>
-                    {isOnMobileApp && (
+                <div className={cn('flex flex-col gap-3', offersSocial && 'mt-8')}>
+                    {offersSocial && (
                         <div className="flex items-center gap-3">
                             <span className="h-px flex-1 bg-border" />
                             <span className="text-[13px] text-muted-foreground">{t('mypageLogin.or')}</span>
@@ -242,7 +252,7 @@ export const LoginPage = () => {
                     )}
 
                     <p className="text-center text-[13px] leading-[1.5] text-description">
-                        {isOnMobileApp ? t('mypageLogin.socialFirstNotice') : t('mypageLogin.socialFirstNoticeBrowser')}
+                        {offersSocial ? t('mypageLogin.socialFirstNotice') : t('mypageLogin.socialFirstNoticeBrowser')}
                     </p>
 
                     <button

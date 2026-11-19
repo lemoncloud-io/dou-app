@@ -4,13 +4,11 @@ import { hostProfile } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
-import { appBridge } from '../../../bridge';
 import { summarizeRegisterResult, type RegistrationSummary } from '../lib';
 
 /**
  * Lifecycle of a single "check registration" run.
- * - `no-native`: the `push` port says the app does not receive notifications here (not inside the
- *   app shell), so no push token exists.
+ * - `no-native`: the app holds no push token here (not inside the app shell), so there is none to check.
  * - `no-token`: shell returned no token (permission denied / not yet issued).
  * - `done`: server responded; inspect `summary` for the verdict.
  */
@@ -62,7 +60,8 @@ export const usePushRegistration = (messages: PushRegistrationMessages): UsePush
         setError(null);
         setSummary(null);
 
-        if (runtime.push.kind !== 'shell') {
+        const deviceToken = runtime.push.deviceToken;
+        if (!deviceToken) {
             setState('no-native');
             setError(messages.noNative);
             return;
@@ -70,8 +69,7 @@ export const usePushRegistration = (messages: PushRegistrationMessages): UsePush
 
         setState('checking');
         try {
-            const response = await appBridge.fetchFcmToken();
-            const nextToken = response?.data?.token ?? null;
+            const nextToken = await deviceToken.fetch();
             setToken(nextToken);
 
             if (!nextToken) {

@@ -1,15 +1,23 @@
 import { cameraAccess } from './cameraAccess';
 
 const requestPermission = jest.fn();
-jest.mock('./appBridge', () => ({
-    appBridge: { requestPermission: (...args: unknown[]) => requestPermission(...args) },
-}));
+// The host's camera permission, swapped per test; `null` is a host that does not ask for the camera itself.
+let mockCameraPermission: { request: () => Promise<unknown> } | null = null;
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
+        get media() {
+            return { ...testing.browserMedia(), cameraPermission: mockCameraPermission };
+        },
+    });
+});
 
-const answer = (status: string) => requestPermission.mockResolvedValue({ data: { permission: 'CAMERA', status } });
+const answer = (status: string) => requestPermission.mockResolvedValue(status);
 
 beforeEach(() => {
     jest.clearAllMocks();
     cameraAccess.reset();
+    mockCameraPermission = { request: () => requestPermission() };
 });
 
 describe('cameraAccess', () => {
@@ -17,7 +25,14 @@ describe('cameraAccess', () => {
         answer('GRANTED');
 
         await expect(cameraAccess.request()).resolves.toBe('granted');
-        expect(requestPermission).toHaveBeenCalledWith('CAMERA');
+        expect(requestPermission).toHaveBeenCalledTimes(1);
+    });
+
+    it('answers unknown without asking where the host has no camera permission to give', async () => {
+        mockCameraPermission = null;
+
+        await expect(cameraAccess.request()).resolves.toBe('unknown');
+        expect(requestPermission).not.toHaveBeenCalled();
     });
 
     it.each(['DENIED', 'BLOCKED'])('reads %s as a refusal', async status => {

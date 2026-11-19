@@ -276,9 +276,10 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     // deep-link / push-tap into it would have nothing to switch to. Re-derive and
                     // re-cache it first (idempotent: a no-op when already cached), mirroring the
                     // foreground-push recovery in InvitedCloudDurabilityRunner so both push entry
-                    // points behave identically, behind the same `push` port check: only where the app
-                    // receives notifications. Relay-backed, so it runs after the handshake gate.
-                    if (cid && !isRelayPush && runtime.push.kind === 'shell') {
+                    // points behave identically, behind the same condition: only where the app hands
+                    // the page its notifications, the native WebView: a browser has no native cache to
+                    // evict from. Relay-backed, so it runs after the handshake gate.
+                    if (cid && !isRelayPush && runtime.push.notifications) {
                         await runtime.data.recoverInvitedCloudIfMissing(cid);
                         roomOpenTrace.mark(roomChannelId, 'recover_done');
                     }

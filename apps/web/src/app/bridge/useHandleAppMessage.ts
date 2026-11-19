@@ -65,17 +65,11 @@ export const useOnFetchProducts = (handler: (message: AppMessageData<'OnFetchPro
 // consumers even before that — these four messages are request/response, so
 // callers read the resolved promise rather than subscribing to an event.
 
-export const useOnOAuthLogin = (handler: (message: AppMessageData<'OnOAuthLogin'>) => void) =>
-    useHandleAppMessage('OnOAuthLogin', handler);
-
 export const useOnFetchFcmToken = (handler: (message: AppMessageData<'OnFetchFcmToken'>) => void) =>
     useHandleAppMessage('OnFetchFcmToken', handler);
 
 export const useOnNavigate = (handler: (message: AppMessageData<'OnNavigate'>) => void) =>
     useHandleAppMessage('OnNavigate', handler);
-
-export const useOnSubWebViewClosed = (handler: (message: AppMessageData<'OnSubWebViewClosed'>) => void) =>
-    useHandleAppMessage('OnSubWebViewClosed', handler);
 
 export const useOnFetchPreference = (handler: (message: AppMessageData<'OnFetchPreference'>) => void) =>
     useHandleAppMessage('OnFetchPreference', handler);

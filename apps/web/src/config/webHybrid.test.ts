@@ -246,8 +246,10 @@ describe('web-hybrid — the other host ports', () => {
     it.each(['shell', 'browser'] as const)('lets %s pick and move files when the host says so', async method => {
         const { publishHost } = await start({ facts: phoneFacts({ media: method, files: method }) });
 
-        expect(published(publishHost).media).toEqual({ kind: method });
-        expect(published(publishHost).files).toEqual({ kind: method });
+        expect(published(publishHost).media).toMatchObject({ kind: method });
+        expect(published(publishHost).media.picker === null).toBe(method === 'browser');
+        expect(published(publishHost).files.kind).toBe(method);
+        expect(published(publishHost).files.transfers === null).toBe(method === 'browser');
     });
 
     it('publishes the shell domains the host declared, with the phone platform behind the shell', async () => {
@@ -270,7 +272,9 @@ describe('web-hybrid — the other host ports', () => {
             read: key => (key === 'port.media' ? { value: 'media.browser', origin: 'local' } : undefined),
         });
 
-        expect(published(publishHost).media).toEqual({ kind: 'browser' });
-        expect(published(publishHost).files).toEqual({ kind: 'shell' });
+        expect(published(publishHost).media).toMatchObject({ kind: 'browser' });
+        expect(published(publishHost).media.picker).toBeNull();
+        expect(published(publishHost).files.kind).toBe('shell');
+        expect(published(publishHost).files.transfers).not.toBeNull();
     });
 });

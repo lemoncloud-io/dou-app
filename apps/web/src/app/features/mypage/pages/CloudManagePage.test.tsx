@@ -13,11 +13,11 @@ let scene = { isLoading: false, hasSubscription: true, banner: undefined as stri
 let quota = { used: 0, limit: 2 as number | null };
 let onNative = true;
 
-// Who signs a person in, as the host's `signIn` port says.
+// How the host sells, as the `checkout` port says: the store's in the app, the website's in a browser.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
-        get signIn() {
-            return { kind: onNative ? 'shell' : 'browser', os: null };
+        get checkout() {
+            return onNative ? { kind: 'store', store: 'apple' } : { kind: 'web', open: jest.fn() };
         },
     })
 );

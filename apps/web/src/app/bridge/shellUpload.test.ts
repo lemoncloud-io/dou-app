@@ -1,40 +1,54 @@
-const mockIsNative = jest.fn();
-const mockRequest = jest.fn();
+const mockFiles = jest.fn();
 // Who moves files, as the host's `files` port says.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         get files() {
-            return { kind: mockIsNative() ? 'shell' : 'browser' };
+            return mockFiles();
         },
     })
 );
-jest.mock('@chatic/bridges', () => ({
-    logger: { info: jest.fn() },
-    webClient: { request: (...args: unknown[]) => mockRequest(...args), onEvent: jest.fn(() => () => undefined) },
-}));
 
-import { pageUploadPut } from '../../config/upload';
-import { getShellPut, syncShellTransfers } from './shellUpload';
+import { browserFiles } from '@chatic/runtime/testing';
+
+import { getShellFilePut, getShellPut, syncShellTransfers } from './shellUpload';
+
+const appTransfers = () => ({
+    putShellFile: jest.fn(),
+    syncUploads: jest.fn(async () => undefined),
+    openFile: jest.fn(),
+    saveFile: jest.fn(),
+    readVideoFrame: jest.fn(),
+});
 
 describe('shellUpload', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    it('uses the page PUT in a browser and asks the shell nothing', async () => {
-        mockIsNative.mockReturnValue(false);
+    it("uses the port's PUT in a browser, with no shell-file sender and nothing to catch up on", async () => {
+        const files = browserFiles();
+        mockFiles.mockReturnValue(files);
 
-        expect(getShellPut()).toBe(pageUploadPut);
-        await syncShellTransfers();
-        expect(mockRequest).not.toHaveBeenCalled();
+        expect(getShellPut()).toBe(files.put);
+        expect(getShellFilePut()).toBeUndefined();
+        await expect(syncShellTransfers()).resolves.toBeUndefined();
     });
 
-    it('uses the native transfer module inside the app, one instance for the page', async () => {
-        mockIsNative.mockReturnValue(true);
-        mockRequest.mockResolvedValue({ data: { transfers: [] } });
+    it("uses the app's transfer module where the app moves files", async () => {
+        const transfers = appTransfers();
+        const put = jest.fn();
+        mockFiles.mockReturnValue({ ...browserFiles(), kind: 'shell', put, transfers });
 
-        const first = getShellPut();
-        expect(first).not.toBe(pageUploadPut);
-        expect(getShellPut()).toBe(first);
+        expect(getShellPut()).toBe(put);
+        expect(getShellFilePut()).toBe(transfers.putShellFile);
         await syncShellTransfers();
-        expect(mockRequest).toHaveBeenCalledWith({ type: 'ListFileTransfers', data: {} });
+        expect(transfers.syncUploads).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads the port on every call, so a port published later is the one used', () => {
+        mockFiles.mockReturnValue(browserFiles());
+        expect(getShellFilePut()).toBeUndefined();
+
+        const transfers = appTransfers();
+        mockFiles.mockReturnValue({ ...browserFiles(), kind: 'shell', transfers });
+        expect(getShellFilePut()).toBe(transfers.putShellFile);
     });
 });

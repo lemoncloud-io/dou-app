@@ -1,14 +1,16 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 const mockIsNative = jest.fn();
+const mockFetchToken = jest.fn();
 // The platform fallback, read only when the device store has none: no shell injected one here.
 jest.mock('@chatic/bridges', () => ({ hostProfile: () => ({ globals: {} }) }));
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         push: {
             useRegisterDeviceTokenMutation: jest.fn(),
-            get kind() {
-                return mockIsNative() ? 'shell' : 'browser';
+            // The app shell holds the device's push token; a browser has none.
+            get deviceToken() {
+                return mockIsNative() ? { fetch: mockFetchToken } : null;
             },
         },
         session: {
@@ -17,12 +19,10 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('../../../hooks/useDeviceInfo', () => ({ useDeviceInfo: jest.fn() }));
-jest.mock('../../../bridge', () => ({ appBridge: { fetchFcmToken: jest.fn() } }));
 
 import { runtime } from '@chatic/runtime';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
-import { appBridge } from '../../../bridge';
 import { usePushRegistration, type PushRegistrationMessages } from './usePushRegistration';
 
 // The hook takes its user-visible text from the caller (PushScreen's i18n table); these stand in
@@ -36,7 +36,6 @@ const MESSAGES: PushRegistrationMessages = {
 const mockUseMutation = runtime.push.useRegisterDeviceTokenMutation as jest.Mock;
 const mockUseDynamicDeviceId = runtime.session.useDynamicDeviceId as jest.Mock;
 const mockUseDeviceInfo = useDeviceInfo as jest.Mock;
-const mockFetchFcmToken = appBridge.fetchFcmToken as jest.Mock;
 
 const mockMutateAsync = jest.fn();
 
@@ -60,14 +59,14 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
             await result.current.check();
         });
 
-        expect(mockFetchFcmToken).not.toHaveBeenCalled();
+        expect(mockFetchToken).not.toHaveBeenCalled();
         expect(result.current.state).toBe('no-native');
         expect(result.current.error).toBeTruthy();
     });
 
     it('토큰이 없으면 no-token 상태가 된다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockFetchFcmToken.mockResolvedValue({ data: { token: '' } });
+        mockFetchToken.mockResolvedValue('');
 
         const { result } = renderHook(() => usePushRegistration(MESSAGES));
         await act(async () => {
@@ -80,7 +79,7 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
 
     it('토큰이 있으면 register-device를 호출하고 서버 결과를 요약한다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockFetchFcmToken.mockResolvedValue({ data: { token: 'tok-123' } });
+        mockFetchToken.mockResolvedValue('tok-123');
         mockMutateAsync.mockResolvedValue({
             deviceId: 'dev-1',
             endpoint: 'arn:endpoint',
@@ -111,7 +110,7 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
 
     it('firebase id를 해석할 수 없으면 installId 없이 등록한다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockFetchFcmToken.mockResolvedValue({ data: { token: 'tok-123' } });
+        mockFetchToken.mockResolvedValue('tok-123');
         mockMutateAsync.mockResolvedValue({ deviceId: 'dyn-device-1', endpoint: 'arn:endpoint', status: 'active' });
         mockUseDynamicDeviceId.mockReturnValue({
             deviceId: 'dyn-device-1',
@@ -129,7 +128,7 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
 
     it('등록 호출이 실패하면 error 상태가 된다', async () => {
         mockIsNative.mockReturnValue(true);
-        mockFetchFcmToken.mockResolvedValue({ data: { token: 'tok-123' } });
+        mockFetchToken.mockResolvedValue('tok-123');
         mockMutateAsync.mockRejectedValue(new Error('boom'));
 
         const { result } = renderHook(() => usePushRegistration(MESSAGES));

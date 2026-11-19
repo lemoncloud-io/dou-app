@@ -14,7 +14,7 @@ let mockScope: string | null = 'anyHttps';
 let mockSelection = { selectedCloudId: 'c1', selectedSiteId: 'p1' };
 let mockInvited: { id: string; cid?: string; name?: string }[] = [];
 let mockOwned: { id: string; name?: string }[] = [];
-let mockClosedHandler: ((message: unknown) => void) | undefined;
+let mockClosedHandler: ((closed: unknown) => void) | undefined;
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
@@ -46,6 +46,16 @@ jest.mock('@chatic/runtime', () =>
             useSessionIdentity: () => ({ userId: 'acct-1' }),
             useRuntimeProfile: () => ({ userName: 'Kim' }),
         },
+        links: {
+            subWebView: {
+                onClosed: (listener: (closed: unknown) => void) => {
+                    mockClosedHandler = listener;
+                    return () => {
+                        if (mockClosedHandler === listener) mockClosedHandler = undefined;
+                    };
+                },
+            },
+        },
     })
 );
 jest.mock('../../../hooks', () => ({
@@ -58,11 +68,6 @@ jest.mock('../../../hooks/useCloudCatalog', () => ({
 }));
 jest.mock('../../../bridge/subWebView', () => ({
     openSubWebView: (...args: unknown[]) => mockOpenSubWebView(...args),
-}));
-jest.mock('../../../bridge/useHandleAppMessage', () => ({
-    useOnSubWebViewClosed: (handler: (message: unknown) => void) => {
-        mockClosedHandler = handler;
-    },
 }));
 jest.mock('../../../bridge/shellCapabilities', () => ({ useSubWebViewOpenScope: () => mockScope }));
 
@@ -105,7 +110,7 @@ const editMiniApp = (name: string) => {
 
 const closeView = (viewId: string, result?: unknown) =>
     act(() => {
-        mockClosedHandler?.({ type: 'OnSubWebViewClosed', success: true, data: { viewId, reason: 'page', result } });
+        mockClosedHandler?.({ viewId, reason: 'page', result });
     });
 
 /** Open the hub (the next open request), and have it close asking for `result`. */

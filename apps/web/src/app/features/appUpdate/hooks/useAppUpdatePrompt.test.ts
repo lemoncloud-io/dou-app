@@ -6,7 +6,7 @@ jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({
         get appShell() {
-            const storeUpdate = { check: () => mockCheckAppUpdate(), openStore: jest.fn() };
+            const storeUpdate = { check: () => mockCheckAppUpdate(), openStore: () => mockOpenStore() };
             return { ...browserAppShell(), storeUpdate: mockIsNative() ? storeUpdate : null };
         },
         settings: { set: (...args: unknown[]) => mockSet(...args), useConfigValue: () => dismissedUpdateVersion },
@@ -20,11 +20,6 @@ jest.mock('@chatic/bridges', () => ({
 
 const mockCheckAppUpdate = jest.fn();
 const mockOpenStore = jest.fn();
-jest.mock('../../../bridge', () => ({
-    appBridge: {
-        openStore: (...args: unknown[]) => mockOpenStore(...args),
-    },
-}));
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 let foregroundHandler: () => void = () => {};
@@ -167,7 +162,7 @@ describe('useAppUpdatePrompt', () => {
         expect(result.current.open).toBe(true);
     });
 
-    it('goToStore는 appBridge.openStore를 호출하고 local 레인 쓰기도 함께 한 뒤 다이얼로그를 닫는다', async () => {
+    it('goToStore opens the store listing, records the version as dismissed on the local lane and closes the dialog', async () => {
         mockIsNative.mockReturnValue(true);
         mockCheckAppUpdate.mockResolvedValue(updateResponse('1.2.0'));
 

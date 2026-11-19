@@ -4,9 +4,30 @@ import { ImageCache } from '../lib/imageCache';
 import type { FrameOutcome, VideoFrameRequest, VideoFrames } from '../lib/videoFrames';
 
 import { setImageCacheForTest } from './useCachedImages';
-import { setVideoFramesForTest, useVideoFrames } from './useVideoFrames';
+import { getVideoFrames, setVideoFramesForTest, useVideoFrames } from './useVideoFrames';
 
-jest.mock('@chatic/runtime', () => require('@chatic/runtime/testing').fakeRuntimeModule({ files: { kind: 'shell' } }));
+const readVideoFrame = jest.fn();
+let appMovesFiles = true;
+// Who reads a frame, as the host's `files` port says: the app's transfer module, or the page.
+jest.mock('@chatic/runtime', () => {
+    const testing = require('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
+        get files() {
+            const files = testing.browserFiles();
+            return appMovesFiles ? { ...files, kind: 'shell', transfers: { readVideoFrame } } : files;
+        },
+    });
+});
+
+// The real frame maker's constructor, recorded: what the page hands it is what is under test below.
+const madeWith: Array<{ fromApp: () => boolean; readShellFrame: (url: string) => Promise<Blob> }> = [];
+jest.mock('../lib/videoFrames', () => ({
+    VideoFrames: class {
+        constructor(deps: (typeof madeWith)[number]) {
+            madeWith.push(deps);
+        }
+    },
+}));
 
 const cache = new ImageCache({
     store: null,
@@ -98,5 +119,40 @@ describe('useVideoFrames', () => {
 
         expect(frames.request).toHaveBeenCalledTimes(1);
         expect(cancels).toEqual([]);
+    });
+});
+
+describe('getVideoFrames — the frame maker the page hands the host', () => {
+    beforeEach(() => {
+        madeWith.length = 0;
+        readVideoFrame.mockReset();
+        setVideoFramesForTest(null);
+    });
+    afterEach(() => {
+        appMovesFiles = true;
+        setVideoFramesForTest(frames);
+    });
+
+    it("reads a frame through the app's transfer module, as the poster rule asks", async () => {
+        readVideoFrame.mockResolvedValue({ base64: btoa('jpg'), contentType: 'image/jpeg', width: 4, height: 3 });
+        getVideoFrames();
+        const [deps] = madeWith;
+
+        expect(deps.fromApp()).toBe(true);
+        const frame = await deps.readShellFrame('https://s3/v1');
+
+        expect(readVideoFrame).toHaveBeenCalledWith({ url: 'https://s3/v1', atMs: 500, maxEdge: 400 });
+        expect(frame.type).toBe('image/jpeg');
+        expect(frame.size).toBe(3);
+    });
+
+    it('leaves the frame to the page where the host has no transfer module, asked at call time', async () => {
+        getVideoFrames();
+        const [deps] = madeWith;
+        appMovesFiles = false;
+
+        expect(deps.fromApp()).toBe(false);
+        await expect(deps.readShellFrame('https://s3/v1')).rejects.toThrow();
+        expect(readVideoFrame).not.toHaveBeenCalled();
     });
 });

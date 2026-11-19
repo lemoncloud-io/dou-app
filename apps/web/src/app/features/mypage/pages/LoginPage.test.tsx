@@ -38,9 +38,10 @@ jest.mock('@chatic/runtime', () =>
             useLoginRelaySocial: () => ({ mutateAsync: loginRelaySocial, isPending: false }),
             createCredentialsByProvider: (...a: unknown[]) => createCredentialsByProvider(...a),
         },
-        // Who signs a person in, as the host's `signIn` port says.
+        // The app's own provider sign-in, as the host's `signIn` port carries it; a browser tab has none.
         get signIn() {
-            return { kind: mockIsNative ? 'shell' : 'browser', os: null };
+            const tab = require('@chatic/runtime/testing').browserSignIn();
+            return mockIsNative ? { ...tab, providerSignIn: mockProviderSignIn } : tab;
         },
         settings: {
             useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),
@@ -63,17 +64,24 @@ type OAuthResultMessage = {
     error?: { code: string };
 };
 
-const startOAuthLogin = jest.fn();
 let deliverOAuthResult: ((message: OAuthResultMessage) => void) | null = null;
+const unsubscribeOAuthResult = jest.fn();
 
 // The screen fires the request and SUBSCRIBES for the result, so a test plays native by capturing
-// the subscriber and calling it — there is no promise to resolve.
-jest.mock('../../../bridge', () => ({
-    appBridge: { startOAuthLogin: (...a: unknown[]) => startOAuthLogin(...a) },
-    useOnOAuthLogin: (handler: (message: OAuthResultMessage) => void) => {
-        deliverOAuthResult = handler;
-    },
-}));
+// the subscriber and calling it — there is no promise to resolve. One object for every render, as the
+// runtime's port is, so the screen's subscription lives as long as it does.
+const mockProviderSignIn = {
+    providers: ['google'],
+    start: jest.fn(),
+    onResult: jest.fn((listener: (message: OAuthResultMessage) => void) => {
+        deliverOAuthResult = listener;
+        return () => {
+            unsubscribeOAuthResult();
+            if (deliverOAuthResult === listener) deliverOAuthResult = null;
+        };
+    }),
+    credential: jest.fn(),
+};
 
 jest.mock('../../../ui/components', () => ({ PageHeader: () => null }));
 jest.mock('../components', () => ({ AppleIcon: () => null, GoogleIcon: () => null }));
@@ -136,13 +144,32 @@ describe('LoginPage — 네이티브 OAuth 결과 수신', () => {
 
         tapGoogle();
 
-        expect(startOAuthLogin).toHaveBeenCalledWith('google');
+        expect(mockProviderSignIn.start).toHaveBeenCalledWith('google');
         // Tapping alone does nothing — the result arrives on a separate channel.
         expect(navigate).not.toHaveBeenCalled();
 
         await nativeAnswers(GOOGLE_CREDENTIAL);
 
         expect(navigate).toHaveBeenCalledWith(-1);
+    });
+
+    it('subscribes once for its lifetime and unsubscribes when it unmounts', async () => {
+        const { unmount } = render(<LoginPage />);
+
+        tapGoogle();
+        await nativeAnswers({ success: true, data: { result: null } });
+
+        expect(mockProviderSignIn.onResult).toHaveBeenCalledTimes(1);
+        expect(unsubscribeOAuthResult).not.toHaveBeenCalled();
+        unmount();
+        expect(unsubscribeOAuthResult).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not listen for a sign-in result in a browser, which has no provider sign-in', () => {
+        mockIsNative = false;
+        render(<LoginPage />);
+
+        expect(mockProviderSignIn.onResult).not.toHaveBeenCalled();
     });
 
     it('네이티브가 실패를 보고하면 이동하지 않는다', async () => {

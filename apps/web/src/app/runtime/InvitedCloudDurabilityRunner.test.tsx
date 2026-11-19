@@ -2,12 +2,22 @@ import { act, render } from '@testing-library/react';
 
 import { runtime } from '@chatic/runtime';
 
-import { useOnReceiveNotification } from '../bridge';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
 
 const cloudRepository = { name: 'cloud-repository' };
 
 const mockIsNativeApp = jest.fn();
+type ReceivePayload = { notification?: { data?: Record<string, unknown> } };
+let captured: ((payload: ReceivePayload) => void) | undefined;
+// What the app hands the page: the one listener the runner subscribed.
+const mockNotifications = {
+    onReceive: (listener: typeof captured) => {
+        captured = listener;
+        return () => {
+            captured = undefined;
+        };
+    },
+};
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
@@ -16,73 +26,80 @@ jest.mock('@chatic/runtime', () =>
             recoverInvitedCloudIfMissing: jest.fn(),
         },
         push: {
-            get kind() {
-                return mockIsNativeApp() ? 'shell' : 'browser';
+            get notifications() {
+                return mockIsNativeApp() ? mockNotifications : null;
             },
         },
     })
 );
-jest.mock('../bridge', () => ({ useOnReceiveNotification: jest.fn() }));
-
-type ReceiveMessage = { data?: { notification?: { data?: Record<string, unknown> } } };
-let captured: ((message: ReceiveMessage) => void) | undefined;
 
 const recoverMock = runtime.data.recoverInvitedCloudIfMissing as jest.Mock;
 const isNativeAppMock = mockIsNativeApp;
 
 /** Hands the runner a foreground push, the way the bridge would. */
 const deliver = (data: Record<string, unknown>) => {
-    if (!captured) throw new Error('the runner did not subscribe to OnReceiveNotification');
-    captured({ data: { notification: { data } } });
+    if (!captured) throw new Error('the runner did not subscribe to the notifications');
+    captured({ notification: { data } });
 };
 
 /** A foreground push whose cloud id rides in the `payload` JSON string, as chat pushes send it. */
 const receive = (cid: string) => deliver({ payload: JSON.stringify({ cid, channelId: 'ch1' }) });
 
+const mount = () => render(<InvitedCloudDurabilityRunner />);
+
 beforeEach(() => {
     jest.clearAllMocks();
+    captured = undefined;
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ cloud: cloudRepository });
     isNativeAppMock.mockReturnValue(true);
     recoverMock.mockResolvedValue(undefined);
-    (useOnReceiveNotification as jest.Mock).mockImplementation((handler: typeof captured) => {
-        captured = handler;
-    });
-    render(<InvitedCloudDurabilityRunner />);
 });
 
 describe('InvitedCloudDurabilityRunner', () => {
     it('recovers the cloud a foreground push names', () => {
+        mount();
         receive('cloud_1');
         expect(recoverMock).toHaveBeenCalledWith('cloud_1');
     });
 
     it('reads a cid flattened onto the push data too', () => {
+        mount();
         deliver({ cid: 'cloud_1' });
         expect(recoverMock).toHaveBeenCalledWith('cloud_1');
     });
 
     it("does not ask delegate-cloud for a relay-origin push's '#'", () => {
+        mount();
         receive('#');
         expect(recoverMock).not.toHaveBeenCalled();
     });
 
     it("does not recover the relay under the app's own name for it either", () => {
+        mount();
         receive('default');
         expect(recoverMock).not.toHaveBeenCalled();
     });
 
     it('does nothing for a push with no cloud id', () => {
+        mount();
         deliver({ channelId: 'ch1' });
         expect(recoverMock).not.toHaveBeenCalled();
     });
 
-    it('does nothing outside the native app', () => {
+    it('does not listen outside the native app, where nothing hands the page a notification', () => {
         isNativeAppMock.mockReturnValue(false);
-        receive('cloud_1');
+        mount();
+        expect(captured).toBeUndefined();
         expect(recoverMock).not.toHaveBeenCalled();
     });
 
+    it('stops listening once unmounted', () => {
+        mount().unmount();
+        expect(captured).toBeUndefined();
+    });
+
     it('recovers a cloud once while a recovery for it is in flight', async () => {
+        mount();
         let settle!: () => void;
         recoverMock.mockReturnValueOnce(new Promise<void>(resolve => (settle = resolve)));
 
@@ -98,6 +115,7 @@ describe('InvitedCloudDurabilityRunner', () => {
     });
 
     it('lets a cloud be recovered again after a recovery that failed', async () => {
+        mount();
         recoverMock.mockRejectedValueOnce(new Error('cache read failed'));
 
         receive('cloud_1');

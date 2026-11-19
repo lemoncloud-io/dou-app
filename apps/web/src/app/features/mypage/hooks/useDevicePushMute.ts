@@ -15,10 +15,10 @@ import { haptics } from '../../../bridge/haptics';
  * authoritative `muted` echo on success (the write doubles as a read) or rolls back with an error
  * toast on failure.
  *
- * `isSupported` mirrors the push-registration gate (useDeviceTokenRegistration): only a native
- * shell (CHATIC_APP_PLATFORM, as the host profile kept it) registers a push device with pushes-api,
- * so outside a shell the write would always 404 — the UI disables the toggle instead. It is the
- * platform rather than the `push` port because that gate is the platform too.
+ * `isSupported` mirrors the push-registration gate (useDeviceTokenRegistration): a push device is
+ * registered with pushes-api only where the `push` port has a device token and the shell injected
+ * its platform (CHATIC_APP_PLATFORM, as the host profile kept it), so anywhere else the write would
+ * always 404 — the UI disables the toggle instead.
  */
 export const useDevicePushMute = () => {
     const { device } = runtime.data.useRuntimeRepositories();
@@ -28,7 +28,7 @@ export const useDevicePushMute = () => {
     const setPushMuted = (value: boolean) => runtime.settings.set('ui.pushMuted', value, { lane: 'local' });
 
     // Shell globals are injected before the web app boots, so the profile's boot value is stable.
-    const isSupported = !!hostProfile().globals.CHATIC_APP_PLATFORM;
+    const isSupported = runtime.push.deviceToken !== null && !!hostProfile().globals.CHATIC_APP_PLATFORM;
 
     const mutation = useMutation({
         mutationFn: (muted: boolean) => device.updateRemotePushMute(muted),

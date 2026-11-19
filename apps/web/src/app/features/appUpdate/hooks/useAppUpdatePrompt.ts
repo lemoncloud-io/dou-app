@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { runtime } from '@chatic/runtime';
-import { appBridge } from '../../../bridge';
+
 import { useAppUpdateStatus } from './useAppUpdateStatus';
 
 /**
@@ -23,8 +23,10 @@ export const useAppUpdatePrompt = () => {
         runtime.settings.set('ui.dismissedUpdateVersion', latestVersion, { lane: 'local' });
     }, [latestVersion]);
 
+    // The dialog opens only on an update the frame's store reported, so a frame with no store to send the
+    // person to never reaches this.
     const goToStore = useCallback(() => {
-        appBridge.openStore();
+        runtime.appShell.storeUpdate?.openStore();
         runtime.settings.set('ui.dismissedUpdateVersion', latestVersion, { lane: 'local' });
     }, [latestVersion]);
 

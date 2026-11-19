@@ -609,7 +609,7 @@ export const useChatImageAttach = ({
      */
     const openCamera = () => {
         hidePanel();
-        if (runtime.media.kind !== 'shell' || cameraAccess.isGranted()) {
+        if (runtime.media.cameraPermission === null || cameraAccess.isGranted()) {
             cameraRef.current?.click();
             return;
         }
@@ -841,7 +841,7 @@ export const useChatImageAttach = ({
     // Nothing to draw and nothing on its way: the library refused, cannot be read, or holds nothing.
     const recentKnownEmpty = !recentPending && recentItems.length === 0;
     const recent =
-        runtime.media.kind === 'shell' || inGrid ? (
+        runtime.media.photoLibrary !== null || inGrid ? (
             <RecentPhotoStrip
                 title={t('chat.attach.recentTitle')}
                 seeAllLabel={t('chat.attach.seeAll')}

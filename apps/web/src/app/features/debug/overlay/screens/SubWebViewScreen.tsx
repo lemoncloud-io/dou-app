@@ -1,8 +1,9 @@
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import type { SubWebViewParams } from '@chatic/bridge-messages';
+import { runtime } from '@chatic/runtime';
 
-import { appBridge, openSubWebView, useOnSubWebViewClosed } from '../../../../bridge';
+import { appBridge, openSubWebView } from '../../../../bridge';
 import { shellCapabilities } from '../../../../bridge/shellCapabilities';
 import { Section } from '../../components/Section';
 import { useSubWebViewScreenStrings } from '../../i18n/screens/SubWebViewScreen';
@@ -56,14 +57,19 @@ export const SubWebViewScreen = () => {
         []
     );
 
-    useOnSubWebViewClosed(({ data }) => {
-        append({
-            ok: true,
-            text: strings.closed(data.viewId, data.reason),
-            ...(data.result !== undefined ? { result: JSON.stringify(data.result) } : {}),
-        });
-        setLastViewId(current => (current === data.viewId ? null : current));
-    });
+    // Every close is logged, not only the views this screen opened. A host with no sub web view has none.
+    useEffect(
+        () =>
+            runtime.links.subWebView?.onClosed(closed => {
+                append({
+                    ok: true,
+                    text: strings.closed(closed.viewId, closed.reason),
+                    ...(closed.result !== undefined ? { result: JSON.stringify(closed.result) } : {}),
+                });
+                setLastViewId(current => (current === closed.viewId ? null : current));
+            }),
+        [append, strings]
+    );
 
     const fail = (e: unknown) => {
         const error = e as { code?: string; message?: string };

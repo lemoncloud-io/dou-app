@@ -24,10 +24,11 @@ let syncing: Promise<void> | null = null;
 
 /**
  * Whether the shell can hold a download for this page. Two features start them through the one
- * registry: a document download where the app moves files (the host's `files` port), and saving or
- * sharing a photo or video wherever the handshake allows image export. Either is reason to catch up.
+ * registry: a document download where the app moves files (the host's `files` port has a transfer
+ * module), and saving or sharing a photo or video wherever the handshake allows image export. Either is
+ * reason to catch up. Both are read on each call: the handshake can land after the page starts.
  */
-const shellMayHoldDownloads = (): boolean => runtime.files.kind === 'shell' || shellCapabilities.canExportImages();
+const shellMayHoldDownloads = (): boolean => runtime.files.transfers !== null || shellCapabilities.canExportImages();
 
 /**
  * Catches up with downloads the shell finished while this page was away. Where the shell can hold none

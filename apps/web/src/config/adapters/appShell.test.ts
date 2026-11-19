@@ -18,6 +18,7 @@ jest.mock('../../app/bridge/appBridge', () => ({
         fetchBadgeBase: jest.fn(),
         checkAppUpdate: jest.fn(),
         openStore: jest.fn(),
+        openSettings: jest.fn(),
     },
 }));
 
@@ -95,6 +96,12 @@ describe('webAppShell — the phone app', () => {
         phone().storeUpdate?.openStore();
 
         expect(bridge.openStore).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens its own page in the OS settings', () => {
+        phone().systemSettings?.open();
+
+        expect(bridge.openSettings).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -202,6 +209,7 @@ describe('webAppShell — a browser tab', () => {
             appIcon: null,
             storeUpdate: null,
             selfUpdate: null,
+            systemSettings: null,
         });
     });
 });
