@@ -2,23 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, render, screen, waitFor } from '@testing-library/react';
 
-// The card only talks to the shell: the `links` port gates the fetch and
-// `webClient.request` returns the unfurled metadata. Faking the module lets the
-// test drive whatever the shell "found" for a URL.
-// Who takes the page's links, as the host's `links` port says.
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({ links: { kind: 'shell' } })
-);
-vi.mock('@chatic/bridges', () => ({
-    webClient: { request: vi.fn() },
-}));
-
-import { webClient } from '@chatic/bridges';
+// The card only talks to the shell: the `links` port's preview reader returns the
+// unfurled metadata. Faking it lets the test drive whatever the shell "found" for a URL.
+const requestMock = vi.hoisted(() => vi.fn());
+vi.mock('@chatic/runtime', async () => {
+    const testing = await import('@chatic/runtime/testing');
+    return testing.fakeRuntimeModule({
+        links: { ...testing.browserLinks(), kind: 'shell', linkPreview: { fetch: requestMock } },
+    });
+});
 
 import { LinkPreviewCard } from './LinkPreviewCard';
-
-// Cast once so the tests can drive the mock without `any`.
-const requestMock = webClient.request as unknown as ReturnType<typeof vi.fn>;
 
 // The module-level metadata cache is not exported and persists for the whole
 // file, so every test uses its own URL rather than trying to reset it.
@@ -32,13 +26,11 @@ describe('LinkPreviewCard', () => {
 
     it('renders no <img> even when the shell supplies an og:image URL', async () => {
         requestMock.mockResolvedValue({
-            data: {
-                success: true,
-                url: 'https://example.com/with-image',
-                title: 'Has an og:image',
-                siteName: 'Example',
-                imageUrl: 'https://cdn.example.com/og.png',
-            },
+            success: true,
+            url: 'https://example.com/with-image',
+            title: 'Has an og:image',
+            siteName: 'Example',
+            imageUrl: 'https://cdn.example.com/og.png',
         });
 
         const { container } = render(<LinkPreviewCard url="https://example.com/with-image" />);
@@ -53,12 +45,10 @@ describe('LinkPreviewCard', () => {
 
     it('shows the source name and the title as the link text', async () => {
         requestMock.mockResolvedValue({
-            data: {
-                success: true,
-                url: 'https://example.com/report',
-                title: 'Quarterly report',
-                siteName: 'Example Docs',
-            },
+            success: true,
+            url: 'https://example.com/report',
+            title: 'Quarterly report',
+            siteName: 'Example Docs',
         });
 
         render(<LinkPreviewCard url="https://example.com/report" />);
@@ -69,7 +59,7 @@ describe('LinkPreviewCard', () => {
     });
 
     it('renders nothing when the shell finds no usable metadata', async () => {
-        requestMock.mockResolvedValue({ data: { success: false } });
+        requestMock.mockResolvedValue({ success: false });
 
         const { container } = render(<LinkPreviewCard url="https://example.com/empty" />);
         // This card renders null both before and after the shell answers, so waiting
