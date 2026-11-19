@@ -31,7 +31,6 @@ export const relaySession: SessionAccess = {
     exchange: (provider, code) =>
         exchangeSignInCode(
             {
-                isAuthenticated: () => runtime.session.getIdentityContext().isAuthenticated,
                 loginGuest: deviceId => {
                     if (!session) throw new Error('session runtime not booted');
                     return session.loginGuest(deviceId);
