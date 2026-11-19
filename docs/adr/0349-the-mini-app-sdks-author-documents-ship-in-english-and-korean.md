@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-19 · Implemented: `feat/chatic-apps-sdk-korean-docs`
 > · Scope: `libs/chatic-apps-sdk/README.ko.md`, `docs/guide/README.ko.md`,
 > `docs/guide/agent-rules.ko.md`, `src/docs.pairing.test.ts`, `vite.config.mts`, `package.publish.json`;
-> `scripts/check-doc-korean.js`
+> `scripts/check-doc-korean.js`, `AGENTS.md` § Language
 > · The module doc is [libs/chatic-apps-sdk docs](../../libs/chatic-apps-sdk/docs/README.md)
 
 ## Context
@@ -46,8 +46,8 @@ translating the limits and error codes themselves, or not reading them.
 - A Korean author reads the reference, the guide and the AI rules in Korean, and can hand
   `AGENTS.ko.md` to a tool that is prompted in Korean.
 - The repository's language rule is no longer English-only without exception for documents, but the
-  exception is a path, so whether a file is covered needs no judgement. `AGENTS.md` § Language still
-  describes the translation resources as the one exception; it should name this one too.
+  exception is a path, so whether a file is covered needs no judgement. `AGENTS.md` § Language names
+  it beside the translation resources.
 - The tests of `scripts/check-doc-korean.js` cover the exception and that Korean outside it still
   fails. They run with `scripts/jest.config.js`, which no CI job runs today.
 
