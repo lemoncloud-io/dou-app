@@ -18,8 +18,8 @@ import { IN_APP_PAGES } from '../consts';
 
 /**
  * The user-facing home for experiments: features that work but are not ready to be on for
- * everyone. Each is a `labs` config key, off by default, with a hand-built switch here, together in one
- * Experiments card with the sub WebView pages that are ready to be tried. The debug
+ * everyone. Each is a `labs` config key, off by default, with a hand-built switch in the Experiments
+ * card. The sub WebView pages that are ready to be tried are rows of the Mini apps card. The debug
  * unlock belongs here too, because it is an opt-in developer experiment rather than an app setting.
  */
 export const LabPage = () => {
@@ -28,10 +28,10 @@ export const LabPage = () => {
     const placeInvite = usePlaceInviteExperiment();
     const chatInputLock = useChatInputLockExperiment();
     const { toast } = useToast();
-    // While the mini app tab is on, the cloud's mini apps live there and this card steps aside. Read as a
-    // setting only: this feature does not reach into the tab's own code.
+    // While the mini app tab is on, the cloud's mini apps live there and the card keeps only DoU's own
+    // pages. Read as a setting only: this feature does not reach into the tab's own code.
     const miniAppTab = runtime.settings.useConfigValue<boolean>('feature.miniApp.tab') === true;
-    const experimentPages = IN_APP_PAGES.filter(page => page.surface === 'experiment');
+    const miniAppPages = IN_APP_PAGES.filter(page => page.surface === 'miniApp');
     const debugPages = IN_APP_PAGES.filter(page => page.surface === 'debug');
     const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(
         runtime.settings.get<string>('debug.entryCode')
@@ -107,8 +107,12 @@ export const LabPage = () => {
                             />
                         }
                     />
-                    {/* A page, not a switch: there is nothing to turn on, so it is a row that opens. */}
-                    {experimentPages.map(page => (
+                </MenuCard>
+
+                {/* DoU's own pages for everyone; the cloud's launcher only where the app opens any https
+                    page, never on the relay home, and not while the mini app tab holds it. */}
+                <MiniAppCard withLauncher={!miniAppTab}>
+                    {miniAppPages.map(page => (
                         <ListRow
                             key={page.id}
                             title={t(page.titleKey)}
@@ -117,10 +121,7 @@ export const LabPage = () => {
                             onClick={() => void openPage(page.appId)}
                         />
                     ))}
-                </MenuCard>
-
-                {/* Only where the app opens any https page, and never on the relay home. */}
-                {!miniAppTab && <MiniAppCard />}
+                </MiniAppCard>
 
                 {isDebugMode && (
                     <MenuCard title={t('mypage.lab.developerTools')}>

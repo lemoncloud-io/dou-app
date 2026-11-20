@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Children, type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { MINI_APP_LINK_LIMIT, MINI_APP_LINK_NAME_MAX, type MiniAppLink } from '@chatic/shared';
@@ -13,19 +13,37 @@ import {
     useMiniAppLauncher,
 } from '../hooks/useMiniAppLauncher';
 
+type MiniAppCardProps = {
+    /**
+     * DoU's own pages, as rows: listed wherever the card is drawn, under the hub row when there is one.
+     * An array of rows (or nothing): an empty array means no pages, while a `false` or fragment child counts as one.
+     */
+    children?: ReactNode;
+    /** False while the mini app tab is on: the cloud's mini apps live there, and only DoU's pages stay. */
+    withLauncher: boolean;
+};
+
 /**
- * The Lab's mini app card. Drawn only in an app whose handshake says it opens any https page
- * (`subWebViewOpenScope: 'anyHttps'`): an older app and a browser tab never see it, because they would
- * refuse the owner's link. The launcher's own hooks run only past that check.
+ * The Lab's mini app card. DoU's own pages (`children`) are rows in it for everyone. The launcher —
+ * the hub row and an owner's links — joins them only in an app whose handshake says it opens any https
+ * page (`subWebViewOpenScope: 'anyHttps'`): an older app and a browser tab would refuse the owner's
+ * link. The launcher's own hooks run only past that check. With neither, nothing is drawn.
  */
-export const MiniAppCard = () => {
+export const MiniAppCard = ({ children, withLauncher }: MiniAppCardProps) => {
     const scope = useSubWebViewOpenScope();
-    return scope === 'anyHttps' ? <MiniAppSection /> : null;
+    if (withLauncher && scope === 'anyHttps') return <MiniAppSection>{children}</MiniAppSection>;
+    return <PagesOnlyCard>{children}</PagesOnlyCard>;
+};
+
+const PagesOnlyCard = ({ children }: { children?: ReactNode }) => {
+    const { t } = useTranslation();
+    if (Children.count(children) === 0) return null;
+    return <MenuCard title={t('mypage.lab.miniApp.title')}>{children}</MenuCard>;
 };
 
 const chevron = <IconChevronRight className="size-[18px] text-description" />;
 
-const MiniAppSection = () => {
+const MiniAppSection = ({ children }: { children?: ReactNode }) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const launcher = useMiniAppLauncher({
@@ -34,7 +52,8 @@ const MiniAppSection = () => {
             if (outcome === 'outside') toast({ title: t('mypage.lab.miniApp.openedOutside') });
         },
     });
-    if (!launcher.available) return null;
+    // The Default Cloud (Home) has no launcher, but DoU's own pages still open from there.
+    if (!launcher.available) return <PagesOnlyCard>{children}</PagesOnlyCard>;
     const count = launcher.links.length;
 
     return (
@@ -49,6 +68,7 @@ const MiniAppSection = () => {
                     trailing={chevron}
                     onClick={launcher.openHub}
                 />
+                {children}
                 {launcher.isOwner &&
                     launcher.links.map(link => (
                         <ListRow

@@ -18,22 +18,22 @@ plus feedback's, whose screen lives in another feature.
 
 ### The four depths
 
-| Page                                                            | Route (`ROUTES.mypage.*`)        | What it is                                                                    |
-| --------------------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------- |
-| `MyPage`                                                        | `/mypage`                        | the tab — identity, subscription, clouds                                      |
-| `LoginPage`                                                     | `/mypage/login`                  | sign-in, reached when a guest taps the hub card                               |
-| `EmailLoginPage`                                                | `/mypage/login/email`            | email + password sign-in, development stages only (`feature.auth.emailLogin`) |
-| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links                                              |
-| `ProfileEditPage`                                               | `/mypage/edit`                   | the account (relay) profile: name and photo                                   |
-| `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them                                  |
-| `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places                               |
-| `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only                                       |
-| `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, its recovery email, and where it is released               |
-| `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                                                    |
-| `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout                                   |
-| `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                                                 |
-| `LabPage`                                                       | `/mypage/settings/lab`           | experiments, the mini app card, dev-only sub WebView pages, the debug unlock  |
-| `PolicyListPage` · `TermsPage` · `PrivacyPage` · `LicensesPage` | `/mypage/policy/*`               | the legal text                                                                |
+| Page                                                            | Route (`ROUTES.mypage.*`)        | What it is                                                                          |
+| --------------------------------------------------------------- | -------------------------------- | ----------------------------------------------------------------------------------- |
+| `MyPage`                                                        | `/mypage`                        | the tab — identity, subscription, clouds                                            |
+| `LoginPage`                                                     | `/mypage/login`                  | sign-in, reached when a guest taps the hub card                                     |
+| `EmailLoginPage`                                                | `/mypage/login/email`            | email + password sign-in, development stages only (`feature.auth.emailLogin`)       |
+| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links                                                    |
+| `ProfileEditPage`                                               | `/mypage/edit`                   | the account (relay) profile: name and photo                                         |
+| `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them                                        |
+| `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places                                     |
+| `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only                                             |
+| `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, its recovery email, and where it is released                     |
+| `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                                                          |
+| `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout                                         |
+| `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                                                       |
+| `LabPage`                                                       | `/mypage/settings/lab`           | experiments, the mini app card with DoU's games, debug-only pages, the debug unlock |
+| `PolicyListPage` · `TermsPage` · `PrivacyPage` · `LicensesPage` | `/mypage/policy/*`               | the legal text                                                                      |
 
 `/mypage` is the only one of these the floating nav appears on: `UnifiedLayout` matches that path
 exactly, so every depth below it is nav-free without needing its own opt-out.
@@ -52,9 +52,10 @@ cloud management, and the policy screens.
 - **The sub WebView pages.** The pages the Lab opens in the sub WebView are `IN_APP_PAGES` in
   `consts/inAppPages.ts`, games so far but not only games. Each names an app id, resolved for this
   build's stage by the same list a page link uses (`bridge/subWebViewApps.ts`), and a tap opens it with
-  `openSubWebView` and that id — so what the page shares names the app. Each names its `surface`: an `experiment` page is a row in Lab's Experiments card
-  for everyone (Raise DoU, Closer Word), a `debug` page stays in the "In-app" card that only debug mode draws
-  (Echo) — the flask's unlock shows it in a store build too; LOCAL and DEV start unlocked. What the
+  `openSubWebView` and that id — so what the page shares names the app. Each names its `surface`: a
+  `miniApp` page is a row in Lab's Mini apps card for everyone (Raise DoU, Closer Word, Sky 45 — see
+  [The mini app card](#the-mini-app-card)), a `debug` page stays in the "In-app" card that only debug
+  mode draws (Echo) — the flask's unlock shows it in a store build too; LOCAL and DEV start unlocked. What the
   sub WebView is, and what it allows, is the phone shell's
   ([sub-webview.md](../../../../mobile/docs/webview/sub-webview.md)).
 - **What an experiment does.** Lab holds the switch; the feature behind it, and the rule that reads
@@ -237,17 +238,15 @@ key on the registry's `labs` surface — default off, and declared killable by t
 draws a hand-built row for it in the **Experiments** card. No renderer walks the registry; a new
 experiment adds its own row, as a `user` key does in Settings.
 
-Everything sits in the one **Experiments** card, so a person sees the whole list in one place; a row is
-a switch, or — for a sub WebView page — an arrow that opens it. Today there are four:
+Every switch sits in the one **Experiments** card, so a person sees the whole list in one place.
+DoU's own sub WebView pages are not here: they have nothing to turn on, and are rows of the Mini apps
+card below. Today there are two:
 
 - **Place invite** (`feature.placeInvite`), through `usePlaceInviteExperiment` — see
   [invite/place-invite.md](../invite/place-invite.md).
 - **Chat input lock** (`feature.chatInputLock`), through `useChatInputLockExperiment` — see
   [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment). Turning it on
   only adds a row to each room's settings; no room is locked until that row says so.
-- **Raise DoU** (`두유 키우기` in Korean), the raising game, a sub WebView page with nothing to turn on — see above.
-- **Closer Word** (`가까운 말` in Korean), a word-guessing game played in a chat room the page itself
-  asks for, a sub WebView page with nothing to turn on — see above.
 
 A row's subtitle is one short line because `ListRow` truncates a subtitle to a single line, and there
 is no note under the card: what a switch does is the feature's own doc.
@@ -258,20 +257,35 @@ local storage, so another device of the same person starts with it off.
 
 ### The mini app card
 
-While `feature.miniApp.tab` is on — local and development builds — the card is not drawn: the cloud's
-mini apps live in the mini app tab instead, kept on the server
-([miniapps](../miniapps/README.md)). The Lab reads only that setting, not the tab's code. Production,
-where the setting is off, keeps the card as described here.
+Below the Experiments card, **Mini apps** holds two things. DoU's own pages are rows in it for
+everyone, wherever the card is drawn — on any app, on the Default Cloud, and with the mini app tab on:
 
-Below the Experiments card, **Mini apps** opens DoU's hub for the active cloud in the sub WebView,
+- **Raise DoU** (`두유 키우기` in Korean), the raising game.
+- **Closer Word** (`가까운 말` in Korean), a word-guessing game played in a chat room the page itself
+  asks for.
+- **Sky 45** (`두유, 하늘에서 45초` in Korean), a short dodging game with no data or permissions.
+
+They are `IN_APP_PAGES` with `surface: 'miniApp'`, handed to the card as its rows by `LabPage`, which
+also opens them (see "The sub WebView pages" above); with the launcher they sit right under its **Open
+mini apps** row, above the owner's rows. The rest of the card is the cloud's launcher, drawn
+around those rows only where the bullets below allow; with no launcher and no page the card is not
+drawn at all.
+
+While `feature.miniApp.tab` is on — local and development builds — the launcher is left out and only
+DoU's pages stay: the cloud's mini apps live in the mini app tab instead, kept on the server
+([miniapps](../miniapps/README.md)). The Lab reads only that setting, not the tab's code. Production,
+where the setting is off, keeps the launcher as described here.
+
+The launcher opens DoU's hub for the active cloud in the sub WebView,
 with who is looking and the cloud's mini apps, and the hub opens the one chosen
 (`components/MiniAppCard.tsx`, `hooks/useMiniAppLauncher.ts`). It is the phone's half of the feature
 the desktop web carries in its settings, and behaves the same way:
 
 - **Where it shows.** Only in an app whose handshake says `subWebViewOpenScope: 'anyHttps'`: an older
-  app would refuse an owner's link, and a browser tab has no sub WebView. Never on the Default Cloud
-  (Home), which is the relay's — no owner, no mini apps.
-- **The way in.** One **Open mini apps** row, for everyone, always opens the hub
+  app would refuse an owner's link, and a browser tab has no sub WebView. The launcher is never
+  drawn on the Default Cloud (Home), which is the relay's — no owner, no mini apps; DoU's own pages
+  still are.
+- **The way in.** One **Open mini apps** row, first in the card, for everyone, always opens the hub
   (`https://apps.chatic.io/`, `apps-dev` in a development build). The hub gets `MiniAppLaunchParams`:
   the cloud, the open place, my id _in this cloud_ and name (the place nick, else the cloud profile's
   name), `isOwner`, and `miniApps` — each mini app's id, name and host, never its address. A second
