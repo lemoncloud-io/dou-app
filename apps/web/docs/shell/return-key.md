@@ -4,6 +4,8 @@ The soft keyboard's return key behaves the same way on every screen, and no scre
 itself. `useReturnKeyFlow` (`app/ui/hooks`) is mounted once in `AppRuntime`, next to the focus
 auto-scroll, and decides both what the key reads and what pressing it does.
 
+A tap on empty space closes the keyboard too; that is [keyboard-dismiss.md](./keyboard-dismiss.md).
+
 It applies only where typing happens on the soft keyboard (`typesOnSoftKeyboard` in `app/utils`, the
 same device test the chat composer uses to decide whether Enter sends). A hardware keyboard — a
 desktop browser, the iOS app on a Mac, an iPad on a trackpad — keeps the browser's own Enter, and a
