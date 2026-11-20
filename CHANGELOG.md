@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-20] - No version updates
+
+### Features
+
+- (web,perf,admin) measure where chat image loads spend their time
+
 ## [2026-11-19] - root@0.169.0, @chatic/web@0.97.0
 
 ### Features
