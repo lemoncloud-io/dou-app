@@ -42,7 +42,7 @@ export type { FeatureGraphNode } from './featureGraph';
 export { canGoBackInApp, readHistoryIndex } from './stackDepth';
 
 // 3 — going back.
-export { useStackBack } from './useStackBack';
+export { backIsTheAppsToSpend, useStackBack } from './useStackBack';
 export type { BackInput, BackOutcome } from './useStackBack';
 
 // Observation: one router subscription, mounted by the composition root, feeding the tracker the

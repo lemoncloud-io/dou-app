@@ -1,6 +1,6 @@
 # ADR-0108: One module owns the history stack, and depth is the router's index
 
-> Status: Accepted · Decided: 2026-09-21 · Implemented: `feat/navigation-stack` · Scope: `apps/web/src/app/navigation/**` · `apps/web/src/app/hooks/useBackHandler.ts` · `apps/web/src/app/bridge/navigation/**` · `apps/web/src/app/features/invite/accept/**` · `apps/web/src/app/ui/transientUi.ts`
+> Status: Accepted · Decided: 2026-09-21 · the shell contract it left out of scope amended by [ADR-0362](./0362-the-page-alone-decides-android-back.md) · Implemented: `feat/navigation-stack` · Scope: `apps/web/src/app/navigation/**` · `apps/web/src/app/hooks/useBackHandler.ts` · `apps/web/src/app/bridge/navigation/**` · `apps/web/src/app/features/invite/accept/**` · `apps/web/src/app/ui/transientUi.ts`
 
 ## Context
 

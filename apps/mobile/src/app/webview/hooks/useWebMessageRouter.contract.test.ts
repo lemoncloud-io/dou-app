@@ -88,6 +88,7 @@ jest.mock('./useAppStateHandler', () => ({
 }));
 jest.mock('../../bridge', () => ({ BackNavigationBridge: { setCanGoBack: jest.fn() } }));
 jest.mock('./useAndroidBack', () => ({ useAndroidBack: jest.fn() }));
+jest.mock('../../services', () => ({ subWebViewService: { current: () => null, subscribe: () => () => undefined } }));
 
 const VOCABULARY = Object.keys(WEB_MESSAGE_RESPONSE_TYPE) as WebMessageType[];
 const UNSUPPORTED = Object.keys(MOBILE_UNSUPPORTED);

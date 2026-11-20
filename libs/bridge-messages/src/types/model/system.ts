@@ -252,6 +252,12 @@ export type RequestPermissionPayload = {
 export type SetCanGoBackPayload = {
     /** When true, in-webview routing is handled first */
     canGoBack: boolean;
+    /**
+     * True when `canGoBack` is the page's whole answer — an open overlay, or an entry of its own history
+     * to rewind to — so the shell decides from it alone and stops adding the WebView's own history.
+     * Absent from a page before bridge 2.34.0, whose `canGoBack` covered open overlays only.
+     */
+    includesHistory?: boolean;
 };
 
 /** [Request] Notify native when a scroll event occurs inside the webview */

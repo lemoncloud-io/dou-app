@@ -111,23 +111,60 @@ describe('useBackHandler — the back press judgement', () => {
         expect(navigate).not.toHaveBeenCalled();
     });
 
-    // What the shell is told, which is NOT yet the judgement above: `setCanGoBack` still reports
-    // dialog state only, so the shell keeps OR-ing in the WebView's own history to decide whether to
-    // exit. Pinned deliberately — the step that makes the web the single source of that answer has to
-    // come back and change this expectation, and a silent divergence is what it is here to prevent.
-    it('reports only dialog state to the shell, not the depth', () => {
-        isNativeValue = true;
-        withStackDepth(3);
+    // What the shell is told is the judgement above, history included: the shell decides from it alone,
+    // so a press on the first screen is the shell's (it may exit) and one on a pushed screen is ours.
+    describe('what the shell is told', () => {
+        beforeEach(() => {
+            isNativeValue = true;
+        });
 
-        renderHook(() => useBackHandler());
+        it('reports a screen with an entry behind it as the page to spend', () => {
+            withStackDepth(3);
 
-        expect(mockBackGesture.setCanGoBack).toHaveBeenCalledWith(false);
+            renderHook(() => useBackHandler());
 
-        jest.clearAllMocks();
-        openDialog();
-        renderHook(() => useBackHandler());
+            expect(mockBackGesture.setCanGoBack).toHaveBeenLastCalledWith(true);
+        });
 
-        expect(mockBackGesture.setCanGoBack).toHaveBeenCalledWith(true);
+        // The regression this report exists for: after the sign-in by code rewinds two entries, the app
+        // is on its first screen, and a press there must go to the shell rather than be dropped here.
+        it('reports the first screen as the shell to spend', () => {
+            withStackDepth(0);
+
+            renderHook(() => useBackHandler());
+
+            expect(mockBackGesture.setCanGoBack).toHaveBeenLastCalledWith(false);
+        });
+
+        it('reports an open dialog as the page to spend, even on the first screen', () => {
+            withStackDepth(0);
+            openDialog();
+
+            renderHook(() => useBackHandler());
+
+            expect(mockBackGesture.setCanGoBack).toHaveBeenLastCalledWith(true);
+        });
+
+        // A rewind lands later; until it does, a quick second press on the screen it is going to must
+        // already be the shell's, so the report goes out with the press rather than with the landing.
+        it('reports again at once after a rewind, counting the rewind in flight', () => {
+            withStackDepth(1);
+            const { result } = renderHook(() => useBackHandler());
+            jest.clearAllMocks();
+
+            expect(result.current.handleNativeBack()).toBe('navigated');
+
+            expect(mockBackGesture.setCanGoBack).toHaveBeenLastCalledWith(false);
+        });
+
+        it('tells nothing to a frame with no back gesture', () => {
+            isNativeValue = false;
+            withStackDepth(3);
+
+            renderHook(() => useBackHandler());
+
+            expect(mockBackGesture.setCanGoBack).not.toHaveBeenCalled();
+        });
     });
 
     // The outcome is the point of this refactor: the third branch used to be an unnamed early

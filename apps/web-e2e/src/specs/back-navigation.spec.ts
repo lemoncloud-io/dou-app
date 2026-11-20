@@ -6,28 +6,33 @@ import { expect, test } from '../support/test';
 
 /**
  * The Android back button inside the app (`useBackHandler`, `navigation/useStackBack`, and the shell's
- * `useAndroidBack`). The shell forwards a press to the page as `OnBackPressed` whenever the WebView
- * can go back or the page has said it wants the press — and the page says so (`SetCanGoBack`) only
- * while an overlay is open: the WebView's own history covers the rest. The page spends a press on the
- * topmost overlay first, then on one history entry, and below the app's first entry it does nothing,
- * so back never walks into a screen from before the app loaded.
+ * `useAndroidBack`). The page tells the shell (`SetCanGoBack`, marked `includesHistory`) whether a
+ * press is its own to spend — an overlay is open, or the app has an entry behind the current screen —
+ * and the shell forwards a press as `OnBackPressed` on that answer alone. The page spends a press on
+ * the topmost overlay first, then on one history entry; on the app's first entry with nothing open the
+ * press is the shell's, so back never walks into a screen from before the app loaded.
  *
  * The press itself is Android's: the iOS shell never sends `OnBackPressed`, and back there is the
  * WebView's own swipe through its history. So the scenarios about how a press is spent run on the
  * Android project only, and the one about where back lands runs on both.
  */
 
-/** The page's latest answer to "is an overlay open", as the shell last heard it. */
+/** The page's latest answer to "is this press mine to spend", as the shell last heard it. */
 const lastCanGoBack = (shell: FakeShell) => shell.received('SetCanGoBack').at(-1)?.data.canGoBack;
+/** Whether that answer covers the page's history too, so the shell decides from it alone. */
+const lastIncludesHistory = (shell: FakeShell) => shell.received('SetCanGoBack').at(-1)?.data.includesHistory;
 
 test('back closes the open overlay first, then leaves the room for home', async ({ page, shell, shellPlatform }) => {
     test.skip(shellPlatform !== 'android', 'the back button is Android-only');
     await page.goto('/');
+    await expect.poll(() => lastCanGoBack(shell)).toBe(false);
     await page.getByText(GUEST_NICK).first().click();
     await expect(composer(page)).toBeVisible();
-    await expect.poll(() => lastCanGoBack(shell)).toBe(false);
+    // The room sits one entry above home, so the press is the page's even with nothing open.
+    await expect.poll(() => lastCanGoBack(shell)).toBe(true);
+    expect(lastIncludesHistory(shell)).toBe(true);
 
-    // An overlay opens: the page claims the next press.
+    // An overlay opens: the page claims the next press for it.
     await page.getByRole('button', { name: 'Open attachments' }).click();
     const menu = page.getByRole('dialog');
     await expect(menu).toBeVisible();
@@ -35,13 +40,15 @@ test('back closes the open overlay first, then leaves the room for home', async 
 
     pressBack(shell);
     await expect(menu).toBeHidden();
-    await expect.poll(() => lastCanGoBack(shell)).toBe(false);
     // The press went to the overlay, not to history.
     await expect(composer(page)).toBeVisible();
+    await expect.poll(() => lastCanGoBack(shell)).toBe(true);
 
     pressBack(shell);
     await expect(home(page)).toBeVisible();
     expect(await historyIndex(page)).toBe(0);
+    // Back on the first screen with nothing open, the next press is the shell's.
+    await expect.poll(() => lastCanGoBack(shell)).toBe(false);
 });
 
 test('back on the app first screen is not spent', async ({ page, shell, shellPlatform }) => {

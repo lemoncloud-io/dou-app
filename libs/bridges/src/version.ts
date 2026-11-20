@@ -91,7 +91,10 @@
 //         which they answer RATE_LIMITED; while the app is in the background, each of its runtime streams
 //         keeps only its latest event, delivered on return; and a page whose process died closes the
 //         view as `system`.
-export const BRIDGE_VERSION = '2.33.0' as const;
+// 2.34.0: SetCanGoBack (web -> app) carries `includesHistory`; with it, `canGoBack` counts the page's
+//         own history as well as its open overlays, and the Android shell decides back from it alone
+//         instead of adding the WebView's history, which lags or misses the page's pushState entries.
+export const BRIDGE_VERSION = '2.34.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

@@ -35,16 +35,26 @@ export interface BackInput {
 }
 
 /**
+ * Whether a back press now would be the app's to spend — an overlay takes it, or there is an entry
+ * behind this one to rewind to.
+ *
+ * This is what the page reports to a frame with a back button (`appShell.backGesture`), and it is
+ * exactly the negation of `useStackBack`'s `not-consumed`: the two come from this one expression so
+ * that the frame never sends a press the page then drops, and never keeps one the page would have
+ * spent. They were once computed apart — the Android shell read the WebView's own history instead —
+ * and that drift is what left back doing nothing on the app's first screen after a sign-in by code.
+ */
+export const backIsTheAppsToSpend = (hasBlockingOverlay: boolean): boolean => hasBlockingOverlay || canGoBackInApp();
+
+/**
  * Decides what a back request does, and reports which branch it took.
  *
  * The order is unchanged from what `useBackHandler` has always done: an open overlay wins, then a
  * rewindable entry, then nothing. What changes is that the third branch now has a name a caller
  * can act on.
  *
- * **`not-consumed` is exactly `!hasBlockingOverlay && !canGoBackInApp()`**, which is the negation
- * of what the shell report will compute. That is deliberate and is the reason both live in this
- * module: the two answers cannot drift apart if they come from one expression. Today they are
- * computed in two places and do drift.
+ * **`not-consumed` is exactly `!backIsTheAppsToSpend(hasBlockingOverlay)`**, the negation of what
+ * the page reports to the shell.
  *
  * Note an overlay that refuses the press still returns `overlay-closed`. The name describes the
  * branch, not the outcome of the close: what matters to every caller is that the overlay layer
