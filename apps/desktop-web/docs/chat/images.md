@@ -1,9 +1,12 @@
 # Images, videos and documents
 
 The composer takes images, MP4 videos and documents from the "+" button, a drop, or a paste. They
-wait in a tray, and they go out with the message: the text first, then one attachment message with
-the files. In the feed images are tiles that open a full-image viewer; a video and a voice file play
-in place, and a document is a card that saves it.
+wait in a tray, and they go out with the message: one message carrying the files, with whatever was
+typed as its caption (and the mention picked for it). Text and files sent together are one post, so
+it is saved and replied to as one, as on the phone; the row draws the text above the files. The text
+waits for the uploads and fails with them, and a retry sends both. In the feed images are tiles that
+open a full-image viewer; a video and a voice file play in place, and a document is a card that saves
+it.
 
 The send itself is the runtime's, shared with apps/web: `data.useSendImages`, documented in
 [`libs/runtime/docs/data/image-send.md`](../../../../libs/runtime/docs/data/image-send.md).

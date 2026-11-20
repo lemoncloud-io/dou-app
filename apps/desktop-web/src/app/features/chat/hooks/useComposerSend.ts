@@ -19,14 +19,13 @@ export interface ComposerSendTarget {
 }
 
 /**
- * What the composer's send button does in a room or a thread: the text goes out as a message at the
- * press, and the tray's pictures as one image message after it.
+ * What the composer's send button does in a room or a thread: text alone goes out as a message at the
+ * press; the tray's files go as one message, carrying whatever was typed with them as its caption.
  *
- * That order is the design's — text above its pictures. It also falls out of the wire: the image
- * message reaches the server only once its uploads are done, so it takes the higher number. The two
- * fail apart: a picture send that fails keeps its own Failed row, and the text is already out.
+ * The text waits for the uploads and fails with them: a failed send keeps one Failed row, and its
+ * retry sends both.
  *
- * Both are addressed to the room as it was at the press, whichever room is on screen when they land.
+ * Either is addressed to the room as it was at the press, whichever room is on screen when they land.
  * The bytes go through the host's files port, which on desktop is the page's own PUT: the desktop shell
  * has no native transfer.
  *
@@ -49,6 +48,12 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
 
     const send = useCallback(
         (content: string, files: readonly File[], mention?: ChatMentionBody) => {
+            if (files.length > 0) {
+                // A rejection here means the row could not even be written; a failed upload resolves
+                // and shows on its row instead.
+                void sendImages([...files], { content, ...(mention ? { mention } : {}) }).catch(failed);
+                return;
+            }
             if (content) {
                 void sendMessage(cid, {
                     channelId,
@@ -59,9 +64,6 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
                     ...(mention ? { mention } : {}),
                 }).catch(failed);
             }
-            // A rejection here means the row could not even be written; a failed upload resolves and
-            // shows on its row instead.
-            if (files.length > 0) void sendImages([...files]).catch(failed);
         },
         [cid, channelId, parentId, sendImages, sendMessage, failed]
     );

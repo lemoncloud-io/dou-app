@@ -33,9 +33,9 @@ then runs, so a socket that stays down fails the send as before, retryably. `wai
 answers at once when the socket is already up. Desktop passes none and starts at once.
 
 `sendImages` resolves once the send has settled, sent or failed — every message of it, when it sends
-one per file. A caller that has to follow the pictures with another message awaits it. Desktop sends
-the composer's text first, at the press, and the pictures after it, so it awaits nothing. The mobile
-app's attach panel puts the text in the photo message instead (`content`).
+one per file. A caller that has to follow the pictures with another message awaits it. Neither
+composer does: the mobile app's attach panel and desktop's tray both put the typed text in the files'
+message (`content`), and await nothing.
 
 **Everything is addressed to `cid`, the room's own cloud** — the channel row's `cid`, never the
 selection. Each pending entry remembers it, every repository call goes through
@@ -180,7 +180,7 @@ one-each send on the page until a reload; it still holds its own message.
 `sendImages(files, { content })` sends text in the photo message itself: one message carrying the
 text and the pictures, which the mobile feed and desktop already draw. It is the mobile app's
 caption — the composer's text, when the composer's send button sends what was picked in the attach
-panel. Desktop sends its text as a message of its own and passes none.
+panel — and desktop's, when its tray holds files.
 
 - **Bundled, the one message carries it. One each, the first message only**, so the text is said
   once, with the first picture, and the others go as pictures alone. A single file is one message
@@ -197,7 +197,7 @@ panel. Desktop sends its text as a message of its own and passes none.
   message are written as a failed row of their own (§ What happens on send, § Shell files); the text
   went out with the message they were left out of, so retrying that row sends the files alone.
 - **Trimmed, and blank is none.** Text that trims to nothing writes exactly the row a send without
-  it writes, so a caller that never passes it — desktop — sends as before.
+  it writes, so a caller that never passes it — a forward — sends as before.
 - **A retried first message keeps its text.** A one-each pick whose first message fails and is
   retried later lands after the pictures sent meanwhile, as any retried message does (above), and
   its text lands with it.
