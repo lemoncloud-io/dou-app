@@ -55,7 +55,12 @@ export interface MiniAppHttpGateway {
     create(body: RelayMiniAppCreateBody): Promise<RelayMiniAppView>;
     /** PUT {relay}/miniapps/{id} — only the fields in the body change. */
     update(id: string, body: RelayMiniAppUpdateBody): Promise<RelayMiniAppView>;
-    /** DELETE {relay}/miniapps/{id} — a soft delete; `destroy` is not sent (the relay takes it only locally). */
+    /**
+     * DELETE {relay}/miniapps/{id} — a soft delete; `destroy` is not sent (the relay takes it only locally).
+     * The body is `{}` on purpose: the request is signed as if it carried `{}`, and a DELETE sent with
+     * no body at all fails the relay gateway's signature check — a refusal that reaches a browser
+     * without CORS headers, so as a bare network error.
+     */
     remove(id: string): Promise<RelayMiniAppView>;
 }
 
@@ -84,9 +89,10 @@ export const createMiniAppHttpGateway = (exec: HttpGatewayExecutor): MiniAppHttp
             }),
 
         remove: id =>
-            exec.executeSignedRelayRequest<RelayMiniAppView>({
+            exec.executeSignedRelayRequest<RelayMiniAppView, Record<string, never>>({
                 method: 'DELETE',
                 baseURL: `${relay()}/miniapps/${id}`,
+                body: {},
             }),
     };
 };
