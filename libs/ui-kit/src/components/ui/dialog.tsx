@@ -60,12 +60,23 @@ const APP_WIDTH_CAP = 'max-w-[var(--app-width,100%)] mx-auto';
  * panel itself; a dialog that wants one region to give way first (a list, not the whole panel)
  * lays itself out as a flex column and lets that region shrink. `dvh`, not `vh`, so a mobile
  * browser's collapsing toolbar is not counted as room. A caller that uses this variant as a
- * full-height screen passes `max-h-none`.
+ * full-height screen passes `max-h-none`, and `top-[50%]` so that `CENTRE_ABOVE_KEYBOARD` does not
+ * lift the whole screen by half the keyboard.
  */
-export const VIEWPORT_HEIGHT_CAP = 'max-h-[calc(100dvh-2rem)] overflow-y-auto';
+export const VIEWPORT_HEIGHT_CAP = 'max-h-[calc(100dvh-2rem-var(--keyboard-height,0px))] overflow-y-auto';
+
+/**
+ * The vertical centre of a centred card: the middle of the part of the window the soft keyboard
+ * leaves uncovered. The app's WebView does not shrink for the keyboard — the shell injects its
+ * height as `--keyboard-height` instead — so a card centred on the whole window put its field and
+ * buttons behind the keyboard on Android. Half the keyboard's height up keeps the card centred
+ * above it, and `VIEWPORT_HEIGHT_CAP` takes the keyboard off the height the card may use. A host
+ * that never sets the variable (a browser, the desktop app) gets the plain `50%`.
+ */
+export const CENTRE_ABOVE_KEYBOARD = 'top-[calc(50%-var(--keyboard-height,0px)/2)]';
 
 const dialogVariants = {
-    default: `${VIEWPORT_HEIGHT_CAP} p-6 left-[50%] top-[50%] w-full [--dialog-width:min(311px,calc(100%_-_48px),var(--app-width))] max-w-[var(--dialog-width,min(32rem,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg`,
+    default: `${VIEWPORT_HEIGHT_CAP} ${CENTRE_ABOVE_KEYBOARD} p-6 left-[50%] w-full [--dialog-width:min(311px,calc(100%_-_48px),var(--app-width))] max-w-[var(--dialog-width,min(32rem,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg`,
     fullscreen: `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`,
     /** No placement or entrance of its own — the caller's `className` positions the panel. */
     bare: '',

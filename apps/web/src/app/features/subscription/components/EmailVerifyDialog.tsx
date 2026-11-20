@@ -7,7 +7,6 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/ui-kit';
 import { FloatingButton, ModalTopBar, ScreenLayout, TextField } from '@chatic/web-ui-kit';
 
-import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { InlineAction } from '../../../ui/components/InlineAction';
 import { formatCountdown, isValidEmail, VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../../utils';
 import { isEmailVerifyRefusal } from '../lib';
@@ -160,23 +159,22 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail,
         <Dialog open={open} onOpenChange={next => !next && handleClose()}>
             {/* `max-w-app` for the same reason PhoneVerifyScreen states it: this is a full-screen
                 surface on the notice variant, which otherwise sizes it to one card width. A
-                full-screen dialog follows the column, and `max-h-none` lifts the card's viewport cap. */}
-            <DialogContent className="h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none" hideClose>
+                full-screen dialog follows the column, `max-h-none` lifts the card's viewport cap, and
+                `top-[50%]` stops the variant lifting a card above the keyboard — the screen's own
+                layout does that for its button. */}
+            <DialogContent className="top-[50%] h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none" hideClose>
                 <DialogTitle className="sr-only">{t('addAccount.emailTitle')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('addAccount.emailSubtitle')}</DialogDescription>
 
                 <ScreenLayout
                     header={<ModalTopBar safeArea title={t('addAccount.emailTitle')} onClose={handleClose} />}
                     footer={
-                        <>
-                            <FloatingButton
-                                label={t('addAccount.complete')}
-                                onClick={() => void verify()}
-                                disabled={!isCodeComplete || isBusy || expired}
-                            />
-                            {/* Rides the CTA above the soft keyboard; collapses to nothing without one. */}
-                            <KeyboardSafeAreaSpacer />
-                        </>
+                        // ScreenLayout rides the footer above the soft keyboard and the bottom inset.
+                        <FloatingButton
+                            label={t('addAccount.complete')}
+                            onClick={() => void verify()}
+                            disabled={!isCodeComplete || isBusy || expired}
+                        />
                     }
                 >
                     <div className="flex flex-col gap-6 pt-4">

@@ -126,6 +126,35 @@ the last card under the buttons. Pages that dock a CTA (`KeyboardAwareLayout`,
 `BottomSheet` already sit above the inset and do not need it. Pages import it from its own file, not
 the `ui/components` barrel, which page tests replace with a stub.
 
+## Docked footers ride above the inset and the keyboard
+
+A button pinned to the bottom of a screen has two things to clear: the bottom inset while the
+keyboard is down (the iOS home indicator, Android's navigation bar — about 48px on a 3-button bar),
+and the keyboard while it is up. The WebView does not shrink for the keyboard (`adjustNothing` on
+Android, the same on iOS), so the shell injects `--keyboard-height` and each docked footer stands on
+a strip of `max(--safe-bottom, --keyboard-height)`. `max()`, never a sum: the keyboard already covers
+the inset. Four primitives own that strip, and a footer inside one of them pads only its own
+breathing room (`FloatingButton`'s `pb-4`):
+
+| Primitive                               | Used by                                                                    | Strip                                                            |
+| --------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `KeyboardAwareLayout` (`ui/layouts`)    | route form pages, e.g. profile, cloud and place edit, email login, account | `max(safe, keyboard)` under its `footer`                         |
+| `ScreenLayout` (`libs/web-ui-kit`)      | the subscription screens, the setup wizard, email verify, purchase done    | `max(safe, keyboard)` under its `footer`                         |
+| `KeyboardSafeAreaSpacer` (`ui/layouts`) | full-screen dialogs and tabs, e.g. create place and room, phone login      | `max(safe - 1rem, keyboard)`, placed by the caller after its CTA |
+| `BottomSheet` (`libs/web-ui-kit`)       | every bottom sheet                                                         | the panel rises by the keyboard and drops the inset meanwhile    |
+
+A footer that adds its own inset inside one of these primitives pads it twice.
+
+A centred card (`dialog` / `alert-dialog`'s default variant in `libs/ui-kit`) has the same problem
+the other way up: centred on the whole window, its field and buttons sat behind the keyboard. Its
+`top` is `calc(50% - var(--keyboard-height) / 2)` — the middle of what the keyboard leaves — and its
+height cap takes the keyboard off too. A host that sets no `--keyboard-height` (a browser, the desktop
+app) keeps `50%`. The three screens built on that variant as full-height surfaces — phone login,
+email verify, purchase done — pass `top-[50%]` back: a whole screen lifted by half the keyboard would
+lose its header, and the screen's own layout already keeps its button above the keyboard.
+
+Tapping empty space closes the keyboard on every screen — [keyboard-dismiss.md](./keyboard-dismiss.md).
+
 ## Snackbar clearance (`--toast-lift`)
 
 The snackbar (`@chatic/ui-kit`'s `Toaster`, mounted once in `AppRuntime`) rests at the bottom, 16px

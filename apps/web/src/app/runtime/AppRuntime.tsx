@@ -13,7 +13,7 @@ import { runtime } from '@chatic/runtime';
 
 import { Router } from '../routes';
 import { ActiveCloudDataProvider, OtherCloudUnreadProvider, useCloudCatalogRelayResync } from '../hooks';
-import { useAutoScrollOnFocus, useReturnKeyFlow } from '../ui/hooks';
+import { useAutoScrollOnFocus, useDismissKeyboardOnTap, useReturnKeyFlow } from '../ui/hooks';
 import { DebugObservationReporter } from '../features/debug';
 import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '../features/home';
 import { NotificationsRunner } from '../features/notifications';
@@ -48,6 +48,8 @@ export const AppRuntime = () => {
     useAutoScrollOnFocus();
     // One return-key rule for every text field: next moves down, the last one closes the keyboard.
     useReturnKeyFlow();
+    // A tap on empty space closes the keyboard (the focused field loses focus).
+    useDismissKeyboardOnTap();
 
     // Foreground wake kick: recycle bound-but-unverified sockets immediately on resume, and ping the
     // verified ones, recycling any that stay silent for 3 s, instead of waiting for the keep-alive
