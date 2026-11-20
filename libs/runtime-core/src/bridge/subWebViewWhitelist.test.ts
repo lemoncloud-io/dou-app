@@ -222,6 +222,16 @@ describe('checkSubWebViewRuntimeRequest', () => {
         });
     });
 
+    // A page never reads or writes the cloud's mini app list; a hub gets it from the web as a launch param.
+    it.each([
+        ['cloud.listMiniApps', ['c1'], 'otherCloud'],
+        ['cloud.addMiniApp', ['c1', { name: 'n', url: 'https://a.example/' }], 'write'],
+        ['cloud.updateMiniApp', ['m1', { enabled: false }], 'write'],
+        ['cloud.removeMiniApp', ['m1'], 'write'],
+    ])('refuses %s, whatever is granted', (method, args, reason) => {
+        expect(checkSubWebViewRuntimeRequest(call(method, args), ALL, HERE)).toEqual({ ok: false, reason });
+    });
+
     // The page's arguments would decide where the rows land: `{ sid }` of another place files this
     // place's rooms under it.
     it.each([

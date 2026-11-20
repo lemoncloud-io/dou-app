@@ -105,7 +105,13 @@ const buildRepositories = (
         auth: new AuthRepository(socketDataSources.auth, context, httpDataSources?.auth),
         channel,
         chat: new ChatRepository(socketDataSources.chat, localDataSources.chat, context, socketDataSources.upload),
-        cloud: new CloudRepository(socketDataSources.cloud, localDataSources.cloud, context, httpDataSources?.cloud),
+        cloud: new CloudRepository(
+            socketDataSources.cloud,
+            localDataSources.cloud,
+            context,
+            httpDataSources?.cloud,
+            httpDataSources?.miniApp
+        ),
         device: new DeviceRepository(socketDataSources.device, context),
         invite: new InviteRepository(socketDataSources.invite, localDataSources.invite, context),
         join: new JoinRepository(socketDataSources.join, localDataSources.join, context, outbox),

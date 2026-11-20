@@ -20,7 +20,7 @@ remote/
     index.ts               barrel
     __mocks__/             createMockSocketGateways (socket axis only)
   socket-data-sources/     12 SocketDataSources + createSocketDataSources
-  http-data-sources/       5 HttpDataSources + createHttpDataSources
+  http-data-sources/       7 HttpDataSources + createHttpDataSources
 ```
 
 The two are deliberately symmetric. What one axis does, the other does in the same place.

@@ -1,10 +1,15 @@
 import type { CloudUpdateInput } from '@lemoncloud/chatic-sockets-api';
 import type { CloudBody, CloudVerifyEmailBody, CloudVerifyEmailView } from '@lemoncloud/chatic-backend-api';
-import type { DomainCloud, DomainListResult } from '../domain';
+import type { DomainCloud, DomainListResult, DomainMiniApp, MiniAppInput, MiniAppPatch } from '../domain';
 import { createDomainListResult } from '../domain';
 import type { ICloudLocalDataSource } from '../local/data-sources';
 import type { CloudGetInput, ICloudSocketDataSource } from '../remote/socket-data-sources';
-import type { CloudMakeOptions, CloudReleaseOptions, ICloudHttpDataSource } from '../remote/http-data-sources';
+import type {
+    CloudMakeOptions,
+    CloudReleaseOptions,
+    ICloudHttpDataSource,
+    IMiniAppHttpDataSource,
+} from '../remote/http-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
@@ -59,6 +64,23 @@ export interface ICloudRepository extends DisposableRepository {
      * an admin) and refuses anyone else; it does not check the address, so the caller does.
      */
     saveMiniAppUrl(cloudId: string, url: string): Promise<string>;
+
+    /**
+     * The cloud's mini apps — the relay's list of names and addresses its owner registered, unlike the
+     * single link above (`fetchMiniAppUrl` / `saveMiniAppUrl`), which goes once the screens have moved to
+     * this list. In the order they were added and with every status: what a member may see is the
+     * caller's to filter. Never touches the local cache; react-query owns it.
+     */
+    listMiniApps(cloudId: string): Promise<DomainMiniApp[]>;
+    /**
+     * Register a mini app on a cloud — its owner's (or an admin's) to do. A refusal for one of the save
+     * rule's reasons rejects with `MiniAppSaveRefused`; anything else rejects as it came.
+     */
+    addMiniApp(cloudId: string, input: MiniAppInput): Promise<DomainMiniApp>;
+    /** Change a mini app's name, address or switch; refusals as for `addMiniApp`. */
+    updateMiniApp(id: string, patch: MiniAppPatch): Promise<DomainMiniApp>;
+    /** Remove a mini app from its cloud's list. */
+    removeMiniApp(id: string): Promise<void>;
 }
 
 export interface CloudGetOptions {
@@ -80,9 +102,17 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
         private readonly cloudSocketDataSource: ICloudSocketDataSource,
         private readonly cloudLocalDataSource: ICloudLocalDataSource,
         contextProvider: DataContextProvider,
-        private readonly cloudHttpDataSource?: ICloudHttpDataSource
+        private readonly cloudHttpDataSource?: ICloudHttpDataSource,
+        private readonly miniAppHttpDataSource?: IMiniAppHttpDataSource
     ) {
         super(contextProvider);
+    }
+
+    private requireMiniAppHttp(): IMiniAppHttpDataSource {
+        if (!this.miniAppHttpDataSource) {
+            throw new Error('[CloudRepository] IMiniAppHttpDataSource is not injected — httpFactory not wired yet.');
+        }
+        return this.miniAppHttpDataSource;
     }
 
     private requireHttp(): ICloudHttpDataSource {
@@ -121,6 +151,22 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
 
     public async saveMiniAppUrl(cloudId: string, url: string): Promise<string> {
         return this.requireHttp().saveMiniAppUrl(cloudId, url);
+    }
+
+    public async listMiniApps(cloudId: string): Promise<DomainMiniApp[]> {
+        return this.requireMiniAppHttp().listMiniApps(cloudId);
+    }
+
+    public async addMiniApp(cloudId: string, input: MiniAppInput): Promise<DomainMiniApp> {
+        return this.requireMiniAppHttp().addMiniApp(cloudId, input);
+    }
+
+    public async updateMiniApp(id: string, patch: MiniAppPatch): Promise<DomainMiniApp> {
+        return this.requireMiniAppHttp().updateMiniApp(id, patch);
+    }
+
+    public async removeMiniApp(id: string): Promise<void> {
+        return this.requireMiniAppHttp().removeMiniApp(id);
     }
 
     public observeList(callback: (result: DomainListResult<DomainCloud> | null) => void): () => void {

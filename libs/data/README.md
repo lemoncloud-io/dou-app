@@ -62,7 +62,7 @@ flowchart TD
 
     Repo["Repository × 14<br/><i>data facade</i>"]:::repo
     Local["LocalDataSource × 9<br/><i>stores snapshots · emits streams</i>"]:::local
-    Remote["SocketDataSource × 12<br/>HttpDataSource × 6"]:::remote
+    Remote["SocketDataSource × 12<br/>HttpDataSource × 7"]:::remote
     Domain["domain<br/><i>models · mappers</i>"]:::domain
 
     DB["@chatic/db<br/><i>storage engine</i>"]:::ext

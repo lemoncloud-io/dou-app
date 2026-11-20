@@ -15,3 +15,4 @@ export * from './messageTokens';
 export * from './chatMediaEntries';
 export * from './chatNotificationEntries';
 export * from './webhook';
+export * from './miniApp';
