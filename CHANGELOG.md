@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-20] - No version updates
+
+### Bug Fixes
+
+- (web,mobile,bridges) the page alone decides android back, not the webview history (ADR-0362)
+
 ## [2026-11-20] - root@0.170.0, @chatic/web@0.98.0
 
 ### Features
