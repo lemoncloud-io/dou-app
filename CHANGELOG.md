@@ -2,6 +2,16 @@
 
 ## [2026-11-20] - No version updates
 
+### Features
+
+- (http,data,runtime) read and write a cloud's mini app list on the relay, not only its one link
+
+### Bug Fixes
+
+- (http) send the mini app delete with the empty body it is signed with
+
+## [2026-11-20] - No version updates
+
 ### Bug Fixes
 
 - (web,mobile,bridges) the page alone decides android back, not the webview history (ADR-0362)
