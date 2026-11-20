@@ -10,6 +10,14 @@ import { RUNTIME_CONTRACTS } from '@chatic/runtime-mobile';
  * contracts this build's runtime speaks. A page that finds it says hello; the hello's answer is what
  * settles the owner for that page.
  *
+ * `held` once the runtime holds the session in this process (`runtimeHold`): a page loaded after that
+ * — a reload, or the WebView's content process starting over — must then ask even where its own
+ * setting would not, or it would run a second session beside the runtime's.
+ *
  * Loads the runtime's package, so it is required only on such a launch.
  */
-export const nativeRuntimeOffer = (): RuntimeOffer => ({ sessionOwner: 'native', contracts: [...RUNTIME_CONTRACTS] });
+export const nativeRuntimeOffer = (held: boolean): RuntimeOffer => ({
+    sessionOwner: 'native',
+    contracts: [...RUNTIME_CONTRACTS],
+    ...(held && { held: true }),
+});

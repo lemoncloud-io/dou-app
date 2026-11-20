@@ -14,6 +14,8 @@
 > straight to 0.32.1, not through 0.32.0
 > · Amended by: [ADR-0332](./0332-the-apps-runtime-declines-a-launch-whose-vault-holds-no-session.md) decision 1 — the runtime
 > declines a launch whose vault holds no session
+> · Amended by: [ADR-0363](./0363-a-page-asks-a-shell-whose-runtime-already-holds-the-session.md) — the offer
+> says when the session is held, so the mirror switch is a safe rollback from app 0.32.4
 
 ## Context
 

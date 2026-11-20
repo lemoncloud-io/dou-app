@@ -94,7 +94,11 @@
 // 2.34.0: SetCanGoBack (web -> app) carries `includesHistory`; with it, `canGoBack` counts the page's
 //         own history as well as its open overlays, and the Android shell decides back from it alone
 //         instead of adding the WebView's history, which lags or misses the page's pushState entries.
-export const BRIDGE_VERSION = '2.34.0' as const;
+// 2.35.0: the shell's offer (`window.CHATIC_APP_RUNTIME`) may carry `held: true` — its runtime already
+//         holds the session in this process, so a page loaded into it says hello even when its own
+//         setting would not ask; a `BootRecord` may be of type `restart`, a JS context the app
+//         started over itself.
+export const BRIDGE_VERSION = '2.35.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

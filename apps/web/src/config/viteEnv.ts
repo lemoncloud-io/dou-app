@@ -10,6 +10,7 @@ export const readBuildValue = (name: string): string | undefined =>
 
 /**
  * The web's own switch to stop asking the shell to hold the session (`VITE_SESSION_MIRROR_DISABLED`):
- * set, every launch is the page's, whatever the installed shell offers.
+ * set, every launch is the page's, whatever the installed shell offers — except in an app process whose
+ * shell already holds the session and says so (`held`), which the page still mirrors.
  */
 export const sessionMirrorDisabled = (): boolean => import.meta.env.VITE_SESSION_MIRROR_DISABLED === 'true';

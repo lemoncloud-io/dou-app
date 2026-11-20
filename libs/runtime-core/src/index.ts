@@ -113,6 +113,7 @@ export {
     VIEW_STREAMS,
     answerRuntimeHello,
     chooseRuntimeContract,
+    offerHoldsSession,
     readRuntimeOffer,
     settleRuntimeHello,
 } from './bridge/contract';

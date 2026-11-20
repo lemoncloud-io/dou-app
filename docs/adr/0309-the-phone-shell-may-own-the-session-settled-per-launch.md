@@ -41,6 +41,9 @@
 > **Amended by [ADR-0314](./0314-a-native-session-ends-by-restarting-the-apps-js-context.md) (2026-11-15):**
 > "once per launch" means once per JS context, which the app can start over itself — after a session
 > its runtime held ends, and to apply the development owner switch.
+> **Amended by [ADR-0363](./0363-a-page-asks-a-shell-whose-runtime-already-holds-the-session.md) (2026-11-20):**
+> an offer that says the session is already held (`held: true`) is asked whatever the page's own setting
+> or contracts say.
 
 ## Context
 

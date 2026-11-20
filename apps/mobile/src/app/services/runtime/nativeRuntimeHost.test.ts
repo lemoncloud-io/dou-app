@@ -115,4 +115,73 @@ describe('createNativeRuntimeHost', () => {
             error: expect.any(Error),
         });
     });
+
+    describe('holdsSession', () => {
+        it('holds from the first start, while it boots, and on once it has started', async () => {
+            let finishBoot: (boot: NativeRuntimeBoot) => void = () => undefined;
+            const onHoldChange = jest.fn();
+            const { host } = setup({
+                boot: jest.fn(() => new Promise<NativeRuntimeBoot>(resolve => (finishBoot = resolve))),
+                onHoldChange,
+            });
+            expect(host.holdsSession()).toBe(false);
+
+            const started = host.start();
+            // A page loaded while the boot runs must not run its own session beside it.
+            expect(host.holdsSession()).toBe(true);
+            finishBoot(booted());
+            await started;
+
+            expect(host.holdsSession()).toBe(true);
+            expect(onHoldChange.mock.calls).toEqual([[true]]);
+        });
+
+        it('lets go once a start answers null — a decline leaves the session to the page', async () => {
+            const declined = Object.assign(new Error('no session'), { code: 'NATIVE_RUNTIME_NO_SESSION' });
+            const onHoldChange = jest.fn();
+            const { host } = setup({ boot: jest.fn(async () => Promise.reject(declined)), onHoldChange });
+
+            await host.start();
+
+            expect(host.holdsSession()).toBe(false);
+            expect(onHoldChange.mock.calls).toEqual([[true], [false]]);
+        });
+
+        it('lets go when the start itself rejects, so a page is not held out for the rest of the process', async () => {
+            const { host, deps } = setup();
+            deps.logService.info.mockImplementation(() => {
+                throw new Error('log sink down');
+            });
+
+            await expect(host.start()).rejects.toThrow('log sink down');
+            await Promise.resolve();
+
+            expect(host.holdsSession()).toBe(false);
+        });
+
+        it('never holds on a launch the page owns', async () => {
+            const onHoldChange = jest.fn();
+            const { host } = setup({ readOwner: jest.fn(() => 'web' as const), onHoldChange });
+
+            await host.start();
+
+            expect(host.holdsSession()).toBe(false);
+            expect(onHoldChange).not.toHaveBeenCalled();
+        });
+
+        it('still holds when the listener throws, and logs it', async () => {
+            const { host, deps } = setup({
+                onHoldChange: jest.fn(() => {
+                    throw new Error('listener bug');
+                }),
+            });
+
+            await host.start();
+
+            expect(host.holdsSession()).toBe(true);
+            expect(deps.logService.error).toHaveBeenCalledWith('session.native_hold', expect.any(String), {
+                error: expect.any(Error),
+            });
+        });
+    });
 });

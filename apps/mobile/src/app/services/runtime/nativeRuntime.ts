@@ -16,6 +16,7 @@ import { provider } from '../provider';
 import { createNativeRuntimeHost } from './nativeRuntimeHost';
 import { launchSessionOwner, launchSessionOwnerChoice } from './launchSessionOwner';
 import { restartOnSessionEnd } from './restartOnSessionEnd';
+import { runtimeHold } from './runtimeHold';
 import { openRuntimeStorageFiles } from './runtimeStorageFiles';
 
 /** The preference the page keeps its push registration record under; the runtime keeps the same one. */
@@ -83,6 +84,7 @@ export const nativeRuntimeHost = createNativeRuntimeHost({
             logger: provider.logService,
         }),
     run: engine => runNativeRuntime(engine, { deviceIds, push: pushDelegate }),
+    onHoldChange: runtimeHold.set,
     logService: provider.logService,
 });
 

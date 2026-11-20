@@ -213,11 +213,14 @@ limits:
   commented out, in `.env.example`. It is the rollback that reaches a launch the shell's runtime cannot
   survive: an app that dies while starting its runtime dies before `WebAppReady`, so the default owner
   below never reaches it, while a page that never asks never starts that runtime at all.
-- **It takes effect from the next app process.** The shell's offer reads the same whether or not it
-  already holds the session, so a page that does not ask cannot tell. A page reloaded into a process
-  whose shell already answered `native` would boot a second session beside it; a page in a fresh
-  process is the page's alone, and the shell, never asked, keeps its runtime off. The same holds for a
-  page that shares no contract with the shell.
+- **It takes effect from the next app process.** A page in a fresh process is the page's alone, and the
+  shell, never asked, keeps its runtime off. A page loaded into a process whose shell already holds the
+  session asks anyway: from bridge 2.35.0 the offer says so (`held: true`), and the page says hello
+  whatever this switch says — and whatever contracts it shares, a mismatch ending on the error screen —
+  because booting its own runtime there would make it a second owner (`session.owner_held_asked` in the
+  log). An app before 0.32.4 never says `held`, so a page reloaded into such a process still boots a
+  second session; while those installs remain, roll back by naming `web` as the default owner below and
+  leave the mirror on.
 
 **The default owner.** The switch above stops this page from asking; it does not tell the app where to
 start. That is `VITE_APP_SESSION_OWNER` (`web` or `native`): once the app's `WebAppReady` reply lists

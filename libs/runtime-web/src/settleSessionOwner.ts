@@ -5,6 +5,7 @@ import { logger } from '@chatic/logger';
 import {
     RUNTIME_CONTRACTS,
     RUNTIME_CONTRACT_MISMATCH_CODE,
+    offerHoldsSession,
     readRuntimeOffer,
     settleRuntimeHello,
 } from '@chatic/runtime-core';
@@ -57,9 +58,10 @@ export interface SessionOwnerOptions {
     offer: unknown;
     /**
      * The page's own setting that it does not ask. With it set, a launch is the page's: a shell that
-     * offered waits for a hello that never comes and keeps its runtime off. The offer does not say
-     * whether the shell already holds the session, so this is safe only from a fresh app process — a
-     * page reloaded into one whose shell answered `native` earlier would boot a second session.
+     * offered waits for a hello that never comes and keeps its runtime off. It yields to an offer that
+     * says the shell's runtime already holds the session in this process (`held`): a page reloaded into
+     * such a process asks anyway, since running its own runtime would make it a second owner. A shell
+     * before bridge 2.35.0 never says so, and a page reloaded into one still boots its own.
      */
     disabled?: boolean;
     client?: IWebBridgeClient;
@@ -95,8 +97,9 @@ export const visibleClock = (): (() => number) => {
  * Settles who owns the session this launch, before the page boots a runtime.
  *
  * No offer (a browser, a shell that does not run its runtime, an offer in none of the page's
- * contracts) or the page's own setting → `web`, at once and without a word to the shell. Otherwise the
- * page makes the mirror's port — before the hello, so a session push in between is kept — and asks.
+ * contracts) or the page's own setting → `web`, at once and without a word to the shell — unless the
+ * offer says the session is already held, which the page asks about whatever else it would decide.
+ * Otherwise the page makes the mirror's port — before the hello, so a session push in between is kept — and asks.
  * `web` and `native` answers settle it; anything else (a timeout, a shell still starting, an answer
  * that does not read) is asked again, with a growing pause, until `giveUpAfterMs` has passed.
  */
@@ -108,7 +111,15 @@ export const settleSessionOwner = async ({
     now,
     wait = defaultWait,
 }: SessionOwnerOptions): Promise<SessionOwnerChoice> => {
-    if (disabled || !readRuntimeOffer(offer)) return { sessionOwner: 'web' };
+    const sharesContract = readRuntimeOffer(offer) !== null;
+    if (disabled || !sharesContract) {
+        if (!offerHoldsSession(offer)) return { sessionOwner: 'web' };
+        // The rollback path: a web deploy that stops the mirror reaches app processes whose runtime
+        // already runs. Their pages keep mirroring until the next launch, which the page's default moves.
+        logger.info('session.owner_held_asked', 'the shell holds the session in this process; asking anyway', {
+            data: { disabled, sharesContract },
+        });
+    }
     const clock = now ?? visibleClock();
 
     const port = webMirrorPort(client);

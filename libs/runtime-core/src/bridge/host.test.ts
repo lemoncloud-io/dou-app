@@ -127,11 +127,25 @@ describe('createRuntimeBridgeHost — hello', () => {
         });
     });
 
-    it('answers web when this process does not run the session, or shares no contract with the page', async () => {
+    it('answers web when this process does not run the session', async () => {
         await expect(setup({ engine: async () => null }).host.hello(hello)).resolves.toEqual({
             value: { sessionOwner: 'web' },
         });
-        await expect(setup().host.hello({ contracts: [999] })).resolves.toEqual({ value: { sessionOwner: 'web' } });
+        await expect(setup({ engine: async () => null }).host.hello({ contracts: [999] })).resolves.toEqual({
+            value: { sessionOwner: 'web' },
+        });
+    });
+
+    // A first hello answered RUNTIME_STARTING, a WebView remount with a bridge of its own: either way the
+    // runtime may hold the session before this bridge answered anyone native.
+    it('refuses a page that shares no contract once the process runtime holds the session, on any bridge', async () => {
+        const { host } = setup();
+
+        await expect(host.hello({ contracts: [999] })).resolves.toMatchObject({
+            failure: { code: RUNTIME_CONTRACT_MISMATCH_CODE },
+        });
+        // Nothing was taken: a page that does share the contract is still answered native.
+        await expect(host.hello(hello)).resolves.toMatchObject({ value: { sessionOwner: 'native' } });
     });
 
     it('answers RUNTIME_STARTING while the runtime is still starting, so the page asks again', async () => {

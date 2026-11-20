@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
@@ -24,6 +24,7 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 import type { RuntimeOffer } from '@chatic/bridge-messages';
 
 import { launchSessionOwner } from '../services/runtime/launchSessionOwner';
+import { runtimeHold } from '../services/runtime/runtimeHold';
 import type * as RuntimeOfferModule from '../services/runtime/runtimeOffer';
 
 interface AppWebViewProps extends WebViewProps {
@@ -61,17 +62,18 @@ const CACHED_DEVICE_INFO: CachedDeviceInfo = {
 
 /**
  * The offer to own the session — on a launch the app's runtime owns, and only then. The owner is settled
- * per launch, so this is read once; the runtime's package loads here only on such a launch.
+ * per launch, so the module is loaded once, and only on such a launch; the offer itself follows whether
+ * the runtime already holds the session (`held`), which the next page load has to hear.
  */
-let runtimeOfferOfLaunch: RuntimeOffer | null | undefined;
-const readRuntimeOffer = (): RuntimeOffer | null => {
-    if (runtimeOfferOfLaunch === undefined) {
-        runtimeOfferOfLaunch =
+let offerModuleOfLaunch: typeof RuntimeOfferModule | null | undefined;
+const readRuntimeOffer = (held: boolean): RuntimeOffer | null => {
+    if (offerModuleOfLaunch === undefined) {
+        offerModuleOfLaunch =
             launchSessionOwner() === 'native'
-                ? (require('../services/runtime/runtimeOffer') as typeof RuntimeOfferModule).nativeRuntimeOffer()
+                ? (require('../services/runtime/runtimeOffer') as typeof RuntimeOfferModule)
                 : null;
     }
-    return runtimeOfferOfLaunch;
+    return offerModuleOfLaunch?.nativeRuntimeOffer(held) ?? null;
 };
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
@@ -124,6 +126,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // that, which applies to the next load — a live theme change needs no push, since the web
     // initiated it and already knows.
     const theme = useThemeStore(state => state.theme);
+    // A change applies to the next page load, like the theme: the injected script is rebuilt with it.
+    const runtimeHeld = useSyncExternalStore(runtimeHold.subscribe, runtimeHold.read);
     const syncInjectionScript = getSyncInjectionScript({
         insets: webInsets,
         keyboardHeight,
@@ -138,7 +142,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         // Listed in the boot script, which is also the post-load script, so the web finds it before
         // its first StorageGet.
         storageMedia: STORAGE_MEDIA,
-        runtimeOffer: readRuntimeOffer(),
+        runtimeOffer: readRuntimeOffer(runtimeHeld),
         // What this build can do, for the web to choose its host ports from before its first render.
         capabilities: hostCapabilities(Platform.OS),
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {

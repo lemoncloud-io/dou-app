@@ -364,7 +364,8 @@ instead of surfacing as an opaque "Script error.":
   before the values were renamed; the web keeps reading those, since installed builds go on sending
   them. Set early in the script, beside the storage media, so a later snippet
   that throws cannot skip it
-- `CHATIC_APP_RUNTIME` — the offer to own the session, `{ sessionOwner: 'native', contracts }`, only on
+- `CHATIC_APP_RUNTIME` — the offer to own the session, `{ sessionOwner: 'native', contracts }` (with
+  `held: true` once the runtime holds the session in this process), only on
   a launch the app's own runtime owns; absent otherwise, so a page asks for the runtime handshake only
   when the app will answer it — see [../runtime/README.md](../runtime/README.md)
 
