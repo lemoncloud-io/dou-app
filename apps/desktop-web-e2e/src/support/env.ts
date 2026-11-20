@@ -1,5 +1,6 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { parseEnv } from 'node:util';
 
 /**
  * The suite's settings. Accounts come from the environment or from `apps/desktop-web-e2e/.env`, which
@@ -7,6 +8,22 @@ import { join } from 'node:path';
  */
 const ENV_FILE = join(__dirname, '../../.env');
 if (existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
+
+const readEnvFile = (file: string): Record<string, string | undefined> =>
+    existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {};
+
+/**
+ * The shared backend keys a dev server of desktop-web reads. `nx serve` loads the app's `.env` and then
+ * the root `.env.serve`, the app's own keys winning; the suite starts Vite without Nx, so it hands Vite
+ * the shared keys the app's `.env` leaves out. Vite reads that `.env` itself.
+ */
+export const sharedServeEnv = (): Record<string, string> => {
+    const own = readEnvFile(join(__dirname, '../../../desktop-web/.env'));
+    const shared = readEnvFile(join(__dirname, '../../../../.env.serve'));
+    return Object.fromEntries(
+        Object.entries(shared).filter((entry): entry is [string, string] => !own[entry[0]] && !!entry[1])
+    );
+};
 
 export const E2E_PORT = Number(process.env['DESKTOP_E2E_PORT'] ?? 5391);
 export const E2E_BASE_URL = `http://localhost:${E2E_PORT}`;

@@ -450,8 +450,8 @@ changes.
 Build and deploy:
 
 ```bash
-yarn web:build:dev      # nx build --configuration=dev web   (swaps .env for .env.dev)
-yarn web:build:prod     # nx build --configuration=prod web  (swaps .env for .env.prod)
+yarn web:build:dev      # nx build --configuration=dev web   (apps/web/.env.dev, .env, then the root .env.dev)
+yarn web:build:prod     # nx build --configuration=prod web  (apps/web/.env.prod, .env, then the root .env.prod)
 yarn web:deploy:dev
 yarn web:deploy:prod
 ```

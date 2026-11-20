@@ -1,5 +1,15 @@
 {
   "name": "@chatic/landing",
   "version": "0.19.5",
-  "private": true
+  "private": true,
+  "nx": {
+    "targets": {
+      "build": {
+        "configurations": {
+          "dev": {},
+          "prod": {}
+        }
+      }
+    }
+  }
 }

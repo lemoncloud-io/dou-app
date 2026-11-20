@@ -881,6 +881,10 @@ the Tailwind/PostCSS configs sets the `landing` filter output, which:
 4. uploads the build's source maps as a CI artifact (the S3 sync excludes `*.map`),
 5. announces the deploy to Slack with the new version.
 
+A local `yarn landing:build:dev` (or `:prod`) builds with `--configuration=dev` (`prod`), which this app
+declares in its `package.json` so that Nx loads `apps/landing/.env.dev`, then `apps/landing/.env`, then
+the shared root `.env.dev` — the backend comes from the root file (ONBOARDING.md § Env and Firebase files).
+
 [`scripts/deploy-landing.sh`](../../scripts/deploy-landing.sh) does the rest: it refuses to proceed
 unless `dist/apps/landing/index.html` and both `.well-known` files exist, syncs in four passes so
 `index.html` and `version.json` get `no-cache` while hashed assets do not, substitutes

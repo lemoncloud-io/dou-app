@@ -421,6 +421,11 @@ yarn desktop:package:win:prod
 
 ## Environment Variables
 
+The backend keys below (`VITE_ENV`, `VITE_PROJECT`, `VITE_HOST` and the endpoints) are shared by web,
+landing and desktop-web through the root `.env.dev`, `.env.prod`, `.env.serve` and `.env.localhost`;
+an app's own file wins over them. Which file each run reads, and why: ONBOARDING.md § Env and Firebase
+files, ADR-0361.
+
 <details>
 <summary><strong>Web</strong> (<code>apps/web/.env</code>)</summary>
 

@@ -22,8 +22,10 @@ depends on a server outside the repository. Run it by hand before landing a chan
     ```
 
 Playwright starts `apps/desktop-web`'s Vite dev server on port 5391 (`DESKTOP_E2E_PORT` moves it),
-or reuses one already there. The backend is whatever `apps/desktop-web/.env` points at, which for a
-developer is the dev servers the accounts live on. Sign-in goes through `/auth/debug`, the email
+or reuses one already there. The backend is what `nx serve desktop-web` would talk to —
+`apps/desktop-web/.env`, then the shared root `.env.serve` for the keys it leaves out (the suite
+starts Vite without Nx, so it hands Vite those itself) — which for a developer is the dev servers the
+accounts live on. Sign-in goes through `/auth/debug`, the email
 sign-in a dev server offers and a build does not.
 
 A failure leaves a trace and a screenshot in `dist/.playwright/apps/desktop-web-e2e/test-results/`

@@ -31,20 +31,36 @@ The other ways to run — the web alone, the simulator — are `yarn local --mod
 ## Env and Firebase files — the team secrets repository
 
 The env and Firebase files that are not in git — every app's `.env` / `.env.dev` / `.env.prod`
-(web, mobile, admin, desktop-web) and the mobile Firebase config
+(web, mobile, admin, desktop-web), the shared backend files at the root (below) and the mobile Firebase config
 (`GoogleService-Info-{Dev,Prod}.plist`, `google-services.json`) — are kept in the team's private
 secrets repository, **at the same paths as in this repo**. Clone it next to this checkout, then
 copy or link each file to the same path here; `git pull` there picks up changed values. If you
 cannot open it, ask a repository admin for read access. Values change there, by pull request —
 not by passing files around.
 
-Every app keeps its own copy of the backend's addresses, so the copies can drift apart.
-`yarn check:env` holds them to one backend per stage: in each `.env.dev`, `.env.prod` and
-`.env.localhost`, every backend key an app carries is set, `VITE_ENV` names the stage, and apps
-deployed from the same secrets (web, landing, desktop-web, and the phone app that hosts the web) hold
-the same values. It also says which backend each app's `.env` points at. It prints no values. The keys
-and groups are in `scripts/env-keys.js`; run it with `--dir <path>` against the secrets repository
-itself.
+The backend's addresses — the endpoints, the project, the stage — are one fact per stage, so web,
+landing and desktop-web take them from shared files at the repository root rather than from a copy
+each:
+
+| Root file        | What reads it                                                   |
+| ---------------- | --------------------------------------------------------------- |
+| `.env.dev`       | `nx build --configuration=dev` of an app; `yarn local` on dev   |
+| `.env.prod`      | `nx build --configuration=prod` of an app; `yarn local` on prod |
+| `.env.serve`     | `nx serve` of an app — the backend your dev servers talk to     |
+| `.env.localhost` | `yarn local --env localhost`                                    |
+
+An app's own files hold only what is that app's. Nx loads an app's files first and the root's after,
+and the first file to set a key keeps it — so a backend key left in an app's file, its `.env`
+included, wins over the shared one in every stage. The phone app and admin keep full copies: React
+Native's config plugin reads one file, and admin signs in to servers of its own. The deploy writes each
+app's complete env and does not read these files. Why it is arranged this way: ADR-0361.
+
+`yarn check:env` checks what each build actually reads: every backend key an app carries is set,
+`VITE_ENV` names the stage, apps deployed from the same secrets (and the phone app that hosts the web)
+read the same values, and no app's `.env` overrides the shared file. It notes a key an app's own stage
+file still holds beside the shared one, and says which backend each app's dev server talks to. It
+prints no values. The keys and groups are in `scripts/env-keys.js`; run it with `--dir <path>` against
+the secrets repository itself.
 
 Release and signing credentials are not in it (see
 [Optional — release and signing credentials](#optional--release-and-signing-credentials-not-needed-for-local-dev)).
