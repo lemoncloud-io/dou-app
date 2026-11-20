@@ -161,6 +161,8 @@ export {
     IconNavBellSolid,
     IconNavChat,
     IconNavChatSolid,
+    IconNavMiniApp,
+    IconNavMiniAppSolid,
     IconNavMy,
     IconNavMySolid,
     type NavIconProps,

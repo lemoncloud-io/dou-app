@@ -8,10 +8,13 @@ import {
     IconNavBellSolid,
     IconNavChat,
     IconNavChatSolid,
+    IconNavMiniApp,
+    IconNavMiniAppSolid,
     IconNavMy,
     IconNavMySolid,
 } from '@chatic/web-ui-kit';
 
+import { runtime } from '@chatic/runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { haptics } from '../../bridge/haptics';
 import { ROUTES } from '../../routes/paths';
@@ -37,7 +40,8 @@ export interface BottomNavigationProps {
 
 /**
  * App bottom navigation — the routing adapter around the design-system
- * FloatingTabBar. Owns the 3-tab set (Chat / Notifications / My) and route-based active state;
+ * FloatingTabBar. Owns the tab set — Chat / Notifications / My, with Mini apps second while
+ * `feature.miniApp.tab` is on — and route-based active state;
  * the unread count is supplied by the layout, and the visual/floating/safe-area
  * concerns live in the kit component. Rendered once by UnifiedLayout (not per page).
  */
@@ -45,6 +49,7 @@ export const BottomNavigation = ({ unreadTotal = 0, hasUnreadNotifications = fal
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { pathname } = useLocation();
+    const miniAppTab = runtime.settings.useConfigValue<boolean>('feature.miniApp.tab') === true;
 
     // The WebView does not shrink under the keyboard, so the bar is behind it then and lifts
     // nothing — the snackbar already rides on the keyboard height.
@@ -60,6 +65,17 @@ export const BottomNavigation = ({ unreadTotal = 0, hasUnreadNotifications = fal
             badgeLabel: unreadTotal > 0 ? t('bottomNav.unread', { count: unreadTotal }) : undefined,
             active: isActivePath(pathname, ROUTES.home),
         },
+        ...(miniAppTab
+            ? [
+                  {
+                      key: ROUTES.miniApps.root,
+                      label: t('bottomNav.miniApp'),
+                      icon: <IconNavMiniApp />,
+                      activeIcon: <IconNavMiniAppSolid />,
+                      active: isActivePath(pathname, ROUTES.miniApps.root),
+                  },
+              ]
+            : []),
         {
             key: ROUTES.notifications,
             label: t('bottomNav.notifications'),

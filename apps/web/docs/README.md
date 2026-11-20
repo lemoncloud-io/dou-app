@@ -46,7 +46,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     Root["composition root<br/>app.tsx · runtime/ · routes/"]:::root
-    Feat["features/ × 14<br/><i>pages · components · hooks</i>"]:::feat
+    Feat["features/ × 17<br/><i>pages · components · hooks</i>"]:::feat
     Shared["shared<br/>ui/ · hooks/ · stores/ · utils/ · navigation/ · bridge/ · config/"]:::shared
     Libs["@chatic/runtime · bridges · data · config<br/>web-ui-kit · shared · bridge-messages"]:::ext
 

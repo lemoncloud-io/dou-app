@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
+import { runtime } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
 
 import { useHandlePushNavigation } from '../../bridge';
@@ -28,7 +29,10 @@ const isMainVariant = (pathname: string): boolean =>
 // screens are intentionally absent — the nav hides there. Exact match only.
 const BOTTOM_NAV_PATHS: string[] = [ROUTES.home, ROUTES.notifications, ROUTES.mypage.root];
 
-const shouldShowBottomNav = (pathname: string): boolean => BOTTOM_NAV_PATHS.includes(pathname);
+// The mini app tab is a destination only while `feature.miniApp.tab` is on. A tab the nav draws but
+// this list leaves out would take the nav away on its own screen.
+const shouldShowBottomNav = (pathname: string, miniAppTab: boolean): boolean =>
+    BOTTOM_NAV_PATHS.includes(pathname) || (miniAppTab && pathname === ROUTES.miniApps.root);
 
 export const UnifiedLayout = (): JSX.Element => {
     useBackHandler();
@@ -48,7 +52,8 @@ export const UnifiedLayout = (): JSX.Element => {
     // the nav component. The native app-icon badge is a separate concern owned by UnreadBadgeRunner.
     // A tab screen may take the nav away for a moment (the notifications tab while selecting).
     const isNavSuppressed = useBottomNavSuppression(state => state.suppressed);
-    const showBottomNav = shouldShowBottomNav(pathname) && !isNavSuppressed;
+    const miniAppTab = runtime.settings.useConfigValue<boolean>('feature.miniApp.tab') === true;
+    const showBottomNav = shouldShowBottomNav(pathname, miniAppTab) && !isNavSuppressed;
     // A read of the app-wide shared observation, not a subscription. This layout wraps EVERY route,
     // so the cloud-wide channel + per-channel join observers it used to open here made any join
     // write in the cloud re-render the shell — from inside a chat room, for a badge that only shows

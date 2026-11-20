@@ -172,4 +172,28 @@ describe('FloatingTabBar', () => {
         expect(container.querySelector('[data-dot]')).toBeNull();
         expect(screen.getByRole('button', { name: '알림' })).toBeInTheDocument();
     });
+
+    // Four 72px slots, the gaps and a label run past 343px on a 375 screen: the bar spans the width
+    // and the unselected tabs share what the selected one leaves, so nothing spills past the pill.
+    it('spreads four tabs across the full width, the unselected ones sharing the room', () => {
+        const four: FloatingTabBarItem[] = [
+            { key: 'chat', label: 'Chat', icon: <span>c</span> },
+            { key: 'apps', label: 'Mini apps', icon: <span>a</span>, active: true },
+            { key: 'bell', label: 'Alerts', icon: <span>b</span> },
+            { key: 'my', label: 'MY', icon: <span>m</span> },
+        ];
+        render(<FloatingTabBar items={four} onSelect={jest.fn()} />);
+
+        expect(screen.getByRole('navigation')).toHaveClass('w-full');
+        expect(screen.getByRole('button', { name: 'Chat' })).toHaveClass('flex-1', 'min-w-14', 'px-4');
+        expect(screen.getByRole('button', { name: 'Mini apps' })).not.toHaveClass('flex-1');
+        expect(screen.getByRole('button', { name: 'Mini apps' })).toHaveClass('shrink-0', 'px-6');
+    });
+
+    it('keeps three tabs in their hugging 72px slots', () => {
+        render(<FloatingTabBar items={items} onSelect={jest.fn()} />);
+
+        expect(screen.getByRole('navigation')).not.toHaveClass('w-full');
+        expect(screen.getByRole('button', { name: 'MY' })).not.toHaveClass('flex-1');
+    });
 });
