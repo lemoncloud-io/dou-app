@@ -30,7 +30,17 @@ const duration = (row: ReportLogRow) => row.durationMs;
 const vitalValue = (row: ReportLogRow) => row.metrics?.value_ms;
 
 export const GOALS: GoalDef[] = [
-    { key: 'boot', tags: ['perf.boot'], value: duration, p: 95, targetMs: 1_500 },
+    {
+        key: 'boot',
+        tags: ['perf.boot'],
+        // A JS context the phone app started over itself (a sign-out, an owner switch) is not a launch
+        // anyone tapped, and runs with the app already warm. Content-process reloads stay counted, as
+        // they always were: they are the crash the start-up number should show.
+        match: row => row.attrs?.boot_type !== 'restart',
+        value: duration,
+        p: 95,
+        targetMs: 1_500,
+    },
     { key: 'roomEntry', tags: ['perf.chat_room_open'], value: duration, p: 95 },
     { key: 'switch', tags: ['perf.cloud_switch', 'perf.site_switch'], value: duration, p: 95, targetMs: 1_000 },
     {

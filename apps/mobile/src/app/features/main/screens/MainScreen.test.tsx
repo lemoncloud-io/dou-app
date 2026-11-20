@@ -13,6 +13,7 @@ type WebViewProps = {
 let webViewProps: WebViewProps | null = null;
 const mockWebViewMounts = jest.fn();
 const mockOnLoadFailed = jest.fn();
+const mockMarkRestart = jest.fn();
 const mockUseDeepLinkNavigation = jest.fn();
 let mockRestartNote: { reason: string; homeSearch?: string } | null = null;
 
@@ -56,7 +57,7 @@ jest.mock('../../../webview/hooks', () => ({
 }));
 
 jest.mock('../../../services', () => ({
-    bootMetricsService: { mark: jest.fn() },
+    bootMetricsService: { mark: jest.fn(), markRestart: () => mockMarkRestart() },
     bootSplashService: { onWebAppReady: jest.fn(), onLoadFailed: () => mockOnLoadFailed() },
     logger: { debug: jest.fn() },
 }));
@@ -191,6 +192,7 @@ describe('MainScreen after the app restarted itself', () => {
         webViewProps = null;
         mockRestartNote = null;
         mockUseDeepLinkNavigation.mockClear();
+        mockMarkRestart.mockClear();
     });
 
     it('opens the base address and follows cold-start links on an ordinary launch', () => {
@@ -198,6 +200,7 @@ describe('MainScreen after the app restarted itself', () => {
 
         expect(webViewProps?.source).toEqual({ uri: 'https://app.example' });
         expect(mockUseDeepLinkNavigation).toHaveBeenLastCalledWith(expect.anything(), { skipColdStart: false });
+        expect(mockMarkRestart).not.toHaveBeenCalled();
     });
 
     // A session the app's runtime held ended: the page boots as one that has just signed out.
@@ -208,6 +211,8 @@ describe('MainScreen after the app restarted itself', () => {
 
         expect(webViewProps?.source).toEqual({ uri: 'https://app.example?logout=1&reason=logout' });
         expect(mockUseDeepLinkNavigation).toHaveBeenLastCalledWith(expect.anything(), { skipColdStart: true });
+        // Its boot is recorded as a restart, not a cold start.
+        expect(mockMarkRestart).toHaveBeenCalledTimes(1);
     });
 
     // A page booted with `logout=1` empties the vault: a later mount repeating it would sign out a

@@ -33,6 +33,15 @@ describe('readGoal', () => {
         expect(readGoal(goal('switch'), rows, period).verdict).toBe('noData');
     });
 
+    it('leaves out the boots of a context the phone app started over itself', () => {
+        const rows = [
+            stat({ tag: 'perf.boot', recordKind: 'trace', durationMs: 900, attrs: { boot_type: 'cold' } }),
+            stat({ tag: 'perf.boot', recordKind: 'trace', durationMs: 300, attrs: { boot_type: 'restart' } }),
+            stat({ tag: 'perf.boot', recordKind: 'trace', durationMs: 1_000 }),
+        ];
+        expect(readGoal(goal('boot'), rows, period).n).toBe(2);
+    });
+
     it('reads only the matching vital, and leaves room entry without a verdict', () => {
         const rows = [
             stat({
