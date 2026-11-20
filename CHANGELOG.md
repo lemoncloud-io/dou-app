@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-20] - root@0.170.0, @chatic/web@0.98.0
+
+### Features
+
+- (web) list closer word in the lab beside raise dou
+
 ## [2026-11-20] - No version updates
 
 ### Features
