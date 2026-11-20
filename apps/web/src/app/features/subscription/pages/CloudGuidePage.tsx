@@ -80,16 +80,14 @@ export const CloudGuidePage = () => {
                 <FloatingButton
                     label={ctaLabel}
                     onClick={() => navigate(ROUTES.subscription.plans)}
-                    // Three overrides on the shared floating panel:
+                    // Two overrides on the shared floating panel:
                     //  - flex-col-reverse: FloatingButton draws `link` BELOW the button, Figma puts
                     //    the caption above it (3519-30594 over 3519-30588).
                     //  - no shadow / no rounded top: the design's CTA sits flush on the page, not on
                     //    a raised card. `bg-surface` stays so scrolled content cannot show through
                     //    the pinned footer (surface === background in both themes).
-                    //  - safe-area: ScreenLayout delegates the bottom inset to the footer and the
-                    //    panel only supplies pb-4; `pb-safe-bottom` would land in the same twMerge
-                    //    group and REPLACE that 16px, so it is added with calc().
-                    wrapperClassName="flex-col-reverse rounded-none pb-[calc(var(--safe-bottom,0px)+1rem)] shadow-none"
+                    // The bottom inset is ScreenLayout's, under the footer.
+                    wrapperClassName="flex-col-reverse rounded-none shadow-none"
                     link={
                         <p className="text-center text-[15px] font-medium leading-[normal] tracking-[-0.075px] text-foreground">
                             {t('mypage.subscription.cloudGuide.ctaCaption')}

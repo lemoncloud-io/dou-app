@@ -102,15 +102,15 @@ export const PurchaseDoneDialog = ({
 
     return (
         <Dialog open={!!membership} onOpenChange={open => !open && onDone()}>
-            {/* `max-w-app`: a full-screen surface on the notice variant follows the column, the way
-                the email verification screen does. */}
-            <DialogContent className="h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none" hideClose>
+            {/* `max-w-app` and `top-[50%]`: a full-screen surface on the notice variant follows the
+                column and stays put over the keyboard, the way the email verification screen does. */}
+            <DialogContent className="top-[50%] h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none" hideClose>
                 <DialogTitle className="sr-only">{title}</DialogTitle>
                 <DialogDescription className="sr-only">{t('mypage.subscription.detail.infoTitle')}</DialogDescription>
                 <ScreenLayout
                     header={<ModalTopBar safeArea onClose={onDone} closeLabel={t('common.close')} />}
                     footer={
-                        <div className="flex flex-col gap-3 px-4 pb-[calc(var(--safe-bottom,0px)+1rem)] pt-4">
+                        <div className="flex flex-col gap-3 px-4 pb-4 pt-4">
                             {primary && (
                                 <Button size="lg" fullWidth onClick={primary.onClick}>
                                     {primary.label}

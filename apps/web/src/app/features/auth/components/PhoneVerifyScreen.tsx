@@ -46,9 +46,11 @@ export const PhoneVerifyScreen = (props: PhoneVerifyScreenProps) => {
                 variant sizes itself to one card width, which is right for a confirm box and wrong
                 for a screen — without this the whole verification flow renders as a 311px strip.
                 A full-screen dialog follows the column, so it says so here. `max-h-none` lifts the
-                variant's viewport cap for the same reason: this is the whole screen, not a card. */}
+                variant's viewport cap for the same reason: this is the whole screen, not a card, and
+                `top-[50%]` keeps it still when the keyboard rises — the variant lifts a card above the
+                keyboard, but a screen handles the keyboard itself. */}
             <DialogContent
-                className="grid-rows-[minmax(0,1fr)] h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none"
+                className="grid-rows-[minmax(0,1fr)] top-[50%] h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none"
                 hideClose
             >
                 <DialogTitle className="sr-only">{t('phoneVerify.title')}</DialogTitle>

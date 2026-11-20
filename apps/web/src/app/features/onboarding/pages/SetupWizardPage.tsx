@@ -17,7 +17,6 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { useCreatePlace, usePickImage, useSetMyPlaceProfile, useUpdateCloudProfile } from '../../../hooks';
-import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { ROUTES } from '../../../routes/paths';
 import { WizardProgress } from '../components';
@@ -161,15 +160,12 @@ export const SetupWizardPage = () => {
                 />
             }
             footer={
-                <>
-                    <FloatingButton
-                        label={t(step < TOTAL_STEPS ? 'setupWizard.next' : 'setupWizard.done')}
-                        onClick={() => void handleNext()}
-                        disabled={!canAdvance}
-                        loading={busy}
-                    />
-                    <KeyboardSafeAreaSpacer />
-                </>
+                <FloatingButton
+                    label={t(step < TOTAL_STEPS ? 'setupWizard.next' : 'setupWizard.done')}
+                    onClick={() => void handleNext()}
+                    disabled={!canAdvance}
+                    loading={busy}
+                />
             }
         >
             <div className="flex flex-col gap-8 pt-6">
