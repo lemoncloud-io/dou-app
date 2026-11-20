@@ -53,7 +53,7 @@ cloud management, and the policy screens.
   `consts/inAppPages.ts`, games so far but not only games. Each names an app id, resolved for this
   build's stage by the same list a page link uses (`bridge/subWebViewApps.ts`), and a tap opens it with
   `openSubWebView` and that id — so what the page shares names the app. Each names its `surface`: an `experiment` page is a row in Lab's Experiments card
-  for everyone (Raise DoU), a `debug` page stays in the "In-app" card that only debug mode draws
+  for everyone (Raise DoU, Closer Word), a `debug` page stays in the "In-app" card that only debug mode draws
   (Echo) — the flask's unlock shows it in a store build too; LOCAL and DEV start unlocked. What the
   sub WebView is, and what it allows, is the phone shell's
   ([sub-webview.md](../../../../mobile/docs/webview/sub-webview.md)).
@@ -238,7 +238,7 @@ draws a hand-built row for it in the **Experiments** card. No renderer walks the
 experiment adds its own row, as a `user` key does in Settings.
 
 Everything sits in the one **Experiments** card, so a person sees the whole list in one place; a row is
-a switch, or — for a sub WebView page — an arrow that opens it. Today there are three:
+a switch, or — for a sub WebView page — an arrow that opens it. Today there are four:
 
 - **Place invite** (`feature.placeInvite`), through `usePlaceInviteExperiment` — see
   [invite/place-invite.md](../invite/place-invite.md).
@@ -246,6 +246,8 @@ a switch, or — for a sub WebView page — an arrow that opens it. Today there 
   [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment). Turning it on
   only adds a row to each room's settings; no room is locked until that row says so.
 - **Raise DoU** (`두유 키우기` in Korean), the raising game, a sub WebView page with nothing to turn on — see above.
+- **Closer Word** (`가까운 말` in Korean), a word-guessing game played in a chat room the page itself
+  asks for, a sub WebView page with nothing to turn on — see above.
 
 A row's subtitle is one short line because `ListRow` truncates a subtitle to a single line, and there
 is no note under the card: what a switch does is the feature's own doc.

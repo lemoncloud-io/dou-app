@@ -19,6 +19,13 @@ describe('resolveSubWebViewAppUrl', () => {
         );
     });
 
+    it.each([
+        ['prod', 'https://dou-closer-word.apps.chatic.io/'],
+        ['dev', 'https://dou-closer-word.apps-dev.chatic.io/'],
+    ] as const)('opens Closer Word on its %s host', async (stage, url) => {
+        await expect(resolveSubWebViewAppUrl({ appId: 'dou-closer-word', query: '' }, stage)).resolves.toBe(url);
+    });
+
     it.each(['quiz', 'constructor', 'toString'])('has no page for %s', async appId => {
         await expect(resolveSubWebViewAppUrl({ appId, query: '' }, 'prod')).resolves.toBeNull();
     });

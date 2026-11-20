@@ -230,6 +230,10 @@
                 "enhanceDou": {
                     "title": "Raise DoU",
                     "subtitle": "Raise your DoU"
+                },
+                "closerWord": {
+                    "title": "Closer Word",
+                    "subtitle": "Guess the hidden word together in a chat room"
                 }
             }
         },
