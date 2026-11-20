@@ -6,7 +6,7 @@
  * for web, landing and desktop-web; `ADMIN_<STAGE>_*` for admin), and the phone app has to reach the same
  * servers as the page it hosts. A local copy that drifts from the others builds an app that talks to a
  * server the deployed one never does, and nothing notices. `scripts/check-env.js` holds the copies to this
- * table.
+ * table, and `scripts/finish-deploy-env.js` holds the file a deploy writes to it.
  *
  * The table covers the backend only. A key that belongs to one app — its own host, the store SKUs, the
  * signing keys — is that app's business and is not listed.

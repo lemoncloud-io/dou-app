@@ -159,7 +159,9 @@ jobs:
               # The VITE_D1_*/VITE_V1_* lines are admin's per-stage targets, one value for every
               # build. Relay, archive and socket are the web app's own servers, so they reuse its
               # DEV/PROD secrets; goods and presence have ADMIN_<STAGE>_* secrets of their own.
-              # Other apps get empty values, dropped below.
+              # Other apps get empty values. finish-deploy-env drops the empty lines, then stops the
+              # job when a backend key the app carries (scripts/env-keys.js) is missing or VITE_ENV
+              # is not this stage, and prints only key names.
               if: ${{ matrix.should_run == 'true' }}
               run: |
                   set -e
@@ -193,9 +195,7 @@ jobs:
                   VITE_V1_WS_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_PROD_WS_ENDPOINT || '' }}
                   EOF
                   sed -i 's/^ *//' "$ENV_FILE"
-                  grep -v '=$' "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
-                  echo "Generated $ENV_FILE:"
-                  cat "$ENV_FILE"
+                  node scripts/finish-deploy-env.js ${{ matrix.project }} dev
 
             - name: Deploy to DEV
               if: ${{ matrix.should_run == 'true' }}
@@ -306,7 +306,9 @@ jobs:
               # The VITE_D1_*/VITE_V1_* lines are admin's per-stage targets, one value for every
               # build. Relay, archive and socket are the web app's own servers, so they reuse its
               # DEV/PROD secrets; goods and presence have ADMIN_<STAGE>_* secrets of their own.
-              # Other apps get empty values, dropped below.
+              # Other apps get empty values. finish-deploy-env drops the empty lines, then stops the
+              # job when a backend key the app carries (scripts/env-keys.js) is missing or VITE_ENV
+              # is not this stage, and prints only key names.
               if: ${{ matrix.should_run == 'true' }}
               run: |
                   set -e
@@ -340,9 +342,7 @@ jobs:
                   VITE_V1_WS_ENDPOINT=${{ matrix.prefix == 'ADMIN' && secrets.WEB_PROD_WS_ENDPOINT || '' }}
                   EOF
                   sed -i 's/^ *//' "$ENV_FILE"
-                  grep -v '=$' "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"
-                  echo "Generated $ENV_FILE:"
-                  cat "$ENV_FILE"
+                  node scripts/finish-deploy-env.js ${{ matrix.project }} prod
 
             - name: Deploy to PROD
               if: ${{ matrix.should_run == 'true' }}
