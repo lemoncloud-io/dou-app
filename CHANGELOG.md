@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-20] - root@0.172.1, @chatic/desktop-web@0.60.7
+
+### Bug Fixes
+
+- (desktop-web) send typed text as the caption of the files' message
+
 ## [2026-11-20] - root@0.172.0, @chatic/web@0.100.0
 
 ### Features
