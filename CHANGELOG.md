@@ -4,6 +4,16 @@
 
 ### Features
 
+- (web,config,web-ui-kit) add a mini app tab on the cloud's server list, in dev builds only
+
+### Other
+
+- test: (web-e2e) expect the mini app tab in the boot splash tab check
+
+## [2026-11-20] - No version updates
+
+### Features
+
 - (http,data,runtime) read and write a cloud's mini app list on the relay, not only its one link
 
 ### Bug Fixes
