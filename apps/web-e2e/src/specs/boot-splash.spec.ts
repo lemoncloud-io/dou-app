@@ -54,10 +54,16 @@ test('the app is told to lift its splash once the first screen has painted', asy
             tabs: record['__e2eTabsAtFirstScreenReady'] as string[],
         };
     });
-    // Home's tab is the selected one, so its name is drawn; notifications and MY are there as icons.
+    // Home's tab is the selected one, so its name is drawn; the others are there as icons.
     // A notifications tab with something unread is named with its dot's label after the name.
+    // This build is LOCAL, where the mini app tab (feature.miniApp.tab) is on, so it sits second.
     expect(screen).toMatch(/^Chat$/m);
-    expect(tabs).toEqual([expect.stringMatching(/^Chat\b/), expect.stringMatching(/^Alerts\b/), 'MY']);
+    expect(tabs).toEqual([
+        expect.stringMatching(/^Chat\b/),
+        expect.stringMatching(/^(Mini apps|미니앱)\b/),
+        expect.stringMatching(/^Alerts\b/),
+        'MY',
+    ]);
 });
 
 test('a boot that cannot sign in keeps the splash up until the cap', async ({ page, shell, backend }) => {

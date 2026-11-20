@@ -82,6 +82,11 @@ const ICON_FADE = 'transition-opacity duration-300 motion-reduce:transition-none
  * the design's own drop shadow.
  */
 export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: FloatingTabBarProps) => {
+    // Three tabs hug their 72px slots. Four do not fit that way on a 375 screen — three slots, the
+    // gaps and the selected tab's label run past the design's 343px — so the bar takes the full width
+    // instead, as the design's four-tab bar does, and the unselected tabs share what the selected one
+    // leaves, down to 56px each.
+    const crowded = items.length > 3;
     return (
         <div
             className={cn(
@@ -101,6 +106,7 @@ export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: F
                     // design is 62.84; rounding down keeps the bar on the 62 + 18 geometry the app's
                     // snackbar floor and trailing clearance are built on.
                     'pointer-events-auto flex h-[62px] max-w-full items-center gap-[5px] rounded-full p-1',
+                    crowded && 'w-full',
                     'border-[0.5px] border-black/[0.06] bg-white/[0.58] backdrop-blur-[8px] backdrop-saturate-[1.8]',
                     'shadow-[inset_1px_1px_0_0_rgba(255,255,255,0.9),inset_-1px_-1px_0_0_rgba(255,255,255,0.5),0_4px_12px_0_rgba(0,0,0,0.08)]',
                     // Figma ships light only. Dark keeps the same treatment on a dark tint, with
@@ -138,6 +144,7 @@ export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: F
                                 // `px-6` around a 24px icon is the unselected tab's 72px; the
                                 // selected one widens by its label, so the width is never set.
                                 'relative flex h-full shrink-0 items-center justify-center rounded-full px-6 text-nav-ink',
+                                crowded && !isActive && 'min-w-14 flex-1 px-4',
                                 'transition-colors duration-300 motion-reduce:transition-none',
                                 isActive && 'bg-black/[0.06] dark:bg-white/10'
                             )}

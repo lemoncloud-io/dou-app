@@ -865,7 +865,8 @@
         "my": "MY",
         "unread": "{{count}} unread",
         "notifications": "Alerts",
-        "newNotifications": "New notifications"
+        "newNotifications": "New notifications",
+        "miniApp": "Mini apps"
     },
     "explore": {
         "title": "Explore",
@@ -2543,5 +2544,73 @@
         "sendFailed": "Couldn't send. Please try again.",
         "sendFailedSome": "Couldn't send to some chats.",
         "loadingDestinations": "Loading chats"
+    },
+    "miniApps": {
+        "title": "Mini apps",
+        "manage": "Manage mini apps",
+        "hub": {
+            "title": "Mini app home",
+            "subtitle": "Browse mini apps reviewed by DoU"
+        },
+        "chip": {
+            "inactive": "Off",
+            "held": "On hold"
+        },
+        "ownerNote": "Members don't see mini apps that are off or on hold.",
+        "state": {
+            "loading": "Loading mini apps",
+            "loadFailed": "Couldn't load the mini apps",
+            "retry": "Try again",
+            "emptyMember": {
+                "title": "No mini apps yet",
+                "hint": "They show up here once the cloud's owner adds them"
+            },
+            "emptyOwner": {
+                "title": "Add your first mini app",
+                "hint": "All it takes is a name and an https address"
+            }
+        },
+        "add": "Add a mini app",
+        "addHint": "Up to {{max}}",
+        "listTitle": "{{cloud}}'s mini apps",
+        "count": "{{count}} / {{max}}",
+        "manageNote": "Turning one off removes it from members' list. A mini app an admin put on hold can't be turned on until the hold is lifted.",
+        "switchLabel": "Show {{name}} to members",
+        "switchLabelHeld": "{{name}} — on hold, can't be turned on",
+        "toggleFailed": "Couldn't change it",
+        "sheet": {
+            "editTitle": "Edit mini app",
+            "addTitle": "Add a mini app",
+            "description": "Everyone in the cloud sees it under this name",
+            "heldNotice": "An admin put this mini app on hold. Members won't see it until the hold is lifted.",
+            "nameLabel": "Name",
+            "urlLabel": "Address",
+            "visible": "Show to members",
+            "visibleHintAdd": "It appears in the mini app list as soon as you add it",
+            "visibleHintEdit": "Turn it off to remove it from members' list",
+            "visibleHintHeld": "Can't be changed while on hold",
+            "save": "Save",
+            "submitAdd": "Add",
+            "remove": "Delete mini app",
+            "saved": "Mini app saved",
+            "added": "Mini app added",
+            "removed": "Mini app deleted",
+            "removeFailed": "Couldn't delete the mini app"
+        },
+        "error": {
+            "nameMissing": "Enter a name.",
+            "nameTooLong": "Names can be up to {{max}} characters.",
+            "invalidUrl": "Enter an https address without a port or sign-in details.",
+            "hubUrl": "The mini app home opens on its own. Enter a different address.",
+            "tooMany": "Each cloud can have up to {{max}} mini apps.",
+            "failed": "Couldn't save. Please try again."
+        },
+        "consent": {
+            "title": "Open the '{{name}}' mini app?",
+            "body": "This mini app receives your name and your details in this cloud.",
+            "open": "Open"
+        },
+        "openFailed": "Couldn't open the mini app",
+        "openedOutside": "Opened in your browser. Update the app to open it here."
     }
 }

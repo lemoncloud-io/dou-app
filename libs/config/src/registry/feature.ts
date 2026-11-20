@@ -69,6 +69,19 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local'],
         persist: 'session',
     },
+    // The mobile web's top-level mini app tab, and with it the screens to manage the cloud's list. Off
+    // in production until it opens there; while it is on, the Lab's mini app card steps aside for it.
+    'feature.miniApp.tab': {
+        title: 'Mini app tab',
+        description:
+            "Shows the mini app tab in the mobile bottom navigation, with the cloud's server-kept mini app list.",
+        type: 'boolean',
+        defaultValue: false,
+        byStage: { LOCAL: true, DEV: true },
+        surface: 'dev',
+        writableBy: ['local'],
+        persist: 'session',
+    },
     'feature.subscription.dryRun': {
         title: 'Subscription payment dry run',
         description: 'Exercises the subscription flow without an actual charge.',

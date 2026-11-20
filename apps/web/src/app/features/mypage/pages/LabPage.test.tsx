@@ -5,13 +5,19 @@ import { LabPage } from './LabPage';
 const openSubWebView = jest.fn();
 const toast = jest.fn();
 let mockDebugMode = false;
+let mockMiniAppTab = false;
 const mockHaptic = jest.fn();
 const setPlaceInvite = jest.fn();
 const setChatInputLock = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({ settings: { get: () => 'code' } })
+    require('@chatic/runtime/testing').fakeRuntimeModule({
+        settings: {
+            get: () => 'code',
+            useConfigValue: (key: string) => (key === 'feature.miniApp.tab' ? mockMiniAppTab : undefined),
+        },
+    })
 );
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/web-ui-kit', () => ({
@@ -89,6 +95,7 @@ describe('LabPage — sub WebView pages', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockDebugMode = true;
+        mockMiniAppTab = false;
         openSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'view-1' });
     });
 
@@ -114,6 +121,15 @@ describe('LabPage — sub WebView pages', () => {
         render(<LabPage />);
 
         expect(screen.getByRole('region', { name: 'mini app card' })).toBeTruthy();
+    });
+
+    // While the mini app tab is on, the cloud's mini apps live there instead.
+    it('leaves the mini app card out while the mini app tab is on', () => {
+        mockMiniAppTab = true;
+
+        render(<LabPage />);
+
+        expect(screen.queryByRole('region', { name: 'mini app card' })).toBeNull();
     });
 
     it('draws no debug-only card while every page is an experiment', () => {

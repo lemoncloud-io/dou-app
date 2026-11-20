@@ -865,7 +865,8 @@
         "my": "MY",
         "unread": "{{count}}개 안 읽음",
         "notifications": "알림",
-        "newNotifications": "새 알림 있음"
+        "newNotifications": "새 알림 있음",
+        "miniApp": "미니앱"
     },
     "explore": {
         "title": "탐색",
@@ -2543,5 +2544,73 @@
         "sendFailed": "보내지 못했어요. 다시 시도해 주세요.",
         "sendFailedSome": "일부 대화방에 보내지 못했어요.",
         "loadingDestinations": "대화방을 불러오고 있어요"
+    },
+    "miniApps": {
+        "title": "미니앱",
+        "manage": "미니앱 관리",
+        "hub": {
+            "title": "미니앱 홈",
+            "subtitle": "DoU가 검수한 미니앱 둘러보기"
+        },
+        "chip": {
+            "inactive": "꺼짐",
+            "held": "보류"
+        },
+        "ownerNote": "꺼짐 · 보류인 미니앱은 구성원에게 보이지 않아요.",
+        "state": {
+            "loading": "미니앱을 불러오는 중",
+            "loadFailed": "미니앱 목록을 불러오지 못했어요",
+            "retry": "다시 시도",
+            "emptyMember": {
+                "title": "아직 미니앱이 없어요",
+                "hint": "클라우드 소유자가 추가하면 여기에 보여요"
+            },
+            "emptyOwner": {
+                "title": "첫 미니앱을 추가해 보세요",
+                "hint": "이름과 https 주소만 있으면 돼요"
+            }
+        },
+        "add": "미니앱 추가",
+        "addHint": "최대 {{max}}개",
+        "listTitle": "{{cloud}}의 미니앱",
+        "count": "{{count}} / {{max}}",
+        "manageNote": "끄면 구성원의 미니앱 목록에서 빠져요. 관리자가 보류한 미니앱은 보류가 풀릴 때까지 켤 수 없어요.",
+        "switchLabel": "{{name}} 구성원에게 보이기",
+        "switchLabelHeld": "{{name}} — 보류 중이라 켤 수 없어요",
+        "toggleFailed": "바꾸지 못했어요",
+        "sheet": {
+            "editTitle": "미니앱 편집",
+            "addTitle": "미니앱 추가",
+            "description": "클라우드 구성원 모두에게 이 이름으로 보여요",
+            "heldNotice": "관리자가 보류한 미니앱이에요. 보류가 풀릴 때까지 구성원에게 보이지 않아요.",
+            "nameLabel": "이름",
+            "urlLabel": "주소",
+            "visible": "구성원에게 보이기",
+            "visibleHintAdd": "추가하면 바로 미니앱 목록에 나와요",
+            "visibleHintEdit": "끄면 구성원의 미니앱 목록에서 빠져요",
+            "visibleHintHeld": "보류 중에는 바꿀 수 없어요",
+            "save": "저장",
+            "submitAdd": "추가",
+            "remove": "미니앱 삭제",
+            "saved": "미니앱을 저장했어요",
+            "added": "미니앱을 추가했어요",
+            "removed": "미니앱을 지웠어요",
+            "removeFailed": "미니앱을 지우지 못했어요"
+        },
+        "error": {
+            "nameMissing": "이름을 입력하세요.",
+            "nameTooLong": "이름은 {{max}}자까지 쓸 수 있어요.",
+            "invalidUrl": "포트나 로그인 정보 없이 https 주소를 넣어 주세요.",
+            "hubUrl": "미니앱 홈은 따로 열 수 있어요. 다른 주소를 입력하세요.",
+            "tooMany": "미니앱은 클라우드마다 {{max}}개까지 추가할 수 있어요.",
+            "failed": "저장하지 못했어요. 다시 시도해 주세요."
+        },
+        "consent": {
+            "title": "'{{name}}' 미니앱을 열까요?",
+            "body": "이 미니앱에 내 이름과 이 클라우드에서 쓰는 내 정보가 전달돼요.",
+            "open": "열기"
+        },
+        "openFailed": "미니앱을 열지 못했어요",
+        "openedOutside": "브라우저에서 열었어요. 앱을 업데이트하면 여기서 열려요."
     }
 }

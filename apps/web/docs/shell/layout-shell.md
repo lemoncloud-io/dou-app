@@ -15,7 +15,7 @@ own nav.
 | Layer                              | Owns                                                                           |
 | ---------------------------------- | ------------------------------------------------------------------------------ |
 | `UnifiedLayout` (apps/web)         | whether the nav shows, the unread total and notification dot it is fed         |
-| `BottomNavigation` (apps/web)      | the 3-tab route set, active-tab matching, navigation on select                 |
+| `BottomNavigation` (apps/web)      | the tab route set, active-tab matching, navigation on select                   |
 | `FloatingTabBar` (libs/web-ui-kit) | stateless rendering — pill, icons, badge, floating position, safe-area padding |
 
 `FloatingTabBar` knows nothing about `react-router` or the app's routes: everything it draws comes
@@ -42,9 +42,13 @@ export interface FloatingTabBarItem {
 The selected tab is a tinted capsule holding its filled icon and its name; every other tab is its line
 icon alone, so an unselected tab is named for screen readers by its `aria-label` only. `BottomNavigation`
 passes each tab both glyphs (`icon`, `activeIcon`: `IconNavChat`/`IconNavChatSolid`,
-`IconNavBell`/`IconNavBellSolid`, `IconNavMy`/`IconNavMySolid` from the kit). The tabs are chat,
-notifications and MY; the design's fourth, mini apps, waits for its own design. The pill hugs its
-tabs: four would land on the design's 343px, and three make a narrower pill centred over the column.
+`IconNavBell`/`IconNavBellSolid`, `IconNavMy`/`IconNavMySolid`, and `IconNavMiniApp`/`IconNavMiniAppSolid`
+from the kit). The tabs are chat, notifications and MY; while `feature.miniApp.tab` is on (local and
+development builds only), mini apps is the second of four — the design's order. Three tabs hug their
+72px slots, a narrower pill centred over the column. Four would not fit that way on a 375 screen —
+three slots, the gaps and the selected tab's label run past 343px and push the last tab out of the
+pill — so a bar of four takes the full width (343px there, the design's four-tab bar) and its
+unselected tabs share what the selected one leaves, down to 56px each.
 
 Moving to another tab plays the shell's selection haptic; a tap on the tab already open plays nothing.
 
@@ -85,6 +89,8 @@ flowchart TD
 `BOTTOM_NAV_PATHS` (`UnifiedLayout.tsx`) is an exact-match whitelist of `[ROUTES.home,
 ROUTES.notifications, ROUTES.mypage.root]` — a detail page, an edit screen, or a chat room hides the
 nav by not being on the list, not by an exclusion rule. Adding a tab destination means adding it here.
+`ROUTES.miniApps.root` joins it only while `feature.miniApp.tab` is on, read beside the list: a tab the
+nav draws but this check leaves out would take the nav away on its own screen.
 
 A second, unrelated whitelist — `MAIN_VARIANT_PATHS` (currently just `/`) — picks the container's
 scroll model (`min-h-dvh`, page scroll vs. a fixed `h-dvh` detail shell). The two lists answer

@@ -40,6 +40,13 @@ export const ROUTES = {
     // ── Notifications (Private) — the bottom nav's middle tab ─────
     notifications: '/notifications',
 
+    // ── Mini apps (Private) — the bottom nav's second tab while `feature.miniApp.tab` is on ──
+    miniApps: {
+        root: '/miniapps',
+        // The cloud's owner adds, edits, turns on and off, and removes the cloud's mini apps here.
+        manage: '/miniapps/manage',
+    },
+
     // ── Channel (Private) ────────────────────────────────────────
     channels: {
         root: '/channels',

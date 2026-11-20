@@ -28,6 +28,9 @@ export const LabPage = () => {
     const placeInvite = usePlaceInviteExperiment();
     const chatInputLock = useChatInputLockExperiment();
     const { toast } = useToast();
+    // While the mini app tab is on, the cloud's mini apps live there and this card steps aside. Read as a
+    // setting only: this feature does not reach into the tab's own code.
+    const miniAppTab = runtime.settings.useConfigValue<boolean>('feature.miniApp.tab') === true;
     const experimentPages = IN_APP_PAGES.filter(page => page.surface === 'experiment');
     const debugPages = IN_APP_PAGES.filter(page => page.surface === 'debug');
     const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(
@@ -117,7 +120,7 @@ export const LabPage = () => {
                 </MenuCard>
 
                 {/* Only where the app opens any https page, and never on the relay home. */}
-                <MiniAppCard />
+                {!miniAppTab && <MiniAppCard />}
 
                 {isDebugMode && (
                     <MenuCard title={t('mypage.lab.developerTools')}>

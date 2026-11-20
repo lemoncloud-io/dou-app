@@ -28,6 +28,9 @@ const ShareRoutes = lazy(() => import('../features/share').then(m => ({ default:
 const NotificationRoutes = lazy(() =>
     import('../features/notifications').then(m => ({ default: m.NotificationRoutes }))
 );
+// Registered whatever the toggle says: the routes read `feature.miniApp.tab` themselves and send a
+// production build, where it is off, home — so an address typed by hand opens nothing either.
+const MiniAppRoutes = lazy(() => import('../features/miniapps').then(m => ({ default: m.MiniAppRoutes })));
 const FindMeSheetHost = lazy(() => import('../features/notifications').then(m => ({ default: m.FindMeSheetHost })));
 
 const RouteFallback = () => {
@@ -134,6 +137,7 @@ export const privateRoutes = [
             { path: 'invite/*', element: withSuspense(InviteRoutes) },
             { path: 'search/*', element: withSuspense(SearchRoutes) },
             { path: 'notifications/*', element: withSuspense(NotificationRoutes) },
+            { path: 'miniapps/*', element: withSuspense(MiniAppRoutes) },
             { path: 'onboarding/*', element: withSuspense(OnboardingRoutes) },
             // Another app's share, opened by the app on `/share?id=` (iOS share extension, Android share intent).
             { path: 'share/*', element: withSuspense(ShareRoutes) },

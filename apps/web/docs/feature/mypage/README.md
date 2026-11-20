@@ -258,6 +258,11 @@ local storage, so another device of the same person starts with it off.
 
 ### The mini app card
 
+While `feature.miniApp.tab` is on — local and development builds — the card is not drawn: the cloud's
+mini apps live in the mini app tab instead, kept on the server
+([miniapps](../miniapps/README.md)). The Lab reads only that setting, not the tab's code. Production,
+where the setting is off, keeps the card as described here.
+
 Below the Experiments card, **Mini apps** opens DoU's hub for the active cloud in the sub WebView,
 with who is looking and the cloud's mini apps, and the hub opens the one chosen
 (`components/MiniAppCard.tsx`, `hooks/useMiniAppLauncher.ts`). It is the phone's half of the feature
