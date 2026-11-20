@@ -2,7 +2,8 @@
 
 > Status: Accepted · Decided: 2026-11-20 · Implemented: `feat/env-per-backend`
 > · Scope: the repository root's env files, `hybrid-shell.config.ts`, `scripts/check-env.js` and
-> `scripts/env-keys.js`, landing's build configurations, the desktop-web end-to-end suite's dev server
+> `scripts/env-keys.js`, `scripts/finish-deploy-env.js` and the deploy workflows, landing's build
+> configurations, the desktop-web end-to-end suite's dev server
 > · The behaviour is documented in [ONBOARDING.md](../../ONBOARDING.md) (Env and Firebase files) and
 > [apps/shell-adapter](../../apps/shell-adapter/README.md) (A backend on this machine)
 
@@ -58,10 +59,14 @@ keys; `yarn check:env` holds them to the shared file. Admin is deployed from its
 to servers of its own choosing per stage, so its files keep every key; Nx still loads the root file under
 them, which only fills a key admin does not set.
 
-### 4. The deploy does not change
+### 4. The deploy keeps writing its own file, held to the same list
 
 The deploy writes each app's complete `apps/<app>/.env` from its secrets, and an app's file wins over the
-root's, which the deploy never writes. Writing the deploy's env from the same key list is a later step.
+root's, which the deploy never writes. The file it writes is held to the same key list:
+`scripts/finish-deploy-env.js` drops the lines whose secret is empty and stops the job when a backend key
+the app carries is missing or `VITE_ENV` is not the stage being deployed — before, a missing secret
+vanished with the empty lines and the app was built without that server's address. The secrets stay named
+in the workflows, because GitHub hands a step only the secrets its expressions name.
 
 ## Consequences
 

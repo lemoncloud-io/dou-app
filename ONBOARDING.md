@@ -53,7 +53,8 @@ An app's own files hold only what is that app's. Nx loads an app's files first a
 and the first file to set a key keeps it — so a backend key left in an app's file, its `.env`
 included, wins over the shared one in every stage. The phone app and admin keep full copies: React
 Native's config plugin reads one file, and admin signs in to servers of its own. The deploy writes each
-app's complete env and does not read these files. Why it is arranged this way: ADR-0361.
+app's complete env from the repository's secrets and does not read these files; `scripts/finish-deploy-env.js` stops a
+deploy whose file lacks a backend key the app carries. Why it is arranged this way: ADR-0361.
 
 `yarn check:env` checks what each build actually reads: every backend key an app carries is set,
 `VITE_ENV` names the stage, apps deployed from the same secrets (and the phone app that hosts the web)
