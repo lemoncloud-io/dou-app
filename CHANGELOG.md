@@ -1,5 +1,16 @@
 # Changelog
 
+## [2026-11-20] - No version updates
+
+### Features
+
+- (mobile,admin,bridge-messages) record a restarted js context as a restart, not a cold boot
+- (mobile,runtime-core,runtime-web,bridges) say in the offer when the runtime already holds the session
+
+### Other
+
+- test: (runtime-core) show the paired-cloud check crossing the bridge on a launch the runtime owns
+
 ## [2026-11-20] - root@0.171.0, @chatic/web@0.99.0
 
 ### Features
