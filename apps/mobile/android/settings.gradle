@@ -1,6 +1,16 @@
 pluginManagement { includeBuild("../../../node_modules/@react-native/gradle-plugin") }
 plugins { id("com.facebook.react.settings") }
-extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+// The autolinking list is cached and rebuilt only when one of these files changes. React Native's
+// default watches lockfiles beside apps/mobile/package.json, but this monorepo's lockfile is the root
+// yarn.lock, so an install that added a native package never refreshed the list: a list cached before
+// the install stayed without it, and the app shipped with that package's JS and no native module.
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
+    ex.autolinkLibrariesFromCommand(
+        ['npx', '@react-native-community/cli', 'config'],
+        file('../'),
+        files('../package.json', '../react-native.config.js', '../../../yarn.lock')
+    )
+}
 rootProject.name = 'Chatic'
 include ':app'
 includeBuild('../../../node_modules/@react-native/gradle-plugin')

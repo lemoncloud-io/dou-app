@@ -68,6 +68,25 @@ yarn mobile:deploy:android:prod -m "..."
   nothing to fetch back from it. A failed symbol upload is logged with a retry command and does not
   fail the deploy — the build is already on TestFlight by then.
 
+## Android native module linking
+
+The Android build links each native library from a list it caches in
+`android/build/generated/autolinking/autolinking.json`, the output of
+`npx @react-native-community/cli config`. iOS has no such cache: `pod install` and `Podfile.lock`
+carry the list.
+
+The list is rebuilt only when a file it is keyed on changes. React Native's default keys it on the
+lockfiles next to `apps/mobile/package.json`, and this monorepo has none there: its lockfile is the
+root `yarn.lock`. So a build that ran after a native library was added to `package.json` but before
+`yarn install` put it in `node_modules` cached a list without it, and nothing ever refreshed it. The
+app then shipped the library's JS without its native module. App 0.32.1 shipped that way: the
+runtime's network signal (`@react-native-community/netinfo`) threw `NativeModule.RNCNetInfo is null`
+on Android, while iOS was fine.
+
+`android/settings.gradle` therefore names the root `yarn.lock` alongside `package.json` and
+`react-native.config.js`, so an install that changes the lockfile rebuilds the list. Deleting
+`android/build/generated/autolinking/` forces the same rebuild by hand.
+
 ## Android code shrinking (R8)
 
 Release builds run R8, which shrinks and renames the app's Java/Kotlin classes; debug builds do not.
