@@ -230,6 +230,10 @@
                 "enhanceDou": {
                     "title": "두유 키우기",
                     "subtitle": "두유를 키워보세요"
+                },
+                "closerWord": {
+                    "title": "가까운 말",
+                    "subtitle": "대화방에서 함께 숨은 단어를 맞혀 보세요"
                 }
             }
         },

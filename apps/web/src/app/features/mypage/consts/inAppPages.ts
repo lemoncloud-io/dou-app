@@ -27,4 +27,11 @@ export const IN_APP_PAGES: readonly InAppPage[] = [
         appId: 'dou-raise',
         surface: 'experiment',
     },
+    {
+        id: 'closerWord',
+        titleKey: 'mypage.lab.inAppPages.closerWord.title',
+        subtitleKey: 'mypage.lab.inAppPages.closerWord.subtitle',
+        appId: 'dou-closer-word',
+        surface: 'experiment',
+    },
 ];

@@ -92,7 +92,7 @@ describe('LabPage — sub WebView pages', () => {
         openSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'view-1' });
     });
 
-    it('lists the game in the Experiments card beside the switches', () => {
+    it('lists Raise DoU in the Experiments card beside the switches', () => {
         render(<LabPage />);
 
         const experiments = screen.getByRole('region', { name: 'mypage.lab.experiments' });
@@ -103,7 +103,7 @@ describe('LabPage — sub WebView pages', () => {
         expect(within(experiments).getByRole('button', { name: /^mypage\.lab\.chatInputLock / })).toBeTruthy();
     });
 
-    it('lists the game for everyone, with debug mode off', () => {
+    it('lists Raise DoU for everyone, with debug mode off', () => {
         mockDebugMode = false;
         render(<LabPage />);
 
@@ -131,6 +131,29 @@ describe('LabPage — sub WebView pages', () => {
 
         expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://dou-raise.apps.chatic.io/', appId: 'dou-raise' });
         expect(toast).not.toHaveBeenCalled();
+    });
+
+    it('lists Closer Word in the Experiments card for everyone', () => {
+        mockDebugMode = false;
+        render(<LabPage />);
+
+        const experiments = screen.getByRole('region', { name: 'mypage.lab.experiments' });
+        expect(
+            within(experiments).getByRole('button', { name: /^mypage\.lab\.inAppPages\.closerWord\.title / })
+        ).toBeTruthy();
+    });
+
+    it('opens Closer Word at its own address, named by its app id', async () => {
+        render(<LabPage />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.closerWord\.title / }));
+        });
+
+        expect(openSubWebView).toHaveBeenCalledWith({
+            url: 'https://dou-closer-word.apps.chatic.io/',
+            appId: 'dou-closer-word',
+        });
     });
 
     it('says so when the app refuses to open it', async () => {

@@ -9,9 +9,11 @@ import type { SubWebViewAppLinkTarget, SubWebViewStage } from '@chatic/shared';
 const SUB_WEBVIEW_APPS: Readonly<Record<SubWebViewStage, Readonly<Record<string, string>>>> = {
     prod: {
         'dou-raise': 'https://dou-raise.apps.chatic.io',
+        'dou-closer-word': 'https://dou-closer-word.apps.chatic.io',
     },
     dev: {
         'dou-raise': 'https://dou-raise.apps-dev.chatic.io',
+        'dou-closer-word': 'https://dou-closer-word.apps-dev.chatic.io',
     },
 };
 
