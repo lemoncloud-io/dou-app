@@ -44,7 +44,10 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(postMock).toHaveBeenLastCalledWith({ type: 'SetBadgeCount', data: { count: 7 } });
 
         appBridge.setCanGoBack(true);
-        expect(postMock).toHaveBeenLastCalledWith({ type: 'SetCanGoBack', data: { canGoBack: true } });
+        expect(postMock).toHaveBeenLastCalledWith({
+            type: 'SetCanGoBack',
+            data: { canGoBack: true, includesHistory: true },
+        });
     });
 
     // Regression pin: starting login is not a round trip that waits for a response. Reverting to

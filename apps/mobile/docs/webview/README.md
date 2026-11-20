@@ -222,19 +222,19 @@ sends it, and the web reads it through `webClient.onEvent`. Nothing answers an e
 the web side notices one that never comes or arrives in the wrong shape — which is why this
 direction has its own contract tests.
 
-| Event                                   | Pushed by                   | When                                                                                                                                                      |
-| --------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OnBackPressed`                         | `useAndroidBack`            | Android back press, only while the web has reported `SetCanGoBack` true or the WebView has history, and no sub WebView shows; otherwise the press goes on |
-| `OnBackgroundStatusChanged`             | `useAppStateHandler`        | On mount and on every `AppState` change, except while the state is `unknown`                                                                              |
-| `OnNavigate`                            | `useDeepLinkNavigation`     | A deep link or a notification tap, warm or cold start, that resolves to a web path; a room path carries a `perfTrace`                                     |
-| `OnReceiveNotification`                 | `useFcmHandler`             | A push received in the foreground — from the notification library, or relayed by Android's native service                                                 |
-| `OnUpdateDeviceInfo`                    | `useVersionCheckHandler`    | When the store version check finds a newer version — iOS only for now, since Android's check reports none                                                 |
-| `OnFileTransferState`                   | `fileTransferHandlers`      | Every state change the native transfer manager reports; the payload is passed through                                                                     |
-| `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                                     |
-| `OnSubWebViewClosed`                    | `subWebViewHandlers`        | A sub WebView closed — by the user, by `CloseSubWebView`, or by the shell before a deep link or a push tap; not when the web reloaded under it            |
-| `OnSubWebViewContextChanged`            | `SubWebView` (its own host) | Pushed to the sub WebView page, never to the main web, when the theme or language changes, or the safe area settles after a change, while it shows        |
-| `OnRuntimeEvent`                        | `runtimeBridge`             | Only on a launch the app's runtime owns: each event of a stream the page subscribed to after its hello                                                    |
-| `OnRuntimeSessionChanged`               | `runtimeBridge`             | Only on a launch the app's runtime owns: each change of the session, once per JS turn, after a page's hello was answered `native`                         |
+| Event                                   | Pushed by                   | When                                                                                                                                                                |
+| --------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OnBackPressed`                         | `useAndroidBack`            | Android back press, only while the web's last `SetCanGoBack` makes the press the web's (§ Android back below) and no sub WebView shows; otherwise the press goes on |
+| `OnBackgroundStatusChanged`             | `useAppStateHandler`        | On mount and on every `AppState` change, except while the state is `unknown`                                                                                        |
+| `OnNavigate`                            | `useDeepLinkNavigation`     | A deep link or a notification tap, warm or cold start, that resolves to a web path; a room path carries a `perfTrace`                                               |
+| `OnReceiveNotification`                 | `useFcmHandler`             | A push received in the foreground — from the notification library, or relayed by Android's native service                                                           |
+| `OnUpdateDeviceInfo`                    | `useVersionCheckHandler`    | When the store version check finds a newer version — iOS only for now, since Android's check reports none                                                           |
+| `OnFileTransferState`                   | `fileTransferHandlers`      | Every state change the native transfer manager reports; the payload is passed through                                                                               |
+| `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                                               |
+| `OnSubWebViewClosed`                    | `subWebViewHandlers`        | A sub WebView closed — by the user, by `CloseSubWebView`, or by the shell before a deep link or a push tap; not when the web reloaded under it                      |
+| `OnSubWebViewContextChanged`            | `SubWebView` (its own host) | Pushed to the sub WebView page, never to the main web, when the theme or language changes, or the safe area settles after a change, while it shows                  |
+| `OnRuntimeEvent`                        | `runtimeBridge`             | Only on a launch the app's runtime owns: each event of a stream the page subscribed to after its hello                                                              |
+| `OnRuntimeSessionChanged`               | `runtimeBridge`             | Only on a launch the app's runtime owns: each change of the session, once per JS turn, after a page's hello was answered `native`                                   |
 
 `OnUpdateStatus` is a push-only message this shell never sends: the desktop updates itself, the
 phone through the store. `OnOpenURL` is not an event despite the name — it is the reply to the
@@ -284,6 +284,37 @@ npx jest --config apps/mobile/jest.config.js appEvents.contract useAndroidBack u
   useDeepLinkNavigation useFcmHandler useVersionCheckHandler fileTransferHandlers useSubscriptionIapHandler
 npx jest --config apps/desktop/jest.config.js appEvents.contract shellEvents updater
 ```
+
+### Android back
+
+`OnBackPressed` goes to the web only when the press is the web's to spend; otherwise it goes on to
+`MainActivity`, which shows the "press back again to exit" toast and leaves the app on a second press.
+`useWebViewNavigation` decides which, with `resolveCanGoBack`:
+
+- **A page that sends `includesHistory: true`** (bridge 2.34.0) is the only judge. Its `canGoBack` is
+  true while an overlay is open or the page's router has an entry behind the current screen — the
+  exact negation of the page dropping the press — so the WebView's own history is not asked.
+- **An older page** reports open overlays only, and the WebView's `canGoBack` (from
+  `onNavigationStateChange`) is added for the history half, as before.
+
+The WebView's `canGoBack` cannot carry the history half for a current page because it does not follow
+the router's pushState entries: it is read as Android reports the history update, and on an API 36
+emulator it stayed false on every pushed screen — back offered to exit from a pushed screen. Where it
+reads true on the page's first screen — after the two-entry rewind a sign-in by code ends with — the
+press went to a page with nothing to do with it, and back did nothing at all.
+
+Each `SetCanGoBack` replaces the last one whole, so a reload into an older build (a custom bundle)
+falls back to the WebView's history on its first report. A document load starting (`onLoadStart` with
+`loading` true — Android also calls it for the page's own history moves, with `loading` false) drops
+the last report too: it belonged to the page being replaced, and the next page reports only once it
+has booted, over a second later on a dev build. In that window the WebView's history decides, as it
+does for a page that never reports. An error view replacing the WebView (a failed load, crash recovery giving
+up, a deep-link error) drops it as well, and the WebView's history with it: nothing is left to spend
+the press.
+
+While a sub WebView shows, the press is armed for React Native whatever the page says, because the
+view's own back listener runs there and Android reaches it only while armed; `useAndroidBack` steps
+aside for it, as before.
 
 ## Injection
 

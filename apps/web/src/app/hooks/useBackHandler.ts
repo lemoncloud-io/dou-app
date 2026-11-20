@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 
 import { runtime } from '@chatic/runtime';
 import { useOnBackPressed } from '../bridge';
-import { useStackBack } from '../navigation';
+import { backIsTheAppsToSpend, useStackBack } from '../navigation';
 
 /** Selector for Radix UI overlay components that can be closed with back button */
 const OPEN_DIALOG_SELECTOR =
@@ -11,8 +11,8 @@ const OPEN_DIALOG_SELECTOR =
 
 /**
  * Hook to handle back button in hybrid app environment.
- * - Syncs navigation state with native app, where the frame has a back gesture (the host's
- *   `appShell` port)
+ * - Tells the frame, where it has a back gesture (the host's `appShell` port), whether a back press
+ *   is the page's to spend
  * - Handles native back button events
  * - Supports `data-prevent-back-close` attribute to prevent back button from closing dialogs
  */
@@ -21,24 +21,24 @@ export const useBackHandler = () => {
     const backGesture = runtime.appShell.backGesture;
     const consumeBack = useStackBack();
 
-    // Notify native app about navigation state changes
-    // Also watch for dialog state changes using MutationObserver
+    // The whole answer, history included, not only whether a dialog is open. The Android shell used to
+    // add the WebView's own `canGoBack` for the history half, which does not follow the router's
+    // pushState entries: back offered to exit from pushed screens, and where it read true on the first
+    // screen — after the `-2` rewind a sign-in by code ends with — the press came here and was dropped.
+    const reportCanGoBack = useCallback(() => {
+        if (!backGesture) return;
+        backGesture.setCanGoBack(backIsTheAppsToSpend(document.querySelector(OPEN_DIALOG_SELECTOR) !== null));
+    }, [backGesture]);
+
+    // Report on every location change, and whenever a dialog opens or closes.
     useEffect(() => {
         if (!backGesture) return;
 
-        const checkCanGoBack = () => {
-            // Only report dialog state - native app tracks navigation history separately
-            const hasOpenDialogs = document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
-
-            backGesture.setCanGoBack(hasOpenDialogs);
-        };
-
-        // Initial check
-        checkCanGoBack();
+        reportCanGoBack();
 
         // Watch for dialog state changes (both attribute changes and DOM additions/removals)
         const observer = new MutationObserver(() => {
-            checkCanGoBack();
+            reportCanGoBack();
         });
 
         observer.observe(document.body, {
@@ -49,7 +49,7 @@ export const useBackHandler = () => {
         });
 
         return () => observer.disconnect();
-    }, [location, backGesture]);
+    }, [location, backGesture, reportCanGoBack]);
 
     /**
      * Closes the topmost open overlay.
@@ -92,14 +92,17 @@ export const useBackHandler = () => {
      * open, nothing behind — is what the shell needs in order to decide about exiting, and it had
      * no name at all until now.
      */
-    const handleNativeBack = useCallback(
-        () =>
-            consumeBack({
-                hasBlockingOverlay: document.querySelector(OPEN_DIALOG_SELECTOR) !== null,
-                closeTopOverlay,
-            }),
-        [consumeBack, closeTopOverlay]
-    );
+    const handleNativeBack = useCallback(() => {
+        const outcome = consumeBack({
+            hasBlockingOverlay: document.querySelector(OPEN_DIALOG_SELECTOR) !== null,
+            closeTopOverlay,
+        });
+        // A rewind lands a frame or more later, and the location effect reports only then. Reporting
+        // now — `canGoBackInApp` already counts the rewind in flight — answers a quick second press
+        // from where the first one is going: on the first screen the frame gets it, not the page.
+        if (outcome === 'navigated') reportCanGoBack();
+        return outcome;
+    }, [consumeBack, closeTopOverlay, reportCanGoBack]);
 
     // Listen for native back button message
     useOnBackPressed(handleNativeBack);

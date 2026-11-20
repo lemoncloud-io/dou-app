@@ -186,9 +186,12 @@ export const appBridge = {
         return webClient.request({ type: 'DeletePreference', data });
     },
 
-    /** Report whether the in-web back action can still go back (dialog open). */
+    /**
+     * Report whether a back press is the page's to spend: a dialog is open, or the app has an entry of
+     * its own to rewind to. `includesHistory` tells the shell this is the whole answer.
+     */
     setCanGoBack(canGoBack: boolean): void {
-        webClient.post({ type: 'SetCanGoBack', data: { canGoBack } });
+        webClient.post({ type: 'SetCanGoBack', data: { canGoBack, includesHistory: true } });
     },
 
     // ---------------------------------------------------------------

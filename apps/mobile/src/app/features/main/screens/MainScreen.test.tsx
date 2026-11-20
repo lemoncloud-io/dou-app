@@ -6,7 +6,7 @@ import { MainScreen } from './MainScreen';
 type WebViewProps = {
     onCrashRecoveryFailed: (reason: 'crash-loop' | 'no-first-screen') => void;
     onError: (event: { nativeEvent: { description: string } }) => void;
-    onLoadStart: (event: { nativeEvent: { url: string } }) => void;
+    onLoadStart: (event: { nativeEvent: { url: string; loading?: boolean } }) => void;
     source: { uri: string };
 };
 
@@ -38,8 +38,10 @@ jest.mock('../../core/components', () => ({
     ),
 }));
 
+const mockSetNavCanGoBack = jest.fn();
+const mockForgetPageReport = jest.fn();
 jest.mock('../../../webview/hooks/useWebViewNavigation', () => ({
-    useWebViewNavigation: () => ({ setNavCanGoBack: jest.fn() }),
+    useWebViewNavigation: () => ({ setNavCanGoBack: mockSetNavCanGoBack, forgetPageReport: mockForgetPageReport }),
 }));
 
 jest.mock('../../../webview/hooks/useDeepLinkNavigation', () => ({
@@ -107,6 +109,31 @@ describe('MainScreen web page load failure', () => {
         expect(screen.getByTestId('webview-error').textContent).toContain('net::ERR_INTERNET_DISCONNECTED');
         expect(screen.getByTestId('webview-error').getAttribute('data-kind')).toBe('load');
         expect(mockOnLoadFailed).toHaveBeenCalledTimes(1);
+    });
+
+    // Nothing is left to spend a back press once the WebView is gone; the press is the app's.
+    it('hands Android back to the app while the retry view shows', () => {
+        renderScreen();
+        mockForgetPageReport.mockClear();
+        mockSetNavCanGoBack.mockClear();
+
+        failLoad('net::ERR_INTERNET_DISCONNECTED');
+
+        expect(mockForgetPageReport).toHaveBeenCalled();
+        expect(mockSetNavCanGoBack).toHaveBeenLastCalledWith(false);
+    });
+
+    // Android reports the page's own history moves through `onLoadStart` too, with `loading` false;
+    // only a document load replaces the page whose back report the shell holds.
+    it("forgets the page's back report when a document starts loading, not on a history move", () => {
+        renderScreen();
+        mockForgetPageReport.mockClear();
+
+        act(() => webViewProps?.onLoadStart({ nativeEvent: { url: 'https://app.example/mypage', loading: false } }));
+        expect(mockForgetPageReport).not.toHaveBeenCalled();
+
+        act(() => webViewProps?.onLoadStart({ nativeEvent: { url: 'https://app.example/', loading: true } }));
+        expect(mockForgetPageReport).toHaveBeenCalledTimes(1);
     });
 
     it('remounts the WebView and clears the error on retry', () => {

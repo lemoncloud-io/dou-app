@@ -87,7 +87,10 @@ export interface ShellPreferenceStore {
 
 /** The frame's back button or gesture. */
 export interface ShellBackGesture {
-    /** Tells the frame whether a back press is the page's to spend (an overlay is open) or its own. */
+    /**
+     * Tells the frame whether a back press is the page's to spend — an overlay is open, or the page has
+     * an entry of its own history to rewind to — or the frame's own.
+     */
     setCanGoBack(canGoBack: boolean): void;
 }
 

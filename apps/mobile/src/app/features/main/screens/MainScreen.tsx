@@ -64,7 +64,7 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     // ended, or after the session owner was switched. Read once per context.
     const restartNote = appRestart.note();
 
-    const { setNavCanGoBack } = useWebViewNavigation(bridge);
+    const { setNavCanGoBack, forgetPageReport } = useWebViewNavigation(bridge);
     // Single owner of inbound navigation: OS deep links, invite links, and notification taps → OnNavigate.
     const { deepLinkError, deepLinkErrorReason, handleDismissError } = useDeepLinkNavigation(bridge, {
         skipColdStart: restartNote !== null,
@@ -91,6 +91,14 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     useEffect(() => {
         if (deepLinkError) bootSplashService.onLoadFailed();
     }, [deepLinkError]);
+
+    // An error view replaced the WebView, so nothing is there to spend a back press: the press is the
+    // app's until a WebView mounts again and its page reports.
+    useEffect(() => {
+        if (!webViewError && !deepLinkError) return;
+        forgetPageReport();
+        setNavCanGoBack(false);
+    }, [webViewError, deepLinkError, forgetPageReport, setNavCanGoBack]);
 
     // Boot timeline: WebView screen mounted — network load starts right after.
     useEffect(() => {
@@ -123,6 +131,9 @@ export const MainScreen = ({ route }: MainScreenProps) => {
                 scrollEnabled={false}
                 onLoadStart={event => {
                     homeSearchRef.current = null;
+                    // Android reports the page's own history moves through this callback too, with
+                    // `loading` false; only a document load still in progress replaces the page.
+                    if (event.nativeEvent.loading) forgetPageReport();
                     bootMetricsService.mark('load-start');
                     updateWebViewState({
                         isLoading: true,

@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import { useStackBack } from './useStackBack';
+import { backIsTheAppsToSpend, useStackBack } from './useStackBack';
 
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 
@@ -89,19 +89,16 @@ describe('useStackBack', () => {
         });
     });
 
-    // The invariant this hook exists to hold: `not-consumed` is exactly the case where the shell
-    // report would say `canGoBack: false`. If these two ever drift, the shell exits while the app
-    // still had something to do, or refuses to exit when it did not.
-    it('returns not-consumed exactly when the shell report would say canGoBack false', () => {
-        const reportWouldSay = (hasBlockingOverlay: boolean, depth: number | null) => {
-            standingAt(depth);
-            return hasBlockingOverlay || (depth ?? 0) > 0;
-        };
-
+    // The invariant this hook exists to hold: `not-consumed` is exactly the case where the shell report
+    // (`backIsTheAppsToSpend`) says false. If these two ever drift, the shell exits while the app still
+    // had something to do, or sends the app a press it then drops — back doing nothing at all.
+    it('returns not-consumed exactly when the shell report says the press is not the app to spend', () => {
         for (const hasBlockingOverlay of [true, false]) {
             for (const depth of [null, 0, 1, 5]) {
-                const canGoBack = reportWouldSay(hasBlockingOverlay, depth);
+                // Lands the rewind the previous round started, so the report reads only this depth.
+                window.dispatchEvent(new PopStateEvent('popstate'));
                 standingAt(depth);
+                const canGoBack = backIsTheAppsToSpend(hasBlockingOverlay);
                 const { outcome } = back(hasBlockingOverlay);
 
                 expect({ hasBlockingOverlay, depth, notConsumed: outcome === 'not-consumed' }).toEqual({
@@ -111,5 +108,33 @@ describe('useStackBack', () => {
                 });
             }
         }
+    });
+
+    describe('backIsTheAppsToSpend', () => {
+        it('is the app to spend while an overlay is open, even with nothing behind', () => {
+            standingAt(0);
+
+            expect(backIsTheAppsToSpend(true)).toBe(true);
+        });
+
+        it('is the app to spend with an entry behind', () => {
+            standingAt(2);
+
+            expect(backIsTheAppsToSpend(false)).toBe(true);
+        });
+
+        it('is the shell to spend on the first screen with nothing open', () => {
+            standingAt(0);
+
+            expect(backIsTheAppsToSpend(false)).toBe(false);
+        });
+
+        // A rewind already asked for counts: one entry in, the press after it is the shell's.
+        it('counts a rewind that has not landed yet', () => {
+            standingAt(1);
+            back(false);
+
+            expect(backIsTheAppsToSpend(false)).toBe(false);
+        });
     });
 });

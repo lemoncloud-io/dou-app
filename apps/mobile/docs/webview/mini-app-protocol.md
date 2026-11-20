@@ -1,6 +1,6 @@
 # The mini app protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.33.0. This document states the protocol as it stands. Which
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.34.0. This document states the protocol as it stands. Which
 > bridge version brought each part is in [Version history](#version-history) at the end; an app built
 > before a version lacks what it brought, which a page learns from the handshake rather than from a
 > version number.
@@ -548,6 +548,8 @@ How it is derived, how long it lasts and what it is not are in
 The page claims Android's back button. While the claim is `true`, a back press is pushed to the page
 as `OnBackPressed` and does nothing else; see [Back](#back-android). The claim ends at the next page
 load. iOS has no back button and ignores the claim; its edge swipe goes back in the view's history.
+`includesHistory`, which DoU's own web sends with the same message, is not read for a mini app: its
+claim is about the page alone, and the view's history and its close follow it as described in Back.
 
 ### `SetSubWebViewCloseGuard`
 

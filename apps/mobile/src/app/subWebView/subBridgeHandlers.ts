@@ -258,7 +258,9 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             }
         },
 
-        // The main web's message, with the same meaning: while true, Android back is the page's.
+        // The main web's message: while true, Android back is the page's. A page's claim is only ever
+        // about itself — `includesHistory`, which lets the main web answer for its history too, is not
+        // read here; the view's own history and its close come after the claim either way.
         SetCanGoBack: async message => {
             const canGoBack = message.data?.canGoBack;
             if (typeof canGoBack !== 'boolean') {

@@ -147,6 +147,17 @@ is the app's first entry and nothing else, because the router back-fills `idx: 0
 and the debug overlay both sit above `RouterProvider`, so the component that creates the router is
 the only place that can subscribe to it.
 
+The phone shell is told the same answer. `useBackHandler` reports `backIsTheAppsToSpend` — an
+overlay is open, or `canGoBackInApp()` — through `appShell.backGesture` on every location change,
+every dialog opening or closing, and at once after a rewind it took, and the bridge marks the report
+`includesHistory`. That expression is exactly the negation of `useStackBack`'s `not-consumed`, and
+the Android shell decides from it alone: a press it sends is one the page spends, and a press on the
+first screen with nothing open stays with the shell, which may exit. The shell used to add the
+WebView's own `canGoBack` for the history half instead, which does not follow the router's pushState
+entries — back offered to exit from pushed screens, and was dropped on the first screen after the
+two-entry rewind a sign-in by code ends with
+([mobile `docs/webview/README.md` § Android back](../../../mobile/docs/webview/README.md#android-back)).
+
 A rewind `useStackBack` takes plays the back page transition, the same one the header's back arrow
 plays — that is Android's system back; iOS goes back by the WebView's own swipe and never reaches it.
 [page-transitions.md](./page-transitions.md) has the per-platform table.
