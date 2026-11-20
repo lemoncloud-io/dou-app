@@ -96,29 +96,27 @@ describe('useComposerSend', () => {
 
         await act(async () => result.current.send('', files));
 
-        expect(sendImages).toHaveBeenCalledWith(files);
+        expect(sendImages).toHaveBeenCalledWith(files, { content: '' });
         expect(sendMessage).not.toHaveBeenCalled();
     });
 
-    it('sends the text at the press, before the pictures, so it reads above them', () => {
-        const order: string[] = [];
-        sendMessage.mockImplementation(async () => void order.push('text'));
-        sendImages.mockImplementation(async () => void order.push('images'));
+    // Reported: a thread post with a picture and text landed as two messages, each saved and
+    // replied to on its own. Text and pictures sent together are one post.
+    it('sends text typed with pictures as one message, the text as its caption', () => {
         const { result } = renderHook(() => useComposerSend({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' }));
         const files = picked();
 
-        act(() => result.current.send('caption', files));
+        act(() => result.current.send('@Ada caption', files, { userIds: ['u-ada'] }));
 
-        expect(order).toEqual(['text', 'images']);
-        expect(sendMessage).toHaveBeenCalledWith('cloud-a', {
-            channelId: 'ch-1',
-            content: 'caption',
-            parentId: 'root-1',
+        expect(sendMessage).not.toHaveBeenCalled();
+        expect(sendImages).toHaveBeenCalledTimes(1);
+        expect(sendImages).toHaveBeenCalledWith(files, {
+            content: '@Ada caption',
+            mention: { userIds: ['u-ada'] },
         });
-        expect(sendImages).toHaveBeenCalledWith(files);
     });
 
-    it('says the pictures failed when their row could not even be written, and leaves the text sent', async () => {
+    it('says the message failed when its row could not even be written, and sends no text of its own', async () => {
         sendImages.mockRejectedValue(new Error('cache write failed'));
         const { result } = renderHook(() => useComposerSend({ cid: 'cloud-a', channelId: 'ch-1' }));
 
@@ -127,7 +125,7 @@ describe('useComposerSend', () => {
         expect(toast).toHaveBeenCalledWith(
             expect.objectContaining({ variant: 'destructive', title: 'toast.messageFailed' })
         );
-        expect(sendMessage).toHaveBeenCalledTimes(1);
+        expect(sendMessage).not.toHaveBeenCalled();
     });
 
     it('says so when the text send fails', async () => {
