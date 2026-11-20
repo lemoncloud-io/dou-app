@@ -125,7 +125,7 @@ has never had, on any 403.
 
 ### Gateways and the log sink
 
-Six lazily memoized gateways — `oauthGateway`, `cloudGateway`, `userGateway`,
+Seven lazily memoized gateways — `oauthGateway`, `cloudGateway`, `miniAppGateway`, `userGateway`,
 `subscriptionGateway`, `reportGateway`, `pairingGateway` — all built over `getHttpManager()`. `resetGateways()` exists
 for tests and **must be paired with `resetHttpManager()`**: a gateway memoized over a discarded
 manager keeps using it.

@@ -117,6 +117,10 @@ export const REPOSITORY_METHODS = {
         retryCloudSetup: 'call',
         fetchMiniAppUrl: 'call',
         saveMiniAppUrl: 'call',
+        listMiniApps: 'call',
+        addMiniApp: 'call',
+        updateMiniApp: 'call',
+        removeMiniApp: 'call',
     } satisfies CrossingsOf<PageRepositories['cloud']>,
     device: {
         syncDevice: 'send',

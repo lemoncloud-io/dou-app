@@ -388,9 +388,14 @@ export const SUB_WEB_VIEW_REPOSITORY_WHITELIST = {
             makeCloud: deny('write'),
             releaseCloud: deny('write'),
             retryCloudSetup: deny('write'),
-            // The cloud's mini app link is the settings' and the rail's to read and its owner's to set, not a page's.
+            // The cloud's mini app link and list are the settings' and the rail's to read and its owner's
+            // to set, not a page's. A hub gets the list the web hands it as `params.miniApps`.
             fetchMiniAppUrl: deny('otherCloud'),
             saveMiniAppUrl: deny('write'),
+            listMiniApps: deny('otherCloud'),
+            addMiniApp: deny('write'),
+            updateMiniApp: deny('write'),
+            removeMiniApp: deny('write'),
             verifyCloudEmail: deny('account'),
             cacheWrite: deny('cacheWrite'),
             cacheDelete: deny('cacheWrite'),

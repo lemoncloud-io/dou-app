@@ -1,6 +1,6 @@
 # The 13 domains
 
-> Status: Live · Last updated: 2026-10-13 · Shared rules in the [repositories README](./README.md) · Canonical code: [repositories/](../../src/repositories/)
+> Status: Live · Last updated: 2026-11-20 · Shared rules in the [repositories README](./README.md) · Canonical code: [repositories/](../../src/repositories/)
 
 The per-domain facade catalogue for `repositories/`. A table for looking up which method reads local
 and which hits remote, and what rule differs per domain — **a document you look things up in**, not one
@@ -58,7 +58,8 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 ### Cloud
 
 `observeList` · `observeItem` · `getCloud` · `updateCloud` · `fetchCloudCatalog` ·
-`verifyCloudEmail` · `makeCloud` · `releaseCloud` · `retryCloudSetup` · `fetchMiniAppUrl` · `saveMiniAppUrl` · `cache*`
+`verifyCloudEmail` · `makeCloud` · `releaseCloud` · `retryCloudSetup` · `fetchMiniAppUrl` · `saveMiniAppUrl` ·
+`listMiniApps` · `addMiniApp` · `updateMiniApp` · `removeMiniApp` · `cache*`
 
 - The socket axis is based on `CloudGateway`'s `get` / `update`. **Neither `cloud.create` nor `cloud.delete` is in the socket bundle** — a cloud is made and removed over HTTP (`makeCloud` / `releaseCloud`).
 - `getCloud` and `updateCloud` go to the **relay** whichever cloud is active. The name lives on the catalog row the relay's backend owns; a cloud server keeps its own copy of the row, and nothing syncs the two, so reading or writing there would split the name. A rename therefore never needs the renamed cloud's own session, and an invited member reads the name its owner set.
@@ -66,6 +67,7 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 - `getCloud(payload, { cache: false })` reads without writing anything — for a sub WebView page, which the runtime whitelist opens only this way, and for a paired cloud, which must not get a cache row: every row there is listed as owned or invited, and a get would create an `owner` row for a cloud the cache has never seen.
 - The HTTP axis handles the catalogue (`list`) plus `make` / `release` / `retryCloudSetup` / `verifyEmail`. `retryCloudSetup` asks the relay's workspace route for a slot again, for a cloud whose setup failed — the relay takes it only while the cloud is `init` or `error`, from its owner, and refuses a cloud that already holds a slot. **HTTP results are not written to local** — the catalogue's cache owner is a react-query adapter.
 - `fetchMiniAppUrl` / `saveMiniAppUrl` are the cloud's mini app link — one address its owner sets, `''` for none — and they go over HTTP, not the socket: the relay route that lets an owner set it is `PUT /clouds/:id`, which takes `miniAppUrl` alone from the owner and refuses anyone else, and `GET /clouds/:id` hands the link to members in its minimal view too. The relay stores the string as sent, so the caller checks the address. Neither is cached; react-query owns it.
+- `listMiniApps` / `addMiniApp` / `updateMiniApp` / `removeMiniApp` are the cloud's **mini app list** — up to 10 names and https addresses its owner registers, each with the owner's on/off switch (`enabled`) and the relay's display value (`status`: `active`, `inactive` when the owner turned it off, `held` when an admin holds it). They go over HTTP to the relay's `/miniapps` resource through their own data source (`MiniAppHttpDataSource`, injected as the constructor's last, optional argument; without it the four throw "not injected"). The list comes in the relay's order with every status — a member's view (active only) is the screen's filter. The list is **not** the single link above: the relay did not move a link saved with `saveMiniAppUrl` into it. The link methods go once the screens that use them have moved to the list. Writes are the owner's (or an admin's); a refusal for one of the save rule's reasons rejects with `MiniAppSaveRefused`, whose reason (`nameMissing` · `nameTooLong` · `invalidUrl` · `hubUrl` · `tooMany`) a screen reads with `miniAppSaveProblemOf(error)` — that also works after the error has crossed the bridge, where `instanceof` does not. Anything else rejects as it came. Nothing is cached; react-query owns it ([the mini app lane](../remote/http.md#the-mini-app-lane)).
 - Cloud is the top-level organizational unit (`cid`); unlike place/site it acts as the scope root.
 
 ### Join

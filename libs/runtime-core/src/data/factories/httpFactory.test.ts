@@ -11,6 +11,7 @@ import { createHttpDataSources } from './httpFactory';
 const oauthGateway = jest.fn(() => ({ tag: 'oauth-gateway' }));
 const userGateway = jest.fn(() => ({ tag: 'user-gateway' }));
 const cloudGateway = jest.fn(() => ({ tag: 'cloud-gateway' }));
+const miniAppGateway = jest.fn(() => ({ tag: 'mini-app-gateway' }));
 const subscriptionGateway = jest.fn(() => ({ tag: 'subscription-gateway' }));
 const reportGateway = jest.fn(() => ({ tag: 'report-gateway' }));
 const pairingGateway = jest.fn(() => ({ tag: 'pairing-gateway' }));
@@ -20,6 +21,7 @@ jest.mock('@chatic/transport', () => ({
     oauthGateway: () => oauthGateway(),
     userGateway: () => userGateway(),
     cloudGateway: () => cloudGateway(),
+    miniAppGateway: () => miniAppGateway(),
     subscriptionGateway: () => subscriptionGateway(),
     reportGateway: () => reportGateway(),
     pairingGateway: () => pairingGateway(),
@@ -44,6 +46,7 @@ describe('createHttpDataSources', () => {
                 auth: { tag: 'oauth-gateway' },
                 user: { tag: 'user-gateway' },
                 cloud: { tag: 'cloud-gateway' },
+                miniApp: { tag: 'mini-app-gateway' },
                 subscription: { tag: 'subscription-gateway' },
                 report: { tag: 'report-gateway' },
                 pairing: { tag: 'pairing-gateway' },

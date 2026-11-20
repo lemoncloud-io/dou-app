@@ -6,6 +6,7 @@ import {
 
 import {
     cloudGateway,
+    miniAppGateway,
     oauthGateway,
     pairingGateway,
     reportGateway,
@@ -33,6 +34,8 @@ export const createHttpDataSources = (): { httpDataSources: HttpDataSources } =>
         auth: oauthGateway(),
         user: userGateway(),
         cloud: cloudGateway(),
+        // A cloud's mini apps — the relay's list, separate from the cloud's own single link.
+        miniApp: miniAppGateway(),
         subscription: subscriptionGateway(),
         // Diagnostics (user issue reports · log batches). Not domain data, but a data call — it
         // comes through the same path so nothing builds its own signed request any more.

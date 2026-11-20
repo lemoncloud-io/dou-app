@@ -2,11 +2,13 @@ import { config } from '@chatic/config';
 import {
     type CloudHttpGateway,
     createCloudHttpGateway,
+    createMiniAppHttpGateway,
     createOAuthHttpGateway,
     createPairingHttpGateway,
     createReportHttpGateway,
     createSubscriptionHttpGateway,
     createUserHttpGateway,
+    type MiniAppHttpGateway,
     type OAuthHttpGateway,
     type PairingHttpGateway,
     type ReportHttpGateway,
@@ -30,6 +32,7 @@ import { getHttpManager } from './factory';
  */
 let oauth: OAuthHttpGateway | null = null;
 let cloud: CloudHttpGateway | null = null;
+let miniApp: MiniAppHttpGateway | null = null;
 let user: UserHttpGateway | null = null;
 let subscription: SubscriptionHttpGateway | null = null;
 let report: ReportHttpGateway | null = null;
@@ -43,6 +46,11 @@ export const oauthGateway = (): OAuthHttpGateway => {
 export const cloudGateway = (): CloudHttpGateway => {
     if (!cloud) cloud = createCloudHttpGateway(getHttpManager());
     return cloud;
+};
+
+export const miniAppGateway = (): MiniAppHttpGateway => {
+    if (!miniApp) miniApp = createMiniAppHttpGateway(getHttpManager());
+    return miniApp;
 };
 
 export const userGateway = (): UserHttpGateway => {
@@ -83,6 +91,7 @@ export const pairingGateway = (): PairingHttpGateway => {
 export const resetGateways = (): void => {
     oauth = null;
     cloud = null;
+    miniApp = null;
     user = null;
     subscription = null;
     report = null;

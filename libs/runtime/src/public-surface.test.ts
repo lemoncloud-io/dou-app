@@ -249,6 +249,7 @@ const DOMAIN_VALUES = [
     'isWebhookExpired',
     'judgeChatAttachments',
     'judgeChatImages',
+    'miniAppSaveProblemOf',
     'pickPreviewChat',
     'placeOfDmId',
     'pushCloudIdOf',

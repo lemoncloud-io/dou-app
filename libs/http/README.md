@@ -61,7 +61,7 @@ signature ([`@chatic/auth`](../auth/docs/socket/signing.md#the-formula)); the so
 
 **In** — the request path (`client.ts`), the request-builder surface it drives, error
 classification and credential attribution/recovery, the structured network log and the `bypass`
-contract, the request transport and its SigV4 signer, and the wire vocabulary for 6 domains — plus `TelemetryPolicyHttpGateway`,
+contract, the request transport and its SigV4 signer, and the wire vocabulary for 7 domains — plus `TelemetryPolicyHttpGateway`,
 the port the statistics sampling policy is read through. The server has no route for it yet, so its
 only implementation is a static stand-in that answers "statistics off"
 (`createStaticTelemetryPolicyHttpGateway`); the HTTP one replaces it behind the same port.
@@ -75,12 +75,12 @@ cache writes (`@chatic/data`), `calcSignature` (`@chatic/auth`), and the socket 
 flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    DS["HttpDataSource × 6<br/>@chatic/data"]:::ext
+    DS["HttpDataSource × 7<br/>@chatic/data"]:::ext
     SA["@chatic/auth · @chatic/runtime report"]:::ext
     HM["HttpManager · transport.ts<br/>@chatic/transport"]:::ext
     AX["axios"]:::ext
 
-    GW["gateways/ × 6<br/><i>path · method · pinned params</i>"]
+    GW["gateways/ × 7<br/><i>path · method · pinned params</i>"]
     CL["client.ts — HttpClient<br/><i>attribute · recover once · report</i>"]
     ERR["error/<br/><i>classify · stamp · recover</i>"]
     LOG["log/withNetworkLog"]
@@ -182,7 +182,7 @@ libs/http/src/
 ├── adapters/requestExecutor.ts  the 3-method RequestBuilder surface + HttpExecutor
 ├── transport/requestTransport.ts createRequestTransport — plain and signed requests, signing ports
 ├── signing/sigV4.ts             signRequest — the SigV4 signature, pinned by golden tests
-├── gateways/                    6 domain gateways + the telemetry-policy port + types.ts + index.ts
+├── gateways/                    7 domain gateways + the telemetry-policy port + types.ts + index.ts
 ├── error/                       classify · credentialStale · attribution · recovery (4 files)
 ├── log/networkLog.ts            withNetworkLog + the HttpLogSink contract
 ├── log/apiRequest.ts            endpointTemplateOf · apiBackendOf · statusClassOf · toApiRequestSample · createPerMinuteCap
@@ -190,7 +190,7 @@ libs/http/src/
 └── utils/browserNetwork.ts      isBrowserOffline — the only place this lib reads `navigator`
 ```
 
-25 production files, 18 spec files. Names you cannot guess from a filename:
+26 production files, 19 spec files. Names you cannot guess from a filename:
 
 - **`gateways/pairingTypes.ts` is temporary.** It holds the `/pairings/**` wire types, copied from
   the backend because no published `@lemoncloud/chatic-backend-api` carries them yet. The app keeps no
@@ -200,6 +200,13 @@ libs/http/src/
   field the relay put on a cloud after the backend types this app is pinned to — `miniAppUrl`, the
   owner's mini app link. Only the next major of `@lemoncloud/chatic-backend-api` declares it; when the
   app moves to it, the two aliases go and `CloudView` / `CloudBody` are used as they are.
+- **The mini app wire types (`gateways/miniapps.ts`) are declared there for the same reason.** The
+  relay's `/miniapps` resource arrived after the pinned backend types too, so `RelayMiniAppView` and the
+  two bodies are written out with only the fields the app reads or sends; moving to the next major
+  would move every other type with it, which is a change of its own. The bodies deliberately have no
+  `state$.hold`: the relay refuses a non-admin body in which that key exists at all, even empty, so an
+  owner's request must have no way to carry it. When the app moves to the next major, these become
+  the package's types.
 - **`HttpClientImpl` has no file of its own.** It is private to `client.ts`, and `createHttpClient`
   is the only thing that constructs it.
 - **`HttpLogSink`, `NetworkLogFields` and `HttpMethod` live in `log/networkLog.ts`**, not in

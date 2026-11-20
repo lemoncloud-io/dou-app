@@ -1,4 +1,5 @@
 import { CloudRepository } from './CloudRepository';
+import type { DomainMiniApp } from '../domain';
 
 const createLocalDataSource = () => ({
     observeList: jest.fn(() => () => undefined),
@@ -333,6 +334,63 @@ describe('CloudRepository — HTTP catalog surface (ADR-0070 late stage 2)', () 
 
         expect(http.fetchMiniAppUrl).toHaveBeenCalledWith('c1');
         expect(http.saveMiniAppUrl).toHaveBeenCalledWith('c1', '');
+        expect(local.cacheWrite).not.toHaveBeenCalled();
+    });
+});
+
+describe('CloudRepository — mini app list', () => {
+    const createMiniAppHttpDataSource = () => ({
+        listMiniApps: jest.fn(),
+        addMiniApp: jest.fn(),
+        updateMiniApp: jest.fn(),
+        removeMiniApp: jest.fn(),
+    });
+
+    it('throws a clear error when IMiniAppHttpDataSource is not injected', async () => {
+        const repository = new CloudRepository(
+            createSocketDataSource() as any,
+            createLocalDataSource() as any,
+            contextProvider,
+            {} as any
+        );
+
+        await expect(repository.listMiniApps('c1')).rejects.toThrow('not injected');
+        await expect(repository.addMiniApp('c1', { name: 'n', url: 'u' })).rejects.toThrow('not injected');
+        await expect(repository.updateMiniApp('m1', { enabled: false })).rejects.toThrow('not injected');
+        await expect(repository.removeMiniApp('m1')).rejects.toThrow('not injected');
+    });
+
+    it('hands the arguments through as given and never touches the local cache', async () => {
+        const miniApps = createMiniAppHttpDataSource();
+        const app: DomainMiniApp = {
+            id: 'm1',
+            name: 'Shop',
+            url: 'https://shop.example/',
+            enabled: true,
+            status: 'active',
+        };
+        miniApps.listMiniApps.mockResolvedValue([app]);
+        miniApps.addMiniApp.mockResolvedValue(app);
+        miniApps.updateMiniApp.mockResolvedValue({ ...app, enabled: false, status: 'inactive' });
+        miniApps.removeMiniApp.mockResolvedValue(undefined);
+        const local = createLocalDataSource();
+        const repository = new CloudRepository(
+            createSocketDataSource() as any,
+            local as any,
+            contextProvider,
+            undefined,
+            miniApps
+        );
+
+        await expect(repository.listMiniApps('c1')).resolves.toEqual([app]);
+        await expect(repository.addMiniApp('c1', { name: 'Shop', url: 'https://shop.example/' })).resolves.toBe(app);
+        await expect(repository.updateMiniApp('m1', { enabled: false })).resolves.toMatchObject({ status: 'inactive' });
+        await expect(repository.removeMiniApp('m1')).resolves.toBeUndefined();
+
+        expect(miniApps.listMiniApps).toHaveBeenCalledWith('c1');
+        expect(miniApps.addMiniApp).toHaveBeenCalledWith('c1', { name: 'Shop', url: 'https://shop.example/' });
+        expect(miniApps.updateMiniApp).toHaveBeenCalledWith('m1', { enabled: false });
+        expect(miniApps.removeMiniApp).toHaveBeenCalledWith('m1');
         expect(local.cacheWrite).not.toHaveBeenCalled();
     });
 });

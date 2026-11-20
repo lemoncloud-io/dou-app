@@ -24,7 +24,7 @@ grep -rn "@chatic/runtime/" --include='*.ts' --include='*.tsx' apps libs | grep 
 Four apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin`,
 and `apps/landing`'s account surface (sign-in and the subscription repository only). The surface itself is locked symbol by symbol by
 [`src/public-surface.test.ts`](./src/public-surface.test.ts): 138 value exports across the eight
-groups, the seven ports, and the 48 domain values beside `runtime` — a test fails if a group or a port
+groups, the seven ports, and the 49 domain values beside `runtime` — a test fails if a group or a port
 appears, or a symbol moves between them.
 
 This lib is the **composition root, not an engine**. It builds and wires; the engines it assembles
@@ -519,7 +519,7 @@ cd libs/runtime && npx eslint src             # flat config — run it from this
 
 - Type checking must be `tsc -b`. Inside `libs/runtime`, `tsconfig.json` is a solution file (`files: []`, `include: []`), so `tsc --noEmit` checks zero files and exits 0. `tsc -b tsconfig.json` builds what that file references — the lib project, and the spec project when it is on the reference list. `tsc -b tsconfig.lib.json` checks only the lib.
 - Jest does not type check: the base sets `isolatedModules`, so ts-jest transpiles. A fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime unless the spec project is checked too.
-- Six tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 138 symbols, their groups, the ports and the 48 domain values), `facade.test.ts` (barrels hold re-exports only, everything else is a hook or a component), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk this package's source and the packages cut from it for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph of each), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
+- Six tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 138 symbols, their groups, the ports and the 49 domain values), `facade.test.ts` (barrels hold re-exports only, everything else is a hook or a component), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk this package's source and the packages cut from it for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph of each), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
 - Do not run `yarn install` in a worktree. Node resolution walks up to the parent repo's `node_modules`, so the binaries are already reachable; installing here rewrites `apps/mobile/ios/Podfile.lock` and a leftover symlink poisons the parent on the next install.
 - `.github/workflows/verify.yml` runs `lint`, `typecheck` and `test` for this project on every pull request, so a red gate here is a red CI.
 - Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin` and `libs/data`. That workflow type checks all of them.
