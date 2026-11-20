@@ -457,9 +457,11 @@ export const createRuntimeBridgeHost = ({
                 owns: live !== null,
                 session: () => snapshotOf(live as RuntimeEngine),
             });
-            if (answer.sessionOwner === 'web' && engine) {
-                // Once a page was answered `native`, the shell runs the session for the rest of the
-                // process: a later page that shares no contract must not take it as well.
+            if (answer.sessionOwner === 'web' && live) {
+                // The process runtime holds the session — started by this hello, by an earlier one this
+                // bridge answered `native`, or by a page on a bridge before this one — so a page that
+                // shares no contract must not take it as well. Only a runtime that declined (`null`)
+                // leaves the session to the page.
                 return {
                     failure: {
                         code: RUNTIME_CONTRACT_MISMATCH_CODE,

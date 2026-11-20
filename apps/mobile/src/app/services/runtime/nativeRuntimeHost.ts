@@ -13,6 +13,8 @@ export interface NativeRuntimeHostDeps {
     boot: (leaveToHome: (params: URLSearchParams) => void) => Promise<NativeRuntimeBoot>;
     /** Starts what keeps the booted session alive; answers the stop. */
     run: (engine: Engine) => () => void;
+    /** Hears each change of `holdsSession()`, so the offer injected into the next page load can say it. */
+    onHoldChange?: (held: boolean) => void;
     logService: ILogService;
 }
 
@@ -30,6 +32,13 @@ export interface NativeRuntimeHost {
     /** The running engine, or `null` before `start` has finished (or when it answered `null`). */
     engine(): Engine | null;
     /**
+     * Whether the runtime holds the session in this process: from the first `start` on a launch it
+     * owns, while that start is still running too, until it answers `null`. A start in flight counts —
+     * it answers the hello that began it once it finishes, and a page that booted its own runtime
+     * meanwhile would be a second owner.
+     */
+    holdsSession(): boolean;
+    /**
      * Hears each session end: the runtime saved the address it ended with (`logout=1` among it) for the
      * next boot, and the app now takes the person home — by starting its JS context over
      * (`restartOnSessionEnd`), which reloads the WebView with it.
@@ -45,12 +54,24 @@ export const createNativeRuntimeHost = ({
     readOwner,
     boot,
     run,
+    onHoldChange,
     logService,
 }: NativeRuntimeHostDeps): NativeRuntimeHost => {
     let owner: SessionOwner | null = null;
     let starting: Promise<Engine | null> | null = null;
     let engine: Engine | null = null;
+    let holding = false;
     const sessionEnded = new Set<(params: URLSearchParams) => void>();
+
+    const setHolding = (next: boolean) => {
+        if (holding === next) return;
+        holding = next;
+        try {
+            onHoldChange?.(next);
+        } catch (error) {
+            logService.error('session.native_hold', 'The hold listener threw', { error });
+        }
+    };
 
     const readOwnerOnce = (): SessionOwner => {
         owner ??= readOwner();
@@ -129,10 +150,22 @@ export const createNativeRuntimeHost = ({
     return {
         owner: readOwnerOnce,
         start: () => {
-            starting ??= startOnce();
+            if (starting) return starting;
+            starting = startOnce();
+            if (readOwnerOnce() === 'native') {
+                setHolding(true);
+                void starting.then(
+                    started => {
+                        if (!started) setHolding(false);
+                    },
+                    // Only a log call can throw past `startOnce`'s own catches; nothing started then.
+                    () => setHolding(false)
+                );
+            }
             return starting;
         },
         engine: () => engine,
+        holdsSession: () => holding,
         onSessionEnded: listener => {
             sessionEnded.add(listener);
             return () => sessionEnded.delete(listener);

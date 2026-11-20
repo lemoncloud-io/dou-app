@@ -1,6 +1,6 @@
 # The mini app protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.34.0. This document states the protocol as it stands. Which
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.35.0. This document states the protocol as it stands. Which
 > bridge version brought each part is in [Version history](#version-history) at the end; an app built
 > before a version lacks what it brought, which a page learns from the handshake rather than from a
 > version number.

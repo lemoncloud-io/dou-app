@@ -37,7 +37,8 @@ import { sessionMirrorDisabled } from './viteEnv';
  * The engine is `engine.mirror`: before any port is built it settles who holds the session. A shell that
  * runs its own runtime and takes the session is mirrored, and none of the page's ports is built — no
  * vault opened, no sockets; otherwise the page runs its own runtime over the ports above; unsettled, it
- * boots nothing and the entry says so. `VITE_SESSION_MIRROR_DISABLED` stops it asking.
+ * boots nothing and the entry says so. `VITE_SESSION_MIRROR_DISABLED` stops it asking, unless the shell
+ * says it already holds the session.
  *
  * Each host port defaults to what the shell declared (`<port>.host`, `checkout.host`), exactly as the
  * entry published them; the alternatives are what a `port.<name>` toggle may move one port to — the page

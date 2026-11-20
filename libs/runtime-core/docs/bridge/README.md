@@ -30,13 +30,18 @@ page, before it boots           readRuntimeOffer(window.CHATIC_APP_RUNTIME)  →
                                   yes → RuntimeHello { contracts }  and wait
 shell                           answerRuntimeHello(request, host)
                                   → native: the newest shared contract, seq, the session now
-                                  → web:    it does not run its runtime this launch, or shares no contract
+                                  → web:    it does not run its runtime this launch
+                                  → RUNTIME_CONTRACT_MISMATCH: its runtime holds the session, no shared contract
 page                            settleRuntimeHello(outcome) → web · native · not settled (ask again)
 ```
 
 - **The shell offers, the page asks, the shell decides.** A page that has no offer, or whose own
-  setting says not to, never asks — so one web deploy that stops asking returns every launch to the
-  page owning the session.
+  setting says not to, never asks — so one web deploy that stops asking returns every new app process
+  to the page owning the session.
+- **Except a session already held.** Once the shell's runtime holds the session in an app process, its
+  offer says `held: true` (`offerHoldsSession`), and a page loaded into that process asks whatever its
+  own setting and contracts say: a page that booted its own runtime there would be a second owner. A
+  page that shares no contract hears `RUNTIME_CONTRACT_MISMATCH` and boots nothing.
 - **The page runs its own runtime only when it knows the shell does not.** That is a `web` answer, or
   `NOT_FOUND` — a shell with no hello handler has no runtime to own the session with.
 - **Anything else settles nothing, and the page asks again.** A timeout, another bridge failure, an
@@ -282,9 +287,11 @@ which answers `{ value }` or `{ failure }` rather than throwing.
 
 - **Hello.** Waits for the engine for at most `helloWaitMs` (5 s); one still starting answers
   `RUNTIME_STARTING`, which `settleRuntimeHello` reads as no answer, so the page asks again. Otherwise
-  `answerRuntimeHello` decides. Once a hello is answered `native` the host keeps that engine, and a
-  later page is never told `web`: one that shares no contract with the shell is answered
-  `RUNTIME_CONTRACT_MISMATCH` — it cannot mirror this app, and must not take the session the app runs.
+  `answerRuntimeHello` decides. Once a hello is answered `native` the host keeps that engine. A page
+  that shares no contract is never told `web` while the process runtime holds the session — whether this
+  hello started it, an earlier one on this bridge was answered `native`, or a page on a bridge before
+  this one started it: it is answered `RUNTIME_CONTRACT_MISMATCH`, since it cannot mirror this app and
+  must not take the session the app runs. Only a runtime that declined leaves it `web`.
   Every hello is a new document, so the subscriptions of the last one end.
 - **Calls** run only what the contract lists for their target; anything else — `requestOnSlot`, a name
   that is not a member, a repository's `constructor` — answers `RUNTIME_NOT_AVAILABLE`, and nothing
@@ -472,12 +479,12 @@ room and the budgets are the shell's to check around it (`apps/mobile` docs, the
 
 ## Where it lives
 
-| File                                | Holds                                                                                                                                                                                                                                                                                                                                                |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/bridge/contract.ts`            | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
-| `src/bridge/errors.ts`              | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                  |
-| `src/bridge/host.ts`                | `createRuntimeBridgeHost`, `RUNTIME_LISTENER_MARKER`, `RUNTIME_STARTING_CODE`, `RUNTIME_CONTRACT_MISMATCH_CODE`, `RUNTIME_NOT_STARTED_CODE`, `RUNTIME_PAYLOAD_TOO_LARGE_CODE`, `RuntimeReceiptEvent`, the defaults                                                                                                                                   |
-| `src/bridge/mirror/`                | `createMirrorEngine` (`mirrorEngine.ts`), `RuntimeMirrorPort` (`port.ts`), the calls, streams and write receipts (`conversation.ts`, `RECEIPT_WRITTEN_TIMEOUT_MS`), the session (`sessionMirror.ts`), `shareStructure`, the room trace (`roomTrace.ts`)                                                                                              |
-| `src/bridge/repositories.ts`        | `DATA_TARGET`, `DATA_CLOUD_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `REPOSITORY_RECEIPTS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                |
-| `src/bridge/subWebViewWhitelist.ts` | `SUB_WEB_VIEW_REPOSITORY_WHITELIST`, `SUB_WEB_VIEW_DATA_MEMBER_WHITELIST`, `SUB_WEB_VIEW_TARGETS`, `SUB_WEB_VIEW_ALLOWED`, `checkSubWebViewRuntimeRequest`, `subWebViewAllowedFor`                                                                                                                                                                   |
-| `src/bridge/wire.ts`                | `NotOnTheWire`, `PromiseCrossing`, `CheckedCrossing` — what the compiler checks every crossing result against                                                                                                                                                                                                                                        |
+| File                                | Holds                                                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/bridge/contract.ts`            | `RUNTIME_CONTRACT_VERSION`, `RUNTIME_CONTRACTS`, `chooseRuntimeContract`, `readRuntimeOffer`, `offerHoldsSession`, `answerRuntimeHello`, `settleRuntimeHello`, `SESSION_COMMANDS_TARGET`, `SESSION_COMMAND_METHODS`, `CONNECTION_TARGET`, `CONNECTION_CALL_METHODS`, `CONNECTION_STREAMS`, `CONNECTION_LOCAL_MEMBERS`, `SYNC_TARGET`, `SYNC_CALL_METHODS`, `SYNC_STREAMS` |
+| `src/bridge/errors.ts`              | `RUNTIME_ERROR_CODE`, `RUNTIME_NOT_AVAILABLE_CODE`, `serializeRuntimeError`, `toRuntimeFailure`, `runtimeNotAvailableFailure`, `reviveRuntimeError`                                                                                                                                                                                                                       |
+| `src/bridge/host.ts`                | `createRuntimeBridgeHost`, `RUNTIME_LISTENER_MARKER`, `RUNTIME_STARTING_CODE`, `RUNTIME_CONTRACT_MISMATCH_CODE`, `RUNTIME_NOT_STARTED_CODE`, `RUNTIME_PAYLOAD_TOO_LARGE_CODE`, `RuntimeReceiptEvent`, the defaults                                                                                                                                                        |
+| `src/bridge/mirror/`                | `createMirrorEngine` (`mirrorEngine.ts`), `RuntimeMirrorPort` (`port.ts`), the calls, streams and write receipts (`conversation.ts`, `RECEIPT_WRITTEN_TIMEOUT_MS`), the session (`sessionMirror.ts`), `shareStructure`, the room trace (`roomTrace.ts`)                                                                                                                   |
+| `src/bridge/repositories.ts`        | `DATA_TARGET`, `DATA_CLOUD_TARGET`, `REPOSITORY_METHODS`, `REPOSITORY_CALL_METHODS`, `REPOSITORY_STREAMS`, `REPOSITORY_RECEIPTS`, `DATA_CALL_METHODS`, `DATA_STREAMS`                                                                                                                                                                                                     |
+| `src/bridge/subWebViewWhitelist.ts` | `SUB_WEB_VIEW_REPOSITORY_WHITELIST`, `SUB_WEB_VIEW_DATA_MEMBER_WHITELIST`, `SUB_WEB_VIEW_TARGETS`, `SUB_WEB_VIEW_ALLOWED`, `checkSubWebViewRuntimeRequest`, `subWebViewAllowedFor`                                                                                                                                                                                        |
+| `src/bridge/wire.ts`                | `NotOnTheWire`, `PromiseCrossing`, `CheckedCrossing` — what the compiler checks every crossing result against                                                                                                                                                                                                                                                             |

@@ -40,6 +40,13 @@ export type RuntimeOffer = {
     sessionOwner: 'native';
     /** The runtime contract versions the shell's runtime speaks, lowest first. */
     contracts: number[];
+    /**
+     * (2.35.0) The shell's runtime already holds the session in this app process — an earlier page
+     * asked and it started, or is starting. Then it is no longer an offer to decline: a page that ran
+     * its own runtime now would be a second owner, so it says hello whatever its own setting or
+     * contracts. Absent from a shell before 2.35.0, and before the first hello of a process.
+     */
+    held?: boolean;
 };
 
 /**

@@ -337,15 +337,15 @@ shell's bridge at boot — the phone app's WebView, or the virtual shell that pl
 `web-browser` when it found none. It is the same fact the page already told the two apart by: the
 stores chose `localStorage` or the tab by it, and config wired the shell's lane by it.
 
-| Slot                          | `web-browser` (a plain tab)                                     | `web-hybrid` (inside a shell)                                    |
-| ----------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------- |
-| storage                       | `storage.resolved`                                              | `storage.resolved`                                               |
-| transport · auth · foreground | `transport.browser` · `auth.location` · `foreground.visibility` | the same                                                         |
-| cache                         | `cache.web-local`                                               | `cache.web-local`                                                |
-| engine                        | `engine.core`                                                   | `engine.mirror` (`VITE_SESSION_MIRROR_DISABLED` stops it asking) |
-| checkout                      | `checkout.host`                                                 | `checkout.host`; may switch to `.store`, `.web`, `.none`         |
-| the other seven host ports    | `<port>.host`                                                   | `<port>.host`; may switch to `<port>.shell`, `<port>.browser`    |
-| config                        | no shell lane                                                   | the shell's lane (`shellKvAdapter.ts`)                           |
+| Slot                          | `web-browser` (a plain tab)                                     | `web-hybrid` (inside a shell)                                                                |
+| ----------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| storage                       | `storage.resolved`                                              | `storage.resolved`                                                                           |
+| transport · auth · foreground | `transport.browser` · `auth.location` · `foreground.visibility` | the same                                                                                     |
+| cache                         | `cache.web-local`                                               | `cache.web-local`                                                                            |
+| engine                        | `engine.core`                                                   | `engine.mirror` (`VITE_SESSION_MIRROR_DISABLED` stops it asking, unless the session is held) |
+| checkout                      | `checkout.host`                                                 | `checkout.host`; may switch to `.store`, `.web`, `.none`                                     |
+| the other seven host ports    | `<port>.host`                                                   | `<port>.host`; may switch to `<port>.shell`, `<port>.browser`                                |
+| config                        | no shell lane                                                   | the shell's lane (`shellKvAdapter.ts`)                                                       |
 
 Every runtime port has one adapter and no alternatives, so a `port.*` toggle cannot move it: each is
 fixed to what the entry built before declarations. Only the host ports of `web-hybrid` may be switched,

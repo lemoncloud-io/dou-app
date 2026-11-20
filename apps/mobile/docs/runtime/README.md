@@ -130,8 +130,8 @@ overwrites (`createDefaultSessionOwnerHandler`, registered with the switch by `u
   the page leaves installs on the error screen, and a web build naming `web` moves their next start back.
 - **A build that names nothing sends `null`**, which clears what an earlier web build recorded, and the
   install falls back to the build's own default. Removing the setting is a rollback of the setting, not a
-  no-op. A web build with `VITE_SESSION_MIRROR_DISABLED` names `web`: it does not mirror a shell that holds
-  the session, so it does not send the next start there either.
+  no-op. A web build with `VITE_SESSION_MIRROR_DISABLED` names `web`, so the next start is the page's; a page it
+  loads into a process whose runtime already holds the session still mirrors it until then (`held`).
 - **Deploys read it from a repository variable**, `WEB_DEV_APP_SESSION_OWNER` or
   `WEB_PROD_APP_SESSION_OWNER`, which the deploy workflows write into the web's `.env`. Changing the
   variable does nothing until the next web deploy.
@@ -142,7 +142,9 @@ overwrites (`createDefaultSessionOwnerHandler`, registered with the switch by `u
   lever for that is the web's own switch, `VITE_SESSION_MIRROR_DISABLED` (deploys read it from
   `WEB_DEV_SESSION_MIRROR_DISABLED` / `WEB_PROD_SESSION_MIRROR_DISABLED`): a page that never says hello
   never starts the runtime, owns the launch itself, and names `web` here for the starts after it. It
-  moves every install, switched ones included, until a web deploy without it.
+  moves every install, switched ones included, until a web deploy without it. It does not reach a
+  process whose runtime already holds the session: the offer says so (`held`, below), and a page
+  loaded into such a process asks anyway, so the process keeps one owner until its next start.
 
 The screen's **This page** row says what the page settled at boot — its own session, or mirroring the
 runtime. It is the row that tells a working switch from a launch whose runtime could not start (a build
@@ -273,13 +275,28 @@ On a launch the app owns, three things change for the main WebView, and only on 
 
 - **The offer.** The injected script sets `window.CHATIC_APP_RUNTIME` before the page runs, to
   `{ sessionOwner: 'native', contracts }` (`runtimeOffer.ts`). A page that finds it says hello; a page
-  that does not — every launch the page owns — never asks.
+  that does not — every launch the page owns — never asks. From bridge 2.35.0 the offer also carries
+  `held: true` once the runtime holds the session in this process: from the first hello's start, while
+  it is still starting too, until a start answers `null` (`NativeRuntimeHost.holdsSession`, written to
+  `runtimeHold.ts` so the WebView can read it without loading the runtime). The WebView rebuilds its
+  injected script when that changes, so the next page load — a reload, a content-process restart —
+  hears it. A load that starts before the WebView has taken the new script, within a render or so of
+  the first hello, still gets the offer without it; the theme rides the same script and has the same
+  gap. A page that finds `held` asks even where it otherwise would not: its own switch is off, or
+  it shares no contract with the runtime (the hello then ends in `RUNTIME_CONTRACT_MISMATCH` and the
+  page boots nothing). Running its own runtime there would make it a second owner.
 - **The four runtime requests** (`RuntimeHello`, `RuntimeCall`, `RuntimeSubscribe`,
   `RuntimeUnsubscribe`) are registered on the bridge (`useRuntimeBridgeHandler`), answered by
   runtime-core's `RuntimeBridgeHost` over the app's runtime (`runtimeBridge.ts`). On any other launch
   they are not registered and answer `NOT_FOUND`, which a page reads as "the session is mine".
 - **The vault is refused to the page** once the runtime has started (`ownsSession` on the vault's
   handlers): its tokens are the runtime's from then on.
+
+The page still runs what has a screen in it. The paired-cloud check, which ends a paired cloud with a
+toast and a sign-out, is one: apps/web's `useCloudCredentialRenewal` reads the paired clouds off the
+mirrored session and asks the runtime's `checkPairedClouds` across the bridge — at mount, every ten
+minutes and on each return to the front, as on a launch the page owns. The sign-out that follows is
+the runtime's, which restarts the JS context ([When a session ends](#when-a-session-ends)).
 
 **The runtime starts at the page's first hello**, not when the app starts: the app takes the session
 only when a page that speaks the contract is there to mirror it. A page too old to say hello leaves the
@@ -292,8 +309,9 @@ the previous page's. The runtime it answers over is the process's, so a reload o
 replacement finds the session still signed in. Sizes are counted as the length of a body's JSON (an
 approximation of what crosses): a body of 256 Ki characters or more is logged
 (`bridge.runtime_payload_large`), and a call's result or a stream's event over 4 Mi characters is
-refused. Once a page was answered `native`, the app runs the session until the process ends: a later
-page that shares no contract with it is refused (`RUNTIME_CONTRACT_MISMATCH`), never told `web`.
+refused. Once the runtime holds the session, the app runs it until the process ends: a page that shares
+no contract with it is refused (`RUNTIME_CONTRACT_MISMATCH`), never told `web` — on any bridge, and
+before any page was answered `native`.
 
 ## When a session ends
 
@@ -347,12 +365,12 @@ These are the gaps a launch the runtime owns still has. None of them matters on 
 Dev and production builds (from 0.32.1) run the runtime on every install nobody switched, so those
 installs meet them on every launch unless the web names the page ([The page's default](#the-pages-default)).
 
-- **The offer does not say whether the session is already held.** A page that does not ask — one whose
-  own switch is off, or one sharing no contract with the runtime — cannot tell a launch whose runtime
-  already answered `native` from one whose runtime has not started, and only a hello reaches the
-  `RUNTIME_CONTRACT_MISMATCH` refusal. Reloaded into the first kind, such a page would boot a second
-  session. The offer has to say the session is held (and the page then ask whatever its switch says)
-  before a web deploy can be the rollback mid-process.
+- **An app before 0.32.4 does not say the session is held.** Its offer carries no `held`, so a page
+  that does not ask — its own switch off, or no contract shared with the runtime — reloaded into a
+  process whose runtime already answered `native` boots a second session. Until those installs are
+  gone, roll back by naming `web` as the default ([The page's default](#the-pages-default)) rather than
+  turning the mirror off: a page that still mirrors keeps the process on one owner, and the next start
+  is the page's.
 - **Logout markers cross owners in one direction only.** The "the vault clear was not confirmed" marker
   sits in each side's own plain store. A page's clear also reaches the runtime's file
   (`runtimeLogoutMarker.ts`, loaded by `useSecureStorageHandler` only when a page clears the vault, sets
@@ -361,9 +379,3 @@ installs meet them on every launch unless the web names the page ([The page's de
   the next one. The other way has no need for it: a runtime marker means the vault still holds tokens,
   and the runtime's boot finishes the logout before any decline. The owner switch still does not check
   for a marker.
-- **A restart is recorded as a cold boot.** The boot metrics start over with the JS context, so a
-  restarted context sends a `boot` trace and a `first_screen` sample as a launch would; they need a type
-  of their own now that production runs the runtime.
-- **The paired-cloud check** — which ends a paired cloud with a toast and a sign-out — has a screen in
-  it and runs only with the page today. On a launch the runtime owns, nothing runs it; where it lives
-  is to be settled now that production runs the runtime.

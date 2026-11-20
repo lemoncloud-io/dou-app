@@ -43,6 +43,8 @@ every feature it had. The nav item and the page title are the same name: "로그
     - **Overview** — goal cards against the product's targets (app start 1.5 s at p95, cloud/place
       switch 1 s at p95, FCP 1.8 s at p75, LCP 2.5 s at p75; room entry has no target yet and shows its
       numbers without a verdict), with a bar against the target; users, app opens and users per day.
+      App start leaves out a phone app's `restart` boots — a JS context the app started over itself
+      after a sign-out or an owner switch, which no one tapped and which starts warm.
       With no statistics in the period it says why and when there will be.
     - **By version & device** (`perf`, `goal`, `by`) — one goal split by app version, OS, device or
       platform: p50/p75/p95 per group (groups under 5 measurements dimmed), the newest version marked,

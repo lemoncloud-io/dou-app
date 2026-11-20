@@ -47,7 +47,7 @@ is watched on.
 - **It stops at `web-app-ready`, not when the record finalizes.** Finalizing can wait five more
   seconds for the web snapshot, and Firebase would count that wait as boot.
 - **It carries each reached milestone as a metric** (`provider_ready`, `app_mount`, and so on, since
-  Firebase metric names allow no dashes). It also carries `boot_type` = `cold` / `reload`. The target
+  Firebase metric names allow no dashes). It also carries `boot_type` = `cold` / `reload` / `restart`. The target
   is the cold number. A reload re-baselines on a content-process crash, and it happens most on
   memory-pressured devices, so the two must be told apart before the tail is read. Its log-pipeline
   copy (not Firebase's) also carries `session_owner` — `web` or `native`, the owner the page actually
@@ -76,7 +76,7 @@ reached it, so the stretch between the two — the web rendering its first route
 
 - **A sample, not a later stop of `boot`.** The 1.5s target is defined on `boot`'s stop at
   WebAppReady. Moving that stop would change what an existing alert measures.
-- **Attributes:** `boot_type` (`cold` / `reload`, as on `boot`), `session_owner` on the log
+- **Attributes:** `boot_type` (`cold` / `reload` / `restart`, as on `boot`), `session_owner` on the log
   pipeline only (as on `boot`) and `reveal`, the signal that lifted
   the splash: `first-screen` (the web's `FirstScreenReady`), `handshake` (a web build that holds
   nothing, revealed on WebAppReady) or `load-error`. Read the launch on `first-screen`; the other two
@@ -88,10 +88,11 @@ reached it, so the stretch between the two — the web rendering its first route
 
 ## Boot types
 
-| Type     | Meaning                                                                                                                                                                                                                                |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cold`   | a boot from process start                                                                                                                                                                                                              |
-| `reload` | the WebView's content process (iOS) or render process (Android) died and `reload()` restarted it — effectively a re-boot. `useWebViewCrashRecovery` starts a fresh session, first finalizing whatever the aborted session had recorded |
+| Type      | Meaning                                                                                                                                                                                                                                                                                                                                                                                            |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cold`    | a boot from process start                                                                                                                                                                                                                                                                                                                                                                          |
+| `reload`  | the WebView's content process (iOS) or render process (Android) died and `reload()` restarted it — effectively a re-boot. `useWebViewCrashRecovery` starts a fresh session, first finalizing whatever the aborted session had recorded                                                                                                                                                             |
+| `restart` | the app started its JS context over itself (`services/appRestart`) — after a session its runtime held ended, or after the owner switch. The provider and its metrics start over with the context, so the first session would read as `cold`; `MainScreen` marks it (`markRestart`) when it finds the restart note. Not a launch anyone tapped, and warm, so admin-v2's start-up goal leaves it out |
 
 A foreground resume is a separate record: `useResumeOverlay` calls `recordForegroundResume()` with the
 time from `active` until the overlay clears — either `DismissResumeOverlay` from the web or, on iOS

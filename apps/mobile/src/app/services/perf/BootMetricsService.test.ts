@@ -263,4 +263,36 @@ describe('BootMetricsService — Firebase boot trace', () => {
         expect(records[0].totalMs).toBeNull();
         expect(backend.stop).not.toHaveBeenCalled();
     });
+    it('records a context the app started over as a restart, in the trace, first_screen and the record', async () => {
+        const backend = createBackend();
+        configurePerfTraces(backend);
+        const { service, storage, advance } = createService();
+
+        service.markRestart();
+        advance(400);
+        service.mark('web-app-ready');
+        service.attachWebMetrics({} as never);
+        service.recordReveal('first-screen');
+        await flush();
+
+        const stops = backend.stop.mock.calls.map(([r]) => r);
+        expect(stops.find(r => r.name === 'boot')).toMatchObject({ attributes: { boot_type: 'restart' } });
+        expect(stops.find(r => r.name === 'first_screen')).toMatchObject({ attributes: { boot_type: 'restart' } });
+        const records = (await storage.get('bootMetrics.records')) as BootRecord[];
+        expect(records[0].type).toBe('restart');
+    });
+
+    it('keeps a reload a reload, whether the reload came before or after the restart mark', () => {
+        const backend = createBackend();
+        configurePerfTraces(backend);
+        const { service, advance } = createService();
+
+        service.markRestart();
+        service.startReloadSession();
+        service.markRestart();
+        advance(300);
+        service.mark('web-app-ready');
+
+        expect(backend.stop.mock.calls[0][0]).toMatchObject({ name: 'boot', attributes: { boot_type: 'reload' } });
+    });
 });

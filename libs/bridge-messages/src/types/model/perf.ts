@@ -43,8 +43,11 @@ export type NativeBootMarkKey =
     | 'load-end'
     | 'web-app-ready';
 
-/** A cold launch, or a WebView content-process reload within a live app. */
-export type BootType = 'cold' | 'reload';
+/**
+ * A cold launch, a WebView content-process reload within a live app, or (2.35.0) a JS context the app
+ * started over itself — after a session its runtime held ended, or after the owner switch.
+ */
+export type BootType = 'cold' | 'reload' | 'restart';
 
 /** One finalized boot, native milestones merged with the web snapshot. */
 export type BootRecord = {

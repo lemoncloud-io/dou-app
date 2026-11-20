@@ -234,6 +234,9 @@ entry point boots either runtime:
   offer in none of the page's contracts), or `disabled` — the page's own switch → `web`, at once and
   without a message to the shell. The shell starts its runtime only on a hello, so a page that never
   asks leaves the launch as it always was.
+- Except when the offer says `held` (`offerHoldsSession`, bridge 2.35.0): the shell's runtime already
+  holds the session in this app process, so the page asks whatever `disabled` says and whatever
+  contracts it shares — a mismatch then ends unsettled, not `web`. Logged as `session.owner_held_asked`.
 - Otherwise it makes the port (`webMirrorPort`), then says `RuntimeHello` with the page's contracts,
   each wait `SESSION_OWNER_HELLO_TIMEOUT_MS` (10 s — the shell holds a hello up to 5 s while its runtime
   starts). `web` or `NOT_FOUND` → `web`; a complete `native` answer → `native`, with the contract, the
@@ -250,11 +253,11 @@ entry point boots either runtime:
   runtime. Booting its own is not a way out — the shell may hold the session, and the page would be a
   second owner — so the entry point shows an error with a reload, which asks the shell again from a
   fresh page.
-- **What the page cannot see.** The offer reads the same whether or not the shell already holds the
-  session, so a page that does not ask — `disabled`, or one sharing no contract with the shell — cannot
-  tell. Reloaded into a process whose shell answered `native` earlier, it would boot a second session.
-  So both take effect from the next app process; closing the gap needs the shell's offer to say it
-  holds the session.
+- **What the page cannot see.** A shell before bridge 2.35.0 (app 0.32.4) offers the same whether or
+  not it already holds the session, so a page that does not ask — `disabled`, or one sharing no
+  contract with the shell — cannot tell. Reloaded into a process whose shell answered `native` earlier,
+  it would boot a second session. With such a shell both take effect from the next app process; a
+  newer shell says `held`, and the page asks.
 
 ### The stores
 

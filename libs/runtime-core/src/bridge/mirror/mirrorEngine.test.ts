@@ -21,6 +21,7 @@ const fakeRuntime = () => {
         auth: { isInitialized: true, isAuthenticated: false, error: null },
         relayUser: null as null | { id: string },
         uidByCloud: { c1: 'u-c1' },
+        pairing: { isPairedSession: false, isInOwnCloudSession: false, cloudIds: [] as string[], cloudNames: {} },
     };
     let connectionSnapshot = {
         active: { state: 'open', isConnected: true, isVerified: true, connectionId: 'k1' },
@@ -90,6 +91,12 @@ const fakeRuntime = () => {
             logout: jest.fn(async () => {
                 changeSession({ auth: { ...session.auth, isAuthenticated: false }, relayUser: null });
                 logoutListeners.forEach(listener => listener());
+            }),
+            // The relay stopped delegating every paired cloud: the runtime tears them down and names them.
+            checkPairedClouds: jest.fn(async () => {
+                const ended = session.pairing.cloudIds;
+                changeSession({ pairing: { ...session.pairing, cloudIds: [] } });
+                return ended;
             }),
         },
         connection: {
@@ -204,6 +211,20 @@ describe('createMirrorEngine — the session', () => {
         mirror.session.onLogout(() => heard.push(String(mirror.session.snapshot().relayUser)));
         await mirror.commands.logout();
         expect(heard).toEqual(['null']);
+    });
+
+    // The page runs the paired-cloud check on a launch the runtime owns too (apps/web's
+    // useCloudCredentialRenewal): it reads the paired clouds off the mirrored session and asks the runtime.
+    it('runs the paired-cloud check on the runtime: the paired clouds mirrored, the ended ones answered', async () => {
+        const { fake, loopback, mirror } = await setup();
+        fake.changeSession({ pairing: { ...fake.raw.session.snapshot().pairing, cloudIds: ['c9'] } });
+        await loopback.settle();
+        expect(mirror.session.snapshot().pairing.cloudIds).toEqual(['c9']);
+
+        await expect(mirror.commands.checkPairedClouds()).resolves.toEqual(['c9']);
+
+        expect(fake.raw.commands.checkPairedClouds).toHaveBeenCalledTimes(1);
+        expect(mirror.session.snapshot().pairing.cloudIds).toEqual([]);
     });
 
     it('drops a session push numbered at or below the one it holds', () => {

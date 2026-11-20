@@ -25,6 +25,11 @@ export interface IBootMetricsService {
     recordForegroundResume(durationMs: number): void;
     /** The launch splash lifted. Records this session's `first_screen`, once. */
     recordReveal(reason: WebRevealReason): void;
+    /**
+     * This JS context is one the app started over itself (`appRestart`), not a launch: its first session
+     * is recorded as `restart`, so a sign-out or an owner switch does not count as a cold start.
+     */
+    markRestart(): void;
     getContentProcessReloadCount(): number;
     getLastForegroundResumeMs(): number | null;
     getRecords(): Promise<BootRecord[]>;
@@ -101,6 +106,12 @@ export class BootMetricsService implements IBootMetricsService {
         // Firebase treats as never having happened: an aborted boot is kept in the ring buffer
         // above, but it is not a sample of how long boot takes.
         this.bootTrace = startPerfTrace('boot');
+    }
+
+    public markRestart(): void {
+        // Only the context's first session: a content-process reload after it is a reload, whatever
+        // started the context.
+        if (this.type === 'cold') this.type = 'restart';
     }
 
     public attachWebMetrics(payload: SendBootMetricsPayload): void {

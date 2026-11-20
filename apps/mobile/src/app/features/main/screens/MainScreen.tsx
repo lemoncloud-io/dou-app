@@ -63,6 +63,10 @@ export const MainScreen = ({ route }: MainScreenProps) => {
     // Set only when the app started this JS context over itself — after a session its runtime held
     // ended, or after the session owner was switched. Read once per context.
     const restartNote = appRestart.note();
+    // Its boot is a restart, not a launch: the boot metrics keep it apart from cold starts.
+    useEffect(() => {
+        if (restartNote) bootMetricsService.markRestart();
+    }, [restartNote]);
 
     const { setNavCanGoBack, forgetPageReport } = useWebViewNavigation(bridge);
     // Single owner of inbound navigation: OS deep links, invite links, and notification taps → OnNavigate.

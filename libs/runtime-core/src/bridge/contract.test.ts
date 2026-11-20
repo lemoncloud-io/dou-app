@@ -10,6 +10,7 @@ import {
     SYNC_TARGET,
     answerRuntimeHello,
     chooseRuntimeContract,
+    offerHoldsSession,
     readRuntimeOffer,
     settleRuntimeHello,
 } from './contract';
@@ -80,6 +81,36 @@ describe('readRuntimeOffer', () => {
         injected.contracts.push(2);
 
         expect(offer?.contracts).toEqual([1]);
+    });
+});
+
+describe('offerHoldsSession', () => {
+    it('is true for an offer that says its runtime holds the session', () => {
+        expect(offerHoldsSession({ sessionOwner: 'native', contracts: [1], held: true })).toBe(true);
+    });
+
+    it('is true even when the offer shares no contract with the page — the page must still not boot its own', () => {
+        expect(offerHoldsSession({ sessionOwner: 'native', contracts: [9], held: true })).toBe(true);
+    });
+
+    it.each([
+        ['nothing injected', undefined],
+        ['an offer not yet held', { sessionOwner: 'native', contracts: [1] }],
+        ['held: false', { sessionOwner: 'native', contracts: [1], held: false }],
+        ['a held that is not a boolean', { sessionOwner: 'native', contracts: [1], held: 1 }],
+        ['another owner', { sessionOwner: 'web', contracts: [1], held: true }],
+    ])('is false for %s', (_label, value) => {
+        expect(offerHoldsSession(value)).toBe(false);
+    });
+
+    it('is false for an injected value whose getter throws', () => {
+        const hostile = Object.defineProperty({ sessionOwner: 'native' }, 'held', {
+            get: () => {
+                throw new Error('nope');
+            },
+        });
+
+        expect(offerHoldsSession(hostile)).toBe(false);
     });
 });
 

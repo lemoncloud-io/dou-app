@@ -71,6 +71,36 @@ describe('settleSessionOwner', () => {
         expect(request).not.toHaveBeenCalled();
     });
 
+    it("asks a shell that already holds the session even when the page's own setting says not to", async () => {
+        const { client, request } = scriptedClient({ data: NATIVE });
+
+        const choice = await settleSessionOwner({ offer: { ...OFFER, held: true }, disabled: true, client });
+
+        expect(request).toHaveBeenCalledTimes(1);
+        expect(choice).toMatchObject({ sessionOwner: 'native', contract: NATIVE.contract });
+    });
+
+    it('asks a shell that holds the session under no shared contract, and boots neither when it refuses', async () => {
+        const { client, request } = scriptedClient({ error: { code: 'RUNTIME_CONTRACT_MISMATCH' } });
+
+        const choice = await settleSessionOwner({
+            offer: { sessionOwner: 'native', contracts: [999], held: true },
+            client,
+            ...fakeClock(),
+        });
+
+        expect(request).toHaveBeenCalledTimes(1);
+        expect(choice).toEqual({ sessionOwner: null, attempts: 1, lastFailure: 'RUNTIME_CONTRACT_MISMATCH' });
+    });
+
+    it('takes the web answer of a held offer as it would any other', async () => {
+        const { client } = scriptedClient({ data: { sessionOwner: 'web' } });
+
+        await expect(
+            settleSessionOwner({ offer: { ...OFFER, held: true }, disabled: true, client })
+        ).resolves.toEqual({ sessionOwner: 'web' });
+    });
+
     it("says hello with the page's contracts and mirrors the shell when it answers native", async () => {
         const { client, request } = scriptedClient({ data: NATIVE });
 

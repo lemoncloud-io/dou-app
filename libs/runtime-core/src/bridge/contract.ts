@@ -61,6 +61,23 @@ export const readRuntimeOffer = (
     }
 };
 
+/**
+ * Whether the injected value says the shell's runtime already holds the session in this app process
+ * (`held: true`). Read apart from `readRuntimeOffer`, and without its contract check: a page that shares
+ * no contract with a runtime holding the session must still ask — the shell then refuses it with
+ * `RUNTIME_CONTRACT_MISMATCH` and the page stays unsettled — because booting its own runtime would make
+ * it a second owner. Untrusted like the offer: anything unreadable is `false`.
+ */
+export const offerHoldsSession = (value: unknown): boolean => {
+    if (typeof value !== 'object' || value === null) return false;
+    try {
+        const offer = value as Partial<RuntimeOffer>;
+        return offer.sessionOwner === 'native' && offer.held === true;
+    } catch {
+        return false;
+    }
+};
+
 /** The session as the shell hands it to a page: its sequence number and the snapshot, without tokens. */
 export interface SessionSnapshotWire {
     seq: number;
