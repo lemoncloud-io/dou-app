@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-20] - root@0.172.0, @chatic/web@0.100.0
+
+### Features
+
+- (web) list the mini app games in the lab's mini apps card, not among the switches
+
 ## [2026-11-20] - No version updates
 
 ### Features
