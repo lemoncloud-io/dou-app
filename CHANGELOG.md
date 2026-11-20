@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-20] - root@0.171.0, @chatic/web@0.99.0
+
+### Features
+
+- (web) close the soft keyboard on a tap on empty space, on every screen
+
+### Bug Fixes
+
+- (web,ui-kit,web-ui-kit) keep docked footers and centred cards above the inset and keyboard
+
 ## [2026-11-20] - No version updates
 
 ### Features
