@@ -10,10 +10,12 @@ const SUB_WEBVIEW_APPS: Readonly<Record<SubWebViewStage, Readonly<Record<string,
     prod: {
         'dou-raise': 'https://dou-raise.apps.chatic.io',
         'dou-closer-word': 'https://dou-closer-word.apps.chatic.io',
+        'dou-sky': 'https://dou-sky.apps.chatic.io',
     },
     dev: {
         'dou-raise': 'https://dou-raise.apps-dev.chatic.io',
         'dou-closer-word': 'https://dou-closer-word.apps-dev.chatic.io',
+        'dou-sky': 'https://dou-sky.apps-dev.chatic.io',
     },
 };
 

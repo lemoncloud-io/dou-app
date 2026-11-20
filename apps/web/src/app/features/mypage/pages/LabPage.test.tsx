@@ -74,8 +74,14 @@ jest.mock('../../../hooks', () => ({
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: () => null }));
 jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
-// The card's own behaviour is MiniAppCard.test.tsx's; here it only has to be placed.
-jest.mock('../components/MiniAppCard', () => ({ MiniAppCard: () => <section aria-label="mini app card" /> }));
+// The card's own behaviour is MiniAppCard.test.tsx's; here it only has to be placed, with the rows handed to it.
+jest.mock('../components/MiniAppCard', () => ({
+    MiniAppCard: ({ children, withLauncher }: { children?: React.ReactNode; withLauncher: boolean }) => (
+        <section aria-label="mini app card" data-launcher={String(withLauncher)}>
+            {children}
+        </section>
+    ),
+}));
 // The real list, without the policy content the barrel also carries.
 jest.mock('../consts', () => jest.requireActual('../consts/inAppPages'));
 jest.mock('../../debug', () => ({
@@ -99,77 +105,68 @@ describe('LabPage — sub WebView pages', () => {
         openSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'view-1' });
     });
 
-    it('lists Raise DoU in the Experiments card beside the switches', () => {
-        render(<LabPage />);
+    const miniApps = () => screen.getByRole('region', { name: 'mini app card' });
+    const experiments = () => screen.getByRole('region', { name: 'mypage.lab.experiments' });
 
-        const experiments = screen.getByRole('region', { name: 'mypage.lab.experiments' });
-        expect(
-            within(experiments).getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / })
-        ).toBeTruthy();
-        expect(within(experiments).getByRole('button', { name: /^mypage\.lab\.placeInvite / })).toBeTruthy();
-        expect(within(experiments).getByRole('button', { name: /^mypage\.lab\.chatInputLock / })).toBeTruthy();
-    });
-
-    it('lists Raise DoU for everyone, with debug mode off', () => {
+    it.each([
+        ['Raise DoU', 'enhanceDou'],
+        ['Closer Word', 'closerWord'],
+        ['Sky 45', 'sky45'],
+    ])('lists %s in the mini app card for everyone, not among the switches', (_name, id) => {
         mockDebugMode = false;
         render(<LabPage />);
 
-        expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / })).toBeTruthy();
+        const row = new RegExp(`^mypage\\.lab\\.inAppPages\\.${id}\\.title `);
+        expect(within(miniApps()).getByRole('button', { name: row })).toBeTruthy();
+        expect(within(experiments()).queryByRole('button', { name: row })).toBeNull();
     });
 
-    it('carries the mini app card', () => {
+    it('keeps the switches in the Experiments card', () => {
         render(<LabPage />);
 
-        expect(screen.getByRole('region', { name: 'mini app card' })).toBeTruthy();
+        expect(within(experiments()).getByRole('button', { name: /^mypage\.lab\.placeInvite / })).toBeTruthy();
+        expect(within(experiments()).getByRole('button', { name: /^mypage\.lab\.chatInputLock / })).toBeTruthy();
     });
 
-    // While the mini app tab is on, the cloud's mini apps live there instead.
-    it('leaves the mini app card out while the mini app tab is on', () => {
+    it('asks the mini app card for its launcher', () => {
+        render(<LabPage />);
+
+        expect(miniApps().dataset.launcher).toBe('true');
+    });
+
+    // While the mini app tab is on, the cloud's mini apps live there; DoU's own pages stay here.
+    it('keeps only the pages in the mini app card while the mini app tab is on', () => {
         mockMiniAppTab = true;
 
         render(<LabPage />);
 
-        expect(screen.queryByRole('region', { name: 'mini app card' })).toBeNull();
+        expect(miniApps().dataset.launcher).toBe('false');
+        expect(
+            within(miniApps()).getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / })
+        ).toBeTruthy();
     });
 
-    it('draws no debug-only card while every page is an experiment', () => {
+    it('draws no debug-only card while every page is a mini app', () => {
         render(<LabPage />);
 
         expect(screen.queryByRole('region', { name: 'mypage.lab.inApp' })).toBeNull();
     });
 
-    it('opens the page tapped in the sub WebView', async () => {
+    it.each([
+        ['enhanceDou', 'https://dou-raise.apps.chatic.io/', 'dou-raise'],
+        ['closerWord', 'https://dou-closer-word.apps.chatic.io/', 'dou-closer-word'],
+        ['sky45', 'https://dou-sky.apps.chatic.io/', 'dou-sky'],
+    ])('opens %s at its own address, named by its app id', async (id, url, appId) => {
         render(<LabPage />);
 
         await act(async () => {
-            fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / }));
+            fireEvent.click(
+                screen.getByRole('button', { name: new RegExp(`^mypage\\.lab\\.inAppPages\\.${id}\\.title `) })
+            );
         });
 
-        expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://dou-raise.apps.chatic.io/', appId: 'dou-raise' });
+        expect(openSubWebView).toHaveBeenCalledWith({ url, appId });
         expect(toast).not.toHaveBeenCalled();
-    });
-
-    it('lists Closer Word in the Experiments card for everyone', () => {
-        mockDebugMode = false;
-        render(<LabPage />);
-
-        const experiments = screen.getByRole('region', { name: 'mypage.lab.experiments' });
-        expect(
-            within(experiments).getByRole('button', { name: /^mypage\.lab\.inAppPages\.closerWord\.title / })
-        ).toBeTruthy();
-    });
-
-    it('opens Closer Word at its own address, named by its app id', async () => {
-        render(<LabPage />);
-
-        await act(async () => {
-            fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.closerWord\.title / }));
-        });
-
-        expect(openSubWebView).toHaveBeenCalledWith({
-            url: 'https://dou-closer-word.apps.chatic.io/',
-            appId: 'dou-closer-word',
-        });
     });
 
     it('says so when the app refuses to open it', async () => {

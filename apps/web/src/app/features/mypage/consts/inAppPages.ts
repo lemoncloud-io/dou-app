@@ -7,10 +7,10 @@ export interface InAppPage {
     /** The app it is, resolved to where it is hosted as a page link is, so the two never disagree. */
     appId: string;
     /**
-     * Where the Lab lists it. `experiment` puts it in the Experiments card for everyone; `debug`
-     * keeps it in the In-app card that only debug mode draws, for pages not yet meant for users.
+     * Where the Lab lists it. `miniApp` puts it in the Mini apps card for everyone; `debug` keeps it
+     * in the In-app card that only debug mode draws, for pages not yet meant for users.
      */
-    surface: 'experiment' | 'debug';
+    surface: 'miniApp' | 'debug';
 }
 
 /**
@@ -25,13 +25,20 @@ export const IN_APP_PAGES: readonly InAppPage[] = [
         titleKey: 'mypage.lab.inAppPages.enhanceDou.title',
         subtitleKey: 'mypage.lab.inAppPages.enhanceDou.subtitle',
         appId: 'dou-raise',
-        surface: 'experiment',
+        surface: 'miniApp',
     },
     {
         id: 'closerWord',
         titleKey: 'mypage.lab.inAppPages.closerWord.title',
         subtitleKey: 'mypage.lab.inAppPages.closerWord.subtitle',
         appId: 'dou-closer-word',
-        surface: 'experiment',
+        surface: 'miniApp',
+    },
+    {
+        id: 'sky45',
+        titleKey: 'mypage.lab.inAppPages.sky45.title',
+        subtitleKey: 'mypage.lab.inAppPages.sky45.subtitle',
+        appId: 'dou-sky',
+        surface: 'miniApp',
     },
 ];

@@ -26,6 +26,13 @@ describe('resolveSubWebViewAppUrl', () => {
         await expect(resolveSubWebViewAppUrl({ appId: 'dou-closer-word', query: '' }, stage)).resolves.toBe(url);
     });
 
+    it.each([
+        ['prod', 'https://dou-sky.apps.chatic.io/'],
+        ['dev', 'https://dou-sky.apps-dev.chatic.io/'],
+    ] as const)('opens Sky 45 on its %s host', async (stage, url) => {
+        await expect(resolveSubWebViewAppUrl({ appId: 'dou-sky', query: '' }, stage)).resolves.toBe(url);
+    });
+
     it.each(['quiz', 'constructor', 'toString'])('has no page for %s', async appId => {
         await expect(resolveSubWebViewAppUrl({ appId, query: '' }, 'prod')).resolves.toBeNull();
     });

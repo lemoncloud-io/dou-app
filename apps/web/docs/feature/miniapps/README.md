@@ -39,8 +39,9 @@ app card.
 - **The routes.** `miniapps/*` is registered in `routes/PrivateRoutes.tsx` whatever the toggle says,
   and the routes read it themselves: with it off, any address under `/miniapps` goes home. Hiding only
   the tab would leave the screens one typed address away.
-- **The Lab card.** While the toggle is on, `LabPage` does not draw its mini app card. It reads the
-  setting only; one feature does not import another.
+- **The Lab card.** While the toggle is on, `LabPage` leaves the launcher out of its mini app card,
+  which keeps only DoU's own pages (Raise DoU, Closer Word, Sky 45). It reads the setting only; one
+  feature does not import another.
 - The toggle's `persist` is `session`: one turned off from the debug panel comes back at the next
   session.
 
