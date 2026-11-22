@@ -10,3 +10,6 @@ export * from './formatLogEntry';
 export * from './logFilter';
 export * from './webStorage';
 export * from './roomInspector';
+export * from './dataQuery';
+export * from './keyValueMedia';
+export * from './cacheDomains';

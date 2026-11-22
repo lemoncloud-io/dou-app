@@ -4,3 +4,4 @@ export * from './HintRow';
 export * from './Row';
 export * from './Section';
 export * from './DebugUnlockDialog';
+export * from './FilterBar';
