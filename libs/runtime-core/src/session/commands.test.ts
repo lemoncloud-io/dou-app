@@ -26,7 +26,6 @@ jest.mock('@chatic/auth', () => {
     const actual = jest.requireActual('@chatic/auth');
     return {
         ...mockAuth,
-        // The real ones: what a command answers with is the point of these tests.
         withoutToken: actual.withoutToken,
         holdPairingClaim: actual.holdPairingClaim,
     };
@@ -51,11 +50,8 @@ jest.mock('../data/runtime', () => ({
     getRepositories: () => ({ pairing: { claimPairing: (id: string) => mockClaimPairing(id) } }),
 }));
 
-// Required after the mocks: their factories read the `mock*` objects above, which an import would
-// reach before they are initialised.
 const { createCoreSessionCommands } = require('./commands') as { createCoreSessionCommands: typeof CreateCommands };
 
-// What a login answers with, as the backend sends it: the account, and the token that signs it.
 const tokenView = { uid: 'u1', name: 'Me', Token: { identityToken: 'secret-identity' } };
 const account = { uid: 'u1', name: 'Me' };
 

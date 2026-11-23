@@ -1,25 +1,13 @@
 import { backgroundClouds, selectBackgroundClouds, usableBackgroundEntryOf, getSocketManager } from '@chatic/transport';
 import type { SocketBindingConfig } from '@chatic/transport';
 import { isBackgroundCloudReady } from '@chatic/auth';
-// The session package, not the `session` facade group: the committed cloud id and the stores are
-// runtime-internal, and the group publishes to apps.
 import { credentialFreshness, getCommittedCloudId, cloudStore } from '@chatic/session';
 
-/**
- * The live reads behind background slots, shared by the slot derivation and the token preparer so
- * the two agree on which clouds are wanted and which are ready. Not pure: every read goes to the
- * stores and the manager at call time, and nothing here is cached.
- */
-
-/** The clouds that should hold a background slot right now, in the policy's order. */
 export const currentBackgroundSelection = (): string[] =>
     selectBackgroundClouds({
         joined: backgroundClouds.getJoined(),
         recent: cloudStore.getRecentClouds(),
         committed: getCommittedCloudId(),
-        // A hold keeps a slot, it does not open one: the write that took it goes out at once, so a
-        // slot booted for it would arrive after that write had already failed, and be torn down again
-        // as the hold ended.
         held: backgroundClouds.getHeld().filter(liveBackgroundReadiness.isSlotBound),
     });
 
@@ -32,10 +20,6 @@ export const liveBackgroundReadiness = {
             .some(key => key === cid),
 };
 
-/**
- * The binding configs of the background slots that are ready to boot. A cloud whose tokens are still
- * being prepared is left out until they land; its slot appears on the re-derive that follows.
- */
 export const readyBackgroundConfigs = (deviceId: string): SocketBindingConfig[] =>
     currentBackgroundSelection().flatMap(cid => {
         const url = usableBackgroundEntryOf(cid)?.delegationToken.wss;

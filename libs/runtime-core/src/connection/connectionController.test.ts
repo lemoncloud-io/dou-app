@@ -43,7 +43,6 @@ jest.mock('@chatic/sync/runtime', () => ({
     startBackgroundReceive: () => mockStartReceive(),
 }));
 
-/** The order the socket half touches things in, across the sync engine and both binders. */
 const order: string[] = [];
 const mockApply = jest.fn((slots: unknown) => order.push(`bind ${JSON.stringify(slots)}`));
 const mockDetachAll = jest.fn();
@@ -59,12 +58,10 @@ const mockedDerive = deriveSocketSlots as jest.MockedFunction<typeof deriveSocke
 const mockedHasRelay = hasRelaySlot as jest.MockedFunction<typeof hasRelaySlot>;
 const mockedGetSyncManager = getSyncManager as jest.MockedFunction<typeof getSyncManager>;
 
-/** Lets the controller's coalesced pass run. */
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
 const slotsFor = (deviceId: string | null | undefined) => ({ relay: { config: { deviceId } } }) as never;
 
-/** Every half a test started, stopped after it — the session signal and the store outlive a test. */
 const started: Array<() => void> = [];
 const track = (stop: () => void) => {
     started.push(stop);
@@ -171,7 +168,6 @@ describe('the background half', () => {
         expect(mockStopReceive).toHaveBeenCalledTimes(1);
         expect(mockDispose).toHaveBeenCalledTimes(1);
         expect(mockUnsubscribeSlots).toHaveBeenCalledTimes(1);
-        // Neither the check queued before the stop nor a later signal reaches the disposed preparer.
         expect(mockSync).not.toHaveBeenCalled();
     });
 });
@@ -210,9 +206,6 @@ describe('the socket half', () => {
         expect(mockedDerive).toHaveBeenCalledTimes(2);
     });
 
-    // `identity` is deliberately absent: none of the slot inputs move on it, and boot alone emits it
-    // twice (`setSessionIdentityState`) with every login adding one. The pairing that keeps this safe
-    // is the NARROW snapshot the derivation reads (relay + cloud only).
     it('does not re-derive on an identity signal', async () => {
         track(createConnectionController({ deviceId: () => 'd' }).startSockets());
         mockedDerive.mockClear();

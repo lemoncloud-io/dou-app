@@ -10,8 +10,6 @@ import { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedClo
 
 const mockIssue = jest.fn();
 
-// `delegateCloud` comes from the `auth` repository — data no longer has any reason to reach back into
-// the session folder.
 jest.mock('./runtime', () => ({
     getRepositories: () => ({ auth: { delegateCloud: (...args: unknown[]) => mockIssue(...args) } }),
 }));

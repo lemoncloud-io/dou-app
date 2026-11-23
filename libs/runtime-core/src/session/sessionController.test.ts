@@ -29,22 +29,18 @@ jest.mock('@chatic/logger', () => ({
 const mockedSnapshot = getSessionAuthSnapshot as jest.MockedFunction<typeof getSessionAuthSnapshot>;
 const mockedMarkInitialized = markSessionInitialized as jest.MockedFunction<typeof markSessionInitialized>;
 
-/** The session store's auth snapshot, as the controller reads it. */
 const auth = { isInitialized: false, isAuthenticated: false };
 const setAuth = (next: Partial<typeof auth>): void => {
     Object.assign(auth, next);
 };
 
-/** A network and a foreground the test drives. */
 let online = true;
 let notifyOnline: () => void = () => undefined;
 let visible = true;
 let notifyForeground: () => void = () => undefined;
 
-/** Lets queued promise callbacks run. */
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
-/** Every keep-alive a test started, stopped after it — the session signal outlives a test. */
 const started: Array<() => void> = [];
 afterEach(() => started.splice(0).forEach(stop => stop()));
 
@@ -191,8 +187,6 @@ describe('startGuestKeepAlive', () => {
         expect(mockLoginGuestByDevice).not.toHaveBeenCalled();
     });
 
-    // A first launch with no network used to burn its single attempt and then sit sessionless until
-    // the app restarted: nothing about a failed login moves on its own.
     it('skips the attempt while offline, then runs it when the network returns', () => {
         online = false;
         keepAlive();
@@ -272,7 +266,6 @@ describe('startGuestKeepAlive', () => {
         expect(mockLoginGuestByDevice).toHaveBeenCalledTimes(1);
     });
 
-    // React StrictMode mounts the host, unmounts it and mounts it again before the first login is back.
     it('a stop and a start on one controller join the login in flight instead of sending a second', async () => {
         let finish: () => void = () => undefined;
         mockLoginGuestByDevice.mockReturnValue(new Promise<void>(resolve => (finish = resolve)));

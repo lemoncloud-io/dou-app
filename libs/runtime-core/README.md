@@ -198,12 +198,58 @@ adapter from any file rather than its declaration and entry point (the four web 
 lint block keeps the adapters, config, data and db to their `src/config/` and `main.tsx`). Each goes when
 the code it describes moves.
 
+## Imports inside this package
+
+Production code reaches `@chatic/session`, `-transport`, `-sync` and `-auth` through their barrels
+only; this package's `eslint.config.mjs` repeats the root's ban for its own files, because a block
+here replaces the root's list and every ban kept has to be stated again. `@chatic/data`'s inner paths
+are closed to tests as well. A test may name a file of the other four, so that a mock replaces the
+module for every importer, the owning package's own modules included.
+
 ## The wiring calls
 
 The calls that wire the core packages together — `sessionStores.configure`,
 `syncDataGraph.provide` and the rest — are made in one file, `src/createRuntime.ts`, and a workspace
 lint rule reports them anywhere else. The catalogue and the allowed file are in the root config; the
 rule is [`tools/eslint-rules`](../../tools/eslint-rules/README.md)'s `runtime-wiring-call`.
+
+`createRuntime` is called once per launch, from the app's entry point, and where it sits matters:
+
+- **After the app's log wiring.** The call can log — a second call warns, and a policy registered
+  after the data runtime exists is ignored with a warning — so the log listeners have to exist first.
+- **Before anything that reads the session.** Reading a platform port or a session store before the
+  call throws an error that names `createRuntime`, on purpose: a missing wiring is a loud failure, not
+  a read against an empty host.
+- **Inside it, in this order.** The platform ports and stores first, so nothing below reads an
+  unconfigured one. Then the leftovers an older build kept in web storage, the signed-out key prefixes
+  and the `?logout=1` sweep — first among the readers, because everything after may read a token, and
+  this drops the ones of the account that just signed out. Then the pending sync-cursor reset, before
+  any repository exists to read a cursor. Then the credential recovery, the data policy and the graph
+  accessors handed to the auth and sync layers, and last the config state log.
+- **Credential recovery is wired here, not in a module of its own.** Every HTTP route recovers the
+  same way, `credentialRenewers.relay.renew()`, because the relay credential is the only one that
+  signs; the cloud credential is re-issued by the guard that watches the cloud socket
+  ([docs/session](./docs/session/README.md#the-credential-guards)), not by HTTP. The wiring joins the
+  HTTP registry to the socket renewers, which deliberately import nothing of each other, so no package
+  owns it and the composition root does.
+- **The graph is handed down as accessors.** The auth use cases and the sync plans read the repository
+  graph but sit below where it is assembled, so they get a function, and the graph is still built on
+  first access.
+- **A second call replaces the wiring, never stacks it** — assignment, not accumulation — and says so
+  in the log, since it means two entry paths believe they own the boot.
+
+### The config state log
+
+`attachConfigStateLog` (`src/config/configStateLog.ts`, the last step of `createRuntime`) leaves this
+device's effective settings in the logs. It records **changes, not state**: stamping the settings on
+every entry would repeat the same few pairs on every batch. So there is one line at boot, listing
+every key some lane decided, and one line per key afterwards whenever its resolved value moves,
+naming the row that won. A collector replays them to know the state at any moment.
+
+- **An empty boot line is the useful case.** It says nothing on this device explains the bug.
+- **Only overridden keys count** (`isOverridden`: a shell, local-storage or server row supplied the value). A value a stage or platform rule chose is not news — `system.overridesUnlocked` is off on every production device by declaration, so counting it would fill every boot line.
+- **`debug.entryCode` is the one excluded key.** The registry holds settings, not identity, so there is nothing else to redact; the entry code is a credential and the log is read by the team.
+- **It lives here because `@chatic/config` imports nothing** and so cannot reach a logger, while every app that boots the config registry also calls `createRuntime`. The subscription is held at module scope, so a second attach (HMR, a double boot) replaces it instead of doubling every line.
 
 ## How to verify
 
@@ -212,6 +258,9 @@ node node_modules/.bin/tsc -b libs/runtime-core/tsconfig.json   # includes the r
 (cd libs/runtime-core && node ../../node_modules/.bin/jest)
 (cd libs/runtime-core && node ../../node_modules/.bin/eslint .)
 ```
+
+Jest runs in the `node` environment, and `jest.setup.ts` polyfills `TextEncoder` / `TextDecoder` for
+the tests that opt into jsdom, which lacks them while the socket library touches them at import time.
 
 To see a constraint fire, add an import that breaks it — `import 'react'` here, or
 `import '@chatic/runtime-web'` in a core package — and lint that package with `npx nx lint`. Running

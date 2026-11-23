@@ -11,8 +11,6 @@ import {
     type SubWebViewRuntimeScope,
 } from './subWebViewWhitelist';
 
-// --- Compile-time guarantees: ts-jest fails this file on a type error. ---
-
 type W = typeof SUB_WEB_VIEW_REPOSITORY_WHITELIST;
 type AllowedName = {
     [R in keyof W]: W[R] extends { methods: infer Ms }
@@ -36,7 +34,6 @@ type ServerRead = {
         : never;
 }[keyof W];
 
-/** Names that say they write. An entry flipped to allow by mistake fails here if its name says so. */
 type WritingPrefix =
     | 'create'
     | 'update'
@@ -72,7 +69,6 @@ type WritingPrefix =
     | 'cacheWrite'
     | 'cacheDelete'
     | 'cacheClear'
-    // In this runtime a refresh and a sync write what they fetched into the cache.
     | 'refresh'
     | 'sync';
 
@@ -87,24 +83,17 @@ type React = {
               string]
         : never;
 }[keyof W];
-/** The two writes a page may ask for, by name: a third one fails here until it is argued for. */
 type Write = 'chat.sendChat' | 'chat.setReaction';
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
 const compileTime: [
-    // Nothing allowed is named like a write but the two writes: exactly these two, by name.
     Equal<Extract<AllowedName, `${string}.${WritingPrefix}${string}`>, Write>,
-    // The text send is budgeted as a send and the reaction as a reaction, never as a read.
     Equal<Send, 'chat.sendChat'>,
     Equal<React, 'chat.setReaction'>,
-    // Nothing allowed reaches another cloud.
     IsNever<Extract<AllowedName, `${string}InCloud`>>,
-    // Every allowed server read is one of these, which write nothing of the page's choosing — and
-    // `cloud.getCloud` nothing at all, since its guard holds the page to `{ cache: false }`.
     IsNever<
         Exclude<ServerRead, 'channel.fetchList' | 'place.isPlaceDeleted' | 'user.listPlaceMembers' | 'cloud.getCloud'>
     >,
-    // Every allowed stream is an `observe…`.
     IsNever<Exclude<AllowedStream, `${string}.observe${string}`>>,
 ] = [true, true, true, true, true, true];
 
@@ -138,7 +127,6 @@ describe('the sub WebView runtime whitelist', () => {
         expect(Object.keys(SUB_WEB_VIEW_REPOSITORY_WHITELIST).sort()).toEqual(Object.keys(REPOSITORY_METHODS).sort());
     });
 
-    // The reviewed list itself, so a flip of one entry shows up as a diff a reviewer reads.
     it('allows exactly these methods', () => {
         expect([...SUB_WEB_VIEW_ALLOWED.keys()].sort()).toEqual([
             'channel.cacheRead',
@@ -222,7 +210,6 @@ describe('checkSubWebViewRuntimeRequest', () => {
         });
     });
 
-    // A page never reads or writes the cloud's mini app list; a hub gets it from the web as a launch param.
     it.each([
         ['cloud.listMiniApps', ['c1'], 'otherCloud'],
         ['cloud.addMiniApp', ['c1', { name: 'n', url: 'https://a.example/' }], 'write'],
@@ -232,8 +219,6 @@ describe('checkSubWebViewRuntimeRequest', () => {
         expect(checkSubWebViewRuntimeRequest(call(method, args), ALL, HERE)).toEqual({ ok: false, reason });
     });
 
-    // The page's arguments would decide where the rows land: `{ sid }` of another place files this
-    // place's rooms under it.
     it.each([
         'channel.refreshList',
         'channel.refreshOne',
@@ -371,7 +356,6 @@ describe('checkSubWebViewRuntimeRequest', () => {
         expect(ask({ sid: 's1' }).ok).toBe(true);
         expect(ask({ sid: 's2' })).toEqual({ ok: false, reason: 'guard' });
         expect(ask({})).toEqual({ ok: false, reason: 'guard' });
-        // The session left the place the view opened on: the shell passes no place.
         expect(ask({ sid: 's1' }, { cloudId: 'c1', placeId: null as never })).toEqual({ ok: false, reason: 'guard' });
     });
 

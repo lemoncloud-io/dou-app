@@ -1,7 +1,6 @@
 import type * as ForegroundModule from './foreground';
 
 describe('foregroundPlatform', () => {
-    // A fresh module per case: the holder is a module singleton, and the first case needs it unconfigured.
     const load = (): typeof ForegroundModule => {
         let loaded: typeof ForegroundModule | undefined;
         jest.isolateModules(() => {

@@ -1,17 +1,5 @@
 import type { KeyValueStore } from '@chatic/storage';
 
-/**
- * The store the runtime's own non-session state lives in.
- *
- * - `device` — survives closing the tab: the sync cursor watermark. Tolerant: the watermark is a
- *   convenience, so a full or blocked storage costs the value, not the boot.
- *
- * The start hands it over with the storage port its declaration names, built with the session's
- * stores. **There is no default**: reading it before then throws, like the session's own ports — a
- * default would be one platform's storage. (The tab-lifetime store a page
- * keeps its invited clouds in belongs to the web cache, `webLocalCachePorts(tab)` in
- * `@chatic/runtime-web`, not to the runtime.)
- */
 export interface RuntimeStorePorts {
     device: KeyValueStore;
 }
@@ -31,7 +19,6 @@ export const runtimeStores = {
     configure(next: RuntimeStorePorts): void {
         ports = next;
     },
-    /** Tests only: back to unconfigured. */
     reset(): void {
         ports = null;
     },

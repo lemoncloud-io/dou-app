@@ -1,12 +1,6 @@
 import { deriveSocketSlots, hasRelaySlot } from './socketSlots';
 import { getCommittedCloudId, getSocketSlotContext } from '@chatic/session/store';
 
-// Both are runtime-internal and off the session barrel (ADR-0076 Decision 6), so the mock is at the
-// concrete module. `getSocketSlotContext` is the NARROW snapshot this derivation reads — it carries
-// relay and cloud only, matching the three signals the controller re-derives on (ADR-0076 E5). The committed cloud id
-// is distinct from the SELECTED `cloud.cloudId` in that snapshot.
-// The background half reads the app's cloud list, the token cache and the manager — all covered by
-// `backgroundSlots.test.ts`. Here it is a seam: which configs it hands back, and whether it is asked.
 const mockReadyBackgroundConfigs = jest.fn((_deviceId: string): unknown[] => []);
 jest.mock('./backgroundSlots', () => ({
     readyBackgroundConfigs: (deviceId: string) => mockReadyBackgroundConfigs(deviceId),
@@ -51,11 +45,6 @@ describe('deriveSocketSlots', () => {
 
         const result = { current: deriveSocketSlots(DEVICE) };
 
-        // The cache scope is no longer this derivation's output — `deriveSelectedContext` owns that formula
-        // and `selectedContext.test.ts` pins it (ADR-0076 G5).
-        // relay carries identityToken (SocketReauthBinder watches it for a same-connection
-        // guest→social swap); the cloud slot does NOT — a cloud change reboots the socket (wss URL
-        // differs → SocketBinder rebuilds), so no in-place cloud re-auth key is needed.
         expect(result.current).toEqual({
             relay: { config: relayConfig, identityToken: 'relay-token' },
             cloud: {
@@ -70,10 +59,6 @@ describe('deriveSocketSlots', () => {
         });
     });
 
-    // Optimistic switch window: the selected cid has already flipped to the target, but the
-    // delegation/cloud token is still the old cloud's. It used to be that the slot config carried the
-    // target cid together with the old wss/identityToken, pointing at two different clouds at once
-    // (ADR-0070 Decision 7's selected vs. committed).
     it('전환 낙관 창에서 cloud 슬롯 cid는 선택값이 아니라 커밋된 클라우드를 따른다', () => {
         (getCommittedCloudId as jest.Mock).mockReturnValue('outgoing-cloud');
         (getSocketSlotContext as jest.Mock).mockReturnValue({
@@ -85,9 +70,7 @@ describe('deriveSocketSlots', () => {
             },
             relay: RELAY,
             cloud: {
-                // The selected value has already flipped to target
                 cloudId: 'target-cloud',
-                // But wss/identityToken still belong to the outgoing cloud (delegation token hasn't changed)
                 wss: 'wss://outgoing.chatic.com',
                 identityToken: 'outgoing-token',
                 isActive: true,
@@ -97,14 +80,10 @@ describe('deriveSocketSlots', () => {
 
         const result = { current: deriveSocketSlots(DEVICE) };
 
-        // The slot stays consistent with the outgoing cloud — url and cid point at the same cloud
         expect(result.current.cloud?.config).toMatchObject({
             url: 'wss://outgoing.chatic.com',
             cid: 'outgoing-cloud',
         });
-        // The other side of the split (cache scope = selected = 'target-cloud') belongs to
-        // `deriveSelectedContext` and is pinned by `selectedContext.test.ts`. Here we only check that
-        // the slot follows the committed value.
     });
 
     it('relay only (no cloud active): relay slot present, cloud slot absent', () => {
@@ -130,8 +109,6 @@ describe('deriveSocketSlots', () => {
     });
 
     it('an active cloud session with no committed cloud yields no cloud slot and leaves relay alone', () => {
-        // Slots are keyed by the cloud they serve. Falling back to 'default' here — as this used to —
-        // would hand a cloud config the relay's key, and the relay socket would be replaced.
         (getCommittedCloudId as jest.Mock).mockReturnValue(null);
         (getSocketSlotContext as jest.Mock).mockReturnValue({
             relay: RELAY,
@@ -180,8 +157,6 @@ describe('deriveSocketSlots', () => {
     });
 
     it('optimistic cloud switch: the cloud SLOT waits for isActive even though the cid pre-applied', () => {
-        // The cid was pre-applied to the target cloud, but its tokens have not committed
-        // (cloud.isActive === false), so the cloud socket must NOT boot yet — only relay is present.
         (getSocketSlotContext as jest.Mock).mockReturnValue({
             activeServer: {
                 kind: 'relay',
@@ -196,8 +171,6 @@ describe('deriveSocketSlots', () => {
 
         const result = { current: deriveSocketSlots(DEVICE) };
 
-        // The cid pre-applies to the selected cloud (covered by `selectedContext.test.ts`) while the
-        // cloud SOCKET stays absent (relay-only) until the target's tokens commit.
         expect(result.current.relay).toBeDefined();
         expect(result.current.cloud).toBeUndefined();
     });

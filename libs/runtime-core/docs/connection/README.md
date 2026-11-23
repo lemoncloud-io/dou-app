@@ -87,6 +87,7 @@ first step undoes its subscriptions and rethrows.
 destroys no socket; a later `startSockets` builds fresh binders, which re-bootstrap each slot, and
 `ensure` reuses every client whose config is unchanged. A pass queued before the stop is dropped.
 That is what a remounted host — React StrictMode's mount → unmount → mount among them — relies on.
+A boot that resolves after its stop detaches its own subscriptions instead of leaving them behind.
 
 **The sync engine first.** `startSockets` calls `getSyncManager()` before it binds anything. A slot's
 sync runtime must exist _before_ the slot binds, because the runtime owns that connection's
@@ -104,12 +105,14 @@ context derives from values no subscription re-reads on. `identity` is excluded 
 alone emits it twice and every login adds one, each of which would hand both binders a new-but-equal
 slots object.
 
-Four rules produce the result:
+These rules produce the result:
 
 - **Each slot is gated on its own server having a token.** The relay wss is a static env value that exists before login, so gating on the URL alone would boot a socket with nothing to authenticate with. Login turns a slot on; logout turns it off.
 - **`identityToken` rides beside `config`, not inside it.** `SocketBinder`'s reboot key reads only `config`, so a token refresh leaves the config stable and the socket alive, while `SocketReauthBinder` watches this field per slot.
 - **No cloud slot carries an `identityToken`, committed or background.** A switch lands either on a cloud with no slot, which registers from scratch when it boots, or on a background slot whose own registered tokens the switch commits unchanged ([auth docs/socket/](../../../auth/docs/socket/README.md)) — either way there is no identity change on a live connection to watch for. A cloud token re-issued _without_ a switch is therefore invisible to both binders, and `renewCloudSession` re-registers explicitly.
 - **The cloud slot's cid is the committed cloud**, read from the delegation token — not the selected one, which flips at the start of a switch. Using the selected value made the config describe two clouds at once during the optimistic window: the target's cid next to the outgoing cloud's URL and token.
+- **No committed cloud means no cloud slot.** The derivation logs a warning and leaves the slot out; it never falls back to the relay's key (`'default'`). Slots are keyed by the cloud they serve, so a cloud config under the relay's key would replace the relay socket. The state is reachable only through a malformed persisted delegation token.
+- **The slots bind in the order relay, background, committed cloud.** Should the background list ever name the committed cloud too, the committed config is the one that binds.
 
 `hasRelaySlot(deviceId)` is the first rule on its own: whether there is a relay session to mint
 background clouds' tokens from.
@@ -220,8 +223,12 @@ slot whatever its URL, so the guard had nothing left to detect and is gone.
 `cid` is not in the reboot key because it is already the slot's key. The identity token is not in it
 because a refresh must not reboot a healthy socket.
 
-`SocketReauthBinder` watches each slot's `identityToken` and calls `reauthenticateActiveSocket` when
-it moves **and a reboot is not already happening**, since a reboot re-registers anyway. Its first pass
+`SocketReauthBinder` watches only the relay slot, by invariant (`SLOT_KINDS`): an in-place identity
+change is the relay token being swapped under a live connection — a guest promoted to a social or
+email account keeps the url, device id and wss type — and it has to fire even while a cloud slot is
+the active socket. A cloud slot never carries an `identityToken` (above), so there is nothing to
+watch there. It calls `reauthenticateActiveSocket` when that slot's `identityToken`
+moves **and a reboot is not already happening**, since a reboot re-registers anyway. Its first pass
 only records what it saw. Each pass runs the binder first and the re-auth second, over the same slots.
 
 ### The sockets as screens read them

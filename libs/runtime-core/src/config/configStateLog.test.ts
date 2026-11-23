@@ -1,16 +1,5 @@
-/**
- * What matters here is the SHAPE of the history a collector replays — a boot anchor plus one line
- * per move — and the three things that would quietly corrupt it: a repeated attach doubling every
- * line, the entry code riding along in a log the team reads, and a line for a key whose effective
- * value never moved.
- *
- * The registry itself is faked rather than booted. This module's job is what it decides to log and
- * what it leaves out; which row wins is `libs/config`'s job and has its own tests there.
- */
 import type { ConfigSnapshot, ValueOrigin } from '@chatic/config';
 
-// Held outside the factories (hence the `mock` prefix jest requires) so each case can rewrite what
-// the fake registry answers.
 const mockInfo = jest.fn();
 const mockListeners: Array<(changedKeys: readonly string[]) => void> = [];
 let mockOverridden: ConfigSnapshot[] = [];
@@ -34,14 +23,6 @@ jest.mock('@chatic/config', () => ({
     },
 }));
 
-/**
- * The module under test is loaded per case, not imported at the top.
- *
- * Two reasons, and both bite silently. `jest.mock` is hoisted above the `const`s above, so a static
- * import would run the factories before those exist; and the module holds its live subscription at
- * module scope, so a case inheriting the previous one's would be testing the wrong tree. Same
- * pattern as `init.test.ts`.
- */
 const load = async () => {
     jest.resetModules();
     return (await import('./configStateLog')).attachConfigStateLog;
@@ -50,7 +31,6 @@ const load = async () => {
 const snapshot = (key: string, value: unknown, origin: ValueOrigin = 'local'): ConfigSnapshot =>
     ({ key, value, origin, isOverridden: origin !== 'default' && origin !== 'stageRule' }) as ConfigSnapshot;
 
-/** Publishes a change the way `ConfigStore.notify` does — to every live listener. */
 const emitChange = (...keys: string[]) => mockListeners.forEach(listener => listener(keys));
 
 describe('attachConfigStateLog', () => {
@@ -62,8 +42,6 @@ describe('attachConfigStateLog', () => {
     });
 
     describe('the boot anchor', () => {
-        // The empty line is not a wasted entry: it says "nothing on this device explains the bug",
-        // which is the answer on most devices and is only trustworthy if the line is always there.
         it('is logged even when nothing is overridden', async () => {
             const attachConfigStateLog = await load();
 
@@ -89,7 +67,6 @@ describe('attachConfigStateLog', () => {
             });
         });
 
-        // It is a credential, and this log is read by the team.
         it('leaves the debug entry code out, and out of the count', async () => {
             const attachConfigStateLog = await load();
             mockOverridden = [snapshot('debug.entryCode', '1234'), snapshot('log.upload.hold', true)];
@@ -149,8 +126,6 @@ describe('attachConfigStateLog', () => {
     });
 
     describe('attaching twice', () => {
-        // HMR and a double `createRuntime` both land here. Two live subscriptions would double
-        // every change line, and a replayed history that counts one move twice is wrong history.
         it('replaces the subscription instead of stacking a second one', async () => {
             const attachConfigStateLog = await load();
             attachConfigStateLog();

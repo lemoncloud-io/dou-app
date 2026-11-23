@@ -156,6 +156,31 @@ Each returns only the interfaces a repository consumes; no gateway instance esca
 a sync cursor outliving the storage it described; see
 [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
 
+**A rejected `channel.sync-users` is read as a membership verdict.** The socket factory wraps that one
+call. A `403` records the room as refused (`recordRefusedChannel`, which `isChannelRefused` answers
+from); a success clears the entry, since a re-invite makes the room readable again. It is the only call
+that answers the question: right after the account left a 1:1, `channel.get` and the message read
+still succeed, so the sync scheduler never classes the room as gone and the room has nothing to go on
+but a timeout, while `sync-users` says in as many words that the account is not a member. Only a 403
+counts — a 404, a timeout or a dropped socket say nothing about membership, and telling someone with
+no connection that they are not in a conversation is the lie this path exists to avoid. It is wrapped
+at the gateway because `useChannelMembers` swallows the rejection on purpose, and a second caller would
+have to remember to repeat it. Some destinations follow the active slot, not the relay: `device`
+lists and unlinks my devices on whichever server the session is on, so inside a cloud they are that
+cloud's.
+
+### Timing an attachment send
+
+`createMediaSendTracer` (`data/mediaSendTrace.ts`) times attachment sends — images, videos, documents —
+as `chat_send_media` samples, with each phase on the way marked as milliseconds from the start
+(`MediaSendPhase`).
+
+- **A sample timed here, not a trace started and stopped in the native performance backend.** A trace left open for a long time is forgotten there, and a large video's send can outlast it — as a start and a stop, exactly the slowest sends would go missing.
+- **At most 10 samples a minute** (`CHAT_SEND_MEDIA_SAMPLES_PER_MINUTE`). Traces share one performance budget per device, so this is a guard against a burst of retries, not a sampling rate; an attachment send is a deliberate act, so it is rarely reached.
+- **A send the page was hidden during is dropped**, and one begun on a hidden page is not timed at all: a native upload carries on in the background, but the sample would time the absence.
+- **Attributes are bucketed**: `kind` (`image` / `video` / `file` / `mixed`), `count`, `size`, `thread` (`root` / `reply`) and `outcome`. A retry is the `retry` metric (1), because the attributes are at the backend's cap of five.
+- **The size is the picked size**, not the sent size — images are resized before they go and a shell video's size is only known after conversion. The exact total is the `bytes_kb` metric.
+
 ### Boot policy
 
 ```ts

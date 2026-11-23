@@ -1,16 +1,3 @@
-/**
- * Destination policy for the relay-owned gateways.
- *
- * The 1:1 invite domain, the account-proof packet and the cloud row (its read and its rename) live
- * in the central backend behind the relay server, so they must reach the relay slot even while a
- * cloud slot is active. The policy is fixed here, at composition time — callers get no route
- * argument to forget. Same guarantee the
- * device.update-remote wiring makes; see the transport's docs/socket.
- *
- * Driven through the data sources rather than the gateway bundle: the factory deliberately does not
- * hand the bundle back out (ADR-0036), so the only observable contract is which socket a repository
- * call ends up on — which is also what actually matters.
- */
 import { createSocketDataSources } from './socketFactory';
 import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 
@@ -18,10 +5,6 @@ const activeRequest = jest.fn().mockResolvedValue({});
 const relayRequest = jest.fn().mockResolvedValue({});
 const cloudRequest = jest.fn().mockResolvedValue({});
 
-// Slots are keyed by the cloud they serve; the relay-pinned gateways under test only ever resolve
-// RELAY_SLOT. `cloudRequest` stays as a negative witness — nothing in this suite has a route to it
-// any more (socketFactory no longer builds a `cloud` route at all), so it can only be called by a
-// regression that resurrects one.
 const scopedClients: Record<string, { request: jest.Mock; send: jest.Mock }> = {
     [RELAY_SLOT]: { request: relayRequest, send: jest.fn() },
 };
@@ -114,8 +97,6 @@ describe('createSocketDataSources — relay-pinned gateways', () => {
     it('exposes no auth.update sender at all — the handshake belongs to the SDK AuthController', () => {
         const { socketDataSources } = createSocketDataSources();
 
-        // The absence IS the contract: a second sender would authenticate a connection the
-        // controller does not know it authenticated.
         expect('updateSocketAuth' in socketDataSources.auth).toBe(false);
     });
 });
@@ -176,11 +157,6 @@ describe('createSocketDataSources — bound to one slot', () => {
     });
 });
 
-/**
- * My own devices are read and unlinked on whichever server the session is on. While a cloud is active
- * that is the cloud — the active facade forwards there — so pinning these to the relay would list the
- * relay's devices to someone working in a cloud.
- */
 describe('createSocketDataSources — my devices follow the active slot', () => {
     const slotRequest = jest.fn().mockResolvedValue({ list: [], at: 0 });
     const slotClient = { request: slotRequest, send: jest.fn(), onType: jest.fn().mockReturnValue(() => undefined) };
