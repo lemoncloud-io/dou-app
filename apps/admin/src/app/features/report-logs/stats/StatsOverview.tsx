@@ -1,16 +1,3 @@
-/**
- * `stats/StatsOverview.tsx`
- * - The statistics tab's first view: "are we fast enough, and how many people use it?" at a glance.
- *
- * Each goal card reads one measurement against its target at the percentile the target is defined
- * at. The records come from a fetch narrowed on the server to that statistic's tag, so a card is
- * not starved by the logs that outnumber statistics in an unfiltered page. Usage comes from the
- * server's aggregation — distinct users and app opens over the period, per day — so it counts past
- * the page as well, over whole days (and the tab says so for a period narrower than its days).
- *
- * When there are no statistics at all the tab says why and when there will be, instead of a row of
- * empty cards that read as "zero".
- */
 import { useMemo } from 'react';
 
 import { useT } from '../../../i18n';
@@ -34,10 +21,6 @@ const VERDICT_TONE: Record<GoalReading['verdict'], PillTone> = {
     noData: 'neutral',
 };
 
-/**
- * The value against its target as a bar: the track spans half again the target, so "within" sits
- * left of the marker and "over" runs past it.
- */
 const TargetBar = ({ value, target }: { value: number; target: number }) => {
     const span = Math.max(target * 1.5, value);
     const fill = Math.min(100, (value / span) * 100);
@@ -97,7 +80,6 @@ export const StatsOverview = ({ nav }: StatsOverviewProps) => {
     const { period } = nav;
     const base = { stage: nav.stage, from: period.fromDate, to: period.toDate };
 
-    // One fetch per statistic, named rather than looped so the hooks keep a fixed order.
     const boot = useLogCorpus({ ...base, tag: 'perf.boot' });
     const room = useLogCorpus({ ...base, tag: 'perf.chat_room_open' });
     const cloudSwitch = useLogCorpus({ ...base, tag: 'perf.cloud_switch' });
@@ -120,7 +102,6 @@ export const StatsOverview = ({ nav }: StatsOverviewProps) => {
     const loading = corpora.some(corpus => corpus.phase === 'collecting' && corpus.loaded === 0) || sessions.isLoading;
     const failed = corpora.find(corpus => corpus.phase === 'failed');
     const partial = corpora.some(corpus => corpus.isTruncated);
-    // "No statistics" only once every answer is in: a still-loading count is not a zero.
     const noStatistics =
         !loading && !failed && !sessions.error && readings.every(({ reading }) => reading.n === 0) && !sessions.total;
 

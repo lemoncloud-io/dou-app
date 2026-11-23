@@ -1,7 +1,3 @@
-/**
- * `components/cost-monitor/HourChart.tsx`
- * - One KST day in hourly bars: estimated cost stacked by metric, or one metric's usage.
- */
 import { useState, type JSX } from 'react';
 
 import { KEYS, RATES, type UsageKey } from '../lib/cost';
@@ -137,7 +133,6 @@ export const HourChart = ({ row, mode, metric }: { row: CostRow; mode: ChartMode
     );
 };
 
-/** The 24 hours of a row as tiny bars, scaled to the largest hour on screen. */
 export const MiniBars = ({ row, max }: { row: CostRow; max: number }): JSX.Element => (
     <div className="flex h-6 w-36 items-end gap-px" title="Estimated cost, KST 0–23h">
         {row.hours.map((hour, i) => {

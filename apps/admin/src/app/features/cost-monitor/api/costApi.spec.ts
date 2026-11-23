@@ -1,6 +1,3 @@
-/**
- * `api/cost-monitor/costApi.spec.ts`
- */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface SentRequest {
@@ -10,7 +7,6 @@ interface SentRequest {
 }
 
 const sent: SentRequest[] = [];
-/** Replies by URL suffix, so parallel calls do not depend on their order. */
 const replies = new Map<string, ({ data: unknown } | { error: unknown })[]>();
 
 vi.mock('@chatic/runtime', async () =>

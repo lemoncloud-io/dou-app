@@ -1,13 +1,3 @@
-/**
- * `tabs/AllLogsTab.spec.tsx`
- *
- * Drives the assembled console against a fake list endpoint. The unit tests cover the
- * pieces; what only shows up here is the wiring the screen is actually about — that a
- * server axis restarts the corpus walk while a client axis does not, that pinning issues
- * a filtered query, and that new arrivals wait for a click.
- *
- * The screen sits behind an admin OAuth gate, so this stands in for clicking through it.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -21,8 +11,6 @@ import { CORPUS_STALE_MS } from '../hooks/use-log-corpus';
 
 const fetchReportLogs = vi.fn<(params?: Record<string, unknown>) => Promise<ReportLogListResponse>>();
 
-// Mocked at the module edge: the real one reaches through `runtime.boot.webTransport`
-// into a signed AWS request, which is not what this test is about.
 vi.mock('../api/reportLogApi', async () => {
     const actual = await vi.importActual<typeof ReportLogApi>('../api/reportLogApi');
     return { ...actual, fetchReportLogs: (params?: Record<string, unknown>) => fetchReportLogs(params) };
@@ -30,7 +18,6 @@ vi.mock('../api/reportLogApi', async () => {
 
 const { AllLogsTab } = await import('./AllLogsTab');
 
-/** A batch log entry as the endpoint returns it: everything inside `meta`. */
 const entry = (over: Partial<Record<string, unknown>> = {}, id = Math.random().toString()): RawMockView => ({
     id,
     createdAt: 1_700_000_000_000,
@@ -47,15 +34,10 @@ const entry = (over: Partial<Record<string, unknown>> = {}, id = Math.random().t
     },
 });
 
-/** Serve `rows` as one short page, so the walk finishes after a single request. */
 const servePage = (rows: RawMockView[]) => {
     fetchReportLogs.mockResolvedValue({ list: rows, total: rows.length });
 };
 
-/**
- * A client per test, so one test's corpus is never served to the next. Retries off — a
- * failing fetch should surface as a failure here, not be retried behind the assertion.
- */
 const makeClient = () => new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: CORPUS_STALE_MS } } });
 
 const renderPage = (initial = '/report-logs', client: QueryClient = makeClient()) => {
@@ -69,10 +51,8 @@ const renderPage = (initial = '/report-logs', client: QueryClient = makeClient()
     return { ...result, client };
 };
 
-/** Query params of the most recent list call. */
 const lastParams = () => fetchReportLogs.mock.calls.at(-1)?.[0] ?? {};
 
-// The assertions below read the English copy; Korean is the console's default.
 beforeAll(async () => {
     await i18n.changeLanguage('en');
 });
@@ -98,20 +78,10 @@ describe('AllLogsTab — collection', () => {
         renderPage();
 
         await screen.findByText('Collected all 1 row');
-        // The range is the operator's to move, so nothing is assumed on their behalf. The
-        // walk is still bounded — by the cap, which `CorpusProgress` reports when it bites.
         expect(lastParams().from).toBeUndefined();
         expect(lastParams().to).toBeUndefined();
     });
 
-    // The multi-page walk and its cross-page dedupe are no longer reachable from this
-    // screen: `CORPUS_CAP` is one page, so a full page IS the ceiling. The rules themselves
-    // still live in `nextCorpusPage`/`corpusStatus` — raising the cap brings them back —
-    // and `lib/corpusPaging.spec.ts` drives them directly with an explicit cap.
-
-    // The request count is a design property of this screen, not an implementation detail:
-    // a walk used to cost 50 round trips and every axis change paid it again. These lock in
-    // the two things that fixed it.
     it('costs one request when the server already narrowed the range to a page', async () => {
         servePage([entry(), entry({ message: '두 번째' })]);
 
@@ -122,10 +92,6 @@ describe('AllLogsTab — collection', () => {
     });
 
     it('stops at the ceiling after one request, not one per render', async () => {
-        // The walk is driven from an effect, which is the one place it could stack
-        // requests: the render caused by the page landing must not launch another fetch.
-        // A full page IS the ceiling now (`CORPUS_CAP` = `CORPUS_PAGE_SIZE`), so an open
-        // range costs exactly this much no matter how much the store holds.
         const full = Array.from({ length: CORPUS_PAGE_SIZE }, (_, i) => entry({ message: `p${i}` }, `p${i}`));
         fetchReportLogs.mockImplementation(async params => {
             const index = Number(params?.page ?? 0);
@@ -135,9 +101,6 @@ describe('AllLogsTab — collection', () => {
             };
         });
 
-        // A search that matches nothing keeps the 500 rows out of the table. The walk only
-        // reads server axes, so this changes nothing it counts, but drawing a full page in
-        // jsdom made this the one test that brushed the 5 s timeout on a loaded CI runner.
         renderPage('/report-logs?q=no-such-row');
 
         await screen.findByText(/Capped at 500 rows/);
@@ -151,20 +114,15 @@ describe('AllLogsTab — collection', () => {
         await screen.findByText('Collected all 1 row');
         const before = fetchReportLogs.mock.calls.length;
 
-        // A date being typed fires a change per keystroke. Each one used to launch a full
-        // walk whose result the next one discarded.
         fireEvent.change(screen.getByLabelText('To date (KST)'), { target: { value: '2026-09-0' } });
         fireEvent.change(screen.getByLabelText('To date (KST)'), { target: { value: '2026-09-01' } });
         fireEvent.change(screen.getByLabelText('To date (KST)'), { target: { value: '2026-09-02' } });
 
         await waitFor(() => expect(lastParams().to).toBe('2026-09-02'));
-        // One walk for the value that stuck, not three.
         expect(fetchReportLogs.mock.calls.length).toBe(before + 1);
     });
 
     it('serves a revisited set of axes from the cache without fetching again', async () => {
-        // Tracking is a loop of narrow, look, widen again; re-walking a range whose answer
-        // has not changed is the cost react-query's keyed cache removes.
         servePage([entry()]);
         const { unmount, client } = renderPage();
         await screen.findByText('Collected all 1 row');
@@ -183,16 +141,12 @@ describe('AllLogsTab — collection', () => {
         await screen.findByText('예전 것');
         unmount();
 
-        // Past the stale time the held rows are still worth showing — a blank screen while
-        // the refetch runs is worse, which is what `staleTime` (not `gcTime`) buys.
         vi.setSystemTime(Date.now() + CORPUS_STALE_MS + 1);
         servePage([entry({ message: '새로 걷은 것' }, 'fresh')]);
 
         renderPage('/report-logs', client);
 
-        // Held rows first, without waiting for the network.
         expect(screen.getByText('예전 것')).toBeTruthy();
-        // Then the refetch replaces them.
         expect(await screen.findByText('새로 걷은 것')).toBeTruthy();
     });
 
@@ -208,20 +162,13 @@ describe('AllLogsTab — collection', () => {
     });
 
     it('drops the other cached corpora too, so hopping back re-walks', async () => {
-        // The complaint this answers: press "Recollect", then unpin — and the previous axes are
-        // served from a corpus collected BEFORE the refresh, quietly older than the server.
-        // Refreshing has to mean "throw away what is held", not just "re-ask for these axes".
         servePage([entry()]);
         renderPage();
         await screen.findByText('Collected all 1 row');
 
-        // Cache a second set of axes, then come back so both are held.
         fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'warn' } });
         await waitFor(() => expect(lastParams().level).toBe('warn'));
         fireEvent.change(screen.getByLabelText('Level'), { target: { value: '' } });
-        // Nothing to wait on in the DOM here — coming back is a cache hit, so it issues no
-        // request and changes no text. The wait is for the axes to settle into the query key
-        // before the click, which is a timer (`AXES_SETTLE_MS`), not a render.
         await new Promise(resolve => setTimeout(resolve, 400));
         const cached = fetchReportLogs.mock.calls.length;
 
@@ -230,7 +177,6 @@ describe('AllLogsTab — collection', () => {
         expect(lastParams().level).toBeUndefined();
         const spent = fetchReportLogs.mock.calls.length;
 
-        // Held from before the refresh, so this must walk again rather than replay the cache.
         fireEvent.change(screen.getByLabelText('Level'), { target: { value: 'warn' } });
 
         await waitFor(() => expect(fetchReportLogs.mock.calls.length).toBeGreaterThan(spent));
@@ -247,7 +193,6 @@ describe('AllLogsTab — collection', () => {
             expect(await screen.findByText('전부 2건 받았어요')).toBeTruthy();
             expect(screen.getByLabelText('레벨')).toBeTruthy();
         } finally {
-            // Still mounted here, so the switch back re-renders the screen.
             await act(async () => {
                 await i18n.changeLanguage('en');
             });
@@ -283,7 +228,6 @@ describe('AllLogsTab — server axes vs collected-set axes', () => {
         await screen.findByText('Collected all 2 rows');
         const before = fetchReportLogs.mock.calls.length;
 
-        // The whole point of splitting the axes: typing must not throw away the corpus.
         fireEvent.change(screen.getByLabelText('Search'), { target: { value: '다른' } });
 
         await waitFor(() => expect(screen.queryByText('로그인 실패')).toBeNull());
@@ -298,15 +242,9 @@ describe('AllLogsTab — server axes vs collected-set axes', () => {
 
         fireEvent.change(screen.getByLabelText('Tag (2) · server'), { target: { value: 'chat' } });
 
-        // Still two options after selecting one — otherwise there is no way back.
         await waitFor(() => expect(screen.getByLabelText('Tag (2) · server')).toBeTruthy());
     });
 
-    /**
-     * A backend change lifted `tag` to a top-level field, so choosing it narrows the corpus
-     * on the server rather than only hiding fetched rows. Before that it could only pick among
-     * values that happened to land in the collected page.
-     */
     it('sends a tag selection to the server as a filter', async () => {
         servePage([entry(), entry({ tag: 'chat', message: '다른 태그' })]);
         renderPage();
@@ -319,11 +257,6 @@ describe('AllLogsTab — server axes vs collected-set axes', () => {
         expect(lastParams().tag).toBe('chat');
     });
 
-    /**
-     * The dropdown is hidden below two values, which a server-narrowed axis always reaches — it
-     * collects only its own value. Hiding it then would take the control away the moment it was
-     * used and leave no route back to `All`.
-     */
     it('keeps a selected facet visible even when it is the only value left', async () => {
         servePage([entry({ tag: 'chat', message: '하나뿐' })]);
         renderPage('/report-logs?tag=chat');
@@ -352,8 +285,6 @@ describe('AllLogsTab — tracking pins', () => {
 
         fireEvent.click(screen.getByTitle('Track user u1 (server query)'));
 
-        // Slack reports carry no hoisted uid, so the pin silently excludes them —
-        // saying so is the difference between "this user has no reports" and "I cannot see them".
         expect(await screen.findByText(/Report records have no uid axis/)).toBeTruthy();
     });
 
@@ -364,7 +295,6 @@ describe('AllLogsTab — tracking pins', () => {
 
         fireEvent.click(screen.getAllByTitle('Track run run-a (server query)')[0]);
 
-        // The timeline is ascending, so the earlier event leads.
         const timeline = await screen.findByRole('list');
         const items = within(timeline).getAllByRole('button');
         expect(items[0].textContent).toContain('먼저 일어난 일');
@@ -378,7 +308,6 @@ describe('AllLogsTab — tracking pins', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Untrack run' }));
 
         await waitFor(() => expect(screen.queryByText('Tracking')).toBeNull());
-        // The axes settle before a walk starts, so the wire params catch up a beat later.
         await waitFor(() => expect(lastParams().runId).toBeUndefined());
     });
 });
@@ -391,8 +320,6 @@ describe('AllLogsTab — detail', () => {
 
         fireEvent.click(screen.getByText('로그인 실패'));
 
-        // Detail content present *and* the row still there — the drawer used to cover it.
-        // The message appearing twice is the assertion: once in the list, once in the panel.
         expect(await screen.findByText('Log Entry')).toBeTruthy();
         expect(screen.getAllByText('로그인 실패')).toHaveLength(2);
     });
@@ -407,7 +334,6 @@ describe('AllLogsTab — detail', () => {
 
 describe('AllLogsTab — occurrence time', () => {
     it('orders the list by occurrence, not by arrival', async () => {
-        // Arrival order is the reverse of what happened — one batch upload.
         servePage([
             entry({ message: '나중에 일어난 일', timestamp: 9_000 }, 'x1'),
             entry({ message: '먼저 일어난 일', timestamp: 1_000 }, 'x2'),
@@ -461,11 +387,9 @@ describe('AllLogsTab — statistics', () => {
         const table = await screen.findByRole('table');
         const total = within(table).getAllByRole('row')[1];
         expect(within(total).getByText('(all)')).toBeTruthy();
-        // n, est., users, then p50 · p75 · p95 · p99 · mean.
         const cells = within(total)
             .getAllByRole('cell')
             .map(cell => cell.textContent);
-        // [100, 200, 300] interpolated: p75 h = 1.5 → 250, p95 h = 1.9 → 290, p99 h = 1.98 → 298.
         expect(cells).toEqual(['(all)', '3', '3', '1', '200 ms', '250 ms', '290 ms', '298 ms', '200 ms']);
     });
 

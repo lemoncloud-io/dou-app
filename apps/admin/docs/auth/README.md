@@ -36,6 +36,30 @@ refreshed token is written back through the session store, which also rebuilds t
 used to sign HTTP requests — so a report query issued after a long-open dashboard session signs with
 fresh credentials instead of tripping an expiry logout.
 
+## When the server ends the session
+
+- **A confirmed expiry raises a banner; it does not redirect.** The runtime's default reaction is an
+  alert plus a hard jump to the logout route, which suits a chat app and is wrong here: an operator
+  mid-investigation would lose their filters, pinned rows and place in a long corpus. The screen
+  behind stays readable, so the console shows `SessionExpiredBanner` and the operator chooses when
+  to log in again. The reaction is registered at boot in `main.tsx`, not inside the banner, because
+  a failure can land while the banner is unmounted (on the gate screen, or before the first
+  console route renders). Repeat notices are ignored: one expiry usually fails several in-flight
+  requests at once, and re-notifying would make the banner flicker.
+- **The staleness guard refreshes and never ends a session.** A relay refresh can only travel
+  through a live authenticated socket, so "the refresh did not run" is a fact about the socket,
+  not the session. After a laptop sleep or a dropped link the SDK keep-alive needs roughly 40-80
+  seconds to notice a half-open socket, and an earlier guard that tore the session down after three
+  failed 30-second ticks usually won that race and logged out sessions that were about to heal.
+  The authoritative verdict is the server's: on an auth failure the HTTP client re-mints the
+  credential and replays the request once, and only a second refusal ends the session. The guard
+  keeps its cadence — every 30 seconds, on tab focus, and when the relay becomes verified, the
+  moment a refresh first becomes possible.
+- **Waking the tab kicks the socket.** On focus, `online` and `visibilitychange` (only while the tab
+  is visible, at most once per 5 seconds) the console asks the runtime to recover sockets that are
+  not verified. Without it a wedged socket waits out the keep-alive while the session's expiry
+  confirmation window is already counting.
+
 ## Which backend issues the session
 
 The relay socket sends `auth.refresh` to the relay backend, which looks the session up by its id in

@@ -1,23 +1,3 @@
-/**
- * `hooks/report-logs/use-log-console-state.ts`
- * - Single owner of the console's filters, tracking pins and view mode, all kept in the URL.
- *
- * The URL is the store, not a mirror of one. Tracking is collaborative work — "look at
- * this user's logs around this time" has to survive a refresh and travel in a chat
- * message — and memberships already set that precedent for this console
- * (`MembershipsPage`).
- *
- * The axes are split into two groups, and the split is the important part:
- *
- * - **server axes** (`stage`/`type`/`from`/`to`/`level`/`uid`/`cid`/`runId`) go to the
- *   backend, so changing one invalidates the collected corpus and starts a new walk.
- * - **client axes** (`q` and the facets, plus `mode`) only re-derive from rows already in
- *   memory, so changing one is instant and must NOT re-fetch.
- *
- * Keeping them in separate objects is what lets `useLogCorpus` depend on the first and
- * ignore the second, rather than every keystroke in the search box throwing away 5,000
- * collected rows.
- */
 import { useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -28,7 +8,6 @@ import { isKstDate } from '../lib/period';
 import { PIN_KEYS, type PinKey } from '../lib/pinAxes';
 import { openingStage } from '../../../config/stageEndpoints';
 
-/** Which of the four views the middle column shows. */
 export type ViewMode = 'list' | 'group' | 'time' | 'timeline' | 'stats';
 
 export type { PinKey };
@@ -37,19 +16,9 @@ const VIEW_MODES: ViewMode[] = ['list', 'group', 'time', 'timeline', 'stats'];
 
 const TIMELINE_KINDS: RecordKind[] = ['log', 'trace', 'sample', 'event'];
 
-/**
- * Facets that are genuinely client-side.
- *
- * `level` is counted as a facet (the rail shows the level breakdown of the corpus) but it
- * is filtered **server-side**, so it belongs to the server axes and must not be read or
- * cleared as a client one — clearing it would silently discard the corpus narrowing and
- * force a fresh 5,000-row walk. `buildFacets` still counts it; only the selection and the
- * reset are restricted here.
- */
 const CLIENT_FACET_KEYS = FACET_KEYS.filter((key): key is Exclude<FacetKey, 'level'> => key !== 'level');
 const REPORT_KINDS: ReportKind[] = ['all', 'error', 'issue', 'log-entry'];
 
-/** Server-side axes. These define the corpus. */
 export interface ServerAxes extends Record<(typeof ROUND_2_AXES)[number], string> {
     stage: ReportStage;
     kind: ReportKind;
@@ -61,15 +30,12 @@ export interface ServerAxes extends Record<(typeof ROUND_2_AXES)[number], string
     runId: string;
 }
 
-/** Client-side axes. These only narrow what is already collected. */
 export interface ClientAxes {
     query: string;
     facets: FacetSelection;
-    /** Which records the list shows — logs by default (`record` in the URL). */
     record: RecordFilter;
 }
 
-/** The statistics view: one tag, read by one measure, split by one dimension. All in the URL. */
 export interface StatsView {
     tag: string;
     measure: string;
@@ -81,21 +47,17 @@ export interface LogConsoleState {
     client: ClientAxes;
     mode: ViewMode;
     stats: StatsView;
-    /** Record kinds the run timeline shows (`show` in the URL); every kind by default. */
     timelineKinds: RecordKind[];
     setRecord: (value: RecordFilter) => void;
     setStats: (patch: Partial<StatsView>) => void;
     toggleTimelineKind: (kind: RecordKind) => void;
-    /** Pins currently set, in a fixed order, for the chip row. */
     pins: Array<{ key: PinKey; value: string }>;
     setServerAxis: (patch: Partial<Record<keyof ServerAxes, string>>) => void;
     setQuery: (value: string) => void;
     setFacet: (key: FacetKey, value: string) => void;
     setMode: (mode: ViewMode) => void;
-    /** Pin an axis. Pinning `runId` also switches to the timeline — that is why you pin it. */
     pin: (key: PinKey, value: string) => void;
     unpin: (key: PinKey) => void;
-    /** Drop every client-side narrowing, keeping the corpus and the pins. */
     clearClientAxes: () => void;
 }
 
@@ -118,18 +80,12 @@ export const useLogConsoleState = (): LogConsoleState => {
         () => ({
             stage: oneOf<ReportStage>(searchParams.get('stage'), ['v1', 'd1'], openingStage()),
             kind: oneOf<ReportKind>(searchParams.get('kind'), REPORT_KINDS, 'all'),
-            // The server takes whole days only and fails the request on anything else, so a
-            // hand-edited link carrying a datetime is read as no bound rather than sent as-is.
             from: readDate('from'),
             to: readDate('to'),
             level: read('level'),
             uid: read('uid'),
             cid: read('cid'),
             runId: read('runId'),
-            // Read from the SAME search params the facet dropdowns write, so one selection
-            // narrows the corpus server-side and the client pass at the same time. Keeping both
-            // is deliberate: until the backend deploy these params are silently ignored, and the
-            // client pass is what still makes the selection do something.
             ...(Object.fromEntries(ROUND_2_AXES.map(axis => [axis, read(axis)])) as Record<
                 (typeof ROUND_2_AXES)[number],
                 string
@@ -163,7 +119,6 @@ export const useLogConsoleState = (): LogConsoleState => {
 
     const pins = useMemo(() => PIN_KEYS.map(key => ({ key, value: server[key] })).filter(pin => !!pin.value), [server]);
 
-    /** Write a patch, dropping keys whose value is empty so the URL stays readable. */
     const patchParams = useCallback(
         (patch: Record<string, string>) => {
             setSearchParams(
@@ -191,8 +146,6 @@ export const useLogConsoleState = (): LogConsoleState => {
 
     const pin = useCallback(
         (key: PinKey, value: string) => {
-            // A run is one app session, so its logs are only meaningful in order — the
-            // timeline is the view that shows that, and pinning a runId is the request for it.
             if (key === 'runId') patchParams({ runId: value, mode: 'timeline' });
             else patchParams({ [key]: value });
         },
@@ -201,8 +154,6 @@ export const useLogConsoleState = (): LogConsoleState => {
 
     const unpin = useCallback(
         (key: PinKey) => {
-            // Dropping the run pin leaves the timeline with nothing to draw, so fall back
-            // to the list instead of showing an empty view.
             if (key === 'runId') patchParams({ runId: '', mode: 'list' });
             else patchParams({ [key]: '' });
         },
@@ -214,7 +165,6 @@ export const useLogConsoleState = (): LogConsoleState => {
         [patchParams]
     );
 
-    // The default (`log`) stays out of the URL, like every other default here.
     const setRecord = useCallback(
         (value: RecordFilter) => patchParams({ record: value === 'log' ? '' : value }),
         [patchParams]
@@ -230,8 +180,6 @@ export const useLogConsoleState = (): LogConsoleState => {
         [patchParams]
     );
 
-    // Every kind shown is the default and leaves the URL; none shown is written as `none`, so it is
-    // not mistaken for the default on a reload.
     const toggleTimelineKind = useCallback(
         (kind: RecordKind) => {
             const next = timelineKinds.includes(kind)

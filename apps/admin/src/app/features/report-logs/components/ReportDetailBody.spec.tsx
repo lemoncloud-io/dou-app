@@ -5,21 +5,9 @@ import { i18n } from '../../../i18n';
 import type { ReportLogRow } from '../lib/parseReportLog';
 import { ReportDetailBody } from './ReportDetailBody';
 
-// The body is where symbolication actually happens, and the wiring — file
-// input -> read -> decode -> re-render — is the part unit tests on the decoder
-// cannot reach. The report list sits behind an admin-role gate, so this stands
-// in for clicking through it.
-//
-// It used to be rendered inside the overlay drawer; the shell became a fixed column
-// but the sections under test moved across unchanged, so these assertions
-// carried over as they were, minus the drawer's own props.
-
-// The assertions below read the English copy; Korean is the console's default.
 beforeAll(async () => {
     await i18n.changeLanguage('en');
 });
-
-// Hand-built map: generated line 1 col 9 -> useMyProfile.ts:1:9, name getMyProfile.
 
 const MAP_JSON = JSON.stringify({
     version: 3,
@@ -40,7 +28,6 @@ const row = (stack?: string): ReportLogRow =>
         raw: {},
     }) as unknown as ReportLogRow;
 
-/** jsdom's File lacks .text() in some versions; provide it deterministically. */
 const mapFile = (name: string, contents = MAP_JSON): File => {
     const file = new File([contents], name, { type: 'application/json' });
     Object.defineProperty(file, 'text', { value: () => Promise.resolve(contents) });
@@ -81,7 +68,6 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         expect(screen.getByText(STACK)).toBeTruthy();
     });
 
-    // A map from a different build doesn't fail — it resolves to a "plausible but wrong" line, so this can't pass silently.
     it('번들명이 다른 맵은 경고한다', async () => {
         render(<ReportDetailBody row={row(STACK)} />);
 
@@ -107,8 +93,6 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         await waitFor(() => expect(screen.getByText(/Couldn't read the source map/)).toBeTruthy());
     });
 
-    // When one stack spans several bundles, resolving all of it with a single map is more dangerous:
-    // a line/column lookup succeeds against any map, so another bundle's frame lands in the wrong file.
     it('여러 번들을 걸친 스택에서는 고른 맵의 번들 프레임만 바꾼다', async () => {
         const stack = [STACK, 'y@https://dou-dev.chatic.io/assets/chunk-zzz.js:1:9'].join('\n');
         render(<ReportDetailBody row={row(stack)} />);
@@ -125,8 +109,6 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         expect(screen.queryByText('Choose source map')).toBeNull();
     });
 
-    // A wrapping error's stack points at the wrap site — the real cause's frames live in `cause`,
-    // and if that side isn't resolved, attaching a source map still won't show the line you actually want.
     it('cause 체인의 프레임도 같이 해석한다', async () => {
         const withCause = {
             ...row(STACK),
@@ -143,8 +125,6 @@ describe('ReportDetailBody — 스택 심볼리케이션', () => {
         expect(screen.getByText(/getMyProfile \(apps\/web/)).toBeTruthy();
     });
 
-    // When "what was sent" and "what came back" are mixed together, it takes time to tell
-    // whether the bug is on the client or the server.
     it('요청과 응답을 갈라서 보여준다', () => {
         const withHttp = {
             ...row(),

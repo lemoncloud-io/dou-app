@@ -1,6 +1,5 @@
 import type { allLogs as ko } from '../ko/allLogs';
 
-/** English copy for the full-log tab (the developer's view). */
 export const allLogs: typeof ko = {
     rowsOne: '{{n}} row',
     rowsOther: '{{n}} rows',

@@ -1,20 +1,3 @@
-/**
- * `components/report-logs/ReportDetailPanel.tsx`
- * - The right-hand column: header, tracking affordances, and the detail body.
- *
- * This replaces the overlay drawer it grew out of. The drawer put a backdrop
- * over the list, so every step of "check this row, then the next" cost an open and a
- * close; tracking is exactly that loop, repeated. As a column it stays open while the
- * operator walks the list.
- *
- * The column form needs `xl` (1280px), not `lg`. At 1024px the rail takes 256px and this
- * panel 416px, leaving 352px for a list whose declared columns already sum past 800px —
- * the middle column degrades into a horizontal scroller nested inside another scroller.
- * Below `xl` the panel is therefore the overlay it used to be.
- *
- * That switch is CSS, not a JS breakpoint: a measured viewport would have to re-measure on
- * resize and would render the wrong shape on first paint.
- */
 import { useEffect } from 'react';
 
 import { X } from 'lucide-react';
@@ -31,21 +14,13 @@ import { ReportDetailBody, rawRecordText } from './ReportDetailBody';
 interface ReportDetailPanelProps {
     row: ReportLogRow | null;
     onClose: () => void;
-    /** Jump to socket-lab Observe for the report's user (when a uid is present). */
     onObserve?: (uid: string) => void;
-    /**
-     * Pin a tracking axis. Without it the header shows no pin buttons at all — a tab whose
-     * screen has no pins to apply would otherwise offer a gesture that does nothing.
-     */
     onPin?: (axis: PinKey, value: string) => void;
     onUnpin?: (axis: PinKey) => void;
-    /** Axes already pinned, so the header's buttons can offer to unpin instead. */
     pinned?: Partial<Record<PinKey, string>>;
-    /** Extra buttons for the header row, placed before "Copy" (e.g. a jump to the full report). */
     actions?: React.ReactNode;
 }
 
-/** Lag rounded to whole minutes, for the badge. Sub-minute lags are never shown. */
 const roundToMinute = (ms: number): number => Math.round(ms / 60_000) * 60_000;
 
 export const ReportDetailPanel = ({
@@ -59,18 +34,6 @@ export const ReportDetailPanel = ({
 }: ReportDetailPanelProps) => {
     const { t, lng } = useT('allLogs');
 
-    /**
-     * Escape closes the panel.
-     *
-     * Below `xl` this is an overlay over the list, and an overlay with no keyboard
-     * dismissal is a trap — the only other way out is clicking a backdrop, which is not
-     * focusable. `ui-kit`'s `Sheet` would bring this plus a focus trap, but it is always a
-     * modal dialog and this panel is a layout column at desktop widths, so the behaviour
-     * is added here instead. The listener is harmless in column state, where Escape simply
-     * clears the selection.
-     *
-     * Declared before the empty-state return so the hook order stays stable.
-     */
     useEffect(() => {
         if (!row) return;
         const onKey = (event: KeyboardEvent) => {
@@ -112,9 +75,6 @@ export const ReportDetailPanel = ({
                 </div>
                 <h2 className="break-words text-sm font-semibold text-foreground">{row.title}</h2>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    {/* Occurrence time leads; arrival is shown only when it differs enough
-                        to matter, so the reader is not asked to reconcile two clocks on
-                        every row. */}
                     <time
                         dateTime={occurredAt === undefined ? undefined : new Date(occurredAt).toISOString()}
                         title={formatAgo(occurredAt, lng)}
@@ -133,8 +93,6 @@ export const ReportDetailPanel = ({
                         </span>
                     )}
                 </div>
-                {/* The tracking axes, pinnable straight from the detail — this is the hop
-                    from "a user reported something" to "show me that user's logs". */}
                 {onPin && (
                     <div className="flex flex-wrap items-center gap-1">
                         <PinButton
@@ -204,11 +162,8 @@ export const ReportDetailPanel = ({
 
     return (
         <>
-            {/* Backdrop only while the panel is an overlay; it is inert once it is a column. */}
             <div className="fixed inset-0 z-40 bg-black/40 xl:hidden" onClick={onClose} aria-hidden />
             <aside
-                // `dialog` only describes the overlay form; at `xl` this is a column, and
-                // the role is left off there rather than lying about it.
                 aria-label={t('detail.panelLabel')}
                 className="fixed inset-y-0 right-0 z-50 flex w-[min(92vw,32rem)] shrink-0 flex-col border-l border-border bg-card shadow-xl xl:static xl:z-auto xl:w-[26rem] xl:shadow-none"
             >

@@ -1,12 +1,3 @@
-/**
- * `components/report-logs/StatsPanel.tsx`
- * - Statistics over the collected rows: one statistic, read by one measure, split by one dimension.
- *
- * Computed in the browser from the rows this screen fetched, so it answers narrow questions — one
- * trace, one app version, a few days — exactly, and says when the fetch stopped at its cap and the
- * rows are only part of the period. Overviews over weeks are the server's to aggregate; this panel
- * does not pretend to be one.
- */
 import { useMemo } from 'react';
 
 import { useT, type Language } from '../../../i18n';
@@ -18,11 +9,9 @@ import type { StatsView } from '../hooks/use-log-console-state';
 import type { ReportLogRow } from '../lib/parseReportLog';
 
 interface StatsPanelProps {
-    /** The collected rows after every other filter except the record filter. */
     rows: ReportLogRow[];
     view: StatsView;
     onView: (patch: Partial<StatsView>) => void;
-    /** The fetch stopped before it had every row of the period. */
     partial: boolean;
 }
 
@@ -31,7 +20,6 @@ const fieldClass =
 
 const formatValue = (value: number | undefined, measure: string, lng: Language): string => {
     if (value === undefined) return '—';
-    // Rounded for display only, so a metric below 1 still reads as more than zero.
     const shown = formatNumber(value, lng, Math.abs(value) < 10 ? 1 : 0);
     return measure === DURATION || measure.endsWith('_ms') ? `${shown} ms` : shown;
 };
@@ -43,7 +31,6 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
     const measureName = (m: string): string => (m === DURATION ? t('stats.duration') : m);
     const tags = useMemo(() => statTagsOf(rows), [rows]);
     const tag = view.tag && tags.some(stat => stat.tag === view.tag) ? view.tag : tags[0]?.tag;
-    // A log that happens to share the tag is not one of these records.
     const picked = useMemo(() => rows.filter(row => isStatistic(row) && row.tag === tag), [rows, tag]);
     const kind = tags.find(stat => stat.tag === tag)?.kind;
 
@@ -57,8 +44,6 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
     const tallest = Math.max(1, ...bins.map(bin => bin.count));
     const sampled = picked.some(row => row.sr !== undefined && row.sr < 1);
 
-    // "No data" and "zero" are different answers: an empty collection says nothing about whether
-    // the thing happened, only that none of it was fetched.
     if (!tags.length) {
         return <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t('stats.empty')}</p>;
     }
@@ -176,9 +161,6 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
                 </table>
             </div>
 
-            {/* The policy editor belongs here once the server serves the sampling policy; until then the
-                web app carries a built-in one that cannot be changed from here, and the screen says what it
-                is instead of hiding it. */}
             <section className="rounded-md border border-dashed border-border p-3 text-[11px] leading-snug text-muted-foreground">
                 <h3 className="mb-1 font-semibold uppercase tracking-wide text-foreground">{t('stats.policyTitle')}</h3>
                 {t('stats.policyBody')}

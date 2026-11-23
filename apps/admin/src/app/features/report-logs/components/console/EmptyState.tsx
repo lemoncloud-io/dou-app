@@ -1,7 +1,3 @@
-/**
- * `components/report-logs/console/EmptyState.tsx`
- * - An empty screen that says what to do next, not just that there is nothing.
- */
 interface EmptyStateProps {
     title: string;
     hint?: string;

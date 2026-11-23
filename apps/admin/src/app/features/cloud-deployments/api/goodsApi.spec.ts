@@ -1,6 +1,3 @@
-/**
- * `api/cloud-deployments/goodsApi.spec.ts`
- */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 interface SentRequest {
@@ -10,7 +7,6 @@ interface SentRequest {
 }
 
 const sent: SentRequest[] = [];
-/** One entry per `execute()`: a reply, or an error to throw. */
 const replies: ({ data: unknown } | { error: unknown })[] = [];
 
 vi.mock('@chatic/runtime', async () =>

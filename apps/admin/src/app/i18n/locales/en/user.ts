@@ -1,6 +1,5 @@
 import type { user as ko } from '../ko/user';
 
-/** English copy for the user-lookup tab. */
 export const user: typeof ko = {
     search: {
         label: 'User ID',

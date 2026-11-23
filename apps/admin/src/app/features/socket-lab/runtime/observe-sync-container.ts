@@ -1,8 +1,3 @@
-/**
- * `runtime/observe-sync-container.ts`
- * - A read-only WS container dedicated to the Observe tab (one per stage, separate from the Probe container)
- * - Periodically syncs observed device state via a DeviceSyncPlan pull. Only registers via device.save, without auth.update.
- */
 import {
     createClientSocketV2,
     createDeviceRuntime,
@@ -31,7 +26,6 @@ export interface ObserveSyncContainer {
 
 const SYNC_INTERVAL_MS = 1000;
 
-/** The stage's socket (`VITE_<STAGE>_WS_ENDPOINT`) with the v2 protocol flag, or `''` when unset. */
 export const getObserveWsUrl = (stage: UsersStage): string => {
     const ws = stageEndpoint('ws', stage);
     return ws ? `${ws}?v2` : '';

@@ -1,6 +1,3 @@
-/**
- * `runtime/observe-sync-container.spec.ts`
- */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { diffTargets, getObserveWsUrl } from './observe-sync-container';
@@ -17,7 +14,6 @@ describe('observe-sync-container', () => {
             expect(getObserveWsUrl('v1')).toBe('wss://prod.example.com/cht-v1?v2');
         });
 
-        // Empty keeps the container from connecting at all.
         it('is empty when that stage is not configured', () => {
             vi.stubEnv('VITE_D1_WS_ENDPOINT', 'wss://dev.example.com/cht-d1');
             vi.stubEnv('VITE_V1_WS_ENDPOINT', '');

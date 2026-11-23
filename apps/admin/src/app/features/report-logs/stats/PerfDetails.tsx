@@ -1,17 +1,3 @@
-/**
- * `stats/PerfDetails.tsx`
- * - The statistics tab's "performance details" view: where exactly it is slow or failing.
- *
- * Five sections, one statistic each, each fetched narrowed to its tag: room entry (how it ended,
- * stored-message use, time per entry path), server requests per endpoint, message sends, stalls
- * per screen, and the web vitals the overview does not carry (INP, CLS, TTFB). The computations are
- * in `lib/perfDetails.ts`; this file lays them out.
- *
- * Server requests, sends and stalls are sampled (about one run in five), so their counts are
- * estimates and say so; room entry and the web vitals are kept from every run. Each section stands
- * on its own: an empty one says so with a next step, and one whose fetch was cut short says its
- * numbers are from the newest part of the period.
- */
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { useT, type Language } from '../../../i18n';
@@ -54,7 +40,6 @@ const percentText = (rate: number | undefined, lng: Language): string =>
 const durationText = (ms: number | undefined, lng: Language): string =>
     ms === undefined ? '—' : formatDuration(ms, lng);
 
-/** A known attribute value in words, a missing one as "(no value)", anything else as it came. */
 const valueLabel = (t: T, key: string, known: readonly string[], prefix: string): string => {
     if (key === NONE) return t('none');
     return known.includes(key) ? t(`${prefix}.${key}`) : key;
@@ -62,7 +47,6 @@ const valueLabel = (t: T, key: string, known: readonly string[], prefix: string)
 
 const errorText = 'text-red-600 dark:text-red-400 font-medium';
 
-/** The loading, failed, empty and partial states every section shares, around its content. */
 const SectionBody = ({
     stat,
     empty,
@@ -105,7 +89,6 @@ const SectionBody = ({
     );
 };
 
-/** A table header cell; numeric ones align right, and a tooltip explains a term. */
 const Th = ({ children, num, tip }: { children: ReactNode; num?: boolean; tip?: string }) => (
     <th scope="col" className={num ? tableClass.thNum : tableClass.th} title={tip}>
         {tip ? (
@@ -393,8 +376,6 @@ const vitalText = (vital: OtherVital, value: number | undefined, lng: Language):
 const WebVitals = ({ stat }: { stat: StatRows }) => {
     const { t, lng } = useT('statsDetail');
     const readings = useMemo(() => otherVitals(stat.rows), [stat.rows]);
-    // Records of the tag that carry none of these three (FCP and LCP, read by the overview) are not
-    // this section's records: with only those, the section is empty.
     const empty: StatRows = readings.some(reading => reading.n > 0) ? stat : { ...stat, rows: [] };
     return (
         <section className="flex flex-col gap-3">
@@ -403,8 +384,6 @@ const WebVitals = ({ stat }: { stat: StatRows }) => {
                 {() => (
                     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {readings.map(reading => {
-                            // INP is read against the product's reference; CLS and TTFB show the web
-                            // standard's for orientation, without a verdict.
                             const verdict = reading.vital === 'inp' && reading.within !== undefined;
                             return (
                                 <li key={reading.vital}>
@@ -450,7 +429,6 @@ const WebVitals = ({ stat }: { stat: StatRows }) => {
 
 export const PerfDetails = ({ nav }: PerfDetailsProps) => {
     const { stage, period } = nav;
-    // One fetch per statistic, named rather than looped so the hooks keep a fixed order.
     const room = useStatRows(stage, period, 'perf.chat_room_open');
     const api = useStatRows(stage, period, 'perf.api_request');
     const send = useStatRows(stage, period, 'perf.chat_send');

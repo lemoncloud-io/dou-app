@@ -1,16 +1,3 @@
-/**
- * `components/report-logs/ReportLogTable.tsx`
- * - The list view: one row per record, with the tracking axes pinnable in place.
- *
- * Structure comes from the shared `Table` primitives so this screen matches the rest of
- * the console. The badge palette stays local (`lib/badgeClass`) because the shared `Badge`
- * variants only cover default/secondary/destructive/outline, and a `warn` level needs to
- * read as distinct from both `error` and `info` — collapsing them would lose the axis an
- * operator scans by.
- *
- * Time shown is occurrence time, with a lag badge when arrival trailed it noticeably.
- * See `eventTime.ts` for why the two clocks are not interchangeable.
- */
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@chatic/ui-kit/components/ui/table';
 
 import { useT } from '../../../i18n';
@@ -28,11 +15,6 @@ interface ReportLogTableProps {
     onPin: (axis: PinKey, value: string) => void;
     onUnpin: (axis: PinKey) => void;
     pinned: Partial<Record<PinKey, string>>;
-    /**
-     * Requested range in ms, so a row whose occurrence time falls outside it can say so.
-     * The server matched the range on arrival time, so this happens legitimately at the
-     * edges — marking the affected rows is more use than the blanket caveat in the rail.
-     */
     range?: { fromMs?: number; toMs?: number };
 }
 
@@ -61,32 +43,14 @@ export const ReportLogTable = ({ rows, onSelect, selectedId, onPin, onUnpin, pin
                     const badge = rowBadge(row);
                     return (
                         <TableRow
-                            // `index` and not `title + createdAt`: both are optional, so two
-                            // id-less rows with the same title collide on the literal string
-                            // `"<title>undefined"` and React then reuses the wrong <tr>
-                            // (visible as the selection highlight sticking to a stale row).
-                            // Id-less rows are the ones that reach here — the corpus dedupe
-                            // lets them through precisely because they cannot be told apart.
                             key={row.id || `row-${index}`}
                             onClick={() => onSelect(row)}
-                            // A bare <tr> with onClick has no keyboard path, and the detail
-                            // panel — the whole point of the column — would be unreachable
-                            // without a pointer. `RunTimeline` renders real buttons; a table
-                            // cannot, since a <button> may not wrap cells.
-                            //
-                            // No `role="button"` here: that would replace the row's own role
-                            // and take the cells out of the table's structure, which is worse
-                            // than the problem it solves. `tabIndex` + Enter/Space gives the
-                            // keyboard path while the table stays a table.
                             tabIndex={0}
                             onKeyDown={event => {
                                 if (event.key !== 'Enter' && event.key !== ' ') return;
-                                // Space would scroll the list out from under the selection.
                                 event.preventDefault();
                                 onSelect(row);
                             }}
-                            // The ui-kit row already styles this state; setting the attribute
-                            // also tells assistive tech which row is open.
                             data-state={selectedId && selectedId === row.id ? 'selected' : undefined}
                             className="cursor-pointer"
                         >
@@ -108,8 +72,6 @@ export const ReportLogTable = ({ rows, onSelect, selectedId, onPin, onUnpin, pin
                                 </span>
                             </TableCell>
                             <TableCell className="max-w-[9rem]">
-                                {/* Pinning from the row is the main path into user tracking —
-                                    the value is right here, so the query should be one click. */}
                                 <PinButton
                                     axis="uid"
                                     value={row.userId}

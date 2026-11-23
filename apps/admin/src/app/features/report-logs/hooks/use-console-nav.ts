@@ -1,21 +1,3 @@
-/**
- * `hooks/report-logs/use-console-nav.ts`
- * - Which tab is open, which server it reads, and the period — all in the URL, like the rest.
- *
- * The console opens on what someone came to do — find a user, watch errors, read reports, check
- * the numbers — and the developer's full log view is one of those tabs rather than the front door.
- * The URL stays the store so a link pasted into a chat opens the same tab, the same user and the
- * same period for whoever clicks it.
- *
- * **Old links keep working.** Links shared before the tabs existed carry the full-log view's
- * parameters (`mode`, `kind`, `runId`, a date range, …) and no `tab`. Those open the full-log tab,
- * where they mean what they always meant. A bare `?uid=` opens the user tab, which is what such a
- * link was for.
- *
- * Switching tabs is a navigation (it pushes history, so Back returns), and it drops every other
- * tab's parameters except the server: a period chosen for errors is not the period someone
- * expects when they open a user, and a stale parameter nobody can see is worse than a default.
- */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -28,17 +10,14 @@ export const CONSOLE_TABS = ['user', 'errors', 'reports', 'stats', 'all'] as con
 
 export type ConsoleTab = (typeof CONSOLE_TABS)[number];
 
-/** Each tab's period when the URL names none. */
 export const DEFAULT_PERIOD: Record<ConsoleTab, PeriodPreset> = {
     user: '7d',
     errors: '24h',
     reports: '7d',
     stats: '7d',
-    // The full-log tab keeps its own open date range and ignores this.
     all: 'today',
 };
 
-/** Parameters only the full-log view ever wrote — their presence without `tab` marks an old link. */
 const LEGACY_KEYS = [
     'mode',
     'kind',
@@ -63,7 +42,6 @@ export const resolveTab = (params: URLSearchParams): ConsoleTab => {
     return LEGACY_KEYS.some(key => params.has(key)) ? 'all' : 'user';
 };
 
-/** Re-resolve rolling periods once a minute, so "last hour" keeps meaning the last hour. */
 const NOW_TICK_MS = 60_000;
 
 const useNow = (): number => {
@@ -79,15 +57,11 @@ export interface ConsoleNav {
     tab: ConsoleTab;
     stage: ReportStage;
     setStage: (stage: ReportStage) => void;
-    /** The period as the URL says it, and as resolved against now. */
     periodInput: PeriodInput;
     period: ResolvedPeriod;
     setPeriod: (preset: PeriodPreset, custom?: { from?: string; to?: string }) => void;
-    /** A raw parameter, `''` when absent. */
     param: (key: string) => string;
-    /** Rewrite parameters in place (no history entry); empty values are removed. */
     patch: (values: Record<string, string>) => void;
-    /** Open a tab, optionally with its parameters — a history entry, keeping only the server. */
     go: (tab: ConsoleTab, values?: Record<string, string>) => void;
 }
 
@@ -115,9 +89,6 @@ export const useConsoleNav = (): ConsoleNav => {
 
     const period = useMemo(() => resolvePeriod(periodInput, now), [periodInput, now]);
 
-    // Pin the resolved tab into the URL. A link without `tab` is read by its parameters, so leaving
-    // it implicit lets a later edit change the tab under the reader: choosing custom dates on the
-    // default user tab writes `from`/`to`, which an old full-log link also carries.
     useEffect(() => {
         if (searchParams.has('tab')) return;
         setSearchParams(
@@ -156,7 +127,6 @@ export const useConsoleNav = (): ConsoleNav => {
         [setSearchParams]
     );
 
-    // The opening stage stays out of the URL, so a plain link opens where the build opens.
     const setStage = useCallback((next: ReportStage) => patch({ stage: next === openingStage() ? '' : next }), [patch]);
 
     const setPeriod = useCallback(

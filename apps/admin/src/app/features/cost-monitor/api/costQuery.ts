@@ -1,11 +1,3 @@
-/**
- * `api/cost-monitor/costQuery.ts`
- * - The cost monitor's reads as react-query queries, folded into what the page draws.
- *
- * Metrics are one query per workspace per KST day, so a finished day is fetched once and kept (the
- * client never goes stale), while a day still filling refetches every hour with the rest of the screen.
- * Three days per row: today, plus the two UTC days the screen compares and calibrates against.
- */
 import { useCallback } from 'react';
 
 import { useQueries, useQuery, type UseQueryResult } from '@tanstack/react-query';
@@ -25,17 +17,10 @@ export const REFRESH_MS = HOUR;
 
 const NO_TENANTS: Tenant[] = [];
 
-/** The KST days a row needs for `date`: two before it, then the day itself. */
 export const rowDays = (date: string): string[] => [addDays(date, -2), addDays(date, -1), date];
 
-/** CloudWatch lags, so a KST day keeps refetching until an hour after it ends. */
 export const isDayOpen = (day: string, now = Date.now()): boolean => now < kstDay(day)[1] + HOUR;
 
-/**
- * Folds the per-day results into one entry per row. A row shows only once all of its days are in (a
- * partial series would read as a cheap day). A day that failed with nothing to show stands for the row;
- * a failed hourly refetch of a day that already has data keeps that data.
- */
 export const foldRows = (
     tenants: Tenant[],
     days: string[],
@@ -51,7 +36,6 @@ export const foldRows = (
             ? [[tenant.key, { series: mergeSeries(...series.flatMap(s => (s ? [s] : []))) }]]
             : [];
     });
-    // A row with no workspace has no metrics to ask for: it is done, and empty.
     const empty = tenants.filter(tenant => !tenant.workspaceId).map((tenant): [string, RowData] => [tenant.key, {}]);
     return new Map([...empty, ...rows]);
 };
@@ -64,7 +48,6 @@ export const useCostMonitor = (stage: CostStage, bases: CostBases, date: string)
         refetchInterval: REFRESH_MS,
         refetchOnWindowFocus: false,
     });
-    // DoU names are decoration: one try, never refetched by itself.
     const cloudsQuery = useQuery({
         queryKey: costKeys.list({ stage, source: 'clouds' }),
         queryFn: () => fetchClouds(bases.relay),
@@ -88,7 +71,6 @@ export const useCostMonitor = (stage: CostStage, bases: CostBases, date: string)
             const ofDate = rowDays(date);
             return {
                 data: foldRows(tenants, ofDate, results),
-                // Refresh pays for the days still filling; a finished day is already final.
                 refetchOpen: (): void =>
                     results.forEach((result, i) => isDayOpen(ofDate[i % ofDate.length]) && void result.refetch()),
             };
@@ -102,11 +84,9 @@ export const useCostMonitor = (stage: CostStage, bases: CostBases, date: string)
             .flatMap(tenant =>
                 days.map(day => ({
                     queryKey: costKeys.detail(`${stage}:${tenant.workspaceId}:${day}`),
-                    // `signal` is read so a dropped query's call is skipped before it is sent.
                     queryFn: ({ signal }: { signal: AbortSignal }) =>
                         fetchMetrics(bases.goods, tenant.workspaceId ?? '', day, signal),
                     refetchInterval: isDayOpen(day) ? REFRESH_MS : (false as const),
-                    // A finished day is final: keep it for the life of the tab, not the 5-minute default.
                     gcTime: isDayOpen(day) ? undefined : Infinity,
                     refetchOnWindowFocus: false,
                     retry: false,

@@ -1,6 +1,3 @@
-/**
- * `api/reportLogApi.spec.ts`
- */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { buildReportLogListParams, reportLogBaseFor, requireReportLogBase, STEREO_BY_KIND } from './reportLogApi';
@@ -17,7 +14,6 @@ describe('reportLogApi', () => {
             expect(reportLogBaseFor('v1')).toBe('https://prod.example.com/arc-v1');
         });
 
-        // The old rule rebuilt the other stage on the configured host, which no longer exists there.
         it('does not derive one stage from the other', () => {
             vi.stubEnv('VITE_D1_ARCHIVE_ENDPOINT', 'https://dev.example.com/arc-d1');
             vi.stubEnv('VITE_V1_ARCHIVE_ENDPOINT', '');
@@ -41,8 +37,6 @@ describe('reportLogApi', () => {
     });
 
     describe('STEREO_BY_KIND', () => {
-        // The names deliberately differ: an error report is stored with stereo `log`.
-        // Passing the UI value straight through would query a stereo nothing uses.
         it('should map the error kind to the log stereo', () => {
             expect(STEREO_BY_KIND.error).toBe('log');
         });
@@ -56,8 +50,6 @@ describe('reportLogApi', () => {
             expect(buildReportLogListParams({ type: STEREO_BY_KIND.all })).toEqual({ page: 0, limit: 100 });
         });
 
-        // Batch LogEntry saves share the `log` stereo with error reports (not split
-        // server-side yet — log-batch-ingest SPEC.md D6); parseReportLog splits them client-side.
         it('should map the log-entry kind to the same log stereo as error', () => {
             expect(STEREO_BY_KIND['log-entry']).toBe('log');
         });
@@ -100,10 +92,6 @@ describe('reportLogApi', () => {
             expect(buildReportLogListParams({ level: '', runId: '' })).toEqual({ page: 0, limit: 100 });
         });
 
-        /**
-         * The round-2 axes (chatic-backend-api #41). They go out as `term: {'<field>.keyword': v}`,
-         * so an empty string is not "no filter" — it is matched literally and returns nothing.
-         */
         it('carries the round-2 axes when set', () => {
             expect(
                 buildReportLogListParams({
@@ -135,8 +123,6 @@ describe('reportLogApi', () => {
             });
         });
 
-        // The tracking axes. `uid` is handled by the backend's `packSearchParam` and `cid`
-        // by the model mapping, but both reach it as plain query params from here.
         it('should pass uid/cid through when set', () => {
             expect(buildReportLogListParams({ uid: 'u1', cid: 'c1' })).toEqual({
                 page: 0,
@@ -151,7 +137,6 @@ describe('reportLogApi', () => {
         });
 
         it('should carry every axis at once', () => {
-            // A uid pin on top of a range and a level is the shape scenario ① produces.
             expect(
                 buildReportLogListParams({
                     page: 3,
@@ -177,9 +162,6 @@ describe('reportLogApi', () => {
             });
         });
 
-        // No `sort` key, ever: the backend defaults to `createdAt: desc`, and
-        // `sort=createdAt` without `:desc` would flip it to ascending — which would break
-        // both the corpus walk order and the new-log probe's "page 0 is newest" premise.
         it('should never send a sort param', () => {
             expect(buildReportLogListParams({ page: 1 })).not.toHaveProperty('sort');
         });

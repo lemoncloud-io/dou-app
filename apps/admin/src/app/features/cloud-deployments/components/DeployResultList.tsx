@@ -1,10 +1,3 @@
-/**
- * `components/cloud-deployments/DeployResultList.tsx`
- * - One line per call of the current run, and the tally once it ends.
- *
- * A success here means the goods service queued the deploy, not that it finished. Where the deploy
- * got to shows on the product's status in the table, after a refresh.
- */
 import { Badge } from '@chatic/ui-kit/components/ui/badge';
 
 import type { DeployResult, DeploySummary } from '../lib/runDeploys';
@@ -12,11 +5,9 @@ import type { GoodsTarget } from '../lib/goodsTarget';
 import type { JSX } from 'react';
 
 interface DeployResultListProps {
-    /** The goods service this run called, fixed when it started. */
     target: GoodsTarget;
     total: number;
     results: DeployResult[];
-    /** Absent while the run is going. */
     summary?: DeploySummary;
 }
 

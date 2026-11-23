@@ -84,7 +84,6 @@ export default function Header({ tab, setTab, endpoint, setEndpoint, badgeText, 
                                 padding: '4px 6px',
                             }}
                         >
-                            {/* A hand-typed endpoint matches no preset; this keeps the select honest. */}
                             {!preset && <option value="">custom</option>}
                             {presets.map(p => (
                                 <option key={p.stage} value={p.stage}>

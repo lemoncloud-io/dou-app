@@ -1,10 +1,3 @@
-/**
- * `hooks/report-logs/use-log-console-state.spec.tsx`
- *
- * The URL is this hook's store, so the tests drive it through a real router and read the
- * resulting query string — asserting on internal state would not prove the part that
- * matters (that a shared link restores the view).
- */
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -32,9 +25,6 @@ const params = (search: string) => new URLSearchParams(search);
 
 describe('useLogConsoleState — 기본값', () => {
     it('leaves the range open, for the operator to set', () => {
-        // No default day. A date the operator did not choose reads as the whole picture
-        // while it is actually one day's slice, and the range is the axis they came to
-        // move. The cap still bounds the walk, and `CorpusProgress` says when it bit.
         setup();
 
         expect(api.server.from).toBe('');
@@ -60,7 +50,6 @@ describe('useLogConsoleState — 기본값', () => {
     });
 
     it('falls back to defaults for values that are not in the allowed set', () => {
-        // A hand-edited or stale link must not put junk into the wire params.
         vi.stubEnv('VITE_ENV', 'PROD');
         setup('/report-logs?stage=nope&kind=nope&mode=nope');
 
@@ -93,11 +82,6 @@ describe('useLogConsoleState — URL 왕복', () => {
         });
     });
 
-    /**
-     * The round-2 axes share their search params with the facet dropdowns, so one selection has to
-     * reach BOTH — the server narrowing and the client pass — or the two disagree about what is on
-     * screen. `toMatchObject` above would not catch them going missing, hence this.
-     */
     it('reads the round-2 axes as server axes too, from the params the facets write', () => {
         setup(
             '/report-logs?tag=UPLOAD&appVersion=1.4.0&webVersion=0.62.0&route=/chat&os=iOS&osVersion=18.0&model=iPhone16'
@@ -112,8 +96,6 @@ describe('useLogConsoleState — URL 왕복', () => {
             osVersion: '18.0',
             model: 'iPhone16',
         });
-        // And the same values still reach the client pass, which is what keeps the selection
-        // working while the backend change is undeployed and the params are ignored.
         expect(api.client.facets).toMatchObject({ tag: 'UPLOAD', appVersion: '1.4.0' });
     });
 
@@ -225,7 +207,6 @@ describe('useLogConsoleState — 클라이언트 축 초기화', () => {
         expect(next.has('q')).toBe(false);
         expect(next.has('tag')).toBe(false);
         expect(next.has('appVersion')).toBe(false);
-        // Untouched: clearing the narrowing must not throw away 5,000 collected rows.
         expect(next.get('uid')).toBe('u1');
         expect(next.get('level')).toBe('error');
     });

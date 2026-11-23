@@ -1,6 +1,3 @@
-/**
- * `lib/memberships/filters.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { activeFilters, clearAllPatch, matchesFilters, toChips } from './filters';
@@ -12,7 +9,6 @@ describe('activeFilters', () => {
         expect(activeFilters({ status: 'expired', productId: '' })).toEqual(['status']);
     });
 
-    // An empty string means "no filter", not "filter for empty string".
     it('공백만 있는 값은 필터가 아니다', () => {
         expect(activeFilters({ userId: '   ' })).toEqual([]);
     });
@@ -27,7 +23,6 @@ describe('toChips', () => {
         expect(toChips({ status: 'expired' })).toEqual([{ key: 'status', label: 'Status · expired' }]);
     });
 
-    // It's a flag, so showing its value adds nothing for the reader.
     it('isSuper 는 값 없이 플래그로만 적는다', () => {
         expect(toChips({ isSuper: '1' })).toEqual([{ key: 'isSuper', label: 'isSuper=1' }]);
     });
@@ -62,7 +57,6 @@ describe('matchesFilters', () => {
         expect(matchesFilters(row(), { status: 'expired' })).toBe(false);
     });
 
-    // Pasting a partial id is a search, not an equality check.
     it('userId 는 부분 일치로 찾는다', () => {
         expect(matchesFilters(row(), { userId: '0904' })).toBe(true);
         expect(matchesFilters(row(), { userId: '9999' })).toBe(false);

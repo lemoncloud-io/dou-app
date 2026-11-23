@@ -38,6 +38,17 @@ operator's machine against locally started services. The decision record is ADR-
 - **A failure narrows the screen, it does not blank it.** Without DoU names the table still loads;
   without actuals the estimates still show; an account whose stored credentials are no longer accepted
   shows "error" in its own row, and a failed hourly refetch keeps the hours it already had.
+- **Slot and account data is cleaned before it is shown.** The goods search index can return one slot
+  twice (an old idle document beside the new assigned one); the screen keeps the copy with the latest
+  `updatedAt` and says how many repeats it dropped — the cause is the index, the screen only papers
+  over it. An account number that is not 12 digits is no AWS account: its metrics are always 0 and the
+  cost service leaves it out of Cost Explorer, so such a slot gets a row of its own keyed by the slot.
+  When an account has several workspaces, the metrics are read from the DoU one (the cost service
+  prefers it too).
+- **Calibration has no clamp.** An account whose estimate is tiny can get a wild own ratio; if that
+  shows up, the fix is to fall back to the all-accounts ratio under a floor.
+- **Only what the screen shows is kept.** The signed reads copy a handful of fields, so secrets that
+  the goods service attaches to workspaces never reach screen state.
 - **The rules are pure functions in `lib/`** — the estimate and day arithmetic (`cost`), the
   account rows, calibration and card sums (`relations`, `costRows`). The reads are react-query
   queries in `api/costQuery.ts`, one per workspace per KST day; the page holds only the picks.

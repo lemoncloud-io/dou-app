@@ -1,12 +1,3 @@
-/**
- * `pages/ReportLogsPage.tsx`
- * - The log console: one header, five tabs, each starting from something a person came to do.
- *
- * The tabs share the fetching machinery (`useLogCorpus`, `useLogStats`) and the URL as their store
- * (`useConsoleNav`), so any screen — a user's evening, one incident, a report — is a link that opens
- * the same way for whoever clicks it. The developer's full log view is the last tab, unchanged in
- * what it can do.
- */
 import { ConsoleHeader } from '../components/console/ConsoleHeader';
 import { useConsoleNav } from '../hooks/use-console-nav';
 import { AllLogsTab } from '../tabs/AllLogsTab';

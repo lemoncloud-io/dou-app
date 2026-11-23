@@ -1,6 +1,3 @@
-/**
- * `lib/memberships/refund.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -16,7 +13,6 @@ import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 const DEV = 'https://api.example.com/dou-d1';
 const PROD = 'https://api.example.com/dou-v1';
 
-// `portone` and `pending` are not in the installed package's unions, hence the cast through unknown.
 const membership = (over: Record<string, unknown> = {}): MembershipView =>
     ({ userId: '1000904', platform: 'portone', status: 'active', ...over }) as unknown as MembershipView;
 
@@ -36,7 +32,6 @@ describe('refundEndpointFor', () => {
         expect(refundEndpointFor(PROD, 'v1')).toBe(PROD);
     });
 
-    // A refund has no undo: an env value that contradicts the stage is not trusted.
     it('produces nothing when the endpoint names another stage or none', () => {
         expect(refundEndpointFor(PROD, 'd1')).toBe('');
         expect(refundEndpointFor('https://relay.example.com', 'd1')).toBe('');
@@ -56,7 +51,6 @@ describe('refundAvailability', () => {
         expect(result.reason).toMatch(/Production refunds are not open/);
     });
 
-    // An endpoint naming no stage could be anything, production included.
     it('is disabled when the endpoint names no known stage', () => {
         expect(refundAvailability(membership(), 'https://api.example.com/v1').enabled).toBe(false);
     });
@@ -88,7 +82,6 @@ describe('refundAvailability', () => {
         expect(refundAvailability(membership({ userId: '' }), DEV).enabled).toBe(false);
     });
 
-    // A trial reads `status: active` in the membership view; the relay is the one that refuses it.
     it('leaves a trial (which reads as active) to the relay', () => {
         expect(refundAvailability(membership({ status: 'active', trialUsed: true }), DEV).enabled).toBe(true);
     });

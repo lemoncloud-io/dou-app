@@ -1,17 +1,3 @@
-/**
- * `components/memberships/MembershipDetailPanel.tsx`
- * - The right column: one membership's record, its override, its clouds, the form that changes
- *   them, and — for a web subscription — the refund.
- *
- * A layout column at `xl` and up, an overlay below it — the same switch the log console's detail
- * panel makes, and for the same reason: three columns need width, and the list matters more than
- * the rail when there is not enough.
- *
- * Escape closes it. As an overlay with no keyboard dismissal this would be a trap, since the only
- * other way out is a backdrop click, which is not focusable. `ui-kit`'s `Sheet` would bring that
- * plus a focus trap, but it is always a modal dialog and this is a column at desktop widths, so the
- * behaviour is added here instead. In column state Escape simply clears the selection.
- */
 import { useEffect } from 'react';
 
 import { formatDate } from '@chatic/shared';
@@ -32,7 +18,6 @@ interface MembershipDetailPanelProps {
     onClose: () => void;
     onUpdated: (updated: MembershipView) => void;
     now: number;
-    /** The relay this panel reads and writes. Switching stages must not reuse the other's rows. */
     stage: RelayStage;
 }
 
@@ -54,12 +39,9 @@ export const MembershipDetailPanel = ({ membership, onClose, onUpdated, now, sta
     const userId = membership?.userId ?? '';
     const { data: clouds, isLoading: cloudsLoading } = useAdminClouds(membership ? userId : undefined, stage);
 
-    // Declared before the empty-state return so the hook order stays stable.
     useEffect(() => {
         if (!membership) return;
         const onKey = (event: KeyboardEvent) => {
-            // An open confirmation owns Escape. Closing the drawer under it would unmount a panel
-            // whose write may still be in flight, and its outcome would never be shown.
             if (event.key === 'Escape' && !document.querySelector('[role="alertdialog"]')) onClose();
         };
         window.addEventListener('keydown', onKey);
@@ -138,7 +120,6 @@ export const MembershipDetailPanel = ({ membership, onClose, onUpdated, now, sta
                 <Field label="Last action" value={membership.adminAt ? formatDate(membership.adminAt) : '-'} />
                 <Field label="Actor" value={membership.adminBy || '-'} />
                 <Field label="Reason" value={membership.adminReason || '-'} />
-                {/* The relay keeps only the most recent operation; everything before it went to Slack. */}
                 <p className="text-[11px] text-muted-foreground">
                     The server keeps only the latest entry. Earlier history is in the Slack report.
                 </p>
@@ -152,7 +133,6 @@ export const MembershipDetailPanel = ({ membership, onClose, onUpdated, now, sta
                 <OverridePanel key={`${userId}@${stage}`} membership={membership} onDone={onUpdated} stage={stage} />
             </Section>
 
-            {/* Store subscriptions are refunded by the store; only a web subscription has a charge here. */}
             {isWebSubscription(membership) && (
                 <Section title="Web subscription refund">
                     <RefundPanel key={`${userId}@${stage}`} membership={membership} stage={stage} />

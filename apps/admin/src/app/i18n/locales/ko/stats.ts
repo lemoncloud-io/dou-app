@@ -1,4 +1,3 @@
-/** Korean copy for the statistics tab. */
 export const stats = {
     views: {
         label: '보기',

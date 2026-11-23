@@ -32,6 +32,27 @@ native or desktop shell, so there is nothing for an entry point to choose. That 
 lanes' and the language's are built once in `src/app/storage/`; nothing else in the app names a web
 storage, and the root lint rule refuses it.
 
+## Error capture
+
+The console is the app used to read error reports, so its own failures are logged too
+(`src/app/globalErrorCapture.ts`, plus the query and mutation caches in `app.tsx`): uncaught
+exceptions, unhandled promise rejections, and failed queries and mutations all go to the shared
+logger under the `GLOBAL` tag. It is deliberately
+smaller than the web app's capture: resource-load and CSP-violation paths exist there to chase opaque
+`Script error.` reports from the mobile WebView, a problem a desktop-only internal tool does not have.
+The install is idempotent, since StrictMode double-invokes effects in development and a second set of
+listeners would log every error twice. A `window.onerror` entry with `errorWasNull` set carries a
+synthesized `Error`, so its stack is the handler's; the file and line fields are then the only location
+an opaque cross-origin exception still has.
+
+## Styling
+
+`tailwind.config.js` maps the shared `ui-kit` token names onto the console's own scale. The kit's form
+controls are written against the mobile token names (`input-border`, `placeholder`, `focus-border`,
+`control-border`, `surface`, `overlay`); without those aliases `Input` and `Textarea` lose their border
+and background here and render as bare text. `primary-ink` equals `primary`, because the console's
+primary is a blue that already reads as text.
+
 ## Runtime declaration
 
 The console boots its runtime from a declaration: `src/config/admin.ts` names one adapter per port,

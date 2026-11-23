@@ -1,12 +1,3 @@
-/**
- * `components/report-logs/console/PeriodPicker.tsx`
- * - The period as buttons, with the window it resolves to spelled out beneath them.
- *
- * Buttons rather than two date fields because the questions people bring are "just now", "today",
- * "yesterday", "this week" — and because a rolling window ("the last hour") cannot be typed into a
- * date field at all. The resolved window is printed in Korean time so nobody has to work out what
- * "the last 24 hours" meant at the moment the link was copied.
- */
 import { useT } from '../../../../i18n';
 import { PERIOD_PRESETS, type PeriodPreset, type ResolvedPeriod } from '../../lib/period';
 import { formatDateTime } from '../../lib/timeFormat';
@@ -14,11 +5,9 @@ import { ChoiceRow } from './ui';
 
 interface PeriodPickerProps {
     period: ResolvedPeriod;
-    /** `custom` only: the days as written in the URL. */
     from?: string;
     to?: string;
     onChange: (preset: PeriodPreset, custom?: { from?: string; to?: string }) => void;
-    /** Presets to offer; every one by default. */
     presets?: readonly PeriodPreset[];
 }
 
@@ -38,7 +27,6 @@ export const PeriodPicker = ({ period, from, to, onChange, presets = PERIOD_PRES
                     value={active}
                     options={[
                         ...presets.map(preset => ({ value: preset, label: t(`period.${preset}`) })),
-                        // Not a button anyone presses: it shows what "logs at that time" set.
                         ...(active === 'around'
                             ? [
                                   {

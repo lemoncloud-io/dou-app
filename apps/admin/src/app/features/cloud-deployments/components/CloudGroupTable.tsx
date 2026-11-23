@@ -1,16 +1,3 @@
-/**
- * `components/cloud-deployments/CloudGroupTable.tsx`
- * - One row per subscription cloud: whose it is, which cloud, its DoU state, and each service's product.
- *
- * A plain table rather than the ui-kit one, like the membership list: dense rows and a sticky header.
- * The select-all box covers the rows on screen only — a cloud hidden by the stage filter is never
- * picked by it.
- *
- * The cloud is named the way DoU names it when it has a DoU record; the goods project id, which is
- * all the goods service calls it, stays underneath, and is the name for a cloud DoU does not know.
- * DoU status is the subscription's state in the relay — whether the subscriber still has the cloud —
- * which says nothing about how its last deploy went; the service columns say that.
- */
 import { formatDate } from '@chatic/shared';
 import { Checkbox } from '@chatic/ui-kit/components/ui/checkbox';
 
@@ -26,26 +13,19 @@ import {
 import type { JSX, ReactNode } from 'react';
 
 interface CloudGroupTableProps {
-    /** The groups on screen, already narrowed by the cloud stage filter and sorted. */
     groups: CloudGroup[];
     selected: ReadonlySet<string>;
     onToggle: (projectId: string, on: boolean) => void;
     onToggleAll: (on: boolean) => void;
-    /**
-     * The relay's cloud list could not be read, so no row can be said to have, or lack, a DoU cloud —
-     * the cells say "unknown" rather than "not in DoU".
-     */
     douUnavailable: boolean;
     sort: GroupSort;
     onSort: (key: GroupSortKey) => void;
-    /** Selection is frozen while a run is going. */
     disabled: boolean;
 }
 
 const HEAD_CLASS =
     'sticky top-0 z-10 whitespace-nowrap border-b border-border bg-card px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground';
 
-/** The three states the relay was seen to use; anything else reads as neutral. */
 const DOU_STATUS_TONE: Record<string, string> = {
     active: 'border-emerald-500/40 text-emerald-400',
     suspended: 'border-amber-500/40 text-amber-400',
@@ -65,7 +45,6 @@ interface SortButtonProps {
     children: ReactNode;
 }
 
-/** A header label that sorts by `sortKey`; pressing the active one again flips the direction. */
 const SortButton = ({ sortKey, sort, onSort, children }: SortButtonProps): JSX.Element => {
     const active = sort.key === sortKey;
     return (
@@ -209,8 +188,6 @@ export const CloudGroupTable = ({
             <thead>
                 <tr>
                     <th className={HEAD_CLASS}>
-                        {/* The kit's box draws the same check for a partial pick, so it is dimmed —
-                            otherwise "some picked" reads as "all picked". */}
                         <Checkbox
                             aria-label="Select every cloud shown"
                             checked={allState}

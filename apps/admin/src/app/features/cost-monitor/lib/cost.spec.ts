@@ -83,7 +83,6 @@ describe('cost', () => {
 
     it("calibrates by the account's own ratio, else by all accounts together", () => {
         const opt = { discount: 0, lambdaAdj: 1 };
-        // KST 10-25 ~ 10-27: UTC 10-25 (the calibration day of 10-27) is covered whole.
         const series = mergeSeries(
             { sqsRequests: hourPoints('2026-10-25') },
             { sqsRequests: hourPoints('2026-10-26') },

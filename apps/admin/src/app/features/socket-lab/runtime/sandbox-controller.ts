@@ -1,12 +1,3 @@
-/**
- * `runtime/sandbox-controller.ts`
- * - State controller for a single Gateway Sandbox client (outside React). Wraps the real
- *   ClientContainer to go from sim to real.
- * - State machine idle→connecting→connected→verified/error, gateway calls, per-client log/metrics
- *   (collector), recv E2E.
- * - Logs are recorded by each action itself (the logFrame design pattern); metrics come from
- *   `container.collector.summary()` (measured).
- */
 import type { DemoConnectionDraft, DeviceDraft } from '../demo-model';
 import { createClientContainer, encodeE2eMarker, type ClientContainer } from './client-container';
 
@@ -117,9 +108,7 @@ export class SandboxController {
         this.container.collector.subscribe(() => this.notify());
     }
 
-    /** Surfaces the SDK's internal frames (actual request/response/sync) directly in the event log — visibility into real behavior. */
     private onContainerLog(level: LogRow['level'], label: string, detail?: string) {
-        // Response/receive-family labels are marked rx (▼), everything else tx (▲).
         const rx = /\.ok$|\.apply$|\.update$|\.sync|socket\.state|request\.ok/.test(label);
         this.logRow(rx ? 'rx' : 'tx', label, level, null, detail ?? '');
         this.notify();
@@ -149,7 +138,7 @@ export class SandboxController {
     }
 
     private onRecvFrame(from: string, seq: number, latencyMs: number) {
-        if (from === this.letter) return; // Our own send coming back via the chat.feed poll — not a receive
+        if (from === this.letter) return;
         this.rx += 1;
         const last = this.lastSeqFrom[from] ?? 0;
         if (last !== 0 && seq > last + 1) this.lossCount += seq - last - 1;
@@ -185,7 +174,6 @@ export class SandboxController {
         this.notify();
     }
 
-    /** WS connect only (includes device.save). Auth is separate (authenticate) — no token needed. */
     async connectWs() {
         if (this.status === 'connecting' || this.status === 'connected' || this.status === 'verified') return;
         const t0 = performance.now();
@@ -205,7 +193,6 @@ export class SandboxController {
         this.notify();
     }
 
-    /** Optional auth — auth.update with a token after connecting. The connection stays up even on failure (retryable). */
     async authenticate() {
         if (this.status !== 'connected' && this.status !== 'verified') return;
         if (!this.token.trim()) return;
@@ -217,7 +204,6 @@ export class SandboxController {
             this.userId = `${res.memberId ?? res.member$?.id ?? ''}` || null;
             this.deviceId = res.deviceId ?? this.deviceId;
         } else {
-            // On auth failure the connection stays up (fix the token and retry) — status stays connected, only the error is shown.
             this.status = 'connected';
             this.err = res?.error || `auth ${res?.state ?? 'failed'}`;
         }
@@ -248,7 +234,6 @@ export class SandboxController {
             return undefined;
         }
     }
-    /** Declares viewing for the active channel — required to receive anything, since the server only pushes chat.sync to devices that are viewing. */
     private applyViewing() {
         if (this.status !== 'verified') return;
         const ch = this.syncOn ? this.activeChannel : null;

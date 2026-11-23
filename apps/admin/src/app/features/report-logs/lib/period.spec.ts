@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { inWindow, kstDate, kstDayEnd, kstDayStart, resolvePeriod, widerPreset } from './period';
 
-// 2026-10-26 14:30 KST.
 const NOW = Date.parse('2026-10-26T14:30:00+09:00');
 const HOUR = 3_600_000;
 
@@ -51,7 +50,6 @@ describe('period', () => {
             toDate: '2026-10-12',
         });
         expect(resolvePeriod({ preset: 'custom', from: 'nope' }, NOW).preset).toBe('today');
-        // A datetime or an impossible day is refused by the server, so it counts as junk too.
         expect(resolvePeriod({ preset: 'custom', from: '2026-10-10T03:45:00' }, NOW).preset).toBe('today');
         expect(resolvePeriod({ preset: 'custom', from: '2026-02-30' }, NOW).preset).toBe('today');
     });
@@ -61,7 +59,6 @@ describe('period', () => {
         const period = resolvePeriod({ preset: 'around', at }, NOW);
         expect(period.fromMs).toBe(at - HOUR / 2);
         expect(period.toMs).toBe(at + HOUR / 2);
-        // Just after midnight: the window reaches back into the previous day.
         expect([period.fromDate, period.toDate]).toEqual(['2026-10-25', '2026-10-26']);
     });
 

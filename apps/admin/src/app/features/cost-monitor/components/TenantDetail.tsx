@@ -1,7 +1,3 @@
-/**
- * `components/cost-monitor/TenantDetail.tsx`
- * - One account in full: how its user, workspaces and slots connect, and its day by hour and by metric.
- */
 import { useState, type JSX, type ReactNode } from 'react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -35,7 +31,6 @@ const SlotNode = ({ slot }: { slot?: SlotInfo }): JSX.Element =>
         <Node tone="border-dashed border-border text-muted-foreground">no slot</Node>
     );
 
-/** User → workspace → slot → AWS account, one line per workspace, then the slots no workspace points at. */
 const Relations = ({ tenant }: { tenant: Tenant }): JSX.Element => {
     const slotById = new Map(tenant.slots.map(slot => [slot.id, slot]));
     const linked = new Set(tenant.workspaces.flatMap(ws => (ws.slotId ? [ws.slotId] : [])));

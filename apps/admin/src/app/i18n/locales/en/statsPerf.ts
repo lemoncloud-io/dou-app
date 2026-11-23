@@ -1,6 +1,5 @@
 import type { statsPerf as ko } from '../ko/statsPerf';
 
-/** English copy for the "performance by version and device" statistics view. */
 export const statsPerf: typeof ko = {
     pick: { goal: 'Measurement', by: 'Split by' },
     by: { appVersion: 'App version', os: 'OS', model: 'Device', platform: 'Platform' },

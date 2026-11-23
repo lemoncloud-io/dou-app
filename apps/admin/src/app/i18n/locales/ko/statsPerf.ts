@@ -1,4 +1,3 @@
-/** Korean copy for the "performance by version and device" statistics view. */
 export const statsPerf = {
     pick: { goal: '측정 항목', by: '나눠 보기' },
     by: { appVersion: '앱 버전', os: 'OS', model: '기기', platform: '플랫폼' },

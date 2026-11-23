@@ -1,14 +1,3 @@
-/**
- * `stats/UsagePatterns.tsx`
- * - The statistics tab's "how do people use the app?" view: who used it and how often, per day and
- *   by hour of the day, how long a visit lasts, which screens are used, and how visits start.
- *
- * Counts of people and app opens are the server's, over the whole match — whole Korean days by
- * arrival, so a period narrower than its days says which days the numbers cover. What the server
- * cannot count (a visit's length, time on a screen, how a visit started) is read from the usage
- * events themselves. Those are kept on every run, so a count of them is a count, not an estimate —
- * but a fetch stops at the newest page, and a section says so when it read only that part.
- */
 import { useMemo, type ReactNode } from 'react';
 
 import { useT } from '../../../i18n';
@@ -52,13 +41,11 @@ const Failure = ({ message }: { message: string }) => (
     </p>
 );
 
-/** "10/26" — short enough to sit under a column; the tooltip carries the full day. */
 const shortDay = (ms: number): string => {
     const [, month, day] = kstDate(ms).split('-');
     return `${Number(month)}/${Number(day)}`;
 };
 
-/** Label every few columns once there are too many to label each. */
 const labelEvery = (count: number): number => (count <= 14 ? 1 : Math.ceil(count / 10));
 
 export const UsagePatterns = ({ nav }: UsagePatternsProps) => {
@@ -67,11 +54,9 @@ export const UsagePatterns = ({ nav }: UsagePatternsProps) => {
     const base = { stage: nav.stage, from: period.fromDate, to: period.toDate };
     const unit = trendUnitOf(period);
 
-    // Server counts. For a short period the per-time query and the hourly one are the same request.
     const people = useLogStats({ ...base, interval: unit, users: true });
     const opens = useLogStats({ ...base, tag: OPEN_TAG, interval: unit, users: true });
     const opensHourly = useLogStats({ ...base, tag: OPEN_TAG, interval: 'hour', users: true });
-    // Usage events as rows, one fetch each, named so the hooks keep a fixed order.
     const ends = useStatRows(nav.stage, period, 'usage.session_end');
     const views = useStatRows(nav.stage, period, 'usage.screen_view');
     const starts = useStatRows(nav.stage, period, OPEN_TAG);
@@ -99,7 +84,6 @@ export const UsagePatterns = ({ nav }: UsagePatternsProps) => {
     const rowsFailure = [ends, views, starts].find(set => set.corpus.phase === 'failed');
     const loading =
         people.isLoading || opens.isLoading || opensHourly.isLoading || ends.loading || views.loading || starts.loading;
-    // One empty screen only once every answer is in and none has anything: a pending count is not a zero.
     const nothing =
         !loading &&
         !serverError &&

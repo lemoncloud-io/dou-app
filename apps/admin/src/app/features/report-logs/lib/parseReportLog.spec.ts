@@ -1,8 +1,3 @@
-/**
- * `lib/report-logs/parseReportLog.spec.ts`
- * - Covers the plausible storage shapes of a stored report (unverified backend
- *   mapping), ensuring the parser degrades gracefully and never throws.
- */
 import { describe, expect, it } from 'vitest';
 
 import { parseReportLog, formatOs } from './parseReportLog';
@@ -37,7 +32,6 @@ describe('parseReportLog', () => {
         expect(row.type).toBe('error');
         expect(row.app).toBe('web');
         expect(row.env).toBe('prod');
-        // Error has no human title → summary is the first line of the message.
         expect(row.title).toBe('Boom failed');
         expect(row.payload?.stack).toContain('Error: Boom');
         expect(row.message).toBe('Boom failed\nsecond line');
@@ -62,15 +56,15 @@ describe('parseReportLog', () => {
 
     it('treats a bare payload object in meta as the payload and infers type', () => {
         const row = parseReportLog({ id: 'm3', meta: errorPayload });
-        expect(row.type).toBe('error'); // inferred from stack/http/network
+        expect(row.type).toBe('error');
         expect(row.app).toBe('web');
         expect(row.title).toBe('Boom failed');
     });
 
     it('infers issue type from payload when no title prefix is present', () => {
         const row = parseReportLog({ id: 'm4', meta: issuePayload });
-        expect(row.type).toBe('issue'); // inferred from logs/version
-        expect(row.title).toBe('Cannot send message'); // payload.title
+        expect(row.type).toBe('issue');
+        expect(row.title).toBe('Cannot send message');
     });
 
     it('uses the record name as the title source when meta lacks a title', () => {
@@ -125,9 +119,6 @@ describe('parseReportLog', () => {
     });
 });
 
-// The client sends screenshots as `SlackReportBody.meta.images`, kept out of the
-// Slack-bound `message`. Where the backend puts that meta on the stored record is
-// unverified, so the parser probes several shapes — cover each.
 describe('parseReportLog — attached images', () => {
     const IMAGE = 'data:image/jpeg;base64,AAAA';
     const issuePayload = { title: '느려요', message: '본문', app: 'web', logs: [] };
@@ -180,13 +171,6 @@ describe('parseReportLog — attached images', () => {
     });
 });
 
-// Shape taken from a real dev record (2026-08-11): the backend keeps the SlackReportBody
-// under the record's `meta` and adds `id`.
-//
-// NOTE: that nested `meta` came back `{}` even though the client DID send images in it —
-// the backend discards a client-supplied `meta`. These cases therefore pin the parser's
-// handling of the envelope, not a working transport; the empty-meta case is what production
-// actually looks like today. See ADR-0049.
 describe('parseReportLog — real stored envelope', () => {
     const IMAGE = 'data:image/jpeg;base64,AAAA';
 
@@ -225,16 +209,11 @@ describe('parseReportLog — real stored envelope', () => {
         const row = parseReportLog(storedRecord({ images: [IMAGE, IMAGE] }));
 
         expect(row.images).toEqual([IMAGE, IMAGE]);
-        // The rest of the report still parses exactly as before.
         expect(row.type).toBe('issue');
         expect(row.title).toBe('레인');
     });
 });
 
-// Batch-uploaded structured logs (chatic-backend-api log-batch-ingest) share the same
-// `stereo='log'` bucket as the Slack error reports above (SPEC.md D6). They're detected
-// structurally — `level`+`tag` together is never set by a Slack report — and skip the
-// title/payload unwrap entirely.
 describe('parseReportLog — batch LogEntry', () => {
     it('parses a debug-level entry (e.g. WEB_VITALS) as log-entry, not unknown', () => {
         const row = parseReportLog({
@@ -333,9 +312,6 @@ describe('parseReportLog — 추적·파셋 축', () => {
         expect(row.appVersion).toBe('1.4.0');
         expect(row.webVersion).toBe('0.59.0');
         expect(row.route).toBe('/chat/1');
-        // Name and version stay APART. They are stored and filtered separately
-        // (chatic-backend-api#41), so joining them here would make a facet selection send
-        // `iOS 18.1` at a field holding `iOS` and match nothing. `formatOs` joins for display.
         expect(row.os).toBe('iOS');
         expect(row.osVersion).toBe('18.1');
     });
@@ -357,8 +333,6 @@ describe('parseReportLog — 추적·파셋 축', () => {
         expect(row.model).toBe('iPhone16');
     });
 
-    // `readAxis` prefers `meta` and falls back to the record's own field, so the top-level
-    // copies #41 writes are read without a second code path.
     it('reads the round-2 axes from the hoisted record copy too', () => {
         const row = parseReportLog({
             id: 'l4',
@@ -375,8 +349,6 @@ describe('parseReportLog — 추적·파셋 축', () => {
     });
 
     it('reads the hoisted record copy when the entry omitted an axis', () => {
-        // A re-sent entry that dropped `cid` must not lose it — `saveLogEntry` left the
-        // hoisted copy in place precisely so the axis survives.
         const row = parseReportLog({
             id: 'l2',
             uid: 'hoisted-uid',
@@ -423,9 +395,6 @@ describe('parseReportLog — 추적·파셋 축', () => {
     });
 
     it('reads both build versions off the report payload', () => {
-        // The attached type is `VersionInfo` from `@chatic/bridge-messages` — note the repo
-        // has a second, unrelated `VersionInfo` in `libs/shared` (`{ version, buildTime }`)
-        // that does NOT reach here. Reading `version.version` finds nothing.
         const row = parseReportLog({
             id: 'i3',
             meta: {
@@ -447,8 +416,6 @@ describe('parseReportLog — 추적·파셋 축', () => {
     });
 
     it('takes the screen the reporter was actually on, not the feedback screen', () => {
-        // `path` is always the feedback screen (reached from a MyPage menu), so bucketing
-        // by it would file every report under the same route.
         const row = parseReportLog({
             id: 'i4',
             meta: {

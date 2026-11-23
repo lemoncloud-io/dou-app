@@ -1,19 +1,7 @@
-/**
- * `lib/report-logs/timeFormat.ts`
- * - Dates, durations and numbers in the viewer's language, always on Korean time.
- *
- * The people reading this console sit in Korea and talk to users in Korea, so every instant is
- * shown in KST and says so — a time without a zone, read by someone abroad or on a laptop left on
- * another zone, is a time off by hours with nothing on screen to say it. The language changes the
- * words and the order ("10월 26일 14:03" against "Oct 26, 14:03"), never the zone.
- *
- * Built on `Intl`, so there is no table of month names or unit words to keep in two languages.
- */
 import { LOCALE_OF, type Language } from '../../../i18n';
 
 export const TIME_ZONE = 'Asia/Seoul';
 
-/** Shown after an absolute time. The zone name is the same word in both languages. */
 export const ZONE_LABEL = 'KST';
 
 const cache = new Map<string, Intl.DateTimeFormat>();
@@ -30,7 +18,6 @@ const dateFormat = (lng: Language, options: Intl.DateTimeFormatOptions): Intl.Da
 
 const isInstant = (ms?: number): ms is number => typeof ms === 'number' && Number.isFinite(ms);
 
-/** "10월 26일 14:03 KST" · "Oct 26, 14:03 KST". `-` for a missing instant. */
 export const formatDateTime = (ms: number | undefined, lng: Language, options?: { seconds?: boolean }): string => {
     if (!isInstant(ms)) return '-';
     const text = dateFormat(lng, {
@@ -43,19 +30,15 @@ export const formatDateTime = (ms: number | undefined, lng: Language, options?: 
     return `${text} ${ZONE_LABEL}`;
 };
 
-/** Clock time alone, "14:03:27", for lines that already sit under a dated heading. */
 export const formatClock = (ms: number | undefined, lng: Language): string =>
     isInstant(ms) ? dateFormat(lng, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(ms) : '--:--:--';
 
-/** Hours and minutes alone, "14:03". */
 export const formatTime = (ms: number | undefined, lng: Language): string =>
     isInstant(ms) ? dateFormat(lng, { hour: '2-digit', minute: '2-digit' }).format(ms) : '--:--';
 
-/** A calendar day, "10월 26일 (일)" · "Sun, Oct 26". */
 export const formatDay = (ms: number | undefined, lng: Language): string =>
     isInstant(ms) ? dateFormat(lng, { month: 'short', day: 'numeric', weekday: 'short' }).format(ms) : '-';
 
-/** "5분 전" · "5 minutes ago"; anything under a minute is "지금" · "now". */
 export const formatAgo = (ms: number | undefined, lng: Language, now: number = Date.now()): string => {
     if (!isInstant(ms)) return '-';
     const rtf = new Intl.RelativeTimeFormat(LOCALE_OF[lng], { numeric: 'auto' });
@@ -77,7 +60,6 @@ export const formatAgo = (ms: number | undefined, lng: Language, now: number = D
 const unit = (lng: Language, name: 'hour' | 'minute' | 'second' | 'millisecond', value: number): string =>
     new Intl.NumberFormat(LOCALE_OF[lng], { style: 'unit', unit: name, unitDisplay: 'narrow' }).format(value);
 
-/** "1시간 5분" · "1h 5m"; seconds below a minute, milliseconds below a second. */
 export const formatDuration = (ms: number | undefined, lng: Language): string => {
     if (!isInstant(ms) || ms < 0) return '-';
     if (ms < 1_000) return unit(lng, 'millisecond', Math.round(ms));
@@ -94,6 +76,5 @@ export const formatDuration = (ms: number | undefined, lng: Language): string =>
     return minutes ? `${unit(lng, 'hour', hours)} ${unit(lng, 'minute', minutes)}` : unit(lng, 'hour', hours);
 };
 
-/** Grouped digits in the viewer's language. */
 export const formatNumber = (value: number, lng: Language, maximumFractionDigits = 0): string =>
     new Intl.NumberFormat(LOCALE_OF[lng], { maximumFractionDigits }).format(value);

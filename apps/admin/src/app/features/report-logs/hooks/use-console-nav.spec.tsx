@@ -1,9 +1,3 @@
-/**
- * `hooks/report-logs/use-console-nav.spec.tsx`
- *
- * Driven through a real router, reading the query string back — the URL is the store, so the part
- * worth proving is that a link restores the same tab, server and period.
- */
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';

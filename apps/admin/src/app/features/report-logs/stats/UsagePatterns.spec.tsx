@@ -1,10 +1,3 @@
-/**
- * `stats/UsagePatterns.spec.tsx`
- *
- * The usage patterns view against a fake list endpoint: the server's counts and the usage events
- * read into the five sections, the single empty screen and its "widen the period" step, and a
- * backend without the aggregation.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -24,7 +17,6 @@ vi.mock('../api/reportLogApi', async () => {
 
 const { UsagePatterns } = await import('./UsagePatterns');
 
-// 2026-10-26 14:30 KST.
 const NOW = Date.parse('2026-10-26T14:30:00+09:00');
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
@@ -50,7 +42,6 @@ const serve = (...routes: Route[]) =>
 
 const isStats = (p: Record<string, unknown>) => p.limit === 1;
 
-/** A week of data: the server's counts and one page of each usage event. */
 const week: Route[] = [
     p =>
         isStats(p) && !p.tag && p.interval === 'day'
@@ -160,14 +151,12 @@ describe('UsagePatterns', () => {
         const glance = section('한눈에 보기');
         expect(await within(glance).findByText('42')).toBeTruthy();
         expect(within(glance).getByText('120')).toBeTruthy();
-        // 120 opens by 40 people who opened it.
         expect(within(glance).getByText('3')).toBeTruthy();
         expect(within(glance).getByText('앱 사용 2번 기준')).toBeTruthy();
         expect(within(glance).getByText('3개')).toBeTruthy();
 
         expect(within(section('날짜별')).getByRole('img', { name: '사용한 사람' })).toBeTruthy();
 
-        // 21:00 summed over two days beats 09:00.
         expect(within(section('하루 중 언제 쓰나요')).getByText('가장 많이 여는 시간: 21시 (55번)')).toBeTruthy();
 
         const screens = section('많이 보는 화면');
@@ -199,7 +188,6 @@ describe('UsagePatterns', () => {
 
         fireEvent.click(screen.getByRole('button', { name: '기간 넓히기' }));
 
-        // Seven days is the statistics tab's default, so the parameter is dropped.
         expect(new URLSearchParams(location).get('period')).toBeNull();
     });
 

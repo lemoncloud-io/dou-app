@@ -1,22 +1,3 @@
-/**
- * `tabs/UserTab.tsx`
- * - The console's front door: "a user says it broke — what happened to them?"
- *
- * Find the user (by id, or among the people seen in the period), then read their visits to the app
- * one card per run, each opening into a timeline of plain sentences with errors and reports picked
- * out. Everything a support person needs is on the card; the record ids, run ids and raw tags an
- * engineer needs are one "details" click away, never in the way.
- *
- * Fetches, each the existing one-page corpus: the user's own records (server-filtered by `uid`), the
- * period's issue reports (reports carry no top-level `uid`, so they are matched here by the reporter
- * id inside them — shared with the reports tab's cache), and, before a user is chosen, the period's
- * records of everyone, for the "recently active" list.
- *
- * **A uid is per cloud.** Each cloud numbers its users from the start, so one id can be several
- * people. When a user's records span clouds, a cloud row narrows to one — through the server's `cid`
- * filter, so the narrowed fetch is not limited to whatever of that cloud fit in the unfiltered page.
- * The unfiltered fetch stays on to list the clouds.
- */
 import { useEffect, useMemo, useState } from 'react';
 
 import { ChevronDown, ChevronRight, Search } from 'lucide-react';
@@ -70,7 +51,6 @@ interface UserTabProps {
     nav: ConsoleNav;
 }
 
-/** Hidden unless asked for: debug lines and performance measurements are not what support reads. */
 const isDetailOnly = (row: ReportLogRow): boolean => {
     const kind = recordKindOf(row);
     return row.level === 'debug' || kind === 'trace' || kind === 'sample';
@@ -213,10 +193,8 @@ const RunCard = ({ run, open, onToggle, verbose, onDetails, onOpenReport }: RunC
     );
 };
 
-/** The `run` value for "every card closed". */
 const CLOSED = '-';
 
-/** "All clouds" in the cloud row; never a real cloud id. */
 const ALL_CLOUDS = '';
 
 export const UserTab = ({ nav }: UserTabProps) => {
@@ -227,8 +205,6 @@ export const UserTab = ({ nav }: UserTabProps) => {
     const verbose = nav.param('verbose') === '1';
     const [selected, setSelected] = useState<ReportLogRow | null>(null);
 
-    // The box holds a draft so typing narrows the recent list without touching the URL; only a
-    // submitted id becomes the server filter.
     const [draft, setDraft] = useState(uid);
     useEffect(() => setDraft(uid), [uid]);
 
@@ -243,7 +219,6 @@ export const UserTab = ({ nav }: UserTabProps) => {
     const everyone = useLogCorpus(base, { enabled: !uid });
 
     const rows = useMemo(
-        // The user check is a guard: rows held for another user must never be shown under this one.
         () => userCorpus.rows.filter(row => row.userId === uid && inWindow(eventAt(row), period)),
         [userCorpus.rows, uid, period]
     );
@@ -270,13 +245,10 @@ export const UserTab = ({ nav }: UserTabProps) => {
         [everyone.rows, period, draft]
     );
 
-    // A run named in the URL is open; arriving from a report opens the run that was going on then.
     const at = nav.periodInput.preset === 'around' ? nav.periodInput.at : undefined;
-    // `-` records "closed on purpose", so a run opened by `at` can be closed again.
     const runParam = nav.param('run');
     const openKey = runParam === CLOSED ? undefined : runParam || (at !== undefined ? runAt(runs, at)?.key : undefined);
 
-    // A new user starts from the tab's own period, not the half hour around someone else's report.
     const choose = (next: string) => nav.patch({ uid: next.trim(), cloud: '', run: '', at: '' });
     const wider = widerPreset(period.preset);
     const widen = wider ? { label: t('common:empty.widen'), onClick: () => nav.setPeriod(wider) } : undefined;
