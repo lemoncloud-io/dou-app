@@ -1,184 +1,60 @@
 # Chatic
 
-Nx monorepo: `apps/` and `libs/`, plus `assets/`, `tools/eslint-rules/` and a deploy function under
-`docs/infra/`. `npx nx show projects` lists them; a count written here goes stale, so there is none.
-
-## Language
-
-Everything written into the repo or its GitHub surface is in English. Not a list to check
-against — code comments, module `README.md`/`docs/<topic>/`, `docs/adr/`, commit messages, PR
-titles and bodies, test names, and whatever comes next. This is a deliberate, repo-wide policy:
-earlier PRs used a mixed Korean/English title convention; new ones don't. Chat responses to the
-user are unaffected by this rule.
-
-**There are two exceptions, both the product's own words to its users**, and each is a path, so
-neither needs a judgement call:
-
-- **Translation resources** — `**/locales/**` and `**/i18n/**`. The Korean in those files is not
-  writing about the product, and translating it breaks the feature rather than following the rule.
-- **The mini app packages' Korean author documents** — a `.ko.md` inside `libs/chatic-apps-sdk/` or
-  `libs/chatic-apps-devtools/`, the translation shipped on npm beside each English document for the
-  people building mini apps. The English file stays the canonical one and changes in the same PR as
-  its pair; each package's own test holds every pair to the same headings and code blocks. A `.ko.md`
-  anywhere else is still a violation.
-
-Test names are not an exception. A name goes into CI logs and failure reports, which is exactly
-the surface this rule keeps in one language, and unlike a translation resource nothing breaks when
-it is in English. Names written before this was settled are left alone; new ones are English.
-
-- `yarn check:doc-korean` gates this for every tracked markdown file, `CHANGELOG.md` excepted (its
-  entries are a record of what a release said at the time) and the two packages' `.ko.md` files above. `yarn check:code-korean` gates the same
-  rule for `//` and `/* */` source comments (TS/TSX/JS/JSX/Kotlin/Swift/Objective-C). Neither flags
-  a Korean UI string quoted as data — `` `나와의 채팅` `` or `"두유 홈"` — only Korean prose.
-
-## Before you start
-
-- Build, run, test, lint, deploy commands: [`README.md`](./README.md).
-- The work here runs in an order: agree what is being built, implement it, review it, then commit
-  and open the PR. § Working order says what that means in this repo.
-- Six procedures live in `docs/config/skills/`. **Open the one that applies and follow it** — they
-  are not background reading, and they are not summarised here:
-
-    | Procedure                                                              | Open it when                                                                   |
-    | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-    | [`dou-implement`](./docs/config/skills/dou-implement/SKILL.md)         | writing code with its comments, tests and verification                         |
-    | [`dou-shell-verify`](./docs/config/skills/dou-shell-verify/SKILL.md)   | checking a web change as it runs inside the app, without a simulator (default) |
-    | [`dou-device-verify`](./docs/config/skills/dou-device-verify/SKILL.md) | checking a change on the iOS simulator or Android emulator (opt-in)            |
-    | [`dou-review`](./docs/config/skills/dou-review/SKILL.md)               | a change is finished and not yet committed                                     |
-    | [`dou-commit`](./docs/config/skills/dou-commit/SKILL.md)               | writing a commit message                                                       |
-    | [`dou-pr`](./docs/config/skills/dou-pr/SKILL.md)                       | opening a pull request                                                         |
-
-## Module docs
-
-- Before editing a module, read its own `README.md` (and `docs/<topic>/` if it has one). Prefer it
-  over inferring behavior from source.
-- Root `docs/` holds decisions (`docs/adr/`), cross-repo infrastructure notes (`docs/infra/`)
-  and the procedures agents follow (`docs/config/skills/`). A module's own documentation never
-  lives there — it belongs beside the module, in its `README.md` or its `docs/<category>/`.
-- If a module's behavior only makes sense with a decision's reasoning, write that reasoning into the
-  module doc itself, in your own words. Don't rely on a reader following an ADR link.
-- A module's `docs/` has one shape, and four rules hold it:
-    1. Every category folder has a `README.md` — either the category's lead document, or a short
-       index (keep an index short; an index that becomes the content is a document in the wrong
-       place).
-    2. A category name has to answer "does this document belong here?" on its own. Names that
-       cannot — `misc`, `etc`, `common`, and `architecture`, which only ever means "crosses more
-       than one feature" — are not used.
-    3. Depth stops at `docs/<category>/<topic>.md`. Needing another level means the category is
-       wrong, not that the tree needs deepening.
-    4. No topic files directly under `docs/` — `docs/README.md` is the only top-level document
-       there, and it states what belongs in which category.
-- **`apps/web` only:** `docs/feature/<name>/` exists when, and only when,
-  `src/app/features/<name>/` exists, and the names match exactly — `appUpdate` stays camelCase.
-  That folder is the one place the depth rule above is relaxed, because a feature owns several
-  screens that are read independently. The rule is machine-checkable, so check it rather than
-  reading the two trees:
-
-    ```bash
-    diff <(ls apps/web/src/app/features) <(ls apps/web/docs/feature)   # must print nothing
-    ```
-
-    Code with no feature folder is documented by category instead — push-tap routing lives in
-    `docs/bridge/`, not in a `feature/notifications/` that no `features/notifications/` backs.
-
-## ADRs (`docs/adr/`)
-
-- One decision per file, numbered, in English. Records why a decision was made and what it cost —
-  not a work log, not where a module's rules live.
-- Bare `ADR-0036` mentions are fine in module docs; link into `docs/adr/` only where the reader should
-  actually follow it.
-- A superseded ADR keeps its file; mark its status line and link to the ADR that replaced it. Don't
-  delete it.
-- **A number, once taken, is never reused** — not even for a file that was deleted or renumbered. The
-  number is the name every other document and comment refers to, so handing it to a second decision
-  turns every existing `ADR-00NN` mention into a silent pointer at the wrong record. Take the next
-  free number, and leave the gaps.
-- Renumbering an ADR is not a rename — it is a rename **plus** repointing everything that refers to
-  the old number, in the same change: links, module docs, and source comments. `yarn check:doc-links`
-  catches the links and the ADR links whose label and target disagree; bare `ADR-00NN` prose carries
-  no target, so nothing can catch those and they have to be read.
-
-## Verifying a change
-
-- Typecheck a lib with `tsc -b libs/<name>/tsconfig.json`, not `tsc --noEmit` (checks 0 files inside a
-  lib, always "passes").
-- `.github/workflows/verify.yml` lists the projects it excludes from typecheck/test — check those by
-  hand.
-- A stale `dist`/`out-tsc` after a directory move produces phantom type errors. `rm -rf` it and
-  recheck before trusting the error.
-- Adding a new workspace `lib` as a dependency needs `nx sync` (project references). Nothing in CI
-  catches a missed reference for you.
-
-## Reviewing a change
-
-- Before calling a change done, run the same gate `verify.yml` runs for the projects you touched —
-  lint, typecheck (`tsc -b`, per above), test. Resolve that set rather than guessing it:
-  `npx nx show projects --affected --base=origin/develop`. Running it for those projects is the
-  point; a full `run-many` across all of them is not worth its wall-clock here. Don't rely on CI
-  to catch it first.
-- **Check that set against `verify.yml`'s exclusions, and say what you find.** A project on that
-  list is not checked by CI at all, so a green pipeline says nothing about it — run its gate by
-  hand and put "CI does not check this project" in the PR, pass or fail. The list shrinks as
-  projects are fixed off it, so read the workflow instead of carrying a remembered copy.
-- If the change encodes a decision rather than an obvious fix, check whether it needs a new or
-  updated ADR under the existing ADR rules.
-- If the change leaves a module's own `README.md` or `docs/<topic>/` out of date — new behavior,
-  a changed constraint, a retired pattern — update that doc as part of the same change, not as a
-  follow-up.
-- Never reference an ADR in a source code comment (no `ADR-0036` mentions, no `docs/adr/` links).
-  If the code needs its reasoning to make sense, write that reasoning into the module doc in your
-  own words — the same rule "Module docs" already states, applied to code comments too.
-- Fill `.github/pull_request_template.md` as the repo expects: PR type checkboxes, `Changes`, and
-  `To Reviewers` — the last is where a reviewer's attention should be pointed, not a separate doc.
-
-## Public surface
-
-This repository is public. Nothing written into it may point at an internal document store or a
-private repository — no file paths into one, no issue or PR numbers from one. Two reasons: the
-path itself discloses internal structure, and a reader who cannot open the destination is handed
-a wall rather than a pointer.
-
-So the repo has to stand on its own. Where a change only makes sense with reasoning that lives
-elsewhere, write that reasoning here, in your own words — `docs/adr/` for a decision, the module
-doc for behaviour. Whatever genuinely cannot be published (a customer, a commercial term, an
-internal path, a negotiation with another team) does not belong in the repo at all, and leaving it
-out is what keeps the two from duplicating each other.
-
-`yarn check:internal-paths` gates the one reference shape that kept slipping in — a session-notes path
-(`.claude/<date>/…`, `DEBUG-HH-MM-SS`) in a comment or doc under `apps`, `libs`, `scripts` or `docs`.
-
-## Branch names
-
-A branch name carries the domain noun of the work: `docs/app-docs-tree`,
-`feat/desktop-panel-resize`, `fix/revoked-session-recovery`. Base is `develop`, not `main`.
-
-A generated suffix on its own does not qualify — `claude/libs-modules-prep-c5e594` cannot be read
-back later as what it did, and the branch name is what ties a merged PR to the work it came from
-once the branch itself is gone.
+Nx monorepo (`apps/`, `libs/`); commands are in [`README.md`](./README.md). Branches start from `origin/develop` and
+carry the domain noun of the work (`fix/revoked-session-recovery`, never a bare generated suffix).
 
 ## Working order
 
-Agree, implement, review, then ship. The steps are small but the order is not decoration.
+Plan → code → verify → ship. Skills live in [`docs/config/skills/`](./docs/config/skills/) (linked from `.claude/skills/`);
+open the one that applies and follow it.
 
-- **Before implementing**, the scope, the non-goals and how the change will be verified are
-  settled. Not written down here necessarily — but if you cannot state them, that is the work to
-  do first, not a step to skip.
-- **Review before committing**, not after ([`dou-review`](./docs/config/skills/dou-review/SKILL.md)).
-  A fix for a finding then lands in the same commit as the change it corrects instead of trailing
-  behind it as "address review".
-- **What was agreed shows up in the PR body** — `Changes` carries the why and the scope, and
-  `To Reviewers` carries what was deliberately left alone. Where the change encodes a decision,
-  `docs/adr/` carries it, in the same PR as the implementation.
+| Skill              | Open it when                                                               |
+| ------------------ | -------------------------------------------------------------------------- |
+| `dou-plan`         | a feature, refactor or multi-file change is asked for, before writing code |
+| `dou-verify`       | code changed and is about to be called done                                |
+| `dou-e2e`          | a web screen or flow changed, or a feature has no scenario                 |
+| `dou-chaos`        | session, transport, sync or retry code changed                             |
+| `dou-load`         | lists, caches, paging or performance changed                               |
+| `dou-property`     | state transitions, merging or ordering logic changed                       |
+| `dou-failure-hunt` | before a release, after an incident, or asked to find what could break     |
+| `dou-ratchet`      | the same correction or the same CI failure came back                       |
+| `dou-cleanup`      | removing comments from a project, or lowering a ratchet baseline           |
+| `dou-ship`         | a change is finished: review, commit, PR, auto-merge eligibility           |
+| `dou-metrics`      | harness or delivery metrics are asked for, or a lane has merged            |
 
-## Result documents (plans, specs, review notes)
+Where a task runs, on which model and effort: [`placement.md`](./docs/config/skills/dou-plan/references/placement.md), agents in `.claude/agents/`.
 
-- An implementation plan, a review pass, or survey notes produced while working are working
-  artifacts, not repo artifacts. They belong in the PR description (`Changes` / `To Reviewers`) or
-  the agent's own session/plan file — never committed as a new file under `docs/`.
-- The two durable homes for anything worth keeping past the PR are a module's own `README.md`
-  (how it behaves now) and `docs/adr/` (why a decision was made and what it cost). If neither
-  fits, it likely shouldn't be committed.
-- If a module's `docs/<topic>/` grows too large to sit inside one module doc — a sub-topic has
-  outgrown the README or become its own concern — split it into its own `docs/<topic>/` doc. This
-  is just the existing "Module docs" split (README vs. `docs/<topic>/`) applied at the point it's
-  actually needed.
+## Copy these, not prose
+
+- Repository hook: `apps/web/src/app/features/pairing/hooks/usePairingDevices.ts`
+- Screen: `apps/web/src/app/features/mypage/pages/NotificationSettingsPage.tsx` and its `.test.tsx`
+- Bridge message: [`libs/bridge-messages/README.md` § Adding a message](./libs/bridge-messages/README.md#adding-a-message), e.g. `SetBadgeCount` in `src/types/`
+- e2e scenario: `apps/web-e2e/src/specs/room-mute.spec.ts`
+
+## Machine-checked rules
+
+`yarn gate` (affected lint, typecheck, test; by hand per `dou-ship` until it exists) · `check:doc-korean` · `check:code-korean` ·
+`check:internal-paths` · `check:doc-links` · `check:env` · `node scripts/check-instructions-size.js` · commitlint. Write no new
+comments (a lint ratchet enforces it); allowed: published SDK public-API JSDoc, `eslint-disable` with a reason, license headers.
+
+## Language and public surface
+
+Everything written into the repo or onto GitHub is English. Two exceptions, both by path: translation resources
+(`**/locales/**`, `**/i18n/**`) and the `.ko.md` author documents inside `libs/chatic-apps-sdk/` and
+`libs/chatic-apps-devtools/`, which change in the same PR as their English pair. Chat with the user is unaffected.
+The repo is public: no paths or issue/PR numbers from an internal store. Plans and reports go in the PR or an HTML artifact.
+
+## Module docs and ADRs
+
+- Read a module's `README.md` and `docs/` before editing it; update them in the same change when behaviour moves. Code with no
+  feature folder is documented by category (`docs/bridge/`).
+- A module's `docs/`: every category folder has a `README.md`, names answer "does this belong here?" (no `misc`, `common`,
+  `architecture`), depth stops at `docs/<category>/<topic>.md`, nothing else directly under `docs/`. For `apps/web`,
+  `diff <(ls apps/web/src/app/features) <(ls apps/web/docs/feature)` prints nothing.
+- Root `docs/` holds `adr/`, `infra/` and `config/skills/` only. A decision gets one numbered English ADR; a number is never
+  reused, a superseded ADR keeps its file, and renumbering repoints every mention, bare `ADR-0NNN` prose included. Source code never names an ADR; the module doc carries the reasoning.
+
+## Reviewing a change
+
+Run the gate for `npx nx show projects --affected --base=origin/develop`, and check that set against the exclusions in
+`.github/workflows/verify.yml` — an excluded project is checked by hand and named in the PR. Detail: `dou-ship`.

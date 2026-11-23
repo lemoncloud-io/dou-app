@@ -1,0 +1,302 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "landing-signin-5381",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/landing-signin/apps/landing && exec ../../node_modules/.bin/vite --port 5381 --strictPort"
+      ],
+      "port": 5381
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd apps/web && exec npx vite --port 5173"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd apps/admin && exec npx vite --port 5001"
+      ],
+      "port": 5001
+    },
+    {
+      "name": "web-probe-5014",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/photo-bridge-measure/apps/web && exec npx vite --config vite.probe.config.mts --host 0.0.0.0 --port 5014 --strictPort"
+      ],
+      "port": 5014
+    },
+    {
+      "name": "web-stack-in-5016",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/chat-send-animation/apps/web && exec npx vite --port 5016 --strictPort"
+      ],
+      "port": 5016
+    },
+    {
+      "name": "web-place-members-5021",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/sad-moser-6e0617/apps/web && exec npx vite --port 5021 --strictPort"
+      ],
+      "port": 5021
+    },
+    {
+      "name": "desktop-web-place-members-5022",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/sad-moser-6e0617/apps/desktop-web && exec npx vite --port 5022 --strictPort"
+      ],
+      "port": 5022
+    },
+    {
+      "name": "web-invite-entry-5341",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/invite-room-entry-speed/apps/web && exec npx vite --port 5341 --strictPort"
+      ],
+      "port": 5341
+    },
+    {
+      "name": "web-relay-verify-5342",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/relay-invite-verify-in-cloud/apps/web && exec npx vite --port 5342 --strictPort"
+      ],
+      "port": 5342
+    },
+    {
+      "name": "web-relay-verify-5343",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/relay-invite-verify-in-cloud/apps/web && exec npx vite --port 5343 --strictPort"
+      ],
+      "port": 5343
+    },
+    {
+      "name": "web-prod-5174",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd apps/web && exec npx vite --mode prod --port 5174 --strictPort"
+      ],
+      "port": 5174
+    },
+    {
+      "name": "web-prod-5020",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app-wt-empty-place/apps/web && exec npx vite --mode prod --port 5020 --strictPort --host 0.0.0.0"
+      ],
+      "port": 5020
+    },
+    {
+      "name": "metro-prod-8081",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8; cd /Users/raine/Documents/lemoncloud-io/dou-app/apps/mobile && exec /Users/raine/Documents/lemoncloud-io/dou-app/node_modules/.bin/dotenv -e /Users/raine/Documents/lemoncloud-io/dou-app/apps/mobile/.env.prod -- /Users/raine/Documents/lemoncloud-io/dou-app/node_modules/.bin/react-native start --port 8081 --reset-cache"
+      ],
+      "port": 8081
+    },
+    {
+      "name": "web-fix-5021",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app-wt-cloud-token-cache/apps/web && exec npx vite --port 5021 --strictPort"
+      ],
+      "port": 5021
+    },
+    {
+      "name": "dou-shell-prod",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "cd '/Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/dou-app-run' && exec '/opt/homebrew/bin/yarn' local --mode shell --env prod"
+      ],
+      "port": 5017
+    },
+    {
+      "name": "web-cloud-relay-prod-5352",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/cloud-update-on-relay/apps/web && exec npx vite --mode prod --port 5352 --strictPort"
+      ],
+      "port": 5352
+    },
+    {
+      "name": "web-relay-dm-dev-5361",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/relay-dm-place-filter/apps/web && exec npx vite --port 5361 --strictPort"
+      ],
+      "port": 5361
+    },
+    {
+      "name": "web-relay-dm-dev-5362",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/relay-dm-place-filter/apps/web && exec npx vite --port 5362 --strictPort"
+      ],
+      "port": 5362
+    },
+    {
+      "name": "admin-v2-logout-repro-5031",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/admin-logout-repro/apps/admin-v2 && exec npx vite --port 5031 --strictPort"
+      ],
+      "port": 5031
+    },
+    {
+      "name": "admin-v2-refund-5001",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/subscription-plan-rules-aa3d6b/apps/admin-v2 && exec npx vite --port 5001 --strictPort"
+      ],
+      "port": 5001
+    },
+    {
+      "name": "admin-v2-stage-env-5001",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app-wt-admin-stage-env/apps/admin-v2 && exec npx vite --port 5001 --strictPort"
+      ],
+      "port": 5001
+    },
+    {
+      "name": "subwebview-pages",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "cd \"$HOME/Documents/raine-lemon/dou-subwebview-pages\" && exec npx vite --port 5180 --strictPort"
+      ],
+      "port": 5180
+    },
+    {
+      "name": "quick-poll",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/raine-lemon/dou-quick-poll && VITE_FIREBASE_EMULATORS=1 exec npx vite --port 5181 --strictPort"
+      ],
+      "port": 5181
+    },
+    {
+      "name": "web-lab-card",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/lab-experiments-single-card/apps/web && exec npx vite --port 5191"
+      ],
+      "port": 5191
+    },
+    {
+      "name": "dou-raise",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/raine-lemon/dou-raise && exec npx vite --port 5181 --strictPort"
+      ],
+      "port": 5181
+    },
+    {
+      "name": "web-session-media-5031",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app-wt-nativization/apps/web && exec npx vite --port 5031 --strictPort"
+      ],
+      "port": 5031
+    },
+    {
+      "name": "landing-session-media-5032",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app-wt-nativization/apps/landing && exec npx vite --port 5032 --strictPort"
+      ],
+      "port": 5032
+    },
+    {
+      "name": "admin-session-media-5033",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app-wt-nativization/apps/admin && exec npx vite --port 5033 --strictPort"
+      ],
+      "port": 5033
+    },
+    {
+      "name": "desktop-web-session-media-5034",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app-wt-nativization/apps/desktop-web && exec npx vite --port 5034 --strictPort"
+      ],
+      "port": 5034
+    },
+    {
+      "name": "web-head-refresh-5371",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/web-room-head-refresh/apps/web && exec npx vite --port 5371 --strictPort"
+      ],
+      "port": 5371
+    },
+    {
+      "name": "desktop-web-saved-scope-5041",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/fix-default-sentinel-site-switch/apps/desktop-web && exec npx vite --port 5041 --strictPort"
+      ],
+      "port": 5041
+    },
+    {
+      "name": "web-bottom-sheet-5189",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/bottom-sheet-back/apps/web && exec npx vite --port 5189 --strictPort"
+      ],
+      "port": 5189
+    },
+    {
+      "name": "web-debug-storage-5191",
+      "runtimeExecutable": "/bin/sh",
+      "runtimeArgs": [
+        "-c",
+        "export PATH=\"$HOME/.nvm/versions/node/v22.15.1/bin:$PATH\"; cd /Users/raine/Documents/lemoncloud-io/dou-app/.claude/worktrees/debug-active-storage/apps/web && exec ../../node_modules/.bin/vite --port 5191 --strictPort"
+      ],
+      "port": 5191
+    }
+  ]
+}

@@ -32,7 +32,7 @@ prod runs in the shell mode only, where the page carries a PROD band. While `yar
 shell's DEV | PROD switch starts the other backend's pair on its own ports — its own origin, so its own
 sign-in — after asking first; only a person switches.
 
-The agent procedure is [`dou-shell-verify`](../../docs/config/skills/dou-shell-verify/SKILL.md).
+The agent procedure is [`dou-verify` § in-app shell](../../docs/config/skills/dou-verify/references/shell.md).
 
 ## A backend on this machine
 
@@ -66,7 +66,7 @@ names what is missing without starting anything.
 What the shell imitates is the same on every backend (the table below). Two of its limits matter most
 here: the web always holds the session itself, and keeps it in the page's own storage. A server change
 that only shows when the app's runtime holds the session — its own socket and the user agent it sends,
-its vault — is checked on a simulator ([dou-device-verify](../../docs/config/skills/dou-device-verify/SKILL.md)).
+its vault — is checked on a simulator ([a device check](../../docs/config/skills/dou-verify/references/device.md)).
 
 ## What is here
 
@@ -113,7 +113,7 @@ This table is the reference. Adding an imitation changes it in the same commit.
 
 Every request the shell does not answer is logged as `unsupported` and shown as a notice beside the
 phone. What the shell cannot show is not a pass; check it on a simulator
-([dou-device-verify](../../docs/config/skills/dou-device-verify/SKILL.md)). Also not imitated: the OS
+([a device check](../../docs/config/skills/dou-verify/references/device.md)). Also not imitated: the OS
 handing a link to the app, real backgrounding (sockets and timers keep running), OS notification
 banners and sounds, and the room-open trace a native tap hands over.
 
