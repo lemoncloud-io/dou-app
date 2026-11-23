@@ -1,6 +1,5 @@
 import { defineDebugStrings } from '../define';
 
-/** The filter and sort controls the Storage and DB screens share (`components/FilterBar`). */
 const en = {
     search: 'Search',
     searchPlaceholder: 'Text anywhere in the record',

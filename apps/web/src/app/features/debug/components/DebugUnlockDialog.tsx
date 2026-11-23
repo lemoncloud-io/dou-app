@@ -18,20 +18,10 @@ interface DebugUnlockDialogProps {
     onCancel: () => void;
 }
 
-/**
- * Entry-code challenge shown after the hidden 10-tap unlock. A plain text field rather than a
- * fixed-length digit pad: the pad auto-submitted at its length, which tied the dialog to a code
- * that is exactly that many characters. Submitting is now explicit — the confirm button or Enter.
- *
- * The value is trimmed on submit (a soft keyboard's trailing space would otherwise fail an exact
- * match) but never otherwise transformed: `verifyDebugCode` compares it as typed.
- */
 export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: DebugUnlockDialogProps) => {
     const [code, setCode] = useState('');
     const strings = useDebugSharedStrings();
 
-    // Clear the input on every close (cancel, wrong-code lockout) and after a wrong
-    // attempt so the user re-enters a fresh code rather than editing the rejected one.
     useEffect(() => {
         if (!isOpen || hasError) setCode('');
     }, [isOpen, hasError]);
@@ -54,10 +44,6 @@ export const DebugUnlockDialog = ({ isOpen, hasError, onSubmit, onCancel }: Debu
                 </AlertDialogTitle>
                 <AlertDialogDescription className="sr-only">{strings.unlockDialog.description}</AlertDialogDescription>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    {/* `px-0` because this dialog carries its own padding. `TextField` ships a 16px
-                        gutter of its own for full-bleed form screens, where the field IS the screen's
-                        edge — inside a padded card that gutter is a second one, and the field ended
-                        up 32px narrower than the button below it. */}
                     <TextField
                         className="px-0"
                         value={code}

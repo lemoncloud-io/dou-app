@@ -2,7 +2,6 @@ import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 
 import { summarizeRegisterResult } from './summarizeRegisterResult';
 
-/** Cast helper — the runtime response is flatter than the published type. */
 const asResult = (value: Record<string, unknown>) => value as unknown as RegisterDeviceResult;
 
 describe('summarizeRegisterResult', () => {
@@ -12,7 +11,6 @@ describe('summarizeRegisterResult', () => {
     });
 
     it('플랫 응답(status active + endpoint + updatedAt)을 등록됨으로 요약한다', () => {
-        // Actual server shape observed in production.
         const result = asResult({
             deviceId: '3C8DFB6C',
             endpoint: 'arn:aws:sns:ap-northeast-2:...:endpoint/APNS_SANDBOX/chatic-ios-dev/1db6',

@@ -36,8 +36,6 @@ interface SlowOp {
     at: number;
 }
 
-// --- UI Components matching DebugLogBufferPage.tsx ---
-
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (
     <section className="min-w-0 max-w-full overflow-hidden rounded-[18px] bg-card px-4 py-3 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
         <p className="mb-3 text-[11px] font-bold uppercase tracking-widest text-primary">{title}</p>
@@ -130,17 +128,13 @@ const LogEntryView = ({ log, index }: { log: LogEntry; index: number }) => {
     );
 };
 
-// --- Page ---
-
 export const CacheTestScreen = () => {
     const strings = useCacheTestStrings();
 
-    // Core Dashboard States
     const [activeTab, setActiveTab] = useState<ActiveTab>('scenarios');
     const [isRunning, setIsRunning] = useState(false);
     const [logs, setLogs] = useState<LogEntry[]>([]);
 
-    // Live Metrics Telemetries
     const [totalOps, setTotalOps] = useState(0);
     const [avgLatency, setAvgLatency] = useState<number | null>(null);
     const [successCount, setSuccessCount] = useState(0);
@@ -155,10 +149,8 @@ export const CacheTestScreen = () => {
     });
     const [slowOps, setSlowOps] = useState<SlowOp[]>([]);
 
-    // Scenario 1: SQLite Options & States
     const [sqliteBulkCount, setSqliteBulkCount] = useState(100);
 
-    // Scenario 2: Concurrency states
     const [concurrencyCount, setConcurrencyCount] = useState(100);
     const [concurrencyKey, setConcurrencyKey] = useState('concurrency_race_test_key');
     const [concurrencyResult, setConcurrencyResult] = useState<{
@@ -168,7 +160,6 @@ export const CacheTestScreen = () => {
         duration: number;
     }>({ status: 'idle', expected: '', actual: '', duration: 0 });
 
-    // Scenario 3: Flood states
     const [floodCount, setFloodCount] = useState(500);
     const [floodStrategy, setFloodStrategy] = useState<'parallel' | 'chunked' | 'sequential'>('parallel');
     const [floodProgress, setFloodProgress] = useState(0);
@@ -181,16 +172,13 @@ export const CacheTestScreen = () => {
         topSlow: Array<{ id: number; durationMs: number; success: boolean }>;
     } | null>(null);
 
-    // SQLite Record Explorer States (CRUD & Browse)
     const [records, setRecords] = useState<TestRecord[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isExplorerLoading, setIsExplorerLoading] = useState(false);
 
-    // Inline Edit States
     const [editingKey, setEditingKey] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
 
-    // Manual Insert States
     const [newKey, setNewKey] = useState('');
     const [newValue, setNewValue] = useState('');
 
@@ -205,7 +193,6 @@ export const CacheTestScreen = () => {
         );
     }, []);
 
-    // Telemetry logger & statistics updates
     const addLog = useCallback((level: LogLevel, label: string, message: string) => {
         const timestamp =
             new Date().toLocaleTimeString('ko-KR', {
@@ -219,10 +206,8 @@ export const CacheTestScreen = () => {
 
         setLogs(prev => {
             const next = [...prev, { id: `${Date.now()}-${Math.random()}`, level, label, message, timestamp }];
-            return next.slice(-100); // Caps logs count to keep it smooth on devices
+            return next.slice(-100);
         });
-
-        // Forced auto-scroll has been removed entirely so it doesn't interrupt the user while they're analyzing past logs.
     }, []);
 
     const clearLogs = useCallback(() => setLogs([]), []);
@@ -292,10 +277,6 @@ export const CacheTestScreen = () => {
         addLog('info', strings.log.tags.telemetry, strings.log.resetStats);
     }, [addLog, strings]);
 
-    // ----------------------------------------------------
-    // SQLite Record Explorer Actions (CRUD & Fetch)
-    // ----------------------------------------------------
-
     const loadAllRecords = useCallback(
         async (silent = false) => {
             if (!silent) setIsExplorerLoading(true);
@@ -320,7 +301,6 @@ export const CacheTestScreen = () => {
         [addLog, strings]
     );
 
-    // Handle Manual Insert
     const handleCreateRecord = useCallback(async () => {
         if (!newKey.trim()) {
             addLog('warning', strings.log.tags.explorer, strings.log.explorer.enterKey);
@@ -360,7 +340,6 @@ export const CacheTestScreen = () => {
         }
     }, [newKey, newValue, addLog, updateStats, loadAllRecords, strings]);
 
-    // Handle Inline Edit
     const handleUpdateRecord = useCallback(
         async (key: string, value: string) => {
             setIsRunning(true);
@@ -394,30 +373,22 @@ export const CacheTestScreen = () => {
         [addLog, updateStats, loadAllRecords, strings]
     );
 
-    // Start Inline Edit mode
     const startEditing = useCallback((key: string, currentValue: string) => {
         setEditingKey(key);
         setEditingValue(currentValue);
     }, []);
 
-    // Cancel Inline Edit mode
     const cancelEditing = useCallback(() => {
         setEditingKey(null);
         setEditingValue('');
     }, []);
 
-    // Filter records dynamically by search query
     const filteredRecords = useMemo(() => {
         if (!searchQuery.trim()) return records;
         const query = searchQuery.toLowerCase();
         return records.filter(r => r.key.toLowerCase().includes(query) || r.value.toLowerCase().includes(query));
     }, [records, searchQuery]);
 
-    // ----------------------------------------------------
-    // SQLite Scenario Actions
-    // ----------------------------------------------------
-
-    // Scenario 1: Bulk Save
     const runSqliteBulkSave = useCallback(async () => {
         setIsRunning(true);
         addLog('info', 'SQL_SAVE', strings.log.sqlSave.bulkSaving(sqliteBulkCount));
@@ -456,7 +427,6 @@ export const CacheTestScreen = () => {
         }
     }, [sqliteBulkCount, addLog, updateStats, loadAllRecords, strings]);
 
-    // Scenario 1: Bulk Fetch
     const runSqliteBulkFetch = useCallback(async () => {
         setIsRunning(true);
         addLog('info', 'SQL_FETCH', strings.log.sqlFetch.fetching);
@@ -487,7 +457,6 @@ export const CacheTestScreen = () => {
         }
     }, [addLog, updateStats, loadAllRecords, strings]);
 
-    // Scenario 1: Clear SQLite Database
     const runSqliteClear = useCallback(async () => {
         setIsRunning(true);
         addLog('warning', 'SQL_CLEAR', strings.log.sqlClear.clearing);
@@ -517,7 +486,6 @@ export const CacheTestScreen = () => {
         }
     }, [addLog, updateStats, loadAllRecords, strings]);
 
-    // Scenario 2: Concurrency Write-Consistency Verification
     const runSqliteConcurrencyTest = useCallback(async () => {
         setIsRunning(true);
         setConcurrencyResult({ status: 'running', expected: `Value-${concurrencyCount}`, actual: '', duration: 0 });
@@ -583,7 +551,6 @@ export const CacheTestScreen = () => {
         }
     }, [concurrencyCount, concurrencyKey, addLog, updateStats, loadAllRecords, strings]);
 
-    // Scenario 3: Hybrid Bridge Flooding / Stress Testing
     const runSqliteFloodTest = useCallback(async () => {
         setIsRunning(true);
         setFloodProgress(0);
@@ -710,7 +677,6 @@ export const CacheTestScreen = () => {
         }
     }, [floodCount, floodStrategy, addLog, updateStats, loadAllRecords, strings]);
 
-    // Initial Database Load
     useEffect(() => {
         addLog(
             'info',
@@ -724,7 +690,6 @@ export const CacheTestScreen = () => {
         <div className="flex h-full min-w-0 max-w-full flex-col overflow-x-hidden bg-background">
             <div className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-none">
                 <div className="flex min-w-0 max-w-full flex-col gap-3 p-4 pb-10">
-                    {/* 1. Always visible at top: status info (Status Summary) */}
                     <Section title={strings.dbStatus.sectionTitle}>
                         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                             <Metric
@@ -835,7 +800,6 @@ export const CacheTestScreen = () => {
                         )}
                     </Section>
 
-                    {/* 2. Dashboard 3-way tab selector */}
                     <Section title={strings.tabs.sectionTitle}>
                         <div className="flex w-full gap-1.5 rounded-xl bg-background p-1 border border-border">
                             {(['scenarios', 'explorer', 'logs'] as const).map(tab => (
@@ -859,12 +823,8 @@ export const CacheTestScreen = () => {
                         </div>
                     </Section>
 
-                    {/* ======================================================== */}
-                    {/* TAB 1: SCENARIOS (BENCHMARK TESTS)                       */}
-                    {/* ======================================================== */}
                     {activeTab === 'scenarios' && (
                         <>
-                            {/* Scenario 1: Large Data SQL Benchmarks */}
                             <Section title={strings.scenario1.title}>
                                 <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
                                     {strings.scenario1.description}
@@ -908,7 +868,6 @@ export const CacheTestScreen = () => {
                                 </div>
                             </Section>
 
-                            {/* Scenario 2: Concurrency Write-Consistency Verification */}
                             <Section title={strings.scenario2.title}>
                                 <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
                                     {strings.scenario2.description}
@@ -943,7 +902,6 @@ export const CacheTestScreen = () => {
                                     </div>
                                 </div>
 
-                                {/* Concurrency Result Box */}
                                 {concurrencyResult.status !== 'idle' && (
                                     <div
                                         className={`mb-4 rounded-[12px] p-3 border font-mono text-[11px] leading-relaxed ${
@@ -1002,7 +960,6 @@ export const CacheTestScreen = () => {
                                 />
                             </Section>
 
-                            {/* Scenario 3: Hybrid Bridge Flooding / Stress Testing */}
                             <Section title={strings.scenario3.title}>
                                 <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
                                     {strings.scenario3.description}
@@ -1165,16 +1122,12 @@ export const CacheTestScreen = () => {
                         </>
                     )}
 
-                    {/* ======================================================== */}
-                    {/* TAB 2: EXPLORER (SQLite REAL-TIME CRUD EXPLORER)        */}
-                    {/* ======================================================== */}
                     {activeTab === 'explorer' && (
                         <Section title={strings.explorerTab.title}>
                             <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">
                                 {strings.explorerTab.description}
                             </p>
 
-                            {/* Manual Insert Form */}
                             <div className="mb-4 rounded-xl border border-border bg-background p-3">
                                 <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
                                     <Sparkles size={11} />
@@ -1207,7 +1160,6 @@ export const CacheTestScreen = () => {
                                 </div>
                             </div>
 
-                            {/* Search and Action Bar */}
                             <div className="mb-3 flex items-center gap-2">
                                 <div className="relative flex-1">
                                     <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -1230,7 +1182,6 @@ export const CacheTestScreen = () => {
                                 </button>
                             </div>
 
-                            {/* Records List Container */}
                             <div className="overflow-y-auto rounded-xl border border-border bg-background max-h-[500px]">
                                 {isExplorerLoading && records.length === 0 ? (
                                     <div className="flex flex-col items-center justify-center py-12 gap-2">
@@ -1257,7 +1208,6 @@ export const CacheTestScreen = () => {
                                                     className="flex flex-col p-3 transition-colors hover:bg-card/50"
                                                 >
                                                     <div className="flex items-start justify-between gap-3">
-                                                        {/* Key & Value fields */}
                                                         <div className="min-w-0 flex-1">
                                                             <div className="truncate font-mono text-[11.5px] font-bold text-foreground">
                                                                 {record.key}
@@ -1303,7 +1253,6 @@ export const CacheTestScreen = () => {
                                                             )}
                                                         </div>
 
-                                                        {/* Edit Control button */}
                                                         {!isEditing && (
                                                             <button
                                                                 type="button"
@@ -1339,9 +1288,6 @@ export const CacheTestScreen = () => {
                         </Section>
                     )}
 
-                    {/* ======================================================== */}
-                    {/* TAB 3: TELEMETRY LOGS (REAL-TIME CONSOLE STREAM)          */}
-                    {/* ======================================================== */}
                     {activeTab === 'logs' && (
                         <Section title={strings.logsTab.title(logs.length)}>
                             {logs.length > 0 ? (

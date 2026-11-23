@@ -1,12 +1,5 @@
 import { defineDebugStrings } from '../define';
 
-/**
- * Strings for the pieces shared across screens (`CopyButton`, `DebugUnlockDialog`,
- * `useCopyFeedback`, `useDebugOperation`) rather than any one screen's own table.
- *
- * `operation.sentNoConfirmation` and `operation.failedPrefix` are asserted byte-for-byte by many
- * screen tests (in `en`) — do not change the `en` text.
- */
 const en = {
     copy: {
         idle: 'Copy',
@@ -22,9 +15,7 @@ const en = {
         ariaLabel: 'debug entry code',
     },
     operation: {
-        /** `${label} → sent (no confirmation)` — asserted verbatim by other workers' screen tests. */
         sentNoConfirmation: 'sent (no confirmation)',
-        /** `${label} → failed: ${message}` — the prefix is asserted verbatim by other workers' screen tests. */
         failedPrefix: 'failed',
     },
 };

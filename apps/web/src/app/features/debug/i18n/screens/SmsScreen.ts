@@ -9,7 +9,6 @@ const en = {
     defaultMessage: 'Text sent from the debug panel',
     openComposeSheet: 'Open compose sheet',
     loadContacts: 'Load contacts',
-    /** Passed to `useDebugOperation().run()` — they end up in the on-screen result line. */
     operationLabels: {
         sms: 'SMS',
         contacts: 'Contacts',

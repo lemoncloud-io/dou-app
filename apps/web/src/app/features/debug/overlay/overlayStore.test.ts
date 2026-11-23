@@ -2,7 +2,6 @@ import { debugOverlayActions, getDebugOverlayState } from './overlayStore';
 
 describe('debugOverlayStore — 오버레이 내비 상태머신', () => {
     beforeEach(() => {
-        // close() resets to the initial state, so it doubles as the test reset.
         debugOverlayActions.close();
     });
 
@@ -20,7 +19,6 @@ describe('debugOverlayStore — 오버레이 내비 상태머신', () => {
         expect(getDebugOverlayState().size).toBe('full');
     });
 
-    // Size only changes size — screen selection never flips size along with it.
     it('selectScreen은 현재 크기를 유지한 채 스크린만 연다', () => {
         debugOverlayActions.open();
         debugOverlayActions.selectScreen('LogBuffer');
@@ -31,7 +29,6 @@ describe('debugOverlayStore — 오버레이 내비 상태머신', () => {
         expect(getDebugOverlayState()).toEqual({ isOpen: true, size: 'full', screen: 'DBBrowser' });
     });
 
-    // The manifest only forces a size for screens that can't be read at dock width.
     it('매니페스트가 크기를 정한 스크린은 그 크기로 열린다', () => {
         debugOverlayActions.open();
         debugOverlayActions.selectScreen('CacheTest');

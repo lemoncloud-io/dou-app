@@ -14,17 +14,10 @@ const toast = jest.fn();
 const mockWaitUntilVerified = jest.fn();
 const isPlaceProfileAbsent = jest.fn();
 let mockSid: string | null = 'site-1';
-/** The RELAY account's role. A deeplink usually lands in a fresh device session, so guest is the default. */
 let mockIsGuest = true;
-/**
- * The ACTIVE session's role — the cloud's whenever a cloud is open. The flow must not read it; it is
- * mocked so a test can make it disagree with the relay account.
- */
 let mockActiveIsGuest = true;
-/** Which server the session is committed to — `cloud` while a cloud is open. */
 let mockActiveKind: 'relay' | 'cloud' = 'relay';
 const logoutCloudSession = jest.fn();
-/** The place the session lands on when it returns to relay. */
 let mockRelaySid: string | null = null;
 const loggerError = jest.fn();
 const loggerWarn = jest.fn();
@@ -37,12 +30,10 @@ jest.mock('@chatic/runtime', () =>
             waitUntilVerified: (...args: unknown[]) => mockWaitUntilVerified(...args),
         },
         data: {
-            // The flow only hands this to isPlaceProfileAbsent, which is mocked — an opaque token is enough.
             useRuntimeRepositories: () => ({ profile: { id: 'profile-repo' } }),
         },
         session: {
             useRuntimeProfile: () => ({ isGuest: mockActiveIsGuest }),
-            // Read at call time by the flow; `logoutCloudSession` below moves both, as the real one does.
             getGlobalSessionContext: () => ({ activeServer: { kind: mockActiveKind, siteId: mockSid } }),
         },
     })
@@ -54,8 +45,6 @@ jest.mock('@chatic/bridges', () => ({
         info: jest.fn(),
     },
 }));
-// The stack rules have their own suite (navigation/stackPolicy.test.ts); this one asserts which rule
-// an exit asks for.
 jest.mock('../../../../navigation', () => ({ useStackNavigate: () => enterStack }));
 jest.mock('../../../../runtime/useLogoutCloudSession', () => ({
     useLogoutCloudSession: () => ({ logoutCloudSession }),
@@ -66,13 +55,9 @@ jest.mock('../../../../hooks', () => ({
     useRelayInviteMutations: () => ({ getInvite, acceptInvite, rejectInvite }),
     useIsAccountGuest: () => mockIsGuest,
 }));
-// The judgement has its own suite (utils/placeProfile.test.ts). Mocked here so this one drives the
-// verdict directly instead of reconstructing get-mine responses.
 jest.mock('../../../../utils/placeProfile', () => ({
     isPlaceProfileAbsent: (...args: unknown[]) => isPlaceProfileAbsent(...args),
 }));
-// The 3-tier resolution has its own suite (useResolveInviteChannel.test.ts); mocking it here keeps this
-// one off real timers and lets it assert the hand-off instead.
 jest.mock('./useResolveInviteChannel', () => ({ useResolveInviteChannel: () => ({ resolveChannel }) }));
 jest.mock('../../../../stores/usePendingInviteChannel', () => ({
     usePendingInviteChannel: (selector: (s: unknown) => unknown) => selector({ setPendingChannel }),
@@ -80,13 +65,10 @@ jest.mock('../../../../stores/usePendingInviteChannel', () => ({
 
 const CODE = 'invt:1:secret';
 
-/** `invite.get` / `invite.accept` view. `state` is the only success signal the contract gives us. */
 const view = (over: Record<string, unknown> = {}) => ({ id: 'inv-1', state: 'pending', ...over });
 
-/** A rejected socket call. The status is recovered from the message prefix (see getSocketErrorCode). */
 const socketError = (status: number) => Object.assign(new Error(`${status} FORBIDDEN - nope`), { errorCode: status });
 
-/** Pins channel resolution open so a test can inspect the phase while it is in flight. */
 const holdResolution = () => {
     let release: (channelId: string | null) => void = () => undefined;
     resolveChannel.mockReturnValue(
@@ -105,12 +87,10 @@ beforeEach(() => {
     getInvite.mockResolvedValue(view());
     acceptInvite.mockResolvedValue(view({ state: 'accepted' }));
     rejectInvite.mockResolvedValue(view({ state: 'rejected' }));
-    // Default: a profile already exists, so the profile step stays out of the other tests' way.
     mockSid = 'site-1';
     mockIsGuest = true;
     mockActiveIsGuest = true;
     mockActiveKind = 'relay';
-    // Returning to relay moves the session onto relay's place, which a fresh browser tab does not have.
     logoutCloudSession.mockImplementation(async () => {
         mockActiveKind = 'relay';
         mockSid = mockRelaySid;
@@ -167,7 +147,6 @@ describe('useRelayInviteFlow — 진입 조회', () => {
 });
 
 describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
-    /** Pins the handshake open so a test can assert nothing was sent while it is pending. */
     const holdHandshake = () => {
         let release: (verified: boolean) => void = () => undefined;
         mockWaitUntilVerified.mockReturnValue(
@@ -182,7 +161,6 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
         const held = holdHandshake();
         const { result } = mount();
 
-        // Reproduces a cold boot: nothing must go out before the handshake finishes.
         await waitFor(() => expect(mockWaitUntilVerified).toHaveBeenCalledWith('default', 10_000));
         expect(getInvite).not.toHaveBeenCalled();
         expect(result.current.phase).toBe('loading');
@@ -194,7 +172,6 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     it('active 슬롯이 아니라 relay 슬롯을 기다린다', async () => {
         mount();
 
-        // If a cloud session is up, active is cloud — gating on the active slot would not wait for relay.
         await waitFor(() => expect(mockWaitUntilVerified).toHaveBeenCalled());
         expect(mockWaitUntilVerified.mock.calls[0][0]).toBe('default');
     });
@@ -209,7 +186,6 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     });
 
     it('분류되지 않는 실패는 generic으로 떨어뜨리되 원인을 남긴다', async () => {
-        // The "no relay slot bound" kind: since no status can be extracted, it falls to generic. Without a log, diagnosing it would be impossible.
         getInvite.mockRejectedValue(new Error('[SocketManager] no relay slot bound for request(invite.get)'));
         const { result } = mount();
 
@@ -218,8 +194,6 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     });
 });
 
-// An SMS link that resumes the iOS app lands while the relay slot still reads verified; the socket iOS
-// dropped during the suspension closes a moment later and fails everything in flight with 499.
 describe('useRelayInviteFlow — relay socket closed under a request', () => {
     const socketClosed = () => new Error('499 CLIENT CLOSED REQUEST - socket closed - relay.request(invite.get)');
     const notConnected = () => new Error('503 SOCKET NOT CONNECTED - WebSocketTransport.send()');
@@ -230,7 +204,6 @@ describe('useRelayInviteFlow — relay socket closed under a request', () => {
 
         await waitFor(() => expect(result.current.phase).toBe('review'));
         expect(getInvite).toHaveBeenCalledTimes(2);
-        // The retry waited for the relay to verify again, not just the entry's own wait.
         expect(mockWaitUntilVerified).toHaveBeenCalledTimes(2);
         expect(loggerError).not.toHaveBeenCalled();
         expect(loggerWarn).toHaveBeenCalledWith(
@@ -338,10 +311,6 @@ describe('useRelayInviteFlow — relay socket closed under a request', () => {
     });
 });
 
-// ADR-0039 amended ADR-0033 D10 to remove the profile step: only verification remains.
-// Opening a deeplink does NOT imply a device session: a social-linked main user who simply has no
-// phone yet also gets `needVerify`, and `login` from that session is a 400 ("@mode[login] is for
-// device session"). ADR-0042 §3.
 describe('useRelayInviteFlow — 인증 모드 결정', () => {
     it('게스트는 세션을 여는 login이다', async () => {
         const { result } = mount();
@@ -359,8 +328,6 @@ describe('useRelayInviteFlow — 인증 모드 결정', () => {
     });
 
     it('reads the relay account, so a guest inside a cloud still verifies with login', async () => {
-        // The active token is the cloud's: as that cloud's member the guest reads as a main user.
-        // Sent down `link`, the relay server refused the code ("main user only") with no way forward.
         mockActiveIsGuest = false;
         mockIsGuest = true;
         const { result } = mount();
@@ -389,17 +356,11 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         await waitFor(() => expect(result.current.phase).toBe('verifying'));
         expect(acceptInvite).not.toHaveBeenCalled();
 
-        // Verified: the session is now the main user, so the server stops asking.
         getInvite.mockResolvedValue(view({ needVerify: false }));
         act(() => result.current.onVerified());
         await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
     });
 
-    // The server derives `needVerify` from whether this account owns the INVITED number, so proving
-    // some other number leaves it true. Without a one-shot guard the flow bounces straight back to
-    // `verifying`, remounting the screen as a blank form with no error, forever. And a linked number
-    // cannot be swapped (no unlink endpoint; the server answers `type-linked`), so re-verifying could
-    // never clear it — the terminal notice is the only honest answer.
     it('인증을 마쳤는데도 needVerify가 남아 있으면 무한 반복 대신 번호 불일치로 끝낸다', async () => {
         getInvite.mockResolvedValue(view({ needVerify: true }));
         const { result } = mount();
@@ -408,7 +369,6 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         act(() => result.current.accept());
         await waitFor(() => expect(result.current.phase).toBe('verifying'));
 
-        // Proved a number, but not the invited one — the server still wants a proof.
         act(() => result.current.onVerified());
 
         await waitFor(() => expect(result.current.notice).toBe('wrongNumber'));
@@ -416,10 +376,6 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         expect(acceptInvite).not.toHaveBeenCalled();
     });
 
-    // A `link` confirm commits the number irreversibly (no unlink endpoint), and the server only
-    // cross-checks the invite on a `login` send — so `last4` is the whole of the check on this path.
-    // Without it there is nothing to check against, and proceeding could permanently attach a number
-    // that is not the invited one.
     it('link 모드인데 초대에 last4가 없으면 대조할 수단이 없으므로 인증을 시작하지 않는다', async () => {
         mockIsGuest = false;
         getInvite.mockResolvedValue(view({ needVerify: true, last4: undefined }));
@@ -463,12 +419,9 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         act(() => result.current.onProfileSaved());
 
         await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
-        // Re-validated on the way back in: entry read + accept attempt + post-save attempt.
         expect(getInvite).toHaveBeenCalledTimes(3);
     });
 
-    // The X appears only after a failed save (the view decides that); taking it goes on into the
-    // accept without a profile instead of back to the review screen.
     it('accepts without a profile when the profile step is skipped', async () => {
         isPlaceProfileAbsent.mockResolvedValue(true);
         const { result } = mount();
@@ -492,7 +445,6 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
 
         act(() => result.current.onProfileSaved());
 
-        // Still "absent" as far as the judgement knows, yet the accept goes through.
         await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
     });
 
@@ -572,10 +524,6 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         expect(result.current.phase).toBe('review');
     });
 
-    // setMyProfile requires a sid, but this route has no code that establishes one (in the browser
-    // it's sessionStorage, so a fresh tab leaves even an existing user empty). Gating on it would make
-    // the save inside the dialog throw and leave the invite permanently unacceptable, so the step is
-    // skipped when there's no sid.
     it('활성 사이트가 없으면 프로필을 묻지 않고 수락한다 (수락 불가 방지)', async () => {
         mockSid = null;
         isPlaceProfileAbsent.mockResolvedValue(true);
@@ -598,31 +546,25 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         act(() => result.current.cancelStep());
         act(() => result.current.accept());
 
-        // It was never saved, so profileSavedRef never gets set — the second attempt also requires a profile.
         await waitFor(() => expect(result.current.phase).toBe('profiling'));
         expect(isPlaceProfileAbsent).toHaveBeenCalledTimes(2);
         expect(acceptInvite).not.toHaveBeenCalled();
     });
 
-    // Promotion changes identity: a profile saved as the device user says nothing about the main
-    // user's site, so the judgment has to be re-made after verification — otherwise it gets accepted with no name.
     it('인증을 지나면 저장 기록을 버리고 프로필을 다시 판정한다', async () => {
         isPlaceProfileAbsent.mockResolvedValue(true);
         const { result } = mount();
         await waitFor(() => expect(result.current.phase).toBe('review'));
 
-        // Enters with needVerify=false and saves the profile first.
         act(() => result.current.accept());
         await waitFor(() => expect(result.current.phase).toBe('profiling'));
         act(() => result.current.onProfileSaved());
 
-        // Accept comes back 403 — still a device user → route to verification.
         acceptInvite.mockRejectedValueOnce(socketError(403));
         await waitFor(() => expect(result.current.phase).toBe('verifying'));
 
         act(() => result.current.onVerified());
 
-        // The promoted identity has no profile, so it must be required again before accepting.
         await waitFor(() => expect(result.current.phase).toBe('profiling'));
         expect(acceptInvite).toHaveBeenCalledTimes(1);
     });
@@ -649,8 +591,6 @@ describe('useRelayInviteFlow — 수락 결과', () => {
         act(() => result.current.accept());
 
         await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-new'));
-        // The rule rewinds onto the screen under the accept screen, where the layout opens the room.
-        // Replacing with home put a second home above the one the shell loads first.
         expect(enterStack).toHaveBeenCalledWith('deeplink', '/');
         expect(toast).not.toHaveBeenCalled();
     });
@@ -710,8 +650,6 @@ describe('useRelayInviteFlow — 수락 결과', () => {
         await waitFor(() => expect(result.current.phase).toBe('review'));
 
         act(() => result.current.accept());
-        // Resolution is still in flight — with tier 1 in hand there is nothing to wait for, so the
-        // spinner phase must never be entered.
         await waitFor(() => expect(resolveChannel).toHaveBeenCalled());
         expect(result.current.phase).not.toBe('awaitingChannel');
 
@@ -762,9 +700,6 @@ describe('useRelayInviteFlow — 수락 결과', () => {
         await waitFor(() => expect(result.current.notice).toBe('wrongNumber'));
     });
 
-    // The server just said it does not see a main user; that beats the role cache, which falls back
-    // to "main user" whenever the role is unknown and reads the CLOUD token while a cloud is active.
-    // Re-deriving `link` from a stale `isGuest: false` here would 403 the send with no way out.
     it('403으로 인증에 보내질 때는 role 캐시와 무관하게 login으로 고정한다', async () => {
         mockIsGuest = false;
         acceptInvite.mockRejectedValue(socketError(403));
@@ -815,14 +750,11 @@ describe('useRelayInviteFlow — 다시 시도', () => {
 
         act(() => result.current.retry());
 
-        // Re-validation, not resumption: generic means we don't know what went wrong, so it re-reads the state from scratch.
         await waitFor(() => expect(result.current.phase).toBe('review'));
         expect(acceptInvite).toHaveBeenCalledTimes(1);
     });
 
     it('다시 시도 직후의 닫기 신호는 홈으로 보내지 않는다', async () => {
-        // AlertDialog fires onOpenChange(false) right after the confirm callback. If that gets read as
-        // a dismiss, it bounces to home while the re-fetch is still in flight.
         getInvite.mockRejectedValueOnce(new Error('500 INTERNAL'));
         const { result } = mount();
         await waitFor(() => expect(result.current.notice).toBe('generic'));
@@ -912,12 +844,6 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
         expect(result.current.isRejecting).toBe(false);
     });
 
-    // It's `alreadyJoined` ("이미 참여한 초대입니다" — you've already joined this invite), not `taken`
-    // ("다른 사용자가 먼저 초대를 수락했습니다" — someone else already accepted the invite). Reject's 409
-    // is thrown by `reject-invite.ts` only for an already-accepted invite, and a 1:1 invite is bound to
-    // a phone hash, so the only person who could have accepted it is this same user (on another
-    // device) — a notice implying someone else got there first would not be true, and it would hide
-    // the notice that's actually needed ("채팅방에서 이어가세요" — continue in the chat room).
     it('409(이미 수락)는 alreadyJoined 안내다 — 가로챈 남이 아니라 본인이 수락한 것이다', async () => {
         rejectInvite.mockRejectedValue(socketError(409));
         const { result } = mount();
@@ -1046,7 +972,6 @@ describe('useRelayInviteFlow — accepting from inside a cloud', () => {
 
         await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
         expect(logoutCloudSession).toHaveBeenCalledTimes(1);
-        // Back on relay with no place selected, the precondition is skipped rather than run against the cloud.
         expect(isPlaceProfileAbsent).not.toHaveBeenCalled();
     });
 

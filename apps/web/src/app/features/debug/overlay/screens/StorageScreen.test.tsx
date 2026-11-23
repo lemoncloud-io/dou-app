@@ -23,8 +23,6 @@ jest.mock('@chatic/bridges', () => ({
     isNative: () => native,
     logger: { warn: jest.fn(), info: jest.fn() },
 }));
-// The real one reads the host profile, which the bridges mock above leaves out; outside the shell it
-// answers undefined, the same as here.
 jest.mock('../../../../runtime/launchSessionOwner', () => ({ readLaunchSessionOwner: () => undefined }));
 const requestSyncCursorReset = jest.fn(async () => undefined);
 jest.mock('@chatic/runtime', () =>
@@ -114,7 +112,6 @@ describe('StorageScreen', () => {
         await waitFor(() => expect(navigate).toHaveBeenCalledWith('reload'));
         expect(clearNativeCache).toHaveBeenCalledWith(false);
         expect(requestSyncCursorReset).toHaveBeenCalledTimes(1);
-        // A native clear leaves the session in the WebView alone.
         expect(env.localStorage.length).toBe(3);
     });
 
@@ -157,7 +154,6 @@ describe('StorageScreen', () => {
         await clickTwice('Clear web cache');
 
         await waitFor(() => expect(navigate).toHaveBeenCalledWith('root'));
-        // Everything but the unsent logs.
         expect(env.localStorage.length).toBe(1);
         expect(env.localStorage.key(0)).toBe('@chatic/web.log.pending.1');
         expect(env.sessionStorage.length).toBe(0);

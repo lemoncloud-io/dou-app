@@ -8,13 +8,6 @@ import { shellCapabilities } from '../../../../bridge/shellCapabilities';
 import { Section } from '../../components/Section';
 import { useSubWebViewScreenStrings } from '../../i18n/screens/SubWebViewScreen';
 
-/**
- * Opens a sub WebView by hand and shows the whole round trip: where the page went, its `viewId`,
- * and the `OnSubWebViewClosed` that comes back with its reason and `result`. The Bridge screen can
- * send `OpenSubWebView` too, but it shows no event, so the close — the half a page's `result` rides
- * on — would go unseen.
- */
-
 interface LogLine {
     id: number;
     ok: boolean;
@@ -24,10 +17,8 @@ interface LogLine {
 
 const MAX_LOGS = 20;
 
-/** The page deployed for trying the sub WebView in a dev build; editable, so any other page works too. */
 export const DEFAULT_PAGE_URL = 'https://dou-raise.apps-dev.chatic.io/';
 
-/** `undefined` for an empty field, the object for a JSON object, an `Error` for anything else. */
 export const parseParams = (raw: string): SubWebViewParams | undefined | Error => {
     if (!raw.trim()) return undefined;
     try {
@@ -57,7 +48,6 @@ export const SubWebViewScreen = () => {
         []
     );
 
-    // Every close is logged, not only the views this screen opened. A host with no sub web view has none.
     useEffect(
         () =>
             runtime.links.subWebView?.onClosed(closed => {

@@ -30,11 +30,8 @@ describe('resolveInviteAcceptRedirect', () => {
     });
 
     it('초대로 인정되지 않는 반쪽 링크도 null이다', () => {
-        // Only the provider marker is present, no code.
         expect(resolveInviteAcceptRedirect('?provider=invite')).toBeNull();
-        // A code is present, but there's no destination (_backend / relay), so where to accept it is unknown.
         expect(resolveInviteAcceptRedirect('?provider=invite&code=abc')).toBeNull();
-        // A code with no invite marker could belong to someone else's parameters, e.g. an OAuth callback.
         expect(resolveInviteAcceptRedirect('?code=abc&relay=1')).toBeNull();
     });
 });

@@ -8,23 +8,16 @@ import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { useStateScreenStrings } from '../../i18n/screens/StateScreen';
 
-/** Read-only snapshot of session/server/socket state (singleton stores, router-independent). */
 export const StateScreen = () => {
     const t = useStateScreenStrings();
     const session = runtime.session.useGlobalSession();
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
     const socketState = runtime.connection.useRuntimeSocketState();
     const facts = runtime.session.useRuntimeProfile();
-    // Socket identity and push registration must share these exact ids (useDynamicDeviceId's
-    // docblock), and a mismatch shows up as "push goes to the wrong install" — so read them here.
     const { deviceId, firebaseInstallationId } = runtime.session.useDynamicDeviceId();
     const { relay, cloud, identity, activeServer } = session;
-    // Every socket slot, not only the active one: background clouds hold their own connections, and
-    // a reconnect storm on one of them never reaches `socketState`.
     const slots = useSlotStatuses();
 
-    // Copied as JSON, not as the rendered rows: this gets pasted into an issue, where the shape
-    // matters more than the layout. Built at click time — these stores move while the panel is open.
     const snapshot = useCallback(
         () =>
             JSON.stringify(

@@ -4,7 +4,6 @@ import { render, screen } from '@testing-library/react';
 
 import { InviteAcceptPage } from './InviteAcceptPage';
 
-// Mutable per-test fixtures (must be `mock`-prefixed to be usable inside jest.mock factories).
 let mockSearch = '';
 let mockIsAuthenticated = true;
 
@@ -22,8 +21,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('../../../hooks/useBackHandler', () => ({ useBackHandler: () => mockBackHandler() }));
-// Every branch is stubbed to a sentinel: this suite is about which one the deeplink picks, and
-// mounting any of them for real would drag in its data layer.
 jest.mock('./components', () => ({
     CloudInviteAccept: () => <div>cloud-branch</div>,
     RelayInviteAccept: ({ code }: { code: string }) => <div>relay-branch:{code}</div>,
@@ -87,8 +84,6 @@ describe('InviteAcceptPage — 진입 조건', () => {
 
 describe('InviteAcceptPage — 인증 전 도착', () => {
     it('세션이 아직 없으면 로딩 화면을 띄우고 어떤 수락 흐름도 시작하지 않는다', () => {
-        // Firing a relay-pinned invite.get before the handshake rejects as an unclassified failure,
-        // which surfaces as a useless "generic" dialog on a perfectly valid invite.
         mockIsAuthenticated = false;
         mockSearch = RELAY;
         render(<InviteAcceptPage />);

@@ -1,11 +1,5 @@
 import { defineDebugStrings } from '../define';
 
-/**
- * `TTFB`/`FCP`/`LCP`-style Web Vitals codes aren't here — those are standardized abbreviations,
- * identical in both languages, and this screen has none of its own anyway. Log `level` values
- * (`debug`/`info`/`warn`/`error`) and log `tag`s also stay inline in the component: they are the
- * literal values the app itself logs with, not panel copy.
- */
 const en = {
     status: {
         title: 'Status',
@@ -20,8 +14,6 @@ const en = {
         queueNoteApp: "The app's unsent queue (non-debug only). debug-level logs stay in the console only.",
         queueNoteWeb: "This tab's unsent queue (non-debug only). debug-level logs stay in the console only.",
     },
-    // Action names fed into the "Last Action" readout below (`{action} requested/received/failed`)
-    // — the same word doubles as the log tag under `LOG_BUFFER`, so it stays a short verb/noun.
     actions: {
         idle: 'Idle',
         fetch: 'Fetch',

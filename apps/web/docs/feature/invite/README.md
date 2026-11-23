@@ -84,6 +84,26 @@ because the relay server needs none, so `buildInviteEntryParams` detects that an
 explicit `relay=1`. Everything downstream gates on the marker and never has to infer relay from a
 missing `_backend`; `InviteAcceptPage` branches on it and does nothing else.
 
+Two link formats reach that conversion, and they have two functions on purpose. `/s?code=…` spreads
+the target across params: a cloud link carries `code` plus either `api` and `stage` (composed into
+`https://<api>.execute-api.ap-northeast-2.amazonaws.com/<stage>`) or a ready-made `backend`, and a
+half-specified address is an error. `/i?t=<token>` carries one opaque token with an explicit relay
+flag inside it. They are not merged because the `/s` rule applied to a `/i` payload would read a cloud
+invite that arrived without coordinates as "no address, so relay" and send it to the relay server;
+in `/i` such a link is passed on unmarked and never guessed as relay. Both emit the same params for
+the same invite, which `inviteEntryParity.test.ts` pins, so everything downstream sees one shape. Both
+also carry through whatever they did not consume (`utm_*`, `ref`) so campaign attribution survives
+the hop, and the `/s` rule is the one the debug panel's link converter calls, so the two cannot
+drift.
+
+Detection downstream is by presence, not value: emitters send `relay=1`, but a hand-typed bare
+`&relay` parses to an empty string and still counts. `isInviteEntry` wants `provider=invite`, a
+`code`, and either `_backend` or the relay marker; `isRelayInvite` is that plus the marker. Both
+kinds share the `invt:<id>:<code>` shape, so the marker is the only discriminator available up
+front, and a link that loses it on the way through the landing page or the native layer degrades to
+the cloud lane rather than failing. A visit to `/invite/accept` with no usable invite goes to the
+root, and the page calls no data hooks of its own, so a relay link never fires the cloud lookup.
+
 `/invite/accept` is registered in `commonRoutes`, so it renders in both auth states and sits outside
 `UnifiedLayout`. Both halves matter. An invite deeplink routinely lands before the background guest
 login finishes, and a private path would fall to the `*` catch-all and take the query string with
@@ -172,6 +192,19 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   ordinary re-issued switch. That one is relay-signed, and an app opened cold by the invite link has a
   stale relay credential for its first seconds, so a switch that gets no HTTP answer is retried
   three times over seven seconds.
+- **Failures are named by the step they happened in, and by message.** `resolveInviteErrorKey` checks
+  a timeout and a network error first, since either can occur in any step. During the invite lookup
+  and login, `grace-timeout` is `alreadyUsed`, `400`/`404` is `expired`, and `401`/`403` is an
+  authorization failure; a failure in any later step is "could not enter". On the cloud lane, server
+  errors arrive as HTTP-200 bodies such as `"400 INVALID - …"`, so this is the one place rule 2
+  (never message text) cannot hold, and it matches the status code as a substring.
+- **Dialogs are few.** Only two failures are told apart, from the backend's messages: `expired`
+  and `alreadyJoined` (a link whose grace period has passed). The room-deleted and invite-canceled
+  copy exists but nothing triggers it, because the cloud lane has no error code for them, so they
+  read as `generic`. A missing device credential (`missingDelegator`) is its own dialog whose action
+  logs out and keeps the URL; it is not a dismissal to home.
+- **Dismissal is blocked while accepting.** X, escape and the overlay do nothing in flight, since a
+  mid-accept dismissal would strip the URL and swallow a later failure dialog.
 - **Accept stays busy for the whole pipeline**, not only while a step's own call is in flight — the
   place lookup and the profile check included — so a second press cannot start a second pipeline.
 - **Accept is not offered until the invite has been read.** The pipeline takes the cloud, the place
@@ -243,6 +276,24 @@ themselves is followed. A key is left out when there is nothing to say, and a bl
 
 The names exist only on a backend that has taken the change. A cloud that has not shows the nameless
 heading and a caption-only card, which is complete rather than broken; the app ships after the backend.
+
+## Constraints on the accept surface
+
+- **No `backdrop-filter` on the invite surface.** The glass look is a green bloom, a tint and
+  translucent cards; blurring any of it only blurs a few wide gradients and was measured at about 1%
+  per channel difference on the simulator. On an iOS device the blur made opening an invite flash
+  black down the right edge, because WebKit sizes a freshly mounted backdrop layer on a later
+  composite than the one that paints its box, and this screen mounts a full-viewport one twice in a
+  row (the loading surface, then the invitation).
+- **Names are free text, so the heading and place card break anywhere.** `break-keep` alone refuses
+  to split a Korean run, which makes the whole run the element's minimum width and lets it outgrow its
+  column. They pair it with `overflow-wrap: anywhere`.
+- **The loading view wears the same surface.** It is the first thing an invited person sees of the
+  app, so it shares the accept screen's surface instead of being a neutral spinner.
+- **The phone-verify step is lazy.** The accept page is eager (the invitee's first screen) and is the
+  only eager consumer of `libphonenumber-js`; importing the verify step statically put roughly 35 kB
+  gzip of number metadata into the initial chunk. `verifying` is never the first phase, so the
+  fetch happens off the cold path.
 
 ## Leaving the accept screen, and opening the room
 

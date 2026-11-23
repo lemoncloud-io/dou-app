@@ -28,7 +28,6 @@ const en = {
         loading: 'Loading…',
         failed: (message: string) => `Failed: ${message}`,
         notCached: 'Not in the cache',
-        /** The server reads go through the repository, which writes what comes back. */
         serverWritesCache: 'Server reads also update the cache, like the app’s own reads.',
     },
 };

@@ -35,7 +35,6 @@ describe('useDebugOperation', () => {
         expect(result.current.result).toBe('Clear → ok');
     });
 
-    // An older app version rejects when it doesn't know the command. Not smoothing a failure over as a success is the whole point of this hook.
     it('reject는 실패로 적는다', async () => {
         const { result } = renderHook(() => useDebugOperation());
 
@@ -52,7 +51,6 @@ describe('useDebugOperation', () => {
         expect(result.current.result?.length).toBeLessThan(430);
     });
 
-    // A post-based command gets no reply — pretending it was acknowledged would violate decision 10.
     it('fire는 확인이 없다는 사실을 밝힌다', () => {
         const operation = jest.fn();
         const { result } = renderHook(() => useDebugOperation());

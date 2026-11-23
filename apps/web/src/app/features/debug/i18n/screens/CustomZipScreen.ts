@@ -13,7 +13,6 @@ const en = {
     apply: 'Apply',
     turnOff: 'Turn off',
     refresh: 'Refresh',
-    /** Labels passed to `run` — shown as the operation name in the result line. */
     operations: {
         applyZip: 'Apply zip',
         revertToDefault: 'Revert to default web',

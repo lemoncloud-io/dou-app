@@ -7,13 +7,8 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { ROUTES } from '../../../routes/paths';
 import { InviteLinkView } from '../../channels/components/InviteLinkView';
 
-/** home → place invite → here: closing pops both, back to home. */
 const FLOW_DEPTH = 2;
 
-/**
- * The place invite's link screen — the room invite's link screen, naming the place. The link rides
- * in route state; if it is lost (a reload), there is nothing to show and this goes home.
- */
 export const PlaceInviteLinkPage = () => {
     const navigate = useNavigateWithTransition();
     const { placeId } = useParams<{ placeId: string }>();

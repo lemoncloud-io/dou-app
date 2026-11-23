@@ -6,9 +6,6 @@ import {
     type DebugSharedObservation,
 } from './sharedObservationStore';
 
-// The mirror that lets the out-of-tree overlay read the app's shared observations. What matters here
-// is only the store contract — a missing publish must read as null (the tabs branch on it), and a
-// re-publish of the same objects must not wake subscribers.
 const activeCloud = {
     channels: [],
     isLoaded: true,
@@ -59,8 +56,6 @@ describe('sharedObservationStore — 오버레이가 읽는 공유 관측 미러
         const listener = jest.fn();
         subscribeDebugObservation(listener);
 
-        // The reporter publishes from an effect on every provider re-render; an unchanged pair must
-        // not re-render the tabs.
         publishDebugObservation({ activeCloud, otherCloud });
         expect(listener).not.toHaveBeenCalled();
     });
@@ -76,8 +71,6 @@ describe('sharedObservationStore — 오버레이가 읽는 공유 관측 미러
         const listener = jest.fn();
         subscribeDebugObservation(listener);
 
-        // The equality check covers every slot, so a room published beside unchanged cloud slots
-        // still reaches the Room screen.
         publishDebugObservation({ room });
         expect(listener).toHaveBeenCalledTimes(1);
 

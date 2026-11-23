@@ -8,22 +8,9 @@ import { buildAppDeeplink } from '../../lib';
 import { appBridge } from '../../../../bridge';
 import { useDeeplinkScreenStrings } from '../../i18n/screens/DeeplinkScreen';
 
-/**
- * Hands the app a deeplink as if the OS had just delivered one — the app's Deeplink Test screen,
- * moved here (ADR-0080 decision 11).
- *
- * `openURL` is the whole mechanism: the OS resolves the scheme back to this app, so the routing
- * that runs is the same routing a real invite link or push tap triggers. No dedicated command
- * exists because none is needed (see `OpenURLPayload`).
- *
- * Different tool from "Invite link conversion": that one converts a share link and navigates the WEB, this one
- * exercises the APP's inbound routing.
- */
 const PRESET_INPUTS = [
     { key: 'home', input: '/home' },
     { key: 'chatList', input: '/chats' },
-    // Absolute on purpose: verifying the other channel's scheme does NOT capture this build is a
-    // case worth running, and `buildAppDeeplink` passes an explicit scheme through untouched.
     { key: 'prodCrossCheck', input: 'chatic://s' },
     { key: 'devCrossCheck', input: 'chatic-dev://s' },
 ] as const;
@@ -39,9 +26,6 @@ export const DeeplinkScreen = () => {
             const url = buildAppDeeplink(raw);
             if (!url) return;
             appBridge.openURL(url);
-            // `openURL` is fire-and-forget (`webClient.post`), so this line records what was SENT.
-            // Whether the app routed it shows up in the app itself — saying "Routed" here would be a
-            // claim this screen cannot make.
             setLog(prev => [`${new Date().toLocaleTimeString()}  ${strings.sentLine(url)}`, ...prev].slice(0, 20));
         },
         [strings]

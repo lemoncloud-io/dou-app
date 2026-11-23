@@ -65,6 +65,11 @@ them "someone else got there first" would be false and would hide the one thing 
 
 `generic` is the only notice offering a retry, because it is the only one that might not be true.
 
+The four terminal states that arrive as a `state` slip past every catch in the hook, so they are
+logged explicitly, at `warn` and not `error`: a lapsed or already-used invitation is an ordinary
+ending, not a malfunction. They are recorded with the stage they were seen in (entry read or
+re-validation).
+
 ### `advance()` re-validates, structurally
 
 `review` is the only phase a user acts from, and both actions leave it through one function:
@@ -228,6 +233,14 @@ The last ten minutes switch to a spaced clock counting by the second, `00 : 09 :
 and an expired link stays on `00 : 00 : 00 남음` in red. The lifetime is the record's `expiredAt`:
 links this app issues live 24 hours, and so does the server's own default, so the day unit shows only for a
 link issued by an older server.
+
+Three details keep the countdown from lying. Seconds round **up**, so `00 : 00 : 00` is reserved for a
+link that has really expired and a live link with 400 ms left reads `00 : 00 : 01`. "Imminent" is
+compared in milliseconds, not in floored minutes, since `totalMinutes <= 10` would also hold at
+10:59, which shows now that the card counts by the second. And each tick is scheduled onto the instant
+the displayed value next changes, not on a fixed interval, so a late timer cannot freeze the seconds
+for two ticks and then jump by two; a minute tick never sleeps past the imminent edge, where the
+second tick takes over. Nothing ticks after expiry, and a missing `expiredAt` hides the card.
 
 ### Declining
 

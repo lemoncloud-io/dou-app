@@ -13,7 +13,6 @@ const en = {
     exchangeLog: (count: number) => `Exchange log (${count})`,
     noCommandsSentYet: 'No commands sent yet',
     payloadParseFailed: (message: string) => `payload parse failed: ${message}`,
-    /** Logged for `post` calls this screen sends by hand — distinct from the shared hook's own text. */
     sentNoConfirmation: 'Sent (no confirmation)',
 };
 

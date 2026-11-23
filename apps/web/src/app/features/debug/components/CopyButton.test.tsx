@@ -9,11 +9,6 @@ import { setDebugLanguageForTests } from '../i18n';
 const copyTextWithResult = jest.fn();
 jest.mock('../lib/copyText', () => ({ copyTextWithResult: (value: string) => copyTextWithResult(value) }));
 
-/**
- * What this pins is that the indicator cannot lie: the "Copied" label appears only when the copy
- * actually resolved true. A silent button is indistinguishable from a broken one on a device, and
- * a button that always claims success is worse than silent.
- */
 describe('CopyButton — 복사와 피드백', () => {
     let restoreLanguage: () => void;
 
@@ -43,7 +38,6 @@ describe('CopyButton — 복사와 피드백', () => {
     });
 
     it('누르는 시점의 값을 복사한다', async () => {
-        // Screens poll every second — this must capture the value at the moment of the click, not the last render.
         let current = 'first';
         render(<CopyButton value={() => current} />);
 
@@ -64,14 +58,12 @@ describe('CopyButton — 복사와 피드백', () => {
     });
 
     it('실패하면 실패라고 말한다', async () => {
-        // A WebView with no navigator.clipboard, or a shell that rejects the copy.
         copyTextWithResult.mockResolvedValue(false);
         render(<CopyButton value={() => 'x'} />);
 
         await clickIt();
 
         await waitFor(() => expect(screen.getByRole('button')).toHaveTextContent('Copy failed'));
-        // This stays longer than success does — it's the one that needs to be read.
         act(() => jest.advanceTimersByTime(1500));
         expect(screen.getByRole('button')).toHaveTextContent('Copy failed');
         act(() => jest.advanceTimersByTime(1500));

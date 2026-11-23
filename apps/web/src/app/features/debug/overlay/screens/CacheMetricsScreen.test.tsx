@@ -25,7 +25,7 @@ jest.mock('../../lib', () => ({ copyText: jest.fn() }));
 
 const metrics = read;
 
-const dataRows = () => screen.getAllByRole('row').slice(1); // drop the header row
+const dataRows = () => screen.getAllByRole('row').slice(1);
 
 describe('CacheMetricsScreen', () => {
     let restoreLanguage: () => void;
@@ -42,20 +42,16 @@ describe('CacheMetricsScreen', () => {
         expect(screen.getByText('No calls recorded yet.')).toBeInTheDocument();
     });
 
-    // The whole point of this screen is that sort order is by cumulative time (count × avg), not
-    // average — a fast but frequently-called call must rank above a slow but rare one for the
-    // observer re-fetch pattern to stand out.
     it('평균이 아니라 누적 시간 순으로 정렬한다', async () => {
         metrics.mockResolvedValue({
             totalOps: 201,
             operations: {
-                'loadAll:chat': { count: 1, avgMs: 300, maxMs: 300 }, // slow but rare → cumulative 300
-                'load:channel': { count: 200, avgMs: 5, maxMs: 40 }, // fast but frequent → cumulative 1000
+                'loadAll:chat': { count: 1, avgMs: 300, maxMs: 300 },
+                'load:channel': { count: 200, avgMs: 5, maxMs: 40 },
             },
         });
 
         render(<CacheMetricsScreen />);
-        // The counts are read through the runtime, which answers asynchronously.
         await screen.findByText('load:channel');
 
         const rows = dataRows();

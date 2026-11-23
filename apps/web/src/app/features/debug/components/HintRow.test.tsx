@@ -5,11 +5,6 @@ import userEvent from '@testing-library/user-event';
 
 import { HintRow } from './HintRow';
 
-/**
- * The two ways in are the contract. A hover-only tooltip would be invisible on the devices this
- * panel is actually used on, and Radix's Tooltip is hover-only by design (it closes on
- * `pointerdown`), which is why this component exists instead.
- */
 describe('HintRow — 설명이 붙은 행', () => {
     it('라벨과 값을 보여주고 설명은 접어둔다', () => {
         render(<HintRow label="깊이" value="2칸" hint="앱이 쌓은 항목 수입니다." />);

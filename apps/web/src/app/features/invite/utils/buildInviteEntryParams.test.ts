@@ -23,7 +23,6 @@ describe('buildInviteEntryParams', () => {
     });
 
     it('relay 플래그가 있으면 relay=1을 붙이고 _backend는 넣지 않는다', () => {
-        // A bare `&relay` reads as an empty string, so presence — not truthiness — is the discriminator.
         for (const search of ['?code=c&relay', '?code=c&relay=', '?relay&code=c']) {
             const params = buildInviteEntryParams(search);
             expect(params.get('relay')).toBe('1');
@@ -32,7 +31,6 @@ describe('buildInviteEntryParams', () => {
     });
 
     it('주소 파라미터가 하나도 없는 code-only 링크도 릴레이로 판정한다', () => {
-        // The relay server carries no api/stage/backend, so absence of an address IS the relay signal.
         const params = buildInviteEntryParams('?code=invt%3A1000072-2%3Ae3faf0d0');
 
         expect(params.get('code')).toBe('invt:1000072-2:e3faf0d0');
@@ -49,14 +47,12 @@ describe('buildInviteEntryParams', () => {
 
         expect(params.get('utm_source')).toBe('kakao');
         expect(params.get('ref')).toBe('friend');
-        // A utm parameter isn't an address parameter, so this is still relay.
         expect(params.get('relay')).toBe('1');
     });
 
     it('code가 없거나 클라우드 주소가 반쪽이면 에러를 던진다', () => {
         expect(() => buildInviteEntryParams('?api=x&stage=dev')).toThrow('code');
         expect(() => buildInviteEntryParams('?relay')).toThrow('code');
-        // A half address is a broken cloud link, not a relay link — it must not silently fall through to relay.
         expect(() => buildInviteEntryParams('?code=c&stage=dev')).toThrow('api or backend');
         expect(() => buildInviteEntryParams('?code=c&api=x')).toThrow('stage');
     });

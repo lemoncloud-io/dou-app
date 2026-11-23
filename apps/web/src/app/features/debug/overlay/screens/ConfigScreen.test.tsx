@@ -18,8 +18,6 @@ jest.mock('@chatic/runtime', () =>
         },
     })
 );
-// The screen copies through `CopyButton`, which awaits the real outcome so its indicator cannot
-// lie — so the spy sits on `copyTextWithResult` rather than the fire-and-forget `copyText`.
 const copyTextWithResult = jest.fn().mockResolvedValue(true);
 jest.mock('../../lib/copyText', () => ({
     copyTextWithResult: (t: string) => copyTextWithResult(t),
@@ -65,7 +63,6 @@ describe('ConfigScreen', () => {
 
     afterEach(() => restoreLanguage());
 
-    // The dotted key is an implementation detail — the registry already has a human-readable name and a one-sentence description.
     it('키 대신 이름과 설명, 값과 이긴 행을 보여준다', () => {
         render(<ConfigScreen />);
 
@@ -87,7 +84,6 @@ describe('ConfigScreen', () => {
         expect(screen.getByText('Rest (1)')).toBeInTheDocument();
     });
 
-    // Prevents the circularity of the lock screen containing the lock switch itself (ADR-0080 decision 6).
     it('meta 키는 렌더하지 않는다', () => {
         snapshotAll.mockReturnValue([
             snap({ key: 'system.overridesUnlocked', entry: { ...snap().entry, meta: true } }),
@@ -97,7 +93,6 @@ describe('ConfigScreen', () => {
         expect(screen.queryByText('로그 업로드 보류')).not.toBeInTheDocument();
     });
 
-    // It's a credential, and this screen is copyable (ADR-0079 decision 16).
     it('debug.entryCode 는 제외한다', () => {
         snapshotAll.mockReturnValue([snap({ key: 'debug.entryCode', value: '1234' })]);
         render(<ConfigScreen />);
@@ -112,14 +107,12 @@ describe('ConfigScreen', () => {
         ]);
         render(<ConfigScreen />);
 
-        // The key isn't shown on screen, but it still works as a search term.
         await userEvent.type(screen.getByPlaceholderText(/Search/), 'relay');
         expect(screen.getByText('릴레이 주소')).toBeInTheDocument();
 
         expect(screen.queryByText('로그 업로드 보류')).not.toBeInTheDocument();
     });
 
-    // Just showing an empty list when the registry is missing would read as "there is no configuration".
     it('레지스트리가 배선 전이면 그 사실을 말한다', () => {
         snapshotAll.mockReturnValue([]);
         render(<ConfigScreen />);
@@ -135,7 +128,6 @@ describe('ConfigScreen', () => {
         expect(copyTextWithResult).toHaveBeenCalledWith(expect.stringContaining('"origin": "local"'));
     });
 
-    // This is why a key tuned by a number, like retry count or timeout, belongs on this screen.
     it('숫자 키는 값을 입력해 로컬 레인에 쓴다', async () => {
         snapshotAll.mockReturnValue([numberSnap()]);
         render(<ConfigScreen />);
@@ -181,7 +173,6 @@ describe('ConfigScreen', () => {
         expect(clear).toHaveBeenCalledWith('log.upload.hold', { lane: 'local' });
     });
 
-    // A rejection arrives as a reason, not an exception — a control that did nothing must say why.
     it('거부되면 이유를 그대로 보여준다', async () => {
         set.mockReturnValue({ ok: false, reason: 'locked' });
         render(<ConfigScreen />);
@@ -192,7 +183,6 @@ describe('ConfigScreen', () => {
         expect(screen.getByText('Override lock is on')).toBeInTheDocument();
     });
 
-    // Rendering a control for a key that can't be written would make the person pressing it think it changed.
     it('이 기기가 못 쓰는 키는 컨트롤 대신 이유를 보여준다', async () => {
         snapshotAll.mockReturnValue([snap({ canWrite: ['shell'] })]);
         render(<ConfigScreen />);
@@ -222,7 +212,6 @@ describe('ConfigScreen', () => {
     });
 });
 
-// Confirms the mock is actually used — references config directly so the import doesn't get dropped as dead.
 it('config 파사드를 통해 읽는다', () => {
     expect(typeof runtime.settings.snapshotAll).toBe('function');
 });

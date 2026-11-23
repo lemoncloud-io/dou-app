@@ -41,7 +41,6 @@ describe('SessionOwnerScreen', () => {
         expect(await screen.findByText('This run')).toBeInTheDocument();
         expect(screen.getAllByText('Page (web)').length).toBeGreaterThan(0);
         expect(screen.getByRole('button', { name: 'App (native)' })).toHaveAttribute('aria-pressed', 'true');
-        // The page has settled no owner here (outside the app), so there is no row for it.
         expect(screen.queryByText('This page')).not.toBeInTheDocument();
     });
 
@@ -59,7 +58,6 @@ describe('SessionOwnerScreen', () => {
         expect(await screen.findByText('Mirrors the app’s runtime')).toBeInTheDocument();
     });
 
-    // The app decides whether the switch is offered; a production build refuses it outside debug mode.
     it('says the switch is not offered when the app does not answer', async () => {
         fetchSessionOwner.mockRejectedValue(new Error('NOT_FOUND'));
         render(<SessionOwnerScreen />);
@@ -79,7 +77,6 @@ describe('SessionOwnerScreen', () => {
         expect(screen.getByRole('button', { name: 'Page (web)' })).toBeDisabled();
     });
 
-    // The app had nothing to reload: the screen must not stay locked on "restarting".
     it('reads the owners again when no restart came, and lets the recorded choice be pressed again', async () => {
         jest.useFakeTimers();
         try {

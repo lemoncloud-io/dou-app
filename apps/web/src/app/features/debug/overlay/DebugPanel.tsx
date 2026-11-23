@@ -11,21 +11,12 @@ import { DEBUG_SCREEN_COMPONENTS } from './screenRegistry';
 import { debugOverlayActions, useDebugOverlayState } from './overlayStore';
 import { useShellPresence } from './useShellPresence';
 
-/**
- * The whole debug UI: one panel, one navigation. The tab strip carries every screen for one-tap
- * switching while the app underneath is driven; the home menu behind the back control is the same
- * list, grouped and readable. Size is a separate axis — see `overlayStore`.
- *
- * Replaces MiniPanel / FloatingScreen / ExpandedSheet, which were three shells over two catalogs.
- */
 export const DebugPanel = () => {
     const { size, screen } = useDebugOverlayState();
     const strings = useDebugStrings();
     const hasShell = useShellPresence();
 
     const entry = screen ? DEBUG_TABS.find(tab => tab.key === screen) : undefined;
-    // A screen whose whole point is a shell command renders nothing but failing buttons in a
-    // browser. One gate here replaces the per-screen `isNative` checks that only 5 of 9 had.
     const isBlocked = !!entry?.requiresShell && !hasShell;
     const Screen = screen && !isBlocked ? DEBUG_SCREEN_COMPONENTS[screen] : null;
     const isMini = size === 'mini';
@@ -37,7 +28,6 @@ export const DebugPanel = () => {
             size={size}
             title={
                 <span className="flex items-center gap-2">
-                    {/* The badge is chrome, and the corner widget has no room to spare for chrome. */}
                     {!isMini && (
                         <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
                             debug
@@ -116,7 +106,6 @@ export const DebugPanel = () => {
                             } ${isUnavailable && !isActive ? 'opacity-40' : ''}`}
                         >
                             <Icon size={13} />
-                            {/* Icon-only in the corner widget: labels would push the strip past its width. */}
                             {!isMini && short}
                         </button>
                     );
