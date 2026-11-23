@@ -1,5 +1,4 @@
 const mockFiles = jest.fn();
-// Who moves files, as the host's `files` port says.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         get files() {

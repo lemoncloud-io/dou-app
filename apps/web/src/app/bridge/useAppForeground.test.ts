@@ -11,7 +11,6 @@ import { useAppForeground } from './useAppForeground';
 
 const mockOnEvent = webClient.onEvent as jest.Mock;
 
-// Simulate the two foreground sources: the native bridge message and visibilitychange.
 const emitNative = (isForeground: boolean) => {
     const call = mockOnEvent.mock.calls.find(([type]) => type === 'OnBackgroundStatusChanged');
     call?.[1]({ data: { isForeground } });
@@ -29,7 +28,6 @@ describe('useAppForeground — 포그라운드 복귀 신호', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockOnEvent.mockReturnValue(jest.fn());
-        // Deterministic clock for the dedup window; each test advances `now` explicitly.
         now = 10_000;
         dateNowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
     });
@@ -79,7 +77,7 @@ describe('useAppForeground — 포그라운드 복귀 신호', () => {
         renderHook(() => useAppForeground(handler));
 
         emitNative(true);
-        now += 200; // both signals of one physical resume land within the window
+        now += 200;
         setVisibility('visible');
 
         expect(handler).toHaveBeenCalledTimes(1);
@@ -90,7 +88,7 @@ describe('useAppForeground — 포그라운드 복귀 신호', () => {
         renderHook(() => useAppForeground(handler));
 
         emitNative(true);
-        now += 5_000; // a later, separate resume
+        now += 5_000;
         emitNative(true);
 
         expect(handler).toHaveBeenCalledTimes(2);

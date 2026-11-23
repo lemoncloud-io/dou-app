@@ -4,7 +4,6 @@ let mockNative = true;
 const mockFetch = jest.fn();
 const mockRelease = jest.fn();
 const mockLogger = { warn: jest.fn() };
-// The app's share intake where the host has one; a browser has none.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({

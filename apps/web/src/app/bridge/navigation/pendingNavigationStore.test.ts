@@ -12,7 +12,6 @@ const makeMessage = (path: string): OnNavigateMessage =>
     ({ type: 'OnNavigate', success: true, data: { path, replace: false } }) as OnNavigateMessage;
 
 describe('pendingNavigationStore', () => {
-    // Simulates the bridge: capture the handler so tests can emit events at will.
     let emit: ((message: OnNavigateMessage) => void) | undefined;
     let unsubscribe: jest.Mock;
 
@@ -130,7 +129,6 @@ describe('pendingNavigationStore', () => {
 
         const second = jest.fn();
         store.register(second);
-        // Stale detach from the replaced consumer must be a no-op.
         detachFirst();
 
         emit!(makeMessage('/channels/roomD/room'));
@@ -139,8 +137,6 @@ describe('pendingNavigationStore', () => {
         expect(first).not.toHaveBeenCalled();
     });
 
-    // A held event means home is not the screen the user asked for, so the boot cover has to stay
-    // until the replay has navigated — and not a moment longer, or a cold start sits under it.
     describe('boot cover', () => {
         const flush = () => new Promise(resolve => setTimeout(resolve, 0));
         const createCoveredStore = () => {
@@ -177,8 +173,6 @@ describe('pendingNavigationStore', () => {
             expect(releaseCover).toHaveBeenCalledTimes(1);
         });
 
-        // A push into another cloud navigates only after the cloud switch it awaits; lifting the
-        // cover when the consumer merely returned would show home first.
         it('keeps the cover until an async replay settles', async () => {
             const { store, releaseCover } = createCoveredStore();
             store.start();

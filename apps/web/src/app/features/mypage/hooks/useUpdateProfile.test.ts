@@ -35,8 +35,6 @@ describe('useUpdateProfile', () => {
         expect(returned).toEqual({ name: 'Neo', photo: 'p' });
     });
 
-    // Patching the relay token is the only fan-out: every account reader re-reads it on the session
-    // signal, and there is deliberately no cache write (the cache is partitioned by the active cloud).
     it("applies the server's echo to the relay token", async () => {
         updateMock.mockResolvedValue({ name: 'Neo', photo: 'server.png' });
 
@@ -55,8 +53,6 @@ describe('useUpdateProfile', () => {
         expect(runtime.session.patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Neo', photo: 'p' });
     });
 
-    // The caller omits `photo` when it did not change, and an absent field must mean "leave it alone"
-    // rather than "clear it".
     it('does not touch the photo when the caller did not send one', async () => {
         updateMock.mockResolvedValue({ name: 'Neo' });
 

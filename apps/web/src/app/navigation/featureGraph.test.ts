@@ -22,10 +22,7 @@ describe('readFeatureGraph', () => {
         ['/search'],
         ['/subscription'],
         ['/invite/accept'],
-        // Shaped exactly like a graph and deliberately not one: a second invite must not delete
-        // the first one's entry.
         ['/invite/INV1/waiting'],
-        // The 1:1 picker shares the channel prefix and is about no channel.
         ['/channels/start-dm'],
     ])('gives %s no graph', pathname => {
         expect(readFeatureGraph(pathname)).toBeNull();
@@ -58,7 +55,6 @@ describe('isSiblingGraphEntry', () => {
         expect(isSiblingGraphEntry('/channels/A/room', '/mypage')).toBe(false);
     });
 
-    // Leaving the picker for the room it opened is not "another channel": the picker replaces itself.
     it('is false from the 1:1 picker into a room', () => {
         expect(isSiblingGraphEntry('/channels/start-dm', '/channels/B/room')).toBe(false);
     });

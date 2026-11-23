@@ -38,9 +38,6 @@ describe('routeTrail', () => {
         expect(getRouteTrail()).toEqual([]);
     });
 
-    // The trail is sent to a shared Slack channel. Path segments are resource ids, but the query
-    // string carries capability tokens (/invite/accept?..., /s?...) and must never be included.
-    // This test nails down the contract that the caller only ever passes the pathname.
     it('기록된 경로에 쿼리스트링이 섞여 있지 않다', () => {
         const router = { state: { location: { pathname: '/invite/accept', search: '?token=super-secret' } } };
         recordRoute(router.state.location.pathname);

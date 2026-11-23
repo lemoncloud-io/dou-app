@@ -16,20 +16,12 @@ import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } 
 import { MiniAppCard } from '../components/MiniAppCard';
 import { IN_APP_PAGES } from '../consts';
 
-/**
- * The user-facing home for experiments: features that work but are not ready to be on for
- * everyone. Each is a `labs` config key, off by default, with a hand-built switch in the Experiments
- * card. The sub WebView pages that are ready to be tried are rows of the Mini apps card. The debug
- * unlock belongs here too, because it is an opt-in developer experiment rather than an app setting.
- */
 export const LabPage = () => {
     const { t } = useTranslation();
     const { isEnabled: isDebugMode } = useDebugMode();
     const placeInvite = usePlaceInviteExperiment();
     const chatInputLock = useChatInputLockExperiment();
     const { toast } = useToast();
-    // While the mini app tab is on, the cloud's mini apps live there and the card keeps only DoU's own
-    // pages. Read as a setting only: this feature does not reach into the tab's own code.
     const miniAppTab = runtime.settings.useConfigValue<boolean>('feature.miniApp.tab') === true;
     const miniAppPages = IN_APP_PAGES.filter(page => page.surface === 'miniApp');
     const debugPages = IN_APP_PAGES.filter(page => page.surface === 'debug');
@@ -37,8 +29,6 @@ export const LabPage = () => {
         runtime.settings.get<string>('debug.entryCode')
     );
 
-    // In the app the page opens in the sub WebView; an older app or a browser opens it elsewhere. It
-    // is resolved and opened as a page link is, with its app id, so what it shares names the app.
     const openPage = async (appId: string) => {
         try {
             const url = await resolveSubWebViewAppUrl({ appId, query: '' }, isDevBuild() ? 'dev' : 'prod');
@@ -57,8 +47,6 @@ export const LabPage = () => {
 
             <div className="flex flex-col gap-[18px] px-4 pb-8 pt-4">
                 <div className="rounded-[18px] bg-primary/10 px-5 py-6">
-                    {/* The trigger is intentionally not advertised in the UI. The entry code is a
-                        second gate so only internal developers who know both steps can enable it. */}
                     <button
                         type="button"
                         aria-hidden="true"
@@ -75,8 +63,6 @@ export const LabPage = () => {
                 </div>
 
                 <MenuCard title={t('mypage.lab.experiments')}>
-                    {/* Turning it on only adds the home menu entry. Who can invite where is still
-                            the entry's own gate — owner, cloud place, session on that place. */}
                     <ListRow
                         title={t('mypage.lab.placeInvite')}
                         subtitle={t('mypage.lab.placeInviteSubtitle')}
@@ -91,8 +77,6 @@ export const LabPage = () => {
                             />
                         }
                     />
-                    {/* Turning it on only offers the lock in each room's settings; no room is
-                            locked until its own row says so. Off again, the locks are kept, not enforced. */}
                     <ListRow
                         title={t('mypage.lab.chatInputLock')}
                         subtitle={t('mypage.lab.chatInputLockSubtitle')}
@@ -109,8 +93,6 @@ export const LabPage = () => {
                     />
                 </MenuCard>
 
-                {/* DoU's own pages for everyone; the cloud's launcher only where the app opens any https
-                    page, never on the relay home, and not while the mini app tab holds it. */}
                 <MiniAppCard withLauncher={!miniAppTab}>
                     {miniAppPages.map(page => (
                         <ListRow
@@ -134,8 +116,6 @@ export const LabPage = () => {
                     </MenuCard>
                 )}
 
-                {/* Behind debug mode like the developer tools, but not in the panel: pages kept for
-                    trying the sub WebView, not experiments anyone turns on. */}
                 {isDebugMode && debugPages.length > 0 && (
                     <div className="flex flex-col gap-2">
                         <MenuCard title={t('mypage.lab.inApp')}>

@@ -49,10 +49,8 @@ beforeEach(() => jest.clearAllMocks());
 
 describe('PlaceProfileFormDialog', () => {
     it('제목을 렌더하고, subtitle은 있으면 표시·없으면 미표시한다', () => {
-        // The visible title is the level-1 heading (Radix DialogTitle adds an sr-only h2 for a11y).
         const { rerender } = render(<PlaceProfileFormDialog {...baseProps({ subtitle: 'the-subtitle' })} />);
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('the-title');
-        // A visible (non-sr-only) subtitle is rendered alongside the sr-only DialogDescription.
         expect(screen.getAllByText('the-subtitle').some(el => !el.className.includes('sr-only'))).toBe(true);
 
         rerender(<PlaceProfileFormDialog {...baseProps({ subtitle: undefined })} />);
@@ -99,7 +97,6 @@ describe('PlaceProfileFormDialog', () => {
         });
 
         it('열려 있는 동안 초기값이 바뀌어도 사용자 입력을 덮어쓰지 않는다', () => {
-            // The edit flow's initial values come from an observed cache that can emit while open.
             const { rerender } = render(<PlaceProfileFormDialog {...baseProps({ initialNick: 'old' })} />);
             expect(textbox()).toHaveValue('old');
             fireEvent.change(textbox(), { target: { value: 'typed-by-user' } });
@@ -204,7 +201,6 @@ describe('PlaceProfileFormDialog', () => {
             fireEvent.change(fileInput(), { target: { files: [smallFile()] } });
         });
 
-        // ProfileAvatar renders a decorative <img alt=""> (no `img` role), so query the node directly.
         await waitFor(() => expect(document.querySelector('img')).not.toBeNull());
         expect(document.querySelector('img')).toHaveAttribute('src', 'data:image/png;base64,abc');
     });

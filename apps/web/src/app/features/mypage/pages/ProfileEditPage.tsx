@@ -15,13 +15,8 @@ import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 
 const MAX_NAME_LENGTH = 30;
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
-/**
- * The screen shows the same "too large" message for a codec failure as for an oversized file, so
- * the two are indistinguishable to the user and were indistinguishable to us. Size and type are
- * what separate them; the file's contents are never recorded (ADR-0099).
- */
 const logImageEncodeFailure = (error: unknown, file: File): void =>
     logger.warn('PROFILE', 'profile image encoding failed', {
         error,
@@ -41,7 +36,6 @@ export const ProfileEditPage = () => {
     const [imageUrl, setImageUrl] = useState(profile?.photo || '');
     const [imageSizeError, setImageSizeError] = useState(false);
 
-    // Fix the initial values and sync state once the profile loads
     useEffect(() => {
         if (profile && !initialRef.current.initialized) {
             const initName = profile.name || '';
@@ -90,8 +84,6 @@ export const ProfileEditPage = () => {
 
         try {
             const { avatar: base64 } = await prepareImage(file, AVATAR_IMAGE);
-            // A record field has nothing to fall back to, so a preview that could not be made is
-            // an error here, not a degraded result.
             if (!base64) throw new Error('Failed to prepare avatar image');
             setImageUrl(base64);
         } catch (error) {
@@ -105,9 +97,6 @@ export const ProfileEditPage = () => {
     return (
         <KeyboardAwareLayout
             className={fixedViewportScreen}
-            // PageHeader frosts its own notch strip, so the scaffold must not pad above it —
-            // that would push the glass down and leave the inset bare, with the body
-            // scrolling through it unblurred.
             headerSafeArea={false}
             header={<PageHeader title={t('profileEdit.title')} />}
             footer={
@@ -119,7 +108,6 @@ export const ProfileEditPage = () => {
                 />
             }
         >
-            {/* Same centered-photo-above-name rhythm as PlaceEditPage so the profile screens match. */}
             <div className="flex flex-col gap-8 py-10">
                 <div className="flex flex-col items-center gap-4 px-[18px]">
                     <ProfileAvatar

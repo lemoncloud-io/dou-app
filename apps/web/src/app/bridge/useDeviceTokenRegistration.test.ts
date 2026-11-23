@@ -1,6 +1,5 @@
 import { renderHook } from '@testing-library/react';
 
-// The push port's token member as each test plays it: `null` is a browser's port, which has none.
 let mockDeviceToken: { fetch: () => Promise<string | null> } | null = null;
 
 jest.mock('@chatic/runtime', () =>
@@ -29,16 +28,12 @@ import { useDeviceTokenRegistration } from './useDeviceTokenRegistration';
 const mockRuntimeHook = runtime.push.useDeviceTokenRegistration as jest.Mock;
 const mockFetch = jest.fn<Promise<string | null>, []>();
 
-// The adapter's job is delegate construction only; registration policy is
-// covered by the runtime's own tests.
 const lastDelegate = () => mockRuntimeHook.mock.calls[mockRuntimeHook.mock.calls.length - 1][0];
 
 describe('useDeviceTokenRegistration, the delegate built from the push port', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         delete window.CHATIC_APP_PLATFORM;
-        // Each test plays a shell that injects its platform before the page boots: the host profile
-        // is built from `window` at the first read, which is the render below.
         resetHostProfileForTests();
         mockDeviceToken = { fetch: mockFetch };
         mockFetch.mockResolvedValue('tok-123');
@@ -70,8 +65,6 @@ describe('useDeviceTokenRegistration, the delegate built from the push port', ()
                 application: 'chatic',
             })
         );
-        // Device identity (deviceId / installId) is resolved inside the runtime
-        // via useDynamicDeviceId — the adapter must not supply its own.
         expect(lastDelegate().installId).toBeUndefined();
     });
 
@@ -82,7 +75,6 @@ describe('useDeviceTokenRegistration, the delegate built from the push port', ()
 
         await expect(lastDelegate().fetchDeviceToken()).resolves.toBe('tok-123');
         expect(mockFetch).toHaveBeenCalledTimes(1);
-        // The bridge is the port's business, not this adapter's.
         expect(appBridge.fetchFcmToken).not.toHaveBeenCalled();
     });
 

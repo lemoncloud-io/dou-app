@@ -2,7 +2,6 @@ import { sortChannels, toTime } from './sortChannels';
 
 import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/runtime';
 
-// Minimal channel factory — only the fields sortChannels reads.
 const channel = (id: string, updatedAt: number): DomainChannel => ({ id, updatedAt }) as unknown as DomainChannel;
 
 const lastChat = (channelId: string, createdAtMs: number): DomainChat =>
@@ -30,7 +29,6 @@ describe('toTime', () => {
 });
 
 describe('sortChannels', () => {
-    // c1 oldest → c3 newest activity.
     const c1 = channel('c1', 100);
     const c2 = channel('c2', 200);
     const c3 = channel('c3', 300);
@@ -50,7 +48,6 @@ describe('sortChannels', () => {
 
     describe("'unread' — 안읽은 메시지 우선", () => {
         it('안읽은 방을 상위로 올리고, 그룹 내부는 최근 활동순을 유지한다', () => {
-            // c1 (oldest) has unread → floats above read c3/c2.
             const result = sortChannels({
                 channels,
                 unreadByChannel: { c1: 3 },
@@ -65,7 +62,6 @@ describe('sortChannels', () => {
                 unreadByChannel: { c1: 1, c2: 2 },
                 sortMethod: 'unread',
             });
-            // Unread group (c2 newer than c1) first, then read c3.
             expect(ids(result)).toEqual(['c2', 'c1', 'c3']);
         });
 
@@ -86,7 +82,6 @@ describe('sortChannels', () => {
 
     describe('마지막 메시지 시각 기준 (lastChatByChannel)', () => {
         it('채널의 updatedAt이 아니라 마지막 메시지 시각으로 정렬한다', () => {
-            // Channel time is c3 > c2 > c1, but the last message time is the reverse.
             const result = sortChannels({
                 channels,
                 lastChatByChannel: new Map([
@@ -101,7 +96,6 @@ describe('sortChannels', () => {
         });
 
         it('내 읽음 커서(join.updatedAt)는 정렬에 전혀 영향을 주지 않는다', () => {
-            // Even if I just read c3 and its join got updated, order only looks at message time and channel.updatedAt.
             const result = sortChannels({
                 channels: [c1, c2, { ...c3, $join: join('c3', 9000) } as unknown as DomainChannel],
                 lastChatByChannel: new Map([['c1', lastChat('c1', 3000)]]),
@@ -112,7 +106,6 @@ describe('sortChannels', () => {
         });
 
         it('캐시된 메시지가 없는 방은 기존 시각 체인으로 폴백한다', () => {
-            // Only c2 has a message; c1/c3 are compared by channel time (100/300).
             const result = sortChannels({
                 channels,
                 lastChatByChannel: new Map([['c2', lastChat('c2', 500)]]),
@@ -166,7 +159,6 @@ describe('sortChannels', () => {
         });
 
         it('핀은 unread 정렬보다 우선한다', () => {
-            // c3 has no unread but is pinned; c1 has unread — the pin still wins.
             const result = sortChannels({
                 channels,
                 unreadByChannel: { c1: 3 },
@@ -190,7 +182,6 @@ describe('sortChannels', () => {
     describe('leadsWithSelf', () => {
         const self = { ...channel('self', 50), stereo: 'self' } as DomainChannel;
 
-        // A cloud's 1:1 section on home opens with that room, as desktop's Direct messages do.
         it('puts the notes-to-self room first, above a pin', () => {
             const result = sortChannels({
                 channels: [...channels, self],

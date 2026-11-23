@@ -19,12 +19,6 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [{ path: '/', labelKey: 'nav.home', icon: <Home className="h-4 w-4" /> }];
 
-/**
- * Sidebar navigation component
- * - Displays navigation links to main routes
- * - Highlights active route
- * - Settings controls (theme, language, logout)
- */
 export const Sidebar = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const location = useLocation();
@@ -50,12 +44,10 @@ export const Sidebar = (): JSX.Element => {
 
     return (
         <aside className="w-56 border-r bg-card flex flex-col">
-            {/* Logo/Brand */}
             <div className="h-14 flex items-center px-4 border-b">
                 <CloudLogo />
             </div>
 
-            {/* Navigation */}
             <nav className="flex-1 p-3 space-y-1">
                 {NAV_ITEMS.map(item => (
                     <NavLink
@@ -73,9 +65,7 @@ export const Sidebar = (): JSX.Element => {
                 ))}
             </nav>
 
-            {/* Settings Footer */}
             <div className="p-3 border-t space-y-3">
-                {/* Settings Buttons */}
                 <TooltipProvider>
                     <div className="flex items-center justify-center gap-1">
                         <Tooltip>
@@ -118,7 +108,6 @@ export const Sidebar = (): JSX.Element => {
                     </div>
                 </TooltipProvider>
 
-                {/* Version */}
                 <div className="text-xs text-muted-foreground text-center">
                     v{import.meta.env.VITE_APP_VERSION || '0.0.0'}
                 </div>

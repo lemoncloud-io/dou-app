@@ -39,7 +39,6 @@ describe('resolveSubWebViewAppUrl', () => {
 });
 
 describe('miniAppHubUrl', () => {
-    // The root of the apps domain, the hub's own first-party origin, not a page under it.
     it.each([
         ['prod', 'https://apps.chatic.io/'],
         ['dev', 'https://apps-dev.chatic.io/'],

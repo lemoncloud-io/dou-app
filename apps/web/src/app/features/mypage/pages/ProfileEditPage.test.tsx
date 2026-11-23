@@ -25,7 +25,6 @@ jest.mock('../hooks', () => ({ useUpdateProfile: () => ({ mutateAsync: updatePro
 jest.mock('../../../hooks', () => ({ useMyUser: () => ({ name: 'Raine', photo: '' }) }));
 jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
-// The real layout reaches the keyboard bridge; the page's content and footer are what is under test.
 jest.mock('../../../ui/layouts', () => ({
     fixedViewportScreen: '',
     KeyboardAwareLayout: ({ header, footer, children }: Record<string, React.ReactNode>) => (

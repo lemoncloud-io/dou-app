@@ -6,7 +6,6 @@ const listPhotoAlbums = jest.fn();
 const readPhoto = jest.fn();
 const managePhotoSelection = jest.fn();
 const keepLibraryVideo = jest.fn();
-// The host's media port: the app's photo library when the case runs in the app, none in a browser.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({

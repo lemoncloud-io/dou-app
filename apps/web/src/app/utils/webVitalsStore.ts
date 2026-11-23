@@ -1,8 +1,3 @@
-/**
- * Latest Web Vitals values, kept in-memory for the debug overlay. Fed by the
- * existing initWebVitals() reporters (which previously only dev-logged them).
- */
-
 export interface VitalSample {
     value: number;
     rating: string;
