@@ -18,7 +18,6 @@ const failure = <T extends 'OnOpenSubWebView' | 'OnCloseSubWebView'>(type: T, co
     error: { code, message: ERROR_MESSAGES[code] },
 });
 
-/** The main WebView's side of the sub WebView: open and close on the web's request. */
 export const createSubWebViewHandlers = (service: ISubWebViewService) => {
     const handleOpenSubWebView = async (message: WebMessageData<'OpenSubWebView'>) => {
         const result = service.open({
@@ -40,10 +39,6 @@ export const createSubWebViewHandlers = (service: ISubWebViewService) => {
     return { handleOpenSubWebView, handleCloseSubWebView };
 };
 
-/**
- * Tells the web each time a view closes. A close the service marks `notifyHost: false` — the web
- * reloaded under the view — is not sent: the page that opened the view is gone.
- */
 export const forwardSubWebViewClosed = (service: ISubWebViewService, bridge: IAppBridgeHost) =>
     service.subscribe(event => {
         if (event.type !== 'closed' || !event.notifyHost) return;

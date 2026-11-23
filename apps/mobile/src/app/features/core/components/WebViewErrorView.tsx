@@ -1,10 +1,6 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { t } from '../../../utils';
 
-/**
- * `load` — the page failed to load (usually the network). `crash` — the page loaded, but its
- * WebView process kept dying, so checking the connection is not the advice to give.
- */
 export type WebViewErrorKind = 'load' | 'crash';
 
 interface WebViewErrorViewProps {

@@ -13,12 +13,6 @@ const NATIVE_LAUNCH_ONLY =
 const OWNER_SWITCH =
     'The session owner switch; registered on its own (useSessionOwnerHandler), and answered outside production or while debug mode is on';
 
-/**
- * Requests in `WEB_MESSAGE_RESPONSE_TYPE` this shell deliberately leaves unregistered. The host
- * answers each with `NOT_FOUND`, which is what the web falls back on. A message belongs here only
- * by decision — a new one in `@chatic/bridge-messages` fails this suite until it has a handler or a
- * line here.
- */
 const MOBILE_UNSUPPORTED = {
     ShowNotification: "Desktop's OS banner; the phone raises notifications from push, not on request",
     StartUpdateDownload: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)',
@@ -45,11 +39,9 @@ const MOBILE_UNSUPPORTED = {
         "The page's default session owner; registered on its own (useSessionOwnerHandler) with the switch, and answered on every build",
 } satisfies Partial<Record<WebMessageType, string>>;
 
-// Per-handler behaviour for the loopback cases below; every other handler is a bare mock.
 const mockHandlers: Record<string, Record<string, unknown>> = {
     useFcmHandler: {
         handleFetchBadgeCount: async () => ({ type: 'OnFetchBadgeCount', success: true, data: { count: 7 } }),
-        // The reply of a different request — what a handler wired to the wrong message would send.
         handleFetchBadgeBase: async () => ({ type: 'OnFetchBadgeCount', success: true, data: { count: 7 } }),
         handleFetchPushMarks: async () => {
             throw new Error('push marks unavailable');
@@ -58,9 +50,6 @@ const mockHandlers: Record<string, Record<string, unknown>> = {
     useLogHandler: { handleSendLog: jest.fn() },
 };
 
-// Every domain hook becomes a stub (the real ones reach native modules and the service provider).
-// Capability flags read true, so the handlers registered only where a native module exists count
-// as handled — they are, on a build that has the module.
 jest.mock('./index', () => {
     const stubHook = (hook: string) =>
         new Proxy(
@@ -93,14 +82,12 @@ jest.mock('../../services', () => ({ subWebViewService: { current: () => null, s
 const VOCABULARY = Object.keys(WEB_MESSAGE_RESPONSE_TYPE) as WebMessageType[];
 const UNSUPPORTED = Object.keys(MOBILE_UNSUPPORTED);
 
-/** Every hook that registers on the bridge — the router (`AppWebView`) and `SetCanGoBack` (`MainScreen`). */
 const mountShell = (host: AppBridgeHost) =>
     renderHook(() => {
         useWebMessageRouter({ bridge: host });
         useWebViewNavigation(host);
     });
 
-// Read off a real host, so `WebAppReady` and `Ping` — answered inside `AppBridgeHost` — count too.
 const registeredTypes = (): string[] => {
     const register = jest.spyOn(AppBridgeHost.prototype, 'registerHandler');
     const { unmount } = mountShell(new AppBridgeHost({ sendToWeb: jest.fn() }));
@@ -125,26 +112,17 @@ describe('mobile bridge contract', () => {
         expect(stale).toEqual([]);
     });
 
-    // The `satisfies` above says the same, but only to tsc — and CI does not type check this
-    // project, nor does this suite's transform report it.
     it('lists as unsupported only requests in the vocabulary', () => {
         const stale = UNSUPPORTED.filter(type => !(type in WEB_MESSAGE_RESPONSE_TYPE));
 
         expect(stale).toEqual([]);
     });
 
-    // A handler registered anywhere else is invisible to the checks above, so a message already
-    // listed as unsupported could gain one without failing them.
     it('registers handlers only in the hooks this suite mounts', () => {
-        // The sub WebView's host is a different host, with its own handshake test
-        // (createSubBridgeHost.test.ts) pinning it to the sub WebView subset.
         const allowed = [
             'useWebMessageRouter.ts',
             'useWebViewNavigation.ts',
-            // The runtime requests, registered only on a launch the app's runtime owns.
             'useRuntimeBridgeHandler.ts',
-            // The session owner switch, answered outside production or while debug mode is on. Listed
-            // in MOBILE_UNSUPPORTED above because this suite does not mount it.
             'useSessionOwnerHandler.ts',
             '../../subWebView/createSubBridgeHost.ts',
         ];
@@ -163,8 +141,6 @@ describe('mobile bridge contract', () => {
         expect(elsewhere).toEqual([]);
     });
 
-    // The device vault is the main web's alone; the sub WebView's handshake test pins it out of
-    // that host's subset.
     it('answers the storage medium requests on the main WebView', () => {
         const registered = new Set(registeredTypes());
 
@@ -181,8 +157,6 @@ describe('mobile bridge contract', () => {
 });
 
 describe('mobile bridge loopback', () => {
-    // The real web client, in-memory channel and host, with the real router behind them: what a
-    // caller here receives is what a web caller in the WebView receives.
     const connect = () => {
         const adapter = new InMemoryAdapter();
         const host = new AppBridgeHost({
@@ -218,8 +192,6 @@ describe('mobile bridge loopback', () => {
         const entry = { level: 'info' as const, tag: 'BRIDGE', message: 'loopback' };
 
         bridge.client.post({ type: 'SendLog', data: entry });
-        // The adapter delivers on a zero timer and the host calls the handler without awaiting
-        // anything first, so one more turn is enough.
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(mockHandlers.useLogHandler.handleSendLog).toHaveBeenCalledWith(
@@ -240,7 +212,6 @@ describe('mobile bridge loopback', () => {
         );
     });
 
-    // The guard that keeps a caller from reading one message's payload as another's.
     it('rejects a reply of the wrong type as RESPONSE_TYPE_MISMATCH', async () => {
         const mismatch = bridge.client.request({ type: 'FetchBadgeBase', data: {} });
 
@@ -254,8 +225,6 @@ describe('mobile bridge loopback', () => {
         );
     });
 
-    // What a web build reads to decide which controls to offer (photo save and share, perf traces):
-    // exactly the requests decided as handled above, each with its paired reply.
     it('advertises in the handshake exactly the requests it answers', async () => {
         const report = (await bridge.client.request({ type: 'WebAppReady', data: {} })).data;
 
@@ -273,7 +242,6 @@ describe('mobile bridge loopback', () => {
         expect(reply).toEqual(expect.objectContaining({ type: 'Pong', success: true, data: { payload: 'probe' } }));
     });
 
-    // What the list above promises the web: an answer, and the one it knows to fall back on.
     it.each(UNSUPPORTED)('answers unsupported %s with NOT_FOUND', async type => {
         const unanswered = bridge.client.request({ type, data: {} } as any);
 

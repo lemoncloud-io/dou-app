@@ -5,21 +5,11 @@ import { Platform } from 'react-native';
 import Config from 'react-native-config';
 import { getLocales } from 'react-native-localize';
 
-/**
- * Platform-specific User Agent identifier prefix
- * - iOS: DOU_IOS
- * - Android: DOU_ANDROID
- */
 export const APP_USER_AGENT_PREFIX = Platform.select({
     ios: USER_AGENT_PREFIX_IOS,
     android: USER_AGENT_PREFIX_ANDROID,
 });
 
-/**
- * Fetches the UserAgent
- * - Builds it by appending the app-specific `UserAgent` to the system `UserAgent`
- * - Whether `APP_USER_AGENT_PREFIX` is present can be used to determine the platform environment
- */
 export const getUserAgent = async (): Promise<string> => {
     const systemUserAgent = await DeviceInfo.getUserAgent();
     const appName = Config.VIEW_APP_NAME ?? '';
@@ -31,12 +21,6 @@ export const getUserAgent = async (): Promise<string> => {
     return `${systemUserAgent} (${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${platform}; Build:${buildNumber})`;
 };
 
-/**
- * The device's language — its first locale's language code, 'en' when it reports none.
- *
- * Not the language the person chose in Settings: that is `getEffectiveLanguage()` (utils/i18n).
- * This one is what the web resolves its own `system` from, so it must stay the device's.
- */
 export const getAppLanguage = (): string => {
     const locales = getLocales();
     if (locales.length === 0) {

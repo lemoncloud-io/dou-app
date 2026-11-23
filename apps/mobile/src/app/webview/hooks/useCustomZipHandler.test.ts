@@ -17,7 +17,6 @@ jest.mock('../../services', () => ({
     logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 
-/** Since the gate is a function, we can change the stage without re-reading the module. */
 const load = async (stage: string) => {
     allowed = stage !== 'PROD';
     return useCustomZipHandler;
@@ -31,9 +30,6 @@ describe('useCustomZipHandler — PROD fail-closed (ADR-0080 결정 13)', () => 
         mockRead.mockReturnValue({ localRoot: null, serverUrl: null });
     });
 
-    // The zip address decides which code the WebView runs — this is the same security surface that
-    // decision 13 removed the web-address switcher for, and it moves here the VITE_ENV !== 'PROD'
-    // guard the app's FloatingMenu used to apply.
     it('PROD 빌드는 적용을 거부하고 로더를 부르지 않는다', async () => {
         const useHandler = await load('PROD');
         const { result } = renderHook(() => useHandler());
@@ -65,8 +61,6 @@ describe('useCustomZipHandler — PROD fail-closed (ADR-0080 결정 13)', () => 
         expect(res).toMatchObject({ success: false, error: { code: 'CUSTOM_ZIP_ERROR' } });
     });
 
-    // A device with the zip still enabled shouldn't get stuck if the build switches to PROD —
-    // disabling it is the escape hatch.
     it('끄기는 PROD에서도 거부하지 않는다', async () => {
         mockDisable.mockResolvedValue(undefined);
         const useHandler = await load('PROD');

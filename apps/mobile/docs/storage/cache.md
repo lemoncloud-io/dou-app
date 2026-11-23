@@ -168,6 +168,56 @@ over the `better-sqlite3` dev dependency): `migration12.test.ts` moves a v12 dat
 and reads the query plans, and `data/cache/chatMediaIndex.contract.test.ts` runs the contract table
 `libs/db` runs against IndexedDB (`@chatic/bridge-messages/testing`).
 
+## The cache contract the handshake reports
+
+`database/sqlite/cacheContract.ts` is what this build promises the web about each cache domain, and
+the handshake reports it per domain. The web declares what it requires and the app declares what it
+implements; the two are separate values on purpose, since sharing one would turn a negotiation into
+an identity.
+
+- **Measured, not restated.** The report is derived from `PRAGMA user_version`, the version the
+  migrations actually reached. Migrations run in one transaction, so a failed one rolls back and the
+  number never advances. A domain whose table cannot exist at that version is left out, which the web
+  reads as edition 0 and routes to its own storage: writing into a missing table is how a permanently
+  empty cache is born. `getSchemaVersion` throws when the pragma gives no number rather than
+  answering 0, because 0 is a real answer and an unreadable value must not pass for a measurement.
+- **Two numbers per domain.** `version` is the domain's contract edition, bumped only when the
+  contract changes in a way that must exclude older apps — never because a domain is new, and never to
+  move a gate. A bump has to stay compatible with older web bundles, since the web compares with
+  `>=`; a change that breaks an older web is a new `CacheType`, not a bump. `sinceUserVersion` is the
+  version at which the table exists (migration `k` creating it means `k + 1`). It is a historical
+  fact: later unrelated migrations do not move it, and a table that was dropped and recreated counts
+  from the recreation (`meta`).
+- **Started early.** `useBaseBridge` starts the measurement when the screen mounts, while the WebView
+  loads its bundle, because the web reads it once when it assembles its cache storages and a reply
+  after that leaves a domain on web storage for the session. The handshake reuses the same promise.
+  It waits at most three seconds and then falls back to the static declaration; only a real answer is
+  remembered, so one slow first boot cannot pin every later handshake to the fallback.
+
+## Row rules the web relies on
+
+- **Chat previews.** `fetchLastPerChannel` answers the home list's `FetchLastChatsData`. Per channel
+  it looks at the newest committed row (`chat_no > 0`) and the unsent ones (`chat_no = 0`); an unsent
+  message wins, the most recent `createdAt` among them, so a message just sent is previewable before
+  it is acknowledged. System rows, reaction events and failed sends never count. A thread reply
+  counts as the room's latest activity (it orders the list) but not as the preview, so only a room
+  whose newest message is a reply costs a second pass for the newest row outside threads. The SQL
+  mirrors the web's previewable rule and is only an optimisation: the web re-validates the rows and
+  falls back to a windowed read for a channel where the mirror was too loose.
+- **Profile payloads are not stamped with the scope.** Other domains write `cid`/`uid` into the
+  payload; `ProfileDataSource` does not, because the payload's `uid` is the profile's owner while the
+  scope's `uid` is the signed-in user. Overwriting it would collapse every member of a place onto one
+  key once the web re-derives ids from the payload. Only `id` is aligned with the row key; the scope
+  lives in the `cid`/`uid` columns, which every `WHERE` matches on. The web keys rows
+  `${sid}@${uid}` and filters by `sid` itself, so native treats the key as opaque.
+- **Batch reads stay under SQLite's variable limit.** `fetchManyByIds` splits ids into chunks of 900
+  (a build's limit can be as low as 999, and each chunk also binds `cid` and `uid`) and drops
+  duplicate ids first, so one row is never parsed and returned twice. The bridge round trip is still
+  one.
+- **Deleting a room is scoped.** `clearByChannel` carries `cid`/`uid` as well as the channel id: the
+  same device may hold other cloud accounts or users with that channel id, and leaving one room must
+  not wipe their history.
+
 ## Handlers that send no response
 
 When a handler returns nothing, the host sends nothing back (`AppBridgeHost.processRequest`).

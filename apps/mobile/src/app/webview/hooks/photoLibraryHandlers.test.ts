@@ -4,8 +4,6 @@ import type { ILogService } from '../../services';
 
 import { createPhotoLibraryHandlers, readMediaTypes, readNumber } from './photoLibraryHandlers';
 
-// The real bridge barrel loads every native module wrapper; the handlers receive the photo library
-// by injection and need nothing else from it at runtime.
 jest.mock('../../bridge', () => ({}));
 
 const createLoggerMock = (): jest.Mocked<ILogService> =>
@@ -121,8 +119,6 @@ describe('createPhotoLibraryHandlers', () => {
             });
         });
 
-        // The web reads NOT_FOUND as "this app has no photo library" and drops the picker for the
-        // session; one failed read must not be able to do that.
         it('never forwards NOT_FOUND, reporting it as INTERNAL', async () => {
             library.readPhoto.mockRejectedValueOnce(rejection('NOT_FOUND'));
 
@@ -239,7 +235,6 @@ describe('createPhotoLibraryHandlers — videos', () => {
         }
     );
 
-    // NOT_FOUND would take videos out of the grid for the session.
     it.each(['NOT_FOUND', 'INTERNAL', undefined])('reports %s from native as a failed read', async code => {
         library.keepVideo.mockRejectedValueOnce(rejection(code));
 

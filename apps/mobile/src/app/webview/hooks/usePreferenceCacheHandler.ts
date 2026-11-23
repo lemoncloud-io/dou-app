@@ -1,23 +1,10 @@
 import { useCallback } from 'react';
 import type { PreferenceKey, WebMessageData } from '@chatic/bridge-messages';
 import { useLanguageStore, useThemeStore } from '../../stores';
-// Imported past the barrel on purpose: themeMode is provider-free, so this stays
-// testable against the parser that actually ships.
 import { parseThemeMode } from '../../stores/themeMode';
 import { isLanguagePreference } from '../../stores/languagePreference';
 import { useServices } from '../../hooks';
 
-// SavePreference bridge messages originate from untrusted WebView page JS. Only
-// web-facing preferences may be persisted through this path. System keys — above
-// all 'debugSettings', which carries webviewBaseUrlOverride and therefore decides
-// the WebView origin on next launch — must NEVER be writable from the web, or a
-// single crafted bridge message could silently hijack the app origin (persistent
-// MITM). theme/language are handled by their own cases below, and both validate the value
-// before it reaches native storage; every other key falls through to this allowlist.
-// 'pushRegistration' carries the web runtime's push-token registration record. It is inert
-// data — an opaque JSON blob the web writes and reads back — and decides nothing on the native side,
-// so it does not widen the origin-hijack surface the way a system key would. It lives here rather
-// than in the webview's own storage so a cache clear does not silently re-trigger registration.
 const BRIDGE_WRITABLE_PREFERENCE_KEYS: readonly PreferenceKey[] = ['blurLastMessage', 'isFirstRun', 'pushRegistration'];
 
 export const usePreferenceCacheHandler = () => {
@@ -48,9 +35,6 @@ export const usePreferenceCacheHandler = () => {
             try {
                 switch (key) {
                     case 'theme': {
-                        // Validate before it reaches the store: an unrecognized value would be
-                        // persisted verbatim and then silently degrade the status bar to light on
-                        // every boot. Rejecting keeps the stored value the only normalized one.
                         const theme = parseThemeMode(value);
                         if (!theme) {
                             logService.warn('CACHE', `SavePreference rejected invalid theme: ${String(value)}`);
@@ -64,8 +48,6 @@ export const usePreferenceCacheHandler = () => {
                         break;
                     }
                     case 'language': {
-                        // The value is copied into the push services' shared storage and decides
-                        // which locale file they open, so only the three known choices get through.
                         if (!isLanguagePreference(value)) {
                             logService.warn('CACHE', `SavePreference rejected invalid language: ${String(value)}`);
                             return {

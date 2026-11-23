@@ -1,28 +1,19 @@
 import type { SubWebViewRuntimePermission } from '@chatic/bridge-messages';
 
-/** Where an allowed answer is kept: the permissions it covered, under the user, page and cloud. */
 export interface SubWebViewConsentStore {
     getString(key: string): string | undefined;
     set(key: string, value: string): void;
 }
 
-/** Asks the user; `true` to allow. */
 export type AskSubWebViewConsent = (question: {
     host: string;
     permissions: readonly SubWebViewRuntimePermission[];
 }) => Promise<boolean>;
 
-/** Whose answer, for which page, in which cloud and place. */
 export interface SubWebViewConsentKey {
-    /** The user's id in that cloud. */
     userId: string;
     origin: string;
     cloudId: string;
-    /**
-     * The place the view opened on — Home's own place on Home. A yes is kept per place: what a page
-     * reads is that place's rooms, members and messages, so allowing it in one place says nothing about
-     * another.
-     */
     placeId: string;
 }
 
@@ -33,35 +24,18 @@ export interface SubWebViewRuntimeConsent {
     ): Promise<'allowed' | 'refused'>;
 }
 
-// Always with the place. A yes kept per cloud alone, before consent was per place, is never looked up
-// again: it says nothing of which place it was given in.
 const storeKey = ({ userId, origin, cloudId, placeId }: SubWebViewConsentKey) =>
     `runtime\n${userId}\n${origin}\n${cloudId}\n${placeId}`;
 
 const hostOf = (origin: string) => origin.replace(/^https:\/\//, '');
 
-/**
- * The wording a yes was given under, per permission whose question once said less than it does now.
- * A kept yes covers such a permission only if it was given under at least this revision; one given
- * earlier is asked again, once. A permission not listed has said the same since it was first asked.
- *
- * - `user` 2: the question says that reading members hands over what their accounts carry. Before,
- *   it named "members and profiles" only.
- * - `cloud` 2: the question says that an owned cloud comes with its owner, linked account,
- *   subscription and server. Before, it named "the cloud" only.
- */
 export const SUB_WEB_VIEW_CONSENT_REVISION: Partial<Record<SubWebViewRuntimePermission, number>> = {
     user: 2,
     cloud: 2,
 };
 
-/** The revision every new yes is kept under: the highest a permission needs. */
 const CURRENT_REVISION = Math.max(1, ...Object.values(SUB_WEB_VIEW_CONSENT_REVISION).map(Number));
 
-/**
- * A kept yes, as `channel,user` (before revisions were kept, read as revision 1) or
- * `channel,user;2`.
- */
 const readKept = (kept: string): { allowed: ReadonlySet<string>; revision: number } => {
     const [names, revision] = kept.split(';');
     const parsed = Number(revision);
@@ -71,19 +45,6 @@ const readKept = (kept: string): { allowed: ReadonlySet<string>; revision: numbe
     };
 };
 
-/**
- * The user's answer to "may this page read this place", before a page's first runtime request is
- * answered. Per user, page, cloud and place, for every permission at once: what a page reads is the
- * place's — its rooms, members and messages — as a user sees them one place at a time, so the first
- * open in another place of the same cloud asks again.
- *
- * - **Allowed** is kept, with the permissions it covered and the wording it was given under. A page
- *   whose manifest later asks for more is asked again, and so is a yes given before the question said
- *   what it says now about one of its permissions (`SUB_WEB_VIEW_CONSENT_REVISION`).
- * - **Refused** is kept for this consent only — one per view — so a page that keeps asking does not
- *   put the question up again and again. The next view asks anew.
- * - **One question at a time.** Requests that arrive while it is up wait for the same answer.
- */
 export const createSubWebViewRuntimeConsent = ({
     store,
     ask,

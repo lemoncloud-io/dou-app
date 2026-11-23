@@ -25,7 +25,6 @@ describe('createSubWebViewCloseGuard', () => {
         expect(guard.decide(SUB_WEBVIEW_CLOSE_FORCE_WINDOW_MS + 2)).toBe('close');
     });
 
-    // A page that answers every request by turning the guard on again cannot restart the window.
     it('keeps the escape when the page sets the guard again', () => {
         const guard = createSubWebViewCloseGuard();
         guard.setEnabled(true);

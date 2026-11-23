@@ -47,9 +47,6 @@ describe('useVersionCheckHandler', () => {
             ]);
         });
 
-        // A known gap, pinned rather than fixed here: the push leaves out the envelope's `success`
-        // and the payload's required `webVersion`. Everything else conforms. When the handler is
-        // fixed this test fails — replace it with a plain `pushedEventErrors(...)` toEqual([]).
         it('conforms except for the missing success and webVersion', () => {
             renderHook(() => useVersionCheckHandler(bridge as any));
             mockOnComplete?.({ hasUpdate: true, latestVersion: '1.3.0' });

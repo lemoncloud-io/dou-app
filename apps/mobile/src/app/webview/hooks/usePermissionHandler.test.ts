@@ -33,15 +33,12 @@ describe('usePermissionHandler', () => {
         });
     });
 
-    // A denial the OS will prompt for again is a "try again" denial.
     it('reports DENIED when the request is denied but not blocked', async () => {
         const res: any = await ask();
 
         expect(res.data.status).toBe('DENIED');
     });
 
-    // A denial the OS will never prompt for again can only be fixed in Settings —
-    // reporting it DENIED sends the reader back to a prompt that never comes.
     it('reports BLOCKED when the OS will no longer prompt', async () => {
         permissionService.request.mockResolvedValueOnce('BLOCKED');
 

@@ -5,11 +5,6 @@ import type { WebMessageData } from '@chatic/bridge-messages';
 import { applyCustomZip, disableCustomZip, isCustomZipAllowed, readCustomZipState } from '../../customZip';
 import { logger } from '../../services';
 
-/**
- * Custom web zip, driven from the web panel (ADR-0080 Decision 11).
- *
- * **PROD builds refuse** — see `isCustomZipAllowed`, which carries why and reads the baked stage.
- */
 const refusal = { code: 'CUSTOM_ZIP_FORBIDDEN', message: 'Custom zip is not available on a PROD build' };
 
 export const useCustomZipHandler = () => {
@@ -32,8 +27,6 @@ export const useCustomZipHandler = () => {
     }, []);
 
     const handleDisableCustomZip = useCallback(async (_message: WebMessageData<'DisableCustomZip'>) => {
-        // Not gated: turning it OFF is the recovery path, and refusing that would strand a device
-        // whose build flipped to PROD while a zip was active.
         try {
             await disableCustomZip();
             return { type: 'OnDisableCustomZip' as const, success: true, data: { success: true } };

@@ -8,14 +8,6 @@ import { SubWebViewStorage } from '../services/subWebView/subWebViewStorage';
 import { createSubBridgeHost } from './createSubBridgeHost';
 import { createSubBridgeHandlers, permittedSubBridgeHandlers } from './subBridgeHandlers';
 
-/**
- * The library pages are built with, against this app's real page host and handlers, in one process.
- * What the library sends is what the host answers, what the host refuses comes back with its code, and
- * the pushes the view sends reach the page's handlers. A change on either side that breaks a page
- * fails here, before a page on a phone finds it.
- */
-
-// Keyed by every capability, so one the library adds fails to compile here until it is listed.
 const CAPABILITIES = Object.keys({
     finish: true,
     title: true,
@@ -63,7 +55,6 @@ const setup = (
     };
     let toPage: ((message: string) => void) | undefined;
     const host = createSubBridgeHost(
-        // Asynchronous, as the WebView is.
         message => queueMicrotask(() => toPage?.(message)),
         permittedSubBridgeHandlers(createSubBridgeHandlers(deps), permissions),
         () => ({
@@ -100,8 +91,6 @@ describe('chatic-apps-sdk against the page host', () => {
         const apps = await connectOver(transport, { reportErrors: false });
 
         expect(apps.context).toEqual(expect.objectContaining({ viewId: 'view-1', params: { level: 3 } }));
-        // The runtime requests come from the runtime gate, not the manifest's capabilities: they are
-        // checked against the host in `chaticAppsSdkRuntime.contract.test.ts`.
         expect(CAPABILITIES.filter(capability => !apps.supports(capability))).toEqual(['data']);
     });
 

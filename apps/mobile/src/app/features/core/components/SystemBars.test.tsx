@@ -26,8 +26,6 @@ jest.mock('react-native', () => {
         StatusBar,
         Platform: { OS: 'android' },
         AppState: {
-            // `remove` actually drops the listener, so a stale subscription left behind by a
-            // broken cleanup surfaces as a failure rather than an extra silent call.
             addEventListener: (_event: string, listener: Listener) => {
                 listeners.appState.push(listener);
                 return {
@@ -53,7 +51,6 @@ jest.mock('react-native', () => {
     };
 });
 
-/** Simulate a metrics change (rotation or keyboard resize). */
 const emitDimensions = (window: { width: number; height: number }) => {
     currentWindow = window;
     listeners.dimensions.forEach(listener => listener({ window }));
@@ -105,8 +102,6 @@ describe('SystemBars — 시스템 바 멱등 재적용', () => {
         mockSetBarStyle.mockClear();
         mockSetAppearance.mockClear();
 
-        // This is the regression under test: the value did not change, so a
-        // value-dependent effect would do nothing and the bars would stay wrong.
         listeners.appState.forEach(listener => listener('active'));
 
         expect(mockSetBarStyle).toHaveBeenCalledWith('dark-content', true);
@@ -136,8 +131,6 @@ describe('SystemBars — 시스템 바 멱등 재적용', () => {
 
         listeners.appState.forEach(listener => listener('active'));
 
-        // If the effect stopped re-subscribing on theme change (deps -> []), the resume path
-        // would keep re-applying the theme captured at mount.
         expect(mockSetBarStyle).toHaveBeenCalledWith('light-content', true);
         expect(mockSetBarStyle).not.toHaveBeenCalledWith('dark-content', true);
     });
@@ -158,8 +151,6 @@ describe('SystemBars — 시스템 바 멱등 재적용', () => {
         mockSetBarStyle.mockClear();
         mockSetAppearance.mockClear();
 
-        // Android adjustResize fires 'change' on every keyboard open/close; re-applying there
-        // would cross the native bridge on each keystroke-adjacent event for no benefit.
         emitDimensions({ width: PORTRAIT.width, height: PORTRAIT.height - 300 });
 
         expect(mockSetBarStyle).not.toHaveBeenCalled();
@@ -181,8 +172,6 @@ describe('SystemBars — 시스템 바 멱등 재적용', () => {
 
         render(<SystemBars />);
 
-        // `backgroundColor` and `translucent` are no-ops under edge-to-edge on Android; this pins
-        // that the app does not depend on either of them.
         const { StatusBar } = jest.requireMock('react-native');
         expect(StatusBar).toHaveBeenCalledTimes(1);
         expect(StatusBar.mock.calls[0][0]).toEqual({ barStyle: 'light-content' });

@@ -27,15 +27,12 @@ import type { SubWebViewReadBudget } from './subWebViewReadBudget';
 import type { SubWebViewRuntimeConsent } from './subWebViewRuntimeConsent';
 import { cloudOfSession, placeOfSession } from './subWebViewRuntimeGate';
 
-/** How many streams one page load may hold open; the next subscribe fails `INVALID`. */
 export const SUB_WEBVIEW_STREAMS_PER_LOAD = 16;
 
-/** One handler per runtime request, written for the sub host. */
 export type SubWebViewRuntimeHandlers = {
     [K in SubWebViewRuntimeRequestType]: (message: WebMessageData<K>) => Promise<WebMessageHandlerResponse<K>>;
 };
 
-/** The session as this bridge reads it: the cloud it is on, whose it is, and its changes. */
 export interface SubWebViewRuntimeSession {
     snapshot(): {
         context: {
@@ -47,14 +44,6 @@ export interface SubWebViewRuntimeSession {
     subscribe(listener: () => void): () => void;
 }
 
-/**
- * What a page with `session` gets of the session: this cloud's half and who the user is in it, under
- * the snapshot's own paths. Not the whole snapshot: that is the account's, and holds the user's other
- * clouds (`uidByCloud`, the paired clouds), the relay account and the device's guest id — and a page
- * reads the current cloud only. Nor the cloud's server addresses, which a page has no use for.
- */
-// Home is shown to the page as the cloud `default` on the relay's place, as the gate reads it, so a
-// page reads the same cloud and place on Home as anywhere else.
 export const sessionForPage = (snapshot: ReturnType<SubWebViewRuntimeSession['snapshot']>) => ({
     context: {
         cloud: {
@@ -70,17 +59,11 @@ export const sessionForPage = (snapshot: ReturnType<SubWebViewRuntimeSession['sn
     committedSiteId: placeOfSession(snapshot),
 });
 
-/** Whether the page can be reached: the app in front. */
 export interface SubWebViewVisibility {
     hidden(): boolean;
-    /** Hears each change; returns the function that stops it. */
     onChange(listener: () => void): () => void;
 }
 
-/**
- * The app's own: hidden while the app is in the background, where Android delivers nothing to the page.
- * Not while it is `inactive` — a system prompt, the app switcher — which passes in a moment.
- */
 export const appSubWebViewVisibility: SubWebViewVisibility = {
     hidden: () => AppState.currentState === 'background',
     onChange: listener => {
@@ -90,41 +73,23 @@ export const appSubWebViewVisibility: SubWebViewVisibility = {
 };
 
 export interface SubWebViewRuntimeBridgeDeps {
-    /** The app's runtime host for this page load, built over `send` (`createRuntimeBridgeHost`). */
     createHost: (send: {
         event(payload: OnRuntimeEventPayload): void;
         sessionChanged(payload: OnRuntimeSessionChangedPayload): void;
     }) => RuntimeBridgeHost;
     session: SubWebViewRuntimeSession;
-    /** The cloud selected when the view opened; the page reads it and nothing else. */
     openedCloudId: string;
-    /**
-     * The place the session was on when the view opened. A page with `chatSend` sends to its rooms
-     * only, and is asked about, and allowed, in that place alone.
-     */
     openedPlaceId: string | null;
-    /** What the gate granted: never empty here. */
     granted: ReadonlySet<SubWebViewRuntimePermission>;
-    /** The origin the view was opened on, for consent. */
     origin: string;
-    /** The page host to push to, or `null` once its page load is over: nothing reaches the next one. */
     pageHost: () => Pick<IAppBridgeHost, 'pushEvent'> | null;
     consent: SubWebViewRuntimeConsent;
-    /** The view's server reads. */
     budget: SubWebViewReadBudget;
-    /** The view's messages sent, apart from its reads: a page that reads hard can still send. */
     sends: SubWebViewReadBudget;
-    /** The view's reads of the device cache, apart from its server reads and its sends. */
     cacheReads: SubWebViewReadBudget;
-    /**
-     * Whether the page can be reached now. While it cannot, each stream keeps only its latest event,
-     * delivered when it can again. Absent, the page is always reachable.
-     */
     visibility?: SubWebViewVisibility;
-    /** The view's reactions set, apart from its reads and its messages. */
     reactions: SubWebViewReadBudget;
     now?: () => number;
-    /** Hears each refusal, for the app's log. */
     onRefused?: (refusal: { target: string; method: string; code: string; reason?: string }) => void;
 }
 
@@ -169,40 +134,6 @@ const fieldOf = (args: readonly RuntimeWireValue[], at: { arg: number; field?: s
         : undefined;
 };
 
-/**
- * The four runtime requests on a sub WebView page's host. Each call and subscribe is checked in one
- * order, and the first failure answers:
- *
- * 0. the request's own shape, else `INVALID` — and for a subscribe, room for one more stream, counting
- *    the ones still being admitted, else `INVALID`;
- * 1. the view's cloud is still the session's, else `CLOUD_CHANGED` — and once it is not, every open
- *    stream ends with it and nothing answers again;
- * 2. the whitelist: the target, the method and the way it is asked, the permission, the argument
- *    guards (`checkSubWebViewRuntimeRequest`), else `RUNTIME_NOT_ALLOWED` with the reason;
- * 3. the user's consent for this page in this cloud, else `CONSENT_REFUSED`;
- * 4. for a read of the device cache, the view's cache budget, else `RATE_LIMITED` — and one more read
- *    of it for each room the next check reads, so a refused read costs the app nothing more;
- * 5. for a message and a room's reads, the room: one this device holds, in the cloud and the place the
- *    view opened on — and the session still on that place — read from the device cache, else
- *    `RUNTIME_NOT_ALLOWED` with `guard` (a failure of the read itself passes through as the runtime
- *    answered it); for a reaction, the message it names, read from the device cache, and that
- *    message's room the same way — a message the device does not hold is refused, since the write
- *    cannot be checked after it is made;
- * 6. for a read that asks the server, the view's read budget, for a message its send budget and for a
- *    reaction its reaction budget, else `RATE_LIMITED` with `retryAfterMs`.
- *
- * Then the request goes to the app's runtime unchanged, and its answer comes back unchanged — unless
- * the view closed or its cloud changed while the checks waited: nothing is sent past either.
- *
- * While the page cannot be reached (`visibility`), each stream keeps only its latest event — every
- * stream the whitelist opens sends the whole of what it watches each time, never a change, so the last
- * one stands for the ones before it — and a stream's end replaces whatever it held. They go out in the
- * order they last changed, once the page can be reached again.
- *
- * The runtime host is this page load's own, so the page's streams are apart from the main web's and
- * end with the load. Its hello settles nothing: it reports the main web's owner, the contract, and
- * what this page may use; with `session`, the current cloud's part of the session (`sessionForPage`).
- */
 export const createSubWebViewRuntimeBridge = ({
     createHost,
     session,
@@ -220,15 +151,10 @@ export const createSubWebViewRuntimeBridge = ({
     now = Date.now,
     onRefused,
 }: SubWebViewRuntimeBridgeDeps): { handlers: SubWebViewRuntimeHandlers; dispose(): void } => {
-    // The last event number of each open stream, so the stream the cloud change ends gets the next one.
     const open = new Map<string, number>();
-    // Subscribes past the stream check and still being admitted: they count toward the cap, or a burst
-    // of them sent at once would all pass it while the first waits for consent.
     const admitting = new Set<string>();
     let cloudChanged = false;
-    // Set once the view's page load is over: a request still in its checks then goes nowhere.
     let disposed = false;
-    // Each stream's latest event while the page cannot be reached, in the order they last changed.
     const held = new Map<string, OnRuntimeEventPayload>();
 
     const deliver = (payload: OnRuntimeEventPayload) => {
@@ -287,16 +213,13 @@ export const createSubWebViewRuntimeBridge = ({
 
     const ask = async (): Promise<AppMessageError | null> => {
         const userId = session.snapshot().context.identity.userId ?? '';
-        // Allowed per place: a yes in one place reads and posts nothing in another.
         const placeId = openedPlaceId ?? '';
         if ((await consent.ensure({ userId, origin, cloudId: openedCloudId, placeId }, granted)) === 'refused') {
             return error('CONSENT_REFUSED', 'The user did not allow this page to read this cloud.');
         }
-        // The question can stay up for a while; the cloud may have changed under it.
         return cloudStillOpen() ? null : CLOUD_CHANGED;
     };
 
-    /** The checks before the runtime is asked; `null` when the request may go. */
     const admit = async (
         kind: 'call' | 'stream',
         target: string,
@@ -304,8 +227,6 @@ export const createSubWebViewRuntimeBridge = ({
         args: RuntimeWireValue[]
     ): Promise<AppMessageError | null> => {
         if (!cloudStillOpen()) return CLOUD_CHANGED;
-        // A place's reads answer only for the place the view opened on, and only while the session is
-        // still on it: once the user moved, nothing of a place is read until a new view opens.
         const check = checkSubWebViewRuntimeRequest({ kind, target, method, args }, granted, {
             cloudId: currentCloud(),
             placeId: onOpenedPlace() ? openedPlaceId : null,
@@ -337,8 +258,6 @@ export const createSubWebViewRuntimeBridge = ({
             }
         }
         if (check.entry.messageInCurrentPlace) {
-            // Spent before the message is read, so a page cannot look up which message ids the cache
-            // holds for free, one refused reaction at a time.
             const spent = reactions.take(now());
             if (!spent.ok) {
                 onRefused?.({ target, method, code: 'RATE_LIMITED' });
@@ -360,8 +279,6 @@ export const createSubWebViewRuntimeBridge = ({
                 isFailed?: unknown;
                 subType?: unknown;
             } | null;
-            // Only a sent, visible message, as the user's own screen offers a reaction on: not one deleted,
-            // still sending or failed, and not a row that records an edit or a reaction itself.
             if (
                 !message ||
                 message.id !== chatId ||
@@ -393,18 +310,6 @@ export const createSubWebViewRuntimeBridge = ({
 
     const onOpenedPlace = () => openedPlaceId !== null && placeOfSession(session.snapshot()) === openedPlaceId;
 
-    /**
-     * Whether a room is one of the place the view opened on, in its cloud, with the session still on
-     * that place: the room as this device holds it, read through the page load's own runtime host like
-     * any other read. A room the device does not hold — one the user left, or never joined — is not.
-     * A read that fails answers its own failure, so the page learns the runtime's reason, not a guard.
-     */
-    /**
-     * Spends one read of the view's cache budget, or answers `RATE_LIMITED`. Every cache read the shell
-     * makes for a page counts — the page's own and the room checks it makes on the page's behalf, one per
-     * room — so neither a long list of rooms nor a loop of sends to rooms that are not there reads the
-     * cache for free.
-     */
     const spendCacheRead = (target: string, method: string): AppMessageError | null => {
         const spent = cacheReads.take(now());
         if (spent.ok) return null;
@@ -445,11 +350,8 @@ export const createSubWebViewRuntimeBridge = ({
             const answer = await host.hello(message.data);
             if ('failure' in answer) return reply('RuntimeHello', answer);
             if (answer.value.sessionOwner !== 'native') {
-                // The gate registers this host only where the runtime runs; a `web` answer means it
-                // could not start, and the page has nothing to read.
                 return refuse('RuntimeHello', { code: 'RUNTIME_NOT_STARTED', message: 'the runtime is not running' });
             }
-            // A hello is a new document: the runtime host ended the last one's streams.
             open.clear();
             held.clear();
             const hello: OnSubWebViewRuntimeHelloPayload = {
@@ -468,14 +370,11 @@ export const createSubWebViewRuntimeBridge = ({
             }
             const refused = await admit('call', target, method, args);
             if (refused) return refuse('RuntimeCall', refused);
-            // The checks can wait on the user and on the cache: what changed meanwhile is checked again
-            // here, right before the runtime acts — a message must not go out from a closed view.
             if (disposed) return refuse('RuntimeCall', VIEW_CLOSED);
             if (!cloudStillOpen()) return refuse('RuntimeCall', CLOUD_CHANGED);
             const answer = await host.call({ target, method, args });
             const answerRoom = SUB_WEB_VIEW_ALLOWED.get(method)?.answerRoomInCurrentPlace;
             if (answerRoom && !('failure' in answer)) {
-                // A read by an id that names no room: the room is known only from what it answered.
                 const row = answer.value.value as Record<string, unknown> | null;
                 if (row !== null && typeof row === 'object') {
                     const room = await roomOfPlace(target, method, row[answerRoom.field]);
@@ -516,11 +415,8 @@ export const createSubWebViewRuntimeBridge = ({
             }
             if (refused) return refuse('RuntimeSubscribe', refused);
             const wasOpen = open.has(subscriptionId);
-            // Listed before the runtime is asked: the first event can arrive during the subscribing call.
             open.set(subscriptionId, open.get(subscriptionId) ?? 0);
             const answer = await host.subscribe({ subscriptionId, target, topic, args });
-            // A replacement the runtime refused leaves the stream it would have replaced running, so
-            // only a new id is forgotten.
             if ('failure' in answer && !wasOpen) open.delete(subscriptionId);
             return reply('RuntimeSubscribe', answer);
         },
@@ -547,11 +443,6 @@ export const createSubWebViewRuntimeBridge = ({
     };
 };
 
-/**
- * The bridge as the view builds it, over the app's engine and the access the gate settled. Here rather
- * than in the view so the runtime package is reached only through this module, which the view loads
- * only when the gate opened the runtime.
- */
 export const createAppSubWebViewRuntimeBridge = ({
     access,
     origin,

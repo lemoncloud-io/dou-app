@@ -11,7 +11,6 @@ jest.mock('../../services', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-// Flush the getFirebaseId().then/.catch microtasks queued during the mount effect.
 const flushMicrotasks = () =>
     act(async () => {
         await Promise.resolve();
@@ -28,7 +27,6 @@ describe('useFirebaseInstallId', () => {
 
         const { result } = renderHook(() => useFirebaseInstallId());
 
-        // Initial render happens before the async lookup resolves.
         expect(result.current).toBeNull();
 
         await flushMicrotasks();

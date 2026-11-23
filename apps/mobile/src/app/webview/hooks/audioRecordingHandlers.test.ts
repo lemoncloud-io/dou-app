@@ -6,8 +6,6 @@ import type { ILogService, IPermissionService } from '../../services';
 import { pushedEventErrors, pushedEvents } from './appEventContract';
 import { AUDIO_RECORDING_MAX_MS, createAudioRecordingHandlers, recordingLimit } from './audioRecordingHandlers';
 
-// The real bridge barrel loads every native module wrapper; the handlers receive the recorder by
-// injection and need nothing else from it at runtime.
 jest.mock('../../bridge', () => ({}));
 
 const createBridgeMock = (): jest.Mocked<IAppBridgeHost> =>

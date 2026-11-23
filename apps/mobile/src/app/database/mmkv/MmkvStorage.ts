@@ -12,12 +12,6 @@ export class MmkvStorage implements IKeyValueStorage {
         this.logService = logService;
     }
 
-    /**
-     * MMKV reads/writes are natively synchronous; the async methods below only exist to satisfy
-     * IKeyValueStorage's Promise-based contract. Values needed before the first paint (theme) must
-     * use these sync methods — awaiting a resolved Promise still defers to a later microtask, which
-     * is one frame too late.
-     */
     public setSync<T>(key: string, value: T): void {
         try {
             const jsonValue = JSON.stringify(value);
@@ -72,8 +66,6 @@ export class MmkvStorage implements IKeyValueStorage {
 
     public getByteLength(key: string): number {
         try {
-            // String length, not encoded bytes: every value here is ASCII-heavy JSON, and the debug
-            // panel this feeds compares sizes against each other, never against the disk.
             return this._mmkv.getString(key)?.length ?? 0;
         } catch (e) {
             this.logService.error('STORAGE', `Get length error for key: ${key}`, e as Error);

@@ -4,8 +4,6 @@ import { TABLES } from './tables';
 const allStatements = () => Object.values(MIGRATIONS).flat();
 
 describe('MIGRATIONS', () => {
-    // A table name interpolated from TABLES becomes the literal "undefined" once the name is removed
-    // from TABLES, and a fresh install would then replay that broken statement.
     it('never interpolates a table name that no longer exists', () => {
         for (const sql of allStatements()) {
             expect(sql).not.toMatch(/\bundefined\b/);

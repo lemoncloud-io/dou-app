@@ -1,4 +1,3 @@
-// Loads the bridge over a given native module, the way JS runs over whichever native build is installed.
 const loadBridge = async (mediaExport: Record<string, unknown> | undefined) => {
     jest.resetModules();
     jest.doMock('react-native', () => ({ NativeModules: mediaExport ? { MediaExport: mediaExport } : {} }));
@@ -27,7 +26,6 @@ describe('MediaExportBridge', () => {
         expect(saveFile).toHaveBeenCalledWith('file:///d/a.pdf', 'a.pdf');
     });
 
-    // A native module built before OpenFile and SaveFile still saves and shares.
     it('cannot open or save on a native module that predates them, and rejects with INTERNAL', async () => {
         const shareFile = jest.fn().mockResolvedValue({ completed: null });
         const bridge = await loadBridge({ saveToPhotoLibrary: jest.fn(), shareFile });

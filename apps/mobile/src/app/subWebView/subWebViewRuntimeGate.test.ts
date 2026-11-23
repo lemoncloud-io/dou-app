@@ -34,8 +34,6 @@ describe('grantedSubWebViewRuntime', () => {
     });
 });
 
-// Home as the session reports it on a device: no cloud selected, the relay serving, Home's place the
-// relay's selection, and no committed place (that is a cloud's).
 const onHome = (siteId: string | null = '0000', isAuthenticated = true) => ({
     context: {
         cloud: { cloudId: null },

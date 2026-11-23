@@ -2,14 +2,6 @@ import type { CacheProfileView, ProfileQueryOptions } from '@chatic/bridge-messa
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
-/**
- * Data source specific to the Profile domain used for site (place) display profiles
- *
- * Profile rows are keyed by the web layer as `${sid}@${uid}`, but native treats
- * that value as an opaque `id` and partitions solely by (cid, uid) like every
- * other domain. The web `ProfileLocalDataSource` applies the `sid` filter in
- * memory after loadAll, so `fetchAll` here intentionally ignores the query.
- */
 export class ProfileDataSource implements ICacheDataSource<CacheProfileView, ProfileQueryOptions> {
     constructor(
         private readonly database: ISqliteDatabase,
@@ -37,10 +29,6 @@ export class ProfileDataSource implements ICacheDataSource<CacheProfileView, Pro
         return fetchManyByIds<CacheProfileView>(this.database, this.tableName, ids, cid, uid);
     }
 
-    /**
-     * Fetches the full profile list for a specific cloud/user scope.
-     * `sid` scoping is delegated to the web layer, so the query arg is unused.
-     */
     public async fetchAll(cid?: string, _query?: ProfileQueryOptions, uid?: string): Promise<CacheProfileView[]> {
         const conditions: string[] = [];
         const params: string[] = [];
@@ -79,19 +67,6 @@ export class ProfileDataSource implements ICacheDataSource<CacheProfileView, Pro
         await this.database.executeBatch(commands);
     }
 
-    /**
-     * Builds the JSON payload stored in the `data` column.
-     *
-     * Unlike every other domain (see `UserDataSource`), the profile payload must NOT be
-     * stamped with the scope `cid`/`uid`: `CacheProfileView.uid` is the profile OWNER's id,
-     * while the scope `uid` is the logged-in user. Overwriting it collapses every member's
-     * profile onto the single canonical key `sid@myUid` once the web layer re-derives ids
-     * from the payload (`ProfileLocalDataSource.cacheReadList`), so a place with N members
-     * would read back as one profile and everyone else would lose their nick/thumbnail.
-     * The scope already lives in the dedicated `cid`/`uid` row columns, which is what every
-     * WHERE clause in this class matches on. Only `id` is aligned with the row key, matching
-     * the web `IndexedDBAdapter`, which otherwise stores the item verbatim.
-     */
     private serialize(id: string, item: CacheProfileView): CacheProfileView {
         return { ...item, id };
     }

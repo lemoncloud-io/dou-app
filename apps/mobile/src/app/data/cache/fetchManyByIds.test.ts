@@ -1,10 +1,6 @@
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 
-/**
- * A minimal stand-in for an `id IN (...)` query: only returns rows for params that are known ids.
- * cid/uid are scalars appended after the ids, so they never match this rule and need no separate handling.
- */
 const createDatabase = (rowsById: Record<string, unknown>) => {
     const calls: Array<{ sql: string; params: unknown[] }> = [];
     const database = {

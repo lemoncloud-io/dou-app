@@ -11,8 +11,6 @@ export const useAudioRecordingHandler = (bridge: IAppBridgeHost) => {
         [bridge, permissionService, logger]
     );
 
-    // An end the shell reports while the router is unmounted has no page to tell; the recording it
-    // ended was the page's, and that page is gone.
     useEffect(() => handlers.relayEndedEvents(), [handlers]);
 
     return { isAvailable: AudioRecorderBridge.isAvailable, ...handlers };

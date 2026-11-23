@@ -7,8 +7,6 @@ import { SubWebViewStorage } from '../services/subWebView/subWebViewStorage';
 import { createSubBridgeHost } from './createSubBridgeHost';
 import { createSubBridgeHandlers } from './subBridgeHandlers';
 
-// Typed by the subset, so a name that is not in it fails to compile; the test then checks that the
-// host lists exactly these, no more and no fewer.
 const SUBSET: SubWebViewRequestType[] = [
     'WebAppReady',
     'Ping',
@@ -80,7 +78,6 @@ describe('createSubBridgeHost', () => {
         const reply = JSON.parse(sent[sent.length - 1]);
         expect(reply.type).toBe('OnWebAppReady');
         expect([...reply.data.supportedWebMessages].sort()).toEqual([...SUBSET].sort());
-        // A host with no local cache reports none, so a page never routes storage here.
         expect(reply.data.supportedCacheTypes ?? []).toEqual([]);
         expect(reply.data.subWebView).toEqual(CONTEXT);
     });
@@ -98,7 +95,6 @@ describe('createSubBridgeHost', () => {
         expect(handled).toEqual(expect.objectContaining({ type: 'OnSetSubWebViewTitle', success: true }));
     });
 
-    // The main WebView's requests are not merely unlisted: the host answers them NOT_FOUND.
     it.each(['FetchCacheData', 'FetchFcmToken', 'Purchase', 'StartFileTransfer', 'SendLog', 'OpenSubWebView'])(
         'answers %s with NOT_FOUND',
         async type => {

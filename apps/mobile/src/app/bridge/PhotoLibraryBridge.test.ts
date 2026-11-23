@@ -1,5 +1,3 @@
-// Each case loads the bridge over its own native module, since what the bridge does depends on which
-// methods that module has.
 const load = async (module: Record<string, jest.Mock> | undefined) => {
     jest.resetModules();
     jest.doMock('react-native', () => ({ NativeModules: module ? { PhotoLibrary: module } : {} }));
@@ -45,7 +43,6 @@ describe('PhotoLibraryBridge on a module from before videos', () => {
         manageSelection: jest.fn(),
     });
 
-    // Its listAlbums takes no argument, and React Native rejects a call with the wrong count.
     it('calls listAlbums with no argument and drops the media types from a page request', async () => {
         const native = module();
         const bridge = await load(native);

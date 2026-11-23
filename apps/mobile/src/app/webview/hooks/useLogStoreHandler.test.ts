@@ -8,12 +8,10 @@ import type { LogEntry } from '@chatic/logger';
 
 const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 
-/** Stand-in for the real service — the store's own contract is covered by its unit test. */
 const createQueueStub = () => {
     const held: LogEntry[] = [];
     return {
         held,
-        /** Seeds the stub the way the real store fills: off the hub. */
         seed: (entry: LogEntry) => held.push(entry),
         fetch: jest.fn((limit?: number) => held.slice(0, limit ?? held.length)),
         ack: jest.fn(() => 0),
@@ -31,14 +29,6 @@ jest.mock('../../hooks', () => ({
     }),
 }));
 
-/**
- * The merged ring buffer is gone, so the all-levels destination of a relayed
- * entry is the hub itself: publishing there is what reaches the app's other
- * subscribers — the Crashlytics breadcrumb sink (no level filter, so it takes
- * `debug` too) and the dev-only console mirror. A hub subscriber therefore
- * stands in for what used to be `logBuffer.peek()`, and it has to be installed
- * before the handler runs.
- */
 let hubEntries: LogEntry[] = [];
 let unsubscribeHub: () => void = () => undefined;
 
@@ -118,9 +108,6 @@ describe('useLogStoreHandler — 배출', () => {
         } as WebMessageData<'ClearLogUploadQueue'>);
 
         expect(queue.clear).toHaveBeenCalledTimes(1);
-        // The remaining invariant is that clear never touches the hub side — it publishes nothing
-        // and doesn't undo entries already delivered. Emptying the queue is separate from what
-        // other listeners have already seen.
         expect(hubEntries).toHaveLength(0);
         expect(res).toMatchObject({ type: 'OnClearLogUploadQueue', success: true, data: { size: 0 } });
     });

@@ -4,8 +4,6 @@ import type { ILogService } from '../../services';
 
 import { createAttachmentPickerHandlers } from './attachmentPickerHandlers';
 
-// The real bridge barrel loads every native module wrapper; the handlers receive the picker by
-// injection and need nothing else from it at runtime.
 jest.mock('../../bridge', () => ({}));
 
 const createLoggerMock = (): jest.Mocked<ILogService> =>
@@ -148,7 +146,6 @@ describe('createAttachmentPickerHandlers', () => {
             });
         });
 
-        // NOT_FOUND would tell the web this app has no picker at all, and it would stop asking.
         it.each(['NOT_FOUND', 'E_UNKNOWN', undefined])('reports a native %s as INTERNAL', async code => {
             picker.pick.mockRejectedValueOnce(rejection(code));
 
@@ -307,7 +304,6 @@ describe('createAttachmentPickerHandlers — ReadVideoFrame', () => {
         expect(picker.readVideoFrame).toHaveBeenCalledWith(url, 0, 400);
     });
 
-    // Native reads whatever it is given; a local address would make it a reader of the app's files.
     it.each([
         ['file:///data/user/0/app/files/secret.mp4', 500, 400],
         ['http://bucket.example/v.mp4', 500, 400],

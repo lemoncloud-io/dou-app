@@ -4,11 +4,6 @@ import type { IHapticBridge } from '../../bridge';
 import { HAPTIC_KINDS } from '../../bridge/hapticKinds';
 
 export const createHapticHandlers = (haptic: IHapticBridge) => {
-    /**
-     * The web's first haptic is a request, and the answer is how it tells this shell from one built
-     * before the message (which answers `NOT_FOUND`). Every later one is a post — no `refId`, nobody
-     * waiting — and gets no answer, since a reply would cost a UI-thread trip mid-gesture for nothing.
-     */
     const handleTriggerHaptic = async (message: WebMessageData<'TriggerHaptic'>) => {
         const kind = message.data?.kind;
         const answered = !!message.refId;

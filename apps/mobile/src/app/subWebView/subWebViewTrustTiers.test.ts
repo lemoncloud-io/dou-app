@@ -5,13 +5,6 @@ import { SubWebViewScreen } from '../features/subWebView/SubWebViewScreen';
 import { SubWebViewService } from '../services/subWebView/SubWebViewService';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
 
-/**
- * The phone shell opens any plain https site, in one of three tiers: the hub (`firstParty`), a page
- * the review pipeline deploys (`reviewed`), and any other site (`external`) — a link a cloud's owner
- * saved. An external site gets the base set only: no manifest is fetched from it, the bar is always
- * shown and titled with its host, and only its own origin loads in the view.
- */
-
 const mockManifestGet = jest.fn();
 let mockViewProps: Record<string, any> | undefined;
 const mockTexts: unknown[] = [];
@@ -61,7 +54,6 @@ const renderScreen = async (params: Record<string, unknown>) => {
     await act(async () => undefined);
 };
 
-/** What the bar's title shows: the last title drawn. */
 const barTitle = () => mockTexts.filter(text => text !== '✕').at(-1);
 
 beforeEach(() => {

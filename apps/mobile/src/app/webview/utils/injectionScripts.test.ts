@@ -39,8 +39,6 @@ describe('getDeviceInfoScript — 디바이스 정보 주입 스크립트', () =
     it('deprecated 필드(uniqueId/installationId)도 구버전 웹 호환을 위해 계속 주입한다', () => {
         const script = getDeviceInfoScript(makeParams());
 
-        // Older web bundles read these globals; dropping them would break
-        // registration for webs deployed before the new fields existed.
         expect(script).toContain('window.CHATIC_APP_DEVICE_ID = "device-1:fid-1";');
         expect(script).toContain('window.CHATIC_APP_INSTALLATION_ID = "device-1";');
     });
@@ -52,9 +50,6 @@ describe('getDeviceInfoScript — 디바이스 정보 주입 스크립트', () =
     });
 
     it('값에 홑따옴표/쌍따옴표/백슬래시가 섞여도 유효한 JS로 이스케이프되어 SyntaxError 없이 평가된다', () => {
-        // Regression test for the "Script error." root cause: a raw `'${value}'` interpolation
-        // breaks the string literal (and the whole injected script, incl. the console override that
-        // follows it) whenever a native-supplied value contains a quote/backslash.
         const script = getDeviceInfoScript(
             makeParams({
                 applicationName: `O'Brien's "DoU" \\ App`,
@@ -63,9 +58,6 @@ describe('getDeviceInfoScript — 디바이스 정보 주입 스크립트', () =
         );
 
         const sandbox: { CHATIC_APP_APPLICATION?: string; CHATIC_APP_DEVICE_MODEL?: string } = {};
-        // Evaluating the generated script is the only way to assert it is syntactically valid —
-        // the WebView runs it the same way (`injectedJavaScript`), so this is the fixture, not a
-        // generic eval of untrusted input.
         // eslint-disable-next-line no-new-func
         expect(() => new Function('window', script)(sandbox)).not.toThrow();
         expect(sandbox.CHATIC_APP_APPLICATION).toBe(`O'Brien's "DoU" \\ App`);
@@ -89,8 +81,6 @@ describe('getLogUploadHoldScript — 전송 보류 주입 스크립트', () => {
 
 describe('getThemeScript — 테마 주입 스크립트', () => {
     it('영속화된 테마를 문자열 전역으로 주입한다', () => {
-        // JSON.stringify, not a quoted template hole: the result is evaluated as JS, so the
-        // value has to be escaped at the sink rather than trusted from two modules away.
         expect(getThemeScript('light')).toContain('window.CHATIC_APP_THEME = "light";');
         expect(getThemeScript('dark')).toContain('window.CHATIC_APP_THEME = "dark";');
     });
@@ -110,8 +100,6 @@ describe('getConfigBagScript — 셸 KV 봉투 주입 스크립트', () => {
     });
 
     it('값에 따옴표/백슬래시가 섞여도 유효한 JS로 평가된다 — 원본 문자열이 그대로 살아남는다', () => {
-        // Same regression shape as getDeviceInfoScript's own quote test: a raw template hole would
-        // let a stored value's embedded quote break out of the object literal.
         const raw = `{"a":"O'Brien's \\"quoted\\" \\\\ value"}`;
         const script = getConfigBagScript({ 'debug.mockService.baseUrl': raw });
 
@@ -131,8 +119,6 @@ describe('getSyncInjectionScript — 통합 주입 스크립트', () => {
             theme: 'dark',
         });
 
-        // The web's pre-paint script reads this global before the first paint, so it must
-        // ride along in the same script that is injected before content loads.
         expect(script).toContain('window.CHATIC_APP_THEME = "dark";');
     });
 
@@ -222,8 +208,6 @@ describe('getStorageMediaScript', () => {
             configBag: { 'ui.onboardingCompleted': 'true' },
             storageMedia: ['nativeSecure'],
         });
-        // Android can run the boot script before `document.documentElement` exists. A throw there
-        // would skip the config bag and the storage media, which the web reads at boot.
         const win: Record<string, unknown> = {};
         const postMessage = jest.fn();
         win.ReactNativeWebView = { postMessage };
@@ -257,7 +241,6 @@ describe('getCapabilitiesScript', () => {
     it('is set even when a later snippet throws', () => {
         const script = getSyncInjectionScript({ ...base, capabilities: { version: 1, checkout: ['google'] } });
         const win: Record<string, unknown> = { ReactNativeWebView: { postMessage: jest.fn() } };
-        // A document whose root throws on access: the safe-area snippet, which comes later, fails.
         const document = {
             get documentElement(): never {
                 throw new Error('no root');

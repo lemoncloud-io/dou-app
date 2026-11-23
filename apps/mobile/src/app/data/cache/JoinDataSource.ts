@@ -2,11 +2,6 @@ import type { CacheJoinView, JoinQueryOptions } from '@chatic/bridge-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
-/**
- * Data source implementation specific to the Join domain.
- * Extracts and stores channel_id and user_id so both directions can be searched quickly —
- * which channels a user has joined, and which users are in a channel.
- */
 export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQueryOptions> {
     constructor(
         private readonly database: ISqliteDatabase,
@@ -38,7 +33,6 @@ export class JoinDataSource implements ICacheDataSource<CacheJoinView, JoinQuery
         const params: (string | number)[] = [];
         const conditions: string[] = [];
 
-        // Data isolation and multi-condition filtering
         if (cid) {
             conditions.push(`cid = ?`);
             params.push(cid);

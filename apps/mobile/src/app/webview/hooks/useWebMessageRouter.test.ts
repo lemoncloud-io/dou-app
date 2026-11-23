@@ -35,9 +35,6 @@ const mockPhotoLibrary = {
 
 const PHOTO_LIBRARY_MESSAGES = ['ListPhotoAlbums', 'ListPhotos', 'ReadPhoto', 'ManagePhotoSelection'];
 
-// Every domain hook becomes a stub whose handlers are fresh mocks, so the router can be mounted on
-// its own; the real hooks pull in native modules and the service provider. Media export, the
-// attachment picker and the photo library are pinned so a registered handler can be traced back to them.
 jest.mock('./index', () => {
     const stubHandlers = () => new Proxy({}, { get: (_target, name) => (name === 'then' ? undefined : jest.fn()) });
     return new Proxy(
@@ -69,8 +66,6 @@ const createBridgeMock = (): jest.Mocked<IAppBridgeHost> =>
 describe('useWebMessageRouter', () => {
     const registered = (bridge: jest.Mocked<IAppBridgeHost>) => bridge.registerHandler.mock.calls.map(call => call[0]);
 
-    // The web shows save and share only when the handshake lists both message names, and the
-    // handshake lists what this router registers. Without these two the buttons never appear.
     it('registers SaveToPhotoLibrary and ShareFile', () => {
         const bridge = createBridgeMock();
 
@@ -122,8 +117,6 @@ describe('useWebMessageRouter', () => {
             expect(mockPhotoLibrary.handleReadPhoto).toHaveBeenCalledWith(read);
         });
 
-        // Unregistered, the bridge answers NOT_FOUND — the web's signal to use its own file input.
-        // A registered handler answering an error instead would leave the web asking.
         it('leaves them unregistered where the native module is missing', () => {
             mockPhotoLibrary.isAvailable = false;
             const bridge = createBridgeMock();
@@ -157,8 +150,6 @@ describe('useWebMessageRouter', () => {
             expect(mockAttachmentPicker.handleReadVideoFrame).toHaveBeenCalledWith(frame);
         });
 
-        // The module is there, the method is not: the web must get NOT_FOUND for that one message
-        // while the rest of the module keeps working.
         it('leaves each unregistered where its module lacks the method', () => {
             mockPhotoLibrary.canKeepVideo = false;
             mockAttachmentPicker.canReadVideoFrame = false;
@@ -219,7 +210,6 @@ describe('useWebMessageRouter', () => {
             expect(mockAttachmentPicker.handleReadAttachment).toHaveBeenCalledWith(read);
         });
 
-        // Unregistered, the bridge answers NOT_FOUND — the web's signal to open its own file input.
         it('leaves them unregistered where the native module is missing', () => {
             mockAttachmentPicker.isAvailable = false;
             const bridge = createBridgeMock();
@@ -252,8 +242,6 @@ describe('useWebMessageRouter', () => {
             expect(mockMediaExport.handleSaveFile).toHaveBeenCalledWith(save);
         });
 
-        // A native MediaExport built before these two still answers save and share, so only the two
-        // newer messages go unregistered — and each on its own method's presence.
         it.each([
             ['openFile', 'canOpenFile', 'OpenFile', 'SaveFile'],
             ['saveFile', 'canSaveFile', 'SaveFile', 'OpenFile'],

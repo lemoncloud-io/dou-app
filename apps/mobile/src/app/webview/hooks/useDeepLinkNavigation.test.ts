@@ -6,7 +6,6 @@ import { deeplinkService, logger, notificationService } from '../../services';
 import { navigationRef } from '../../features/core/navigation/navigationRef';
 import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 
-// Captured across the mocked services so tests can drive OS taps and deep link events.
 let mockCapturedOnOpened: ((msg: any) => void) | undefined;
 let mockCapturedSubscribe: ((url: string) => void) | undefined;
 let mockGetInitialResult: any = null;
@@ -94,7 +93,6 @@ describe('useDeepLinkNavigation', () => {
 
             renderHook(() => useDeepLinkNavigation(bridge as any));
 
-            // Flush the getInitialNotification().then microtask.
             await act(async () => {
                 await Promise.resolve();
             });
@@ -131,7 +129,6 @@ describe('useDeepLinkNavigation', () => {
             expect(perfTrace.id).toBe(backend.start.mock.calls[0][0].id);
             expect(perfTrace.syncId).toBe(backend.start.mock.calls[1][0].id);
             expect(perfTrace.startedAt).toBeGreaterThanOrEqual(before);
-            // The web stops it, not the tap.
             expect(backend.stop).not.toHaveBeenCalled();
         });
 
@@ -200,7 +197,6 @@ describe('useDeepLinkNavigation', () => {
             expect(bridge.pushEvent).not.toHaveBeenCalled();
         });
 
-        // The sub WebView would cover where the link goes; it closes, and says why, first.
         it('closes a showing sub WebView as system before it navigates the web', () => {
             mockSubView = { viewId: 'view-1' };
             mockCloseSubWebView.mockImplementation(() => bridge.pushEvent({ type: 'OnSubWebViewClosed' }));
@@ -243,9 +239,7 @@ describe('useDeepLinkNavigation', () => {
         });
     });
 
-    // Every way into the web converges on one event; each must reach it in the vocabulary's shape.
     describe('app → web event contract', () => {
-        // Warm entries fire after mount; a cold start is already waiting when the hook mounts.
         const entries: Array<[string, boolean, () => void]> = [
             ['a warm notification tap', false, () => mockCapturedOnOpened?.({ data: {}, messageId: 'm1' })],
             ['a warm deep link', false, () => mockCapturedSubscribe?.('chatic://channels/1/room')],
@@ -261,7 +255,6 @@ describe('useDeepLinkNavigation', () => {
             renderHook(() => useDeepLinkNavigation(bridge as any));
             await act(async () => {
                 if (!cold) trigger();
-                // The cold-start capture resolves on a microtask.
                 await Promise.resolve();
             });
 
@@ -274,7 +267,6 @@ describe('useDeepLinkNavigation', () => {
             expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
         });
 
-        // No trace on a path that is not a room: the optional field is left out, not sent empty.
         it("pushes 'OnNavigate' without a trace for a path that is not a room", () => {
             (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/?provider=invite' });
             renderHook(() => useDeepLinkNavigation(bridge as any));
@@ -293,7 +285,6 @@ describe('useDeepLinkNavigation', () => {
     it('bridge가 없으면 캡처를 등록하지 않는다', () => {
         renderHook(() => useDeepLinkNavigation(undefined));
 
-        // Effect early-returns before subscribing when there is no bridge.
         expect(mockCapturedSubscribe).toBeUndefined();
         expect(mockCapturedOnOpened).toBeUndefined();
         expect(deeplinkService.getInitialUrl).not.toHaveBeenCalled();
@@ -349,8 +340,6 @@ describe('useDeepLinkNavigation', () => {
             expect(bridge.pushEvent).toHaveBeenCalledTimes(1);
         });
 
-        // The app restarted its own JS context: the OS still reports the link and tap that launched
-        // the process, and the previous context already took them.
         it('skips both cold-start lookups when the app restarted itself', async () => {
             mockGetInitialUrl = 'chatic://channels/1/room';
             mockGetInitialResult = { data: { link: '/channels/1/room' } };

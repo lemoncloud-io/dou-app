@@ -113,7 +113,6 @@ describe('forwardSubWebViewClosed', () => {
         expect(pushedEventErrors(events)).toEqual([]);
     });
 
-    // The page that opened the view is gone; the page that replaced it never asked.
     it('pushes nothing when the web reloaded under the view', () => {
         const service = createService();
         const bridge = { pushEvent: jest.fn() };

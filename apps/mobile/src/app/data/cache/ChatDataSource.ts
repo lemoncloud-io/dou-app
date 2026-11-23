@@ -24,24 +24,6 @@ interface MediaRow {
     data: string;
 }
 
-/**
- * Determines whether a row is previewable — a SQL mirror of the web's `isPreviewableChat`
- * (@chatic/data) (ADR-0057).
- *
- * `PREVIEWABLE_SQL` excludes system rows (including reaction events), failed sends and thread
- * replies (the room's feed leaves them to the thread page), but keeps tombstones (hidden), the
- * channel's last message that renders as "Deleted message." `ACTIVITY_SQL` is the same without the
- * reply rule — the room's latest activity, whose time orders the home list.
- * The fields used for this check have no extracted column, so we read the blob via
- * `json_extract`; each probe walks `idx_chats_cid_uid_channel_chatno` in newest-first order and
- * stops at the first match, so the number of rows evaluated is proportional to the length of the
- * non-previewable tail (not the whole channel history).
- *
- * This check is only an optimization — the web owns the semantics. The web re-validates the
- * returned rows against its own rules and, if they don't match, falls back to a windowed query
- * for just that channel. That catches a mirror that is too loose, so an older app whose SQL still
- * admits thread replies is corrected by the web, at the cost of the windowed query.
- */
 const ACTIVITY_SQL = [
     `COALESCE(json_extract(data, '$.stereo'), '') <> 'system'`,
     `COALESCE(json_extract(data, '$.subType'), '') <> 'reaction'`,
@@ -50,9 +32,6 @@ const ACTIVITY_SQL = [
 
 const PREVIEWABLE_SQL = `COALESCE(json_extract(data, '$.parentId'), '') = '' AND ${ACTIVITY_SQL}`;
 
-/**
- * Data source implementation specific to the Chat domain
- */
 export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQueryOptions> {
     constructor(
         private readonly database: ISqliteDatabase,
@@ -106,7 +85,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
             params.push(`%${query.keyword}%`);
         }
 
-        // Add the pagination cursor condition (less than cursorNo)
         if (query?.cursorNo !== undefined && query.cursorNo !== null) {
             conditions.push(`chat_no < ?`);
             params.push(query.cursorNo);
@@ -114,11 +92,9 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
 
         if (conditions.length > 0) sql += ` WHERE ` + conditions.join(' AND ');
 
-        // Set the sort order (defaults to DESC when unspecified, since that fits chat listings best)
         const sortOrder = query?.sort ? query.sort.toUpperCase() : 'DESC';
         sql += ` ORDER BY chat_no ${sortOrder}`;
 
-        // Add the pagination LIMIT condition
         if (query?.limit !== undefined && query.limit !== null) {
             sql += ` LIMIT ?`;
             params.push(query.limit);
@@ -129,20 +105,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
         return (result.rows || []).map((row: any) => JSON.parse(row.data as string) as CacheChatView);
     }
 
-    /**
-     * Fetches, per channel, the latest preview row, the latest activity row (a thread reply
-     * allowed) and that channel's max chat_no (ADR-0057, `FetchLastChatsData`).
-     *
-     * Uses 3 index probes per channel — the committed top-1 (activity rows, DESC LIMIT 1), the
-     * unsent candidate (`chat_no = 0`, excluding failures — picking the most recent createdAt in
-     * JS), and `MAX(chat_no)`. If an unsent message exists, it wins (the same semantics as the
-     * web's `compareByChatNo`, which treats 0 as the newest — a message you just sent must be
-     * previewable even before it's acked). A room whose newest message is a thread reply costs two
-     * more probes, for the newest row outside threads. The query count is 3N to 5N, but they're all in-process index
-     * walks, so the cost unit is round trips, not query count (same rationale as `fetchManyByIds`).
-     *
-     * The returned array follows the request order, but the caller (the web) re-indexes it by channelId.
-     */
     public async fetchLastPerChannel(channelIds: string[], cid?: string, uid?: string): Promise<LastChatItem[]> {
         const uniqueIds = Array.from(new Set(channelIds.filter(Boolean)));
         if (uniqueIds.length === 0) return [];
@@ -163,9 +125,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
         for (const channelId of uniqueIds) {
             const channelParams = [...scopeParams, channelId];
 
-            // The unsent row wins over a committed one. Among unsent messages, chat_no is always 0, so
-            // createdAt is the only ordering axis. A channel typically has 0-2 such rows, so taking
-            // the max once is enough instead of sorting.
             const probe = async (rule: string): Promise<CacheChatView | undefined> => {
                 const committedResult = await this.database.execute(
                     `SELECT data FROM ${this.tableName} WHERE ${scopeSql}channel_id = ? AND chat_no > 0 AND ${rule} ORDER BY chat_no DESC LIMIT 1`,
@@ -186,8 +145,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
                 return pending ?? committed;
             };
 
-            // The activity row comes first. When it is not a thread reply it is also the preview row,
-            // so the second pair of probes only runs for a room whose newest message is a reply.
             const activity = await probe(ACTIVITY_SQL);
             const preview = activity && activity.parentId ? await probe(PREVIEWABLE_SQL) : activity;
 
@@ -203,15 +160,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
         return results;
     }
 
-    /**
-     * The statements that write one chat row: the row itself and, when the web sent its media entries,
-     * those entries in place of the message's old ones.
-     *
-     * The entries are the web's (`chatMediaEntries` in `@chatic/data`) and are stored as sent — no kind
-     * is decided here. A row with no `mediaEntries` field leaves its message's entries alone: it came
-     * from a web build that predates the index. An empty list removes them (a deleted or unsent
-     * message). Treating the two alike would erase the index on every write an older bundle makes.
-     */
     private rowCommands(id: string, item: CacheChatView, cid: string, uid: string): SQLBatchTuple[] {
         const channelId = item.channelId || '';
         const chatNo = item.chatNo || 0;
@@ -249,11 +197,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
         return commands;
     }
 
-    /**
-     * One batch even for one row: the row and its entries have to land together, and op-sqlite wraps
-     * a batch in a transaction (the JS side issues BEGIN / COMMIT, ROLLBACK on failure) where separate
-     * `execute` calls would each commit on their own.
-     */
     public async save(id: string, item: CacheChatView, cid: string, uid: string): Promise<void> {
         await this.database.executeBatch(this.rowCommands(id, item, cid, uid));
     }
@@ -282,14 +225,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
         );
     }
 
-    /**
-     * Deletes only the rows for one channel, and the room's media entries with them.
-     * `channel_id` is an extracted column used for lookups, so the condition works as-is.
-     *
-     * The scope (cid/uid) is included in the condition too — the same device's other cloud accounts
-     * or other users could share the same channel id, and leaving one room shouldn't wipe their
-     * history too.
-     */
     public async clearByChannel(channelId: string, cid?: string, uid?: string): Promise<void> {
         const conditions: string[] = ['channel_id = ?'];
         const params: string[] = [channelId];
@@ -326,15 +261,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
         ]);
     }
 
-    /**
-     * One page of a room's media entries of one kind, newest message first and by `idx` within a
-     * message, each with its message's row (`FetchChatMediaCacheData`).
-     *
-     * Three index reads, not one: the first `limit` entries; then, when the limit landed inside a
-     * message, the rest of that message's entries, since a page never splits a message (the cursor is
-     * one message number, and the tail would be skipped by the next page); then one look below that
-     * message to tell whether a next page exists.
-     */
     public async fetchMediaPage(
         query: { channelId: string; kind: ChatMediaKind; cursorNo?: number; limit: number },
         cid: string,
@@ -369,16 +295,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
         return { items: rows.map(toMediaItem), nextCursorNo: (more.rows || []).length > 0 ? boundaryNo : null };
     }
 
-    /**
-     * A room fill's entries (`SaveChatMediaCacheData`), in one batch, never touching a chat row.
-     *
-     * Each message's statements carry the same guard: its row still exists and the row's
-     * `mediaEntriesVersion` (absent = 0) is below the fill's `version`. A row the web wrote after the fill
-     * read it carries the current version and already has the right entries (an empty list for a delete
-     * mark); a row deleted or cleared since is gone. Either way the guard skips it, inside the batch's
-     * transaction, so nothing lands between the check and the write. The entries take the row's own
-     * channel and number.
-     */
     public async saveMediaFill(items: ChatMediaFillItem[], version: number, cid: string, uid: string): Promise<void> {
         if (items.length === 0) return;
         const stale = `EXISTS (SELECT 1 FROM ${this.tableName} c WHERE c.cid = ? AND c.uid = ? AND c.id = ? AND COALESCE(json_extract(c.data, '$.mediaEntriesVersion'), 0) < ?)`;
@@ -399,7 +315,6 @@ export class ChatDataSource implements IChatCacheDataSource<CacheChatView, ChatQ
         await this.database.executeBatch(commands);
     }
 
-    /** A room's entries counted per kind, off the index alone. */
     public async countMedia(channelId: string, cid: string, uid: string): Promise<ChatMediaCounts> {
         const result = await this.database.execute(
             `SELECT kind, COUNT(*) AS n FROM ${this.mediaTableName} WHERE cid = ? AND uid = ? AND channel_id = ? GROUP BY kind`,

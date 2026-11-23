@@ -19,7 +19,6 @@ describe('useLanguageStore', () => {
         mockSharedSet.mockClear();
     });
 
-    /** The store reads storage during module evaluation, so each case needs a fresh import. */
     const load = () => ({
         store: require('./languageStore').useLanguageStore,
         i18n: require('../utils/i18n'),

@@ -2,9 +2,6 @@ import type { CacheUserView, UserQueryOptions } from '@chatic/bridge-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
-/**
- * Data source specific to the User profile domain
- */
 export class UserDataSource implements ICacheDataSource<CacheUserView, UserQueryOptions> {
     constructor(
         private readonly database: ISqliteDatabase,
@@ -32,9 +29,6 @@ export class UserDataSource implements ICacheDataSource<CacheUserView, UserQuery
         return fetchManyByIds<CacheUserView>(this.database, this.tableName, ids, cid, uid);
     }
 
-    /**
-     * Fetches the full user list within a specific cloud.
-     */
     public async fetchAll(cid?: string, _query?: UserQueryOptions, uid?: string): Promise<CacheUserView[]> {
         const conditions: string[] = [];
         const params: string[] = [];

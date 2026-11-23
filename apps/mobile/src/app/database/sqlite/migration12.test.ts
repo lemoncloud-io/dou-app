@@ -2,10 +2,6 @@ import { ChatDataSource } from '../../data/cache/ChatDataSource';
 import { createRealSqliteDatabase, migrate, openMemorySqlite, type BetterSqlite } from './realSqliteDatabase';
 import { TARGET_VERSION } from './schema';
 
-/**
- * Migration 12 on a real SQLite: a v12 database with chat rows in it, as a device has it before the
- * update, moved to v13.
- */
 describe('migration 12 — chat media table and the restored newest-first chat index', () => {
     let db: BetterSqlite;
 
@@ -112,7 +108,6 @@ describe('migration 12 — chat media table and the restored newest-first chat i
         migrate(db, 12, TARGET_VERSION);
         const chats = new ChatDataSource(createRealSqliteDatabase(db), 'chats');
 
-        // A NULL ref breaks the entry's NOT NULL constraint after the row and the delete ran.
         await expect(
             chats.save(
                 'room:60',

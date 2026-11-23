@@ -4,7 +4,6 @@ import { defaultDebugSettings, useDebugSettingsStore } from '../stores/debugSett
 import { restoreCustomZip } from './customZipService';
 import { useCustomZipBootGate } from './useCustomZipBootGate';
 
-// Mock react-native-config (used by debugSettingsStore to compute the default URL)
 jest.mock('react-native-config', () => ({
     default: {
         VITE_ENV: 'DEV',
@@ -12,7 +11,6 @@ jest.mock('react-native-config', () => ({
     },
 }));
 
-// storageAdapter pulls in the native preferenceService, so replace it with a noop storage
 jest.mock('../stores/storageAdapter', () => ({
     storageAdapter: {
         getItem: () => null,
@@ -58,7 +56,6 @@ describe('useCustomZipBootGate', () => {
 
         const { result } = renderHook(() => useCustomZipBootGate());
 
-        // while pending: gate stays open + serverUrl stays unset
         expect(result.current.isRestoringCustomZip).toBe(true);
         expect(useDebugSettingsStore.getState().customZipServerUrl).toBeNull();
         expect(mockRestore).toHaveBeenCalledWith(LOCAL_ROOT);

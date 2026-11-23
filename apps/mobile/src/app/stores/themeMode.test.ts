@@ -27,8 +27,6 @@ describe('parseThemeMode — 저장 포맷 흡수', () => {
     });
 
     it('스크립트 이스케이프 탈출을 노린 값을 거부한다', () => {
-        // The parsed value is interpolated into an injected WebView script, so the whitelist is
-        // the boundary that keeps a stored string from becoming code.
         expect(parseThemeMode("light'; window.__pwned=1; //")).toBeNull();
         expect(parseThemeMode('{"state":{"theme":"light\'; window.__pwned=1; //"}}')).toBeNull();
         expect(parseThemeMode('light\\')).toBeNull();

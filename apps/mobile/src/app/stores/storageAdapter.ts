@@ -7,14 +7,6 @@ const isPreferenceKey = (key: string): key is PreferenceKey => {
     return (validKeys as string[]).includes(key);
 };
 
-/**
- * A custom adapter that connects `Zustand` so it can use `preferenceService`.
- * Performs type casting since `preferenceService` only accepts the `PreferenceKey` type.
- *
- * `createJSONStorage` takes no type argument here: its parameter is the type of the *persisted
- * state*, not of the storage, so naming one would pin every store's persisted shape to it. Left
- * open, each store's `persist` decides its own shape — including one narrowed by `partialize`.
- */
 export const storageAdapter = createJSONStorage(() => ({
     getItem: async (name: string): Promise<string | null> => {
         if (!isPreferenceKey(name)) {

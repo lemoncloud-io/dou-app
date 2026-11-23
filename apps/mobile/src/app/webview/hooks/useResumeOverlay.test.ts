@@ -15,8 +15,6 @@ jest.mock('react-native', () => ({
     },
 }));
 
-// Stub the services barrel: importing the real one drags in the whole provider
-// (MMKV, SQLite, Firebase, ...) which cannot load under jsdom.
 const mockRevealListeners = new Set<() => void>();
 jest.mock('../../services', () => ({
     bootMetricsService: { recordForegroundResume: (ms: number) => mockRecordForegroundResume(ms) },
@@ -28,7 +26,6 @@ jest.mock('../../services', () => ({
     },
 }));
 
-/** What the boot splash service does when the web reports its first screen. */
 const revealWeb = () => mockRevealListeners.forEach(listener => listener());
 
 describe('useResumeOverlay hook', () => {
@@ -102,10 +99,8 @@ describe('useResumeOverlay hook', () => {
         act(() => {
             triggerAppStateChange('active');
         });
-        // Still true immediately
         expect(result.current.showResumeOverlay).toBe(true);
 
-        // Advance timer by 1.5s
         act(() => {
             jest.advanceTimersByTime(1500);
         });
@@ -133,17 +128,14 @@ describe('useResumeOverlay hook', () => {
         Platform.OS = 'android';
         const { result } = renderHook(() => useResumeOverlay());
 
-        // Should not register any listener
         expect(mockAddEventListener).not.toHaveBeenCalled();
 
         act(() => {
             triggerAppStateChange('background');
         });
-        // Should remain false
         expect(result.current.showResumeOverlay).toBe(false);
     });
 
-    // A crashed content process reloads into a full web boot with no launch splash to cover it.
     describe('crash-reload cover', () => {
         it('covers on Android too, until the reloaded web reports its first screen', () => {
             Platform.OS = 'android';
@@ -177,7 +169,6 @@ describe('useResumeOverlay hook', () => {
             expect(result.current.showResumeOverlay).toBe(false);
         });
 
-        // Two causes, two flags: the resume fallback must not lift a cover the reload still needs.
         it('stays up while a resume dismissal clears only the resume cause', () => {
             const { result } = renderHook(() => useResumeOverlay());
 

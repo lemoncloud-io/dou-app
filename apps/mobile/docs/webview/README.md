@@ -443,6 +443,33 @@ Reporting it separately needs a status call that settles — a patched or upgrad
 new `permission` value the web can adopt without breaking older builds, since the field is optional
 on the wire.
 
+## Handler rules worth knowing
+
+- **`SavePreference` is an allowlist.** The message comes from page JavaScript, so a key is writable
+  only if it is `theme` or `language` (each validated before it reaches storage) or one of
+  `blurLastMessage`, `isFirstRun` and `pushRegistration` (`BRIDGE_WRITABLE_PREFERENCE_KEYS`). System
+  keys are refused, above all `debugSettings`, whose `webviewBaseUrlOverride` decides the WebView
+  origin on the next launch: one crafted message could otherwise redirect the app for good.
+  `pushRegistration` is an inert record the web reads back; it lives here rather than in the page's
+  storage so that clearing the page's cache does not trigger a new registration.
+- **A purchase that never answers is failed after 15 seconds.** `useSubscriptionIap` sets `loading`
+  while the store sheet is up and clears it on the store's own success or error event. If neither
+  comes (a hung StoreKit or Play Billing round trip), a timer clears `loading` and relays an unknown
+  error to the web; a request that throws before reaching the sheet is relayed the same way. Without
+  that, the "processing payment" overlay would stay up and every later tap would hit the `loading`
+  guard and do nothing.
+- **Contacts are normalized to the declared shape.** `toContactInfo` only fills defaults, because the
+  platforms disagree about empty fields: iOS leaves a key out (no first name means no `givenName`
+  key at all) and never sends `displayName`, `backTitle`, `isStarred`, `prefix`, `suffix` or
+  `department`, while Android sends them, derives `displayName` from the structured name (falling
+  back to the organisation) and copies it into an empty `givenName`. It does not invent a display
+  name: which name part leads is a presentation rule the web owns in one place. A birthday without a
+  year (iOS omits the field) is why `Birthday.year` is optional on the wire.
+- **`FetchUrlMetadata` answers `success: true` even without a preview.** `data.success` carries
+  whether the page had one. The web must tell "this page has no og tags" from a bridge failure,
+  because the latter is exactly what a shell without the handler returns (`NOT_FOUND`), and the two
+  deserve the same quiet outcome for different reasons.
+
 ## Change checklist
 
 - Is a new WebView message type reflected in `@chatic/bridge-messages`, and does this shell either
