@@ -23,7 +23,6 @@ jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: 'p1' }),
-            // My session id and my id in this cloud differ on purpose: both have to be left out.
             useSessionIdentity: () => ({ userId: 'me-session' }),
             useUidInCloud: () => 'me-cloud',
         },
@@ -34,7 +33,6 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigate,
 }));
 jest.mock('../../../hooks', () => ({ useSelectedCloudId: () => 'cloud-a' }));
-// The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <div>{title}</div> }));
 jest.mock('@chatic/web-ui-kit', () => ({
     SearchInput: ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
@@ -65,7 +63,6 @@ const member = (id: string, extra: Partial<DomainPlaceMember> = {}): DomainPlace
     ...extra,
 });
 
-/** The candidate rows' names, top to bottom. */
 const rowNames = () => screen.queryAllByTestId(/^cand-/).map(el => el.textContent);
 
 beforeEach(() => {
@@ -110,8 +107,6 @@ describe('CloudDmPickerPage — the candidates', () => {
         expect(rowNames()).toEqual(['Profile nick']);
     });
 
-    // The shared naming chain, not a copy of it: with nothing to name them by it reaches the label
-    // rather than printing the raw account id.
     it('falls back to the unknown label rather than an account id', () => {
         mockMembers = [member('b3f1-uuid')];
 
@@ -123,7 +118,6 @@ describe('CloudDmPickerPage — the candidates', () => {
 });
 
 describe('CloudDmPickerPage — picking', () => {
-    // One tap IS the action; there is no confirm step, so nothing can be selected and left unsent.
     it('opens the 1:1 with that member on a single tap, replacing the picker in history', () => {
         mockMembers = [member('u1', { nick: 'Bora' }), member('u2', { nick: 'Dana' })];
 
@@ -154,7 +148,6 @@ describe('CloudDmPickerPage — search', () => {
         expect(rowNames()).toEqual(['Bora']);
     });
 
-    // "Nobody here" and "nothing matched what I typed" are different facts; the empty body says which.
     it('says nothing matched when the search hides every row', () => {
         mockMembers = [member('u1', { nick: 'Bora' })];
 
@@ -177,7 +170,6 @@ describe('CloudDmPickerPage — states', () => {
         expect(screen.getByText('cloudDm.picker.emptyHint')).toBeInTheDocument();
     });
 
-    // A place whose read has not landed is not an empty one, and must not claim to be.
     it('shows loading and claims nothing while the read is out', () => {
         mockStatus = 'loading';
 
@@ -207,8 +199,6 @@ describe('CloudDmPickerPage — where a cloud 1:1 cannot open', () => {
         expect(usePlaceMembers).toHaveBeenCalledWith('p1');
     });
 
-    // Reached on the relay or with no place (back after a push moved the session), the screen goes
-    // home instead of listing people a tap could never reach.
     it('goes home with replace, renders nothing and reads no members', () => {
         mockIsAvailable = false;
         mockMembers = [member('u1', { nick: 'Bora' })];

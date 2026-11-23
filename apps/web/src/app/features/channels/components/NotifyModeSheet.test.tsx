@@ -39,7 +39,6 @@ describe('NotifyModeSheet', () => {
         ]);
     });
 
-    // A 1:1 hands over two levels; the sheet must not add the third back.
     it('offers only the levels it is given', () => {
         renderSheet({ levels: ['all', 'none'] });
 
@@ -72,7 +71,6 @@ describe('NotifyModeSheet', () => {
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 
-    // Deciding whether a re-pick is a change is the caller's job, so the sheet still reports it.
     it('reports a pick of the current level too', () => {
         renderSheet({ value: 'all' });
 
@@ -82,7 +80,6 @@ describe('NotifyModeSheet', () => {
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 
-    // The kit's close button defaults to the English "Close"; the sheet passes the localized label.
     it('names its close button with the localized label and closes without a pick', () => {
         renderSheet();
 

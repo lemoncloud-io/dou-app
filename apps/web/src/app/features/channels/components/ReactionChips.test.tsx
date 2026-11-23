@@ -36,7 +36,6 @@ describe('ReactionChips — 메시지 하단 리액션 칩', () => {
         expect(screen.getByRole('button')).toHaveAttribute('aria-pressed', 'true');
     });
 
-    // The toggle passes the current `mine` so the caller can send the opposite target state.
     it('탭하면 현재 mine 상태와 함께 onToggle을 부른다', () => {
         const onToggle = jest.fn();
         render(<ReactionChips tallies={[tally({ mine: true })]} nameOf={nameOf} onToggle={onToggle} />);
@@ -44,8 +43,6 @@ describe('ReactionChips — 메시지 하단 리액션 칩', () => {
         expect(onToggle).toHaveBeenCalledWith('👍', true);
     });
 
-    // ADR-0047 decision 1 — keeps a second reaction from costing the same as the first (long
-    // press 450ms + sheet).
     describe('추가 버튼 (+)', () => {
         it('칩이 없으면 줄 자체가 없으므로 + 도 나오지 않는다', () => {
             const { container } = render(
@@ -78,17 +75,12 @@ describe('ReactionChips — 메시지 하단 리액션 칩', () => {
             expect(onToggle).not.toHaveBeenCalled();
         });
 
-        // Has no pressed state — tapping a chip and tapping + are different actions, and the row
-        // must not blur the two together.
         it('+ 는 aria-pressed를 갖지 않는다', () => {
             render(<ReactionChips tallies={[tally()]} nameOf={nameOf} onToggle={jest.fn()} onAdd={jest.fn()} />);
             expect(screen.getByLabelText('chat.room.addReaction')).not.toHaveAttribute('aria-pressed');
         });
     });
 
-    // ADR-0047 revision — the chip splits into two gestures: a tap does the common thing
-    // (toggle), a long press shows reactor detail. One gesture must never trigger both actions
-    // at once.
     describe('칩 롱프레스 — 반응자 상세', () => {
         beforeEach(() => jest.useFakeTimers());
         afterEach(() => jest.useRealTimers());
@@ -113,7 +105,6 @@ describe('ReactionChips — 메시지 하단 리액션 칩', () => {
 
             press(screen.getByRole('button'));
 
-            // The normalized fold key (❤), not the display string (❤️) — the sheet looks it up by the same fold criterion.
             expect(onShowReactors).toHaveBeenCalledWith('❤');
         });
 
@@ -125,7 +116,7 @@ describe('ReactionChips — 메시지 하단 리액션 칩', () => {
 
             const chip = screen.getByRole('button');
             press(chip);
-            fireEvent.click(chip); // the click that follows a long press
+            fireEvent.click(chip);
             expect(onToggle).not.toHaveBeenCalled();
         });
 

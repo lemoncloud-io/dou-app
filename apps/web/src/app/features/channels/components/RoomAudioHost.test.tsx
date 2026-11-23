@@ -31,7 +31,6 @@ const track = (over: Partial<AudioTrack> = {}): AudioTrack => ({
     ...over,
 });
 
-/** Puts `playing` in the store as the loaded track, with where another file was left. */
 const load = (playing: AudioTrack = track()) =>
     act(() =>
         useRoomAudioStore.setState({
@@ -42,7 +41,6 @@ const load = (playing: AudioTrack = track()) =>
         })
     );
 
-// The router's navigate, captured so a test can move between screens with the host still mounted.
 let navigate: NavigateFunction;
 const CaptureNavigate = () => {
     navigate = useNavigate();
@@ -60,7 +58,6 @@ const renderHost = (path = '/channels/ch-1/room') =>
 const go = (path: string) => act(() => navigate(path));
 const audioElement = () => screen.getByTestId('room-audio') as HTMLAudioElement;
 
-/** jsdom implements no playback; `paused` is made writable so a test can say the element is playing. */
 const setPaused = (element: HTMLMediaElement, paused: boolean) =>
     Object.defineProperty(element, 'paused', { configurable: true, get: () => paused });
 
@@ -93,14 +90,12 @@ describe('RoomAudioHost', () => {
         mockToast.mockReset();
         mockGetChat.mockReset();
         mockGetCloudRepositories.mockClear();
-        // jsdom has no playback: the element's controls are stubbed so the store can drive it.
         play = jest.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
         pause = jest.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
         jest.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
     });
 
     afterEach(() => {
-        // Unmount while the stubs still stand: the host stops the element on its way out.
         cleanup();
         jest.restoreAllMocks();
     });
@@ -111,7 +106,6 @@ describe('RoomAudioHost', () => {
         expect(document.querySelectorAll('audio')).toHaveLength(1);
         expect(audioElement()).toHaveClass('hidden');
 
-        // The store plays through the attached element: a press loads the file into it.
         act(() => useRoomAudioStore.getState().play(track({ url: 'https://cdn/a.m4a' })));
         expect(audioElement().src).toBe('https://cdn/a.m4a');
         expect(play).toHaveBeenCalled();
@@ -265,8 +259,6 @@ describe('RoomAudioHost', () => {
 
                 fireEvent.error(audioElement());
 
-                // Nothing says the format is at fault — the network or an unchanged address — so the file
-                // stays playable for the next press, and the player stops waiting on it.
                 await waitFor(() => expect(mockToast).toHaveBeenCalledTimes(1));
                 expect(mockToast).toHaveBeenCalledWith(
                     expect.objectContaining({ title: 'chat.attach.audio.playFailedToast' })
@@ -285,7 +277,6 @@ describe('RoomAudioHost', () => {
 
             fireEvent.error(audioElement());
             await waitFor(() => expect(useRoomAudioStore.getState().current?.url).toBe('https://cdn/second.m4a'));
-            // The fresh address itself fails at once: that is the format, not an expiry.
             fireEvent.error(audioElement());
             await waitFor(() => expect(useRoomAudioStore.getState().unplayable).toEqual({ 'c1/up-7': true }));
             expect(mockGetChat).toHaveBeenCalledTimes(1);

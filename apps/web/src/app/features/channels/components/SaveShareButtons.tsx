@@ -11,28 +11,12 @@ interface SaveShareButtonsProps {
     item: ExportableMedia;
     busy: MediaExportBusy | undefined;
     onAction: (action: MediaExportAction, item: ExportableMedia) => void;
-    /**
-     * The message has more than one item to save: saving asks first whether to save this one or all
-     * of them. `count` is how many can be saved now — not sending, not broken, and no video once the
-     * app refused one. `videos` says whether any of them is a video: the sheet then counts items
-     * rather than photos. A count of one saves straight away.
-     */
     saveAll?: { count: number; videos: boolean; onSaveAll: () => void };
-    /**
-     * Whether share is offered. A browser that cannot share files (most desktop ones) leaves it out;
-     * save then still sits at the right end.
-     */
     canShare?: boolean;
 }
 
-/**
- * The viewer's share and save for the showing photo or video, at the two ends of its bottom bar, with
- * a "save all" run's position between them. Both are off for an item still on its way (its address is
- * a page-local preview), for one the viewer could not draw, and while either is working on this item.
- */
 export const SaveShareButtons = ({ item, busy, onAction, saveAll, canShare = true }: SaveShareButtonsProps) => {
     const { t } = useTranslation();
-    // The item the sheet was opened for, held so a page turned behind the sheet does not change it.
     const [choosing, setChoosing] = useState<ExportableMedia | null>(null);
     const disabled = !isExportableUrl(item.url) || !!item.broken || !!busy;
     const video = item.kind === 'video';

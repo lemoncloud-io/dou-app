@@ -14,7 +14,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </button>
     ),
     IconCheck: () => <span data-testid="owner-check" />,
-    // The scope sheet: drawn only while open, its footer button after its body.
     BottomSheet: ({ open, title, children, footer }: any) =>
         open ? (
             <div role="dialog" aria-label={title}>
@@ -55,7 +54,6 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
         render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick={false} />);
 
         expect(screen.queryAllByRole('button')).toEqual([]);
-        // Not an empty block under the name either: the list container itself is left out.
         expect(screen.queryByTestId('member-profile-actions')).not.toBeInTheDocument();
     });
 
@@ -65,7 +63,6 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
         expect(screen.getAllByRole('button').map(button => button.textContent)).toEqual(['chat.settings.removeMember']);
     });
 
-    // The host decides where a 1:1 can start; without its handler no row offers it.
     it('offers no way to start a 1:1 when the host gives no handler, whoever is viewing', () => {
         const actions = () => screen.queryAllByRole('button').map(button => button.textContent);
 
@@ -89,7 +86,6 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
         expect(onStartDm).toHaveBeenCalledTimes(1);
     });
 
-    // A host that forgets to withhold the handler on my own profile still cannot offer a room with me.
     it('never offers a 1:1 on my own profile, even with a handler', () => {
         render(
             <MemberProfileDialog open onOpenChange={() => undefined} member={member} isSelf onStartDm={jest.fn()} />
@@ -100,8 +96,6 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
 
     describe('remove: scope sheet, then a confirm per scope', () => {
         const openScopeSheet = () => fireEvent.click(screen.getByText('chat.settings.removeMember'));
-        // `hidden`: the stub sheet renders beside the modal profile, which hides the rest of the page
-        // from the accessibility tree (the real sheet portals above it).
         const scopeLabels = () => screen.queryAllByRole('radio', { hidden: true }).map(radio => radio.textContent);
 
         it('offers both scopes to a viewer who owns the room and the place', () => {
@@ -131,7 +125,6 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
             expect(scopeLabels()).toEqual(['chat.settings.removeScope.room.label']);
         });
 
-        // Owning the place alone is enough to see the remove row, with the place scope only.
         it('offers only the place scope to a place owner who does not own the room', () => {
             render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canRemoveFromPlace />);
             openScopeSheet();

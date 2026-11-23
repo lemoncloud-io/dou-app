@@ -10,9 +10,7 @@ let mockChats: DomainChat[] = [];
 let mockIsLoading = false;
 let mockChannel: Record<string, unknown> | null = { id: 'ch1', stereo: 'group' };
 let mockMyJoin: { joinedNo?: number } | null = null;
-// The room's roster, for the `@` lookup: who is active, and the names they are drawn by.
 let mockActiveMemberIds: string[] = [];
-// The place whose profiles name the thread's people, as the page asks for them.
 const mockUseChannelProfiles = jest.fn((_placeId: string | null, _memberIds: string[]) => ({ profileMap: new Map() }));
 let mockMembers: { id: string; name?: string }[] = [];
 let mockChatParams: unknown = null;
@@ -24,25 +22,19 @@ const mockReadInCloud = jest.fn();
 let mockRootNo = '7';
 const mockLoadUntil = jest.fn();
 const mockFetchThrough = jest.fn();
-// Whether a page has answered for a chat number this run; by default every number has.
 const mockIsFetched = jest.fn();
-// Unfetched stretches between cached rows, and the fill the thread's dividers call.
 let mockGaps: ChatGap[] = [];
 let mockGapStatus = new Map<string, 'loading' | 'failed'>();
-// Marks the gap loading at once, as the real fill does before its page goes out.
 const mockFillGap = jest.fn((gap: ChatGap) => {
     mockGapStatus = new Map([[`${gap.olderNo}-${gap.newerNo}`, 'loading']]);
 });
-// The thread's query string. Stripping `chatNo` writes back here, as the router would.
 let mockSearch = '';
 const mockSetSearchParams = jest.fn((update: (params: URLSearchParams) => URLSearchParams) => {
     mockSearch = update(new URLSearchParams(mockSearch)).toString();
 });
 
-// The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
 const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
 
-// The Lab's input lock on the thread's room, as `useChatInputLock` answers it.
 let mockInputLocked = false;
 const mockSetInputLocked = jest.fn();
 let mockInputLockChannelId: string | null | undefined;
@@ -57,11 +49,8 @@ jest.mock('react-i18next', () => ({
 }));
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn() },
-    // The debug gate (useDebugMode) reads the shell's debug flag; no shell wrote one here.
     liveShellValue: () => undefined,
 }));
-// Partial mock: keep the real module for everything else. `@chatic/runtime`'s session hooks now
-// reach `createQueryKeys` at import time, and a fully-replaced module would drop it.
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
@@ -70,13 +59,10 @@ jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'session-uid' }),
-            // "Me" is the uid in the thread's cloud; the session uid above is another cloud's.
             useUidInCloud: (cid: string) => (cid === 'default' || cid === 'cloud-a' ? 'me' : null),
-            // Only a room that names no place reads this (`profilePlaceOf`); these channels name theirs.
             useSessionSelection: () => ({ selectedSiteId: 'S:active' }),
         },
         data: {
-            // The room cloud's join repository; `mockReadInCloud(cid, input)` stands for its outbox receipt.
             getCloudRepositories: (cid: string) => ({
                 join: {
                     readChat: (input: unknown) => Promise.resolve({ delivered: mockReadInCloud(cid, input) }),
@@ -105,7 +91,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
                 onChange={e => onChange(e.target.value)}
             />
             <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend?.('hello')} />
-            {/* Sends what is in the field, for the cases where the text itself is what is checked. */}
             <button data-testid="send-typed" onClick={() => onSend?.(value)} />
         </div>
     ),
@@ -114,8 +99,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
 }));
 
 jest.mock('../components/ChannelMessageRow', () => ({
-    // The real row shows the "전체보기" affordance only on a truncated message; here every row
-    // carries it, so a test can drive `onExpand` without composing a 200-character body.
     ChannelMessageRow: ({ message, onExpand, onLongPress }: any) => (
         <div data-testid={`row-${message.id}`} data-owner={String(!!message.isOwner)}>
             {message.content}
@@ -124,8 +107,6 @@ jest.mock('../components/ChannelMessageRow', () => ({
         </div>
     ),
 }));
-// The root is no longer a message row — it renders as the thread's subject (plain text, no
-// bubble), so its body and chips are stubbed separately from the reply rows above.
 jest.mock('../components/MessageText', () => ({
     MessageText: ({ text, onPage }: any) => <span data-on-page={String(!!onPage)}>{text}</span>,
 }));
@@ -135,14 +116,12 @@ jest.mock('../components/ReactionChips', () => ({
 jest.mock('../components/MessageImages', () => ({
     MessageImages: ({ uploads }: any) => <div data-testid="root-images" data-count={uploads?.length ?? 0} />,
 }));
-// Surfaces only whether the sheet opened and whether it was told the message has text.
 jest.mock('../components/MessageActionSheet', () => ({
     MessageActionSheet: ({ open, hasText }: any) =>
         open ? <div data-testid="action-sheet" data-has-text={String(hasText)} /> : null,
 }));
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
-// The image send and the attach flow have their own tests; here only what the thread hands them.
 interface MockAttachInput {
     disabled?: boolean;
     onUnsentText?: (text: string) => void;
@@ -150,8 +129,6 @@ interface MockAttachInput {
     onComposerSlide?: (sliding: boolean) => void;
 }
 const mockAttachInputs: MockAttachInput[] = [];
-// The attach panel as the thread sees it: whether its pick is ready to send, whether the panel is open,
-// the row of picked photos it hands the composer, and what the thread calls.
 let mockAttachReady = false;
 let mockPanelOpen = false;
 let mockAttachStrip = false;
@@ -164,7 +141,6 @@ jest.mock('../hooks/useSendImages', () => ({
         return { sendImages: jest.fn(), retry: jest.fn(), canRetry: () => false, discard: jest.fn() };
     },
 }));
-// The voice message's own behaviour is its hook's test; here only where its pieces go.
 jest.mock('../hooks/useVoiceMessage', () => ({
     useVoiceMessage: () => ({ canRecord: true, open: jest.fn(), sheet: null }),
 }));
@@ -182,15 +158,12 @@ jest.mock('../components/ChatImageAttach', () => ({
         };
     },
 }));
-// The barrel is mocked to keep `@chatic/assets` out of jest; `profilePlaceOf` is a pure rule, so
-// the real one is used rather than a stub that could disagree with it.
 jest.mock('../lib', () => ({
     ...jest.requireActual('../lib/channelStereoPolicy'),
     resolveChannelAvatar: () => ({ src: undefined }),
 }));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
 const mockFollowFooter = jest.fn();
-// The composer's measured height, and whether a message is being edited — the two the follow reads.
 let mockFooterHeight = 0;
 let mockThreadEditing = false;
 jest.mock('../../../ui/hooks/useChromeInsets', () => ({
@@ -205,7 +178,6 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
 jest.mock('../hooks', () => ({
     useStartDm: () => mockUseStartDm(),
     useChannel: () => ({ channel: mockChannel }),
-    // The room and the thread are two screens of the same channel, so they share the same single join observation.
     useChannelJoins: () => ({
         joins: [],
         myJoin: mockMyJoin,
@@ -237,12 +209,9 @@ jest.mock('../hooks', () => ({
             fillGap: mockFillGap,
         };
     },
-    // The real jump: what is under test is that the thread hands it the right surface and anchors.
     useMessageJump: jest.requireActual('../hooks/useMessageJump').useMessageJump,
     useDmPeer: () => null,
     useReactions: () => ({ toggleReaction: jest.fn(), failedId: null }),
-    // This screen's tests do not cover edit and delete. That behaviour's contract is held by
-    // useMessageEditing's own tests; here we only check the screen renders without them.
     useMessageEditing: () => ({
         isEditing: mockThreadEditing,
         hasUnsavedEdit: false,
@@ -271,8 +240,6 @@ import { ThreadPage } from './ThreadPage';
 const chat = (over: Partial<DomainChat> = {}): DomainChat =>
     ({ id: 'ch1:7', chatNo: 7, content: '루트 메시지', ownerId: 'u1', createdAtMs: 1, ...over }) as DomainChat;
 
-// jsdom doesn't implement Element.scrollTo. The thread pins to the bottom when a new reply
-// arrives, so without this stub every render would throw inside that effect.
 beforeAll(() => {
     Element.prototype.scrollTo = jest.fn();
     Element.prototype.scrollIntoView = jest.fn();
@@ -283,7 +250,6 @@ beforeEach(() => {
     mockThreadEditing = false;
     mockLocationState = null;
     mockRootNo = '7';
-    // The composer's draft store is the real one: each case starts with no draft anywhere.
     useComposerDraftStore.setState({ texts: {}, held: {} });
     mockChats = [];
     mockIsLoading = false;
@@ -317,7 +283,6 @@ describe('ThreadPage — the input lock', () => {
         mockChats = [chat()];
     });
 
-    // A thread is a view of its room, so it reads the room's lock rather than one of its own.
     it("answers to its room's lock", () => {
         render(<ThreadPage />);
 
@@ -357,9 +322,6 @@ describe('ThreadPage — the input lock', () => {
 });
 
 describe('ThreadPage — 진입 시 첫 화면', () => {
-    // The cache's first emission is asynchronous even when warm, so without a root handed off by
-    // the room, the thread opens with an empty spinner for one beat. There's nothing behind the
-    // glass header to blur in that gap.
     it('방이 건네준 루트를 스피너 없이 즉시 그린다', () => {
         mockIsLoading = true;
         mockLocationState = { rootChat: chat() };
@@ -379,8 +341,6 @@ describe('ThreadPage — 진입 시 첫 화면', () => {
         expect(screen.queryByTestId('thread-root')).not.toBeInTheDocument();
     });
 
-    // The seed is a snapshot taken at navigation time, so it knows nothing about a later edit or
-    // tombstone. Once the cache has that row, the cache wins.
     it('캐시가 루트를 갖게 되면 씨앗 대신 캐시를 쓴다', () => {
         mockLocationState = { rootChat: chat({ content: '옛 스냅샷' }) };
         mockChats = [chat({ content: '캐시 최신본' })];
@@ -399,9 +359,6 @@ describe('ThreadPage — 진입 시 첫 화면', () => {
     });
 });
 
-// Figma 4718:22183 — the header names the screen, not the room. A thread is one conversation
-// inside a channel, and labeling it with the channel's name and avatar would read as if it
-// navigated to the channel.
 describe('ThreadPage — 헤더는 방이 아니라 화면을 가리킨다', () => {
     it.each([
         ['group', { id: 'ch1', stereo: 'group' }],
@@ -427,8 +384,6 @@ describe('ThreadPage — 헤더는 방이 아니라 화면을 가리킨다', () 
 });
 
 describe('ThreadPage — 루트는 메시지가 아니라 스레드의 주제다', () => {
-    // As a bubble, the root would sit at the same visual rank as the replies below, and when it's
-    // my message it'd get pushed to the right, pinning the thread's subject to one side of the screen.
     it('루트를 말풍선 행이 아닌 평문 블록으로 그린다', () => {
         mockLocationState = { rootChat: chat() };
 
@@ -457,8 +412,6 @@ describe('ThreadPage — 루트는 메시지가 아니라 스레드의 주제다
 });
 
 describe('ThreadPage — 긴 메시지 전체보기', () => {
-    // A thread truncates a long body by the same rule as the room. It used to have only a button
-    // at the cut with nothing behind it, so pressing it did nothing.
     it('답글의 전체보기를 누르면 전문 다이얼로그가 열린다', () => {
         mockChats = [chat(), chat({ id: 'ch1:8', chatNo: 8, content: '아주 긴 답글 본문', parentId: '7' })];
 
@@ -469,9 +422,6 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
         expect(screen.getAllByText('아주 긴 답글 본문').length).toBeGreaterThan(1);
     });
 
-    // A thread reads the same channel the room does, so it has to ask for the same slice of it.
-    // It did not: the room passed `joinedNo` and this screen did not, so history the room had
-    // already hidden after a re-join was still reachable by opening a thread on it.
     it('내 참여 구간 커서를 대화 조회에 그대로 넘긴다', () => {
         mockMyJoin = { joinedNo: 42 };
 
@@ -480,13 +430,8 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
         expect(mockChatParams).toMatchObject({ channelId: 'ch1', joinedNo: 42 });
     });
 
-    // One tap away: somebody replies, after my re-join, to a message from before it. Their reply
-    // is inside my window and carries a thread footer, so the thread opens on a root I will never
-    // be served. The generic branch would promise it appears once older history loads, and hand
-    // over a button to load it.
     describe('참여 구간 밖의 원본으로 스레드가 열릴 때', () => {
         beforeEach(() => {
-            // rootNo is 7 (see the router mock); a cursor above it puts the root out of range.
             mockMyJoin = { joinedNo: 20 };
             mockHasMore = true;
             mockChats = [];
@@ -507,8 +452,6 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
         });
     });
 
-    // The cursor is not what is missing here, so the old promise still holds: the row really can
-    // arrive, and the button really can fetch it.
     it('원본이 아직 안 온 것뿐이면 기존 안내와 불러오기 버튼을 그대로 둔다', () => {
         mockMyJoin = { joinedNo: 0 };
         mockHasMore = true;
@@ -521,7 +464,6 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
         expect(screen.getByTestId('composer')).toHaveAttribute('data-disabled', 'false');
     });
 
-    // The full-text dialog renders plain text only. Passing the payload through as-is would open raw JSON.
     it('Block Kit 답글의 전체보기는 평문을 넘긴다', () => {
         mockChats = [
             chat(),
@@ -539,8 +481,6 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
         render(<ThreadPage />);
         fireEvent.click(screen.getByTestId('expand-ch1:9'));
 
-        // The dialog is what this asserts — the row is a stub here and prints whatever
-        // `content` it is handed, so its JSON is the harness, not the app.
         expect(screen.getByText('chat.room.messageDetail')).toBeInTheDocument();
         expect(screen.getByText('503 upstream timeout')).toBeInTheDocument();
     });
@@ -574,8 +514,6 @@ describe('ThreadPage — 사진 첨부', () => {
         mockSendImagesInputs.length = 0;
     });
 
-    // Photos reply by the root's full id, like text. Without the root there is no id, and a send
-    // without one would land in the main feed instead of the thread.
     it('locks attaching until the root is loaded', () => {
         mockIsLoading = true;
         mockChats = [];
@@ -598,7 +536,6 @@ describe('ThreadPage — 사진 첨부', () => {
         expect(mockAttachInputs.at(-1)?.disabled).toBe(false);
     });
 
-    // Same rule as a text reply: the root's cloud, not the channel's.
     it("sends photos to the root's cloud", () => {
         mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
         mockChats = [chat({ cid: 'cloud-b' })];
@@ -693,7 +630,6 @@ describe('ThreadPage — photos from the attach panel', () => {
         const composer = screen.getByTestId('composer').parentElement as HTMLElement;
         expect(composer.style.paddingBottom).toBe(COMPOSER_PADDING_BOTTOM);
         expect(mockAttachInputs.at(-1)?.composerRef?.current).toBe(composer);
-        // No transition: the keyboard moves it at once, and the panel's slide frame by frame.
         expect(composer.className).not.toMatch(/transition/);
     });
 
@@ -728,7 +664,6 @@ describe('ThreadPage — photos from the attach panel', () => {
 describe('ThreadPage — mentions', () => {
     const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
 
-    // The room's lookup, in its thread: the picked member goes with the reply, under the root.
     it('sends the member picked from the list with the reply', async () => {
         mockChannel = { id: 'ch1', stereo: 'group', cid: 'cloud-a' };
         mockChats = [chat({ cid: 'cloud-a' })];
@@ -753,7 +688,6 @@ describe('ThreadPage — mentions', () => {
         });
     });
 
-    // The root has no bubble behind it, so its mentions are drawn for the page, not for a bubble.
     it("draws the root's text as sitting on the page", () => {
         mockLocationState = { rootChat: chat({ content: '@Minsu 확인요' }) };
 
@@ -778,7 +712,6 @@ describe('ThreadPage — mentions', () => {
     });
 });
 
-// A cloud 1:1 lives in the place it was opened in, so that place's profiles name its people.
 describe('ThreadPage — profile place', () => {
     it("names a cloud 1:1 thread's people by the room's place, not the reader's", () => {
         mockUseChannelProfiles.mockClear();
@@ -841,7 +774,6 @@ describe('ThreadPage — who "me" is', () => {
 describe('ThreadPage — image messages', () => {
     const upload$$ = [{ id: 'u1', status: 'stored', orgUrl: 'https://s3/1' }] as DomainChat['upload$$'];
 
-    // A photo can root a thread now that it can be long-pressed, and the photo is then the subject.
     it('draws an image-only root with its images and no empty text line', () => {
         mockLocationState = { rootChat: chat({ content: '', upload$$ }) };
 
@@ -868,7 +800,6 @@ describe('ThreadPage — image messages', () => {
         expect(screen.getByTestId('action-sheet')).toHaveAttribute('data-has-text', 'false');
     });
 
-    // Still on its way: no chatNo, so no reaction and no delete — and no text to copy.
     it('keeps the sheet shut for an image-only reply that has not landed', () => {
         mockChats = [chat(), chat({ id: 'ch1:8', chatNo: undefined, content: '', upload$$, parentId: '7' })];
 
@@ -882,7 +813,6 @@ describe('ThreadPage — image messages', () => {
 describe('ThreadPage — a deleted root', () => {
     const upload$$ = [{ id: 'u1', status: 'stored', orgUrl: 'https://s3/1' }] as DomainChat['upload$$'];
 
-    // A soft-deleted row often still carries its text; the subject must not hand it back.
     it('shows the shared deleted phrase instead of the text the row still carries', () => {
         mockLocationState = { rootChat: chat({ content: '지워진 루트', hidden: true } as Partial<DomainChat>) };
 
@@ -1021,7 +951,6 @@ describe('ThreadPage — an old root', () => {
         mockHasMore = false;
         mockChats = [chat({ id: 'ch1:9', chatNo: 9, content: 'reply', parentId: '7' })];
         render(<ThreadPage />);
-        // The page asked once by itself; the button waits for that answer.
         await act(async () => undefined);
         mockFetchThrough.mockClear();
 
@@ -1060,8 +989,6 @@ describe('ThreadPage — opened on a reply from search', () => {
     });
 
     it('strips the query from a copy, leaving the params it read intact for a re-run', () => {
-        // The router hands the updater the very object the effect read. Deleting from it in place
-        // hid `chatNo` from the effect's re-run after a cleanup (StrictMode), losing the jump.
         mockSearch = 'chatNo=8';
         mockChats = replies();
         render(<ThreadPage />);
@@ -1117,7 +1044,6 @@ describe('ThreadPage — opened on a reply from search', () => {
         mockSearch = 'chatNo=8';
         mockChats = replies();
         const { container, rerender } = render(<ThreadPage />);
-        // jsdom lays nothing out, so every offset is 0: the list reads as scrolled to its bottom.
         fireEvent.scroll(container.querySelector('.overflow-y-auto') as Element);
         (Element.prototype.scrollTo as jest.Mock).mockClear();
 
@@ -1165,7 +1091,6 @@ describe('ThreadPage — opened on a reply from search', () => {
 });
 
 describe('ThreadPage — a gap between replies', () => {
-    // Root #500, replies at #520 and #1300; the cache skips #561..#1289, where #700 may be a reply.
     const gappedThread = () => [
         chat({ id: 'ch1:500', chatNo: 500, content: 'root' }),
         chat({ id: 'ch1:520', chatNo: 520, content: 'early reply', parentId: '500' }),
@@ -1179,7 +1104,6 @@ describe('ThreadPage — a gap between replies', () => {
         mockRootNo = '500';
     });
 
-    /** The reply list in order, rows by chat number and dividers as `gap`. */
     const listOrder = () =>
         Array.from(document.querySelectorAll('[data-chat-no], [data-chat-gap]')).map(node =>
             node.hasAttribute('data-chat-gap') ? 'gap' : node.getAttribute('data-chat-no')
@@ -1216,7 +1140,6 @@ describe('ThreadPage — a gap between replies', () => {
         mockGaps = [between];
         const { container, rerender } = render(<ThreadPage />);
         const list = container.querySelector('.overflow-y-auto') as HTMLElement;
-        // Scrolled up, 600px above the bottom.
         Object.defineProperty(list, 'scrollHeight', { configurable: true, value: 2000 });
         Object.defineProperty(list, 'clientHeight', { configurable: true, value: 800 });
         list.scrollTop = 600;
@@ -1244,7 +1167,6 @@ describe('ThreadPage — a gap between replies', () => {
     });
 
     it('draws a gap around a deleted root once its page has answered, not while it is still asked for', () => {
-        // #500 is gone and the cache skips #451..#1289 around it; #1300 is a reply.
         mockChats = [
             chat({ id: 'ch1:450', chatNo: 450, content: 'room message' }),
             chat({ id: 'ch1:1290', chatNo: 1290, content: 'room message' }),
@@ -1262,7 +1184,6 @@ describe('ThreadPage — a gap between replies', () => {
     });
 
     describe('filling by itself', () => {
-        // jsdom has no IntersectionObserver; this one reports every divider on screen, in the upper half.
         class OnScreenObserver {
             constructor(private readonly callback: IntersectionObserverCallback) {}
             observe = () =>
@@ -1285,7 +1206,6 @@ describe('ThreadPage — a gap between replies', () => {
             delete (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
         });
 
-        /** Each page answered moves the gap's newer edge down by 50, as a newer-side fill does. */
         const pageLands = (rerender: (ui: React.ReactElement) => void, page: number) => {
             mockGaps = [{ olderNo: 560, newerNo: 1290 - 50 * page, missing: 729 - 50 * page }];
             mockGapStatus = new Map();
@@ -1321,8 +1241,6 @@ describe('ThreadPage — a gap between replies', () => {
     });
 });
 
-// Opening an edit grows the composer and closing it shrinks it again; following either would carry the
-// list to the newest reply, away from where the reader was.
 describe('ThreadPage — the follow during a message edit', () => {
     const listAt = (fromBottom: number) => {
         const list = document.querySelector('.overflow-y-auto') as HTMLElement;

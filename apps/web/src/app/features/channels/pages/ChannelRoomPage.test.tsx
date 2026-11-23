@@ -14,33 +14,24 @@ let mockPendingRestore = false;
 const mockScrollToBottom = jest.fn();
 let mockSelectedCloudId = 'cloud-a';
 let mockChannelId = 'ch1';
-// The room's roster, for the `@` lookup: who is active, and the names they are drawn by.
 let mockActiveMemberIds: string[] = [];
 let mockMembers: { id: string; name?: string }[] = [];
 const mockSendMessage = jest.fn();
 const mockRetryMessage = jest.fn();
 const mockDeleteMessage = jest.fn();
 const mockUseJoinPositions = jest.fn();
-// Unfetched stretches between cached rows, as useChats reports them.
 let mockGaps: { olderNo: number; newerNo: number; missing: number }[] = [];
 const mockFillGap = jest.fn();
-// Every cloud gives the account its own uid. The session is committed to cloud-a, whose uid is
-// 'uid-a'; in cloud-b the same account is 'uid-b'.
 const mockUidInCloud: Record<string, string> = { 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
 
-// The room's query string, for the `?chatNo=` jump.
 let mockSearch = '';
 const mockSetSearchParams = jest.fn();
 
-// The Lab's input lock on this room, as `useChatInputLock` answers it.
 let mockInputLocked = false;
-// The edit the composer is holding, when a case opens one. Absent means the composer is writing.
 let mockEditComposer: Record<string, unknown> | undefined;
-// What the room last told its scroll hook.
 let mockChatScrollArgs: Record<string, unknown> = {};
 const mockSetInputLocked = jest.fn();
 
-// The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
 const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
 
 jest.mock('react-router-dom', () => ({
@@ -53,11 +44,8 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), info: jest.fn() },
     isNative: () => false,
-    // The debug gate (useDebugMode) reads the shell's debug flag; no shell wrote one here.
     liveShellValue: () => undefined,
 }));
-// Partial mock: keep the real module for everything else. `@chatic/runtime`'s session hooks
-// reach `createQueryKeys` at import time, and a fully-replaced module would drop it.
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
@@ -65,7 +53,6 @@ jest.mock('@chatic/shared', () => ({
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
-            // The committed session's uid. The room must not use it to recognise me — see the tests.
             useSessionIdentity: () => ({ userId: 'uid-a' }),
             useUidInCloud: (cid: string) => mockUidInCloud[cid] ?? null,
             useRuntimeProfile: () => ({ isGuest: false, isCloudActive: true }),
@@ -97,7 +84,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ImageAvatar: () => null,
     SystemNotice: () => null,
     UnreadDivider: ({ label }: any) => <div role="separator" aria-label={label} />,
-    // The field and the send button, and what the room tells the button: enough to drive the send.
     MessageInput: ({ onSend, value, onChange, inputRef, sendReady, disabled, placeholder, leadingSlot }: any) => (
         <>
             {leadingSlot}
@@ -110,7 +96,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
                 onChange={e => onChange(e.target.value)}
             />
             <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend('hello')} />
-            {/* Sends what is in the field, for the cases where the text itself is what is checked. */}
             <button data-testid="send-typed" onClick={() => onSend(value)} />
         </>
     ),
@@ -140,8 +125,6 @@ jest.mock('../components/ChannelMessageRow', () => ({
     ),
 }));
 jest.mock('../components/ConfirmDialog', () => ({ ConfirmDialog: () => null }));
-// Records each row wrapper's mount and whether it asked for the entrance, so a remount shows up
-// as a second entry.
 const mockStackInMounts: boolean[] = [];
 jest.mock('../hooks/useStackIn', () => ({
     useStackIn: (_ref: unknown, enabled: boolean) => {
@@ -153,7 +136,6 @@ jest.mock('../hooks/useStackIn', () => ({
 jest.mock('../components/DmInviteFooter', () => ({ DmInviteFooter: () => null }));
 jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => null }));
 jest.mock('../components/MessageDetailDialog', () => ({ MessageDetailDialog: () => null }));
-// Surfaces only whether the sheet opened and whether it was told the message has text.
 jest.mock('../components/MessageActionSheet', () => ({
     MessageActionSheet: ({ open, hasText }: any) =>
         open ? <div data-testid="action-sheet" data-has-text={String(hasText)} /> : null,
@@ -161,7 +143,6 @@ jest.mock('../components/MessageActionSheet', () => ({
 jest.mock('../components/ReactionDetailSheet', () => ({ ReactionDetailSheet: () => null }));
 jest.mock('../components/RoomIntro', () => ({ RoomIntro: () => null }));
 jest.mock('../components/RoomSkeleton', () => ({ RoomSkeleton: () => null }));
-// The image send and the attach flow have their own tests; here only what the room hands them.
 const mockSendImagesInputs: { cid: string; channelId: string }[] = [];
 const mockImageRetry = jest.fn();
 let mockImageCanRetry = true;
@@ -176,8 +157,6 @@ jest.mock('../hooks/useSendImages', () => ({
         };
     },
 }));
-// The attach panel as the room sees it: whether its pick is ready to send, whether the panel is open,
-// the row of picked photos it hands the composer, and what the room calls.
 let mockAttachReady = false;
 let mockPanelOpen = false;
 let mockAttachStrip = false;
@@ -191,7 +170,6 @@ interface MockAttachInput {
     onVoice?: () => void;
 }
 let mockAttachInput: MockAttachInput = {};
-// The voice message's own behaviour is its hook's test; here only where its pieces go.
 let mockVoiceCanRecord = true;
 const mockVoiceOpen = jest.fn();
 let mockVoiceInput: { disabled?: boolean; scope?: string } | undefined;
@@ -223,7 +201,6 @@ jest.mock('../lib', () => ({
     ...jest.requireActual('../lib/channelStereoPolicy'),
     resolveChannelAvatar: () => ({ src: undefined }),
 }));
-// The pill the room draws over its list, if any — set per test.
 let mockJumpPill: { variant: 'mention' | 'latest'; count: number; onClick: () => void } | null = null;
 jest.mock('../hooks', () => ({
     useStartDm: () => mockUseStartDm(),
@@ -272,7 +249,6 @@ jest.mock('../hooks', () => ({
         fillGap: mockFillGap,
         revalidateAround: jest.fn(),
     }),
-    // The jump pills read the scroll state and the inbox; a room with no pill is what these cases need.
     useRoomJumpPills: () => ({ pill: mockJumpPill, checkInView: jest.fn() }),
     useChatScroll: (args: Record<string, unknown>) => {
         mockChatScrollArgs = args;
@@ -299,7 +275,6 @@ import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { useComposerDraftStore } from '../stores/useComposerDraftStore';
 import { ChannelRoomPage } from './ChannelRoomPage';
 
-/** The arguments of the latest `useJoinPositions` call: (cid, channelId, active, all, cursors, isMember). */
 const lastJoinPositionsArgs = (): unknown[] => mockUseJoinPositions.mock.calls.at(-1) ?? [];
 
 const failedRow = (over: Partial<ClientChatView> = {}): Partial<ClientChatView> => ({
@@ -332,7 +307,6 @@ beforeEach(() => {
     mockEnterStack.mockReset();
     mockActiveMemberIds = [];
     mockMembers = [];
-    // The composer's draft store is the real one: each case starts with no draft anywhere.
     useComposerDraftStore.setState({ texts: {}, held: {} });
     mockSendMessage.mockReset().mockResolvedValue({ chatNo: 3 });
     mockRetryMessage.mockReset().mockResolvedValue({ chatNo: 4 });
@@ -389,7 +363,6 @@ describe('ChannelRoomPage — unread on entry', () => {
         const { container } = render(<ChannelRoomPage />);
 
         const divider = screen.getByRole('separator', { name: 'chat.room.unreadDivider' });
-        // A row's divider is the next sibling in the reversed group, which puts it on screen above.
         expect(container.querySelector('[data-chat-no="13"] + [data-unread-divider]')).toContainElement(divider);
         expect(useMessageJumpStore.getState().target).toMatchObject({
             channelId: 'ch1',
@@ -430,7 +403,6 @@ describe('ChannelRoomPage — unread on entry', () => {
     it('holds the bottom pin until it has decided where to open', () => {
         mockChannel = { ...mockChannel, memberIds: ['peer', 'uid-b'] };
         render(<ChannelRoomPage />);
-        // No join yet: undecided.
         expect(mockChatScrollArgs.suppressAutoScroll).toBe(true);
     });
 
@@ -463,7 +435,6 @@ describe('ChannelRoomPage — the input lock', () => {
         expect(mockAttachInput).toEqual(expect.objectContaining({ disabled: true }));
     });
 
-    // The disabled field is the first guard; the send itself refuses a locked room as well.
     it('sends nothing from a locked room, even when the send fires', () => {
         mockInputLocked = true;
         mockAttachReady = true;
@@ -551,7 +522,6 @@ describe('ChannelRoomPage — editing in the composer', () => {
         expect(state.onDraftChange).toHaveBeenCalledWith('고친 내용');
     });
 
-    // The new message typed before the edit is kept aside and comes back when the edit closes.
     it('gives back the unsent message once the edit closes', () => {
         const { rerender } = render(<ChannelRoomPage />);
         fireEvent.change(screen.getByTestId('composer-input'), { target: { value: '보내려던 말' } });
@@ -566,7 +536,6 @@ describe('ChannelRoomPage — editing in the composer', () => {
         expect(screen.queryByTestId('composer-edit-bar')).not.toBeInTheDocument();
     });
 
-    // The room's lock is about sending something new; an edit sends nothing new.
     it('leaves the field open in a locked room and closes it only while the save is in flight', () => {
         mockInputLocked = true;
         mockEditComposer = editState();
@@ -578,8 +547,6 @@ describe('ChannelRoomPage — editing in the composer', () => {
         expect(screen.getByTestId('composer-input')).toBeDisabled();
     });
 
-    // Opening the edit focuses the field and grows the composer; either pin would carry the list away
-    // from the message being changed. A jump is a different hold and stays off.
     it('holds the bottom pin while editing, and only then', () => {
         const { rerender } = render(<ChannelRoomPage />);
         expect(mockChatScrollArgs).toEqual(
@@ -592,7 +559,6 @@ describe('ChannelRoomPage — editing in the composer', () => {
         expect(mockChatScrollArgs).toEqual(expect.objectContaining({ holdBottomPin: true, suppressAutoScroll: false }));
     });
 
-    // The edit borrows the field; its text is not a message being written.
     it('raises no @ list from the text of an edit, during it or after it closes', () => {
         mockActiveMemberIds = ['peer', 'uid-b'];
         mockMembers = [
@@ -612,7 +578,6 @@ describe('ChannelRoomPage — editing in the composer', () => {
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
 
-    // The edit is text only: the photos waiting to go and the padlock step aside while it lasts.
     it('hides the waiting photos and the padlock while editing', () => {
         mockAttachStrip = true;
         mockInputLocked = true;
@@ -719,8 +684,6 @@ describe('ChannelRoomPage — leaving a room I am not in', () => {
         memberIds: ['someone'],
     };
 
-    // Not a plain replace: a push tap pushed the room above home, and replacing it with home left
-    // home above home. The stack policy decides between rewinding onto home and replacing.
     it('leaves through the stack policy as an eviction to home', () => {
         mockChannel = otherPeoplesSelfChat as Partial<DomainChannel>;
 
@@ -729,8 +692,6 @@ describe('ChannelRoomPage — leaving a room I am not in', () => {
         expect(mockEnterStack).toHaveBeenCalledWith('eviction', '/');
     });
 
-    // The exit may be a rewind, which lands asynchronously; a second one before it lands would
-    // rewind past home.
     it('leaves once, however often the screen re-renders before it unmounts', () => {
         mockChannel = otherPeoplesSelfChat as Partial<DomainChannel>;
         const { rerender } = render(<ChannelRoomPage />);
@@ -754,7 +715,6 @@ describe('ChannelRoomPage — mentions', () => {
     const type = (value: string) => fireEvent.change(field(), { target: { value } });
 
     beforeEach(() => {
-        // I am uid-b in the room's cloud; Minsu is the other active member.
         mockActiveMemberIds = ['peer', 'uid-b'];
         mockMembers = [
             { id: 'peer', name: 'Minsu' },
@@ -788,7 +748,6 @@ describe('ChannelRoomPage — mentions', () => {
         });
     });
 
-    // A message can call its own sender: picking my row sends my uid in the room's cloud.
     it('sends a mention of me when I pick myself', async () => {
         render(<ChannelRoomPage />);
 
@@ -806,7 +765,6 @@ describe('ChannelRoomPage — mentions', () => {
         });
     });
 
-    // An @name typed by hand is text, not a mention: only a pick from the list calls someone.
     it('sends no mention for a name typed by hand', async () => {
         render(<ChannelRoomPage />);
 
@@ -817,7 +775,6 @@ describe('ChannelRoomPage — mentions', () => {
         expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', { channelId: 'ch1', content: 'hi @Minsu' });
     });
 
-    // The picks go with the caption; a caption whose photos were all refused comes back still calling them.
     it('sends the mention with a caption, and keeps it for a caption that comes back unsent', async () => {
         mockSendPicked.mockReset().mockReturnValue(true);
         mockAttachReady = true;
@@ -842,7 +799,6 @@ describe('ChannelRoomPage — mentions', () => {
         });
     });
 
-    // A 1:1 always notifies and has one person to call, so it has no list.
     it('offers no list in a 1:1', () => {
         mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'dm', memberIds: ['peer', 'uid-b'] };
         render(<ChannelRoomPage />);
@@ -884,7 +840,6 @@ describe('ChannelRoomPage — photos', () => {
         expect(field().value).toBe('');
     });
 
-    // Typing closed the panel for the keyboard; the photos wait above the field, and still take the press.
     it('sends the photos waiting above the field, the panel closed, with the text as their caption', () => {
         mockAttachReady = true;
         mockAttachStrip = true;
@@ -904,7 +859,6 @@ describe('ChannelRoomPage — photos', () => {
         render(<ChannelRoomPage />);
 
         const strip = screen.getByTestId('attach-strip');
-        // Inside the bar, so its measured height — what the list clears — carries the row.
         expect(strip.parentElement).toBe(field().parentElement);
         expect(strip.compareDocumentPosition(field()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
@@ -941,10 +895,8 @@ describe('ChannelRoomPage — photos', () => {
         render(<ChannelRoomPage />);
 
         const composer = field().parentElement as HTMLElement;
-        // The panel's share of the padding is written on the bar by the panel's slot, never rendered.
         expect(composer.style.paddingBottom).toBe(COMPOSER_PADDING_BOTTOM);
         expect(mockAttachInput.composerRef?.current).toBe(composer);
-        // No transition: the keyboard moves it at once, and the panel's slide frame by frame.
         expect(composer.className).not.toMatch(/transition/);
     });
 
@@ -954,7 +906,6 @@ describe('ChannelRoomPage — photos', () => {
 
         act(() => mockAttachInput.onComposerSlide?.(true));
 
-        // Each frame's composer height goes straight to the list's padding, the room's 16px above it.
         const follow = mockFollowFooter.mock.calls.at(-1)?.[0] as (height: number) => void;
         follow(402);
         expect(list.style.paddingBottom).toBe('418px');
@@ -983,7 +934,6 @@ describe('ChannelRoomPage — photos', () => {
         expect(mockSendImagesInputs.at(-1)).toEqual({ cid: 'cloud-b', channelId: 'ch1' });
     });
 
-    // The text retry resends `content`, which an image row does not have — it would post a blank message.
     it('retries a failed image row through the image send, not the text path', () => {
         mockMessages = [failedImageRow()];
 
@@ -1005,7 +955,6 @@ describe('ChannelRoomPage — photos', () => {
         expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.cannotRetry' });
     });
 
-    // A photo is a message like a line of text: holding it offers reactions and a thread.
     it('opens the action sheet on a sent image-only message, telling it there is no text', () => {
         mockMessages = [
             failedRow({ id: 'ch1:9', chatNo: 9, isFailed: false, content: '', upload$$: [{ id: 'u1' }] } as never),
@@ -1133,8 +1082,6 @@ describe('ChannelRoomPage — every row a jump can land on', () => {
     });
 
     it('strips ?chatNo= from a copy, leaving the params it read intact for a re-run', () => {
-        // The router hands the updater the very object the effect read. Deleting from it in place
-        // hid `chatNo` from the effect's re-run after the jump's cleanup (StrictMode), losing it.
         mockSearch = 'chatNo=5';
         render(<ChannelRoomPage />);
         mockSearch = '';
@@ -1168,7 +1115,6 @@ describe('ChannelRoomPage — a gap in the cached history', () => {
         timestamp: new Date(2026, 9, 15, 9, 0, chatNo),
     });
 
-    // The group is `flex-col-reverse`: the element after a row in the DOM is the one drawn above it.
     const elementAfter = (container: HTMLElement, chatNo: number) =>
         container.querySelector(`[data-chat-no="${chatNo}"]`)?.nextElementSibling ?? null;
 
@@ -1183,7 +1129,6 @@ describe('ChannelRoomPage — a gap in the cached history', () => {
     });
 
     it('puts the divider above the first drawn row when the row above the gap is not drawn', () => {
-        // #40 is a reply or a reaction: cached, so it bounds the gap, but the feed never draws it.
         mockMessages = [textRow(5), textRow(41)];
         mockGaps = [{ olderNo: 5, newerNo: 40, missing: 34 }];
         const { container } = render(<ChannelRoomPage />);
@@ -1192,7 +1137,6 @@ describe('ChannelRoomPage — a gap in the cached history', () => {
     });
 
     it('draws a divider for each of two gaps that land on the same drawn row', () => {
-        // Only undrawn rows (#20, a reply) sit between the two gaps, so both point at #40.
         mockMessages = [textRow(5), textRow(40)];
         mockGaps = [
             { olderNo: 5, newerNo: 20, missing: 14 },

@@ -74,58 +74,26 @@ import { useDebugRoomMirror } from '../../debug';
 
 const MAX_INPUT_LENGTH = 5000;
 
-/** px the reply list keeps clear above the composer, on top of the composer's own height. */
 const LIST_COMPOSER_GAP = 16;
 
-/** How close to the bottom the reader has to scroll for the newest-reply follow to come back. */
 const FOLLOW_RESUME_PX = 80;
 
-/**
- * Pages the thread's gap dividers may ask for by themselves per visit, before they wait for a tap — and
- * again after each tap. In the room a filled page draws its rows next to the divider and pushes it out
- * of view, which is what stops it; here almost every row a page brings is not a reply and draws
- * nothing, so a divider in a short thread would stay on screen and walk a gap of any width.
- */
 const THREAD_GAP_AUTO_PAGES = 4;
 
-/**
- * The list's bottom padding for a composer `height` px tall, written straight onto the list, with the
- * newest reply kept in view — for the frames the composer moves without the page rendering them
- * (`followFooter`).
- */
 const clearComposer = (list: HTMLElement | null, height: number) => {
     if (!list) return;
     list.style.paddingBottom = `${height + LIST_COMPOSER_GAP}px`;
     list.scrollTo({ top: list.scrollHeight });
 };
 
-/**
- * Full-screen thread: one root message and its direct replies (ADR-0093 decision 4).
- *
- * Everything here is derived from the channel's loaded cache window (`rawChats` →
- * `buildThread`), so the reply list is best-effort (ADR-0008): an old thread is reached by
- * widening the window to its root from the cache, and only a root the cache never held needs
- * the channel history paged in before it and its older replies appear. Replies send with
- * `parentId: root.id` — the FULL `<channelId>:<chatNo>` id; the server 404s a bare
- * chatNo. Threads are flat: the action sheet here never offers "reply".
- */
 export const ThreadPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
     const { channelId, rootNo } = useParams<{ channelId: string; rootNo: string }>();
-    /**
-     * The root message handed over by the room (see its `openThread`). The cache's first emission
-     * is asynchronous even when it is warm, so without this the thread opens on a spinner and the
-     * glass header sits over nothing. Absent on a deep link or a reload — then the spinner is
-     * honest, because there really is nothing yet.
-     */
     const seededRoot = (useLocation().state as { rootChat?: DomainChat } | null)?.rootChat;
     const stableChannelId = channelId || 'default';
-    // This thread's own conversation for the composer's draft and its waiting files — not the room's.
     const draftScope = `${stableChannelId}#${rootNo ?? ''}`;
 
-    // This thread's items in the notification inbox read while it is open: the room's read cursor
-    // clears only top-level items, so a thread clears its own — on opening, and as new ones arrive.
     const notifyCloudId = useSelectedCloudId();
     const unreadThreadItems = useNotificationStore(state =>
         rootNo
@@ -144,23 +112,16 @@ export const ThreadPage = () => {
         useNotificationStore.getState().markThreadRead(notifyCloudId, stableChannelId, rootNo);
     }, [notifyCloudId, stableChannelId, rootNo, unreadThreadItems]);
 
-    // The composer's text is this thread's draft: kept when the thread is left, and swapped when the
-    // route moves to another thread without remounting.
     const [content, setContent] = useComposerDraft(draftScope);
     const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
-    // A truncated reply's "view full" target (null = closed) — the room's dialog, same rule.
     const [expandedMessage, setExpandedMessage] = useState<{ content: string } | null>(null);
     const [pickerOpen, setPickerOpen] = useState(false);
-    // The chip whose reactors are being inspected (message id + long-pressed fold key).
     const [reactorTarget, setReactorTarget] = useState<{ messageId: string; key: string } | null>(null);
     const [isCopying, setIsCopying] = useState(false);
-    // The room's profile rule: the last person opened, kept while the dialog slides away.
     const [profileTarget, setProfileTarget] = useState<MessageSender | null>(null);
     const [profileOpen, setProfileOpen] = useState(false);
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    // The mention composer's way to put back the picks of a caption that came back unsent. The attach
-    // flow is set up before the composer is, so it reaches the composer through this ref.
     const restoreCaptionPicksRef = useRef<(() => void) | null>(null);
     const listRef = useRef<HTMLDivElement>(null);
     const {
@@ -170,22 +131,13 @@ export const ThreadPage = () => {
         footerHeight: composerHeight,
         followFooter: followComposer,
     } = useChromeInsets();
-    // The composer floats over the list; the snackbar rests above it rather than behind it.
     useBottomChromeToastLift(composerHeight);
 
-    // A thread is a view of a channel, so it names people the way the room does — see `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const { channel } = useChannel(channelId || null);
-    // "Me" is the uid this account has in the thread's own cloud, as in the room: every comparison
-    // below is against ids that cloud minted, and during a switch the session uid is another cloud's.
     const threadCid = toCloudId(channel?.cid || selectedCloudId);
     const userId = runtime.session.useUidInCloud(threadCid);
-    // A member's profile can open a 1:1 with them, as in the room.
     const { startDm, isAvailable: canStartDm } = useStartDm();
-    // One join subscription for the screen — the roster rows and the active-member set are two
-    // readings of it (see useChannelJoins). A thread and its room are two views of one channel, so
-    // they compose the same way. `myJoin` is read for its `joinedNo` only — the title it used to
-    // feed is gone with the channel name from the header (see below).
     const { joins, myJoin, activeMemberIds } = useChannelJoins(channelId || null);
     const { members } = useChannelMembers({
         channelId: stableChannelId,
@@ -195,24 +147,11 @@ export const ThreadPage = () => {
     });
     const { profileMap } = useChannelProfiles(profilePlaceOf(channel, selectedSiteId), activeMemberIds);
 
-    // The header names the SCREEN ("Thread"), not the room (Figma 4718:22183) — a thread is a
-    // view of a channel, and wearing the channel's name and face would claim otherwise. So no
-    // channel title, no channel avatar, and with them go the peer/title chains this screen used
-    // to run purely to feed the header. `members` / `profileMap` above stay: they are what give
-    // the root and its replies their names and faces.
-
-    // `joinedNo` windows the cache to my CURRENT membership, exactly as the room does. A thread is
-    // another view of the same channel, so it has to ask the same question — and it was not: rows
-    // from before a leave survive in the local cache (the sync plan keeps them on purpose), so an
-    // unwindowed read here showed, inside a thread, the very history the room had just hidden.
-    // ADR-0067's rule is one rule for every surface; a second surface does not get a second
-    // reading of it.
     const chatParams = useMemo(
         () => ({
             channelId: stableChannelId,
             limit: 100,
             joinedNo: myJoin?.joinedNo,
-            // Only the record of this thread's room — see the room page.
             channelChatNo: channel?.id === stableChannelId ? channel.chatNo : undefined,
         }),
         [stableChannelId, myJoin?.joinedNo, channel?.id, channel?.chatNo]
@@ -232,7 +171,6 @@ export const ThreadPage = () => {
         fillGap,
     } = useChats(chatParams);
 
-    // Audio: what this device hid, and stopping what plays once its message or file is gone.
     const { hiddenMedia } = useRoomAudioSurface({
         cid: threadCid,
         uid: userId ?? undefined,
@@ -240,19 +178,6 @@ export const ThreadPage = () => {
         messages: rawChats,
     });
 
-    /**
-     * Is the root this URL names from before my current membership?
-     *
-     * `rootNo` IS the chat number, so this is decidable without the row — which matters, because
-     * the row is exactly what will never arrive. Reachable in one tap: somebody replies, after my
-     * re-join, to a message from before it. Their reply is inside my window and carries a thread
-     * footer, and the thread it opens has a root I am not entitled to see.
-     *
-     * Without this the screen falls into its generic "not loaded yet" branch, which says the
-     * message will appear once older history is fetched and offers a button to fetch it. Both are
-     * untrue here: the cache is windowed by the same cursor and the server stops serving below it,
-     * so the button can only ever spin.
-     */
     const rootOutsideJoinWindow = useMemo(() => {
         const parsed = Number(rootNo);
         if (!Number.isInteger(parsed) || parsed <= 0) return false;
@@ -260,7 +185,6 @@ export const ThreadPage = () => {
     }, [rootNo, myJoin?.joinedNo]);
     const { sendMessage } = useChatMutations();
     const editing = useMessageEditing(`${stableChannelId}/${rootNo ?? ''}`);
-    // A thread answers to its room's input lock: locking the room locks the replies under it too.
     const inputLock = useChatInputLock(channelId);
     const unlockInput = useCallback(() => {
         inputLock.setLocked(false);
@@ -272,16 +196,6 @@ export const ThreadPage = () => {
     const thread = useMemo(() => buildThread(rawChats, rootNo ?? ''), [rawChats, rootNo]);
     const hasRoot = !!thread.root;
 
-    // An old thread's root sits below the newest-rows window. The cache usually holds it — the
-    // reader scrolled past it once, or a search found it there — so the window is widened to reach
-    // it before anyone is asked to page the server. The root is the thread's oldest row, so a window
-    // that reaches it also holds every reply. `loadUntil` is a no-op once the window covers that far,
-    // and the effect re-runs as rows arrive because a cold cache answers after the first render.
-    //
-    // A window that already reaches that far and still has no root means the cache never held it: the
-    // root sits in a gap. Older pages cannot reach it — they only ever ask below the oldest cached row
-    // — so the page starting at the root is asked for directly: by itself once per thread, then by
-    // the "load older" button, until a page answers for that number (then the root was deleted).
     const rootNumber = Number(rootNo);
     const rootUnfetched =
         !hasRoot && !rootOutsideJoinWindow && Number.isInteger(rootNumber) && rootNumber > 0 && !isFetched(rootNumber);
@@ -297,7 +211,6 @@ export const ThreadPage = () => {
         if (hasRoot || rootOutsideJoinWindow) return;
         if (!Number.isInteger(rootNumber) || rootNumber <= 0) return;
         if (loadUntil(rootNumber) || isLoading || !rootUnfetched || !canLoadMore) return;
-        // Once by itself: a failure retried on every arriving message would hammer a failing socket.
         if (askedRootRef.current === rootNumber) return;
         askedRootRef.current = rootNumber;
         fetchRootPage();
@@ -313,17 +226,8 @@ export const ThreadPage = () => {
         fetchRootPage,
     ]);
 
-    // A search hit on a reply opens here with `?chatNo=` — the room's convention, and stripped the
-    // same way so a reload does not jump again. The request names this thread, so a room under it
-    // (where a push tap leaves one) does not take it for its own.
     const [searchParams, setSearchParams] = useSearchParams();
-    // The newest-reply follow (below) stays off once a jump is asked for: rows still landing — the
-    // composer measuring itself, a reply arriving — would otherwise pull the list back down past the
-    // reply that was jumped to. A gap divider filling while the reader is up in the list holds it the
-    // same way (`fillThreadGap`), and so does an open message edit. It comes back when the reader returns to the bottom, writes a reply,
-    // or the jump gives up, and a move to another thread on this same mounted page starts clean.
     const followHeldRef = useRef(false);
-    // What the gap dividers may still ask for by themselves (`THREAD_GAP_AUTO_PAGES`).
     const [autoGapPagesLeft, setAutoGapPagesLeft] = useState(THREAD_GAP_AUTO_PAGES);
     useEffect(() => {
         followHeldRef.current = false;
@@ -338,7 +242,6 @@ export const ThreadPage = () => {
         followHeldRef.current = true;
         useMessageJumpStore.getState().request(channelId, chatNo, { threadRootNo: rootNo });
         setSearchParams(
-            // A copy, for the room's reason (see its `?chatNo=` effect).
             params => {
                 const next = new URLSearchParams(params);
                 next.delete('chatNo');
@@ -347,36 +250,26 @@ export const ThreadPage = () => {
             { replace: true }
         );
     }, [searchParams, channelId, rootNo, setSearchParams]);
-    // Photos reply to the root like text does — by its full id. Until the root is loaded there is no
-    // id to reply to, and a send without one would land in the main feed, so the button stays locked.
-    // Photos reply to the root's cloud first, like a text reply does (see handleSend).
     const imageSend = useSendImages({
         cid: toCloudId(thread.root?.cid || threadCid),
         channelId: stableChannelId,
         parentId: thread.root?.id,
     });
     const imageLocked = editing.isEditing || rootOutsideJoinWindow || !thread.root?.id || inputLock.isLocked;
-    // The room's rule: a voice message replies to the root like a photo does, under the same lock.
     const voice = useVoiceMessage({ sendImages: imageSend.sendImages, disabled: imageLocked, scope: draftScope });
     const attach = useChatImageAttach({
         sendImages: imageSend.sendImages,
         disabled: imageLocked,
-        // The route keeps this page mounted from one thread to the next; what waits is this thread's.
         scope: draftScope,
         onVoice: voice.canRecord ? voice.open : undefined,
         inputRef,
         composerRef,
-        // The room's rule: through the attach panel's slide the list follows the composer frame by
-        // frame without a render — clearing it, and keeping the newest reply in view as the effect
-        // below does once the composer has settled.
         onComposerSlide: sliding => followComposer(sliding ? height => clearComposer(listRef.current, height) : null),
-        // Same as the room: a caption whose photos all failed the check comes back to an empty field.
         onUnsentText: text => {
             setContent(current => (current.trim() ? current : text));
             restoreCaptionPicksRef.current?.();
         },
     });
-    // Reactions fold from the UNFILTERED window — the events are hidden rows in it.
     const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
 
     const memberById = useMemo(() => {
@@ -385,10 +278,6 @@ export const ThreadPage = () => {
         return map;
     }, [members]);
 
-    // The one naming chain (see resolveChatOwnerName) — a thread and its room are two views of
-    // one channel, so a person cannot be named differently across the hop. It matters more here
-    // than in the room: the root ALWAYS shows its author, so a chain that fell through to the raw
-    // user id put a UUID at the top of the screen.
     const nameSources: DisplayNameSources = useMemo(
         () => ({
             profileMap,
@@ -402,14 +291,11 @@ export const ThreadPage = () => {
     const displayNameOf = useMemo(() => (chat: DomainChat) => resolveChatOwnerName(chat, nameSources), [nameSources]);
     const nameOfUser = useMemo(() => (id: string) => resolveUserName(id, nameSources), [nameSources]);
 
-    // Same precedence for faces as for names — the reactor sheet's avatars must match the
-    // bubbles they were opened from.
     const avatarOfUser = useMemo(
         () => (id: string) => profileMap.get(id)?.thumbnail ?? memberById.get(id)?.thumbnail,
         [profileMap, memberById]
     );
 
-    // The room's `@` lookup, on the room's terms: a group room's alone, the same rows the room offers.
     const isGroupChat = !!channel && channelKindOf(channel.stereo) === 'group';
     const mentionCandidates = useMemo(
         () =>
@@ -427,7 +313,6 @@ export const ThreadPage = () => {
         [isGroupChat, activeMemberIds, userId, nameOfUser, avatarOfUser, t]
     );
     const mentionComposer = useMentionComposer({
-        // The room's rule: off while a message is being edited in this field.
         enabled: isGroupChat && !editing.isEditing,
         candidates: mentionCandidates,
         content,
@@ -439,19 +324,16 @@ export const ThreadPage = () => {
         restoreCaptionPicksRef.current = mentionComposer.restoreClearedPicks;
     }, [mentionComposer.restoreClearedPicks]);
 
-    // Me as a mention needs me — the room's rule: both of my ids, and every name I could be written by.
     const { userId: sessionUid } = runtime.session.useSessionIdentity();
     const mentionViewer = useMemo(() => {
         const me = userId ? memberById.get(userId) : undefined;
         const names = [userId ? profileMap.get(userId)?.nick : undefined, me?.nick, me?.name];
-        // Every member's `@name` is drawn as a mention, by the name the list writes it with.
         const memberNames = isGroupChat
             ? [
                   ...mentionCandidates.filter(row => !row.everyone).map(row => row.label),
                   userId ? nameOfUser(userId) : undefined,
               ]
             : undefined;
-        // A mention opens the member it names, by the same row the list offers.
         const people = mentionCandidates
             .filter(row => !row.everyone)
             .map(row => ({ id: row.id, name: row.label, avatar: row.thumbnail }));
@@ -470,16 +352,11 @@ export const ThreadPage = () => {
         [userId, displayNameOf]
     );
 
-    // The cache wins once it has the row: it carries later edits and the tombstone flag, which a
-    // snapshot taken at navigation time cannot.
     const rootSource = thread.root ?? seededRoot;
-    // Memoised so the thread hands the debug mirror a stable list; a fresh root on every render
-    // would republish it on every keystroke while the panel is open.
     const root = useMemo(() => (rootSource ? toClientView(rootSource) : undefined), [rootSource, toClientView]);
     const replies = useMemo(() => thread.replies.map(toClientView), [thread.replies, toClientView]);
 
     const debugRendered = useMemo(() => (root ? [root, ...replies] : replies), [root, replies]);
-    // Debug mode only: hands what this thread holds to the overlay's Room screen.
     useDebugRoomMirror('thread', {
         channelId,
         channel,
@@ -488,11 +365,6 @@ export const ThreadPage = () => {
         focused: actionMessage,
     });
 
-    // Every reply is newer than its root, so a stretch of the channel nobody fetched that lies above
-    // the root can hold replies this list does not show. Each such gap gets the room's divider, above
-    // the first reply on its newer side — or after the last reply, when the gap runs past all of them.
-    // A reply still waiting for its number is the newest, so a gap that runs past every numbered reply
-    // stands above it. A gap holding a root no page has answered for yet is the root's own page's job.
     const rootFetched = Number.isInteger(rootNumber) && rootNumber > 0 && isFetched(rootNumber);
     const { gapsAboveReplyId, trailingGaps } = useMemo(() => {
         const above = new Map<string, ChatGap[]>();
@@ -513,19 +385,11 @@ export const ThreadPage = () => {
     }, [gaps, replies, rootNumber, rootFetched]);
     const hasTrailingGap = trailingGaps.length > 0;
 
-    // Keep the newest reply in view — a thread is a linear column, newest at the bottom. A divider
-    // appearing after the last reply counts as the bottom too: it is what the reader is waiting on.
-    // Its appearing, not each page it fills — a page moves its edge, not its height.
     useEffect(() => {
         if (followHeldRef.current) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
     }, [replies.length, composerHeight, hasTrailingGap]);
 
-    // A message edit holds the follow the way a jump does. Opening it grows the composer and closing
-    // it shrinks the composer again, and following either would carry the list away from the message
-    // being changed — to the newest reply, wherever the reader was. The edit closing hands the follow
-    // back only to a reader at the bottom; anyone else gets it back the usual way, by returning there.
-    // Acted on the change alone, so a thread opening (with a jump already holding it) is left be.
     const wasEditingRef = useRef(editing.isEditing);
     useEffect(() => {
         if (wasEditingRef.current === editing.isEditing) return;
@@ -540,7 +404,6 @@ export const ThreadPage = () => {
         }
     }, [editing.isEditing]);
 
-    // A jump that found nothing leaves no reply to stay on, so the thread opens as it always does.
     const resumeFollow = useCallback(() => {
         followHeldRef.current = false;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
@@ -553,10 +416,6 @@ export const ThreadPage = () => {
         }
     }, []);
 
-    // A divider fills itself while it is on screen, within the visit's budget; a tap asks and renews
-    // it. When the reader is up in the list, reading at it, the replies it brings must not pull them
-    // down to the newest one — the follow is held as it is for a jump, and comes back the same way, at
-    // the bottom.
     const fillThreadGap = useCallback(
         (gap: ChatGap, side: ChatGapSide, byTap: boolean) => {
             setAutoGapPagesLeft(left => (byTap ? THREAD_GAP_AUTO_PAGES : Math.max(0, left - 1)));
@@ -570,8 +429,6 @@ export const ThreadPage = () => {
     );
     const renderGap = (gap: ChatGap) => {
         const key = chatGapKey(gap);
-        // Keyed by how much is still unanswered, as in the room: a page of deleted messages moves
-        // neither edge, and the divider has to mount anew to ask for the next one.
         return (
             <GapDivider
                 key={`gap-${key}-${gap.missing}`}
@@ -583,8 +440,6 @@ export const ThreadPage = () => {
         );
     };
 
-    // Declared after the follow above so that, in the commit where the reply appears, its scroll
-    // runs last. Same budget and toasts as the room; `threadRootNo` keeps it to this thread's target.
     useMessageJump({
         channelId: stableChannelId,
         containerRef: listRef,
@@ -592,8 +447,6 @@ export const ThreadPage = () => {
         hasMore,
         isLoadingMore,
         loadMore,
-        // Not before the first cache read: with no rows there is no cursor, so a page "sent" then goes
-        // nowhere and still spends the budget the jump needs once the rows are in.
         canLoadMore: canLoadMore && !isLoading,
         loadUntil,
         joinedNo: myJoin?.joinedNo,
@@ -612,26 +465,19 @@ export const ThreadPage = () => {
     };
 
     const handleSend = (raw: string) => {
-        // The room's rule: a locked room sends nothing, whatever path reached the send.
         if (inputLock.isLocked) return;
-        // The reader is writing now, so the newest reply — theirs — is where the list belongs again.
         followHeldRef.current = false;
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
-        // Read at the press, and forgotten only once something is sent — see the room's handleSend.
         const mention = mentionComposer.mentionFor(trimmed);
-        // Photos picked in the attach panel take the press, with the text as their caption — see the
-        // room's handleSend. The panel only opens once the root is loaded, so they reply to it.
         if (attach.sendReady && attach.sendPicked(trimmed, mention)) {
             mentionComposer.clearPicks();
             setContent('');
             return;
         }
-        // No root, no reply — the send needs the root's full id (bare chatNo 404s).
         if (!trimmed || !stableChannelId || !thread.root?.id) return;
 
         mentionComposer.clearPicks();
         setContent('');
-        // The reply belongs to the root's cloud, read at the press — see the room's handleSend.
         const cid = toCloudId(thread.root.cid || threadCid);
         sendMessage(cid, {
             channelId: stableChannelId,
@@ -640,8 +486,6 @@ export const ThreadPage = () => {
             ...(mention ? { mention } : {}),
         })
             .then(newChat => {
-                // Replies consume channel chatNos; advance the read cursor like a room send, in the
-                // cloud the reply went to. The outbox owns delivering it, so a failure is only logged.
                 if (newChat?.chatNo) {
                     runtime.data
                         .getCloudRepositories(cid)
@@ -664,8 +508,6 @@ export const ThreadPage = () => {
             });
     };
 
-    // The room's rule: what the composer's field is told in each mode, the edit locked only while
-    // its save is in flight.
     const composerFieldProps: Omit<MessageInputProps, 'inputRef' | 'onKeyDown'> = editing.composer
         ? {
               value: editing.composer.draft,
@@ -683,10 +525,7 @@ export const ThreadPage = () => {
               sendReady: attach.sendReady,
               placeholder: inputLock.isLocked ? t('chat.inputLock.placeholder') : t('chat.thread.inputPlaceholder'),
               sendLabel: t('common.send'),
-              // Closed when the root is outside my window: a reply needs the root's full id, so
-              // `handleSend` would drop what was typed without saying anything.
               disabled: rootOutsideJoinWindow || inputLock.isLocked,
-              // The room's rule: the padlock that lifts the lock stands where the attach button was.
               leadingSlot: inputLock.isLocked ? (
                   <ComposerLockButton onClick={unlockInput} label={t('chat.inputLock.unlock')} />
               ) : (
@@ -697,7 +536,6 @@ export const ThreadPage = () => {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (!isSendKey(e.nativeEvent)) return;
         e.preventDefault();
-        // The room's rule: while a message is being edited, the same key saves it.
         if (editing.composer) {
             editing.composer.onSave();
             return;
@@ -706,8 +544,6 @@ export const ThreadPage = () => {
     };
 
     const handleCopy = async () => {
-        // What the message SAYS, not what it is made of — a Block Kit body would otherwise
-        // put its payload on the clipboard.
         const text = actionMessage ? chatPlainText(actionMessage) : '';
         if (!text || isCopying) return;
         setIsCopying(true);
@@ -726,21 +562,14 @@ export const ThreadPage = () => {
     const handlePickEmoji = (emoji: string) => {
         if (!actionMessage?.id) return;
         remember(emoji);
-        // hasMyReaction matches on the normalised fold key — a display-string compare
-        // would send a second `on` for an emoji differing only by variation selector.
         const mine = hasMyReaction(reactions.get(actionMessage.id), emoji);
         toggleReaction(actionMessage.id, emoji, mine);
         setActionMessage(null);
         setPickerOpen(false);
     };
 
-    // Persisted rows only (chatNo > 0): an optimistic row's id is a temp id — a
-    // reaction targeting it would 404 and orphan once the persisted swap lands.
     const canReact = !!actionMessage?.chatNo;
 
-    // The same shared verdict the room uses. A reply and a root are both just messages here, so a
-    // message I may edit in the feed is one I may edit in the thread — a surface must not hand out
-    // a different answer about the same message.
     const canModify = !!actionMessage && canModifyMessage(actionMessage, actionMessage.isOwner);
 
     const handleEditAction = () => {
@@ -757,34 +586,17 @@ export const ThreadPage = () => {
 
     const deleteConfirmPreview = deleteConfirmQuote(editing.deleteTarget?.content);
 
-    // Chip-row add button — same one-step open as the room: set the target, show the picker.
     const handleAddReaction = (message: ClientChatView) => {
         setActionMessage(message);
         setPickerOpen(true);
     };
 
-    // As in the room: never my own profile, whose "profile settings" editor this screen does not mount.
     const openMemberProfile = (sender: MessageSender) => {
         if (!sender.id || sender.id === userId) return;
         setProfileTarget(sender);
         setProfileOpen(true);
     };
 
-    /**
-     * The root, rendered as the thread's SUBJECT rather than as another message (Figma
-     * 4722:22934): a 36px avatar and name on one line, then the body as plain 16px text with
-     * no bubble and no side (when it has any), then its images, then its reaction chips.
-     *
-     * A bubble would put the root in the same visual class as the replies under it, and a
-     * right-aligned bubble (when the root is mine) would put the thread's own subject off to
-     * one side of the screen it opens. It also has no read receipt and no time of its own —
-     * the room row it was opened from carries both, and repeating them here says nothing.
-     *
-     * A root another client soft-deleted is drawn the way the room draws the same row: the
-     * shared deleted phrase and nothing of the original — not the text, which the row often
-     * still carries, not the images and not the chips. The thread stays reachable, since its
-     * replies are still a conversation, but its subject no longer says what was deleted.
-     */
     const renderRoot = (message: ClientChatView) => {
         const avatarSrc = message.ownerId
             ? (profileMap.get(message.ownerId)?.thumbnail ?? memberById.get(message.ownerId)?.thumbnail)
@@ -801,8 +613,6 @@ export const ThreadPage = () => {
         );
         return (
             <div data-testid="thread-root" className="flex flex-col px-3">
-                {/* The subject's author opens their profile like a row's sender does; my own root
-                    stays inert, as my rows do. */}
                 {!message.isOwner && message.ownerId ? (
                     <button
                         type="button"
@@ -840,8 +650,6 @@ export const ThreadPage = () => {
                             </p>
                         )
                     )}
-                    {/* A photo can root a thread like a line of text can, and then the photo is the
-                        subject — without it the page opens on a name over nothing. */}
                     {!isDeleted && (message.upload$$?.length ?? 0) > 0 && (
                         <MessageImages
                             uploads={message.upload$$}
@@ -872,7 +680,6 @@ export const ThreadPage = () => {
         );
     };
 
-    // Wrapped for `data-chat-no`, the anchor a jump looks for (useMessageJump).
     const renderRow = (message: ClientChatView) => (
         <div key={message.id} data-chat-no={message.chatNo}>
             <ChannelMessageRow
@@ -909,10 +716,6 @@ export const ThreadPage = () => {
     return (
         <div className="relative flex h-full flex-col overflow-hidden bg-background">
             <div ref={headerRef} className="absolute inset-x-0 top-0 z-20">
-                {/* Titled for the screen, not the room, and with no avatar (Figma 4718:22183):
-                    a thread is one conversation inside a channel, and the channel's face here
-                    would read as having navigated to the channel. Back returns to it
-                    (ADR-0093's two-hop). */}
                 <ChatRoomHeader
                     title={t('chat.thread.title')}
                     hideAvatar
@@ -953,10 +756,6 @@ export const ThreadPage = () => {
                                 {(hasMore || rootUnfetched) && !rootOutsideJoinWindow && (
                                     <button
                                         type="button"
-                                        // A press is a person asking: sent at once, past a failed
-                                        // page's retry wait. Disabled while the socket cannot carry
-                                        // it, so a press is never silently dropped. A root in a gap is
-                                        // asked for by its own page — the retry of the fetch above.
                                         onClick={() =>
                                             rootUnfetched ? fetchRootPage() : void loadMore({ immediate: true })
                                         }
@@ -972,9 +771,6 @@ export const ThreadPage = () => {
                                 )}
                             </div>
                         )}
-                        {/* A full-bleed 4px band, not a hairline rule (Figma 4722:23017): it is
-                            the seam between the thread's subject and the conversation about it,
-                            which is a heavier boundary than the ones between messages. */}
                         <div className="py-4">
                             <div aria-hidden className="h-1 w-full bg-avatar-ring" />
                         </div>
@@ -996,35 +792,22 @@ export const ThreadPage = () => {
 
             <div
                 ref={composerRef}
-                // The keyboard takes the attach panel's place: focusing the field closes the panel.
                 onFocus={event => {
-                    // React types a bubbled focus target as the element listening, which it need not be.
                     if ((event.target as EventTarget) === inputRef.current) attach.closePanel();
                 }}
-                // The room's rule: no transition — the keyboard moves it at once, the attach panel's slide
-                // frame by frame.
                 className="absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2"
                 style={{
-                    // The room's rule: above the keyboard or the attach panel in its place — the larger,
-                    // while they trade places — else the home indicator. The list clears the composer
-                    // by its measured height.
                     paddingBottom: COMPOSER_PADDING_BOTTOM,
                 }}
             >
-                {/* The room's rule: while a message is being edited the composer is its editor, and the
-                    reply typed before it waits aside. */}
                 {editing.composer ? (
                     <ComposerEditBar edit={editing.composer} inputRef={inputRef} />
                 ) : (
                     <>
-                        {/* The room's rule: picked photos wait above the field, inside the measured bar. */}
                         {attach.strip}
-                        {/* The room's rule: the `@` list right above the field, inside the measured bar. */}
                         <MentionSuggestions candidates={mentionComposer.suggestions} onPick={mentionComposer.pick} />
                     </>
                 )}
-                {/* The room's rule: one field for both modes, so the keyboard and the listeners bound to
-                    the field stay with the element being typed in. */}
                 <MessageInput inputRef={inputRef} onKeyDown={handleKeyDown} {...composerFieldProps} />
             </div>
             {attach.overlays}
@@ -1032,7 +815,6 @@ export const ThreadPage = () => {
 
             <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
 
-            {/* The room's profile, on the room's terms: view and report, no kick. */}
             {profileTarget && (
                 <MemberProfileDialog
                     open={profileOpen}
@@ -1087,7 +869,6 @@ export const ThreadPage = () => {
                 confirmLabel={t('chat.room.deleteMessageConfirm')}
                 onConfirm={() => void editing.confirmDelete()}
                 isPending={editing.isDeleting}
-                // Same as the room: the delete is not optimistic, so the dialog is the feedback.
                 closeOnConfirm={false}
             />
             <ConfirmDialog

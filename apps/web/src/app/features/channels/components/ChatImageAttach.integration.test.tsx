@@ -13,18 +13,6 @@ import { usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
 import type { EditRendition } from '../utils/bakePhotoEdit';
 import { useChatImageAttach } from './ChatImageAttach';
 
-/**
- * Picking and editing photos before the send, wired as the room wires it: the real `usePhotoPicker`,
- * the real attach flow and the kit's real panel, grid sheet and editor. `ChatImageAttach.test.tsx`
- * checks the attach flow against a scripted picker and `usePhotoPicker.test.ts` the picker on its own;
- * this is where the two have to agree — that the panel's recent row and the grid pick into one list,
- * that the grid closes back onto the panel with the pick, its edits and all, that the pick waits above
- * the field once the field takes the panel's place, that the composer's send carries the caption from
- * either, that an edit applied in the editor is the one the picker draws at the send, that ✕ puts back
- * what the picker held, and that unpicking lets go of what the editor read. Only what lies past the
- * page is faked: the shell's library, the canvas (`bake`, `rendition`) and the send.
- */
-
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 jest.mock('react-i18next', () => ({
@@ -34,8 +22,6 @@ jest.mock('react-i18next', () => ({
 }));
 jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: jest.fn() } }));
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => false }));
-// The page picks, as the host's media port says in a browser — the same answer as `isNative` above —
-// and no frame reports the keyboard to it (the `appShell` port).
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, browserMedia, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({
@@ -47,7 +33,6 @@ jest.mock('../utils/attachSources', () => ({
     ...jest.requireActual('../utils/attachSources'),
     isAppleTouchWebKit: () => false,
 }));
-// The attach flow's own picker stays the browser one: the test hands it the picker under test.
 jest.mock('../../../bridge/photoLibrary', () => ({
     photoLibrary: { isUnsupported: () => true },
     photoPreviewSrc: (b64: string) => `data:${b64}`,
@@ -65,7 +50,6 @@ const page = (ids: string[]): OnListPhotosPayload => ({
     items: ids.map(id => ({ id, thumbBase64: id })),
 });
 
-/** The shell's library, recording every read in order. */
 const fakeLibrary = (reads: string[]): PhotoLibrary => ({
     albums: jest.fn().mockResolvedValue({ access: 'granted', albums: [{ id: 'all', title: 'Recents', count: 3 }] }),
     photos: jest.fn().mockResolvedValue(page(['a', 'b', 'c'])),
@@ -78,7 +62,6 @@ const fakeLibrary = (reads: string[]): PhotoLibrary => ({
     isUnsupported: jest.fn().mockReturnValue(false),
 });
 
-// Every photo is 4:3, so a square crop is a narrower box centred on it.
 const rendition = jest.fn(
     async (file: File): Promise<EditRendition | null> => ({ src: `blob:${file.name}`, width: 400, height: 300 })
 );
@@ -89,7 +72,6 @@ const bake = jest.fn(
 
 let picker: PhotoPicker;
 
-/** The composer's text, as the page would hand it to `sendPicked` at the press. */
 let caption = '';
 
 const Harness = ({
@@ -119,11 +101,9 @@ const Harness = ({
     );
 };
 
-/** Probes the library, opens the grid and picks these photos, in order — what the grid's tiles do. */
 const openAndPick = async (library: PhotoLibrary, sendImages = jest.fn().mockResolvedValue(undefined)) => {
     render(<Harness library={library} sendImages={sendImages} />);
     await act(() => picker.probe());
-    // Async: the grid's first page and the album list land before anything is picked.
     await act(async () => picker.openGrid());
     for (const id of ['a', 'b', 'c']) act(() => picker.toggle({ id, src: `data:${id}` }));
     return sendImages;
@@ -134,7 +114,6 @@ const queryEditor = () => screen.queryByRole('dialog', { name: 'chat.attach.edit
 const stripThumb = (position: number) =>
     screen.getByRole('button', { name: `chat.attach.edit.select:${JSON.stringify({ position })}` });
 
-/** Crops the photo on screen to a square through the crop tool, and applies it. */
 const cropToSquare = async () => {
     const crop = within(editor()).getByRole('button', { name: 'chat.attach.edit.crop' });
     await waitFor(() => expect(crop).toBeEnabled());
@@ -143,7 +122,6 @@ const cropToSquare = async () => {
     fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.apply' }));
 };
 
-/** What a square crop of a 400 × 300 photo is, as `setPhotoEditAspect` fits it. */
 const SQUARE: PhotoEdit = {
     rotation: 0,
     flipH: false,
@@ -166,32 +144,27 @@ describe('editing grid photos before the send, end to end', () => {
         const reads: string[] = [];
         const sendImages = await openAndPick(fakeLibrary(reads));
 
-        // Opened at the second photo: it is read first, then the ones either side.
         fireEvent.click(stripThumb(2));
         expect(editor()).toBeInTheDocument();
         await cropToSquare();
         await waitFor(() => expect(reads).toEqual(['b', 'c', 'a']));
         expect(picker.edits.get('b')).toEqual(SQUARE);
 
-        // Back in the grid, the strip draws the photo as it will be sent.
         fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.done' }));
         expect(queryEditor()).not.toBeInTheDocument();
         expect(stripThumb(2)).toHaveAccessibleDescription('chat.attach.edit.edited');
         expect(stripThumb(1)).not.toHaveAccessibleDescription();
 
-        // The editor's own send button sends the grid's pick.
         fireEvent.click(screen.getByRole('button', { name: 'chat.attach.edit.open' }));
         fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.send:{"count":3}' }));
 
         await waitFor(() => expect(sendImages).toHaveBeenCalledTimes(1));
-        // Every photo was read once, for the editor, and the send reused the bytes.
         expect(reads).toEqual(['b', 'c', 'a']);
         expect(bake).toHaveBeenCalledTimes(1);
         expect(bake).toHaveBeenCalledWith(expect.objectContaining({ name: 'b.jpg' }), SQUARE);
         const [files, options] = sendImages.mock.calls[0];
         expect(files.map((file: File) => file.name)).toEqual(['a.jpg', 'b-edit.jpg', 'c.jpg']);
         expect(options).toEqual({ separately: true });
-        // The pick is gone, and with it every copy the editor drew from.
         expect(picker.picked).toEqual([]);
         expect(picker.edits.size).toBe(0);
         expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:a.jpg');
@@ -202,12 +175,10 @@ describe('editing grid photos before the send, end to end', () => {
     it('throws away with ✕, after asking, only the edits made since the editor opened', async () => {
         await openAndPick(fakeLibrary([]));
 
-        // A first visit, kept with Done.
         fireEvent.click(stripThumb(1));
         await cropToSquare();
         fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.done' }));
 
-        // A second visit, left with ✕.
         fireEvent.click(stripThumb(3));
         await cropToSquare();
         expect([...picker.edits.keys()]).toEqual(['a', 'c']);
@@ -234,12 +205,10 @@ describe('editing grid photos before the send, end to end', () => {
             act(async () => out.get(id)?.(new File([id], `${id}.jpg`, { type: 'image/jpeg' })));
         const sendImages = await openAndPick(library);
 
-        // Opened at the first photo: it is read, and its neighbour waits behind it.
         fireEvent.click(stripThumb(1));
         expect(reads).toEqual(['a']);
         fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.done' }));
 
-        // The read under way finishes, for the strip and the send; nothing is read after it.
         await land('a');
         await waitFor(() => expect(picker.editAssets.get('a')?.status).toBe('ready'));
         await act(async () => undefined);
@@ -273,7 +242,6 @@ describe('editing grid photos before the send, end to end', () => {
         await waitFor(() => expect(sendImages).toHaveBeenCalledTimes(1));
         expect(bake).not.toHaveBeenCalled();
         expect(sendImages.mock.calls[0][0].map((file: File) => file.name)).toEqual(['b.jpg', 'c.jpg', 'a.jpg']);
-        // Grouping is on: one message, sent the way every other pick is.
         expect(sendImages.mock.calls[0]).toHaveLength(1);
     });
 });
@@ -282,7 +250,6 @@ describe('picking in the panel and sending from the composer, end to end', () =>
     const openPanel = async (library: PhotoLibrary, sendImages = jest.fn().mockResolvedValue(undefined)) => {
         render(<Harness library={library} sendImages={sendImages} />);
         fireEvent.click(screen.getByRole('button', { name: 'chat.attach.open' }));
-        // The opening asks for the newest items; the row draws once they land.
         await screen.findByRole('button', { name: 'chat.attach.recentPhoto:{"position":1}' });
         return sendImages;
     };
@@ -301,13 +268,11 @@ describe('picking in the panel and sending from the composer, end to end', () =>
         expect(recentTile(3)).toHaveAttribute('aria-pressed', 'true');
         expect(screen.getByTestId('composer-send')).toHaveAttribute('aria-disabled', 'false');
 
-        // "See all" opens the grid on the same pick, in the same order.
         fireEvent.click(screen.getByRole('button', { name: 'chat.attach.seeAll' }));
         await waitFor(() => expect(grid()).toBeInTheDocument());
         expect(picker.picked.map(item => item.id)).toEqual(['c', 'a']);
         expect(stripThumb(2)).toBeInTheDocument();
 
-        // Closing it goes back to the panel, the pick intact.
         fireEvent.click(screen.getByRole('button', { name: 'chat.attach.viewerClose' }));
         await waitFor(() => expect(grid()).not.toBeInTheDocument());
         expect(panelOpen()).toBe('true');
@@ -345,9 +310,7 @@ describe('picking in the panel and sending from the composer, end to end', () =>
         await waitFor(() => expect(sendImages).toHaveBeenCalledTimes(1));
         expect(bake).toHaveBeenCalledWith(expect.objectContaining({ name: 'a.jpg' }), SQUARE);
         expect(sendImages.mock.calls[0][0].map((file: File) => file.name)).toEqual(['a-edit.jpg', 'b.jpg']);
-        // No caption typed: the pick goes as any grid pick does.
         expect(sendImages.mock.calls[0]).toHaveLength(1);
-        // The bytes went with the grid, so the send read the edited photo again.
         expect(reads.filter(id => id === 'a').length).toBe(2);
     });
 
@@ -408,7 +371,6 @@ describe('the pick waiting above the composer, end to end', () => {
 
         expect(panelOpen()).toBe('false');
         expect(row()).toBeInTheDocument();
-        // In pick order, drawn from the previews the recent row had.
         expect(stripThumb(1).querySelector('img')).toHaveAttribute('src', 'data:b');
         expect(stripThumb(2).querySelector('img')).toHaveAttribute('src', 'data:a');
         expect(sendDisabled()).toBe('false');
@@ -450,7 +412,6 @@ describe('the pick waiting above the composer, end to end', () => {
         expect(editor()).toBeInTheDocument();
         expect(grid()).not.toBeInTheDocument();
         await cropToSquare();
-        // The tapped photo is read first.
         expect(reads[0]).toBe('b');
         fireEvent.click(within(editor()).getByRole('button', { name: 'chat.attach.edit.done' }));
         expect(queryEditor()).not.toBeInTheDocument();
@@ -462,7 +423,6 @@ describe('the pick waiting above the composer, end to end', () => {
         await waitFor(() => expect(sendImages).toHaveBeenCalledTimes(1));
         expect(bake).toHaveBeenCalledWith(expect.objectContaining({ name: 'b.jpg' }), SQUARE);
         expect(sendImages.mock.calls[0][0].map((file: File) => file.name)).toEqual(['a.jpg', 'b-edit.jpg']);
-        // The bytes went as the editor closed, so the send read the edited photo again.
         expect(reads.filter(id => id === 'b')).toHaveLength(2);
     });
 
