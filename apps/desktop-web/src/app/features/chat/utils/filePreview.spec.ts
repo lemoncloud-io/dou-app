@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-// jsdom's Blob has no `arrayBuffer`; a browser's and Node's do.
 import { Blob as NodeBlob } from 'node:buffer';
 
 import type { ChatFile } from './chatImages';
@@ -20,7 +19,6 @@ describe('formatPlaybackTime', () => {
         expect(formatPlaybackTime(3725)).toBe('1:02:05');
     });
 
-    // The browser reports NaN before the header arrives, and Infinity for a stream.
     it('reads a length it does not know as 0:00', () => {
         expect(formatPlaybackTime(Number.NaN)).toBe('0:00');
         expect(formatPlaybackTime(Number.POSITIVE_INFINITY)).toBe('0:00');
@@ -54,7 +52,6 @@ describe('canPreview', () => {
         expect(canPreview(sent({ name: 'old.ppt' }))).toBeNull();
     });
 
-    // A voice file plays in the page; macOS types an M4A `audio/x-m4a`.
     it('plays a sent voice file, by its type or its name', () => {
         expect(canPreview(sent({ name: 'song.mp3', contentType: 'audio/mpeg' }))).toBe('audio');
         expect(canPreview(sent({ name: 'memo.m4a', contentType: 'audio/x-m4a' }))).toBe('audio');
@@ -62,7 +59,6 @@ describe('canPreview', () => {
         expect(canPreview(sent({ name: 'voice.ogg', contentType: 'audio/ogg' }))).toBe('audio');
     });
 
-    // Nothing in the browser draws these without sending the file to someone else.
     it('leaves office, Hancom, archive and video files to their save card', () => {
         expect(canPreview(sent({ name: 'a.docx' }))).toBeNull();
         expect(canPreview(sent({ name: 'a.hwp' }))).toBeNull();
@@ -91,18 +87,16 @@ describe('readTextPreview', () => {
         await expect(readTextPreview(bytes([]))).resolves.toEqual({ text: '', truncated: false });
     });
 
-    // A .txt saved by Korean Windows is often CP949; read as UTF-8 it is all replacement marks.
     it('falls back to EUC-KR when the bytes are not UTF-8', async () => {
-        const euckr = new Uint8Array([0xbe, 0xc8, 0xb3, 0xe7]); // "안녕"
+        const euckr = new Uint8Array([0xbe, 0xc8, 0xb3, 0xe7]);
         await expect(readTextPreview(bytes([euckr]))).resolves.toEqual({ text: '안녕', truncated: false });
     });
 
     it('reads a UTF-16 file by its byte-order mark', async () => {
-        const le = new Uint8Array([0xff, 0xfe, 0x5c, 0xd5, 0x00, 0xae]); // BOM + "한글"
+        const le = new Uint8Array([0xff, 0xfe, 0x5c, 0xd5, 0x00, 0xae]);
         await expect(readTextPreview(bytes([le]))).resolves.toEqual({ text: '한글', truncated: false });
     });
 
-    // The viewer fetches only the start; the card's size says whether there is more.
     it('takes the whole file size to say whether the start was cut', async () => {
         await expect(readTextPreview(bytes(['abc']), 10 * 1024 * 1024)).resolves.toEqual({
             text: 'abc',
@@ -112,7 +106,7 @@ describe('readTextPreview', () => {
     });
 
     it('reads only the first part of a large file, without breaking a character at the cut', async () => {
-        const big = bytes(['가'.repeat(TEXT_PREVIEW_MAX_BYTES)]); // 3 bytes each
+        const big = bytes(['가'.repeat(TEXT_PREVIEW_MAX_BYTES)]);
         const preview = await readTextPreview(big);
         expect(preview.truncated).toBe(true);
         expect(preview.text.length).toBe(Math.floor(TEXT_PREVIEW_MAX_BYTES / 3));
@@ -141,7 +135,6 @@ describe('HTML preview', () => {
     const policyInHead = (doc: string): boolean =>
         parsed(doc).head.firstElementChild?.getAttribute('http-equiv') === 'Content-Security-Policy';
 
-    // Anything ahead of the doctype would drop the page into quirks mode and change its layout.
     it('keeps the doctype first and the policy first in the head', () => {
         const doc = htmlPreviewDocument(
             '\uFEFF  <!DOCTYPE html>\n<html lang="ko"><head><title>x</title></head></html>'
@@ -157,7 +150,6 @@ describe('HTML preview', () => {
         expect(policyInHead(doc)).toBe(true);
     });
 
-    // A policy outside the head is ignored, so a page that starts its body early must not get one there.
     it.each([['<!-->'], ['<!--->'], ['<!-- a --!>']])(
         'puts the policy in the head of a page whose comment %s closes early',
         opener => {

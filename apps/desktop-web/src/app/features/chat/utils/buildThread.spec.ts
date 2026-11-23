@@ -19,9 +19,6 @@ describe('buildThreadIndex', () => {
         expect(index.get('1')?.count).toBe(2);
     });
 
-    // A deleted reply still occupies a row in the panel, as a tombstone. The footer
-    // counts rows, so it counts that one — the alternative is "1 reply" over a thread
-    // showing two.
     it('counts a deleted reply, because the panel still shows it', () => {
         const index = buildThreadIndex([
             ROOT,
@@ -38,8 +35,6 @@ describe('buildThreadIndex', () => {
         expect(index.get('1')?.count).toBe(1);
     });
 
-    // Reaction events arrive as replies to the message they are on. Counting them
-    // would turn every reacted-to message into a thread.
     it('never counts a reaction event as a reply', () => {
         const index = buildThreadIndex([
             ROOT,
@@ -51,7 +46,6 @@ describe('buildThreadIndex', () => {
     });
 
     describe('new replies', () => {
-        // The channel opened with the cursor at 2: replies above it are news, unless they are mine.
         const rule = (over: Partial<NewReplyRule> = {}): NewReplyRule => ({
             readNo: 2,
             isMine: reply => reply.ownerId === 'me',
@@ -85,7 +79,6 @@ describe('buildThreadIndex', () => {
             expect(index.get('1')?.newCount).toBe(0);
         });
 
-        // An unsent reply has no number yet and is always mine; it must not read as news either way.
         it('leaves out a reply the server has not numbered', () => {
             const index = buildThreadIndex([ROOT, chat({ tempId: 't1', parentId: 'C1:1', ownerId: 'ada' })], rule());
 
@@ -103,7 +96,6 @@ describe('buildThreadIndex', () => {
             expect(buildThreadIndex(messages, rule({ seenByRoot: new Map([['1', 5]]) })).get('1')?.newCount).toBe(0);
         });
 
-        // With no read cursor every reply would be "new" — the same flash the unread divider refuses.
         it('marks nothing while the read cursor is unknown, or without a rule', () => {
             const messages = [ROOT, chat({ id: 'C1:3', chatNo: 3, parentId: '1', ownerId: 'ada' })];
 

@@ -6,8 +6,6 @@ import { act, cleanup, render } from '@testing-library/react';
 import type * as ChatHooks from '../hooks';
 import type * as Shared from '../../../shared';
 
-// A place switch the server refuses: the socket session never moves, so the session's selected site
-// rolls back to where it was — a place that is not in this cloud's list.
 const { switchCalls, sessionState, socketState } = vi.hoisted(() => ({
     switchCalls: [] as string[],
     sessionState: { selectedSiteId: null as string | null },
@@ -19,7 +17,6 @@ vi.mock('@chatic/runtime', async () => {
         const [pending, setPending] = useState(false);
         const switchSite = useCallback(async (siteId: string) => {
             switchCalls.push(siteId);
-            // Stop answering past a bound, so a retry loop ends the test instead of hanging it.
             if (switchCalls.length > 20) return new Promise<void>(() => undefined);
             setPending(true);
             try {
@@ -130,7 +127,6 @@ vi.mock('../../../shared', async importOriginal => ({
 
 import { HomePage } from './HomePage';
 
-// Let every switch settle and every effect it re-triggers run.
 const settle = async () => {
     for (let i = 0; i < 30; i++) {
         await act(async () => {

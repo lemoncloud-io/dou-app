@@ -49,7 +49,6 @@ describe('MessageImages', () => {
             { wrapper }
         );
 
-        // Tile pictures are decorative (the button names them), so they are read off the DOM.
         const sources = () => Array.from(document.querySelectorAll('img')).map(img => img.getAttribute('src'));
         expect(sources()).toEqual(['https://s/t2']);
 

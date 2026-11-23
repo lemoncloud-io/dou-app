@@ -49,108 +49,51 @@ import type { MentionResolver } from './RichText';
 
 interface MessageListProps {
     messages: DomainChat[];
-    /** Folded reactions keyed by the message they belong to. Both callers fold their own. */
     reactions?: ReadonlyMap<string, ReactionTally[]>;
     isLoading: boolean;
     viewer: MessageViewer;
-    /** channel member id → display name, used to name authors when owner$ is absent. */
     names?: ReadonlyMap<string, string>;
-    /** Roster the inline message editor offers for @-autocomplete and shows existing mentions from. */
     mentionables?: Mentionable[];
-    /** Member roster still loading — render a name skeleton instead of "Unknown". */
     membersLoading?: boolean;
-    /** Read position when the channel was opened — drives the "new messages" divider. */
     baselineReadNo?: number;
-    /** Thread panel only: total replies under the root — renders an "N replies" divider. */
     threadReplyCount?: number;
-    /**
-     * Thread panel only: the "load earlier replies" row for a thread whose older replies are not all
-     * loaded. It sits right under the root — inside the "N replies" divider when replies are showing,
-     * on its own when none are.
-     */
     olderReplies?: ReactNode;
-    /** Thread panel only: older replies are still out, so the divider counts what is loaded, not the thread. */
     repliesPartial?: boolean;
     onRetry?: (message: DomainChat) => void;
-    /** Whether a failed message offers Retry (a picture message only while its pictures are in memory). */
     canRetry?: (message: DomainChat) => boolean;
-    /** Remove an unsent (failed / stuck-pending) message from the local cache. */
     onDiscard?: (message: DomainChat) => void;
-    /** Stops an attachment message's send while it uploads. */
     onCancelUpload?: (message: DomainChat) => void;
-    /** Fetch older history when the reader scrolls near the top. */
     onLoadOlder?: () => void;
     hasMore?: boolean;
     isLoadingOlder?: boolean;
-    /** Increment to force a jump to the latest message (e.g. after you send). */
     scrollSignal?: number;
-    /** Open pinned to the latest message, skipping the unread-divider landing (notification click). */
     openAtBottom?: boolean;
-    /** root id → loaded reply aggregate; root rows render a thread footer. */
     threadMeta?: ReadonlyMap<string, ThreadMeta>;
-    /** Open a thread; wired only for the main channel feed (not the thread panel). */
     onOpenThread?: (rootId: string) => void;
-    /** "Show in chat" from a voice file's detail. Only the channel's own feed passes it. */
     onShowMessage?: (message: DomainChat) => void;
-    /**
-     * Scroll a specific message into view + flash it (saved-item / search jump).
-     * `restore` puts it back at the top of the view without the flash (a return trip).
-     */
     jumpTarget?: { chatNo: number | null; nonce: number; restore?: boolean };
-    /** Called once a jump is consumed (landed or abandoned) so the store can clear. */
     onJumpConsumed?: () => void;
-    /** The first message in view as the reader scrolls; null at the latest. */
     onReadingPosition?: (chatNo: number | null) => void;
-    /**
-     * What sits above the first message once the whole history is loaded (and in place of
-     * the empty state): the channel's "this is the start of …" block. Absent in threads.
-     */
     intro?: ReactNode;
-    /** The room's first page failed to load: an empty list is not an empty room, so say so. */
     loadFailed?: boolean;
-    /** Try the first page again, offered beside `loadFailed`. */
     onRetryLoad?: () => void;
-    /**
-     * The last older-history page failed. The next scroll retries it, but a
-     * failure nothing shows reads as a room that simply ends — the pane shows a
-     * retry row at the top instead. Retry reuses `onLoadOlder`.
-     */
     loadOlderFailed?: boolean;
-    /**
-     * Who has read up to a message, its author left out — the list a read marker opens. Absent, or
-     * null for a message, draws no marker there.
-     */
     readCountOf?: (chatNo: number, authorId: string) => ReadCount | null;
-    /**
-     * Where each member has read up to. Given (the main feed), a member's face is drawn on the last
-     * message they reached, with the others who stopped there. Absent (the thread panel), the last
-     * message of each author block carries a pill instead: its readers' faces and counts.
-     */
     readCursors?: readonly MemberReadCursor[];
 }
 
 const NEAR_BOTTOM_PX = 80;
 const LOAD_OLDER_PX = 120;
-/** Bound how many older pages a jump will fetch before giving up on the target. */
 const MAX_JUMP_PAGES = 8;
-/** Slack-style thread footer shows at most this many replier avatars. */
 const MAX_FOOTER_REPLIERS = 3;
-/** Linger before the "New messages" divider clears, so the dismiss is seen first. */
 const DIVIDER_CLEAR_DELAY_MS = 1000;
-/** Fade-out duration once the linger elapses (matches the transition class below). */
 const DIVIDER_FADE_MS = 300;
-/** How long a jumped-to message stays flashed: the same 3s the inbox keeps an opened item marked. */
 const JUMP_HIGHLIGHT_MS = 3000;
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
 
-/** Past this the exact count is not asserted — the badge says "N+" instead. */
 const NEW_BADGE_CAP = 99;
-/**
- * Whether a message has a read count to show: one the server has accepted and that still stands.
- * A row in flight carries a placeholder chatNo, and a deleted one has nothing left to read.
- */
 const isCountable = (message: DomainChat): message is DomainChat & { chatNo: number } =>
     !message.isPending &&
     !message.isFailed &&
@@ -159,7 +102,6 @@ const isCountable = (message: DomainChat): message is DomainChat & { chatNo: num
     message.chatNo > 0 &&
     message.chatNo !== Number.MAX_SAFE_INTEGER;
 
-// One array for every message that calls nobody "me", so a memo'd row sees the same prop.
 const NO_SELF_NAMES: string[] = [];
 
 export const MessageList = ({
@@ -201,17 +143,9 @@ export const MessageList = ({
     const bottomRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const roving = useRovingFocus(scrollRef);
-    // Latched at mount (MessageList remounts per channel via its key), so a later
-    // store clear can't flip it before the first fill lands.
     const openAtBottomRef = useRef(openAtBottom);
     const pinRafRef = useRef(0);
 
-    // Pin the viewport to the bottom every frame for a short window. A single scroll
-    // lands short: the list keeps reflowing (avatars, wrapping, optimistic→server
-    // swap, older-page auto-fill), each nudging the viewport off the bottom. Pinning
-    // the whole window rides through all of them — reliable where scrollIntoView isn't.
-    // Every write is an instant jump, not an animation, so reduced motion needs no
-    // branch here: skipping the loop would only bring back the short landing.
     const pinToBottom = () => {
         cancelAnimationFrame(pinRafRef.current);
         const deadline = performance.now() + 600;
@@ -223,36 +157,21 @@ export const MessageList = ({
         pinRafRef.current = requestAnimationFrame(snap);
     };
     const [atBottom, setAtBottom] = useState(true);
-    // When a prepend (older page) is in flight, remember the scroll metrics so we
-    // can keep the viewport anchored instead of jumping to the top.
     const prependRef = useRef<{ pending: boolean; prevHeight: number; prevTop: number }>({
         pending: false,
         prevHeight: 0,
         prevTop: 0,
     });
     const prevLenRef = useRef(0);
-    // Highest chatNo the reader has actually reached (at bottom) — newer than this
-    // while scrolled up counts as "new" on the jump button.
     const seenMaxRef = useRef(0);
     const [newCount, setNewCount] = useState(0);
-    // On the channel's first fill, land at the unread divider (if any) instead of
-    // the bottom. Reset per channel via the key={channelId} remount.
     const unreadRef = useRef<HTMLDivElement>(null);
     const didInitRef = useRef(false);
-    // The "New messages" divider sits above the first message newer than what the
-    // reader has actually seen. seenUpTo advances to the latest while the reader is
-    // at the bottom AND the window is focused (messages read live) and freezes when
-    // they scroll up or blur — so the divider marks only messages that arrived
-    // while they were away, and clears once they return to the bottom.
     const [seenUpTo, setSeenUpTo] = useState(baselineReadNo ?? 0);
-    // Saved-item / search jump: chatNo currently flashing, plus the per-request
-    // paging budget and the flash timer.
     const [highlightChatNo, setHighlightChatNo] = useState<number | null>(null);
     const jumpRef = useRef<{ nonce: number; pages: number; done: boolean; windowRetries: number } | null>(null);
     const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const jumpWindowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-    // Bumped by the window-retry timer so the jump effect re-runs once the
-    // estimated scroll has mounted its target. Read only through the dep array.
     const [jumpTick, setJumpTick] = useState(0);
 
     const placeProfiles = useSiteProfileMap();
@@ -263,13 +182,7 @@ export const MessageList = ({
         [messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount, today]
     );
 
-    // --- Feed windowing: mount the viewport window, hold the rest as spacers. ---
-    // A 500-message channel used to mount 500 RichText/BlockKit subtrees, and every
-    // tail tick reconciled all of them. Rows outside the window unmount; spacers
-    // keep the scrollbar honest.
     const rowKeys = useMemo(() => rows.map(feedRowKeyOf), [rows]);
-    // Measured heights by row key; the running average estimates the rest. Read
-    // through a bump counter: refs don't trigger memos, the tick does.
     const measuredRef = useRef(new Map<string, number>());
     const [measuredTick, setMeasuredTick] = useState(0);
     const heights = useMemo(() => {
@@ -280,15 +193,12 @@ export const MessageList = ({
         const avg = measured.size > 0 ? Math.max(24, sum / measured.size) : FEED_DEFAULT_ESTIMATE_PX;
         return rowKeys.map(key => measured.get(key) ?? avg);
     }, [rowKeys, measuredTick]);
-    // Prefix offsets with one inter-row gap folded per row; spacer math reads off these.
     const offsets = useMemo(() => {
         const out = new Array<number>(heights.length + 1);
         out[0] = 0;
         for (let i = 0; i < heights.length; i++) out[i + 1] = out[i] + heights[i] + FEED_GAP_PX;
         return out;
     }, [heights]);
-    // Live viewport. `known` flips on the first real layout; tests (no layout) stay
-    // on the anchor window.
     const [viewport, setViewport] = useState({ top: 0, height: 0, known: false });
     const syncViewport = useCallback(() => {
         const el = scrollRef.current;
@@ -300,9 +210,6 @@ export const MessageList = ({
         );
     }, []);
     const win = useMemo(() => {
-        // No layout yet (first paint, tests, hidden tab): mount whole, exactly like
-        // before windowing — landing refs and every existing test see every row.
-        // The mount effect below engages the window on the first measured frame.
         if (!viewport.known) return { start: 0, end: rows.length };
         return windowForViewport({
             count: rows.length,
@@ -311,13 +218,9 @@ export const MessageList = ({
             viewportHeight: viewport.height,
         });
     }, [rows, heights, viewport]);
-    // Off by one flex gap per spacer at most — absorbed by the overscan either way.
     const topSpacer = win.start > 0 ? Math.max(0, offsets[win.start]) : 0;
     const bottomSpacer = win.end < rows.length ? Math.max(0, offsets[rows.length] - offsets[win.end]) : 0;
 
-    // Mounted rows report their heights. No manual scrollTop correction here: Chromium's
-    // scroll anchoring already pins the reader's position when a row or the top spacer
-    // above the viewport changes size, and adding the delta on top would move it twice.
     useEffect(() => {
         const el = scrollRef.current;
         if (!el || typeof ResizeObserver === 'undefined') return;
@@ -339,9 +242,6 @@ export const MessageList = ({
         return () => ro.disconnect();
     }, [win, rows]);
 
-    // Name a reactor the same way an author is named: the place nickname over the account name,
-    // my own id resolving to me and others through the roster. Memoised because MessageRow is
-    // memo'd — a fresh closure here would re-render every row on each list render.
     const reactorName = useMemo(() => {
         const resolve = (userId: string): string => {
             const mine = isViewerId(userId, viewer);
@@ -351,7 +251,6 @@ export const MessageList = ({
         return resolve;
     }, [names, placeProfiles, viewer]);
 
-    // Never drops a member for want of a name — a placeholder keeps the list equal to the count.
     const readPerson = useMemo(() => {
         const roster = new Map((mentionables ?? []).filter(m => !m.everyone).map(m => [m.id, m] as const));
         return (userId: string): ReadPerson => {
@@ -363,8 +262,6 @@ export const MessageList = ({
         };
     }, [mentionables, names, placeProfiles, viewer, t]);
 
-    // Which shown message each member's read position falls on. Only messages with a row to carry a
-    // marker count: one still sending, failed or deleted passes its members down to the last settled one.
     const readPlacements = useMemo(
         () =>
             readCountOf && readCursors?.length
@@ -376,9 +273,6 @@ export const MessageList = ({
         [readCountOf, readCursors, messages]
     );
 
-    // Resolve thread repliers for the footer avatar stack the same way message
-    // authors resolve: Place Profile override → roster name → viewer (own replies,
-    // whose ownerId may be either the account or cloud id — see isOwnMessage).
     const threadMetaView = useMemo(() => {
         if (!threadMeta) return undefined;
         const view = new Map<string, ThreadMetaView>();
@@ -400,9 +294,6 @@ export const MessageList = ({
         return view;
     }, [threadMeta, names, placeProfiles, viewer]);
 
-    // @name → member, for mentions that open a profile. Stable identity: rows are memo'd.
-    // Autocomplete inserts the resolved display name (place nick over global name), so
-    // that is keyed first; the global name still resolves mentions typed by hand.
     const resolveMention = useMemo<MentionResolver>(() => {
         const byName = new Map<string, { userId: string; name: string }>();
         const people = [...(names ?? [])].map(([userId, name]) => ({
@@ -419,10 +310,6 @@ export const MessageList = ({
         return name => byName.get(name.toLowerCase());
     }, [names, placeProfiles]);
 
-    // Lowercased "me" names for self-mention highlighting: profile name, place nick under
-    // either of my ids, and the name the roster has for either id — the one a sender's @ list
-    // showed me under, which a mention chip carries. The roster name is wider than what the
-    // notifiers read from text (`resolveMyMentionNames`): a highlight costs nothing when wrong.
     const selfNames = useMemo(() => {
         const mine = [
             viewer.name,
@@ -431,19 +318,12 @@ export const MessageList = ({
         return mine.filter((n): n is string => !!n?.trim()).map(n => n.trim().toLowerCase());
     }, [viewer, placeProfiles, names]);
 
-    // Which names count as "me" in one message. A message with a mention record that does not
-    // name me highlights nothing as mine: the `@Me` in it is someone else of the same name, and a
-    // typed `@channel` did not call anyone — the record-first order of `mentionsMe`. Stable
-    // identity: rows are memo'd.
     const selfNamesOf = useCallback(
         (message: DomainChat): string[] =>
             message.mention$ && !isMentioningViewer(message, [viewer.uid, viewer.cloudUid]) ? NO_SELF_NAMES : selfNames,
         [selfNames, viewer.uid, viewer.cloudUid]
     );
 
-    // Highest PERSISTED chatNo: exclude optimistic/pending rows (sentinel
-    // Number.MAX_SAFE_INTEGER) so a seenUpTo advance never jumps to MAX and
-    // suppresses every later divider for this mount (mirrors useReadReceipts).
     const maxChatNo = useMemo(
         () =>
             messages.reduce(
@@ -453,19 +333,12 @@ export const MessageList = ({
             ),
         [messages]
     );
-    // Keep the latest max in a ref so the send effect can clear the divider
-    // without taking maxChatNo as a dep (it changes on every tail update, which
-    // would re-trigger the post-send snap animation).
     const maxChatNoRef = useRef(maxChatNo);
     maxChatNoRef.current = maxChatNo;
-    // Dismiss the divider on a short delay so it lingers long enough to register
-    // before vanishing. Coalesced (a new schedule resets the timer); leaving the
-    // bottom cancels it. Fires to the latest real chatNo at timeout.
     const dividerClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [dividerFading, setDividerFading] = useState(false);
     const scheduleDividerClear = () => {
         if (dividerClearTimer.current) clearTimeout(dividerClearTimer.current);
-        // Linger, then fade out, then actually drop the row (advance the baseline).
         dividerClearTimer.current = setTimeout(() => {
             setDividerFading(true);
             dividerClearTimer.current = setTimeout(() => {
@@ -479,11 +352,8 @@ export const MessageList = ({
             clearTimeout(dividerClearTimer.current);
             dividerClearTimer.current = null;
         }
-        // Scrolled back up mid-fade — restore the divider (fades back in).
         setDividerFading(false);
     };
-    // Stable refs so the focus/visibility listener can subscribe once (not per
-    // render) yet still see the live at-bottom state + latest schedule closure.
     const atBottomRef = useRef(atBottom);
     atBottomRef.current = atBottom;
     const seenUpToRef = useRef(seenUpTo);
@@ -491,16 +361,8 @@ export const MessageList = ({
     const scheduleDividerClearRef = useRef(scheduleDividerClear);
     scheduleDividerClearRef.current = scheduleDividerClear;
 
-    // A message that arrives while the window is hidden raises the divider, and
-    // useReadReceipts (also focus-gated) holds the read cursor back, so the badge
-    // stays too. On refocus the badge clears (useReadReceipts flushes the read) —
-    // match it: if the reader is already at the bottom (those messages are on
-    // screen), clear the divider on the same edge so the two never disagree. A
-    // scrolled-up reader keeps the divider as their jump anchor.
     useEffect(() => {
         const onActivity = () => {
-            // Only when a divider is actually showing (unseen tail) — otherwise a
-            // routine focus would arm a pointless timer + fade toggle.
             const hasDivider = seenUpToRef.current < maxChatNoRef.current;
             if (isWindowActive() && atBottomRef.current && hasDivider) scheduleDividerClearRef.current();
         };
@@ -512,14 +374,10 @@ export const MessageList = ({
         };
     }, []);
 
-    // A late $join can raise the open-time baseline after mount — lift the
-    // divider's floor to match so it anchors at the right place.
     useEffect(() => {
         setSeenUpTo(prev => Math.max(prev, baselineReadNo ?? 0));
     }, [baselineReadNo]);
 
-    // The oldest root in the feed with a reply the reader has not seen — the landing spot when the
-    // feed has no unread divider of its own. Read at the first fill only, like the divider.
     const newReplyRoot = useMemo(() => {
         if (!threadMeta) return null;
         let oldest: number | null = null;
@@ -529,8 +387,6 @@ export const MessageList = ({
         }
         return oldest;
     }, [messages, threadMeta]);
-    // Read through a ref so the effect below does not re-run when it changes: opening a thread moves
-    // it, and a re-run then would spend the pending older-page restore before that page has landed.
     const newReplyRootRef = useRef(newReplyRoot);
     newReplyRootRef.current = newReplyRoot;
 
@@ -539,9 +395,6 @@ export const MessageList = ({
         const grew = messages.length > prevLenRef.current;
         const firstFill = prevLenRef.current === 0 && messages.length > 0;
         prevLenRef.current = messages.length;
-        // Recompute the unread-while-scrolled-up count here (not in render) so it
-        // only changes with messages/atBottom — not on every scroll tick. Own
-        // messages never count.
         if (atBottom) {
             seenMaxRef.current = maxChatNo;
             setNewCount(0);
@@ -554,16 +407,11 @@ export const MessageList = ({
             );
         }
         if (!el) return;
-        // Older page prepended → restore the prior viewport offset.
         if (prependRef.current.pending) {
             el.scrollTop = el.scrollHeight - prependRef.current.prevHeight + prependRef.current.prevTop;
             prependRef.current.pending = false;
             return;
         }
-        // First fill of this channel: land on the unread divider if there is one,
-        // otherwise the bottom. A notification-click open (openAtBottom) skips the
-        // divider and pins to the latest — the message the user was pinged about —
-        // riding the post-mount reflow so it lands ON the bottom, not a row short.
         if (firstFill && !didInitRef.current) {
             didInitRef.current = true;
             const rootNo = newReplyRootRef.current;
@@ -574,64 +422,37 @@ export const MessageList = ({
             } else if (unreadRef.current) {
                 unreadRef.current.scrollIntoView({ block: 'center' });
             } else if (replyRoot) {
-                // Nothing new in the feed itself, but the channel was badged for replies: land on
-                // the oldest root that has some, so the badge leads to something on screen.
                 replyRoot.scrollIntoView({ block: 'center' });
             } else {
                 bottomRef.current?.scrollIntoView({ block: 'end' });
             }
             return;
         }
-        // New tail message while pinned to bottom → follow it. Setting scrollTop
-        // directly is reliable here; scrollIntoView on the 0-height bottom anchor
-        // lands a message-height short in this flex column.
         if (grew && atBottom) {
             el.scrollTop = el.scrollHeight;
-            // Read live: a message that lands while you're at the bottom + focused
-            // never raises a sticky divider.
             if (isWindowActive()) setSeenUpTo(prev => Math.max(prev, maxChatNo));
         }
         syncViewport();
     }, [messages, atBottom, maxChatNo, viewer]);
 
-    // After sending, snap to the latest even if the reader had scrolled up. A
-    // single scroll lands short: the optimistic message renders, then the list
-    // reflows over the next few frames (optimistic→server swap, height change),
-    // each nudging the viewport off the bottom. Pin to the bottom every frame for
-    // a short window so it rides through all of them.
     useEffect(() => {
         if (!scrollSignal) return;
         setAtBottom(true);
-        // Sending means you're caught up — clear the "New messages" divider after
-        // a short linger (advances to the latest real chatNo at timeout).
         scheduleDividerClear();
         pinToBottom();
         return () => cancelAnimationFrame(pinRafRef.current);
     }, [scrollSignal]);
 
-    // The "New messages" divider clears only when the reader actively scrolls
-    // DOWN into the bottom (a not-near-bottom → near-bottom transition). Focus,
-    // channel-open auto-scroll, and live-follow all land at the bottom too but
-    // must NOT dismiss an unseen divider — track the previous state for the edge.
     const wasNearBottomRef = useRef(true);
 
-    // Drive a jump request: center the target message's DOM node and flash it.
-    // If it isn't loaded (older than the live page), page older — bounded — and
-    // the `messages` dependency re-runs this as each page lands.
     useEffect(() => {
         if (!jumpTarget) return;
         const el = scrollRef.current;
         if (!el) return;
-        // New request → reset the paging budget + done latch.
         if (jumpRef.current?.nonce !== jumpTarget.nonce) {
             jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: false, windowRetries: 0 };
         }
-        // Already handled (landed or abandoned) — don't re-scroll on live-tail ticks
-        // that re-run this effect before the store clears the target.
         if (jumpRef.current.done) return;
-        // A return point is the reading position, not a message to find. Back to the
-        // latest, or to an anchor that is gone, both end at the bottom, where the feed
-        // opens; paging back for it and reporting "not found" would strand the reader.
         const restoreToBottom = () => {
             jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: true, windowRetries: 0 };
             setAtBottom(true);
@@ -653,9 +474,6 @@ export const MessageList = ({
                 if (highlightTimer.current) clearTimeout(highlightTimer.current);
                 highlightTimer.current = setTimeout(() => setHighlightChatNo(null), JUMP_HIGHLIGHT_MS);
             }
-            // Settle the pin state now. It used to wait for the scroll frame, so a page
-            // landing in between still saw "at the bottom", followed the tail, and carried
-            // the reader past the message they jumped to.
             const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
             setAtBottom(nearBottom);
             wasNearBottomRef.current = nearBottom;
@@ -663,9 +481,6 @@ export const MessageList = ({
             onJumpConsumed?.();
             return;
         }
-        // Loaded but outside the mounted window → estimate-scroll it into the window
-        // and retry (bounded): the next frames mount it and the branch above lands.
-        // Without layout (tests) everything is mounted, so this never fires there.
         if (jumpTarget.chatNo != null) {
             const targetIndex = indexOfChatNo(rows, jumpTarget.chatNo);
             if (targetIndex >= 0 && jumpRef.current.windowRetries < MAX_JUMP_WINDOW_RETRIES) {
@@ -677,15 +492,11 @@ export const MessageList = ({
                 return;
             }
         }
-        // Not loaded yet → page older until found or the budget/history runs out.
         if (hasMore && !isLoadingOlder && jumpRef.current.pages < MAX_JUMP_PAGES) {
             jumpRef.current.pages += 1;
             onLoadOlder?.();
             return;
         }
-        // Exhausted: no older history left or the budget was hit — stop re-firing.
-        // Say so. Giving up silently left the reader mid-history, paged back up to
-        // eight pages, with no highlight and no hint that the target was not found.
         if (!hasMore || jumpRef.current.pages >= MAX_JUMP_PAGES) {
             if (jumpTarget.restore) {
                 restoreToBottom();
@@ -709,29 +520,16 @@ export const MessageList = ({
         syncViewport,
     ]);
 
-    // Auto-fill the viewport: when the loaded page can't be scrolled (scrollHeight
-    // fits the viewport) there's no scroll-up to trigger loadOlder, so older history
-    // stays unreachable. Common in thread-heavy channels — most of a 50-item page is
-    // replies, which the main feed hides, leaving only a handful of top-level rows.
-    // Pull older pages until the feed overflows (giving a manual scroll handle) or
-    // history runs out (hasMore guards termination; isLoadingOlder serialises).
-    // A feed with nothing to show fits too, though it renders no scroller: a newest page whose messages
-    // were all deleted, or that held only replies to deleted roots, leaves the room blank with history
-    // below it.
-    // A failed page stops the pull until its retry, instead of asking again on every settle. A feed
-    // still loading its first page is empty for that reason only: no pull then.
     useEffect(() => {
         if (isLoading || !hasMore || isLoadingOlder || loadOlderFailed || !onLoadOlder) return;
         const el = scrollRef.current;
         if (el ? el.scrollHeight <= el.clientHeight + LOAD_OLDER_PX : messages.length === 0) onLoadOlder();
     }, [rows, messages.length, isLoading, hasMore, isLoadingOlder, loadOlderFailed, onLoadOlder]);
 
-    // Read the live viewport once mounted (the anchor window covers first paint).
     useEffect(() => {
         syncViewport();
     }, [syncViewport]);
 
-    // Clear pending flash / divider-dismiss timers on unmount.
     useEffect(
         () => () => {
             clearTimeout(highlightTimer.current ?? undefined);
@@ -742,8 +540,6 @@ export const MessageList = ({
         []
     );
 
-    // Scroll events fire many times per frame; the handler reads three layout
-    // properties each time. Coalesce to one pass per animation frame.
     const scrollRafRef = useRef(0);
     useEffect(() => () => cancelAnimationFrame(scrollRafRef.current), []);
     const onScroll = () => {
@@ -760,13 +556,9 @@ export const MessageList = ({
         const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
         setAtBottom(nearBottom);
         if (onReadingPosition) onReadingPosition(nearBottom ? null : firstVisibleChatNo(el));
-        // Clear the divider only on a genuine scroll DOWN into the bottom (was
-        // above it, now near it). Opening a channel or an auto-follow also reaches
-        // the bottom, but those keep the divider until the reader scrolls past it.
         if (nearBottom && !wasNearBottomRef.current && isWindowActive()) {
             scheduleDividerClear();
         } else if (!nearBottom) {
-            // Scrolled back up before the linger elapsed — keep the divider.
             cancelDividerClear();
         }
         wasNearBottomRef.current = nearBottom;
@@ -776,12 +568,9 @@ export const MessageList = ({
         }
     };
 
-    // `behavior` is a JS argument, so the stylesheet's reduced-motion block cannot
-    // reach it — this is the one scroll the global override does not cover.
     const scrollToBottom = () =>
         bottomRef.current?.scrollIntoView({ block: 'end', behavior: reducedMotion ? 'auto' : 'smooth' });
 
-    // Nothing shown yet, but older history to pull: still loading, not an empty room.
     const pagingIntoEmpty = messages.length === 0 && !!hasMore && !!onLoadOlder;
     if (isLoading || (pagingIntoEmpty && !loadOlderFailed)) {
         return (
@@ -805,7 +594,6 @@ export const MessageList = ({
     }
 
     if (messages.length === 0 && (loadFailed || (pagingIntoEmpty && loadOlderFailed))) {
-        // The first page, or the older page an empty feed was pulling: retry whichever failed.
         const retry = loadFailed ? onRetryLoad : onLoadOlder;
         return (
             <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
@@ -852,7 +640,6 @@ export const MessageList = ({
                 aria-relevant="additions"
                 aria-busy={isLoadingOlder || undefined}
                 aria-label={t('chat.feedLabel')}
-                // The column is the container the row toolbar's narrow rule measures (see MessageRow).
                 className="scrollbar-thin flex flex-1 flex-col gap-2 overflow-y-auto px-6 py-5 [container-type:inline-size]"
             >
                 {isLoadingOlder && (
@@ -860,8 +647,6 @@ export const MessageList = ({
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground motion-reduce:animate-none" />
                     </div>
                 )}
-                {/* A failed older page stays retried by scrolls, but nothing may show it:
-                    without this row the history reads as simply ended. */}
                 {loadOlderFailed && !isLoadingOlder && onLoadOlder && (
                     <div className="flex items-center justify-center gap-2 py-2">
                         <p role="status" className="text-caption text-muted-foreground">
@@ -877,9 +662,6 @@ export const MessageList = ({
                     </div>
                 )}
                 {!hasMore && !isLoadingOlder && intro}
-                {/* Windowed rows: only the viewport window mounts, spacers hold the rest. */}
-                {/* shrink-0: the feed is a flex column, and an empty div there shrinks to 0 px once the
-                    content overflows — the spacer would hold no height at all. */}
                 {topSpacer > 0 && (
                     <div aria-hidden data-feed-spacer="top" className="shrink-0" style={{ height: topSpacer }} />
                 )}
@@ -920,8 +702,6 @@ export const MessageList = ({
                                 );
                             }
                             if (row.kind === 'replies') {
-                                // Slack-style thread divider: the reply count anchored left,
-                                // a hairline filling the rest of the row.
                                 return (
                                     <div key={row.key} data-row-key={row.key} className="my-2 flex flex-col gap-2">
                                         <div className="flex items-center gap-3 px-1">
@@ -941,16 +721,10 @@ export const MessageList = ({
                                     </div>
                                 );
                             }
-                            // Only the block holding the target gets it: handed to every row, a
-                            // jump re-rendered the whole feed twice (on the flash and on its clear).
                             const highlight =
                                 highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
                                     ? highlightChatNo
                                     : undefined;
-                            // Main feed: members who stopped reading at a message of this block. The count is
-                            // asked only for those messages, and a message the room has no count for carries no
-                            // marker. Thread panel (no cursors): the block's last settled message gets a pill —
-                            // one per author block, as replies sent back to back would repeat the same counts.
                             let readMarkers: Record<number, ReadMarker> | undefined;
                             if (readCountOf && !readCursors) {
                                 const last = row.group.messages.filter(isCountable).at(-1);
@@ -969,7 +743,6 @@ export const MessageList = ({
                             } else if (readPlacements && readCountOf) {
                                 for (const settled of row.group.messages) {
                                     if (!isCountable(settled)) continue;
-                                    // The author is on neither list of their own message, so no face for them either.
                                     const members = readPlacements
                                         .get(settled.chatNo)
                                         ?.filter(id => id !== settled.ownerId);
@@ -1014,14 +787,11 @@ export const MessageList = ({
                 {bottomSpacer > 0 && (
                     <div aria-hidden data-feed-spacer="bottom" className="shrink-0" style={{ height: bottomSpacer }} />
                 )}
-                {/* No reply is showing yet, so there is no divider to hold the row: it stands under the root. */}
                 {olderReplies && !rows.some(row => row.kind === 'replies') && olderReplies}
                 <div ref={bottomRef} />
             </div>
             {!atBottom &&
                 (newCount > 0 ? (
-                    // New messages arrived while scrolled up: a filled, centered
-                    // "N new messages" badge (Slack-style) that jumps to the latest.
                     <button
                         type="button"
                         onClick={scrollToBottom}
@@ -1036,7 +806,6 @@ export const MessageList = ({
                         <ChevronDown size={16} />
                     </button>
                 ) : (
-                    // Scrolled up with nothing new: a plain jump-to-latest control.
                     <Hint label={t('chat.jumpToLatest')}>
                         <button
                             type="button"

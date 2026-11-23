@@ -34,8 +34,6 @@ describe('DesktopLayout trailing panel', () => {
     beforeEach(() => localStorage.clear());
     afterEach(cleanup);
 
-    // Below 1280px the panel covers the chat. The chat stayed live under it: in the tab
-    // order, clickable, with focus left behind in it.
     it('dims and disables the chat it covers, and takes focus', () => {
         const onClose = renderAt(1024);
         expect(screen.getByRole('main').hasAttribute('inert')).toBe(true);
@@ -50,8 +48,6 @@ describe('DesktopLayout trailing panel', () => {
         expect(document.querySelector('.bg-overlay\\/40')).toBeNull();
     });
 
-    // The panel's own focus move ran before the opener was recorded, so the panel took
-    // itself for the opener and closing left focus on <body>.
     it('hands focus back to what opened it when it closes', () => {
         Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
         const opener = document.createElement('button');
@@ -78,8 +74,6 @@ describe('DesktopLayout trailing panel', () => {
         opener.remove();
     });
 
-    // A thread shown again under a closed profile records the profile's close button as its
-    // opener. Once that is gone, closing the thread left focus on <body>.
     it('puts focus in the message box when what opened it has left the page', async () => {
         Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1024 });
         const opener = document.createElement('button');
@@ -129,22 +123,16 @@ describe('DesktopLayout compact window', () => {
 
     const rails = () => screen.queryAllByRole('navigation', { hidden: true });
 
-    // Docked at 320px the two rails leave the conversation too narrow: its header actions drew over
-    // each other and the composer's format row ran out of its box. The nav rail rides along.
     it('takes the rails off the conversation and brings them back with the drawer', () => {
         renderShellAt(320);
         const drawer = screen.getByRole('dialog', { hidden: true });
         expect(drawer.className).toContain('hidden');
         fireEvent.click(screen.getByRole('button', { name: 'open' }));
         expect(drawer.className).not.toContain('hidden');
-        // In the dialog with the channel list, not beside it: a modal dialog is all a screen
-        // reader is offered, and the tiles have to be in it.
         expect(rails()).toHaveLength(2);
         expect(rails().every(rail => drawer.contains(rail))).toBe(true);
     });
 
-    // Between compact and docked the rails stay put and the drawer opens beside both of them, so
-    // picking a place or a destination stays one click away while the list is open.
     it('opens the drawer beside the cloud and nav rails', () => {
         renderShellAt(640);
         fireEvent.click(screen.getByRole('button', { name: 'open' }));
@@ -157,8 +145,6 @@ describe('DesktopLayout compact window', () => {
         ]);
     });
 
-    // The opener is in the chat, which is inert while the drawer is open: focusing it before
-    // the drawer was gone did nothing, and focus fell to <body>.
     it('hands focus back to the button that opened the drawer, once the chat is live again', () => {
         renderShellAt(640);
         const opener = screen.getByRole('button', { name: 'open' });
@@ -176,7 +162,6 @@ describe('DesktopLayout compact window', () => {
         expect(document.activeElement).toBe(opener);
     });
 
-    // They sit outside the drawer's dialog and point into the chat, which is inert under it.
     it('offers no skip links while the drawer is open', () => {
         renderShellAt(640);
         const skip = () => screen.queryByRole('button', { name: i18next.t('shell.skip.composer') });
@@ -196,7 +181,6 @@ describe('DesktopLayout sidebar skip link', () => {
     beforeEach(() => localStorage.clear());
     afterEach(cleanup);
 
-    // The Home list stays mounted, hidden, under the other destinations: its rows are not a target then.
     it('lands on the open destination, passing over the hidden Home list', () => {
         Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
         render(

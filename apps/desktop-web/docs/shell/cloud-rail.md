@@ -13,6 +13,10 @@ The rows are also reachable by number — Mod+0 for Home, Mod+1…Mod+9 for the 
 The clouds used to be a rail of their own, one tile each. The design folds them into one rail with the
 places, so the tiles became rows and their right-click menus became items in the switcher's menu.
 
+While a cloud or place switch is in flight the switcher is locked. The switch pipeline is serial, and
+the token exchange resolves before the socket rebinds, so a second switch started in that gap races the
+sockets and flickers the channel list; the lock holds until the socket has verified on the new cloud.
+
 ## Names
 
 A cloud is named with `cloudLabel` (see [`../chat/room-names.md`](../chat/room-names.md)). A cloud with
@@ -64,6 +68,13 @@ reloads), which `useClouds` observes: when that row carries a name, the switcher
 catalog's. With no cached name the catalog's name stands, and an invited cloud keeps reading only
 its own cache row. The cache row is overwritten when `cloud.get` runs for that cloud, which the
 app does only to refresh an invited cloud's name.
+
+The dialog closes without a round trip when the trimmed name is unchanged, and it is re-seeded from the
+cloud's current name each time it opens (the cloud can differ between opens). A failure is shown by
+kind as a sentence the person can act on: a refusal reads "not allowed", a missing cloud and a name
+conflict have cloud wording of their own (the shared lines talk about channels), an unreachable server
+says so, and anything else is generic. The server's own text goes to the log and under that sentence in
+the error toast. Escape, the close button and the backdrop are ignored while the rename runs.
 
 ## Order
 

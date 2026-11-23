@@ -36,7 +36,6 @@ const typeName = (value: string) => fireEvent.change(nameField(), { target: { va
 const isOpen = () => useCreatePlaceDialogStore.getState().isOpen;
 
 const PHOTO = 'data:image/jpeg;base64,AAAA';
-/** The dialog renders in a portal, so the hidden picker is looked up on the document. */
 const pickPhoto = (file: File) =>
     fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [file] } });
 const photoOf = (bytes: number) => {
@@ -47,7 +46,6 @@ const photoOf = (bytes: number) => {
 const photoButton = () => screen.getByRole('button', { name: i18next.t('place.create.photo') });
 const removeButton = () => screen.queryByRole('button', { name: i18next.t('place.create.removePhoto') });
 
-/** A promise the test settles by hand, to hold the dialog mid-request. */
 const deferred = <T,>() => {
     let resolve!: (value: T) => void;
     const promise = new Promise<T>(r => (resolve = r));
@@ -104,7 +102,6 @@ describe('CreatePlaceDialog', () => {
         expect(isOpen()).toBe(true);
     });
 
-    // A plain resubmit after a failed switch would make a twin of the place that already exists.
     it('retries only the switch when the place was made but could not be entered', async () => {
         onEnter.mockRejectedValueOnce(new Error('switch failed'));
         render(<CreatePlaceDialog onEnter={onEnter} />);
@@ -169,7 +166,6 @@ describe('CreatePlaceDialog', () => {
         expect(nameField().disabled).toBe(false);
         expect(screen.queryByRole('alert')).toBeNull();
 
-        // The earlier place is not the retry target any more: a new name makes a new place.
         typeName('Research');
         fireEvent.click(submitButton());
         await waitFor(() => expect(isOpen()).toBe(false));
@@ -191,8 +187,6 @@ describe('CreatePlaceDialog', () => {
         expect(nameField().disabled).toBe(false);
     });
 
-    // The host closes the dialog when the cloud changes under it. A request still in flight then
-    // answers for the cloud that was left: entering its place would move the session there.
     it('drops a request that answers after the dialog was closed from outside', async () => {
         const pending = deferred<{ id: string }>();
         createPlace.mockReturnValueOnce(pending.promise);
@@ -261,7 +255,6 @@ describe('CreatePlaceDialog', () => {
         expect(removeButton()).toBeNull();
     });
 
-    // A place made mid-encode would go out without the photo the form is about to show.
     it('holds the submit until the picked photo is ready', async () => {
         const encoding = deferred<{ avatar: string }>();
         prepareImage.mockReturnValueOnce(encoding.promise);
@@ -297,7 +290,6 @@ describe('CreatePlaceDialog', () => {
         expect(createPlace).toHaveBeenCalledWith({ name: 'Design', thumbnail: PHOTO });
     });
 
-    // What follows the entry writes into the place the session is in, so it must not run early.
     it('reports the place as entered only after the switch into it resolved', async () => {
         const entering = deferred<void>();
         onEnter.mockReturnValueOnce(entering.promise);

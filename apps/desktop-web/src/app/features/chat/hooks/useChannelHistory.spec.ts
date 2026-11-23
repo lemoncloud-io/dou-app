@@ -10,7 +10,6 @@ interface Props {
     here: ReaderLocation;
     threadRootId: string | null;
     landing: boolean;
-    /** The open place does not list the open room: a switch is landing. */
     unlisted?: boolean;
 }
 
@@ -59,7 +58,6 @@ describe('useChannelHistory', () => {
         const { rerender } = render({ here: at('A'), threadRootId: null, landing: false });
         act(() => useMessageJumpStore.getState().setPosition({ channelId: 'A', chatNo: 17 }));
         rerender({ here: at('A'), threadRootId: '12', landing: false });
-        // The room being opened reports its own position first; it must not overwrite A's.
         act(() => useMessageJumpStore.getState().setPosition({ channelId: 'B', chatNo: 99 }));
         rerender({ here: at('B'), threadRootId: null, landing: false });
         expect(useChannelHistoryStore.getState().back[0]).toMatchObject({
@@ -70,7 +68,6 @@ describe('useChannelHistory', () => {
         });
     });
 
-    // A switch to another place replaces the list first and keeps the old selection a moment.
     it('waits through a switch and records the room it started from, in its own place', () => {
         const { rerender } = render({ here: at('A'), threadRootId: null, landing: false });
         rerender({ here: at('A', { placeId: 'P2' }), threadRootId: null, landing: false, unlisted: true });
@@ -81,7 +78,6 @@ describe('useChannelHistory', () => {
         ]);
     });
 
-    // Every place lists the self room under one id.
     it('records a move between places on the self room', () => {
         const { rerender } = render({ here: at('SELF'), threadRootId: null, landing: false });
         rerender({ here: at('SELF', { placeId: 'P2' }), threadRootId: null, landing: false });
@@ -90,7 +86,6 @@ describe('useChannelHistory', () => {
         ]);
     });
 
-    // The feed reports before this hook's effect runs, and an unchanged report does not notify again.
     it('starts a room at the position the feed already reported for it', () => {
         const { rerender } = render({ here: at('A'), threadRootId: null, landing: false });
         act(() => useMessageJumpStore.getState().setPosition({ channelId: 'B', chatNo: 31 }));

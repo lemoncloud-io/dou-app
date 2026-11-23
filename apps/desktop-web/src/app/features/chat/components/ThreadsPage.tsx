@@ -31,34 +31,25 @@ export const CARD_LINK =
     'focus-ring tactile shrink-0 rounded-md px-2 py-1 text-micro font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
 
 interface ThreadsPageProps {
-    /** The active cloud: only its threads are listed. */
     cloudId: string;
-    /** Loaded channels (active place) — name a card's channel when the record kept no name. */
     channels: DomainChannel[];
-    /** Places whose threads are listed — the active place, or every place on the Default Cloud. */
     placeScope: ReadonlySet<string>;
-    /** Open the thread in its channel and place — the same open a saved reply uses. */
     onOpen: (channelId: string, chatNo: number | undefined, placeId: string | undefined, rootNo: string) => void;
 }
 
 interface ThreadCardProps {
     thread: MyThread;
     channelLabel: string | undefined;
-    /** The thread's channel when this place lists it — replying needs it. */
     channel?: DomainChannel;
-    /** My join in the thread's channel, when this place lists it. */
     joinedNo?: number;
     onOpen: () => void;
 }
 
-/** How long a card stays on screen before its thread counts as looked at — a scroll past is not a read. */
 const SEEN_DWELL_MS = 1000;
 
 interface ReplyLineProps {
     message: DomainChat;
-    /** The author, as the card names them. */
     author: string;
-    /** A failed row of mine offers what the room's row does: send again, or drop it. */
     onRetry?: () => void;
     onDiscard?: () => void;
 }
@@ -100,18 +91,13 @@ const ReplyLine = ({ message, author, onRetry, onDiscard }: ReplyLineProps) => {
 const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadCardProps) => {
     const { t } = useTranslation();
     const profiles = usePlaceProfilesStore(s => (thread.placeId ? s.bySid[thread.placeId] : undefined));
-    // The thread's channel is not listed here, so my cloud id there is unknown: a persisted message of
-    // mine is still found under its owner id, and an optimistic one under my account id.
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const authorOf = (message: DomainChat) => senderNameIn(message, profiles, { uid: myUid, name: '' });
     const markSeen = useMyThreadsStore(s => s.markSeen);
     const ref = useRef<HTMLElement>(null);
-    // Read a little ahead of the screen so a card is filled by the time it scrolls in — once: scrolling
-    // back to it is not news; a new reply (`lastReplyNo`) is what reads it again.
     const near = useIntersecting(ref, '200px 0px');
     const [read, setRead] = useState(false);
     if (near && !read) setRead(true);
-    // Seen counts only the screen itself.
     const onScreen = useIntersecting(ref, '0px');
 
     const unread = isThreadUnread(thread);
@@ -125,7 +111,6 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
         enabled: read,
     });
     const reactionEvents = useCardReactionEvents(thread.cid, thread.channelId, read);
-    // Seen only once the card shows the thread: a card still loading, or one that failed to read, has not.
     const shown = state.status === 'ready';
     useEffect(() => {
         if (!onScreen || !unread || !shown) return;
@@ -135,7 +120,6 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
     const where = channelLabel ?? t('threads.dm');
     const [replying, setReplying] = useState(false);
     const { retryMessage, discardMessage } = useChatMutations();
-    // Retried or dropped, the row changes in the cache; the card reads it again once that is done.
     const settle = (work: Promise<unknown>) => {
         void work.catch(error => toastFailure(t('toast.messageFailed'), error)).finally(retry);
     };
@@ -235,7 +219,6 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
                     </button>
                 </p>
             ) : (
-                // Until the card's messages are read, the record's own previews stand in.
                 <div className="flex flex-col gap-1" aria-busy="true">
                     {thread.rootOwnerName && (
                         <span className="truncate text-caption font-semibold text-foreground">
@@ -257,17 +240,10 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
     );
 };
 
-/**
- * The Threads page, in the main pane: the threads I take part in (the device-local my-threads list),
- * unread first, each as its root and newest replies. A card's open hands the thread to the host, whose
- * open closes the page.
- */
 export const ThreadsPage = ({ cloudId, channels, placeScope, onOpen }: ThreadsPageProps) => {
     const { t } = useTranslation();
     const threads = useMyThreadsStore(s => s.threads);
     const isScanning = useNotificationsPanelStore(s => s.scanningCid === cloudId);
-    // The order the page opened with is kept: a thread read, or replied in, while the page is open stays in
-    // place. A thread first listed after opening goes on top.
     const [openOrder] = useState(
         () => new Map(threadsInScope(threads, cloudId, placeScope).map(([key], index) => [key, index]))
     );

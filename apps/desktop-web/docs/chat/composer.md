@@ -74,6 +74,24 @@ still read by its text.
   instead of calling the whole channel.
 - **A resend keeps the mention.** The failed row holds the record, and both Retry and the reconnect
   sweep rebuild the payload from it (`toSendPayload`).
+- **The list's order.** Members sort by name with me last: Enter picks the first row, and a list that
+  put me first made mentioning myself the default. I stay in the list, one arrow key away. Typing
+  filters people by any part of their name, but the "Everyone" row only answers to the start of its
+  title or of the word it writes, and sits after the people, because letters from the middle of those
+  words are far more often someone's name being typed. Members who share a display name get a second
+  line with their other name, since two Adas are two people.
+- **Korean input.** The `@` list is its own plugin, not Lexical's typeahead, which stops tracking while
+  an IME composes and would break Korean mentions from the first syllable. The list follows
+  composition, so it filters from the first syllable. Lexical re-dispatches Enter when a composition
+  ends; that Enter picks the highlighted member and is consumed, so it is never taken for "send". Enter
+  in the middle of a composition only commits it. A pick leaves a space after the chip, and the space a
+  person types next out of habit (including the one that commits a composition) is dropped instead of
+  doubling it.
+- **Placement and roles.** The list opens above the caret and flips below it when the caret is too near
+  the top; a window that fits neither keeps it above. While it is open the editor is a combobox that
+  names the list, and goes back to a textbox when it closes. Picking uses mousedown so the editor
+  keeps focus, and a blur that leaves both the editor and the list closes it, so a list nobody sees
+  does not keep swallowing keys.
 
 ## Links
 
@@ -115,3 +133,27 @@ Enter sends, which rules out the usual markdown trigger (Lexical opens a fence o
 
 On send a block is written as a fence. When the code itself holds ` ``` `, the fence is
 lengthened to four backticks, and the reader pairs fences by length so the block arrives whole.
+
+## Sending, drafts and pasting
+
+- The box stays editable while a send is in flight and sends are not gated on each other: the
+  optimistic row gives the feedback, and a caret that stays put keeps typing continuous. After a send the
+  document is cleared and focus goes back after that clear has committed; focusing before it leaves the
+  caret inactive. Carried-over bold or italic is dropped so the next message starts plain.
+- A draft is saved per channel (a thread has its own) as the wire string a send would deliver. An empty
+  document removes the entry instead of leaving an empty key behind. The editor loads the channel's
+  draft after it mounts, which is why focus work waits a tick.
+- Shortcuts read `event.code`, because macOS Option remaps `key`. ⌘B and ⌘I are bound explicitly: the
+  desktop shell does not fire Lexical's built-in ones reliably. The shortcuts are ⌘B bold, ⌘I italic,
+  ⌘⇧X strikethrough, ⌘⇧C inline code and ⌘⇧⌥C code block.
+- **Pasted files** join the attachment tray and the text goes in untouched. A copy out of Excel or Word
+  puts the cells' text and a picture of them on the clipboard together; taking the picture used to
+  throw the text away, so the plain text is inserted too, but only for a rich copy (HTML or RTF on the
+  clipboard). Finder and Explorer put a copied file's name on the clipboard as plain text, which is not a
+  message. A paste inside the tray's preview dialog is ignored: React would bubble it here from the
+  portal and add files behind the dialog.
+- The placeholder is one line, cut short if it has to be: a wrapped placeholder makes an empty box
+  look like it already holds two lines. The newline hint appears only once there is text, which is
+  when people need it, and an unpicked `@name` warns while it matters.
+- In the thread panel the box uses tighter padding and gaps. At the panel's 360 px default the room's
+  spacing left the reply box about 160 px wide and its placeholder wrapped.

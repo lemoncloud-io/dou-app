@@ -9,7 +9,6 @@ import { ShortcutHintBar } from './ShortcutHintBar';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
-// jsdom's navigator is not a Mac, so Mod is Ctrl here.
 const down = (key: string, flags: KeyboardEventInit = {}) =>
     act(() => {
         window.dispatchEvent(new KeyboardEvent('keydown', { key, ...flags }));

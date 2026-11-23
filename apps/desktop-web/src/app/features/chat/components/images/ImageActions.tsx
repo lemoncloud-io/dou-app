@@ -16,13 +16,10 @@ import { Hint } from '../../../../shared';
 interface ImageActionsProps {
     onDownload: () => void;
     onCopy: () => void;
-    /** Absent when the viewer cannot delete this file. */
     onDelete?: () => void;
-    /** The tile's More menu offers what every file's does; each is absent where it does not apply. */
     onReply?: () => void;
     onCopyLink?: () => void;
     onForward?: () => void;
-    /** `overlay` sits on top of the picture and needs its own surface; `plain` sits on the page. */
     variant?: 'overlay' | 'plain';
     className?: string;
 }
@@ -32,15 +29,6 @@ const BUTTON = 'focus-ring flex h-9 w-9 items-center justify-center rounded-md t
 const OVERLAY_BUTTON =
     'focus-ring flex items-center justify-center rounded p-0.5 text-foreground transition-colors ease-tactile';
 
-/**
- * Save, copy, delete and — on the tile — reply, copy link and forward for one image.
- *
- * `plain` (the viewer) shows three icon buttons. `overlay` (the tile in the feed)
- * follows the design: Download, then a "More" menu holding Copy, then Reply in thread, Copy link and
- * Forward as every file's menu has them, and Delete. The menu
- * renders in a portal, so the pointer leaves the tile while it is open; the bar is
- * pinned visible for as long as the menu is open so it does not vanish under it.
- */
 export const ImageActions = ({
     onDownload,
     onCopy,

@@ -11,28 +11,11 @@ import { isUnsentImageMessage } from '../utils';
 import { toastFailure } from '../../../shared';
 
 export interface ComposerSendTarget {
-    /** The room's own cloud — the channel row's `cid` (the relay's for a relay channel). */
     cid: string;
     channelId: string;
-    /** Thread-reply target — the root's full id. Omit for a top-level message. */
     parentId?: string;
 }
 
-/**
- * What the composer's send button does in a room or a thread: text alone goes out as a message at the
- * press; the tray's files go as one message, carrying whatever was typed with them as its caption.
- *
- * The text waits for the uploads and fails with them: a failed send keeps one Failed row, and its
- * retry sends both.
- *
- * Either is addressed to the room as it was at the press, whichever room is on screen when they land.
- * The bytes go through the host's files port, which on desktop is the page's own PUT: the desktop shell
- * has no native transfer.
- *
- * Retry, Delete and whether Retry is offered also start here, because a failed picture message is
- * not a failed text message: it is retried with the pictures this page still holds, on the same
- * row, and its row's files are let go when it is deleted.
- */
 export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget) => {
     const { t } = useTranslation();
     const { sendMessage, retryMessage, discardMessage } = useChatMutations();
@@ -49,8 +32,6 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
     const send = useCallback(
         (content: string, files: readonly File[], mention?: ChatMentionBody) => {
             if (files.length > 0) {
-                // A rejection here means the row could not even be written; a failed upload resolves
-                // and shows on its row instead.
                 void sendImages([...files], { content, ...(mention ? { mention } : {}) }).catch(failed);
                 return;
             }
@@ -59,8 +40,6 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
                     channelId,
                     content,
                     ...(parentId ? { parentId } : {}),
-                    // Who the composer picked. The server reads this, never the text, to decide
-                    // who a "mentions only" member is told about.
                     ...(mention ? { mention } : {}),
                 }).catch(failed);
             }
@@ -74,8 +53,6 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
                 void retryMessage(message).catch(failed);
                 return;
             }
-            // The pictures are gone only when there was nothing to retry with to begin with. A false
-            // answer otherwise means a send already running, or a row deleted meanwhile: nothing to say.
             const filesGone = !canRetryImages(message.id);
             void retryImages(message.id).then(retried => {
                 if (!retried && filesGone) toast({ variant: 'destructive', description: t('chat.image.retryGone') });
@@ -84,7 +61,6 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
         [canRetryImages, retryImages, retryMessage, failed, t]
     );
 
-    // A new function whenever the runtime's does, so a memoised row re-renders its Retry.
     const canRetry = useCallback(
         (message: DomainChat) => !isUnsentImageMessage(message) || canRetryImages(message.id),
         [canRetryImages]
@@ -98,7 +74,6 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
         [discardImages, discardMessage]
     );
 
-    /** Stops an attachment message's send while it uploads; its row goes once the send settles. */
     const cancelUpload = useCallback(
         (message: DomainChat) => {
             if (isUnsentImageMessage(message)) cancelImages(message.id);

@@ -1,20 +1,7 @@
 export type FenceSegment = { type: 'text'; value: string } | { type: 'code'; value: string; lang?: string };
 
-/** A bare language tag directly after the opening fence, on its own line (```` ```sh⏎ ````). */
 const LANG_LINE = /^([A-Za-z0-9_+#-]+)[ \t]*\r?\n/;
 
-/**
- * Splits a message into fenced code blocks and the text between them — the one rule for what a
- * fence is, used by the message view and by the composer's paste so the two cannot disagree.
- *
- * A fence opens with a run of three or more backticks anywhere in the text and closes at the next
- * run at least as long, which it consumes whole. Matching the run length is what lets a block hold
- * ```` ``` ```` itself: the composer lengthens the fence around such code to four, and pairing on
- * three cut that block short and left a backtick on each side of it. A bare word right after the
- * opening fence is the language tag, not code — other clients write ```` ```sh ````, and showing
- * `sh` as the first line of the command was the other half of the same report. An opening run with
- * no closing one is just backticks someone typed, so it stays text.
- */
 export const splitFences = (text: string): FenceSegment[] => {
     const segments: FenceSegment[] = [];
     let buffer = '';

@@ -7,8 +7,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import type { DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
-// The link card only draws inside the desktop shell, whose preview reader answers with the unfurled
-// page. Faking it makes every link "resolve" to a card.
 vi.mock('@chatic/runtime', async () => {
     const testing = await import('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
@@ -75,15 +73,12 @@ describe('MessageList — link card under a message', () => {
         );
     });
 
-    // A deleted message soft-deletes: `content` survives with `hidden` set. The row says
-    // "This message was deleted." — a card under it hands the deleted link back.
     it('draws no link card under a deleted message', async () => {
         render(<MessageList messages={[chat(true)]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
             wrapper,
         });
 
         expect(screen.getByText('This message was deleted.')).toBeDefined();
-        // Give the card's metadata request every chance to resolve before asserting absence.
         await new Promise(resolve => setTimeout(resolve, 50));
         expect(screen.queryByText('leki wiki')).toBeNull();
     });

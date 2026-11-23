@@ -17,16 +17,9 @@ import { HEADER_ICON_BUTTON } from './headerStyles';
 interface ChannelHeaderMenuProps {
     channel: DomainChannel;
     myUid: string | null;
-    /** Owned by the chat pane, which also opens Add members from the channel intro. */
     actions: ReturnType<typeof useChannelActions>;
 }
 
-/**
- * Kebab menu in the ChatPane header. Icons match the message menu's, so the two
- * menus read as one vocabulary. Settings opens the right-side panel; the
- * other actions run inline via their own dialogs. Owner-only items (Rename,
- * Delete) are hidden for non-owners.
- */
 export const ChannelHeaderMenu = ({ channel, myUid, actions }: ChannelHeaderMenuProps) => {
     const { t } = useTranslation();
     const openSettings = useChannelSettingsStore(s => s.open);

@@ -183,7 +183,6 @@ describe('NotificationsPanel selection mode', () => {
         expect(stored().away.readAt).toBeUndefined();
         const toast = screen.getByText('Marked 2 notifications as read').closest('li') as HTMLElement;
 
-        // An item gone before the undo stays gone; one read before the mark keeps its own time.
         act(() => useMentionsStore.setState(s => ({ items: { a: s.items.a, old: s.items.old, d: s.items.d } })));
         fireEvent.click(within(toast).getByRole('button', { name: 'Undo' }));
 

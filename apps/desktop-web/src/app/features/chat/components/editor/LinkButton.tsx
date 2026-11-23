@@ -21,20 +21,13 @@ import { Label } from '@chatic/ui-kit/components/ui/label';
 
 import { Hint, isLabelledLinkAddress, toLabelledLinkWords } from '../../../../shared';
 
-/**
- * The address as it will be sent, or null when it cannot be one. A bare `example.com` gets https,
- * and parentheses are percent-encoded (the same address to a browser) because a labelled link's
- * address cannot hold them.
- */
 export const normalizeLinkAddress = (raw: string): string | null => {
     const value = raw.trim();
-    // `://`, not any `word:` — `localhost:3000` is a host and a port, not a scheme.
     const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? value : `https://${value}`;
     const url = withScheme.replace(/\(/g, '%28').replace(/\)/g, '%29');
     return value && isLabelledLinkAddress(url) ? url : null;
 };
 
-/** The labelled link the caret sits in, if any — an autolinked bare URL is not one. */
 export const $selectedLink = (): LinkNode | null => {
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) return null;
@@ -42,20 +35,12 @@ export const $selectedLink = (): LinkNode | null => {
     return link && !$isAutoLinkNode(link) ? link : null;
 };
 
-/**
- * Slack's link button: a dialog with the words to show and the address they go to. The words
- * start as the selection (or the link the caret is in, which is then edited in place), and Save
- * puts them back as a link. With no words the address goes in bare, as if it had been typed, and
- * the autolink plugin marks it. A message carries the link as `[words](address)`.
- */
 export const LinkButton = ({ className, isActive = false }: { className: string; isActive?: boolean }) => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
     const [isOpen, setOpen] = useState(false);
     const [text, setText] = useState('');
     const [address, setAddress] = useState('');
-    // Focus moves into the dialog, so the selection it was opened from is kept here and put
-    // back before the link goes in.
     const savedSelection = useRef<BaseSelection | null>(null);
     const url = normalizeLinkAddress(address);
 
@@ -109,7 +94,6 @@ export const LinkButton = ({ className, isActive = false }: { className: string;
                     aria-describedby={undefined}
                     className="sm:max-w-md"
                     onCloseAutoFocus={event => {
-                        // Back to the text, where the link just went (or would have gone).
                         event.preventDefault();
                         editor.focus();
                     }}

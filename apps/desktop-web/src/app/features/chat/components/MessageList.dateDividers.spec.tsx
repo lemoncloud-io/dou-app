@@ -40,10 +40,8 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 );
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Anchored on today, so the newest day is today and no closing divider joins the three under test.
 const NOON = new Date().setHours(12, 0, 0, 0);
 
-// Authors alternate, so every message is its own row.
 const message = (chatNo: number, daysAgo: number): DomainChat =>
     ({
         id: `C1:${chatNo}`,
@@ -57,8 +55,6 @@ const message = (chatNo: number, daysAgo: number): DomainChat =>
 describe('MessageList date dividers', () => {
     afterEach(cleanup);
 
-    // A sticky pill is bounded by its parent, so two pills sharing the feed as a parent never hand over:
-    // the earlier one stays pinned under the later one. Each pill must share a parent with its own day only.
     it('keeps each day pill in a block that holds only that day, so a later pill replaces it', () => {
         const feed = [message(1, 2), message(2, 2), message(3, 1), message(4, 1), message(5, 0)];
         const { container } = render(<MessageList messages={feed} isLoading={false} viewer={VIEWER} names={NAMES} />, {

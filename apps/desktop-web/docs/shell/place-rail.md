@@ -37,6 +37,22 @@ cloud or account changes — a switch sent over a dead socket fails without sayi
 place, so the move also waits while the socket is down. When every place has been refused it stops
 there, after one failure toast per place; a tile click still tries again.
 
+## Tiles
+
+A tile is a 48px icon box with the place's name under it, in the rail's own ink; the lime fill, not the
+label colour, marks the open place. Its unread signal is a dot, never a count: a count would sum
+messages across rooms that the rest of the app only dots, so "12" would point at nothing a row inside
+would admit to. The dot sits on the tile's corner. A ringed tile (one wearing a logo) moves it out past
+the ring's rounded corner, which covers less of the logo, and the scrolling list is padded so the dot is
+not clipped (`overflow-y: auto` clips the x axis too).
+
+The tile's right-click menu sits on a plain `display: contents` wrapper. Composing the context-menu
+trigger onto the tooltip's own trigger drops `onContextMenu`, so the wrapper is what makes the menu
+open. A tile without menu items has no menu at all.
+
+The hidden debug gesture is seven taps on the divider, each within 1.5 s of the last; the seventh
+toggles debug mode and says so in a toast.
+
 ## While a switch is running
 
 A switch shows the new place at once: the session's place id is applied before the socket session
@@ -129,6 +145,19 @@ the session is in; opened earlier it would have edited the profile of the place 
 the mobile app, which holds the person on that step, it is the ordinary edit dialog and can be
 closed to keep the account profile.
 
+How the form protects itself:
+
+- A **generation counter** counts the times the dialog has closed. A submit remembers the count it
+  started under and stops when it reads another, so a request that answers after a close (including the
+  host closing it on a cloud change) does nothing more. The dialog clears its form, error and any
+  half-made place on every close, whoever closed it.
+- A place made but not entered is kept as what the next submit retries; it belongs to the cloud the
+  dialog was open in, so it is dropped on a close and never retried from another cloud.
+- The file input is cleared after every pick, so choosing the same file again after a failure or a
+  removal still fires a change.
+- The failure is classified before the checks that return, because that is where it is logged. Only the
+  failures a second try can fix say "try again"; a refusal says what it is.
+
 ### Why the switch goes through the rail's own hook
 
 The dialog does not call the session's site switch itself; the home page hands it `enterPlace` from
@@ -173,6 +202,16 @@ retry state between the two; folding an edit into that would put a branch throug
 The dialog names a place by id, and that place belongs to the cloud it was opened in. So it closes
 when the place leaves the rail, which a cloud change does too since the rail lists the active
 cloud's places only, and an answer that arrives after that is dropped.
+
+The dialog also edits the place's description, up to 100 characters. An emptied description goes out as
+an empty string, not as an absent field, because the empty string is what clears the stored one. Changes
+are judged against the trimmed stored values, so a name saved with spaces around it is not a change to
+send back. The form starts from the place as it is each time the dialog opens, keyed on the place id
+alone: the row itself changes while a save is in flight, and that must not wipe what is being typed. A
+counter of opens and closes plays the same part as in the create dialog, so an answer for a form that is
+gone does nothing. When the place is no longer on the rail, the dialog clears the stored id so a place
+with that id cannot reopen the form later. Escape, the close button and the backdrop are ignored while
+the save runs, so a failure message always has someone to read it.
 
 ## Deleting a place
 

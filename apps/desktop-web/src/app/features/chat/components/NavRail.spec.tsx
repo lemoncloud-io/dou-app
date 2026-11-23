@@ -11,7 +11,6 @@ import type * as SharedModule from '../../../shared';
 
 const profile = vi.hoisted(() => ({ photo: undefined as string | undefined, isGuest: false }));
 const identity = vi.hoisted(() => ({ userId: 'me', delegatorId: null as string | null }));
-// The account's role, from the relay token. Inside a cloud `profile` is the cloud user's instead.
 const relayUser = vi.hoisted(() => ({ userRole: 'user' }));
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
@@ -20,7 +19,6 @@ vi.mock('@chatic/runtime', async () =>
             getRelaySessionUser: () => relayUser,
             useRuntimeProfile: () => profile,
             useSessionLogout: () => vi.fn(),
-            // The pairing-aware logout with nothing approved: it signs out straight away.
             usePairingAwareLogout: (onLogout: () => void) => ({
                 start: async () => onLogout(),
                 pending: null,
@@ -51,8 +49,6 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     </MemoryRouter>
 );
 
-// Where the rail navigated last (MemoryRouter keeps history in memory, so
-// window.location never moves — the probe reads it instead).
 const navProbe = vi.hoisted(() => ({ path: '/' }));
 const NavProbe = () => {
     navProbe.path = useLocation().pathname;
@@ -138,8 +134,6 @@ describe('NavRail destinations', () => {
 });
 
 describe('NavRail account menu', () => {
-    // Enter on the trigger, not a click: Radix opens a dropdown from pointerdown,
-    // and jsdom has no PointerEvent — the MessageList spec documents the same path.
     const openAccountMenu = async () => {
         fireEvent.keyDown(screen.getByRole('button', { name: i18next.t('rail.menu.accountMenu', { name: 'Me' }) }), {
             key: 'Enter',
@@ -148,8 +142,6 @@ describe('NavRail account menu', () => {
     };
     const joinItem = () => screen.queryByRole('menuitem', { name: i18next.t('rail.menu.join') });
 
-    // A signed-in account that picks "join with invite" only hears "log out first" after
-    // typing a code — the item is for guests, so it is shown to guests only.
     it('shows the join item to a guest', async () => {
         relayUser.userRole = 'guest';
         profile.isGuest = true;
@@ -158,8 +150,6 @@ describe('NavRail account menu', () => {
         expect(joinItem()).not.toBeNull();
     });
 
-    // A provider sign-in on desktop links the device's guest, so the account keeps the guest id the
-    // invite exchange runs under — and the server lets that session into the invited cloud.
     it('shows the join item to a signed-in account linked to the device guest', async () => {
         identity.delegatorId = 'guest-1';
         renderRail();
@@ -173,7 +163,6 @@ describe('NavRail account menu', () => {
         expect(joinItem()).toBeNull();
     });
 
-    // The menu acts as someone, somewhere: its header names the account and its kind.
     it('heads the menu with the account name and kind', async () => {
         profile.isGuest = true;
         renderRail();
@@ -222,8 +211,6 @@ describe('NavRail account menu', () => {
         expect(navProbe.path).toBe('/account');
     });
 
-    // A guest logout is a delete: the confirm offers the way to keep the
-    // account first, and names the destructive choice for what it is.
     it('offers connecting an account before deleting a guest on logout', async () => {
         profile.isGuest = true;
         navProbe.path = '/';

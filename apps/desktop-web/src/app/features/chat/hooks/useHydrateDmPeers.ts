@@ -10,28 +10,11 @@ export interface DmPeerRef {
     peerId: string;
 }
 
-/**
- * Load the members of each room that stands for a sidebar person with no name in the user cache
- * yet, so the row shows the person instead of the server-set room name. The room is the 1:1 for a
- * 1:1 row, and a group channel of the place for a member with no 1:1 — several people can share it.
- *
- * A row reads its name from the current place's profile, then from the user cache. Nothing on the
- * list fills that cache: only an open room loads its members. A 1:1 with someone who has no profile
- * in this place (members need not set one) therefore showed the room name until it was opened once.
- * Pass only the rows the place profile does not already name.
- *
- * Each person is asked about at most once per mount. A room is loaded only when one of the people
- * newly asked about is still unnamed after a cache read, so a warm cache costs no request. A failed
- * load is logged and may be retried on the next change to the list.
- */
 export const useHydrateDmPeers = (peers: readonly DmPeerRef[]): void => {
     const { user: userRepository } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
-    // Per room, the people already asked about: a group room's people change while the list is up.
     const requestedRef = useRef(new Map<string, Set<string>>());
 
-    // The caller rebuilds `peers` on every render; the effect keys on this string instead, and reads
-    // the rows through a ref so it never parses ids back out of it.
     const key = peers
         .map(p => `${p.channelId}\u0000${p.peerId}`)
         .sort()

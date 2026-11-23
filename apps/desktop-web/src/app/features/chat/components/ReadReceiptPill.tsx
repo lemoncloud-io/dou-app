@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@chatic/ui-kit/compone
 
 import { avatarStyle } from '../../../shared';
 
-/** A member as the read list shows them. */
 export interface ReadPerson {
     id: string;
     name: string;
@@ -14,20 +13,12 @@ export interface ReadPerson {
 }
 
 export interface ReadMarker {
-    /** The members whose last read message is the one this sits on — the faces drawn. */
     faces: ReadPerson[];
-    /** Everyone who has read that message, for the list the faces open. */
     readers: ReadPerson[];
-    /** Everyone it was meant for who has not, for the same list. */
     nonReaders: ReadPerson[];
-    /**
-     * Draw the counts beside the faces, under the message body — the thread panel's pill,
-     * where `faces` are the readers. Without it the marker is faces only, over the row's bottom-right corner.
-     */
     counted?: boolean;
 }
 
-/** Faces drawn before the rest collapse into "+N". */
 const STACK_SIZE = 3;
 const TAB_TRIGGER =
     '-mb-px rounded-none border-b-2 border-transparent px-0 py-2.5 data-[state=active]:border-foreground data-[state=active]:shadow-none';
@@ -55,15 +46,6 @@ const PersonList = ({ people, empty }: { people: ReadPerson[]; empty: string }) 
         </ul>
     );
 
-/**
- * Two shapes share one card. In the main feed it is the faces of the members who stopped reading at
- * this message, over the bottom-right corner of its row — read down the room and the faces race towards the
- * newest message. There the counts are not drawn; the button's name carries them for a screen reader.
- * In a thread (`counted`) each author block carries a pill under its last message: the first readers' faces
- * and `Seen N · Not seen M`.
- * Clicking either opens a card listing who has read the message and who has not, a tab each. It opens
- * on click rather than on hover so the card stays put while the pointer travels to the Not seen tab.
- */
 export const ReadReceiptPill = ({ faces, readers, nonReaders, counted = false }: ReadMarker) => {
     const { t } = useTranslation();
 
@@ -74,8 +56,6 @@ export const ReadReceiptPill = ({ faces, readers, nonReaders, counted = false }:
     const summary = unread > 0 ? t('chat.readCount.summary', { read, unread }) : t('chat.readCount.allSeen', { read });
 
     return (
-        // The main-feed marker lies over the row's bottom-right corner instead of taking a line: in the flow
-        // it split a message from its thread footer and pushed the rows below whenever a member read on.
         <div className={counted ? 'mt-1 flex' : 'absolute bottom-0 right-0'}>
             <Popover>
                 <PopoverTrigger asChild>

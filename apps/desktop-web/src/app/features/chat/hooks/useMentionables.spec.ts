@@ -13,8 +13,6 @@ const member = (id: string, name: string) => ({ id, name, isOwner: false }) as C
 const VIEWER = { uid: 'me', name: 'Aaron', cloudUid: 'me-cloud' };
 
 describe('useMentionables', () => {
-    // Enter picks the first row. Sorted by name alone, "Aaron" put me there, and a quick
-    // "@" + Enter mentioned myself.
     it('lists me last, so the first suggestion is someone else', () => {
         const members = [member('u-2', 'Zoe'), member('me-cloud', 'Aaron'), member('u-1', 'Ben')];
         const { result } = renderHook(() => useMentionables(members, VIEWER));
@@ -28,10 +26,9 @@ describe('useMentionables', () => {
         expect(result.current.map(m => m.name)).toEqual(['Ben', 'Zoe']);
     });
 
-    // The same first row the phone's list has. Its name is the word written into the message.
     describe('the everyone row', () => {
         const members = [member('u-2', 'Zoe'), member('u-1', 'Ben')];
-        const channel = (fields: Partial<DomainChannel>) => ({ id: 'C1', ...fields }) as DomainChannel; // only the fields that decide what kind of channel this is
+        const channel = (fields: Partial<DomainChannel>) => ({ id: 'C1', ...fields }) as DomainChannel;
         const rows = (fields: Partial<DomainChannel>) =>
             renderHook(() => useMentionables(members, VIEWER, channel(fields))).result.current;
 

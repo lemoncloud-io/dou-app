@@ -12,7 +12,6 @@ import { hoverReveal } from '../../../../shared';
 
 interface ImageTileProps {
     image: ChatImage;
-    /** Images hidden behind this tile — draws the "+n" counter over it. */
     overflow?: number;
     onOpen: () => void;
     onDownload: () => void;
@@ -22,22 +21,9 @@ interface ImageTileProps {
     onCopyLink?: () => void;
     onForward?: () => void;
     className?: string;
-    /**
-     * The original failed to load (a failed thumbnail falls back to it first). A signed address has most
-     * likely expired: the parent re-reads the message for a fresh one.
-     */
     onLoadError?: (src: string) => void;
 }
 
-/**
- * One image in a message (Figma "Image"): rounded, hairline-bordered, opens the viewer
- * on click. Save, copy and delete sit in a bar over the corner that shows on hover or
- * keyboard focus (always, on a device without hover).
- *
- * An uploading or failed tile stays in the tab order and says which it is. It used to
- * be a disabled button, which a screen reader skips, so the upload, and its failure,
- * had no presence at all.
- */
 export const ImageTile = ({
     image,
     overflow = 0,
@@ -52,17 +38,12 @@ export const ImageTile = ({
     onLoadError,
 }: ImageTileProps) => {
     const { t } = useTranslation();
-    // Keyed by address, not a flag: a fresh address for the same image is a different string, so the
-    // tile tries it without being told to reset.
     const [deadSrcs, setDeadSrcs] = useState<readonly string[]>([]);
     const hasOverflow = overflow > 0;
     const isUploading = !!image.isUploading;
-    // The feed draws the thumbnail when the server made one, and the original when that one is dead;
-    // the viewer opens the original.
     const thumb = image.thumbUrl && !deadSrcs.includes(image.thumbUrl) ? image.thumbUrl : undefined;
     const src = thumb ?? image.url;
     const isDead = !!src && deadSrcs.includes(src);
-    // Nothing to open or save yet (uploading) or at all (failed, or its address no longer loads).
     const isFailed = !!image.isFailed || isDead;
     const isInactive = isUploading || isFailed;
     const markDead = () => {

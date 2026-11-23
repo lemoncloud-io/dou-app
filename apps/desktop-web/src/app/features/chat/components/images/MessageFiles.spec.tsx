@@ -58,14 +58,12 @@ describe('MessageFiles', () => {
         expect(downloadImage).toHaveBeenCalledWith({ url: 'https://s/f', name: 'report.pdf' });
     });
 
-    // Uploads from before the server kept names have none; the card still says what it is.
     it('names a document the server kept no name for by its kind', () => {
         render(<MessageFiles author={author} message={sent([{ id: 'f', stereo: 'file', orgUrl: 'https://s/f' }])} />, {
             wrapper,
         });
         expect(screen.getByText('File')).toBeTruthy();
 
-        // Saved as "file", never the reader's label; the save adds the extension the bytes have.
         fireEvent.click(screen.getByRole('button', { name: 'Save File' }));
         expect(downloadImage).toHaveBeenCalledWith({ url: 'https://s/f', name: 'file' });
     });
@@ -94,10 +92,8 @@ describe('MessageFiles', () => {
             contentType: 'audio/mpeg',
             orgUrl: `https://s/${id}`,
         });
-        // jsdom implements no playback: `play()` only logs. These stand in for the element's own methods.
         const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
         const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
-        // The player is shared by every view of a file and lives outside the document.
         const voiceOf = (id: string) => voiceElementFor(`https://s/${id}`) as HTMLAudioElement;
 
         beforeEach(() => {
@@ -105,7 +101,6 @@ describe('MessageFiles', () => {
             pause.mockClear();
         });
 
-        // It used to open a full-window dialog around one small native player.
         it('plays in its card, streamed from its address, without opening the viewer', () => {
             render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
                 wrapper,
@@ -121,7 +116,6 @@ describe('MessageFiles', () => {
             expect(screen.queryByRole('dialog')).toBeNull();
         });
 
-        // jsdom's elements are always paused; this one is taken to be sounding.
         const sounding = (media: HTMLMediaElement) => {
             Object.defineProperty(media, 'paused', { configurable: true, value: false });
             return media;
@@ -150,7 +144,6 @@ describe('MessageFiles', () => {
             expect(pause.mock.contexts).toEqual([one]);
         });
 
-        // Its length unknown, the clock reads the time played alone rather than "0:12 / 0:00".
         it('shows only the time played while its length is unknown', () => {
             render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
                 wrapper,
@@ -166,7 +159,6 @@ describe('MessageFiles', () => {
                 wrapper,
             });
             const audio = voiceOf('a');
-            // The bar shows once it has been played; before that the card reads the length.
             fireEvent.play(audio);
             const seek = screen.getByRole('slider', { name: 'Playback position of song.mp3' }) as HTMLInputElement;
             expect(seek.disabled).toBe(true);
@@ -181,20 +173,17 @@ describe('MessageFiles', () => {
             expect(screen.getByText('1:01 / 2:05')).toBeTruthy();
         });
 
-        // A signed address past its time answers 403, and the button would do nothing.
         it('says it could not be played, and still offers to save it', () => {
             render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
                 wrapper,
             });
             fireEvent.error(voiceOf('a'));
-            // The play button gives way to a plain mark: there is nothing to press.
             expect(screen.getByText(/^Couldn't play this file/)).toBeTruthy();
             expect(screen.queryByRole('button', { name: 'Play song.mp3' })).toBeNull();
             fireEvent.click(screen.getByRole('button', { name: 'Save song.mp3' }));
             expect(downloadImage).toHaveBeenCalledWith({ url: 'https://s/a', name: 'song.mp3' });
         });
 
-        // The failure belonged to the expired address; the re-signed one gets its own chance.
         it('plays again once its address is re-signed', () => {
             const { rerender } = render(<MessageFiles author={author} message={sent([song('a', 'song.mp3')])} />, {
                 wrapper,

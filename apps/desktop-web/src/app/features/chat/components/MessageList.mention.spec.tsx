@@ -47,8 +47,6 @@ const message = (chatNo: number, ownerId: string, content: string): DomainChat =
         createdAt: 1_700_000_000_000 + chatNo,
     }) as DomainChat;
 
-// The composer inserts the name autocomplete showed — the Place Profile nick when a
-// member has one. A mention of that member has to open their profile all the same.
 describe('MessageList mentions', () => {
     afterEach(() => {
         cleanup();
@@ -91,7 +89,6 @@ describe('MessageList mentions', () => {
         expect(screen.getByText('@Me').className).toContain(MSG_MENTION_SELF_CLASS);
     });
 
-    // Someone else of the same name was picked: the record says it was not me.
     it('draws my name as an ordinary mention when the record names someone else', () => {
         renderList([recorded(1, '@Me hi', { userIds: ['u-other'] })]);
 
@@ -105,7 +102,6 @@ describe('MessageList mentions', () => {
         expect(screen.getByText('@channel').className).not.toContain(MSG_MENTION_SELF_CLASS);
     });
 
-    // The sender's list showed me under the name the roster has for my id, not my own profile name.
     it('draws the name the roster has for me as a mention of me when the record names me', () => {
         renderList([recorded(1, '@Mina hi', { userIds: ['me-cloud'] })], new Map([['me-cloud', 'Mina']]));
 

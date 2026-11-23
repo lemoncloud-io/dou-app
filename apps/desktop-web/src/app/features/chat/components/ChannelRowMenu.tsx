@@ -34,20 +34,11 @@ interface ChannelRowMenuProps {
     myUid: string | null;
     isFavorite: boolean;
     onToggleFavorite: () => void;
-    /** Opens the sidebar's ONE dialog stack (ChannelList owns the actions instance). */
     openDialog: (kind: RowDialogKind) => void;
-    /** Tells the sidebar which row was right-clicked, before any item can run. */
     onMenuOpen: (channelId: string) => void;
-    /** The row node the menu is attached to (right-click target). */
     children: ReactNode;
 }
 
-/**
- * Right-click menu on a sidebar row. Same actions as the ChatPane kebab menu,
- * but targeting any row: dialogs are NOT owned here — they render once in
- * ChannelList, keyed to the last menu target. Owner-only items (Rename,
- * Delete) and DM-inapplicable items (rename / members / delete) hide.
- */
 export const ChannelRowMenu = ({
     channel,
     myUid,
@@ -66,17 +57,9 @@ export const ChannelRowMenu = ({
 
     const openSettings = useChannelSettingsStore(s => s.open);
     const openSendInvite = useSendInviteStore(s => s.open);
-    // Sending rides the relay slot (`invite.*` is relay-pinned), so it works
-    // from any cloud — no cloud gate — but only for a signed-in account: the
-    // relay refuses a guest inviter. DMs are out too: a 1:1 invite is the room
-    // the recipient is already in.
     const canInvite = !isDm && !isRelayGuest();
-    // Same writer as the settings panel (local pref + announced server sync).
     const { notifyMode, notifyModes, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 
-    // Same write as the read-receipt flush: optimistic local cursor first, then the channel's
-    // own cloud's repository, whose outbox resends until the server has it. Only a read
-    // the server refused for good (the room left or gone) rejects, so only that is announced.
     const markRowRead = () => {
         if (lastChatNo <= 0) return;
         useReadCursorStore.getState().markRead(id, lastChatNo);
@@ -92,12 +75,6 @@ export const ChannelRowMenu = ({
     return (
         <ContextMenu onOpenChange={open => open && onMenuOpen(id)}>
             <ContextMenuTrigger asChild>
-                {/* Plain wrapper between the trigger and the row. Hint documents
-                    trigger-prop forwarding, but composing the Radix CM trigger
-                    asChild onto the row's Hint was observed to drop onContextMenu
-                    (slice 05 spike) while this plain element provably works.
-                    `display: contents` keeps it out of the row layout. Revisit
-                    with a browser check before dropping the wrapper. */}
                 <div className="contents">{children}</div>
             </ContextMenuTrigger>
             <ContextMenuContent className="w-52">

@@ -8,31 +8,18 @@ import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@chatic/ui-kit';
 
 export interface SortableItem {
-    /** Stable unique key; also the sortable id. */
     key: string;
     node: ReactNode;
-    /** A row with no order of its own to keep is never picked up. */
     dragDisabled?: boolean;
 }
 
 interface SortableListProps {
     items: SortableItem[];
-    /** Nothing is draggable: the list shows a subset, or a move would land mid-operation. */
     disabled?: boolean;
-    /** Layout of the list box. The dragged row is held inside it. */
     className?: string;
-    /** Called with the reordered item keys after a drag. Never on a plain click. */
     onReorder?: (orderedKeys: string[]) => void;
 }
 
-/**
- * A drop that ends anywhere still counts as a drag: the click browsers fire on
- * pointer-up must not select the row underneath. The flag lives per list and
- * self-clears on a timeout — when the release lands off the originating row the
- * post-drag click fires on the down/up common ancestor, not the row wrapper, so
- * nothing else would clear it and the NEXT legitimate click would be swallowed.
- * The click is dispatched before timers run, so `setTimeout(…, 0)` is late enough.
- */
 const SortableRow = ({
     itemKey,
     disabled,
@@ -46,9 +33,6 @@ const SortableRow = ({
 }) => {
     const { listeners, setNodeRef, transform, transition } = useSortable({ id: itemKey, disabled });
     return (
-        // The button inside keeps its own onClick; this wrapper only carries the
-        // pointer listeners. No `attributes`/`tabIndex`: keyboard drag is deliberately
-        // not supported, so the wrapper must not join tab order.
         <div
             ref={setNodeRef}
             {...listeners}
@@ -66,15 +50,8 @@ const SortableRow = ({
     );
 };
 
-/**
- * A vertical list whose rows reorder by dragging (the axis and the sorting strategy are fixed to
- * vertical; a horizontal list needs its own). One `DndContext` per list, so a drop
- * into another list is impossible by construction.
- */
 export const SortableList = ({ items, disabled, className, onReorder }: SortableListProps) => {
     const justDraggedRef = useRef(false);
-    // 5px before a press becomes a drag: a click (no move) selects, a small accidental
-    // jitter does not reorder (dnd-kit #172).
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
     const keys = items.map(item => item.key);
 

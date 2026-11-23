@@ -17,8 +17,6 @@ import type * as SendInviteStoreModule from '../../channels/stores/useSendInvite
 
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
-// The real confirmation, taken from its own file: the barrel beside it pulls in the channel screens.
-// The real invite store likewise: the menu opens the sender through it.
 vi.mock('../../channels', async () => ({
     ConfirmDialog: (await vi.importActual<typeof ConfirmDialogModule>('../../channels/components/ConfirmDialog'))
         .ConfirmDialog,
@@ -26,7 +24,6 @@ vi.mock('../../channels', async () => ({
         await vi.importActual<typeof SendInviteStoreModule>('../../channels/stores/useSendInviteStore')
     ).useSendInviteStore,
 }));
-// The stored order rides the shared `ui.railOrder` hook; stub the config store out of the render.
 const placeOrder = vi.hoisted(() => ({ byCloud: {} as Record<string, string[]>, set: vi.fn(), cloudId: '' }));
 vi.mock('@chatic/shared', async () => ({
     ...(await vi.importActual<typeof ChaticShared>('@chatic/shared')),
@@ -35,8 +32,6 @@ vi.mock('@chatic/shared', async () => ({
         return { storedIds: placeOrder.byCloud[cloudId ?? ''] ?? [], set: placeOrder.set };
     },
 }));
-// jsdom lays nothing out, so a pointer drag cannot be played. The list's own drag-end handler is
-// what decides the new order, and it is taken from the context it was given to.
 const dnd = vi.hoisted(() => ({ end: undefined as ((event: DragEndEvent) => void) | undefined }));
 vi.mock('@dnd-kit/core', async () => {
     const actual = await vi.importActual<typeof DndCore>('@dnd-kit/core');
@@ -61,8 +56,6 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     </MemoryRouter>
 );
 
-// Where the rail navigated last (MemoryRouter keeps history in memory, so
-// window.location never moves — the probe reads it instead).
 const navProbe = vi.hoisted(() => ({ path: '/' }));
 const NavProbe = () => {
     navProbe.path = useLocation().pathname;
@@ -112,14 +105,12 @@ describe('PlaceRail active place with a logo', () => {
     const logoOf = (name: string) =>
         screen.getByRole('button', { name: new RegExp(name) }).querySelector('img')?.parentElement as HTMLElement;
 
-    // A logo covers the tile's fill, so the open place needs a mark that sits outside it.
     it('rings the open place tile and no other', () => {
         renderRail({ places: logoPlaces, selectedPlaceId: 'place-2' });
         expect(logoOf('Docs').className).toContain('ring-2');
         expect(logoOf('Design').className).not.toContain('ring-2');
     });
 
-    // The ring sits 4px outside the tile; the dot moves out to the ring's corner, off the logo.
     it('moves the unread dot out to the ring corner on the open tile only', () => {
         renderRail({ places: logoPlaces, selectedPlaceId: 'place-2', unreadByPlace: { 'place-1': 1, 'place-2': 1 } });
         const dotOf = (tile: HTMLElement) => tile.parentElement?.querySelector('.bg-badge-unread') as HTMLElement;
@@ -212,7 +203,6 @@ describe('PlaceRail place menu', () => {
         expect(deleteItem()).toBeNull();
     });
 
-    // Sending rides the relay slot: the entry shows on every managed place.
     it('opens the place invite sender for the right-clicked place', () => {
         renderRail();
         openMenu('Design');
@@ -240,7 +230,6 @@ describe('PlaceRail place delete', () => {
     const confirmation = () => screen.queryByRole('alertdialog');
     const confirmButton = () =>
         screen.getByRole('button', { name: i18next.t('place.delete.confirm') }) as HTMLButtonElement;
-    /** A promise the test settles by hand, to hold the rail mid-delete. */
     const deferred = () => {
         let resolve!: () => void;
         let reject!: (reason: unknown) => void;
@@ -287,7 +276,6 @@ describe('PlaceRail place delete', () => {
         fireEvent.click(button);
         fireEvent.click(button);
 
-        // Still up and locked: the confirm button's own close is refused while the delete runs.
         expect(confirmation()).not.toBeNull();
         expect(confirmButton().disabled).toBe(true);
         expect(onDeletePlace).toHaveBeenCalledTimes(1);

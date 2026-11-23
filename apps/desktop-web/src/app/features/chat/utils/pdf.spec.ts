@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// jsdom's Blob has no `arrayBuffer`; a browser's and Node's do.
 import { Blob as NodeBlob } from 'node:buffer';
 
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
@@ -47,7 +46,6 @@ describe('loadPdf', () => {
         expect(String(options.wasmUrl)).toMatch(/\/pdfjs\/wasm\/$/);
     });
 
-    // pdf.js keeps the worker of a document it could not open until told otherwise.
     it('lets go of the worker when the file will not open', async () => {
         const task = opening(Promise.reject(new Error('PasswordException')));
         await expect(loadPdf(blob)).rejects.toThrow('PasswordException');
@@ -65,7 +63,6 @@ describe('loadPdf', () => {
         expect(target.renderTask.cancel).toHaveBeenCalled();
     });
 
-    // A chunk that failed to load (a dropped connection) is fetched again on the next open.
     it('tries loading pdf.js again after a failed load', async () => {
         vi.resetModules();
         vi.doMock('pdfjs-dist/legacy/build/pdf.mjs', () => {
@@ -83,7 +80,6 @@ describe('loadPdf', () => {
             }),
         }));
         vi.resetModules();
-        // The same module instance: a remembered failure would reject again here.
         await expect(fresh.loadPdf(blob)).resolves.toMatchObject({ pageCount: 1 });
     });
 });

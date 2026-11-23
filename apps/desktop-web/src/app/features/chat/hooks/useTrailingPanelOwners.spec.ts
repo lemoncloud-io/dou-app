@@ -66,8 +66,6 @@ describe('useTrailingPanelOwners', () => {
         });
     });
 
-    // An inbox reply in another channel selects that channel, and opens the thread once the channel
-    // shows — the channel switch must not take the thread with it.
     it('keeps a thread opened from the inbox for a channel that is not showing yet', () => {
         const { result, rerender } = renderHook(
             ({ channelId, loading }: { channelId: string | undefined; loading: boolean }) =>
@@ -99,8 +97,6 @@ describe('useTrailingPanelOwners', () => {
 
             rerender({ channelId: 'ch-2' });
 
-            // The render that sees the new channel must already be without the old thread — the close
-            // effect only runs after it commits, and a panel drawn in between asks for the wrong room.
             expect(seen.every(rootId => rootId === null)).toBe(true);
             expect(useThreadStore.getState().openRootId).toBeNull();
         });
@@ -119,7 +115,6 @@ describe('useTrailingPanelOwners', () => {
             const { result, rerender } = renderOwners({ channelId: undefined, loading: true });
             act(() => useThreadStore.getState().open('9', 'ch-1'));
 
-            // Not known yet: nothing is drawn, but nothing is closed either.
             expect(result.current.threadRootId).toBeNull();
             expect(useThreadStore.getState().openRootId).toBe('9');
 

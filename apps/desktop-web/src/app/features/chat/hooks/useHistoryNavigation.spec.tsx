@@ -14,8 +14,6 @@ const routerAt =
         </MemoryRouter>
     );
 
-// The memory router keeps its entries to itself; the hook reads the browser router's entry
-// number from `history.state`, so each test states which entry it stands on.
 const renderAt = (entries: string[]) => {
     window.history.replaceState({ idx: entries.length - 1 }, '');
     return renderHook(
@@ -86,10 +84,7 @@ describe('useHistoryNavigation', () => {
         expect(result.current).toBe('/');
     });
 
-    // A reload or a replace can leave the first entry with a fresh key; the entry number still says
-    // there is nothing of the app's before it.
     it('goes home rather than out of the app when the entry number says it is the first', () => {
-        // Stepping back would land on /profile; the app's first entry goes home instead.
         const { result } = renderAt(['/profile', '/settings']);
         window.history.replaceState({ idx: 0 }, '');
         pressModBracket();
@@ -144,7 +139,6 @@ describe('useHistoryNavigation', () => {
 });
 
 describe('useHistoryPress', () => {
-    // The press that brought the reader home must not also spend a channel step.
     it('does not count a press made before it mounted', () => {
         act(() => useHistoryRequestStore.getState().press('back'));
         const onPress = vi.fn();

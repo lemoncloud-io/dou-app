@@ -20,20 +20,15 @@ import { UnsendableFilesHost, VoiceDetailHost } from './images';
 
 interface DesktopLayoutProps {
     rail: ReactNode;
-    /** The nav rail (Home, Notifications, Channels, DM), between the first rail and the sidebar. */
     nav?: ReactNode;
     sidebar: ReactNode;
-    /** Where the sidebar column's width is kept, and its first width. Defaults to the Home list's. */
     sidebarWidth?: { storageKey: string; defaultWidth: number };
     main: ReactNode;
-    /** Optional right-side panel (channel settings); collapses when null. */
     panel?: ReactNode;
-    /** Optional overlay (cloud/place switch loader) — positioned over sidebar+main. */
     overlay?: ReactNode;
 }
 
 interface ShellSidebarState {
-    /** The sidebar is a drawer, not a column: the window is too narrow to dock it. */
     isDrawer: boolean;
     isOpen: boolean;
     open: () => void;
@@ -49,37 +44,8 @@ const ShellSidebarContext = createContext<ShellSidebarState>({
     close: noop,
 });
 
-/**
- * Lets the chat header show a sidebar toggle exactly when the sidebar is a
- * drawer. The header lives inside `main`, so it cannot read the layout's width
- * decision any other way, and a toggle that is always visible would add a
- * control to the docked layout that has nothing to do.
- */
 export const useShellSidebar = () => useContext(ShellSidebarContext);
 
-/**
- * Slack-style shell:
- *   [ cloud + place rail ] [ nav rail ] [ sidebar ] [ flexible main pane ] [ optional panel ]
- * The nav rail and trailing panel are collapsible — each rendered only when
- * provided. The channel sidebar drags from its right edge, like the trailing
- * panels drag from their left. Colors come from theme tokens (--rail/--sidebar)
- * so light/dark hold up.
- *
- * Below `NARROW_SHELL_WIDTH` the sidebar stops being a column and becomes a
- * drawer over the message column, toggled from the chat header. Three fixed
- * columns plus the chat floor need 756px, so holding them at a narrow window (or
- * at 200% browser zoom, which reports as one) pushed the header actions and half
- * the message column off-screen behind a horizontal scrollbar.
- *
- * Below `COMPACT_SHELL_WIDTH` the rails go into the drawer as well. Docked, they took 136px
- * of a 320px viewport: the header's actions drew over each other and the composer's format
- * row ran out of its box.
- */
-/**
- * First tab stops on the page, visible only while focused. One conversation is
- * dozens of tab stops (every message is one), so without these the composer sat
- * behind all of them.
- */
 const SkipLinks = ({ onSidebar }: { onSidebar: () => void }) => {
     const { t } = useTranslation();
     const focusIn = (selector: string) => document.querySelector<HTMLElement>(selector)?.focus();
@@ -106,11 +72,6 @@ const SkipLinks = ({ onSidebar }: { onSidebar: () => void }) => {
 
 const HOME_SIDEBAR_WIDTH = { storageKey: 'chatic.sidebar.width', defaultWidth: 286 };
 
-/**
- * Where the sidebar skip link lands: the list's first row, else the first control of whatever the
- * open destination draws. The Home list stays mounted under the other destinations, hidden, so its
- * rows are passed over then.
- */
 const firstSidebarTarget = (sidebar: HTMLElement | null): HTMLElement | undefined => {
     const shown = (selector: string) =>
         Array.from(sidebar?.querySelectorAll<HTMLElement>(selector) ?? []).find(el => !el.closest('[hidden]'));
@@ -139,8 +100,6 @@ export const DesktopLayout = ({
 
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
 
-    // A trailing panel covers the chat below PANEL_DOCK_WIDTH; while it does, the chat
-    // under it is dimmed and inert, and a click on it closes the panel.
     const panelOverlays = useViewportNarrow(PANEL_DOCK_WIDTH) && !!panel;
     const panelCloseRef = useRef<(() => void) | null>(null);
     const panelShell = useMemo(
@@ -153,11 +112,7 @@ export const DesktopLayout = ({
         [panelOverlays]
     );
 
-    // The drawer covers the conversation, so keyboard focus has to travel with it
-    // and come back to the control that opened it.
     const openerRef = useRef<HTMLElement | null>(null);
-    // Set by `close`, and acted on once the drawer is gone: the opener sits in the chat, which
-    // is inert until then, so focusing it in the same tick did nothing and focus fell to <body>.
     const returnFocusRef = useRef(false);
     const close = useCallback(() => {
         returnFocusRef.current = true;
@@ -173,21 +128,15 @@ export const DesktopLayout = ({
         openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         setIsOpen(true);
     }, []);
-    // Widening the window docks the sidebar again; leaving `isOpen` set would
-    // reopen the drawer the next time it narrows.
     useEffect(() => {
         if (!isDrawer) setIsOpen(false);
     }, [isDrawer]);
-    // Picking a channel is the drawer's whole purpose; it gets out of the way
-    // afterwards instead of covering the conversation it just opened.
     useEffect(() => {
         setIsOpen(false);
     }, [selectedChannelId]);
     useEscapeClose(isDrawer && isOpen ? close : undefined);
 
     const drawerOpen = isDrawer && isOpen;
-    // The drawer opens beside the rails, not over them: switching cloud or place
-    // is exactly what someone reaching for the channel list may want next.
     const drawerLeft = nav ? 'left-[calc(theme(width.rail)*2)]' : 'left-[theme(width.rail)]';
 
     useEffect(() => {
@@ -231,9 +180,6 @@ export const DesktopLayout = ({
         <ShellSidebarContext.Provider value={{ isDrawer, isOpen, open, close }}>
             <PanelShellContext.Provider value={panelShell}>
                 <div className="relative flex h-full bg-background">
-                    {/* Not while the drawer is open: they sit outside its dialog, so Tab left
-                        the drawer for them, and their targets are in the inert chat, so they
-                        did nothing when pressed. */}
                     {!drawerOpen && (
                         <SkipLinks
                             onSidebar={() => {
@@ -242,16 +188,8 @@ export const DesktopLayout = ({
                             }}
                         />
                     )}
-                    {/* A voice file's detail, outside the feed rows so it outlives the row it came from. */}
                     <VoiceDetailHost />
-                    {/* Files a pick, drop or paste could not take, from whichever composer asked. */}
                     <UnsendableFilesHost />
-                    {/* In a compact window the rails are part of the drawer. One dialog holds
-                        them and the channel list, so a reader told that the dialog is modal
-                        can still reach the cloud and place tiles. It is hidden rather than
-                        unmounted while shut: the rails own dialogs of their own (rename,
-                        delete, sign out) that must not vanish with a half-typed name. It
-                        covers the whole window, so there is no scrim to click. */}
                     {isCompact ? (
                         <div
                             role="dialog"
@@ -280,17 +218,10 @@ export const DesktopLayout = ({
                                     className={`absolute inset-y-0 right-0 z-float bg-overlay/40 animate-fade-in ${drawerLeft}`}
                                 />
                             )}
-                            {/* Unmounted while the drawer is shut, rather than hidden: the column's
-                                own `flex` utility outranks the `hidden` attribute, so a hidden
-                                drawer stayed on screen over the conversation and swallowed its
-                                clicks. Nothing needs it mounted either — the channel list streams
-                                from the cache and repaints instantly when it opens. */}
                             {(!isDrawer || isOpen) && (
                                 <aside
                                     ref={sidebarWidth.panelRef}
                                     data-shell-sidebar
-                                    // A drawer is a fixed-width overlay: the drag handle belongs to the
-                                    // docked column, where there is a neighbour to trade width with.
                                     style={isDrawer ? undefined : { width: sidebarWidth.width }}
                                     tabIndex={drawerOpen ? -1 : undefined}
                                     role={drawerOpen ? 'dialog' : undefined}
@@ -311,13 +242,6 @@ export const DesktopLayout = ({
                             )}
                         </>
                     )}
-                    {/* A floor on the conversation itself, not only on each panel: the
-                sidebar and a docked trailing panel clamp independently, so only a
-                min-width here keeps the message column from being squeezed out
-                between them at a narrow desktop window. The floor is dropped once
-                the sidebar is a drawer, because then it is the only thing left
-                that could force the page to scroll sideways. It is inert under an
-                open drawer, so Tab stays between the rails and the list. */}
                     <div className="relative flex min-w-0 flex-1">
                         <main
                             inert={drawerOpen || panelOverlays || undefined}

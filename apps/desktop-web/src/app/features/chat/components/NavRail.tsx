@@ -14,24 +14,12 @@ const ICONS: Record<NavDestination, LucideIcon> = {
 };
 
 interface NavRailProps {
-    /** The destinations to draw, in order. A destination is listed once its screen exists. */
     items: NavDestination[];
-    /** Destinations holding something unread; each gets a dot on its tile. */
     unread?: Partial<Record<NavDestination, boolean>>;
-    /** The open place. Its logo stands in for Home's glyph, so the rail says which place it is in. */
     place?: { thumbnail?: string };
-    /**
-     * Actions drawn under the destinations, as rail tiles (`RailTile`). They open something over the app
-     * rather than swap the sidebar, so they are never the open destination.
-     */
     extra?: ReactNode;
 }
 
-/**
- * The second rail: where in the active place the sidebar column looks — Home, Notifications,
- * Channels or DM — then any extra actions, with the account menu pinned under them. Picking a
- * destination swaps the sidebar and leaves the open conversation where it is.
- */
 export const NavRail = ({ items, unread = {}, place, extra }: NavRailProps) => {
     const { t } = useTranslation();
     const active = useNavStore(s => s.active);

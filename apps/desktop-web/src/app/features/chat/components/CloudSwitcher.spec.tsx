@@ -19,7 +19,6 @@ vi.mock('../../../shared', async () => ({
     useRenameCloud: () => ({ renameCloud: vi.fn(), isRenaming: false }),
 }));
 
-// The stored order rides the shared `ui.railOrder` hook; stub the config store out of the render.
 const cloudOrder = vi.hoisted(() => ({ ids: [] as string[] }));
 vi.mock('@chatic/shared', async () => ({
     ...(await vi.importActual<typeof ChaticShared>('@chatic/shared')),
@@ -54,8 +53,6 @@ const renderSwitcher = (props: Partial<ComponentProps<typeof CloudSwitcher>> = {
     return { onSelectCloud };
 };
 
-// Enter on the trigger, not a click: Radix opens a dropdown from pointerdown, and jsdom has no
-// PointerEvent — the MessageList spec documents the same path.
 const trigger = () => screen.getByRole('button', { name: /^Switch cloud|^클라우드 전환/ });
 const openMenu = async () => {
     fireEvent.keyDown(trigger(), { key: 'Enter' });
@@ -63,7 +60,6 @@ const openMenu = async () => {
 };
 const cloudRow = (name: string | RegExp) => screen.getByRole('menuitem', { name });
 const archive = () => i18next.t('cloud.statusLabel', { name: 'Archive', status: i18next.t('cloud.status.expired') });
-// Removal sits in a submenu: ArrowRight on its trigger opens it, as a keyboard user would.
 const openRemoveMenu = async () => {
     fireEvent.keyDown(screen.getByRole('menuitem', { name: i18next.t('cloud.remove.action') }), { key: 'ArrowRight' });
     return (await screen.findAllByRole('menu')).at(-1) as HTMLElement;
@@ -80,8 +76,6 @@ describe('CloudSwitcher trigger', () => {
         expect(trigger().getAttribute('aria-label')).toBe(i18next.t('cloud.switcher.open', { name: 'Studio' }));
     });
 
-    // The session reports no cloud while it sits on Home; the shell reads that as Home, and so
-    // must the tile, or it shows "?" and "no cloud".
     it('reads no active cloud as Home, as the shell does', () => {
         renderSwitcher({ activeCloudId: null });
         expect(trigger().getAttribute('aria-label')).toBe(i18next.t('cloud.switcher.open', { name: 'Home' }));
@@ -92,8 +86,6 @@ describe('CloudSwitcher trigger', () => {
         expect(trigger().getAttribute('aria-label')).toBe(i18next.t('cloud.switcher.unread', { name: 'Home' }));
     });
 
-    // A push flag for a cloud the menu does not list has no row to open, so nothing could ever clear
-    // the dot it raises.
     it('shows no unread for a flagged cloud that is not in the list', () => {
         renderSwitcher({ badgedClouds: { removed: true } });
         expect(trigger().getAttribute('aria-label')).toBe(i18next.t('cloud.switcher.open', { name: 'Home' }));
@@ -110,7 +102,6 @@ describe('CloudSwitcher menu', () => {
         renderSwitcher();
         await openMenu();
         expect(cloudRow(archive())).toBeTruthy();
-        // An open cloud keeps its bare name.
         expect(cloudRow(/^Studio$/)).toBeTruthy();
     });
 
@@ -118,12 +109,10 @@ describe('CloudSwitcher menu', () => {
         renderSwitcher();
         await openMenu();
         const row = cloudRow(archive());
-        // Selectable rather than disabled: a disabled item is drawn at half opacity.
         expect(row.hasAttribute('data-disabled')).toBe(false);
         expect(row.querySelector('[class*="border-dashed"]')).not.toBeNull();
     });
 
-    // A lapsed cloud used to be switched into, refused, and offered a Try again that could not work.
     it('points a lapsed cloud at the mobile app instead of switching', async () => {
         const { onSelectCloud } = renderSwitcher();
         await openMenu();
@@ -167,7 +156,6 @@ describe('CloudSwitcher menu', () => {
         expect(rows.slice(0, 4)).toEqual(['Home', 'Friends', 'Studio', archive()]);
     });
 
-    // The number is part of the cloud's name on screen; it must not follow the stored order around.
     it('keeps the number of an untitled cloud whatever the order', async () => {
         cloudOrder.ids = ['u2', 'u1'];
         renderSwitcher({
@@ -198,7 +186,6 @@ describe('CloudSwitcher deleting an owned cloud', () => {
         );
         await screen.findByRole('alertdialog');
     };
-    // The confirm click starts an async delete; act waits for it to settle.
     const confirmDelete = () =>
         act(async () => {
             fireEvent.click(screen.getByRole('button', { name: i18next.t('cloud.delete.confirm') }));
@@ -234,8 +221,6 @@ describe('CloudSwitcher deleting an owned cloud', () => {
     });
 });
 
-// A cloud that cannot be opened as it is cannot be deleted from here either: the delete was a
-// server-wide release of a cloud the user could not even enter, one mispress from losing it.
 describe('CloudSwitcher removal list', () => {
     const removable = async () => {
         await openMenu();
@@ -269,7 +254,6 @@ describe('CloudSwitcher rename', () => {
         expect((screen.getByLabelText(i18next.t('cloud.rename.nameLabel')) as HTMLInputElement).value).toBe('Studio');
     });
 
-    // The menu acts on the cloud you are in, so only the active cloud is offered for rename.
     it.each([
         ['an owned cloud that is not active', 'default'],
         ['a lapsed owned cloud', 'lapsed'],

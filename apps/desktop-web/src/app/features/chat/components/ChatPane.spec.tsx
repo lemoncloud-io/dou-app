@@ -51,7 +51,6 @@ vi.mock('./DesktopLayout', () => ({ useShellSidebar: () => ({ isDrawer: false, o
 vi.mock('./MessageList', () => ({ MessageList: () => null }));
 vi.mock('./ChannelHeaderMenu', () => ({ ChannelHeaderMenu: () => null }));
 let composerOnSend: ((content: string, files: File[], mention?: { userIds?: string[] }) => void) | undefined;
-/** Every `autoFocus` the composer was rendered with — the real one focuses itself on `true`. */
 const composerAutoFocus: (boolean | undefined)[] = [];
 vi.mock('./Composer', () => ({
     Composer: ({ onSend, autoFocus }: { onSend: typeof composerOnSend & {}; autoFocus?: boolean }) => {
@@ -84,7 +83,6 @@ describe('ChatPane', () => {
         render(<ChatPane channel={{ id: 'C1', name: 'general', cid: 'cloud-a' } as DomainChannel} members={[]} />, {
             wrapper,
         });
-        // The composer arrives a tick after the feed (lazy chunk) — wait for it.
         await waitFor(() => expect(composerOnSend).toBeDefined());
         composerOnSend?.('caption', files);
 
@@ -108,8 +106,6 @@ describe('ChatPane', () => {
     });
 });
 
-// Deleting or leaving the open room takes the focused header with it; the room shown next
-// has to pick focus up, and only that one.
 describe('ChatPane focus after a channel was removed', () => {
     it('does not focus the composer on a plain open', async () => {
         render(<ChatPane channel={room('C2')} members={[]} />, { wrapper });
@@ -130,7 +126,6 @@ describe('ChatPane focus after a channel was removed', () => {
     it('focuses the composer of the room the pane switches to, once', async () => {
         useComposerFocusStore.getState().request('C1');
         const { rerender } = render(<ChatPane channel={undefined} members={[]} />, { wrapper });
-        // Channels are still listed, so the pane is between rooms, not out of them.
         expect(useComposerFocusStore.getState().removedId).toBe('C1');
 
         rerender(<ChatPane channel={room('C2')} members={[]} />);
@@ -169,7 +164,6 @@ describe('ChatPane focus after a channel was removed', () => {
 describe('ChatPane empty state', () => {
     const pointer = () => screen.queryByText(i18next.t('mobileApp.planAndCloud'), { exact: false });
 
-    // Home offered only an invite, and nothing said where a cloud of one's own comes from.
     it('says where to make a cloud beside the invite on Home', () => {
         render(<ChatPane channel={undefined} members={[]} emptyState={{ mode: 'join', onAction: vi.fn() }} />, {
             wrapper,

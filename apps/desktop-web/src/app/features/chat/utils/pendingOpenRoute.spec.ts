@@ -23,7 +23,6 @@ describe('pendingOpenRoute', () => {
         expect(pendingOpenRoute({ placeId: '', channelId: 'ch-1' }, here)).toBe('select');
     });
 
-    // A relay push's open names the relay (`'default'`) and no place.
     it('switches to the relay for a relay push opened from a cloud', () => {
         expect(pendingOpenRoute({ cloudId: 'default', placeId: '', channelId: 'ch-9' }, here)).toBe('switch-cloud');
     });

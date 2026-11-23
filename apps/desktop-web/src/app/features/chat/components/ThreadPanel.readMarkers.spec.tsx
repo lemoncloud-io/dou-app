@@ -50,7 +50,6 @@ vi.mock('../hooks', async () => ({
 }));
 vi.mock('./Composer', () => ({ Composer: () => null }));
 
-// What the room's read counts say, set per test; the panel is only asked to hand it on.
 const readCounts = vi.hoisted(() => ({
     cursors: [] as { userId: string; cursor: number }[],
     byChatNo: new Map<number, ReadCount>(),
@@ -92,7 +91,6 @@ const chat = (chatNo: number, extra: Partial<DomainChat>): DomainChat =>
 
 const at = (userId: string, cursor: number): MemberReadCursor => ({ userId, cursor });
 
-// A root and two replies. Replies by different authors, so each message is a row of its own.
 const THREAD: DomainChat[] = [
     chat(10, { content: 'root' }),
     chat(11, { content: 'first reply', ownerId: 'bob', parentId: 'C1:10' }),
@@ -128,7 +126,6 @@ describe('ThreadPanel read pills', () => {
     });
 
     it('draws the pill whether or not anyone stopped reading at that message', () => {
-        // Everyone has read past the whole thread: a position marker would sit on the last reply only.
         readCounts.cursors = [at('m0', 90), at('m1', 90)];
         readCounts.byChatNo = new Map([
             [10, { readIds: ['m0', 'm1'], unreadIds: [] }],

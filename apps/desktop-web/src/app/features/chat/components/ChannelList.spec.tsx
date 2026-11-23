@@ -13,23 +13,17 @@ import type * as ReadCursorStore from '../../../shared/stores/useReadCursorStore
 import type * as AppShared from '../../../shared';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
-// Row context menu seams (slice 05): the sidebar owns ONE actions instance; the
-// spies here are the boundaries the menu writes through.
 const menu = vi.hoisted(() => ({
     openDialog: vi.fn(),
     openSettings: vi.fn(),
     markRead: vi.fn(),
-    // What this device has read, by channel id.
     cursors: {} as Record<string, number>,
     readInCloud: vi.fn((..._args: unknown[]) => Promise.resolve()),
     serverSync: vi.fn(() => Promise.resolve()),
     leaveChannel: vi.fn(() => Promise.resolve()),
     deleteChannel: vi.fn(() => Promise.resolve()),
-    // P1 regression: the leave/delete tests run the REAL useChannelActions wiring
-    // (dialog → mutation → onRemoved) — set to true there, stub elsewhere.
     useRealActions: false,
 }));
-// The relay user decides the invite entry: the relay issues invites to signed-in accounts only.
 const relayUser = vi.hoisted(() => ({ current: { userRole: 'user' } as { userRole: string } | null }));
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
@@ -40,7 +34,6 @@ vi.mock('@chatic/runtime', async () =>
         },
         data: {
             useRuntimeRepositories: () => ({ join: { updateJoin: menu.serverSync } }),
-            // The channel cloud's join repository; `menu.readInCloud(cid, input)` stands for its outbox receipt.
             getCloudRepositories: (cid: string) => ({
                 join: { readChat: (input: unknown) => Promise.resolve({ delivered: menu.readInCloud(cid, input) }) },
             }),
@@ -61,7 +54,6 @@ vi.mock('../../channels', async () => {
 });
 vi.mock('../../../shared/stores/useReadCursorStore', async () => ({
     ...(await vi.importActual<typeof ReadCursorStore>('../../../shared/stores/useReadCursorStore')),
-    // The row reads its channel's cursor as a hook; the menu writes through `getState`.
     useReadCursorStore: Object.assign(
         (selector: (state: { cursors: Record<string, number> }) => unknown) => selector({ cursors: menu.cursors }),
         { getState: () => ({ markRead: menu.markRead, cursors: menu.cursors }) }
@@ -76,8 +68,6 @@ vi.mock('../../../shared', async () => ({
         isMutating: false,
     }),
 }));
-// Favorites ride the shared `ui.pinnedChannels` hook — stub the config store out of the render.
-// `storedOrder`/`pinned` are mutable per test: the stored reads are the things under test.
 const storedOrder = vi.hoisted(() => ({ ids: [] as string[], set: vi.fn() }));
 const pinned = vi.hoisted(() => ({ ids: [] as string[], toggle: vi.fn(), reorder: vi.fn() }));
 vi.mock('@chatic/shared', async () => ({
@@ -87,7 +77,6 @@ vi.mock('@chatic/shared', async () => ({
 }));
 
 let lastChat: DomainChat | undefined;
-// The last rows the sidebar asked to have named, and the place profiles it sees.
 const hydrate = vi.hoisted(() => ({
     peers: [] as unknown[],
     profiles: {} as Record<string, { nick?: string; thumbnail?: string }>,
@@ -98,23 +87,17 @@ vi.mock('../hooks/useHydrateDmPeers', () => ({
         hydrate.peers = peers;
     },
 }));
-// The 1:1 naming is the real hook: only its server hydration above is stubbed.
 vi.mock('../hooks', async () => ({
     useLastChat: () => lastChat,
     ...(await vi.importActual<typeof DmIdentities>('../hooks/useDmIdentities')),
 }));
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useCloudProfiles: () => hydrate.cloud }));
-// Radix only mounts an avatar image once it has loaded, which never happens in jsdom; render the
-// requested photo as a marker instead so a row's chosen photo can be read.
 vi.mock('@chatic/ui-kit/components/ui/avatar', () => ({
     Avatar: ({ children }: { children: ReactNode }) => <span>{children}</span>,
     AvatarImage: ({ src }: { src?: string }) => <span data-photo={src} />,
     AvatarFallback: ({ children }: { children: ReactNode }) => <span>{children}</span>,
 }));
 vi.mock('../../../shared/hooks/useSiteProfiles', () => ({ useSiteProfileMap: () => hydrate.profiles }));
-// Both mount global keyboard/dialog machinery; this file is about what a row renders.
-// `dialogStub.portal` turns the switcher into the shape that matters for the arrow-key
-// guard: a portalled input that is a React child of the nav but a DOM child of body.
 const dialogStub = vi.hoisted(() => ({ portal: false }));
 vi.mock('./QuickSwitcher', async () => {
     const { createPortal } = (await vi.importActual('react-dom')) as typeof ReactDom;
@@ -125,7 +108,6 @@ vi.mock('./QuickSwitcher', async () => {
 });
 vi.mock('../../search', () => ({ SearchDialog: () => null }));
 
-// The menu toasts a failed mark-as-read instead of swallowing it; the spy is how a test sees it.
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     ...(await importOriginal<object>()),
@@ -163,8 +145,6 @@ const list = () => (
     />
 );
 
-// The preview rides on the row's hover tooltip (Figma rows are one line), so it is read
-// by hovering the row past the row's hint delay.
 const previewOnHover = (): string => {
     vi.useFakeTimers();
     try {
@@ -178,7 +158,6 @@ const previewOnHover = (): string => {
     }
 };
 
-// A place's wait for names is kept across mounts; each test starts with none.
 beforeEach(() => useDmNameWaitStore.setState({ settled: {}, gaveUp: {} }));
 
 describe('ChannelList preview line', () => {
@@ -190,8 +169,6 @@ describe('ChannelList preview line', () => {
         expect(previewOnHover()).toMatch(/ship it$/);
     });
 
-    // The preview is the surface where a Block Kit payload is most obviously wrong: the
-    // whole line is JSON, and there is no room to recover from it.
     it('reads what a Block Kit message says, not the payload that carries it', () => {
         lastChat = {
             id: 'C1:1',
@@ -206,8 +183,6 @@ describe('ChannelList preview line', () => {
         expect(previewOnHover()).toMatch(/403 denied by policy$/);
     });
 
-    // The delete is soft, so `content` survives it. Printing that content would show the
-    // sidebar the very text the row says is gone.
     it('says a deleted message is gone instead of printing what it said', () => {
         lastChat = { id: 'C1:1', chatNo: 1, content: 'regrettable', hidden: true } as DomainChat;
 
@@ -256,8 +231,6 @@ describe('ChannelList channel section "+"', () => {
 });
 
 describe('ChannelList stored order (ui.channelOrder)', () => {
-    // Regression for review-03 P0: applyChannelOrder takes IDS — feeding it channel objects
-    // kept the stored order from applying and collapsed the DMs section to nothing.
     it('applies the stored order to channels and still renders DMs', () => {
         const general = { id: 'C1', name: 'general' } as DomainChannel;
         const random = { id: 'C2', name: 'random' } as DomainChannel;
@@ -294,8 +267,6 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
     const general = { id: 'C1', name: 'general' } as DomainChannel;
     const random = { id: 'C2', name: 'random' } as DomainChannel;
 
-    // Mutable mock state must reset in hooks, not inline: an assertion failure would
-    // otherwise leak pinnedIds into the later fold test and hide the real result.
     beforeEach(() => {
         storedOrder.ids = [];
         storedOrder.set.mockReset();
@@ -339,7 +310,6 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         });
 
         expect(storedOrder.set).toHaveBeenCalledWith(['C2', 'C1']);
-        // The move never doubles as navigation.
         expect(onSelect).not.toHaveBeenCalled();
     });
 
@@ -348,12 +318,9 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         let rowButton: HTMLButtonElement | null = null;
         storedOrder.set.mockImplementation((ids: string[]) => {
             storedOrder.ids = ids;
-            // A browser blurs a focused node that React moves with insertBefore; jsdom does not,
-            // so stand in for that focus fixup here.
             rowButton?.blur();
         });
         const onSelect = vi.fn();
-        // A fresh element each call — rerendering the same element object bails out.
         const ui = () => (
             <ChannelList
                 channels={[general, random]}
@@ -371,7 +338,6 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         act(() => {
             press(screen.getByRole('navigation'), 'ArrowDown', true, true);
         });
-        // The config write re-renders through useConfigValue in the app; the mock needs a push.
         rerender(ui());
 
         expect(storedOrder.ids).toEqual(['C2', 'C1']);
@@ -396,9 +362,6 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
             press(nav, 'ArrowDown');
         });
 
-        // Focus lands on the row after the selected one; selecting on every arrow
-        // press would mount each channel's feed in turn and lose the reading
-        // position of the channel the user is actually in.
         expect(document.activeElement).toBe(nav.querySelector('[data-channel-row="C2"]'));
         expect(onSelect).not.toHaveBeenCalled();
         expect(storedOrder.set).not.toHaveBeenCalled();
@@ -415,9 +378,6 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
                 fireEvent.keyDown(input, { key: 'ArrowDown' });
             });
 
-            // The dialog owns its own list navigation; the sidebar handler must not
-            // steal focus to a row behind the modal, where the next Enter would
-            // switch channel instead of opening the result.
             expect(document.activeElement).toBe(input);
             expect(nav.querySelector('[data-channel-row="C2"]')).not.toBe(document.activeElement);
             expect(onSelect).not.toHaveBeenCalled();
@@ -477,18 +437,16 @@ describe('ChannelList keyboard reorder (Alt+Shift+↑/↓, slice 04)', () => {
         act(() => {
             press(nav, 'ArrowDown', false, false);
         });
-        // plain nav worked once, now prove the guard: ctrl+arrow must not navigate again
         onSelect.mockClear();
         const ctrlDown = fireEvent.keyDown(nav, { key: 'ArrowDown', ctrlKey: true });
         expect(onSelect).not.toHaveBeenCalled();
-        expect(ctrlDown).toBe(true); // default not prevented — browser zoom-style chords pass through
+        expect(ctrlDown).toBe(true);
     });
 
     it('the dialog cheat sheet mentions the move chord', () => {
         render(<ShortcutsDialog />, { wrapper });
         fireEvent.keyDown(window, { key: '?' });
         expect(screen.getByText('In the sidebar: move the focused channel up or down')).toBeTruthy();
-        // chord rendering follows the platform glyph (⌥ on mac, Alt elsewhere) — one is present
         const chord = screen.queryAllByText('⌥ ⇧ ↑').length > 0 ? '⌥ ⇧ ↑' : 'Alt ⇧ ↑';
         expect(screen.getAllByText(chord).length).toBeGreaterThan(0);
     });
@@ -550,8 +508,6 @@ describe('ChannelList row context menu (slice 05)', () => {
         pinned.ids = [];
     });
     afterEach(() => {
-        // Explicit: a menu test failing mid-fireEvent must not leak its nav into the
-        // next test's DOM (the folded test then sees two "Channels" headers).
         cleanup();
         for (const fn of Object.values(menu)) if (typeof fn === 'function') fn.mockClear();
         toast.mockClear();
@@ -586,19 +542,14 @@ describe('ChannelList row context menu (slice 05)', () => {
 
         const items = screen.getAllByRole('menuitem').map(item => item.textContent);
         expect(items).toContain('Add to favorites');
-        // The trigger names the current level, so the state reads without opening.
         expect(items).toContain('Notifications · All messages');
         expect(items).toContain('Channel settings');
         expect(items).toContain('Add members');
         expect(items).toContain('Leave channel');
-        // CHANNEL has no ownerId — owner-gated items stay hidden.
         expect(items).not.toContain('Rename');
         expect(items).not.toContain('Delete channel');
     });
 
-    // Screenshot bug: the Notifications row drew its bell flush against the label
-    // and an oversized chevron, unlike every sibling row. jsdom has no layout, so
-    // the oracle is the row's icon-gap / icon-size tokens matching its siblings.
     it('lays out the Notifications row icon like its sibling rows', () => {
         renderList([general]);
 
@@ -626,7 +577,7 @@ describe('ChannelList row context menu (slice 05)', () => {
 
         openRowMenu(/general/);
         expect(screen.queryByRole('menuitem', { name: 'Mark as read' })).toBeNull();
-        fireEvent.keyDown(document.body, { key: 'Escape' }); // close the first menu (Radix dismiss)
+        fireEvent.keyDown(document.body, { key: 'Escape' });
 
         openRowMenu(/busy/);
         fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }));
@@ -645,8 +596,6 @@ describe('ChannelList row context menu (slice 05)', () => {
         expect(menu.readInCloud).toHaveBeenCalledWith('cloud-9', { channelId: 'C2', chatNo: 7 });
     });
 
-    // The queue resends a read until it lands, so a rejection is a read the server refused for
-    // good. The badge has already cleared locally; the toast is what explains it.
     it('announces a mark-as-read the server refused', async () => {
         menu.readInCloud.mockRejectedValueOnce(new Error('403 FORBIDDEN'));
         const unread = { id: 'C2', name: 'busy', unreadCount: 3, chatNo: 7 } as DomainChannel;
@@ -659,7 +608,6 @@ describe('ChannelList row context menu (slice 05)', () => {
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
     });
 
-    // A guest is refused by the server, so it is not offered the entry at all.
     it('hides the invite sender from a guest', () => {
         relayUser.current = { userRole: 'guest' };
         renderList([general]);
@@ -670,8 +618,6 @@ describe('ChannelList row context menu (slice 05)', () => {
         relayUser.current = { userRole: 'user' };
     });
 
-    // Sending rides the relay slot, so the entry shows on every non-DM row
-    // regardless of cloud, for a signed-in account.
     it('offers the invite sender on rows and opens it', () => {
         const unread = { id: 'C2', name: 'busy', unreadCount: 0, chatNo: 7 } as DomainChannel;
         renderList([general, unread]);
@@ -731,15 +677,13 @@ describe('ChannelList row context menu (slice 05)', () => {
         openRowMenu(/general/);
         fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Notifications · All messages' }), {
             key: 'ArrowRight',
-        }); // open the submenu (keyboard path — deterministic in jsdom)
+        });
         fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Mentions only' }));
 
         await waitFor(() => expect(useNotificationPrefsStore.getState().channelNotify['C1']).toBe('mention'));
         expect(menu.serverSync).toHaveBeenCalledWith(expect.objectContaining({ notify: 'mention' }));
     });
 
-    // P1: onRemoved must clear the selection only when the removed row IS the
-    // open channel — leaving a background channel must not unmount the chat pane.
     describe('onRemoved clears the selection only for the open channel', () => {
         const launch = { id: 'C2', name: 'launch' } as DomainChannel;
 
@@ -759,7 +703,6 @@ describe('ChannelList row context menu (slice 05)', () => {
         const leave = async (row: RegExp | string) => {
             openRowMenu(row);
             fireEvent.click(screen.getByRole('menuitem', { name: 'Leave channel' }));
-            // Real ChannelActionDialogs: the leave ConfirmDialog asks first.
             fireEvent.click(await screen.findByRole('button', { name: 'Leave channel' }));
             await waitFor(() =>
                 expect(menu.leaveChannel).toHaveBeenCalledWith(
@@ -836,7 +779,6 @@ describe('ChannelList notify level and mention marks', () => {
         expect(row(/general/).queryByText('Mentions only')).toBeNull();
     });
 
-    // It used to wear the same crossed bell as a channel that is off.
     it('marks a mentions-only channel as mentions only, not as off', () => {
         renderRows([{ id: 'C1', name: 'general', $join: { notify: 'mention' } } as DomainChannel]);
 
@@ -868,7 +810,6 @@ describe('ChannelList notify level and mention marks', () => {
         expect(row(/general/).getByText('Mentioned you')).toBeTruthy();
     });
 
-    // Channel ids are numbered per place: another place's channel can have this one's id.
     it('does not say so for a mention from the channel of the same id in another place', () => {
         act(() => useMentionsStore.setState({ items: mention(6, undefined, 'place-2') }));
         renderRows([unread]);
@@ -876,7 +817,6 @@ describe('ChannelList notify level and mention marks', () => {
         expect(row(/general/).queryByText('Mentioned you')).toBeNull();
     });
 
-    // Every cloud numbers its places and channels from the same start.
     it('does not say so for a mention from the same place and channel ids in another cloud', () => {
         act(() => useMentionsStore.setState({ items: mention(6, undefined, 'place-1', 'cloud-2') }));
         renderRows([unread]);
@@ -915,7 +855,6 @@ describe('ChannelList notify level and mention marks', () => {
 });
 
 describe('ChannelList folded section', () => {
-    // Folding hides the quiet rows, never the one that just got a message.
     it('keeps unread channels listed while the section is folded', () => {
         lastChat = undefined;
         const quiet = { id: 'C1', name: 'general' } as DomainChannel;
@@ -936,7 +875,6 @@ describe('ChannelList folded section', () => {
 
         expect(screen.queryByText('general')).toBeNull();
         expect(screen.getByText('launch')).toBeTruthy();
-        // Unfold again so the persisted fold does not leak into other tests.
         fireEvent.click(screen.getByRole('button', { name: 'Channels' }));
     });
 });
@@ -957,7 +895,6 @@ describe('ChannelList Direct messages "+"', () => {
             { wrapper }
         );
 
-    // The first 1:1 has to start somewhere, so the section keeps its header while empty.
     it('shows the section with its "+" before there is any 1:1, and opens the picker', () => {
         const onCreateDm = vi.fn();
         renderWith({ onCreateDm });
@@ -967,8 +904,6 @@ describe('ChannelList Direct messages "+"', () => {
         expect(onCreateDm).toHaveBeenCalledTimes(1);
     });
 
-    // Every section keeps its heading while empty (Figma Home); where a 1:1 cannot be started
-    // it says so in a line and offers no "+".
     it('keeps the empty section without a "+" where a 1:1 cannot be started', () => {
         renderWith({});
 
@@ -1050,7 +985,6 @@ describe('ChannelList 1:1 names', () => {
         const photoOf = (name: RegExp) =>
             screen.getByRole('button', { name }).querySelector('[data-photo]')?.getAttribute('data-photo');
         expect(photoOf(/Placey/)).toBe('place.png');
-        // A place nick with no place photo keeps the cloud photo.
         expect(photoOf(/Nicky/)).toBe('cloud-nick.png');
         expect(photoOf(/Cloudy/)).toBe('cloud.png');
         hydrate.profiles = {};
@@ -1084,7 +1018,6 @@ describe('ChannelList notes-to-self row', () => {
     const photo = () =>
         screen.getByRole('button', { name: /You/ }).querySelector('[data-photo]')?.getAttribute('data-photo');
 
-    // It drew a lettered "Y" while the picker drew my photo for the same room.
     it("draws my photo from this place's profile, keyed by my id in the cloud", () => {
         hydrate.profiles = { 'me-cloud': { nick: 'Louis', thumbnail: 'me-place.png' } };
         renderSelf();
@@ -1099,7 +1032,6 @@ describe('ChannelList notes-to-self row', () => {
         expect(photo()).toBe('me-cloud.png');
     });
 
-    // The relay's room has no join row of mine, only its one member.
     it('reads my id off the member list when the room has no join row', () => {
         hydrate.profiles = { 'me-relay': { nick: 'Louis', thumbnail: 'me-relay.png' } };
         render(
@@ -1194,7 +1126,6 @@ describe('ChannelList notes-to-self row stays first', () => {
             fireEvent.keyDown(screen.getByRole('navigation'), { key: 'ArrowUp', altKey: true, shiftKey: true });
         });
 
-        // The top 1:1 is clamped where it is; the write, if any, leaves the order unchanged.
         for (const [ids] of storedOrder.set.mock.calls) expect(ids).toEqual(['D1', 'D2']);
         expect(dmLabels()[0]).toBe('You');
     });
@@ -1212,7 +1143,6 @@ describe('ChannelList notes-to-self row stays first', () => {
 });
 
 describe('ChannelList 1:1 names on a cold cloud', () => {
-    // Room names sort the other way round from the people's names, so a sort by room name shows.
     const dmZed = { id: 'D1', stereo: 'dm', name: 'a-room', memberIds: ['me', '1000007'] } as DomainChannel;
     const dmAmy = { id: 'D2', stereo: 'dm', name: 'z-room', memberIds: ['me', '1000192'] } as DomainChannel;
     const listOf = (channels: DomainChannel[]) => (
@@ -1262,7 +1192,6 @@ describe('ChannelList 1:1 names on a cold cloud', () => {
         expect(dmRowNames()).toEqual(['Aa-room']);
     });
 
-    // Once the section has settled, a new 1:1 must not fold every row back into placeholders.
     it('holds only the new row when a 1:1 arrives after the names settled', () => {
         hydrate.cloud = new Map([['1000007', { name: 'Zed' }]]);
         const { rerender } = render(listOf([dmZed]), { wrapper });
@@ -1282,7 +1211,6 @@ describe('ChannelList drawing order', () => {
         storedOrder.ids = [];
     });
 
-    // The next-unread shortcut walks this order; a sidebar filter must not shorten it.
     it('publishes the whole order, even while a filter is typed', () => {
         const channels = [
             { id: 'C1', name: 'general' },
@@ -1346,7 +1274,6 @@ describe('ChannelList place members without a 1:1', () => {
         hydrate.cloud = new Map();
     });
 
-    // A place whose people have no 1:1 with me still shows them, so the section is never empty.
     it('lists them after the 1:1s, by name, and starts the 1:1 on click', () => {
         const onStartDm = vi.fn();
         renderWith({ onStartDm });
@@ -1356,7 +1283,6 @@ describe('ChannelList place members without a 1:1', () => {
         expect(onStartDm).toHaveBeenCalledWith('u-b');
     });
 
-    // They have no room to order, so the section never lets one be picked up.
     it('does not let them be dragged', () => {
         renderWith({ onStartDm: vi.fn() });
 
@@ -1384,7 +1310,6 @@ describe('ChannelList place members without a 1:1', () => {
         expect(screen.queryByText('Alice')).toBeNull();
     });
 
-    // The row's visible text is only a name; a screen reader has to hear that pressing it starts a 1:1.
     it('names each row for the 1:1 it starts', () => {
         renderWith({ onStartDm: vi.fn() });
 
@@ -1414,7 +1339,6 @@ describe('ChannelList place members without a 1:1', () => {
             expect(onStartDm).not.toHaveBeenCalled();
         });
 
-        // A native `disabled` would drop the pressed row out of the tab order and lose its focus.
         it('keeps every person row focusable for the arrow-key walk', () => {
             renderWith({ onStartDm: vi.fn(), startingPeerId: 'u-b' });
 
@@ -1452,8 +1376,6 @@ describe('ChannelList empty sections', () => {
         />
     );
 
-    // A place with nothing in it keeps its three headings, each saying what will go there, so the
-    // first channel or 1:1 has a section (and its "+") to start from.
     it('keeps every section with a line saying it is empty', () => {
         render(emptyList({ onCreateChannel: vi.fn(), onCreateDm: vi.fn() }), { wrapper });
 
@@ -1466,8 +1388,6 @@ describe('ChannelList empty sections', () => {
         expect(screen.getByRole('button', { name: i18next.t('rail.addChannel') })).toBeTruthy();
     });
 
-    // On the Home cloud the Channels line is the hint that channels arrive by invitation, and the
-    // 1:1 section carries the mobile-app pointer instead of a second empty line.
     it('says on the Home cloud that channels come by invitation', () => {
         render(emptyList({ isDefaultMode: true }), { wrapper });
 
@@ -1499,7 +1419,6 @@ describe('ChannelList on Home', () => {
 
     beforeEach(() => useSidebarSectionsStore.setState({ collapsed: {} }));
 
-    // Home offers no way to start a 1:1, and the section used to vanish without a word.
     it('says a 1:1 on Home starts in the mobile app', () => {
         render(homeList({ isDefaultMode: true }), { wrapper });
         expect(screen.getByRole('heading', { name: i18next.t('sidebar.dms') })).toBeTruthy();

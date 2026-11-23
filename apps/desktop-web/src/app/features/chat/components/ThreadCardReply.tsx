@@ -20,18 +20,9 @@ interface ThreadCardReplyProps {
     channel: DomainChannel;
     root: DomainChat & { id: string };
     rootNo: string;
-    /** Read the card again: the send has written its row to the cache, or settled. */
     onSettled: () => void;
 }
 
-/**
- * A Threads page card's reply box. Mounted only once the reader asks to reply, so a page of cards does
- * not hold an editor — or fetch a roster — each. Text only: a file reply goes through the thread panel.
- * The @ list is the card's own room, read here rather than handed down: the page shows threads from
- * every room of the place, and the members the sidebar holds are the selected room's. The reply shows
- * on the card as the cache's own row for it — pending, then sent or failed — so the card says what the
- * room would.
- */
 export const ThreadCardReply = ({ channel, root, rootNo, onSettled }: ThreadCardReplyProps) => {
     const { t } = useTranslation();
     const channelId = channel.id ?? '';
@@ -44,8 +35,6 @@ export const ThreadCardReply = ({ channel, root, rootNo, onSettled }: ThreadCard
 
     const handleSend = (content: string, _files: File[], mention?: ChatMentionBody) => {
         if (!content) return;
-        // The server takes the root's full id, as the thread panel's composer does. The mention is who
-        // the reader picked: the server reads it, never the text, to decide who is told.
         void sendMessage(cid, { channelId, content, parentId: root.id, ...(mention ? { mention } : {}) })
             .catch(error => toastFailure(t('toast.messageFailed'), error))
             .finally(onSettled);

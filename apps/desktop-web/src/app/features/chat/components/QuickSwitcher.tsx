@@ -12,10 +12,8 @@ import { useSearchDialogStore } from '../../search';
 import { useQuickSwitcherStore } from '../stores';
 
 const MAX_RESULTS = 8;
-/** Rows kept for other places when this place alone could fill the list. */
 const ELSEWHERE_RESERVED = 3;
 
-/** A channel in another place of the same cloud, offered with the place it lives in. */
 export interface ElsewhereChannel {
     channelId: string;
     name: string;
@@ -23,11 +21,6 @@ export interface ElsewhereChannel {
     placeName: string;
 }
 
-/**
- * Prefix matches first (Slack-style), then substring matches. With no query the
- * list is what the person opened most recently — it used to be an arbitrary,
- * unsorted first eight — topped up from the rest when there are few recents.
- */
 export const rankChannels = (
     channels: DomainChannel[],
     query: string,
@@ -41,8 +34,6 @@ export const rankChannels = (
         const rest = channels.filter(c => !recent.includes(c.id ?? ''));
         return [...recents, ...rest].slice(0, MAX_RESULTS);
     }
-    // Match what the row shows. Matching the room's own name found a DM by an id
-    // nobody sees, and never by the person's name on the row.
     const label = (c: DomainChannel) => labelOf(c).toLowerCase();
     const starts = channels.filter(c => label(c).startsWith(q));
     const includes = channels.filter(c => !label(c).startsWith(q) && label(c).includes(q));
@@ -52,22 +43,10 @@ export const rankChannels = (
 interface QuickSwitcherProps {
     channels: DomainChannel[];
     onSelect: (channelId: string) => void;
-    /**
-     * Channels in the cloud's other places (the host leaves the open place out),
-     * from the cloud-wide channel index. Only searched, never listed with an empty query: the recents list is
-     * about where you were, and these are about where you are not.
-     */
     elsewhere?: ElsewhereChannel[];
-    /** Switch place and open the channel there. */
     onSelectElsewhere?: (channelId: string, placeId: string) => void;
 }
 
-/**
- * Cmd/Ctrl+K channel jumper (Slack quick switcher). Self-contained like
- * ShortcutsDialog: owns its open state + the global key listener. Hosted by
- * ChannelList because that's where the channel list and select handler already
- * live — the switcher renders nothing until opened.
- */
 export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElsewhere }: QuickSwitcherProps) => {
     const { t } = useTranslation();
     const open = useQuickSwitcherStore(s => s.isOpen);
@@ -87,7 +66,6 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [toggleOpen]);
 
-    // Fresh query every time it opens.
     useEffect(() => {
         if (open) setQuery('');
     }, [open]);
@@ -95,10 +73,6 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
     const labelOf = useChannelLabels(channels);
     const ranked = useMemo(() => rankChannels(channels, query, recent, labelOf), [channels, query, recent, labelOf]);
 
-    // Only for a typed query, and only names that match: a switcher that always
-    // listed the whole cloud would bury the channels a person actually works in.
-    // Other places keep up to ELSEWHERE_RESERVED rows even when this place fills
-    // the list; they used to vanish exactly when the query was a common word.
     const { results, elsewhereResults } = useMemo(() => {
         const q = query.trim().toLowerCase();
         const matches = q && onSelectElsewhere ? elsewhere.filter(item => item.name.toLowerCase().includes(q)) : [];
@@ -125,8 +99,6 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            {/* Hung from 20% down rather than centred, so the kit's height cap is re-derived from
-                that offset: 80% of the window, less the same 1rem bottom margin. */}
             <DialogContent
                 closeLabel={t('common.close')}
                 className="top-[20%] max-h-[calc(80dvh-1rem)] translate-y-0 gap-2 p-2 sm:max-w-md"
@@ -148,7 +120,6 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
                 {total === 0 ? (
                     <div className="flex flex-col items-center gap-2 px-3 py-4 text-center">
                         <p className="text-caption text-muted-foreground">{t('switcher.noMatches')}</p>
-                        {/* A name that matches no channel may be a word from a message. */}
                         {query.trim() && (
                             <button
                                 type="button"
@@ -211,7 +182,6 @@ export const QuickSwitcher = ({ channels, onSelect, elsewhere = [], onSelectElse
                                     >
                                         <Hash size={14} className="shrink-0" aria-hidden />
                                         <span className="truncate">{bareChannelName(item.name)}</span>
-                                        {/* Which place it is in, because picking it moves the app there. */}
                                         <span className="ml-auto shrink-0 truncate rounded bg-muted px-1.5 py-0.5 text-caption text-muted-foreground">
                                             {item.placeName}
                                         </span>

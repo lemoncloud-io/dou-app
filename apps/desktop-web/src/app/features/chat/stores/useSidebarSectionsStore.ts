@@ -3,12 +3,10 @@ import { persist } from 'zustand/middleware';
 import { deviceStore, persistStorageOver } from '../../../storage';
 
 interface SidebarSectionsState {
-    /** Section ids the user folded shut (`fav` · `ch` · `dm`). A UI preference, so it outlives logout. */
     collapsed: Record<string, true>;
     toggle: (sectionId: string) => void;
 }
 
-/** Which sidebar sections are folded — remembered so the sidebar reopens the way it was left. */
 export const useSidebarSectionsStore = create<SidebarSectionsState>()(
     persist(
         set => ({

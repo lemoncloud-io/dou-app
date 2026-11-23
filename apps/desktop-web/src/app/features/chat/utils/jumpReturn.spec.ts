@@ -63,7 +63,6 @@ describe('shouldOfferReturn', () => {
         expect(shouldOfferReturn(origin(), { ...here, channelId: 'random' }, new Set(['random']))).toBe(false);
     });
 
-    // The list only holds the open place, so it cannot vouch for a channel elsewhere.
     it('offers an origin in another place or cloud without finding it in this list', () => {
         const away = new Set(['random']);
         expect(shouldOfferReturn(origin({ placeId: 'p2' }), { ...here, channelId: 'random' }, away)).toBe(true);
@@ -82,7 +81,6 @@ describe('returnRoute', () => {
         expect(returnRoute(origin(), here)).toBe('select');
     });
 
-    // Switching to "no place" would arm the landing and then never move.
     it('selects in this place when the origin recorded no place', () => {
         expect(returnRoute(origin({ placeId: null }), here)).toBe('select');
     });

@@ -8,20 +8,6 @@ import type { ChannelMember } from '../../channels';
 import { EVERYONE_MENTION_ID, type Mentionable } from '../components/MentionAutocomplete';
 import { isDmBucket, isViewerId, type MessageViewer } from '../utils';
 
-/**
- * Roster resolved for @-autocomplete the same way names render elsewhere
- * (Place Profile nick/thumbnail over the global identity). Shared by the chat
- * pane and thread panel composers.
- *
- * Sorted by name with me last. The first row is the one Enter picks, and a name
- * that sorted me to the top made mentioning myself the default. I stay in the
- * list, so a self-mention is still one arrow key away.
- *
- * In a channel of many the list opens with the everyone row, as the phone's does. Its name is the
- * word written into the message — the UI language's, which `GROUP_MENTIONS` reads back on every
- * client. A 1:1 and the Self Channel have no one else to call, and a caller that does not say
- * which channel this is gets no such row.
- */
 export const useMentionables = (
     members: ChannelMember[],
     viewer: MessageViewer,
