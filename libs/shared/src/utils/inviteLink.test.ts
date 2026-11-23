@@ -193,6 +193,14 @@ describe('readInviteLink — the shape reported for diagnostics', () => {
         ['missing', 'https://app.chatic.io/i?t='],
         ['alphabet', 'https://app.chatic.io/i?t=!!!'],
         ['utf8', `https://app.chatic.io/i?t=${Buffer.from([0xff, 0xfe, 0xfd]).toString('base64url')}`],
+        [
+            'utf8',
+            `https://app.chatic.io/i?t=${Buffer.from([0x7b, 0x22, 0x63, 0x22, 0x3a, 0x22, 0xc0, 0x80, 0x22, 0x7d]).toString('base64url')}`,
+        ],
+        [
+            'utf8',
+            `https://app.chatic.io/i?t=${Buffer.from([0x7b, 0x22, 0x63, 0x22, 0x3a, 0x22, 0xed, 0xa0, 0x80, 0x22, 0x7d]).toString('base64url')}`,
+        ],
         ['json', `https://app.chatic.io/i?t=${token.slice(0, -4)}`],
         ['shape', `https://app.chatic.io/i?t=${Buffer.from('["invt:1:2"]').toString('base64url')}`],
         ['shape', `https://app.chatic.io/i?t=${Buffer.from(JSON.stringify({ a: 'x', s: 'y' })).toString('base64url')}`],

@@ -247,7 +247,9 @@ Seven things the filenames do not tell you.
   which holds the invite code; `decodeInviteLink` is the same call returning the target alone. It
   reads `t` only up to the first character outside base64url, because a link pasted into a chat can
   arrive with text glued onto its end (`…/i?t=eyJ…입니다`, a closing `)`) and the server never writes
-  such characters into a token. A truncated token cannot be helped this way and still fails. It never
+  such characters into a token. A truncated token cannot be helped this way and still fails. Its
+  UTF-8 step refuses what a strict `TextDecoder` refuses — an overlong form such as `C0 80`, a
+  surrogate half — and `inviteLink.property.test.ts` checks the two agree on random bytes. It never
   throws, React Native included: that platform's query parser throws on a malformed `%` escape, and
   the decoder then reads `t` from the raw query instead.
 
