@@ -18,18 +18,6 @@ import {
 
 import { getHttpManager } from './factory';
 
-/**
- * The one set of gateway instances for the whole runtime.
- *
- * Before this file there were three: `data/factories/httpFactory` built a fresh bundle per
- * `DataManager` init, and the REST hooks and `session/auth` each memoized their own
- * subscription/cloud/user/oauth trio — so the cloud and user gateways existed in two or three copies
- * at once. They are stateless wrappers over the shared `HttpManager`, so the copies were harmless but
- * pointless, and each new consumer meant another private cache to remember to reset in tests.
- *
- * Built lazily per accessor (not at module load) so import order never matters, matching
- * `getHttpManager` itself.
- */
 let oauth: OAuthHttpGateway | null = null;
 let cloud: CloudHttpGateway | null = null;
 let miniApp: MiniAppHttpGateway | null = null;
@@ -63,13 +51,6 @@ export const subscriptionGateway = (): SubscriptionHttpGateway => {
     return subscription;
 };
 
-/**
- * The archive address the report gateway sends to: `VITE_ARCHIVE_ENDPOINT` (`net.archive.endpoint`),
- * or empty so the gateway builds it from the relay. A configured archive belongs to the build's relay,
- * so while the relay itself is overridden (the `?_backend=` deep link, the debug panel) it is ignored —
- * otherwise a prod build pointed at the dev relay would file that session's logs in the prod archive,
- * signed by a dev session.
- */
 export const configuredArchiveEndpoint = (): string =>
     config.snapshot<string>('net.relay.backend')?.isOverridden
         ? ''
@@ -85,9 +66,6 @@ export const pairingGateway = (): PairingHttpGateway => {
     return pairing;
 };
 
-/** Test seam — drops every cached gateway. Pair with `resetHttpManager` when the client itself must
- * be rebuilt: a cached gateway holds the OLD client, so resetting only one of the two leaves stale
- * wiring behind. */
 export const resetGateways = (): void => {
     oauth = null;
     cloud = null;

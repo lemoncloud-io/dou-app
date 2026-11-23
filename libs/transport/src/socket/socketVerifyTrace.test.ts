@@ -9,7 +9,6 @@ import { slotKeyOf } from './utils/slotKey';
 
 type Listener<T> = (value: T) => void;
 
-/** A client whose state, messages and auth state the test drives by hand. */
 const fakeSocket = (initialState?: string) => {
     const state = new Set<Listener<{ next: string }>>();
     const message = new Set<Listener<{ message?: { type?: string } }>>();
@@ -115,7 +114,6 @@ describe('observeSocketVerify', () => {
         socket.authenticate();
         record.mockClear();
 
-        // A token refresh or a re-register on the open socket: no new connection attempt.
         socket.authenticate();
 
         expect(record).not.toHaveBeenCalled();
@@ -136,7 +134,6 @@ describe('observeSocketVerify', () => {
         observe(socket);
 
         socket.moveTo('connecting');
-        // The app goes to the background and comes back before the attempt ends.
         hides += 1;
         now = 60_000;
         socket.authenticate();

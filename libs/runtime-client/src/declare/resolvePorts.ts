@@ -17,30 +17,23 @@ import type {
 
 type MutableChoices<Facts> = { [P in PortName]: PortChoice<P, Facts> };
 
-/** What choosing needs of an adapter, whichever slot it fills. */
 interface Candidate<Facts> {
     readonly id: string;
     readonly supports?: (facts: Facts) => boolean;
 }
 
-/** What choosing needs of a slot's declaration, whichever slot it is. */
 interface SlotDeclared<A> {
     readonly default: A;
     readonly alternatives?: readonly A[];
     readonly override?: readonly ChoiceLane[];
 }
 
-/** The error a declaration that cannot run on this host is reported with. */
 export class RuntimeDeclarationError extends Error {
     readonly code = 'RUNTIME_DECLARATION_INVALID';
 }
 
 const supported = <Facts>(adapter: Candidate<Facts>, facts: Facts): boolean => adapter.supports?.(facts) ?? true;
 
-/**
- * Which row a toggle came from. A build value and the empty floor both report `default`; only the
- * build's is a value, so a non-empty `default` is the build.
- */
 const laneOf = (origin: string): ChoiceLane => (origin === 'default' ? 'build' : (origin as ChoiceLane));
 
 const defaultChoice = <S extends SlotName, Facts>(
@@ -52,10 +45,6 @@ const defaultChoice = <S extends SlotName, Facts>(
     return { port: slot, adapter, id: adapter.id, origin: 'default', ...(fellBack ? { fellBack } : {}) };
 };
 
-/**
- * A slot's choice from its toggle alone, before the constraints between ports are checked. The same
- * rules for a runtime port, a host port and the engine.
- */
 const chooseSlot = <S extends SlotName, Facts>(
     slot: S,
     declared: SlotDeclared<AdapterOf<S, Facts>>,
@@ -64,8 +53,6 @@ const chooseSlot = <S extends SlotName, Facts>(
     read: PortChoiceReader
 ): PortChoice<S, Facts> => {
     if (!supported<Facts>(declared.default, facts)) {
-        // The default is what every fallback lands on; one this host cannot run leaves nothing to land
-        // on, so it is the declaration that is wrong, and it is said before anything is built.
         throw new RuntimeDeclarationError(
             `[runtime] ${name}: the default ${slot} adapter '${declared.default.id}' does not support this host`
         );
@@ -73,7 +60,6 @@ const chooseSlot = <S extends SlotName, Facts>(
 
     const snapshot = read(`port.${slot}`);
     const requested = typeof snapshot?.value === 'string' ? snapshot.value : '';
-    // Empty is config's floor: "use the default the app declared".
     if (!snapshot || requested === '') return defaultChoice(slot, declared);
 
     const from = laneOf(snapshot.origin);
@@ -109,7 +95,6 @@ const choosePort = <P extends PortName, Facts>(
 const isChosen = <Facts>(choices: PortChoices<Facts>, ref: { id: string; port: PortName }): boolean =>
     choices[ref.port].id === ref.id;
 
-/** The ports a broken constraint involves, the one to give up first leading. */
 const brokenBy = <Facts>(choices: PortChoices<Facts>, constraint: PortConstraint): PortName[] | null => {
     switch (constraint.kind) {
         case 'requires':
@@ -128,21 +113,6 @@ const describe = (constraint: PortConstraint): string =>
         ? `'${constraint.adapter.id}' requires '${constraint.needs.id}'`
         : `'${constraint.adapter.id}' conflicts with '${constraint.other.id}'`;
 
-/**
- * Settles every port of a declaration on this host. Pure: the facts and the toggles are handed in.
- *
- * Each port, in order:
- *
- * 1. The default must support the host, or the declaration is wrong and this throws.
- * 2. No toggle, or an empty one → the default.
- * 3. The toggle's id must be the default or one of the declared alternatives, its row must be one
- *    the port's `override` allows, and the adapter must support the host; any of these failing → the
- *    default, with the reason kept on the choice.
- *
- * Then the constraints: while one is broken, the port a toggle moved off its default that the
- * constraint involves goes back to its default (the dependent side first). A constraint broken by
- * defaults alone cannot be repaired by falling back, so that throws too.
- */
 export const resolvePorts = <Facts, Owner = never>(
     declaration: RuntimeDeclaration<Facts, Owner>,
     facts: Facts,
@@ -159,7 +129,6 @@ export const resolvePorts = <Facts, Owner = never>(
     }
 
     const constraints = declaration.constraints ?? [];
-    // Each round moves one port back to its default, so this ends within one round per port.
     for (;;) {
         let repaired = false;
         for (const constraint of constraints) {
@@ -172,8 +141,6 @@ export const resolvePorts = <Facts, Owner = never>(
                 );
             }
             const given = choices[port];
-            // A port off its default got there from a toggle, whose row `choosePort` already named
-            // (`laneOf`), so its origin is a lane and never `default`.
             (choices as Record<PortName, PortChoice<PortName, Facts>>)[port] = defaultChoice(
                 port,
                 declaration.ports[port] as unknown as SlotDeclared<AdapterOf<PortName, Facts>>,
@@ -186,11 +153,6 @@ export const resolvePorts = <Facts, Owner = never>(
     }
 };
 
-/**
- * Settles every host port a declaration names, by the same rules as a runtime port. A declaration
- * that names none answers `undefined`: the start then publishes nothing, as an app that never asked
- * the host anything did before host ports joined the declaration.
- */
 export const resolveHostPorts = <Facts, Owner = never>(
     declaration: RuntimeDeclaration<Facts, Owner>,
     facts: Facts,
@@ -211,7 +173,6 @@ export const resolveHostPorts = <Facts, Owner = never>(
     return choices;
 };
 
-/** The engine's choice: the declared slot settled like any port, or `engine.core` when none is declared. */
 export const resolveEngine = <Facts, Owner = never>(
     declaration: RuntimeDeclaration<Facts, Owner>,
     facts: Facts,

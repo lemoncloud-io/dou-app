@@ -5,10 +5,6 @@ import { initAppRuntime, resetRuntimeEngine } from '../init';
 import { deriveConnectivity, readOnlineSignal } from './connectivity';
 import type { ConnectivitySignals } from './connectivity';
 
-// `ConnectivitySignals` extends the full `SocketState`, so `connectionId` is required even though
-// the derivation never reads it. The truth table below is about the signals it does read, so the id
-// is pinned here instead of repeated on every row — and so is `hasVerifiedSocket`, which mirrors the
-// active slot unless a row says otherwise.
 const signals = (
     over: Omit<ConnectivitySignals, 'connectionId' | 'hasVerifiedSocket'> & { hasVerifiedSocket?: boolean }
 ): ConnectivitySignals => ({
@@ -18,9 +14,6 @@ const signals = (
 });
 
 describe('deriveConnectivity', () => {
-    // navigator.onLine is a STRONG NEGATIVE: with no verified socket anywhere, false wins over the
-    // active socket's transport state — including a socket still sitting in 'connected' because no
-    // frame has failed yet.
     it.each([
         ['connected', true, false],
         ['connecting', false, false],
@@ -35,8 +28,6 @@ describe('deriveConnectivity', () => {
         }
     );
 
-    // ...but not proof: Chromium can latch it at false while the network works, and a verified
-    // socket is positive evidence that packets are moving.
     it('reports online when the browser is stuck offline but the active socket is verified', () => {
         expect(
             deriveConnectivity(
@@ -59,8 +50,6 @@ describe('deriveConnectivity', () => {
         ).toBe('reconnecting');
     });
 
-    // ...and an UNRELIABLE POSITIVE: true only proves an interface is up, never reachability,
-    // so on its own it never reports a healthy connection.
     it.each([
         ['connecting', false, false],
         ['closing', false, false],

@@ -2,11 +2,6 @@ import type { IAuthRepository } from '@chatic/data';
 
 import { runtimeData } from '../data/dataCommands';
 
-/**
- * The account lookups and sign-ups that change no session — an alias lookup or check, a registration,
- * an invite's details — through the engine's auth repository, so they run wherever the runtime does: in
- * this page, or across the bridge in the app's process.
- */
 const auth = () => runtimeData().repositories().auth;
 
 export const findAlias = (...args: Parameters<IAuthRepository['findAlias']>) => auth().findAlias(...args);

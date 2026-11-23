@@ -18,7 +18,6 @@ beforeEach(() => {
     resetHttpManager();
 });
 
-/** The staleness port the factory handed to the manager. */
 const portPassedIn = () => {
     getHttpManager();
     return mockedCreate.mock.calls[0][1] as { isStale(route: string): boolean };
@@ -39,12 +38,7 @@ describe('getHttpManager — 인스턴스', () => {
     });
 });
 
-// This binding is why `http/` can be a leaf inside @chatic/runtime. This is the one file that knows about
-// the session.
 describe('자격증명 신선도 포트 — 어떤 route를 물어도 relay로 답한다', () => {
-    // relay is the only signing route, and oauth/iap have no credential of their own so they sign
-    // with relay's. This mapping is why the adapter exists — the port asks by route and the gauge
-    // answers by the issuing server's cloud id.
     it.each(['relay', 'oauth', 'iap'] as const)('%s를 물어도 relay 자격증명을 본다', route => {
         portPassedIn().isStale(route);
 

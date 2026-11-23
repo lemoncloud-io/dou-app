@@ -234,6 +234,35 @@ currently bound slots on subscribe. For any one mutation **the slot notification
 per-slot attachment exists before active-facade consumers react. `SyncManager` subscribes to the
 slot notification alone: its runtimes, and the targets on them, follow slots, not the active pointer.
 
+`isVerified` is per connection, not per device. The server authenticates a connection, so a socket that
+reconnects starts unauthenticated until its own `auth.update` lands. The SDK's auth controller emits
+nothing on a transport drop, so the manager clears the slot's authenticated flag whenever the transport
+leaves `connected`; the controller's own `authenticated` emission after the handshake restores it.
+Without that, `isVerified` goes true the instant the transport reconnects, anything gated on it fires
+into the gap, and the server answers `401 UNAUTHORIZED - not authenticated`.
+
+Three more rules the manager keeps around the SDK:
+
+- **Every slot gets its own client and its own timer scheduler.** Sharing a scheduler between slots
+  would couple their timers.
+- **The auth controller is tuned, not default.** `AUTH_OPTIONS` sets `maxFailures: 3`, for a slightly
+  faster terminal `expired`, and `refreshIntervalMs` to five minutes. That interval is only the fallback
+  cadence for a socket auth response that omits `expiresIn` (the dev and prod servers currently do); the
+  SDK's 30-minute default could let the relay's AWS credential lapse while the socket still reads
+  `authenticated`, and signed HTTP would start returning 403. Five minutes stays well under the roughly
+  one-hour credential lifetime. `SDK_REFRESH_CYCLE_MS` is that interval, and the credential margins of
+  `deriveAuthStatus`, the relay staleness guard and the cloud credential guard are all measured in it:
+  a credential with more than a cycle left will be refreshed by its owner, one with less shows the
+  socket is not keeping up. Change the cadence and the margins follow.
+- **Reconnect diagnostics are feature-detected.** `onConnectFailed` and `onGiveUp` exist on the
+  controller the SDK builds but not on the `ReconnectController` interface it publishes, so a missing
+  method is skipped rather than crashing the bind. The give-up line is worth having: a controller that
+  stops retrying leaves a slot that is merely quiet looking the same as one that has stopped for good.
+  A failed request that rejects through the facade is logged by the slot's error listener at `warn`
+  rather than `error`: the listener runs before the caller's name is appended, so an `error` entry would
+  duplicate the failure as an anonymous one (and error entries flush the log persistence at once), yet
+  it stays as a trace for a caller that swallows its rejection.
+
 ### How long a request takes: `setRequestObserver`
 
 `setRequestObserver(observer)` hands every request made through the manager — the active facade's
@@ -302,6 +331,8 @@ and keeps the last one on the slot's entry, named by `classifySocketClose` (`uti
   it every 499 reads `transport`, which is all this could say before. `closeReason.test.ts` drives the
   real client over a fake socket, so an SDK upgrade that changes the event, its order or the
   `closing` state fails a test rather than quietly turning every cause into `transport`.
+- **The reason set is closed on purpose.** `closeReason` becomes a Firebase attribute, and a free-form
+  string from the server would open a console row per value.
 - **One log line per connection that ended**, `[SocketManager] closed`, with the cause, code, reason,
   `wasClean` and how long it had been open. A reconnect attempt that never opened is not logged again
   here; the reconnect diagnostics already report it.
