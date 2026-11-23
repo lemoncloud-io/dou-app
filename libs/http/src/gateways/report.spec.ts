@@ -70,8 +70,6 @@ describe('createReportHttpGateway', () => {
         expect(req.body).toEqual({ list: [{ id: 'a' }, { id: 'b' }] });
     });
 
-    // A deep link (`?_backend=`) can point the session at another relay after the gateway is built.
-    // Its logs have to follow it to that relay's archive stage, so the relay is read per call.
     it('reads the relay on every call, so a deep-linked relay sends to its own archive stage', async () => {
         const gateway = createReportHttpGateway(exec);
 
@@ -117,7 +115,6 @@ describe('createReportHttpGateway', () => {
         ]);
     });
 
-    // The caller answers empty while a deep link has replaced the relay, so this is also that path.
     it('builds the address from the relay when the configured one is empty', async () => {
         const gateway = createReportHttpGateway(exec, { archiveEndpoint: () => '  ' });
 
@@ -128,8 +125,6 @@ describe('createReportHttpGateway', () => {
         );
     });
 
-    // If this ever regresses, an upload failure becomes a log entry that pushes the next flush,
-    // which fails again — the feedback loop the batching design exists to avoid.
     it('uploadLogBatch — bypasses networkLog; nothing else in the repo does', async () => {
         const gateway = createReportHttpGateway(exec);
 

@@ -48,7 +48,6 @@ describe('withRetry', () => {
             throw Object.assign(new Error('expired'), { status: 403 });
         });
 
-        // 403 → shouldRetry=false too, so it still throws the original error — just not via onAuthFailure.
         await expect(withRetry(op, 4, 'test', { onAuthFailure })).rejects.toThrow('expired');
         expect(onAuthFailure).toHaveBeenCalledTimes(1);
     });
@@ -61,7 +60,7 @@ describe('withRetry', () => {
         });
 
         const promise = withRetry(op, 1, 'test', { onExhausted });
-        promise.catch(() => undefined); // silence the unhandled-rejection warning before the assertion below awaits it
+        promise.catch(() => undefined);
         await jest.advanceTimersByTimeAsync(1000);
         await expect(promise).rejects.toThrow('Network Error');
         expect(op).toHaveBeenCalledTimes(2);
@@ -77,7 +76,7 @@ describe('withTimeout', () => {
 
     it('rejects with a TIMEOUT-prefixed message when the promise is too slow', async () => {
         jest.useFakeTimers();
-        const never = new Promise(() => undefined); // never settles — withTimeout must win the race
+        const never = new Promise(() => undefined);
         const promise = withTimeout(never, 50, 'slow op');
         const assertion = expect(promise).rejects.toThrow('TIMEOUT: slow op timed out (50ms)');
         await jest.advanceTimersByTimeAsync(50);

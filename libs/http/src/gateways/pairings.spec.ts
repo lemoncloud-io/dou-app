@@ -68,8 +68,6 @@ describe('createPairingHttpGateway', () => {
         expect(executeSignedRelayRequest).toHaveBeenCalledWith(expected);
     });
 
-    // A cloud server does not serve /pairings: whichever cloud the session works in, every operation
-    // is signed and sent to the relay.
     it('never builds a cloud address or sends unsigned', async () => {
         const g = gateway();
 

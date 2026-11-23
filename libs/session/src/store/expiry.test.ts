@@ -2,7 +2,6 @@ import { msUntilExpiration, msUntilTokenExpiry } from './expiry';
 
 const NOW = Date.UTC(2026, 10, 11, 12, 0, 0);
 
-/** A JWT-shaped token whose payload is `claims`, base64url-encoded with the padding stripped. */
 const jwt = (claims: Record<string, unknown>) =>
     `header.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.signature`;
 
@@ -16,7 +15,6 @@ describe('msUntilTokenExpiry', () => {
     });
 
     it('decodes a payload that needed padding and uses the URL-safe alphabet', () => {
-        // Characters that encode to `-`/`_` in base64url, and a length that is not a multiple of three.
         const token = jwt({ exp: NOW / 1000 + 10, note: '>>?~~' });
 
         expect(token.split('.')[1]).toMatch(/[-_]/);

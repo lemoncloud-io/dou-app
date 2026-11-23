@@ -3,11 +3,6 @@
  */
 import { signRequest } from './sigV4';
 
-/**
- * Golden signatures: each `expected` below was produced by lemon-web-core 1.5.3's own `sigV4Client`
- * (the signer this one replaces), with the same credential, region and a clock frozen at `NOW`. A
- * mismatch means the API Gateway would refuse the request — see the header comment in `sigV4.ts`.
- */
 const NOW = new Date('2026-11-10T03:04:05.678Z');
 const credential = { accessKey: 'AKIAEXAMPLE', secretKey: 'secret/Key+EXAMPLE', sessionToken: 'session-token-EXAMPLE' };
 

@@ -21,9 +21,7 @@ describe('JsonSlot — 파싱 메모', () => {
         const second = slot.read();
 
         expect(first).toEqual({ a: 1 });
-        // Same object reference = proof the second read didn't parse again
         expect(second).toBe(first);
-        // Storage is still read every time, though — the memo must not become observable
         expect(get).toHaveBeenCalledTimes(2);
     });
 
@@ -33,7 +31,6 @@ describe('JsonSlot — 파싱 메모', () => {
         slot.write({ a: 1 });
         expect(slot.read()).toEqual({ a: 1 });
 
-        // Simulates something outside this package overwriting the same key
         map.set('k', JSON.stringify({ a: 2 }));
 
         expect(slot.read()).toEqual({ a: 2 });
@@ -48,7 +45,6 @@ describe('JsonSlot — 파싱 메모', () => {
         map.delete('k');
         expect(slot.read()).toBeNull();
 
-        // If the same value comes back, it's parsed fresh (the discarded memo isn't revived)
         map.set('k', JSON.stringify({ a: 1 }));
         expect(slot.read()).toEqual({ a: 1 });
     });

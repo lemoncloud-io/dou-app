@@ -32,7 +32,6 @@ const backend = { start: jest.fn(), stop: jest.fn() };
 
 const page = (fetchedCount: number) => ({ fetchedCount, latestNo: fetchedCount, total: fetchedCount });
 
-/** A refreshList whose answer the test releases, so callers can arrive while it is in flight. */
 const deferredRefresh = () => {
     let resolve!: (value: ReturnType<typeof page>) => void;
     let reject!: (error: Error) => void;
@@ -183,7 +182,6 @@ describe('fetchRoomFeed', () => {
         const first = beginSync();
         const { resolve } = deferredRefresh();
         const pending = fetchRoomFeed('cloud-a', 'ch-1', { cache: 'hit' });
-        // The second tap begins a new trace before the first fetch has answered.
         const second = beginSync();
 
         const joined = fetchRoomFeed('cloud-a', 'ch-1', { cache: 'hit' });
@@ -193,7 +191,6 @@ describe('fetchRoomFeed', () => {
         expect(mockRefreshList).toHaveBeenCalledTimes(1);
         expect(second.hasMetric('feed_sent')).toBe(true);
         expect(second.hasMetric('feed_received')).toBe(true);
-        // An empty page ends both, the way the first fetch's own trace ends.
         expect(backend.stop.mock.calls.map(([record]) => record.id)).toEqual(
             expect.arrayContaining([first.id, second.id])
         );
@@ -271,7 +268,6 @@ describe('prefetchRoomFeed', () => {
     });
 
     it('sends the request without waiting for the cache read', async () => {
-        // A read that never answers must not hold the request back.
         mockCacheReadList.mockReturnValue(new Promise(() => undefined));
 
         await prefetchRoomFeed('cloud-a', 'ch-1');

@@ -1,9 +1,3 @@
-/**
- * The per-cloud reads the cloud store answers for a socket that serves a cloud other than the
- * committed one: the margin-blind cache peek, the "which token does this cloud sign with" read, and
- * the identity map that outlives the tokens. `writeSignals.test.ts` covers what each write announces;
- * this file covers what the reads return. Same shape: the real singleton over a fake storage.
- */
 import { cloudStore } from './cloudStore';
 
 jest.mock('./signal', () => ({
@@ -11,9 +5,7 @@ jest.mock('./signal', () => ({
 }));
 
 const mockCells = new Map<string, string>();
-/** Every key written, in order — for the cases that care whether a write happened at all. */
 const mockSets: string[] = [];
-// Both ports share one fake: which port a key lands in is `ports.test.ts`'s subject, not this file's.
 jest.mock('./ports', () => {
     const port = {
         get: (key: string) => mockCells.get(key) ?? null,
@@ -30,7 +22,6 @@ jest.mock('./ports', () => {
 
 const inMs = (ms: number) => new Date(Date.now() + ms).toISOString();
 
-/** An identity token whose `exp` is `expiresInMs` from now — the clock the cache reads. */
 const identityJwt = (label: string, expiresInMs: number) => {
     const payload = Buffer.from(JSON.stringify({ label, exp: Math.floor((Date.now() + expiresInMs) / 1000) }))
         .toString('base64')
@@ -53,13 +44,11 @@ beforeEach(() => {
 
 describe('cloudStore — the token cache, peeked vs. served', () => {
     it('peekCachedCloudTokens returns an entry the margin-checked read would drop, and drops nothing', () => {
-        // 30s left on the identity token: inside the 60s margin, so `getCachedCloudTokens` refuses it.
         const nearlyOut = identityJwt('nearly-out', 30_000);
         cloudStore.setCachedCloudTokens('cloud-1', tokens(nearlyOut, 30_000));
 
         expect(cloudStore.peekCachedCloudTokens('cloud-1')?.cloudToken.Token?.identityToken).toBe(nearlyOut);
         expect(cloudStore.getCachedCloudTokens('cloud-1')).toBeNull();
-        // The served read deleted it; the peek before it did not.
         expect(cloudStore.peekCachedCloudTokens('cloud-1')).toBeNull();
     });
 
@@ -203,8 +192,6 @@ describe('cloudStore — cloud identities', () => {
 
 describe("cloudStore — leaving the committed cloud keeps every cloud's cached tokens", () => {
     it('clearSession leaves the per-cloud cache in place', () => {
-        // The clouds other than the committed one keep background socket sessions that sign from
-        // this cache; clearing it on leaving one cloud would strand every one of them.
         cloudStore.setCachedCloudTokens('cloud-1', tokens('one'));
         cloudStore.setCachedCloudTokens('cloud-2', tokens('two'));
 

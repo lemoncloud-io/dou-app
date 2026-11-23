@@ -17,18 +17,10 @@ export interface HttpRequestOptions<TBody = unknown, TParams = Record<string, un
     baseURL: string;
     body?: TBody;
     params?: TParams;
-    /**
-     * Set when the 200 body is a domain RECORD whose own `error` field is DATA, not a failed call.
-     *
-     * A cloud row keeps its last provisioning trace in `error` (`.accountNo[...] is invalid
-     * (duplicated by 1000038)`) even after `status` moves on, so endpoints that answer with the
-     * record — `POST /clouds/{id}/release` — would otherwise report a plain success as a failure.
-     */
     allowRecordError?: boolean;
     bypass?: BypassRule[];
 }
 
-/** Throws a standard Error when the API response contains an `error` field. */
 export const throwIfApiError = <T>(data: T & { error?: string }): T => {
     if (data.error) throw new Error(data.error);
     return data;
@@ -52,26 +44,10 @@ export interface HttpClient {
     executeSignedRelayRequest<TResponse, TBody = unknown, TParams = Record<string, unknown>>(
         req: HttpRequestOptions<TBody, TParams>
     ): Promise<TResponse>;
-    /**
-     * Default host for a route, for callers that build their own `baseURL` string (gateways —
-     * see libs/data/docs/remote/README.md). A passthrough to `HttpRuntimePorts.resolveEndpoint`;
-     * added in stage 2 to close a gap stage 1 left open (`resolveEndpoint` existed on the port but
-     * nothing in `client.ts` called it yet).
-     */
     resolveEndpoint(route: HttpRoute): string;
 }
 
-/**
- * The request executors, wired to the injected request surface and `HttpRuntimePorts` (endpoints,
- * logging, credential staleness/recovery, auth-failure reaction). Constructed only by
- * `createHttpClient` below — consumers hold the `HttpClient` interface, never this class
- * (ADR-0070 decision 0).
- *
- * Two executors, not three: the SigV4 one served the cloud HTTP refresh alone and went with it.
- * A request bound for a cloud host is signed the relay way and carries its own `baseURL`.
- */
 class HttpClientImpl implements HttpClient {
-    /** Route + signedness per entry point, as constants: the pair is fixed by which method you call. */
     private static readonly RELAY_UNSIGNED: SigningContext = { route: 'relay', signed: false };
     private static readonly RELAY_SIGNED: SigningContext = { route: 'relay', signed: true };
 
@@ -104,18 +80,6 @@ class HttpClientImpl implements HttpClient {
         return this.ports.resolveEndpoint(route);
     }
 
-    /**
-     * Runs the request, and when a lapsed credential explains a failure, re-mints it and sends the
-     * request ONCE more.
-     *
-     * **Why replaying is safe for this failure only.** The rejection being recovered from happens at
-     * API Gateway's IAM layer — the signature is refused before any handler runs, so the request
-     * provably had no effect. That is what makes replaying a POST acceptable here, and why the retry
-     * is gated on the stale-credential verdict rather than on the HTTP method or an idempotency flag.
-     *
-     * **Why exactly once.** A second failure after a successful re-mint means the credential was not
-     * the problem; retrying again would only loop on a request that cannot succeed.
-     */
     private async run<TResponse, TBody, TParams>(
         req: HttpRequestOptions<TBody, TParams>,
         executor: Executor,
@@ -133,27 +97,12 @@ class HttpClientImpl implements HttpClient {
         }
     }
 
-    /**
-     * Tells the app that the SERVER has refused this session — the one auth verdict in the stack
-     * that is a fact rather than an inference.
-     *
-     * Reported from here, and only after the recovery branch above has been decided, because those
-     * two facts are what make it trustworthy: a lapsed AWS credential classifies as
-     * `shouldLogout: false` and is re-minted and replayed instead (an hour-old tab is not a dead
-     * session), so what reaches this line is an `INVALID_TOKEN` / expired-signature / 403 refusal
-     * that survived whatever recovery was available.
-     *
-     * The port was wired in `HttpRuntimePorts` from the start but nothing ever called it: its only
-     * caller was `withRetry`, which lost its last production caller and is not even exported. So
-     * the runtime had a fact-based logout path on paper and, in practice, only its guards' guesses.
-     */
     private reportAuthFailure(error: unknown, req: HttpRequestOptions<unknown, unknown>): void {
         const classification = classifyError(error);
         if (!classification.shouldLogout) return;
         this.ports.onAuthFailure?.(error, `${req.method} ${req.baseURL} - ${classification.message}`);
     }
 
-    /** One attempt: sign, send, log, and unwrap the 200-body `error` convention. */
     private async execute<TResponse, TBody, TParams>(
         req: HttpRequestOptions<TBody, TParams>,
         executor: Executor,
@@ -169,8 +118,6 @@ class HttpClientImpl implements HttpClient {
                 body: req.body,
                 allowRecordError: req.allowRecordError,
             },
-            // Attribution runs INSIDE the logged call so the error `withNetworkLog` records is
-            // already stamped, and any future log field can read the verdict off it.
             () =>
                 executor
                     .execute<TResponse & { error?: string }>({
@@ -189,9 +136,5 @@ class HttpClientImpl implements HttpClient {
     }
 }
 
-/**
- * Assembles the client. `HttpManager` (@chatic/runtime) is the only intended caller — it owns the port
- * implementations, this owns the request mechanics.
- */
 export const createHttpClient = (requestSurface: RequestSurface, ports: HttpRuntimePorts): HttpClient =>
     new HttpClientImpl(requestSurface, ports);

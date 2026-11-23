@@ -40,7 +40,6 @@ describe('startBackgroundReceive / refreshBackgroundClouds', () => {
     });
 
     it('a second start replaces the first, and the first stop does not take the second down', () => {
-        // StrictMode runs an effect, its cleanup and the effect again; a remount can interleave the same way.
         const stopFirst = startBackgroundReceive();
         const stopSecond = startBackgroundReceive();
         expect(mockInstances[0].destroy).toHaveBeenCalledTimes(1);

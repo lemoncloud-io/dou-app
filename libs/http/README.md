@@ -219,6 +219,70 @@ libs/http/src/
 - `RequestSigningPorts`, `RequestTransport` and `TransportRequestBuilder` all live in
   `transport/requestTransport.ts`; `SigningCredential` lives in `signing/sigV4.ts`.
 
+## Constraints worth knowing
+
+- **A body-less command still sends `{}`.** The signer signs a missing body as `{}`, so a `DELETE`
+  (mini app delete) sent with no body fails the gateway's signature check, and the refusal reaches a
+  browser without CORS headers, so it looks like a bare network error. The relay gateway also refuses a
+  `POST` with no body at all, so the `/pairings` commands send an empty object too.
+- **An error carrying a record is opt-in.** The default stays "an `error` in a 200 body is a failure";
+  only a caller that passes `allowRecordError` gets the body untouched. `POST /clouds/{id}/release`
+  does, because the response is the record and a cloud that failed provisioning keeps its trace in its
+  own `error` field. `POST /clouds/{id}/workspace` does not: a failed slot request comes back as a
+  record carrying `error` and is rejected like any other API error, since the caller has nothing to
+  read from a failed retry.
+- **A signature failure with no status is not retried and not a logout.** A server-side "signature
+  verification" failure arrives as a plain `Error` with no HTTP status, so it is judged from the
+  message. Re-signing the same material fails the same way, so retry is cut off, but the session is
+  not torn down: if the socket's refresh renews the material the state is recoverable. A 403 that does
+  carry a status keeps the logout policy. A client-side timeout (`TIMEOUT:` prefix) is a different case.
+- **Recovery never replaces the original failure.** If re-minting the credential throws, that is a
+  failed recovery, and the caller still gets the request's own error; swapping it would hide why their
+  call failed behind a detail of the refresh path.
+- **The stale stamp is invisible and best effort.** It lives under a non-enumerable key so it never
+  reaches a JSON-serialised report or a log field, and stamping a non-object throw (a string, `null`)
+  is a silent no-op, because failing to annotate must never replace the original failure.
+- **The network log stays small and readable.** Successful entries carry no response body (they are
+  bulk, and every entry is now a candidate for upload); failures keep theirs. The status or transport
+  code is put in the message itself, because a breadcrumb line is read without expanding fields and
+  "failed" alone does not say whether the server refused the call or it never left.
+- **`api_request` statistics are templated and capped.** `endpointTemplateOf` keeps the path only and
+  replaces id segments (numbers, `0` included, UUIDs, prefixed ids such as `U:1002053`, long opaque
+  tokens) with `:id`; the host is left out because cloud backends each have their own and one group per
+  cloud would split the statistic. `apiBackendOf` says `relay` or `cloud` instead, so the same path on
+  the relay and on a cloud backend stay apart; a cloud backend that shares the relay's host reads
+  `relay`, and the OAuth and in-app-purchase hosts get no `backend`. `createPerMinuteCap` is a fixed
+  one-minute window that keeps the first requests, so run start and foreground return are
+  over-represented; read the statistic with that in mind. Attribute values are cut at 100 characters.
+- **Admin calls may name another stage's relay; the app's own never do.** Only the admin gateways
+  take `options.endpoint`, so the console can compare stages. A call the app makes about its own
+  account must not leave the relay it authenticated against, which is why the override is per call and
+  not a client mode.
+- **Subscription and membership rules the gateway pins.** `memberships/0/drops` takes the final set of
+  clouds to drop, not a delta: a cloud left out has its mark cleared and an empty list clears all, and
+  the relay answers 403 when a listed cloud is not the caller's. The admin cloud list is a separate
+  gateway method from `CloudHttpGateway.list` (which pins `view: 'mine'`), sets `valid: 0` to override
+  a server default that hides expired clouds, and filters by `ownerId`; the relay reads `userId` only
+  in its `mine` branch, so an admin list filtered by it would return everyone. The admin refund is a
+  full refund of the last paid charge with immediate expiry, no partial and no undo; the relay answers
+  409 when there is nothing paid to refund and refuses an empty `reason` with 400. A card the company
+  declines on `start` answers 403 `INVALID PAYMENT` with nothing saved.
+- **`?sandbox` is a per-call development tool.** On a payer-scoped call it sends the request to the
+  payment server's mock provider (any card accepted, nothing charged, the subscription marked mock),
+  and the relay does not refuse it on production, so a caller sends it only where it means to. Card
+  calls read it per call, not from a record, so every card call of a sandboxed payer needs it; `start`
+  also takes `interval` (`10m`, `1h`, `1d`), read only together with `sandbox`.
+- **Mini app list limits.** A cloud holds at most 10 mini apps, which is also the relay's default page
+  size, so `page` and `limit` are not sent. Two adds racing past the cap can leave 11 and the eleventh
+  is not listed; that is a relay limit and is left as it is. Mini app and cloud update bodies for an
+  owner are limited by the relay (an owner may change `miniAppUrl` alone), and `POST /clouds/0/make`
+  pins `auto: 1` because the default `auto=0` would create the record without enqueueing provisioning.
+- **Log upload address is read per call.** A deep link (`?_backend=`) can point the session at another
+  relay after the gateway is built, and its logs must follow it to that relay's archive stage, so the
+  configured archive address is empty while the relay is replaced and the address is derived from
+  the live relay. A configured archive belongs to the build's relay, and a dev session's logs must not
+  land in prod.
+
 ## Usage
 
 Consumers do not call `HttpClient` directly. **The entry point is a gateway**, which owns the path,

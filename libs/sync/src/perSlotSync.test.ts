@@ -1,19 +1,9 @@
-/**
- * Per-slot sync, end to end through the real manager and the real plans: a target belongs to one
- * cloud, runs on that cloud's slot runtime whatever is selected or active, and writes only into that
- * cloud's scoped graph.
- *
- * Faked: the socket slots (a slot notification is all the manager subscribes to), the device runtime
- * (it records the plans it was given and the targets it was asked to run), and the data runtime
- * (one spy graph per cloud). Everything between those is the production code.
- */
 import type { ClientSocketRuntime, ClientSocketV2, DomainSyncPlan } from '@lemoncloud/chatic-sockets-lib';
 
 import { SyncManager } from './SyncManager';
 import type { ISocketManager, SlotKey, SocketSlotClientListener } from '@chatic/transport/socket/types';
 import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
-/** One spy graph per cloud, as `getScopedRepositories(cid)` hands them out. */
 const mockGraphs = new Map<string, { channel: { cacheWrite: jest.Mock; cacheDelete: jest.Mock } }>();
 const mockUids: Record<string, string> = { default: 'relay-uid', 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
 jest.mock('./dataGraph', () => ({
@@ -74,7 +64,6 @@ describe('per-slot sync — a target stays with the cloud it belongs to', () => 
             getSessionUid: () => mockUids[selected] ?? null,
             getCid: () => selected,
             subscribeSession: () => () => undefined,
-            // The real plans, built for the slot the runtime is being created for.
             buildSyncPlans: slot => {
                 bindingSlot = slot;
                 return jest.requireActual('./plans').createSyncPlans(slot);
@@ -112,7 +101,6 @@ describe('per-slot sync — a target stays with the cloud it belongs to', () => 
         expect(latest(CLOUD_B).runtime.startSync).not.toHaveBeenCalled();
         expect(latest(RELAY_SLOT).runtime.startSync).not.toHaveBeenCalled();
 
-        // A frame from A's scheduler lands in A's partition, stamped with A.
         channelOnUpdate(latest(CLOUD_A).plans)({ type: 'channel', id: '1000001' }, { id: '1000001', name: 'a room' });
 
         expect(mockGraphs.get('cloud-a')?.channel.cacheWrite).toHaveBeenCalledWith(
@@ -127,7 +115,6 @@ describe('per-slot sync — a target stays with the cloud it belongs to', () => 
         syncManager.register({ type: 'channel', id: '1000001' }, { cid: 'cloud-a' });
         const aRuntime = latest(CLOUD_A).runtime;
 
-        // Switch to B: its slot binds, the selection follows. Then back: B goes, A is selected again.
         bind(CLOUD_B, 'cloud-b');
         selected = 'cloud-b';
         slotListener(CLOUD_B, null);
@@ -150,7 +137,6 @@ describe('per-slot sync — a target stays with the cloud it belongs to', () => 
         expect(latest(CLOUD_A).runtime.startSync).toHaveBeenCalledWith({ type: 'place', id: '10014' });
     });
 
-    // Ids are only unique inside a cloud: A's and B's channel 1000001 are two different rooms.
     it("gives A's and B's same-id channel their own targets, each writing its own partition", () => {
         bind(CLOUD_A, 'cloud-a');
         bind(CLOUD_B, 'cloud-b');

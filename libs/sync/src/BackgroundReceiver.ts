@@ -17,44 +17,23 @@ import type {
     BackgroundReceiveTrigger,
 } from './types';
 
-/** The push that says a cloud has something new. The payload is the message itself; only its arrival matters here. */
 const CHAT_PUSH_TYPE = 'chat.sync';
 
-/** One bound slot's loop. It exists for as long as the slot is bound, and receives only while the slot is not active. */
 interface ReceiveLoop {
     key: SlotKey;
     receiving: boolean;
     verified: boolean;
     timer: ReturnType<typeof setInterval> | null;
     debounce: ReturnType<typeof setTimeout> | null;
-    /** The run in flight, if any. A trigger that lands meanwhile sets `again` instead of starting a second one. */
     running: Promise<void> | null;
-    /** What the next run is for, once the one in flight is done — null for no next run. */
     again: BackgroundReceiveTrigger | null;
-    /** What the pending debounce will ask for. */
     scheduled: BackgroundReceiveTrigger | null;
-    /** When the last delta was answered — 0 until one is. */
     receivedAt: number;
     placeRefreshedAt: number;
     failing: boolean;
     unsubscribes: Array<() => void>;
 }
 
-/**
- * Keeps the lists of every cloud the user is not looking at current: its rooms, their last messages,
- * and the read positions unread counts are computed from.
- *
- * Every bound slot that is not the active one gets a loop — the background clouds, and the relay
- * while a cloud is on screen. A loop does one thing: it asks its own server for `channel.sync` since
- * its cursor, through that cloud's scoped repository graph, so the rows and the cursor land in that
- * cloud's partition. The active slot has no loop running: the app's own background sync and the
- * screens' targets already keep it current, and they read the same cursor (`channel-sync:<cid>` in
- * the cloud's own partition) — so a cloud entered from the background continues from where its loop
- * stopped instead of pulling its list again.
- *
- * Per-room chat bodies are not received here. A room is read when it is opened, and opening it makes
- * its cloud the active one.
- */
 export class BackgroundReceiver {
     private readonly loops = new Map<SlotKey, ReceiveLoop>();
     private readonly getRepositories: (cid: string) => BackgroundReceiveRepositories;
@@ -80,8 +59,6 @@ export class BackgroundReceiver {
         this.placeRefreshMs = deps.placeRefreshMs ?? BACKGROUND_PLACE_REFRESH_MS;
         this.onDelta = deps.onDelta ?? emitBackgroundDelta;
 
-        // A slot is announced before the active pointer moves onto it, so a loop exists by the time
-        // the active notification below pauses it.
         this.unsubscribeSlots = this.manager.subscribeSlotClients((key, client) => {
             if (client) this.attach(key);
             else this.detach(key);
@@ -89,13 +66,6 @@ export class BackgroundReceiver {
         this.unsubscribeActive = this.manager.subscribeClient(() => this.reconcileActive());
     }
 
-    /**
-     * Asks every background cloud whose socket is verified for its delta now — for the app's
-     * foreground return, when timers were frozen and pushes may have been missed. Given `cid`, asks
-     * that cloud only: a push named it, and the others have nothing new to say. That ask goes through
-     * the push debounce, so a burst of pushes is one request, and it re-reads the place list too (see
-     * `receive`).
-     */
     public receiveNow(cid?: string): void {
         for (const loop of this.loops.values()) {
             if (cid !== undefined && loop.key !== cid) continue;
@@ -113,8 +83,6 @@ export class BackgroundReceiver {
     }
 
     private attach(key: SlotKey): void {
-        // A new client for a key is a new connection, and the manager announces the old one's
-        // teardown first — so this replaces a loop only if that announcement never came.
         this.detach(key);
         const loop: ReceiveLoop = {
             key,
@@ -150,11 +118,6 @@ export class BackgroundReceiver {
         this.loops.delete(key);
     }
 
-    /**
-     * Whether `loop` is still the one for its slot. A run outlives its loop when the slot is rebuilt
-     * or torn down mid-request; past that point it must not ask again — its next request would go out
-     * on the new connection beside the new loop's own — nor move the cursor.
-     */
     private isLive(loop: ReceiveLoop): boolean {
         return !this.destroyed && this.loops.get(loop.key) === loop;
     }
@@ -171,16 +134,12 @@ export class BackgroundReceiver {
         if (loop.receiving === receiving) return;
         loop.receiving = receiving;
         if (!receiving) {
-            // A run already in flight finishes: it writes into its own cloud's partition, which is
-            // the partition the app's sync now reads too, so there is nothing to protect by cutting it.
             if (loop.timer) clearInterval(loop.timer);
             if (loop.debounce) clearTimeout(loop.debounce);
             loop.timer = null;
             loop.debounce = null;
             loop.scheduled = null;
             loop.again = null;
-            // From here the app keeps this cloud current, so when the user leaves it again the clock
-            // starts from now: its list and places are as fresh as the app's last delta left them.
             const now = this.now();
             loop.receivedAt = now;
             loop.placeRefreshedAt = now;
@@ -190,11 +149,6 @@ export class BackgroundReceiver {
             if (loop.verified) this.request(loop, 'interval');
         }, this.intervalMs);
         unrefTimer(loop.timer);
-        // A cloud that just left the screen was kept current by the app until now (see above), so it
-        // waits for its tick. One never on screen since its slot bound — the relay a cloud boots over,
-        // say — has not been asked for a full interval and asks soon instead. Soon, not now: the binder moves the pointer off a cloud and tears down
-        // a slot it does not keep in one pass, and a request sent in between would go out on a socket
-        // that is closing. The teardown clears the timer.
         if (loop.verified && this.now() - loop.receivedAt >= this.intervalMs) this.schedule(loop, 'resume');
     }
 
@@ -204,7 +158,6 @@ export class BackgroundReceiver {
         this.schedule(loop, 'push');
     }
 
-    /** Asks after the debounce, restarting it — a burst of triggers is one request. */
     private schedule(loop: ReceiveLoop, trigger: BackgroundReceiveTrigger): void {
         if (loop.debounce) clearTimeout(loop.debounce);
         loop.scheduled = merged(loop.scheduled, trigger);
@@ -217,7 +170,6 @@ export class BackgroundReceiver {
         unrefTimer(loop.debounce);
     }
 
-    /** Starts a run, or — when one is in flight — asks it to go once more when it is done. */
     private request(loop: ReceiveLoop, trigger: BackgroundReceiveTrigger): void {
         if (loop.running) {
             loop.again = merged(loop.again, trigger);
@@ -238,20 +190,11 @@ export class BackgroundReceiver {
     private async receive(loop: ReceiveLoop, trigger: BackgroundReceiveTrigger): Promise<void> {
         const cid = loop.key;
         const kind = `channel-sync:${cid}`;
-        // Taken before the first await, so it is no later than the moment the request goes out.
         const requestedAt = this.now();
-        // Everything is inside the try, the synchronous lookups too: the run is fire-and-forget, so
-        // a throw that escaped here would surface as an unhandled rejection instead of a warning.
         try {
-            // No uid in that cloud means no partition to write into — the account's identity there
-            // has not been issued yet, or was dropped.
             const uid = this.getUid(cid);
             if (!uid) return;
             const repositories = this.getRepositories(cid);
-            // A kick is asked for by someone waiting on this answer — a push mark, which comes off
-            // when it is announced — so its place list is read now and awaited, not left to its
-            // ten-minute turn: a room in a place the cache has not learned yet is filtered out of
-            // every list and count, and the mark would come off with the message nowhere on screen.
             const places =
                 trigger === 'kick'
                     ? this.readPlaces(loop, repositories)
@@ -259,15 +202,8 @@ export class BackgroundReceiver {
             const since = await repositories.syncMeta.getSyncedAt(kind);
             if (!this.isLive(loop)) return;
             const { syncedAt, removedCount } = await repositories.channel.syncChannels(since);
-            // The cursor belongs to the account that asked, and to the loop that asked. If either
-            // changed while the answer was on its way, the cursor is left alone and the next run —
-            // the new loop's, if it was this one's slot that went — asks again.
             if (this.isLive(loop) && this.getUid(cid) === uid) {
                 await repositories.syncMeta.setSyncedAt(kind, syncedAt);
-                // Announced under the same condition as the cursor: an answer for an account that is
-                // no longer the one in this cloud says nothing about what that cloud's cache holds.
-                // A kick whose place read failed is not announced either — the rows are in, but a
-                // list filtered by stale places may not show them.
                 const placesRead = places ? await places : true;
                 if (placesRead && this.isLive(loop)) this.onDelta({ cid, requestedAt });
             }
@@ -280,8 +216,6 @@ export class BackgroundReceiver {
                 data: { cid, trigger, since, syncedAt, removedCount },
             });
         } catch (error) {
-            // The cursor stays put, so the next run asks from the same point. Reported once per
-            // streak: at one request a minute, a cloud that is down would otherwise log forever.
             if (!loop.failing) {
                 loop.failing = true;
                 logger.warn('SYNC', '[BackgroundReceiver] delta failed', { error, data: { cid, trigger } });
@@ -289,16 +223,11 @@ export class BackgroundReceiver {
         }
     }
 
-    /**
-     * Re-reads the place list when it is due. Beside the delta, not ahead of it: the rooms do not wait
-     * for their places, and a failure — thrown or rejected — is retried on the next delta.
-     */
     private refreshPlaces(loop: ReceiveLoop, repositories: BackgroundReceiveRepositories): void {
         if (this.now() - loop.placeRefreshedAt < this.placeRefreshMs) return;
         void this.readPlaces(loop, repositories);
     }
 
-    /** Re-reads the place list now, answering whether it succeeded. Never rejects. */
     private readPlaces(loop: ReceiveLoop, repositories: BackgroundReceiveRepositories): Promise<boolean> {
         loop.placeRefreshedAt = this.now();
         return Promise.resolve()
@@ -312,10 +241,6 @@ export class BackgroundReceiver {
     }
 }
 
-/**
- * The trigger a folded request runs as. A kick wins: it is the one that also reads places and that a
- * caller is waiting to hear answered, and folding it into a plain tick must not lose either.
- */
 const merged = (
     pending: BackgroundReceiveTrigger | null,
     incoming: BackgroundReceiveTrigger

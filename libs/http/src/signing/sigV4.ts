@@ -2,40 +2,19 @@ import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 
-/**
- * The AWS SigV4 signature the relay's API Gateway (IAM auth) accepts, computed exactly as
- * lemon-web-core 1.5's vendored `sigV4Client` computed it.
- *
- * **Why a port and not a library.** That client is not a textbook SigV4: it signs `Accept` and
- * `Content-Type` alongside `host` and `x-amz-date`, hashes the body as `JSON.stringify` of whatever
- * the caller passed (`{}` for a request without one, except GET), and encodes the query and the path
- * with rules of its own. The gateway has been accepting exactly those bytes for years; a different
- * but correct signer would still disagree on a header set or an escape and every request would come
- * back as a bare network failure (the 403 carries no CORS header). So its output is kept byte for
- * byte, and `sigV4.spec.ts` pins it against signatures produced by lemon-web-core itself.
- *
- * Hashing is `@noble/hashes`, synchronous and pure JS: Web Crypto is only available in a secure
- * context, which a development build on an Android emulator (`http://10.0.2.2`) is not.
- */
-
 export interface SigningCredential {
     accessKey: string;
     secretKey: string;
-    /** Sent as `x-amz-security-token` when present. */
     sessionToken?: string;
 }
 
 export interface SignInput {
     credential: SigningCredential;
     region: string;
-    /** The full request URL without its query: scheme, host and path. */
     endpoint: string;
     method: string;
-    /** Signed as the canonical query string. */
     params?: Record<string, unknown>;
-    /** Signed as `JSON.stringify(body)` (a string as is); ignored for GET. */
     body?: unknown;
-    /** The signing instant. Defaults to now; tests pin it. */
     now?: Date;
 }
 
@@ -50,7 +29,6 @@ const hashHex = (value: string): string => bytesToHex(sha256(utf8ToBytes(value))
 const hmacBytes = (key: string | Uint8Array, value: string): Uint8Array =>
     hmac(sha256, toBytes(key), utf8ToBytes(value));
 
-/** The path encoding lemon's client used: RFC 3986 unreserved kept, `/` kept, `*!()` forced. */
 const uriEncode = (input: string): string => {
     let result = '';
     for (const ch of input) {
@@ -66,7 +44,6 @@ const uriEncode = (input: string): string => {
     return result;
 };
 
-/** The query value encoding lemon's client used. */
 const urlencode = (value: unknown): string =>
     encodeURIComponent(value as string)
         .replace(/!/g, '%21')
@@ -94,7 +71,6 @@ const signedHeaderNames = (headers: Record<string, string>): string =>
         .sort()
         .join(';');
 
-/** `20261110T030405Z` — ISO 8601 basic, seconds precision. */
 const amzDate = (now: Date): string =>
     now
         .toISOString()
@@ -106,11 +82,6 @@ const hostOf = (url: string): string => {
     return host.split(':')[0].split('?')[0];
 };
 
-/**
- * The headers to send with the request: `Accept`, `Content-Type`, `x-amz-date`, `Authorization` and,
- * with a session token, `x-amz-security-token`. The request itself still carries its own query and
- * body; only the signature is computed here.
- */
 export const signRequest = ({
     credential,
     region,
@@ -126,8 +97,6 @@ export const signRequest = ({
     const query = params ?? {};
 
     const headers: Record<string, string> = { 'Content-Type': DEFAULT_TYPE, Accept: DEFAULT_TYPE };
-    // lemon's request builder handed the signer `body || {}`, so a missing (or falsy) body signs as `{}`
-    // — except for GET, where the signer itself blanks it.
     const given = body || {};
     const payload =
         verb === 'GET' ? '' : typeof given === 'object' && given !== null ? JSON.stringify(given) : String(given);

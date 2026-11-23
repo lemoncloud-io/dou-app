@@ -3,10 +3,6 @@ import { createHttpClient } from './client';
 import type { RequestBuilder, RequestSurface } from './adapters/requestExecutor';
 import type { HttpRuntimePorts } from './ports';
 
-// The 200-body `error` convention vs a record's own `error` column. Every relay call funnels
-// through the client, so the opt-out has to be exactly opt-in: default stays "reject", and only a
-// caller that declares `allowRecordError` gets the body handed back untouched.
-
 const execute = jest.fn();
 const builder: RequestBuilder = {
     setBody: jest.fn(() => builder),
@@ -14,15 +10,11 @@ const builder: RequestBuilder = {
     execute,
 };
 
-// `jest.Mocked<T>` pins each mock's ARGUMENT tuple to the interface's, so a zero-arg implementation
-// does not satisfy it — the mock has to declare the config it ignores.
 const lemonSurface: jest.Mocked<RequestSurface> = {
     buildRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
     buildSignedRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
 };
 
-// `resolveEndpoint` is the only required port. There is no `getCredential`/`getIdentityToken` here:
-// signing happens inside the lemon builder, so the client never reads credential material itself.
 const ports: HttpRuntimePorts = {
     resolveEndpoint: () => 'https://api.test',
 };
