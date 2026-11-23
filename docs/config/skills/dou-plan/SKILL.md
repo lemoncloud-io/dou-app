@@ -11,8 +11,7 @@ description: >-
 
 No code before the person agrees to the plan. The plan is an HTML artifact, not a file in the repo.
 
-1. **Read first.** The `README.md` and `docs/` of every module the change touches, and the exemplar for the
-   pattern you will write (AGENTS.md § Copy these). Copy the exemplar's shape; do not invent a new one.
+1. **Read first**: the touched modules' `README.md`/`docs/` and the pattern's exemplar (AGENTS.md); copy its shape.
 2. **State three things**, each in a sentence or a short list:
     - **Scope** — what changes, by path.
     - **Non-goals** — what is deliberately left alone, and why.
@@ -20,12 +19,13 @@ No code before the person agrees to the plan. The plan is an HTML artifact, not 
       will show. "Tests pass" is not a verification choice; name the scenario, the fault or the invariant.
 3. **Draw the target structure**: files or modules before and after, and the data or message flow that changes.
    A mermaid diagram in the page is enough.
-4. **Place every step** with the columns in [`references/placement.md`](./references/placement.md): where it
-   runs, model, effort, cache impact. Independent steps that touch disjoint files can go to subagents or
-   sessions; two writers never share a file, subagents never stage, commit or stash, and the gate re-runs after
-   their work is integrated.
+4. **Place every step** ([`references/placement.md`](./references/placement.md)): where, model, effort, cache impact.
+   Disjoint files may go to subagents; they never stage, commit or stash; re-run the gate after integrating.
 5. **A decision needs an ADR.** Write its `Alternatives` now, while the options are still in your head.
 6. **Publish and ask.** One HTML page ([`references/plan-page.md`](./references/plan-page.md)), then one
-   question: go ahead, or change what. Unclear terse answers get restated before you build.
+   question: go ahead, or change what. Record its URL: every implementation brief and subagent gets it, and
+   `dou-verify` checks the result against it.
+
+Values words cannot pin down (colour, easing, spacing, priority): a live editor ([`tuning-editor.md`](./references/tuning-editor.md)).
 
 Skip the page for a bug fix with its test that needs no decision; still say the verification choice.

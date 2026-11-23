@@ -8,6 +8,10 @@ Category is the area in PascalCase (`Data` `Mobile` `Build` `Config` `Push` `Cha
 
 ## Body
 
+Short and self-contained: teammates cannot open a private artifact, so the body states the why, the change and
+the evidence on its own, and links the HTML plan and verification report for the detail (anything over ~100
+lines lives there).
+
 Fill `.github/pull_request_template.md` in English; never the generic Summary / Test plan shape.
 
 - **PR Types**: what honestly applies; several is normal.
