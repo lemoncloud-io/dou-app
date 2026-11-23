@@ -172,6 +172,44 @@ covers withdrawn and suspended accounts, for which verifying resolves to the sam
 again. After a successful verification the sheet just closes: the form's input is still there and
 the user presses the CTA again. Nothing is auto-resubmitted, which would run on a stale closure.
 
+### Auto-submit and the dev bypass
+
+The code field submits by itself once all digits are in. The effect is keyed on the code's **value**, not
+on an "is it complete" flag, so pasting a corrected code over a full one still submits. The re-entry guard
+is a ref holding the last submitted code, not `loadingState`: a tap landing on the last typed digit would
+otherwise race the state update and spend two of the five attempts on one code. The step it fires depends
+on the mode: `login` commits there, `link` only asks `verify` whether committing is allowed and leaves the
+commit to the CTA, so a person who taps before the auto-submit lands still gets the `linkable` answer
+instead of a bare 409 or 403. The development bypass code follows the same two-step shape and is
+written into the field so the screen shows what was submitted; it needs a code to have been requested
+first, because the server proves against an outstanding verification, not against nothing.
+
+### The full-screen shell's layout constraints
+
+`PhoneVerifyScreen` renders inside the notice-variant `DialogContent`, which is a `grid`. Four overrides
+keep it a real full-screen surface, and each is invisible at 375 px, the width most desks test at, and
+only bites on a narrower phone or once the soft keyboard is up:
+
+- `grid-rows-[minmax(0,1fr)]`: an auto grid row grows to its item's max-content, so without it the
+  column ignores the dialog's height, the footer is pushed past the bottom edge and the body never
+  becomes scrollable.
+- `max-w-app` and `max-h-none`: the variant sizes itself to one card width and a viewport cap, right for a
+  confirm box and wrong for a screen (without them the flow renders as a 311 px strip). `top-[50%]` keeps
+  it still when the keyboard rises; a screen handles the keyboard itself.
+- `min-w-0` on the column: a grid item will not shrink below its min-content, which the phone row sets at
+  332 px (a `shrink-0` country trigger, an `<input>` with a 20-character intrinsic size and a `nowrap`
+  action). Narrower than that it overflowed, and the dialog's `-translate-x-1/2` centring spilled it out of
+  both edges (44 px at 320, 4 px at 360).
+- `min-h-0` on the body: a `flex-1` item will not shrink below its content without it, so `overflow-y-auto`
+  never had anything to scroll and a focused field stayed behind the keyboard.
+
+The account-split banner sits in the screen, not in the shared fields, and owns its own padding: the screen
+stacks sections with `gap-8`, so a caller-side wrapper around a self-hiding child would leave a stray gap.
+`PhoneVerifyFields` focuses the phone field on mount only in the full-screen shell; in a bottom sheet the
+keyboard would open over the pinned footer CTA the moment the sheet appears. Components import concrete
+modules rather than the hooks or ui barrels (`CountrySelect` is deliberately outside the barrel so
+libphonenumber's metadata stays off the eager path, and the barrels pull web-core, which jsdom cannot load).
+
 ### What not to do
 
 - **Do not put logic in a shell.** The shells are interchangeable precisely because they hold none.

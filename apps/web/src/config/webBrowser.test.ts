@@ -1,8 +1,3 @@
-/**
- * `web-browser` exists to boot a plain tab exactly as the entry booted it before declarations: every port
- * on one fixed adapter, the session and the cache's tab rows on the entry's own store objects, the core
- * engine, and the host ports a browser answers. Those are what the cases pin.
- */
 import { pageStorageAreas, startRuntime, tabStorageStores, webLocalCachePorts } from '@chatic/runtime-web';
 import type { HostPorts, StartRuntimeOptions } from '@chatic/runtime-web';
 
@@ -38,7 +33,6 @@ type Read = NonNullable<StartRuntimeOptions['read']>;
 const idsOf = (slots: Record<string, { default: { id: string } }>) =>
     Object.fromEntries(Object.entries(slots).map(([slot, declared]) => [slot, declared.default.id]));
 
-/** Starts the declaration with every collaborator faked except the adapters themselves. */
 const start = async (read: Read = () => undefined) => {
     const stores = tabStorageStores(pageStorageAreas());
     const declaration = webBrowser(stores);
@@ -108,7 +102,6 @@ describe('web-browser declaration', () => {
         expect(ports.storage.secret).toBe(stores.webSession);
         expect(webLocalCachePorts).toHaveBeenCalledWith(stores.webSession);
         expect(initEngine).toHaveBeenCalledTimes(1);
-        // The core settles nothing: the entry reads a missing owner as the page holding the session.
         expect(started.owner).toBeUndefined();
     });
 

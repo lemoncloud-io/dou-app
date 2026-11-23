@@ -6,29 +6,8 @@ import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-/** Upper bound for awaiting the socket handshake before a search-driven cloud switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
 
-/**
- * Navigates to a search result, switching cloud and place first when the result belongs to a
- * non-active one (see usePushNavigate.ts for the same handshake-gated switch pattern).
- *
- * The place (sid) switch is required, not optional: a place result lands on the home screen, and
- * home renders the session's `selectedSiteId` rather than anything from the URL
- * (HomePage.tsx:65,184). A channel result switches too, so backing out of the room lands on the
- * home of the place that channel belongs to. See ADR-0088 and
- * docs/specs/search/web-search-page.md.
- *
- * The switch runs cloud-first, and the handshake is awaited AGAIN after it: `switchSite` is a
- * socket call (`auth.switch`) on the freshly bound connection, so calling it before that
- * connection verifies fails.
- *
- * Failures surface as a toast (not a silent best-effort navigation) — the user actively
- * clicked a search result and is waiting, so a silent wrong destination would be worse
- * than telling them it didn't work. A cloud switch that succeeded is NOT rolled back when the
- * place switch then fails: rolling back is another failure-prone round trip, which would leave
- * the session in a less certain state than simply stopping here.
- */
 export const useSearchNavigate = () => {
     const navigate = useNavigate();
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
@@ -45,8 +24,6 @@ export const useSearchNavigate = () => {
 
             const { cid, sid } = options ?? {};
             const needsCloudSwitch = !!cid && cid !== selectedCloudId;
-            // After a cloud switch the active site is whatever the target cloud's session picked,
-            // which `selectedSiteId` no longer describes — so switch unconditionally in that case.
             const needsSiteSwitch = !!sid && (needsCloudSwitch || sid !== selectedSiteId);
 
             const awaitVerified = async () => {
@@ -65,7 +42,6 @@ export const useSearchNavigate = () => {
                 if (needsCloudSwitch) {
                     if (!(await awaitVerified())) return;
                     await switchCloud(cid);
-                    // The target cloud's socket has to verify before `auth.switch` can ride it.
                     if (needsSiteSwitch && !(await awaitVerified())) return;
                 }
                 if (needsSiteSwitch) {
@@ -73,9 +49,6 @@ export const useSearchNavigate = () => {
                 }
                 navigate(target);
             } catch (error) {
-                // The error used to be discarded without even a binding. When the cause is the cloud
-                // switch this is a second entry alongside the session service's — accepted, because
-                // this one carries the user-facing outcome (the result they clicked never opened).
                 logger.error('SEARCH', 'navigate to search result failed', { error, data: { cid, sid } });
                 toast({ title: t('search.navigateFailed') });
             } finally {

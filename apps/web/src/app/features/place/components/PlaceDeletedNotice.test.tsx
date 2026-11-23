@@ -35,7 +35,6 @@ import { PlaceDeletedNotice } from './PlaceDeletedNotice';
 
 const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 0)));
 
-/** Renders with the selected place in the list, then takes it out — the way a refresh drops it. */
 const dropSelectedPlace = async (selected: Row) => {
     mockPlaces = [selected, { id: 'other' }];
     const view = render(<PlaceDeletedNotice />);

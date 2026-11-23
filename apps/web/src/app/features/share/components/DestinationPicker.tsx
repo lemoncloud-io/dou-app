@@ -16,7 +16,6 @@ import { matchDestinations, type ShareDestination } from '../hooks/useShareDesti
 interface DestinationPickerProps {
     destinations: ShareDestination[];
     isLoading: boolean;
-    /** The selection the picker opens with; nothing changes until Done. */
     initial: string[];
     max: number;
     onCancel: () => void;
@@ -25,10 +24,6 @@ interface DestinationPickerProps {
 
 const TEXT_ACTION = 'whitespace-nowrap px-1 text-[15px] font-medium text-foreground';
 
-/**
- * The "To" list: every room the share can go to, searchable by name, picked up to `max`. Picks are
- * a draft — Cancel leaves the composer's selection as it was.
- */
 export const DestinationPicker = ({
     destinations,
     isLoading,

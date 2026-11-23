@@ -3,7 +3,6 @@ import type { HostOs, WebHostFacts } from '@chatic/runtime-web';
 import { appBridge } from '../../app/bridge/appBridge';
 import { webSignIn } from './signIn';
 
-// The phone app's events, captured so a test can play an `OnOAuthLogin` answer back.
 const mockEvents: Record<string, (message: unknown) => void> = {};
 const mockOnEvent = jest.fn((type: string, handler: (message: unknown) => void) => {
     mockEvents[type] = handler;
@@ -15,7 +14,6 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('../../app/bridge/appBridge', () => ({ appBridge: { oauthLogin: jest.fn(), startOAuthLogin: jest.fn() } }));
 
-// Neither side reads the facts; the implementations decide from the side and the phone platform alone.
 const facts = {} as WebHostFacts;
 const shell = (os: HostOs = 'android') => webSignIn.shell({ kind: 'shell', os }, facts);
 const browser = () => webSignIn.browser({ kind: 'browser', os: null }, facts);

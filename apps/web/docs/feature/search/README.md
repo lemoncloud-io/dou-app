@@ -123,6 +123,33 @@ with `replace`, so typing does not fill the history stack.
 Recent keywords are the `ui.recentSearches` config row on the local lane, deduped
 case-insensitively, newest first, capped. They are per device, like every other local-lane row.
 
+### Rows are presentational, and the screen never goes blank
+
+- **`ResultRow` takes every value as a prop.** A search result usually belongs to a cloud that is not the
+  active one, and any data hook inside the row (`useLastChats`, `useChannelSync`) would query the active
+  cloud's partition, come back empty and register sync targets on the wrong cloud's socket. Context is
+  resolved once, in batch, by `useSearchContext`.
+- **The channel row carries its placeholder glyph with the photo.** Both come from the same
+  `resolveChannelAvatar` call, since both key off the room kind (a group gets the two-person glyph, a 1:1 and
+  a self chat the one-person one). Dropping the glyph once made every photo-less group read as a person in
+  search while home and the manage list drew the group glyph. A place without a photo shows the
+  picture-placeholder disc, not the person glyph, like the invite's place card. The member count is hidden
+  for a self chat and a 1:1, where it is always 1 or 2 and says nothing.
+- **A skeleton row stands in while the first results are scanned.** Without it the page rendered an empty
+  container, which read as "no results" and then flipped to results. The skeleton mirrors the home list's so
+  the two settle into the same shape.
+- **An unsent message (`chatNo` 0) is still a match** but has nothing to jump to, so the room opens without
+  the query instead of leaving a no-op `?chatNo=0` in the URL.
+- **The scope line is always shown**, because the scan covers one cloud and a missing result should not look
+  like missing data.
+- **The search effect depends only on the debounced keyword and the stable `search` callback.** Cloud-name
+  matching runs during render, because both cloud sources return a freshly built array on every render;
+  putting them in the effect's dependencies re-ran it on every render, and each run set state, which
+  re-rendered, which re-ran it: an endless loop that made results flicker. The debounce is inlined rather
+  than imported from `@chatic/shared`, whose root barrel would pull assets and components into every test
+  that imports the hook. A bridge failure of the cache scan (a SQLite error, a timeout, a very old app) is
+  logged and the cloud-name matches still show instead of a blank screen.
+
 ### What a row shows
 
 Rows are stamped with **date over time**, not the home list's clock alone: search reaches back

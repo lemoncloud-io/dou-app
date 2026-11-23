@@ -4,7 +4,6 @@ import { AlertDialog } from '@chatic/web-ui-kit';
 
 import type { PendingConsent } from '../hooks/useMiniAppOpener';
 
-/** The first-open question for a site DoU does not run. A yes/no that blocks: closing it any other way is a no. */
 export const MiniAppConsentDialog = ({
     pending,
     onAnswer,

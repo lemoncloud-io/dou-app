@@ -41,8 +41,6 @@ jest.mock('@chatic/runtime', () =>
             useIsPairedSession: () => mockPaired,
             useSessionSelection: () => ({ selectedCloudId: mockSelected }),
         },
-        // Which side of a pairing this device takes, as the host's `signIn` port says: the phone app holds
-        // its own device's sign-in and approves; a browser tab's sign-in ends with the tab.
         get signIn() {
             const tab = require('@chatic/runtime/testing').browserSignIn();
             return mockNative ? { ...tab, sessionScope: 'device', approvesPairing: true } : tab;
@@ -64,7 +62,6 @@ jest.mock('../hooks', () => ({
 jest.mock('../lib/scanPairingQr', () => ({ scanPairingQr: () => scanPairingQr() }));
 jest.mock('../../../bridge', () => ({ appBridge: { openSettings: () => openSettings() } }));
 jest.mock('../lib/liveQrScanner', () => ({ canScanLive: () => mockLive }));
-// The sheet's own behaviour is tested beside it; here it only has to report back.
 jest.mock('../components/QrScannerSheet', () => ({
     QrScannerSheet: (p: { onCode: (c: string) => void; onClose: () => void; onUnavailable: (r: string) => void }) => (
         <div data-testid="live-scanner">
@@ -167,7 +164,6 @@ describe('PairingApprovePage', () => {
 
             expect(openSettings).toHaveBeenCalledTimes(1);
             expect(screen.queryByText('pairing.approve.cameraRefused.title')).toBeNull();
-            // The note outlives the prompt, for whoever closes it and types the digits instead.
             expect(screen.getByText('pairing.approve.scanDenied')).not.toBeNull();
         });
 
@@ -275,7 +271,6 @@ describe('PairingApprovePage', () => {
         const lime = screen.getByTestId('pairing-target-1000009').closest('label');
         expect(lemon?.textContent).toBe('Lemonpairing.scope.cloudBadgepairing.scope.cloudOwned');
         expect(lime?.textContent).toBe('Limepairing.scope.cloudBadgepairing.scope.cloudInvited');
-        // The account option says invited clouds are not part of it, since there is one to name.
         expect(account.textContent).toContain('pairing.scope.relayInvitedNote');
     });
 

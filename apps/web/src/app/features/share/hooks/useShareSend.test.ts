@@ -45,7 +45,6 @@ const room = (id: string, kind: ShareDestination['kind'] = 'group'): ShareDestin
     channel: { id, cid: 'cloud-a' } as DomainChannel,
 });
 
-/** Mounts the hook with a sender registered for each room, as `DestinationSender` would. */
 const setup = (senders: Record<string, SendFiles>) => {
     const hook = renderHook(() => useShareSend(intakeId));
     for (const [channelId, send] of Object.entries(senders)) hook.result.current.register(channelId, send);
@@ -53,7 +52,6 @@ const setup = (senders: Record<string, SendFiles>) => {
 };
 
 beforeEach(async () => {
-    // The previous test's unmount schedules its discard a tick later; let it land before the mocks clear.
     await new Promise(resolve => setTimeout(resolve, 0));
     jest.clearAllMocks();
     mockSendChatInCloud.mockResolvedValue({});
@@ -89,7 +87,6 @@ describe('useShareSend', () => {
             expect.any(String),
             expect.objectContaining({ cid: 'cloud-a', channelId: 'a' })
         );
-        // A rejected file send left no failed row behind, so the person is told here.
         expect(mockToast).toHaveBeenCalledWith({ title: 'share.sendFailedSome' });
     });
 
@@ -144,7 +141,6 @@ describe('useShareSend', () => {
 
         await act(async () => result.current.send({ destinations: [room('a')], files: [file('a.pdf')], content: '' }));
 
-        // The row goes along, so the room is on screen before its cache answers — as from the home list.
         expect(mockNavigate).toHaveBeenCalledWith('/channels/a/room', {
             replace: true,
             state: { channel: expect.objectContaining({ id: 'a' }) },

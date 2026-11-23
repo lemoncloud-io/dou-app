@@ -26,7 +26,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: mockPlaceId }) }));
-// The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
 jest.mock('../components/ChannelSortSheet', () => ({ ChannelSortSheet: () => <div>sort-sheet</div> }));
 
@@ -67,8 +66,6 @@ describe('PlaceSettingsHubPage — 설정 카드', () => {
         expect(screen.getByText('개발자들이 모이는 곳')).toBeInTheDocument();
     });
 
-    // An empty string doesn't render a subtitle — `subtitle=""` just adds row height with nothing
-    // visible.
     it('소개 문구가 비어 있으면 부제를 그리지 않는다', () => {
         mockPlace = { id: 'p1', desc: '' };
         render(<PlaceSettingsHubPage />);
@@ -85,8 +82,6 @@ describe('PlaceSettingsHubPage — 설정 카드', () => {
         expect(navigate).toHaveBeenCalledWith('/place/p1/settings/edit');
     });
 
-    // Read-only, so there's no owner gate — unlike the edit row, a non-owner must be able to tap it
-    // too (ADR-0095).
     it('비오너에게도 "플레이스 정보" 행은 활성이고, "플레이스 프로필" 행만 막힌다', () => {
         mockPlace = { id: 'p1', isOwner: false };
         render(<PlaceSettingsHubPage />);
@@ -126,7 +121,6 @@ describe('PlaceSettingsHubPage — members', () => {
     });
 });
 
-// Leaving moved to the place information screen; the hub must not offer it any more.
 describe('PlaceSettingsHubPage — no leave row', () => {
     it('offers no Leave, even to a member who is not the owner', () => {
         mockPlace = { id: 'p1', isOwner: false };
@@ -136,7 +130,6 @@ describe('PlaceSettingsHubPage — no leave row', () => {
     });
 });
 
-// Place push has no backend, so the hub offers no switch that could never be turned on.
 describe('PlaceSettingsHubPage — no notification card', () => {
     it('renders no notification section or switch', () => {
         mockPlace = { id: 'p1', isOwner: true };

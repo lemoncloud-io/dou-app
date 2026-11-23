@@ -3,43 +3,10 @@ import * as i18next from 'i18next';
 import { logger } from '@chatic/bridges';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-/**
- * What the registry does when a port reports trouble: a setting that did not stick is shown, not
- * only logged.
- *
- * Kept apart from `configPorts.ts` so it can be unit-tested without the build's values, which reach
- * the config ports through `viteEnv.ts` — `import.meta.env`, unloadable under the CommonJS test
- * transform. The repo isolates such reads for the same reason (`utils/buildEnv.ts`, `logUploadSwitch.ts`).
- */
-
-/**
- * A key declared twice. **Log only.**
- *
- * A registry authoring error, not something the person holding the phone can act on, and
- * `allModules.spec.ts` asserts the set is empty — so this is loud where it matters (collected logs)
- * and silent where it would only confuse.
- */
 export const onDuplicateKey = (key: string): void => {
     logger.error('CONFIG', `Duplicate config key declared twice: ${key}`);
 };
 
-/**
- * The shell refused a write, after the retry. **Log AND tell the person.**
- *
- * Different from the duplicate above: this write is something they just did, and a refusal means
- * the setting silently did not stick. Staying quiet is exactly the "the screen says it's off but
- * it's actually not" state this exists to prevent.
- *
- * The imperative `toast`, not the hook: this runs from `config.set`, which has no React context.
- * The toaster is mounted app-wide and this is the shadcn escape hatch for reaching it.
- *
- * Translated the same way: `i18next.t` directly, not `useTranslation`'s `t`. This imports the
- * `i18next` package itself rather than this app's `../i18n` bootstrap, which reads
- * `import.meta.env` at module scope and would reintroduce the CommonJS-test problem this file was
- * split out to avoid. It's the same singleton either way — `../i18n` calls `.init()` on this
- * same package's default export — and by the time a shell write can fail, `app.tsx` has already
- * initialized it.
- */
 export const onShellWriteFailed = (key: string, error: unknown): void => {
     logger.error('CONFIG', `Shell write failed after retry: ${key}`, error as Error);
     toast({

@@ -25,14 +25,6 @@ import { useSearchNavigate } from '../hooks/useSearchNavigate';
 
 const AVATAR_SIZE = 42;
 
-/**
- * Circular avatar for channel rows and message senders, matching the home list.
- *
- * `variant` is the placeholder glyph a channel row carries from `resolveChannelAvatar` — a group
- * room's two-person glyph is not recoverable here, so dropping it is what made the same room read
- * as one person in search and as a group everywhere else. It defaults to the person glyph for the
- * message-sender rows, where the subject really is one person.
- */
 const RowAvatar = ({ thumbnail, variant = 'user' }: { thumbnail?: string; variant?: 'user' | 'group' }) =>
     thumbnail ? (
         <ImageAvatar src={thumbnail} alt="" size={AVATAR_SIZE} />
@@ -40,10 +32,6 @@ const RowAvatar = ({ thumbnail, variant = 'user' }: { thumbnail?: string; varian
         <DefaultAvatar size={AVATAR_SIZE} variant={variant} />
     );
 
-/**
- * A place shows its photo, and without one the picture-placeholder disc — NOT the person glyph
- * `DefaultAvatar` uses. Same avatar the invite place card shows (Figma place-thumbnail placeholder).
- */
 const PlaceRowAvatar = ({ thumbnail }: { thumbnail?: string }) =>
     thumbnail ? (
         <ImageAvatar src={thumbnail} alt="" size={AVATAR_SIZE} />
@@ -51,14 +39,9 @@ const PlaceRowAvatar = ({ thumbnail }: { thumbnail?: string }) =>
         <IconImageSolid size={AVATAR_SIZE} className="text-brand-ink dark:text-white/80" />
     );
 
-/** apps/web full-page search (see docs/specs/search/web-search-page.md, ADR-0088). */
 export const SearchPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
-    // The keyword lives in the URL (`/search?q=`) so coming BACK from a result restores the search
-    // that led there. Page-local state alone was lost on unmount, dropping the user onto an empty
-    // search box. Keystrokes mirror with `replace` so typing doesn't fill the history stack — the
-    // single /search entry just carries the latest keyword.
     const [searchParams, setSearchParams] = useSearchParams();
     const [query, setQueryState] = useState(() => searchParams.get('q') ?? '');
 
@@ -84,8 +67,6 @@ export const SearchPage = () => {
     const trimmed = query.trim();
     const isIdle = trimmed.length === 0;
 
-    // Search reaches back through history, so the date matters as much as the clock — the home
-    // list's HH:MM alone can't tell this year's message from last year's.
     const locale = i18n.language === 'ko' ? 'ko-KR' : 'en-US';
     const formatStamp = (value?: number) => {
         if (!value) return undefined;
@@ -96,7 +77,6 @@ export const SearchPage = () => {
         };
     };
 
-    /** Date over time, right-aligned — the row's trailing column is narrow. */
     const Stamp = ({ value }: { value?: number }) => {
         const stamp = formatStamp(value);
         if (!stamp) return null;
@@ -120,8 +100,6 @@ export const SearchPage = () => {
         void goTo(ROUTES.home, { cid: cloud.id });
     };
 
-    // A place result switches to that place and lands on home — home renders the session's active
-    // place, so the switch IS the destination (ADR-0088).
     const openPlace = (place: PlaceResultRow) => {
         submit(trimmed);
         void goTo(ROUTES.home, { cid: place.cid, sid: place.placeId });
@@ -132,18 +110,10 @@ export const SearchPage = () => {
         void goTo(ROUTES.channels.room(channel.channelId), { cid: channel.cid, sid: channel.sid });
     };
 
-    // A chat row carries no `sid` of its own (CacheChatView has cid/channelId only) — `sid` here
-    // comes from the owning channel resolved via the search context, and is simply absent when
-    // that channel isn't cached, in which case the room still opens without a place switch.
     const openMessage = (chat: ChatResultRow) => {
         submit(trimmed);
-        // An unsent message (chatNo 0) is still a match worth showing, but there is nothing to jump
-        // to — open the room without the query rather than leaving a no-op `?chatNo=0` in the URL.
         const room = ROUTES.channels.room(chat.channelId);
         const jump = chat.chatNo > 0 ? `?chatNo=${chat.chatNo}` : '';
-        // A reply is never drawn in the room's feed, so a jump there could only end in "couldn't find
-        // that message". It opens straight on its thread, with no room under it: back from the thread
-        // returns to these results, the screen the reader came from.
         const thread = resolveThreadTarget(chat, chat.chatId);
         void goTo(`${thread ?? room}${jump}`, { cid: chat.cid, sid: chat.sid });
     };
@@ -166,8 +136,6 @@ export const SearchPage = () => {
                 />
             </div>
 
-            {/* The scan covers one cloud (ADR-0088 decision 2), so say so up front rather than letting
-                a missing result look like missing data. */}
             <p className="px-4 pb-2 text-[11px] leading-4 text-description">
                 {activeCloudName ? t('search.scopeNoticeNamed', { cloud: activeCloudName }) : t('search.scopeNotice')}
             </p>
@@ -181,8 +149,6 @@ export const SearchPage = () => {
                         onClearAll={clearRecentSearches}
                     />
                 ) : isQueryTooShort ? null : isSearching && !hasResults ? (
-                    // Scanning with nothing to show yet. Without this the page rendered an empty
-                    // container, which reads as "no results" and then flips to results.
                     <div className="flex flex-col" role="status" aria-busy="true">
                         <span className="sr-only">{t('search.searching')}</span>
                         <ResultRowSkeleton />
@@ -262,8 +228,6 @@ export const SearchPage = () => {
                                 {rows.chats.map(chat => (
                                     <ResultRow
                                         key={`${chat.cid}:${chat.chatId}`}
-                                        // The sender's own avatar; the generic message icon stands in
-                                        // when their place profile isn't cached.
                                         leading={
                                             chat.senderThumbnail || chat.senderName ? (
                                                 <RowAvatar thumbnail={chat.senderThumbnail} />

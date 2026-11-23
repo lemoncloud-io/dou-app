@@ -3,16 +3,12 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import { InviteEntryGate } from './InviteEntryGate';
 
-// Mutable per-test fixture (must be `mock`-prefixed to be usable inside jest.mock factories).
 let mockIsFirstRun = false;
 
-// The real hook reads @chatic/config's ui.onboardingCompleted; only `isFirstRun` matters here.
 jest.mock('../hooks', () => ({
     useOnboarding: () => ({ isFirstRun: mockIsFirstRun, completeOnboarding: jest.fn(), resetOnboarding: jest.fn() }),
 }));
 
-// MemoryRouter, not createMemoryRouter: a data router needs the `Request` global to follow a
-// <Navigate>, and jsdom has none (see the note in PublicRoutes.test.tsx).
 const Landed = ({ name }: { name: string }) => {
     const { pathname, search } = useLocation();
     return <span data-testid={name}>{`${pathname}${search}`}</span>;
@@ -34,7 +30,6 @@ const landOn = async (initialPath: string) => {
             </Routes>
         </MemoryRouter>
     );
-    // jest-dom matchers are not wired up in this project, so assert on the query result directly.
     await waitFor(() => expect(screen.queryByTestId('home') ?? screen.queryByTestId('accept')).not.toBeNull());
 };
 
@@ -70,7 +65,6 @@ describe('InviteEntryGate — 루트에 도착한 초대 링크', () => {
         await landOn(RELAY_INVITE);
 
         expect(screen.queryByTestId('accept')).toBeNull();
-        // The query string must survive the hold, or completing onboarding would lose the invite.
         expect(screen.getByTestId('home').textContent).toBe(RELAY_INVITE);
     });
 
@@ -93,7 +87,6 @@ describe('InviteEntryGate — 루트에 도착한 초대 링크', () => {
         );
         await waitFor(() => expect(screen.queryByTestId('home')).not.toBeNull());
 
-        // completeOnboarding() flips the flag; the gate re-renders and the invite proceeds.
         mockIsFirstRun = false;
         rerender(
             <MemoryRouter initialEntries={[RELAY_INVITE]}>

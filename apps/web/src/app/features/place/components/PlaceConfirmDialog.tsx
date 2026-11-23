@@ -10,36 +10,20 @@ import {
     AlertDialogTitle,
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
-/**
- * How the place dialogs set Korean text. A line break in the copy is kept, and a line wraps between
- * words, never inside one — Korean otherwise breaks at any syllable ("대화방에 / 서도"). A single run
- * with no space that still does not fit (a long name) may break anywhere rather than push the card
- * wider than the screen.
- */
 export const PLACE_DIALOG_TEXT = 'whitespace-pre-line break-keep [overflow-wrap:anywhere]';
 
 interface PlaceConfirmDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     title: string;
-    /** The red body under the title. */
     description: string;
     confirmLabel: string;
     onConfirm: () => void;
     isPending?: boolean;
-    /**
-     * Whether the confirm press closes the dialog by itself. Pass false when the caller shows the
-     * request running (`isPending`) and closes the dialog once it settles.
-     */
     closeOnConfirm?: boolean;
-    /** Anything shown between the body and the buttons — the delete confirm's room list. */
     children?: ReactNode;
 }
 
-/**
- * The confirm used on the place screens: 311 px card, a title over a red body, Cancel and a red
- * action. While `isPending` the action spins and both buttons, back and Escape are held.
- */
 export const PlaceConfirmDialog = ({
     open,
     onOpenChange,
@@ -85,7 +69,6 @@ export const PlaceConfirmDialog = ({
                         </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={event => {
-                                // Radix closes after this handler unless the default is prevented.
                                 if (!closeOnConfirm) event.preventDefault();
                                 onConfirm();
                             }}

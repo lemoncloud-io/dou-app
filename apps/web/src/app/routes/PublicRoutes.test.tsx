@@ -15,14 +15,10 @@ jest.mock('../runtime/bootSplash', () => {
     };
 });
 
-// The root entry is now InviteEntryGate, which reads `isFirstRun`. Stubbing the hook keeps this
-// suite about routing rather than the onboarding flag. InviteEntryGate.test.tsx covers the gate's
-// own logic.
 jest.mock('../hooks', () => ({
     useOnboarding: () => ({ isFirstRun: false, completeOnboarding: jest.fn(), resetOnboarding: jest.fn() }),
 }));
 
-// Build a standalone memory router over the unauthenticated route set.
 const makeRouter = (initialPath: string) => createMemoryRouter(publicRoutes, { initialEntries: [initialPath] });
 
 describe('publicRoutes — 비로그인 라우팅', () => {
@@ -30,7 +26,6 @@ describe('publicRoutes — 비로그인 라우팅', () => {
         const router = makeRouter('/');
         render(<RouterProvider router={router} />);
 
-        // Holds on root; if it redirected to /auth/login (which forwards back to '/'), this loops.
         await waitFor(() => expect(router.state.location.pathname).toBe('/'));
         expect(router.state.location.pathname).not.toBe('/auth/login');
     });
@@ -43,11 +38,6 @@ describe('publicRoutes — 비로그인 라우팅', () => {
         expect(router.state.location.search).toBe('?provider=invite&code=abc');
     });
 
-    // NOTE: the '*' catch-all (Navigate to root) is verified by review, not here — exercising a
-    // data-router redirect needs the `Request` global, which is absent in the jsdom test env.
-
-    // The signed-out root renders nothing while the guest login runs; lifting the launch splash onto
-    // that blank page is the flicker the boot cover exists to prevent.
     it('holds the boot cover while the signed-out root waits, and lets go when it unmounts', async () => {
         mockUseBootSplashHold.mockClear();
         mockReleaseHold.mockClear();

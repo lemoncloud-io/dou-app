@@ -82,6 +82,15 @@ finishing it does not mark onboarding complete.
 
 Only the buttons are shared with i18n on the carousel side (`onboarding.prev` / `next` / `done`).
 
+### The carousel's track is sized by percentage
+
+The sliding track is `totalSteps` frames wide, each step is `100 / totalSteps` of the track, and an advance
+moves by that same fraction (plus the drag offset in pixels). Steps used to be sized in viewport units,
+which is only the same as the column while the column happens to be the viewport: on any device past the
+width cap each step was wider than the frame holding it, so the next step bled in at the edge. Percentages
+of the track hold at every width. The step count is passed in from the steps the screen actually shows
+(`useOnboardingSteps`) instead of a module constant, so there is one copy of the list.
+
 ### The wizard commits step by step
 
 `SetupWizardPage` does not batch. Step 1 renames the selected cloud, step 2 creates a place, step 3

@@ -4,7 +4,6 @@ import { MAX_RECENT_SEARCHES } from '../../../stores/preferenceKeys';
 
 const current = (): string[] => normalizeRecentSearches(runtime.settings.get('ui.recentSearches'));
 
-/** Adds a keyword to the front (case-insensitively deduped against the existing list), capped list. */
 const addRecentSearch = (keyword: string): void => {
     const trimmed = keyword.trim();
     if (!trimmed) return;

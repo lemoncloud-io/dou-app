@@ -10,7 +10,6 @@ const mockRetryPhoneLogin = jest.fn();
 const mockCancelPhoneLogin = jest.fn();
 const mockToast = jest.fn();
 const mockNavigate = jest.fn();
-/** Whether this user already proved a social account. `'unknown'` is the pre-profile default. */
 let mockLinkedSocial: 'linked' | 'absent' | 'unknown' = 'unknown';
 
 jest.mock('react-i18next', () => ({
@@ -20,8 +19,6 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => mockNavigate,
 }));
-// The banner's useNavigateToLogin reads the current location to remember where to come back to;
-// this screen renders outside a Router here, so stand it in rather than wrap every case.
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ pathname: '/invite/accept', search: '', hash: '' }) }));
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
@@ -36,11 +33,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
-// Radix overlays are stubbed as pass-through markup (house convention — see AddFriendSheet.test).
-// `DialogContent` keeps `className` and `role` rather than dropping them: the real one merges the
-// variant classes with the caller's, and the layout constraints this shell depends on (see the
-// narrow-screen/keyboard suite) live in exactly that string — a stub that swallowed it would let them be
-// deleted with every test still green.
 jest.mock('@chatic/ui-kit/components/ui/dialog', () => ({
     Dialog: ({ open, children }: any) => (open ? <div>{children}</div> : null),
     DialogContent: ({ children, className }: any) => (
@@ -51,7 +43,6 @@ jest.mock('@chatic/ui-kit/components/ui/dialog', () => ({
     DialogTitle: ({ children }: any) => <div>{children}</div>,
     DialogDescription: ({ children }: any) => <div>{children}</div>,
 }));
-// One packet (`auth.link-account`) behind four calls; the two social ones are unused by this shell.
 jest.mock('../../../hooks/useLinkAccount', () => ({
     useLinkAccount: () => ({
         send: mockSend,
@@ -66,9 +57,6 @@ jest.mock('../../../hooks/useLinkAccount', () => ({
     }),
 }));
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: jest.fn(() => false) }));
-// The banner reads this to decide whether the account-split warning still applies. Mocked at the
-// concrete module because the real one reaches useMyUser -> web-core, whose transport reads
-// `import.meta` and cannot load under jsdom.
 jest.mock('../../../hooks/useLinkedAccounts', () => ({
     useLinkedAccounts: () => ({ phone: 'unknown', social: mockLinkedSocial }),
 }));
@@ -78,16 +66,9 @@ import { PhoneVerifyScreen } from './PhoneVerifyScreen';
 import { seedPhoneCountry } from '../../../../testing/phoneCountry';
 
 const PHONE = '01012345678';
-// What the field displays and what the packet actually carries now differ (ADR-0044 §5 correction —
-// the wire wants E.164, not the local form the field shows).
 const PHONE_E164 = '+821012345678';
 const FUTURE_EXPIRY = () => Date.now() + 180_000;
 
-/**
- * jsdom reports `navigator.language` as `en-US`, which would open these screens on US and reject
- * every Korean number here. Seeding the remembered pick uses the production "last explicit pick
- * wins" path rather than stubbing around it (ADR-0044 §4).
- */
 const seedCountry = (code = 'KR') => {
     seedPhoneCountry(code);
 };
@@ -96,7 +77,6 @@ const setLanguage = (value: string) => {
     Object.defineProperty(window.navigator, 'language', { value, configurable: true });
 };
 
-/** Opens the country sheet and taps a row by its localized name. */
 const pickCountry = (name: string) => {
     fireEvent.click(screen.getByLabelText('phoneInput.countrySheetTitle'));
     fireEvent.click(screen.getByText(name));
@@ -105,7 +85,6 @@ const pickCountry = (name: string) => {
 const renderScreen = (overrides: Partial<React.ComponentProps<typeof PhoneVerifyScreen>> = {}) => {
     const props = {
         context: 'invite-accept' as const,
-        // The accept flow always proves a number to OPEN a session (ADR-0042 §3).
         mode: 'login' as const,
         inviteCode: 'invt:i1:code',
         onVerified: jest.fn(),
@@ -126,7 +105,6 @@ const submitSend = async () => {
     });
 };
 
-/** Requests a code successfully, which arms the code field on the same screen. */
 const requestCode = async (overrides: Partial<React.ComponentProps<typeof PhoneVerifyScreen>> = {}) => {
     mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
     const props = renderScreen(overrides);
@@ -135,14 +113,12 @@ const requestCode = async (overrides: Partial<React.ComponentProps<typeof PhoneV
     return props;
 };
 
-/** Enters a full 6-digit code, which auto-submits the mode's prove step. */
 const pasteOtp = async (code = '123456') => {
     await act(async () => {
         fireEvent.change(screen.getByPlaceholderText('phoneVerify.codePlaceholder'), { target: { value: code } });
     });
 };
 
-/** Taps the pinned CTA (Complete / Retry). */
 const submitCta = async () => {
     await act(async () => {
         fireEvent.click(screen.getByText('phoneVerify.complete'));
@@ -187,11 +163,9 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         await submitSend();
 
         expect(screen.getByText('phoneVerify.inviteMismatch')).toBeInTheDocument();
-        // The cheap check spends no delivery against the daily caps.
         expect(mockSend).not.toHaveBeenCalled();
         expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeDisabled();
 
-        // If the last 4 digits match, it passes straight through — the 4 digits are only a pre-filter, not the verdict.
         mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
         typePhone('01012349999');
         await submitSend();
@@ -210,7 +184,6 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         await submitSend();
 
         expect(screen.getByText('phoneVerify.inviteMismatch')).toBeInTheDocument();
-        // No code went out, so the code field stays locked.
         expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeDisabled();
     });
 
@@ -228,14 +201,9 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         fireEvent.click(screen.getByText('phoneVerify.socialFirstTitle'));
 
         expect(onClose).toHaveBeenCalled();
-        // returnTo is the screen the banner was shown on, so finishing social sign-in comes back
-        // here rather than dumping the user on home mid-flow (ADR-0055).
         expect(mockNavigate).toHaveBeenCalledWith('/mypage/login', { state: { returnTo: '/invite/accept' } });
     });
 
-    // The banner tells a user with an existing social account to log in with it FIRST, or they will
-    // mint a second, unmergeable user. Someone who already linked social cannot land in that state,
-    // so the notice is not just noise — it points them back through a login they have done.
     it('소셜이 이미 연결돼 있으면 배너를 띄우지 않는다', () => {
         mockLinkedSocial = 'linked';
         renderScreen();
@@ -243,9 +211,6 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         expect(screen.queryByText('phoneVerify.socialFirstTitle')).not.toBeInTheDocument();
     });
 
-    // Only a definite `linked` hides it. `unknown` means the profile has not landed or the server
-    // never built the `link$` slot — and this is the one defense against an unmergeable account, so
-    // the safe failure is showing it to someone who did not need it (ADR-0042 §5).
     it.each(['absent', 'unknown'] as const)('social이 %s면 배너는 그대로 뜬다', social => {
         mockLinkedSocial = social;
         renderScreen();
@@ -253,9 +218,6 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         expect(screen.getByText('phoneVerify.socialFirstTitle')).toBeInTheDocument();
     });
 
-    // Deliberately mode-independent. `link` mode can still hit `occupied` (the number belongs to a
-    // separate phone-created user), and this banner is the guide's only documented defense for a
-    // split account (§Constraints) — hiding it there would remove the one signpost out.
     it('link 모드에서도 배너는 그대로 뜬다 — 분리 계정 안내는 모드와 무관하다', () => {
         renderScreen({ mode: 'link' });
 
@@ -280,8 +242,6 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
         });
     });
 
-    // The server accepts '#' in the dev environment. The client isn't skipping anything — it's making
-    // the same confirm call as usual, just with '#' — the production backend simply rejects it as a wrong code.
     describe('dev bypass — 인증번호 없이 통과', () => {
         it('운영 빌드에는 버튼이 없다', async () => {
             (isDevBuild as jest.Mock).mockReturnValue(false);
@@ -313,7 +273,6 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
             expect(mockVerify).not.toHaveBeenCalled();
         });
 
-        // The link mode has to ask verify whether it's linkable before confirm — the same two steps as a real code.
         it('link 모드는 verify를 거친 뒤 confirm한다', async () => {
             (isDevBuild as jest.Mock).mockReturnValue(true);
             mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
@@ -333,7 +292,6 @@ describe('PhoneVerifyScreen — 인증 요청', () => {
             );
         });
 
-        // If the server rejects it, it takes the usual failure path — the bypass is not a client-side judgment call.
         it('서버가 거절하면 일반 코드와 같은 오류를 보여준다', async () => {
             (isDevBuild as jest.Mock).mockReturnValue(true);
             mockSend.mockResolvedValueOnce({ sent: true, expiredAt: FUTURE_EXPIRY() });
@@ -373,9 +331,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
         await pasteOtp();
 
         expect(mockConfirmPhoneLogin).toHaveBeenCalledWith(PHONE_E164, '123456', { countryCode: 'KR' });
-        // `verify` would only repeat what confirm already proves, so login never asks.
         expect(mockVerify).not.toHaveBeenCalled();
-        // The repository's confirm is link mode's; login goes through the runtime, which keeps the token.
         expect(mockConfirm).not.toHaveBeenCalled();
         expect(onVerified).toHaveBeenCalled();
     });
@@ -387,7 +343,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
         const { onVerified } = await requestCode();
         await pasteOtp();
 
-        expect(onVerified).not.toHaveBeenCalled(); // not before the switch settles
+        expect(onVerified).not.toHaveBeenCalled();
 
         await act(async () => finish());
         expect(onVerified).toHaveBeenCalled();
@@ -445,7 +401,7 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
             fireEvent.click(screen.getByText('phoneVerify.retry'));
         });
 
-        expect(mockConfirmPhoneLogin).toHaveBeenCalledTimes(1); // the OTP was consumed — never re-proved
+        expect(mockConfirmPhoneLogin).toHaveBeenCalledTimes(1);
         expect(mockRetryPhoneLogin).toHaveBeenCalledTimes(1);
         expect(onVerified).toHaveBeenCalled();
     });
@@ -532,15 +488,13 @@ describe('PhoneVerifyScreen — 인증번호 확인', () => {
                 fireEvent.click(screen.getByText('phoneVerify.resend'));
             });
         }
-        // 1 initial request + 5 resends; the cap is now spent.
         expect(mockSend).toHaveBeenCalledTimes(6);
 
-        // Each control names itself in the over-limit dialog (Figma 3432-61459 / 3428-60218).
         await act(async () => {
             fireEvent.click(screen.getByText('phoneVerify.resend'));
         });
         expect(screen.getByText('phoneVerify.limit.resend.title')).toBeInTheDocument();
-        expect(mockSend).toHaveBeenCalledTimes(6); // never reached the server
+        expect(mockSend).toHaveBeenCalledTimes(6);
 
         await act(async () => {
             fireEvent.click(screen.getByText('phoneVerify.extend'));
@@ -573,7 +527,6 @@ describe('PhoneVerifyScreen — link 모드 (번호 연결)', () => {
         expect(mockConfirm).not.toHaveBeenCalled();
         expect(onVerified).not.toHaveBeenCalled();
 
-        // Linking doesn't touch the session, so there's no $token and no switch.
         mockConfirm.mockResolvedValueOnce({ linked: true });
         await submitCta();
 
@@ -668,12 +621,11 @@ describe('PhoneVerifyScreen — 국가 (ADR-0044)', () => {
 
     it('국가를 정할 수 없으면 인증 요청이 비활성이고, 에러 문구는 띄우지 않는다 (S4)', () => {
         seedPhoneCountry();
-        setLanguage('en'); // no region subtag — nothing to derive a country from
+        setLanguage('en');
         renderScreen();
 
         typePhone();
         expect(screen.getByText('phoneVerify.sendCode').closest('button')).toBeDisabled();
-        // Nothing has gone wrong yet; the empty picker is the instruction, not a red line.
         expect(screen.queryByText('phoneVerify.phoneInvalidFormat')).not.toBeInTheDocument();
         expect(screen.getByText('phoneInput.countryPlaceholder')).toBeInTheDocument();
 
@@ -713,7 +665,6 @@ describe('PhoneVerifyScreen — 국가 (ADR-0044)', () => {
 
         pickCountry('일본');
 
-        // Same handling as retyping the number: the code that went to +82 is not the code for +81.
         expect(screen.getByPlaceholderText('phoneVerify.codePlaceholder')).toBeDisabled();
         await pasteOtp();
         expect(mockConfirmPhoneLogin).not.toHaveBeenCalled();
@@ -723,19 +674,11 @@ describe('PhoneVerifyScreen — 국가 (ADR-0044)', () => {
         mockConfirmPhoneLogin.mockResolvedValueOnce({ isNew: false });
         await requestCode();
 
-        // The picker cannot diverge after a send (S5 clears the code), so the pin is proved by the
-        // prove call carrying the SEND's country rather than re-deriving one at confirm time.
         await pasteOtp();
         expect(mockConfirmPhoneLogin).toHaveBeenCalledWith(PHONE_E164, '123456', { countryCode: 'KR' });
     });
 });
 
-// jsdom has no layout engine, so these assert the three rules rather than the pixels they buy. They
-// are worth pinning because each is invisible at 375px — the width most desks test at — and only
-// bites on a narrower phone or once the soft keyboard is up. Measured against the compiled CSS:
-// without them the dialog's content floored at 364px (spilling 44px at 320 and 4px at the very
-// common 360, out BOTH edges thanks to the `-translate-x-1/2` centring) and the body never became
-// scrollable, so a focused field stayed stuck behind the keyboard.
 describe('PhoneVerifyScreen — 좁은 화면·키보드 (레이아웃 제약)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -747,8 +690,6 @@ describe('PhoneVerifyScreen — 좁은 화면·키보드 (레이아웃 제약)',
     it('그리드 행을 다이얼로그 높이에 묶고, 열은 min-content 아래로 줄어들 수 있어야 한다', () => {
         renderScreen();
 
-        // DialogContent is a `grid`; an auto row grows to its item's max-content and a grid item
-        // refuses to shrink below min-content. Both defaults have to be overridden.
         const dialog = screen.getByRole('dialog');
         expect(dialog.className).toContain('grid-rows-[minmax(0,1fr)]');
 

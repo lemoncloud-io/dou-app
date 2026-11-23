@@ -24,31 +24,22 @@ import { useShareDestinations } from '../hooks/useShareDestinations';
 import { useShareIntake } from '../hooks/useShareIntake';
 import { useShareSend } from '../hooks/useShareSend';
 
-/** How many rooms one share goes to — each one is its own upload of every file. */
 export const SHARE_DESTINATION_MAX = 5;
 
 const ICON_ACTION = 'flex size-11 items-center justify-center text-foreground disabled:text-placeholder';
 
-/**
- * Where another app's share lands: `/share?id=`, opened by the app on the URL its share extension
- * (iOS) or share intent (Android) wrote. What was shared already sits in the app's own folder; this
- * page asks for it by id, and the person picks the cloud, the place and up to five of its rooms, adds
- * a message if they like, and sends.
- */
 export const SharePage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const navigate = useNavigate();
     const [params, setParams] = useSearchParams();
     const id = params.get('id');
-    // The "To" list is a history entry of its own, so the system back closes it like Cancel does.
     const picking = params.get('to') === '1';
     const state = useShareIntake(id);
     const cloud = useShareCloud();
     const { destinations, isLoading: isDestinationsLoading } = useShareDestinations();
     const { register, send, isSending } = useShareSend(id);
 
-    // The person may drop items before sending; the share itself stays as the app gave it.
     const [removed, setRemoved] = useState<ReadonlySet<string>>(() => new Set());
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [message, setMessage] = useState('');
@@ -56,18 +47,14 @@ export const SharePage = () => {
 
     useEffect(() => {
         if (state.status !== 'empty') return;
-        // An id-less URL is someone typing the address; only a share that went missing is worth saying.
         if (id) toast({ title: t('share.nothingToShare') });
         navigate(ROUTES.home, { replace: true });
     }, [state.status, id, navigate, toast, t]);
 
-    // Rooms belong to one cloud and place: a switch that went through leaves none of the picks valid.
-    // One that failed leaves the session, and the picks, where they were.
     const dropPicksIf = (switched: boolean) => {
         if (switched) setSelectedIds([]);
     };
 
-    // Leaving discards the share's copies; `useShareSend` does it as the page goes, whichever way.
     const close = () => navigate(ROUTES.home, { replace: true });
 
     const intake = state.status === 'ready' ? state.intake : null;
@@ -75,8 +62,6 @@ export const SharePage = () => {
         () => (intake ? intake.items.filter(item => !removed.has(item.uri)) : []),
         [intake, removed]
     );
-    // Judged as a room's attachment pick is: what the server takes — a voice memo shared from another
-    // app included — one message's worth.
     const { accepted, rejected } = useMemo(
         () => judgeChatAttachments(items, IMAGE_MESSAGE_SLOT_MAX, PHONE_SENDS),
         [items]
@@ -248,7 +233,6 @@ export const SharePage = () => {
                 onSelect={sid => void cloud.changePlace(sid).then(dropPicksIf)}
             />
 
-            {/* One mounted send per picked room; see `useShareSend`. */}
             {selected.map(destination => (
                 <DestinationSender
                     key={`${destination.cid}/${destination.id}`}

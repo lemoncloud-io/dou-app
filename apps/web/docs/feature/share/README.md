@@ -100,6 +100,27 @@ A share that arrives while another is open starts a fresh page: the route is key
 no picks or message carry over, and the page it replaces is left — and its share discarded — like any
 other.
 
+### Guards that look redundant
+
+- **The discard is deferred one tick.** Leaving runs the cleanup, which releases the share with `discard`
+  only if the page is still unmounted a tick later and no send started. A development remount runs the
+  cleanup and the effect again at once, and discarding then would delete the share before the page could
+  read it.
+- **A send runs once.** The first send sets a flag that stays set while the page leaves, because a second
+  tap would otherwise send everything twice. Every way out that sends nothing resets it and hands the
+  composer back as it was.
+- **One notice per send.** The toaster shows one notice at a time, so a failure in several rooms is one
+  "some rooms failed" notice, not one each; a second would replace the first at once.
+- **A cloud switch that lands without a place is retried once per cloud.** The session then has no rooms to
+  offer until a place is selected, so the hook selects the first one. It is tried once per cloud: a failed
+  switch rolls the selection back to none, which would otherwise start the next try (and the next notice)
+  immediately. Only an attempt that went through frees the cloud for another later; the selection alone
+  cannot say so, because a switch shows its target while it runs, the failing one included.
+- **Intake is read once per id and kept for the page's life.** The answer is the same until the page
+  releases it, and a refetch on focus would only ask the app again for copies it already holds. A missing id
+  is someone typing the address and says nothing; a share that went missing is worth a message, and a
+  transient failure (a timeout, the bridge dropping) is offered a retry instead of a silent exit.
+
 ### Reaching into `channels`
 
 The room send, the title and avatar rules, the 1:1 peer lookup and the room-kind rules live in

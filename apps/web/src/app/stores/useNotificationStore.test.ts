@@ -134,7 +134,6 @@ describe('clearNotifications', () => {
         expect(store().computed).toEqual({});
         expect(store().computedRooms).toEqual({});
         expect(store().overlay.entries).toEqual({});
-        // A thread reply cached before the next account signed in is not news to it.
         expect(store().overlay.baselineAt).toBeGreaterThanOrEqual(now);
     });
 });

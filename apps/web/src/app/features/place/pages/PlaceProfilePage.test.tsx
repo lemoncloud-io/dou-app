@@ -16,8 +16,6 @@ jest.mock('../../../hooks', () => ({
     usePlaceProfileAbsent: () => ({ absent: mockAbsent, markPresent: jest.fn() }),
     useSetMyPlaceProfile: () => setMyPlaceProfile,
 }));
-// The real barrels pull `@chatic/assets` / `@chatic/runtime`, which jest cannot resolve or parse.
-// The form stub surfaces the seeded values — the whole point of the gate is WHAT gets latched.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
 jest.mock('../../../ui/components/PlaceProfileForm', () => ({
     PlaceProfileForm: ({
@@ -61,10 +59,6 @@ describe('PlaceProfilePage — 렌더 게이트', () => {
         headerOnly();
     });
 
-    // Regression guard: absent resolves immediately via getMyProfile(), but myProfile arrives late
-    // through observeItem's re-emit (~50ms debounce). Mounting the form in that gap would let
-    // seededRef latch onto an empty value once and never seed again, so a user who does have a
-    // profile would have it replaced without ever having seen their own name.
     it('프로필이 있다고 판정됐지만 아직 도착하지 않았으면 폼을 올리지 않는다', () => {
         mockAbsent = false;
         mockProfile = null;
@@ -82,8 +76,6 @@ describe('PlaceProfilePage — 렌더 게이트', () => {
         expect(screen.getByText('seeded-thumb:data:image/png;base64,AAA')).toBeInTheDocument();
     });
 
-    // ADR-0041 decision 7: a user with no profile must be able to create one here too. It used to be
-    // blocked by `!myProfile`, leaving only the header and no creation path at all.
     it('프로필이 없다고 확정되면 행이 없어도 빈 폼을 올린다', () => {
         mockAbsent = true;
         mockProfile = null;

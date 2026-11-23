@@ -24,9 +24,7 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 jest.mock('@chatic/ui-kit/components/ui/toast', () => ({
     ToastAction: ({ children }: any) => <button>{children}</button>,
 }));
-// The inbox where the session is: the real store, unscoped — every test item is in scope.
 jest.mock('../../../hooks', () => {
-    // The real hook and its memory: the return-from-an-item tests depend on both.
     const restoration = jest.requireActual('../../../hooks/useScrollRestoration');
     return {
         useScopedNotifications: () => {
@@ -39,7 +37,6 @@ jest.mock('../../../hooks', () => {
         useScrollChrome: jest.requireActual('../../../hooks/useScrollChrome').useScrollChrome,
     };
 });
-// Where the session is, for the scroll memory's key. Mutable so a test can move it.
 let mockSelection: { selectedCloudId: string | null; selectedSiteId: string | null } = {
     selectedCloudId: 'c',
     selectedSiteId: 's',
@@ -47,14 +44,12 @@ let mockSelection: { selectedCloudId: string | null; selectedSiteId: string | nu
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({ session: { useSessionSelection: () => mockSelection } })
 );
-// How the page was reached: a back press is POP, the bottom nav REPLACE, opening a link PUSH.
 let mockNavigationType = 'POP';
 jest.mock('react-router-dom', () => ({
     ...jest.requireActual('react-router-dom'),
     useNavigationType: () => mockNavigationType,
 }));
 jest.mock('../../../ui/components', () => ({ BottomNavSpacer: () => null }));
-// Author photos, keyed `${placeId}@${ownerId}` as the profile reader keys them.
 let mockProfiles = new Map<string, { thumbnail?: string }>();
 jest.mock('../../../hooks/useSenderProfiles', () => ({ useSenderProfiles: () => mockProfiles }));
 const mockHaptic = jest.fn();
@@ -74,7 +69,6 @@ const item = (over: Partial<NotificationItem>): NotificationItem => ({
     chatNo: 5,
     ...over,
 });
-// The items as the feed would have worked them out from the rows, with nothing done to them yet.
 const seed = (...items: NotificationItem[]) => {
     const byId = Object.fromEntries(items.map(it => [it.id, it]));
     useNotificationStore.setState({
@@ -90,7 +84,6 @@ describe('NotificationsPage', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         seed();
-        // Both outlive a page on purpose, so each test starts from a fresh visit.
         useNotificationsViewStore.setState({ tab: 'all', unreadOnly: false });
         mockSelection = { selectedCloudId: 'c', selectedSiteId: 's' };
         mockNavigationType = 'POP';
@@ -178,7 +171,6 @@ describe('NotificationsPage', () => {
         expect(useNotificationStore.getState().items.a).toBeUndefined();
         expect(useNotificationStore.getState().items.b).toBeDefined();
         expect(mockToast).toHaveBeenCalledWith(expect.objectContaining({ duration: 3000 }));
-        // Selection mode closed with it.
         expect(screen.getByText('notifications.inbox.title')).toBeInTheDocument();
     });
 
@@ -211,7 +203,6 @@ describe('NotificationsPage', () => {
         expect(screen.getByRole('button', { name: 'notifications.inbox.markRead:{"count":2}' })).toBeEnabled();
         expect(screen.getByRole('button', { name: 'notifications.inbox.delete:{"count":3}' })).toBeEnabled();
 
-        // Pressed again on the whole list, it clears.
         fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.selectAll' }));
         expect(screen.getByText('notifications.inbox.selectedCount:{"count":0}')).toBeInTheDocument();
     });
@@ -326,8 +317,6 @@ describe('NotificationsPage', () => {
     });
 
     describe('coming back from an opened item', () => {
-        // jsdom lays nothing out, so every element reports a zero-height box and a restore would be
-        // skipped as "nothing to scroll". Give the list a scrollable box for these cases only.
         beforeEach(() => {
             jest.spyOn(Element.prototype, 'scrollHeight', 'get').mockReturnValue(2000);
             jest.spyOn(Element.prototype, 'clientHeight', 'get').mockReturnValue(500);
@@ -392,7 +381,6 @@ describe('NotificationsPage', () => {
             fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.unreadOnly' }));
             leaveAt(first, 640);
 
-            // The bottom nav's bell replaces the entry rather than popping back to it.
             mockNavigationType = 'REPLACE';
             const entered = render(<NotificationsPage />);
             expect(screen.getByRole('tab', { name: /notifications\.inbox\.tabs\.all/ })).toHaveAttribute(
@@ -413,7 +401,6 @@ describe('NotificationsPage', () => {
             fireEvent.click(screen.getByRole('button', { name: 'notifications.inbox.unreadOnly' }));
             leaveAt(first, 640);
 
-            // Opening it read the last unread item, so the return lands on "nothing unread".
             seed(
                 item({ id: 'a', content: 'unread one', read: true }),
                 item({ id: 'b', content: 'read one', read: true })

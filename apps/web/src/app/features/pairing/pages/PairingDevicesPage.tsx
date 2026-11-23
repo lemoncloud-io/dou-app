@@ -18,18 +18,9 @@ import { approvedPairingRows, deviceKindKey } from '../lib/deviceRows';
 
 const RELAY_SELECTION = 'default';
 
-/**
- * My devices, and — on an approving app — the web sign-ins it approved.
- *
- * A browser guest has no account whose devices there are to list; anyone else sees the first section.
- * The second is the approver's: inside the app (where `runtime.signIn` says this device approves), on a
- * session that is not itself signed in through an approval (the relay answers 403 to anyone else
- * anyway).
- */
 export const PairingDevicesPage = () => {
     const enabled = useDevicePairingEnabled();
     const isGuest = useIsAccountGuest();
-    // A guest whose sign-in is the device's own still has that device to list (`runtime.signIn`).
     if (!enabled || (isGuest && runtime.signIn.sessionScope !== 'device')) {
         return <Navigate to={ROUTES.mypage.root} replace />;
     }
@@ -43,7 +34,6 @@ const PairingDevicesScreen = () => {
     const navigate = useNavigateWithTransition();
     const isPaired = runtime.session.useIsPairedSession();
     const isGuest = useIsAccountGuest();
-    // The approvals are an approving app's: an account's, not a secondary device's.
     const showApprovals = runtime.signIn.approvesPairing && !isGuest && !isPaired;
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const onCloud = !!selectedCloudId && selectedCloudId !== RELAY_SELECTION;
@@ -66,7 +56,6 @@ const PairingDevicesScreen = () => {
             if (pending.kind === 'device') await unlink.mutateAsync(pending.id);
             else await revoke.mutateAsync(pending.id);
         } catch {
-            // Removing a device or an approval is a security step; one that did not happen has to say so.
             toast({
                 title: t(pending.kind === 'device' ? 'pairing.devices.unlinkFailed' : 'pairing.devices.revokeFailed'),
                 variant: 'destructive',

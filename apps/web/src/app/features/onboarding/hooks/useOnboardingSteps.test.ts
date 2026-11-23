@@ -5,8 +5,6 @@ import { useOnboardingSteps } from './useOnboardingSteps';
 
 let language = 'ko';
 
-// Mirrors the `onboarding.steps.*` keys in apps/web/public/locales/{ko,en}/translation.json,
-// just enough for this hook's own interpolation (`{{maxPlaces}}`, `{{maxChannels}}`) to resolve.
 const stepText: Record<string, Record<string, string>> = {
     ko: {
         'onboarding.steps.privateCommunity.title': '프라이빗 커뮤니티',
@@ -56,10 +54,6 @@ const stepsFor = (locale: string) => {
 
 const slide = (locale: string, id: string) => stepsFor(locale).find(step => step.id === id);
 
-/**
- * This slide is a promise about "what the app allows", so it has to move together with the limits.
- * It used to have 5 and 5 hardcoded as strings, and they stayed that way after the real limits moved.
- */
 describe('useOnboardingSteps — 생성 한도 문구', () => {
     it.each(['ko', 'en'])('%s 문구가 상수에서 온 숫자를 싣는다', locale => {
         const description = slide(locale, 'private-community')?.description ?? '';
@@ -68,7 +62,6 @@ describe('useOnboardingSteps — 생성 한도 문구', () => {
         expect(description).toContain(String(MAX_CHANNELS_PER_PLACE));
     });
 
-    // Checks every number rather than banning a stale one, so it keeps meaning whatever the limits become.
     it.each(['ko', 'en'])('%s copy carries no number besides the two limits', locale => {
         const numbers = (slide(locale, 'private-community')?.description ?? '').match(/\d+/g) ?? [];
 

@@ -12,7 +12,6 @@ jest.mock('../../app/bridge/appBridge', () => ({
     },
 }));
 
-// Neither side reads the facts; the implementations decide from the side alone.
 const facts = {} as WebHostFacts;
 const shell = () => webDiagnostics.shell({ kind: 'shell' }, facts);
 const browser = () => webDiagnostics.browser({ kind: 'browser' }, facts);

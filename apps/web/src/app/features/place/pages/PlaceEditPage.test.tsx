@@ -28,7 +28,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'p1' }) }));
-// The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
 jest.mock('../../../ui/layouts', () => ({
     fixedViewportScreen: '',
@@ -41,8 +40,6 @@ jest.mock('../../../ui/layouts', () => ({
 }));
 let mockKeyboardOpen = false;
 jest.mock('../../../ui/hooks', () => ({ useKeyboardOpen: () => mockKeyboardOpen }));
-// The save path is what these tests assert; `useUpdatePlace` has no logic of its own beyond the
-// pending flag, so the page's payload is observed directly at this seam.
 jest.mock('../../home', () => ({ useUpdatePlace: () => ({ updatePlace, isPending: false }) }));
 
 import { PlaceEditPage } from './PlaceEditPage';
@@ -54,7 +51,6 @@ beforeEach(() => {
     mockPlace = OWNED;
     mockKeyboardOpen = false;
     updatePlace.mockResolvedValue(undefined);
-    // observeItem emits synchronously, the way the local data source does for a warm cache.
     observeItem.mockImplementation((_id: string, cb: (item: unknown) => void) => {
         cb(mockPlace);
         return jest.fn();
@@ -78,9 +74,6 @@ describe('PlaceEditPage — 소개 문구', () => {
         expect(descBox()).toHaveValue('');
     });
 
-    // `Textarea` has neither a counter nor a hard cap (by design). The 100-char ceiling exists only as
-    // the caller's onChange clamp, so if that clamp ever disappears, over-length input would be saved
-    // silently.
     it('100자를 넘겨 입력할 수 없다', () => {
         render(<PlaceEditPage />);
 
@@ -114,8 +107,6 @@ describe('PlaceEditPage — 소개 문구', () => {
         });
     });
 
-    // A save that only changed the name must not overwrite the introduction — that would break the
-    // assumption that the server merges partial payloads.
     it('이름만 고치면 desc를 보내지 않는다', async () => {
         mockPlace = { ...OWNED, desc: '기존 소개' };
         render(<PlaceEditPage />);
@@ -127,8 +118,6 @@ describe('PlaceEditPage — 소개 문구', () => {
         expect(updatePlace.mock.calls[0][0]).not.toHaveProperty('desc');
     });
 
-    // Clearing the introduction is "delete", not "no change". The empty string must actually be sent
-    // for the server to clear it.
     it('소개를 비우면 빈 문자열을 보낸다', async () => {
         mockPlace = { ...OWNED, desc: '기존 소개' };
         render(<PlaceEditPage />);
@@ -140,8 +129,6 @@ describe('PlaceEditPage — 소개 문구', () => {
         expect(updatePlace.mock.calls[0][0]).toMatchObject({ desc: '' });
     });
 
-    // Seeding fires once, keyed by placeId. Even if the background sync re-emits the same place, it
-    // must not revert input that's mid-edit.
     it('배경 재방출이 편집 중인 소개를 덮지 않는다', () => {
         mockPlace = { ...OWNED, desc: '기존 소개' };
         const { rerender } = render(<PlaceEditPage />);
@@ -154,7 +141,6 @@ describe('PlaceEditPage — 소개 문구', () => {
 });
 
 describe('PlaceEditPage — 저장 실패 기록 (ADR-0099)', () => {
-    // The toast literally says "Unknown error", and until now that was exactly as much as got logged.
     it('저장 실패를 어떤 필드가 실렸는지와 함께 error로 남긴다', async () => {
         updatePlace.mockRejectedValue(new Error('save boom'));
         render(<PlaceEditPage />);
@@ -185,8 +171,6 @@ describe('PlaceEditPage — 저장 실패 기록 (ADR-0099)', () => {
 });
 
 describe('PlaceEditPage — photo while typing', () => {
-    // Folding the caption alone frees the room; a photo that shrank whenever the keyboard rose read as
-    // the screen changing under the user.
     it('keeps the photo at full size and folds only its caption while the keyboard is up', () => {
         mockKeyboardOpen = true;
         render(<PlaceEditPage />);

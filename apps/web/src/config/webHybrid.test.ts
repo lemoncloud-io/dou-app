@@ -1,9 +1,3 @@
-/**
- * `web-hybrid` exists to boot the page inside a shell exactly as the entry booted it before declarations:
- * every runtime port fixed, the session and the cache's tab rows on the entry's own store objects, the
- * session's owner settled before any port is built, and the host ports the shell declared — the cases the
- * entry's own host-port chooser was tested for.
- */
 import {
     pageStorageAreas,
     settleSessionOwner,
@@ -38,7 +32,6 @@ jest.mock('@chatic/runtime-web', () => {
         webLocalCachePorts: jest.fn(actual.webLocalCachePorts),
     };
 });
-// The mirror over the bridge is runtime-web's own; here it only has to be told apart from the core.
 const mockMirrorEngine = { mirror: true };
 jest.mock('../../../../libs/runtime-web/src/createBridgedRuntime', () => ({
     ...jest.requireActual('../../../../libs/runtime-web/src/createBridgedRuntime'),
@@ -59,7 +52,6 @@ const EXPECTED_PORTS = {
     foreground: 'foreground.visibility',
 } as const;
 
-/** Each host port's default, then the adapters a toggle may move it to. */
 const EXPECTED_HOST = {
     checkout: ['checkout.host', 'checkout.store', 'checkout.web', 'checkout.none'],
     media: ['media.host', 'media.shell', 'media.browser'],
@@ -73,7 +65,6 @@ const EXPECTED_HOST = {
 
 type Read = NonNullable<StartRuntimeOptions['read']>;
 
-/** The phone app as the page sees it: its bridge, its platform, and a declaration of what it does. */
 const phoneFacts = (values: Record<string, unknown> = {}, version = 4): WebHostFacts => ({
     bridge: 'react-native-webview',
     platform: 'ios',
@@ -82,7 +73,6 @@ const phoneFacts = (values: Record<string, unknown> = {}, version = 4): WebHostF
     capabilities: { kind: 'declared', version, values },
 });
 
-/** Starts the declaration with every collaborator faked except the adapters themselves. */
 const start = async ({
     read = () => undefined,
     facts,

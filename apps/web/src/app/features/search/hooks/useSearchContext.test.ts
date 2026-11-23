@@ -17,13 +17,9 @@ jest.mock('@chatic/runtime', () =>
         session: { useSessionIdentity: jest.fn(() => ({ userId: undefined })) },
     })
 );
-// The title chain takes its fallback labels from i18n. Echoing the key keeps the assertions
-// readable and makes an unexpected fallback obvious in the diff.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-// Sender profiles come from ProfileRepository via this hook; it has its own test file.
 jest.mock('../../../hooks/useSenderProfiles', () => ({ useSenderProfiles: jest.fn(() => new Map()) }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
-// Cloud-profile names come from the user cache via this hook; it has its own test file.
 jest.mock('../../channels/hooks/usePeerCloudNames', () => ({ usePeerCloudNames: jest.fn(() => new Map()) }));
 
 const resolveContext = jest.fn();
@@ -62,7 +58,6 @@ describe('useSearchContext', () => {
         await waitFor(() => expect(resolveContext).toHaveBeenCalledTimes(1));
         expect(resolveContext).toHaveBeenCalledWith({
             cids: ['cloud-a', 'cloud-b'],
-            // ch-1 is referenced by both a channel row and a chat row — asked for once.
             channelRefs: [
                 { cid: 'cloud-a', channelId: 'ch-1' },
                 { cid: 'cloud-b', channelId: 'ch-2' },
@@ -111,13 +106,9 @@ describe('useSearchContext', () => {
             lastMessage: 'see you',
             lastMessageAt: 1700,
         });
-        // join.metaNo is missing → falls back to head's metaNo (ADR-0048 fallback). (20-2) - (8-2) = 12.
         expect(row.unread).toBe(12);
     });
 
-    // The placeholder glyph has to ride along with the photo. Search dropped it once and rendered
-    // every photo-less room with the one-person default, so a group read as a person here while the
-    // home list and the manage list drew the two-person glyph for the same room.
     it.each([
         ['private', 'group'],
         ['public', 'group'],
@@ -184,8 +175,6 @@ describe('useSearchContext', () => {
     });
 
     it('asks for the author profile by (owning channel sid, message ownerId)', async () => {
-        // sid always follows the channel — it is not the query context's sid, and the chat row
-        // itself has none.
         resolveContext.mockResolvedValue({
             ...EMPTY_CONTEXT,
             channelsByRef: { 'cloud-b:ch-2': { id: 'ch-2', sid: 'site-9', name: 'Bistro' } },
@@ -203,7 +192,6 @@ describe('useSearchContext', () => {
     });
 
     it('asks for nothing while the owning channel is still unresolved', async () => {
-        // Without the channel there is no sid, so there is no profile to ask for yet.
         const input = results({
             messages: [
                 { id: 'chat-2', cid: 'cloud-b', channelId: 'ch-2', chatNo: 6, content: 'yo', ownerId: 'user-2' },
@@ -230,7 +218,6 @@ describe('useSearchContext', () => {
                     chatNo: 6,
                     content: 'yo',
                     ownerId: 'user-2',
-                    // Not consulted: the account-level owner on the message is a different label.
                     owner$: { id: 'user-2', name: 'Bora' },
                 },
             ] as any,
@@ -255,12 +242,9 @@ describe('useSearchContext', () => {
         expect(row.channelName).toBeUndefined();
         expect(row.placeName).toBeUndefined();
         expect(row.sid).toBeUndefined();
-        // The match itself still renders — a missing crumb must not cost the result.
         expect(row.content).toBe('yo');
     });
 
-    // A webhook result is a Block Kit payload in `content`; the row and its query highlight
-    // both read this field, so it has to arrive as text rather than JSON.
     it('flattens a Block Kit body into the row', async () => {
         const input = results({
             messages: [
@@ -282,7 +266,6 @@ describe('useSearchContext', () => {
         expect(result.current.chats[0].content).toBe('503 upstream timeout');
     });
 
-    // The channel row's own preview reads the same body from a different source.
     it('flattens a Block Kit body in the channel row preview', async () => {
         resolveContext.mockResolvedValue({
             ...EMPTY_CONTEXT,
@@ -306,8 +289,6 @@ describe('useSearchContext', () => {
         await waitFor(() => expect(result.current.channels[0].lastMessage).toBe('배포 실패'));
     });
 
-    // Composer markup is not something the row can draw, so it arrives flattened — but a search
-    // row keeps a code block whole, because the query may match a line past the first one.
     it('flattens composer markup in a message row, keeping every line of a code block', async () => {
         const input = results({
             messages: [
@@ -328,7 +309,6 @@ describe('useSearchContext', () => {
         expect(result.current.chats[0].content).toBe('가이드 참고, yarn deploy 후\nnx build web\nnx deploy web');
     });
 
-    // The channel row is a preview like the home list's: the same line, code cut to its first line.
     it('flattens composer markup in the channel row preview like the home list', async () => {
         resolveContext.mockResolvedValue({
             ...EMPTY_CONTEXT,
@@ -350,8 +330,6 @@ describe('useSearchContext', () => {
         await waitFor(() => expect(result.current.channels[0].lastMessage).toBe('가이드 참고\nnx build web'));
     });
 
-    // The channel row reads the home list's line: a soft delete keeps its body on the cached row,
-    // and the preview must say "deleted", not print the body.
     it('previews a deleted last message as the deleted-message phrase, not its kept body', async () => {
         resolveContext.mockResolvedValue({
             ...EMPTY_CONTEXT,
@@ -409,7 +387,6 @@ describe('useSearchContext — a cloud 1:1 peer with no place profile', () => {
     const dmRow = (cid: string) =>
         results({ channels: [{ id: 'dm-1', cid, sid: 'site-1', stereo: 'dm', memberIds: ['me', 'peer'] }] as any });
 
-    // Home names this row by the cloud profile; search must not call the same room "대화 상대".
     it("names the row by the peer's cloud-profile name, as home does", async () => {
         (usePeerCloudNames as jest.Mock).mockReturnValue(new Map([['peer', '임마']]));
 
@@ -433,8 +410,6 @@ describe('useSearchContext — a cloud 1:1 peer with no place profile', () => {
 
 describe('useSearchContext — 재입장 이력 숨기기 (ADR-0067)', () => {
     it('joinedNo 이하의 메시지 결과와 채널 프리뷰를 모두 뺀다', async () => {
-        // The global scan reads the chat table whole, so rooms I left still match. Before this
-        // window they surfaced as results with no channel name attached.
         const input = results({
             channels: [{ id: 'ch-left', cid: 'cloud-a', sid: 'site-1', name: 'Lounge' }] as any,
             messages: [

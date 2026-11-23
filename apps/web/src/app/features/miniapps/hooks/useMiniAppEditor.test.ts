@@ -5,8 +5,6 @@ import { useMiniAppEditor } from './useMiniAppEditor';
 
 import type { CloudMiniApps } from './useCloudMiniApps';
 
-/** What a save sends: only what changed, and never the switch of a mini app an admin holds. */
-
 const miniApps = (over: Partial<CloudMiniApps> = {}) =>
     ({
         cloudId: 'c1',

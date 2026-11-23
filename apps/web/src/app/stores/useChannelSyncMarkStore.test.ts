@@ -30,8 +30,6 @@ describe('useChannelSyncMarkStore — first channel delta per cloud', () => {
     });
 
     it('keeps the accounts apart — a second account waits for its own answer', () => {
-        // Both accounts read a different local cache, so inheriting the mark would show the new one
-        // an empty chat section for a cloud whose rooms it has never fetched.
         useChannelSyncMarkStore.getState().markSynced('cloud-A', 'u1');
 
         const { result } = renderHook(() => useHasChannelSync('cloud-A', 'u2'));
@@ -51,7 +49,6 @@ describe('useChannelSyncMarkStore — first channel delta per cloud', () => {
         useChannelSyncMarkStore.getState().markSynced('cloud-A', 'u1');
         const before = useChannelSyncMarkStore.getState();
 
-        // Every poll tick and foreground return re-marks the active scope.
         useChannelSyncMarkStore.getState().markSynced('cloud-A', 'u1');
 
         expect(useChannelSyncMarkStore.getState()).toBe(before);

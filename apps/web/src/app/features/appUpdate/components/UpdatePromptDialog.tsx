@@ -15,7 +15,6 @@ interface UpdatePromptDialogProps {
     onUpdate: () => void;
 }
 
-/** Optional, once-per-version "a new update is available" prompt. Not a forced update. */
 export const UpdatePromptDialog = ({ open, onDismiss, onUpdate }: UpdatePromptDialogProps) => {
     const { t } = useTranslation();
 
@@ -33,8 +32,6 @@ export const UpdatePromptDialog = ({ open, onDismiss, onUpdate }: UpdatePromptDi
                     </div>
 
                     <div className="flex w-full">
-                        {/* No explicit onClick: Radix's Cancel-close already triggers onOpenChange(false)
-                            above, which calls onDismiss — an onClick here would double-invoke it. */}
                         <AlertDialogCancel className="mt-0 flex h-[52px] flex-1 items-center justify-center rounded-none border-0 border-r border-t border-border bg-transparent text-[16px] font-medium text-dialog-subtitle transition-colors hover:bg-muted">
                             {t('appUpdate.later')}
                         </AlertDialogCancel>

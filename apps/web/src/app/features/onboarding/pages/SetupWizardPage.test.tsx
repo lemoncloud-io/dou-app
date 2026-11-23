@@ -10,7 +10,6 @@ const switchSite = jest.fn();
 const setMyPlaceProfile = jest.fn();
 const navigate = jest.fn();
 const toast = jest.fn();
-// One ordered record of the calls that matter, so a test can assert the switch came first.
 const calls: string[] = [];
 
 jest.mock('../../../hooks', () => ({
@@ -45,7 +44,6 @@ const reachPlaceStep = async () => {
     await waitFor(() => expect(screen.getByText('2/3')).toBeInTheDocument());
 };
 
-/** Walks steps 1 and 2 so the test starts on the profile step. */
 const reachProfileStep = async () => {
     await reachPlaceStep();
     type('Book club');

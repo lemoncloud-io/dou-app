@@ -5,17 +5,6 @@ import { BottomSheet, Button } from '@chatic/web-ui-kit';
 import { usePhoneVerify, type PhoneVerifyShellProps } from '../hooks/usePhoneVerify';
 import { PhoneVerifyFields } from './PhoneVerifyFields';
 
-/**
- * Bottom-sheet phone verification — the shell the ISSUE flow uses (ContactInvitePage's guest gate).
- * Figma 3586-16255: a titled sheet over the dimmed prompt screen, left-aligned intro copy, the
- * shared field pair, and the CTA pinned in the sheet footer.
- *
- * `BottomSheet` already draws the design's circular close button (`size-6 rounded-full bg-muted` +
- * `IconClose`), so no new ui-kit component or icon asset is needed.
- *
- * Unlike `PhoneVerifyScreen` this omits the account-split banner — the backend guide mandates that
- * warning on the ACCEPT screen, and the issue-side design leaves it out (ADR-0034 decision 4).
- */
 export const PhoneVerifySheet = (props: PhoneVerifyShellProps) => {
     const { t } = useTranslation();
     const { onClose } = props;

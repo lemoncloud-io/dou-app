@@ -18,7 +18,6 @@ jest.mock('@chatic/bridges', () => ({
 
 const facts = {} as WebHostFacts;
 
-/** A shell's vault as the store set holds it; only its status is read here. */
 const fakeVault = (status: 'available' | 'unavailable') =>
     ({ status }) as unknown as NonNullable<StorageStores['vault']>;
 

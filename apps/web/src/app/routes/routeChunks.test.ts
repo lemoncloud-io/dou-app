@@ -32,7 +32,6 @@ describe('usePreloadOnIdle', () => {
             idle = () => cb({} as IdleDeadline);
             return 1;
         });
-        // A browser with one has both.
         globalThis.cancelIdleCallback = jest.fn();
         const load = jest.fn().mockResolvedValue({});
 
@@ -41,7 +40,6 @@ describe('usePreloadOnIdle', () => {
 
         idle?.();
         expect(load).toHaveBeenCalledTimes(1);
-        // Unmounted here, while the stubbed cancelIdleCallback is still in place.
         unmount();
     });
 

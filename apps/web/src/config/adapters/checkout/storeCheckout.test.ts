@@ -3,7 +3,6 @@ import { logger } from '@chatic/bridges';
 import { appBridge } from '../../../app/bridge/appBridge';
 import { PURCHASE_TIMEOUT_MS, storeCheckout } from './storeCheckout';
 
-// The shell's purchase events, captured so a test can play the store's answer back.
 const mockEvents: Record<string, (message: unknown) => void> = {};
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -107,7 +106,6 @@ describe('storeCheckout — how a purchase settles', () => {
             const second = checkout.purchase({ id: 'second' });
 
             await expect(first).resolves.toMatchObject({ code: 'superseded' });
-            // The first purchase's 60 seconds are up; the second has had only half of its own.
             jest.advanceTimersByTime(PURCHASE_TIMEOUT_MS / 2);
             succeed({ productId: 'second' });
 

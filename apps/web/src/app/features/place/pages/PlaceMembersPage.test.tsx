@@ -50,7 +50,6 @@ jest.mock('@chatic/runtime', () =>
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: () => 0 }));
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'p1' }) }));
 jest.mock('../../../hooks', () => ({ useSelectedCloudId: () => 'cloud-a' }));
-// The real `ui` barrel pulls `@chatic/assets` through PrivateLayout, which jest cannot parse.
 jest.mock('../../../ui', () => ({ PageHeader: ({ title }: { title: string }) => <div>header:{title}</div> }));
 jest.mock('../../channels/hooks', () => ({ useChannelProfiles: () => ({ profileMap: mockProfiles }) }));
 
@@ -64,17 +63,13 @@ const member = (id: string, extra: Partial<DomainPlaceMember> = {}): DomainPlace
 const answer = (members: DomainPlaceMember[], context = { cid: 'cloud-a', sid: 'p1' }, profiles = 'loaded') =>
     listPlaceMembers.mockResolvedValue({ members, context, profiles });
 
-/** The member rows' names, top to bottom (the header and the count label are not rows). */
 const rowNames = () =>
     screen.getAllByText((_, el) => el?.tagName === 'SPAN' && el.className === 'truncate').map(el => el.textContent);
-/** The whole row a name sits in — the row's root is the first `div` above the name. */
 const rowOf = (name: string) => screen.getByText(name).closest('div') as HTMLElement;
 
 const renderSettled = async () => {
     render(<PlaceMembersPage />);
     await waitFor(() => expect(listPlaceMembers).toHaveBeenCalled());
-    // A macrotask, not a single microtask: the answer's then/catch chain takes more than one tick to
-    // reach state, and under a loaded runner a one-tick flush read the screen before it had.
     await act(() => new Promise(resolve => setTimeout(resolve, 0)));
 };
 
@@ -100,7 +95,6 @@ describe('PlaceMembersPage — the list', () => {
         expect(rowNames()).toEqual(['Olivia', 'Mina', 'Bora', 'Chul']);
         expect(screen.getByText('placeMembers.badge.owner')).toBeInTheDocument();
         expect(screen.getByText('placeMembers.badge.me')).toBeInTheDocument();
-        // The count is the rows received.
         expect(screen.getByText('placeMembers.count')).toBeInTheDocument();
     });
 
@@ -200,7 +194,6 @@ describe('PlaceMembersPage — removing a member', () => {
 
     it('keeps a removed member out when the list is read again while the screen is open', async () => {
         mockPlace = { id: 'p1', isOwner: true };
-        // The server's list catches up late: a read straight after still names her.
         answer([member('me', { nick: 'Mina', isOwner: true }), member('u-2', { nick: 'Bora' })]);
         const { rerender } = render(<PlaceMembersPage />);
         await act(() => new Promise(resolve => setTimeout(resolve, 0)));
@@ -209,7 +202,6 @@ describe('PlaceMembersPage — removing a member', () => {
             fireEvent.click(within(screen.getByRole('alertdialog')).getByText('placeMembers.removeDialog.confirm'));
         });
 
-        // The socket drops and comes back, which reads the list again.
         mockVerified = false;
         rerender(<PlaceMembersPage />);
         mockVerified = true;

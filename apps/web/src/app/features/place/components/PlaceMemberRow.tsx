@@ -7,21 +7,12 @@ interface PlaceMemberRowProps {
     avatar?: string;
     isOwner: boolean;
     isMe: boolean;
-    /** When set, the row carries a Remove button that calls it. */
     onRemove?: () => void;
-    /** A removal of this member is in flight — the button stays, disabled. */
     isRemoving?: boolean;
 }
 
 const AVATAR_SIZE = 40;
 
-/**
- * One member of a place. Built from the same parts as the room's member rows — `ListRow`, the
- * avatar pair and `StatusBadge` before the name — with a Remove button in the trailing slot, which
- * the room's row does not have. One badge at most, owner before me — the opposite of a room's row,
- * which puts MY first. The badge reads "소유자" (owner), not a room's "방장" (room owner): a place
- * has an owner, a room has its own.
- */
 export const PlaceMemberRow = ({ name, avatar, isOwner, isMe, onRemove, isRemoving = false }: PlaceMemberRowProps) => {
     const { t } = useTranslation();
 

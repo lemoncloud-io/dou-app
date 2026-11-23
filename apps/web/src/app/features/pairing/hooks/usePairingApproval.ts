@@ -13,14 +13,6 @@ export type PairingApprovalStep =
 
 const PAIRING_CODE_LENGTH = 8;
 
-/**
- * The approving device's side: a code typed (or scanned) in, looked up once it has all eight digits,
- * then approved for a chosen target or declined.
- *
- * The code keeps digits only — people paste it as shown (`0734-4168`) or with spaces — and the same
- * eight digits are never looked up twice in a row: a lookup is the relay's claim that this account saw
- * the code, so a second one for the same code only earns a 403.
- */
 export const usePairingApproval = () => {
     const { pairing } = runtime.data.useRuntimeRepositories();
     const [code, setCodeState] = useState('');
@@ -79,7 +71,6 @@ export const usePairingApproval = () => {
         [pairing, state]
     );
 
-    /** Looks the current code up again — after a network failure, the same eight digits are still worth asking. */
     const retry = useCallback(() => {
         if (code.length === PAIRING_CODE_LENGTH) void lookUp(code);
     }, [code, lookUp]);

@@ -7,11 +7,6 @@ import { MiniAppsPage } from './MiniAppsPage';
 
 import type { DomainMiniApp } from '@chatic/runtime';
 
-/**
- * The mini app tab: the hub, then the cloud's list from the relay — the active ones for a member, all
- * of them for the owner — and opening a mini app by the Lab card's rules.
- */
-
 const mockOpenSubWebView = jest.fn();
 const mockToast = jest.fn();
 const mockNavigate = jest.fn();
@@ -68,7 +63,6 @@ jest.mock('../../../hooks/useCloudCatalog', () => ({
 jest.mock('../../../bridge/subWebView', () => ({
     openSubWebView: (...args: unknown[]) => mockOpenSubWebView(...args),
 }));
-// `import.meta` is out of reach of the CommonJS transform; the stage is the test's to choose.
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 
 const HUB = 'https://apps.chatic.io/';
@@ -185,7 +179,6 @@ describe('MiniAppsPage — the hub', () => {
         act(() =>
             mockClosedHandler?.({ viewId: 'view-1', reason: 'page', result: { action: 'openMiniApp', id: 'lunch' } })
         );
-        // Neither opened nor asked about: an off mini app is not in the list the hub may name from.
         expect(mockOpenSubWebView).toHaveBeenCalledTimes(1);
         expect(screen.queryByText(/miniApps\.consent\.title/)).toBeNull();
 

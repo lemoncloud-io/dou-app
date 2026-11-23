@@ -1,19 +1,10 @@
 import { cn } from '@chatic/ui-kit';
 
 interface WizardProgressProps {
-    /** 1-based. */
     step: number;
     total: number;
 }
 
-/**
- * The setup wizard's progress rail — dots joined by a line, filled up to the current step.
- *
- * Distinct from `StepIndicator`, which the first-run carousel uses: that one marks *which* slide of
- * several you are on and any of them is reachable, so its dots are unconnected and only the current
- * one is filled. Here the steps are a sequence you advance through, and the rail says how far along
- * you are.
- */
 export const WizardProgress = ({ step, total }: WizardProgressProps) => (
     <div className="flex items-center justify-center" role="progressbar" aria-valuenow={step} aria-valuemax={total}>
         {Array.from({ length: total }, (_, i) => {

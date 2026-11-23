@@ -10,7 +10,6 @@ const fakeStream = () => {
 const fakeVideo = (play: () => Promise<void> = () => Promise.resolve()) =>
     ({ srcObject: null, play: jest.fn(play) }) as unknown as HTMLVideoElement & { play: jest.Mock };
 
-/** A scanner whose timers run only when the test says so, reading the texts it is handed in order. */
 const setup = (texts: Array<string | null>, overrides: Partial<LiveQrScannerDeps> = {}) => {
     const { stream, track } = fakeStream();
     const timers: Array<() => void> = [];
@@ -140,7 +139,6 @@ describe('LiveQrScanner', () => {
 
     it('reports a page with no getUserMedia as unsupported', async () => {
         const scanner = new LiveQrScanner({ getUserMedia: undefined, readFrame: () => PIXELS });
-        // The default deps read `navigator.mediaDevices`, which jsdom does not have.
         await expect(scanner.start(fakeVideo(), { onCode: jest.fn() })).rejects.toMatchObject({
             reason: 'unsupported',
         });

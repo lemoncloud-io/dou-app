@@ -1,14 +1,5 @@
 import { decodePairingQr, readQrText, toPairingCode, type QrPixels } from './pairingQr';
 
-// --- A test-only QR encoder ---------------------------------------------------------------------
-
-/**
- * A minimal QR encoder for tests: version 1, error correction M, mask 0. Just enough to draw the
- * symbols the decoder is tested against, so the tests need no QR drawing package and no image file.
- *
- * Version 1-M holds 16 data codewords — 8 digits in numeric mode, or up to 14 bytes in byte mode.
- */
-
 const SIZE = 21;
 const DATA_CODEWORDS = 16;
 const ECC_CODEWORDS = 10;
@@ -76,7 +67,6 @@ const reedSolomon = (data: number[]): number[] => {
     return remainder;
 };
 
-/** The symbol's modules, `true` for dark, indexed `[row][column]`. */
 const qrTestSymbol = (text: string, mode: Mode): boolean[][] => {
     const modules = Array.from({ length: SIZE }, () => new Array<boolean>(SIZE).fill(false));
     const reserved = Array.from({ length: SIZE }, () => new Array<boolean>(SIZE).fill(false));
@@ -105,8 +95,6 @@ const qrTestSymbol = (text: string, mode: Mode): boolean[][] => {
         }
     }
 
-    // Format information: level M (00) and mask 0 (000) — data 0, so the BCH remainder is 0 and the
-    // word is the fixed XOR mask alone.
     const format = 0x5412;
     const bit = (i: number) => ((format >>> i) & 1) === 1;
     for (let i = 0; i <= 5; i++) setFunction(8, i, bit(i));
@@ -143,7 +131,6 @@ const qrTestSymbol = (text: string, mode: Mode): boolean[][] => {
     return modules;
 };
 
-/** Paints a symbol as RGBA pixels: `scale` pixels per module and a 4-module white quiet zone. */
 const renderSymbol = (modules: boolean[][], scale = 4): { data: Uint8ClampedArray; width: number; height: number } => {
     const quiet = 4;
     const size = (modules.length + quiet * 2) * scale;
@@ -161,13 +148,10 @@ const renderSymbol = (modules: boolean[][], scale = 4): { data: Uint8ClampedArra
     return { data, width: size, height: size };
 };
 
-// --- Tests ------------------------------------------------------------------------------------------
-
 const pixelsOf = (text: string, mode: Mode): QrPixels => renderSymbol(qrTestSymbol(text, mode));
 const blankPhoto = (): QrPixels => {
     const size = 120;
     const data = new Uint8ClampedArray(size * size * 4);
-    // A grey gradient — something to look at, nothing shaped like a finder pattern.
     for (let i = 0; i < size * size; i++) {
         const shade = (i % size) * 2;
         data.set([shade, shade, shade, 255], i * 4);
@@ -244,7 +228,6 @@ describe('decodePairingQr', () => {
     });
 
     it('answers null through the default loader when the browser cannot decode the image', async () => {
-        // jsdom has no `decode`; stand in for a browser that rejects the bytes.
         const decode = jest.fn().mockRejectedValue(new DOMException('The source image cannot be decoded.'));
         Object.defineProperty(HTMLImageElement.prototype, 'decode', { value: decode, configurable: true });
         try {

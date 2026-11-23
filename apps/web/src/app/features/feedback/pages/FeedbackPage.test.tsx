@@ -19,8 +19,6 @@ jest.mock('../../../hooks/useDeviceInfo', () => ({
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => mockNavigate,
-    // jsdom has no canvas, so the real encoder cannot run here; it is covered by its own
-    // contract (aspect-preserving downscale) and exercised in the browser.
     prepareImage: (file: File) => mockEncode(file),
 }));
 jest.mock('@chatic/runtime', () =>
@@ -31,7 +29,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
-// `buildReportContext` has its own suite; here it only has to be callable.
 jest.mock('../lib', () => ({ buildReportContext: () => ({ path: '/mypage/feedback', routeTrail: ['/mypage'] }) }));
 
 import { FeedbackPage } from './FeedbackPage';
@@ -49,15 +46,12 @@ const photoInput = () => document.querySelector('input[type="file"]') as HTMLInp
 
 const makeFile = (name: string) => new File(['x'], name, { type: 'image/jpeg' });
 
-/** Pick `names` through the hidden file input, awaiting the encode promises. */
 const attach = async (...names: string[]) => {
     await act(async () => {
         fireEvent.change(photoInput(), { target: { files: names.map(makeFile) } });
     });
 };
 
-// Thumbnails carry `alt=""` on purpose — the remove button next to each one holds the
-// accessible name — so they are presentational and `getAllByRole('img')` cannot see them.
 const thumbnails = () => Array.from(document.querySelectorAll('img'));
 
 describe('FeedbackPage — 의견 보내기', () => {
@@ -170,7 +164,6 @@ describe('FeedbackPage — 사진 첨부', () => {
         render(<FeedbackPage />);
         await attach('a.jpg', 'b.jpg');
 
-        // The `t` mock drops interpolation, so both buttons share a name — take the first.
         fireEvent.click(screen.getAllByRole('button', { name: 'feedback.photoRemove' })[0]);
 
         expect(thumbnails()).toHaveLength(1);

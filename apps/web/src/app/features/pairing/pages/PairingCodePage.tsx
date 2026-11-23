@@ -21,18 +21,6 @@ interface ReturnState {
     returnTo?: string;
 }
 
-/**
- * The requesting device's screen: shows an 8-digit code and its QR, and signs in once a signed-in app
- * approves it — the relay approval with that account, a cloud approval by entering that cloud as a guest.
- *
- * Only a guest reaches it: the relay accepts a code request from a guest session alone. The check is
- * taken once, at mount, because a successful pairing turns this very session into an account.
- *
- * A device asks for a sign-in only while it is signed out, and a guest inside a cloud it entered on its
- * own invite is signed in there: an approval of that same cloud would give it a second identity in it.
- * Such a guest is asked to sign out of the cloud first, and gets the code once it has. DoU Home and a
- * paired cloud are fine — adding another cloud from one is what "Add a cloud with another device" is.
- */
 export const PairingCodePage = () => {
     const enabled = useDevicePairingEnabled();
     const isGuest = useIsAccountGuest();
@@ -52,7 +40,6 @@ const SignOutOfCloudFirst = ({ onSignedOut }: { onSignedOut: () => void }) => {
         try {
             await logoutCloudSession();
         } finally {
-            // Re-read rather than assume: a failed sign-out leaves the cloud session, and the screen.
             if (!runtime.session.isInOwnCloudSession()) onSignedOut();
         }
     };
@@ -97,16 +84,12 @@ const PairingCodeScreen = () => {
                 ? { title: t('pairing.code.doneCloud') }
                 : {
                       title: t('pairing.code.doneRelayTitle', { name: state.approverName ?? '' }),
-                      // A phone signed in this way is a secondary device: it signs out with its approver,
-                      // and that is worth saying once, now. A browser tab's sign-in ends with the tab.
-                      // Which of the two this is, `runtime.signIn` says.
                       description:
                           runtime.signIn.sessionScope === 'device'
                               ? t('pairing.code.doneSecondaryBody')
                               : t('pairing.code.doneRelayBody'),
                   }
         );
-        // The login screen pushed this one; leaving goes back past both, to where the user started.
         const { returnTo } = (location.state ?? {}) as ReturnState;
         if (returnTo && canGoBackInApp()) navigate(-2);
         else navigate(ROUTES.home, { replace: true, transition: true, direction: 'back' });

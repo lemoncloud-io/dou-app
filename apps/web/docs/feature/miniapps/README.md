@@ -91,6 +91,32 @@ deleted.
 - An older app that opens the page in the OS browser (`outside`), and a failed open, are said in a
   toast. The tab does not hide itself on such an app.
 
+### Details that are easy to break
+
+- **The consent question is cleared while rendering, not in an effect.** It is held with the cloud it was
+  raised in, and a render for another cloud drops it. An effect would leave one commit in which the previous
+  cloud's question is still up, and agreeing in it would hand that site this cloud's names.
+- **The user the page is told about is the person in this cloud.** The id comes from the session for the open
+  cloud, never another's, so a page cannot receive one cloud's uid labelled as another's. The session's name
+  for the person ignores its stand-ins (the runtime's `Unknown` and a guest's UUID), and a session with no id
+  for the person in this cloud yet fails the open with a message instead of doing nothing.
+- **The hub's close is remembered only for a hub this screen opened.** The view id and cloud are set when the
+  open's reply arrives (the shell answers as it adds the view, before the page has loaded, so the hub cannot
+  close and hand a result back before this runs), and only for the shell's own hub. The latest list and
+  cloud are copied into refs after each commit, never while rendering, so a render React throws away cannot
+  leave its own cloud and list behind for the hub's answer; the result is read through a ref rather than
+  re-subscribing on every change. A host with no sub web view opens the hub in a tab, which never reports a
+  close, so there is nothing to hear.
+- **A hub that closes after a cloud switch answers for a cloud no longer open**, so nothing happens; a hub that
+  closes asking to add a mini app before the catalog has named the person the owner opens nothing.
+- **The edit sheet keeps what it last showed while it slides away.** Its content stays mounted during the
+  close animation, so it keeps that mini app (or the blank add form) until then instead of turning into
+  another form on its way out; the form is keyed by what it edits, so each opening starts from that mini app
+  on its first paint.
+- **The sheet's rules are the relay's.** The name and address are checked with the same rule the relay applies,
+  so most mistakes are caught before a round trip, and there is no confirmation on delete because the list is
+  the owner's and a removed one is quickly added again.
+
 ## The owner's list — `/miniapps/manage`
 
 - **Who may be here.** The cloud's owner, read from positive evidence only: the cloud is in the

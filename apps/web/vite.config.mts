@@ -11,18 +11,9 @@ import svgr from 'vite-plugin-svgr';
 
 import webPkg from './package.json' with { type: 'json' };
 
-/**
- * pdf.js's data files, served at `/pdfjs/<dir>/` in dev and emitted there in a build: the Adobe
- * CMaps and standard fonts a PDF may name without embedding (common in Korean files), the ICC
- * profiles, and the image-decoder wasm. Without them such a PDF draws without its text or images.
- * The script-engine wasm is left out; the viewer never runs a PDF's scripts. The same plugin
- * `apps/desktop-web` carries for its own viewer.
- */
 const PDFJS_ASSET_DIRS = ['cmaps', 'standard_fonts', 'iccs', 'wasm'];
 const pdfjsAssetsPlugin = (): Plugin => {
     const root = path.dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'));
-    // `<dir>/<name>` of every file served. A request is answered only on an exact match, so no path
-    // it names can reach outside these folders.
     const files = new Set(
         PDFJS_ASSET_DIRS.flatMap(dir =>
             fs
@@ -110,7 +101,6 @@ const htmlEnvInjectionPlugin = () => {
                 </script>
             `;
 
-            // Preconnect links for API endpoints
             const preconnectKeys = ['VITE_OAUTH_ENDPOINT', 'VITE_DOU_ENDPOINT'];
             const preconnectTags = preconnectKeys
                 .map(key => process.env[key])
@@ -153,9 +143,6 @@ export default defineConfig({
         ...(process.env.NODE_ENV === 'development'
             ? {
                   global: 'window',
-                  // A fixed dev cache key keeps stale locale JSON alive after adding a new key.
-                  // Give each dev-server process a fresh namespace so the local fallback is fetched
-                  // again without requiring developers to clear browser storage manually.
                   'process.env.I18N_VERSION': JSON.stringify(`dev-${Date.now()}`),
               }
             : {}),
@@ -198,9 +185,6 @@ export default defineConfig({
 
     build: {
         // PROD emits maps too, as 'hidden': no sourceMappingURL comment is left in the
-        // bundle, so nothing points at a file that is not served. Deploy excludes *.map
-        // and CI archives them, which is what makes this safe — see
-        // libs/web-core/docs/error-reporting.md.
         sourcemap: process.env.VITE_ENV === 'PROD' ? 'hidden' : true,
         minify: 'terser',
         outDir: '../../dist/apps/web',

@@ -42,8 +42,6 @@ describe('readStoredLanguagePreference', () => {
         expect(storage.getItem).toHaveBeenCalledWith('@chatic/config.ui.language');
     });
 
-    // The shell copy is the one that survives the OS clearing WebView storage, and the resolver ranks
-    // the shell lane above the mirror — the early read has to agree with what config.get says later.
     it("prefers the shell's boot envelope over the local mirror", () => {
         expect(readStoredLanguagePreference({ bag: { 'ui.language': '"en"' }, storage: storageWith('"ko"') })).toBe(
             'en'
@@ -96,8 +94,6 @@ describe('deviceLanguageCandidates', () => {
         delete (window as { CHATIC_APP_CURRENT_LANGUAGE?: string }).CHATIC_APP_CURRENT_LANGUAGE;
     });
 
-    // The iOS WebView answers navigator.language with the app bundle's localization (English), so the
-    // shell's report of the real device locale has to win.
     it("puts the shell's device language ahead of what the WebView reports", () => {
         (window as { CHATIC_APP_CURRENT_LANGUAGE?: string }).CHATIC_APP_CURRENT_LANGUAGE = 'ko';
         Object.defineProperty(window.navigator, 'languages', { value: ['en-US'], configurable: true });

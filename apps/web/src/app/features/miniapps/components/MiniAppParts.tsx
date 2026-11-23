@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import type { DomainMiniApp } from '@chatic/runtime';
 import { cn } from '@chatic/ui-kit';
 
-/** The address's host, as the rows show it under the name; the address itself when it is not a URL. */
 export const hostOf = (url: string): string => {
     try {
         return new URL(url).host;
@@ -12,7 +11,6 @@ export const hostOf = (url: string): string => {
     }
 };
 
-// Four tints, picked by the mini app's id so a row keeps its colour wherever it is listed.
 const TINTS = [
     'bg-[#E9F6CC] text-[#3E5A00]',
     'bg-[#E3EAFD] text-[#2343B5]',
@@ -26,7 +24,6 @@ const tintOf = (id: string): string => {
     return TINTS[sum];
 };
 
-/** A 44px rounded tile with the name's first character — mini apps have no icon of their own yet. */
 export const MiniAppTile = ({ app }: { app: Pick<DomainMiniApp, 'id' | 'name'> }) => (
     <span
         aria-hidden="true"
@@ -39,7 +36,6 @@ export const MiniAppTile = ({ app }: { app: Pick<DomainMiniApp, 'id' | 'name'> }
     </span>
 );
 
-/** "Off" or "On hold" before the name of a mini app that is not active; nothing for an active one. */
 export const MiniAppStatusChip = ({ status }: { status: DomainMiniApp['status'] }) => {
     const { t } = useTranslation();
     if (status === 'active') return null;

@@ -2,19 +2,12 @@ import type { TFunction } from 'i18next';
 
 import { MENTION_KINDS, THREAD_KINDS, threadRootNo, type NotificationItem } from '../../../utils/notifications';
 
-/** What a notification row draws, worked out from the item — pure, so the screen and the sheet agree. */
 export interface NotificationRowParts {
-    /** The type chip: an orange mention, a blue thread, or none (a reaction, a new 1:1 message). */
     chip?: 'mention' | 'thread';
-    /** "#room" or "1:1". */
     location: string;
-    /** Why it is here, or nothing for a plain mention. */
     context?: string;
-    /** The original message, one line, already prefixed. */
     quote?: string;
-    /** The message line under it, before any `@name` is set apart. */
     body: string;
-    /** When — the time today, the date before that. */
     time: string;
 }
 
@@ -24,13 +17,11 @@ const startOfDay = (time: number): number => {
     return date.getTime();
 };
 
-/** The row's time: "3:27 PM" for today, "Nov 10" before that, in the reader's language. */
 export const formatNotificationTime = (createdAt: number, now: number, locale: string): string =>
     startOfDay(createdAt) === startOfDay(now)
         ? new Date(createdAt).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })
         : new Date(createdAt).toLocaleDateString(locale, { month: 'long', day: 'numeric' });
 
-/** A day group's heading: today, yesterday, or the full date with its weekday. */
 export const formatDayHeading = (
     day: 'today' | 'yesterday' | 'date',
     dayStart: number,
@@ -43,7 +34,6 @@ export const formatDayHeading = (
           ? t('notifications.inbox.yesterday')
           : new Date(dayStart).toLocaleDateString(locale, { month: 'long', day: 'numeric', weekday: 'long' });
 
-/** The row's parts for one item (spec: chip by kind, location by room, context by why, quote when it has one). */
 export const notificationRowParts = (
     item: NotificationItem,
     t: TFunction,
@@ -63,9 +53,6 @@ export const notificationRowParts = (
                   : item.kind === 'dmMessage'
                     ? t('notifications.inbox.context.dmMessage')
                     : undefined;
-    // A reaction says its emoji in the context line already, so its body is my message that was
-    // reacted to, with no quote line above (the design's reaction row). Without that message cached
-    // the emoji stands in, so the row is never blank.
     const reaction = item.kind === 'reaction';
     return {
         chip,
@@ -77,11 +64,6 @@ export const notificationRowParts = (
     };
 };
 
-/**
- * Where opening an item goes: its thread for a thread item, else its room, with `?chatNo=` so the
- * page jumps to the message — the convention search already uses. A reaction opens the message
- * reacted to, not the reaction.
- */
 export const notificationTarget = (
     item: NotificationItem,
     paths: { room: (channelId: string) => string; thread: (channelId: string, rootNo: string) => string }
@@ -91,16 +73,11 @@ export const notificationTarget = (
     return chatNo ? `${base}?chatNo=${chatNo}` : base;
 };
 
-/** The body with every `@name` token set apart, so the row can bold it. */
 export const splitMentions = (content: string): { text: string; mention: boolean }[] =>
     content
         .split(/(@[^\s@]+)/)
         .filter(part => part.length > 0)
         .map(part => ({ text: part, mention: part.startsWith('@') }));
 
-/**
- * A selection bar button's label: "<action> n" while it acts on something, the bare "<action>" (the
- * `<key>None` string) when it acts on nothing — the design drops a "0" rather than showing it.
- */
 export const countedActionLabel = (t: TFunction, key: string, count: number): string =>
     count > 0 ? t(key, { count }) : t(`${key}None`);

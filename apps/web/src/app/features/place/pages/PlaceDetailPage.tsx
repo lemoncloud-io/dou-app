@@ -47,35 +47,12 @@ const DELETE_FAILURE_KEY = {
     other: 'placeDelete.failed',
 } as const;
 
-/**
- * Place information — read-only. Shows the place avatar, its name and its introduction text; a cloud
- * place also shows when it was created and who owns it. Reached from the settings hub by everyone,
- * owner or not; the writable twin is {@link PlaceEditPage}.
- *
- * The relay only ever has the one place — its default place, DoU Home — so it is not "someone else's
- * place I was invited into" the way a cloud place can be, and product decided its screen is the owner
- * variant (Figma 3769-34207) with the created-date and owner rows removed entirely: relay's `isOwner`
- * is always absent and there is no owner to name (see the doc's observed-fields table), so those rows would be
- * either wrong or empty. A cloud place keeps the general rule: `isOwner` picks the name label (a
- * missing field counts as non-owner, matching the hub), and every fact row is conditional on the
- * server having actually sent it.
- *
- * The introduction row is the one fact that does NOT follow that relay carve-out: product asked for
- * it on every place, DoU Home included, so it is gated on the value alone. See ADR-0074.
- *
- * Below a block divider sits the one thing a person can do to a place from here: its owner deletes
- * it, anyone else leaves it. Neither exists on the relay's own place, a system place, nor for a
- * guest. Leaving ends on a notice and then DoU Home — the place and its rooms are gone from this
- * cloud for the user, so the app does not pick another of the cloud's places for them.
- */
 export const PlaceDetailPage = () => {
     const { t, i18n } = useTranslation();
     const { placeId } = useParams<{ placeId: string }>();
     const { place: placeRepo } = runtime.data.useRuntimeRepositories();
 
     const [livePlace, setPlace] = useState<MySiteView | null>(null);
-    // A successful leave drops the place's row, which would turn this screen into "not found" under
-    // the leave notice. The row as it was is held for as long as the notice is up.
     const [leftPlace, setLeftPlace] = useState<MySiteView | null>(null);
     const place = livePlace ?? leftPlace;
 
@@ -98,8 +75,6 @@ export const PlaceDetailPage = () => {
     const [dialog, setDialog] = useState<'leave' | 'left' | 'delete' | null>(null);
     const [isPending, setIsPending] = useState(false);
 
-    // The rooms the owner is about to take away with the place: its group rooms as this device holds
-    // them, named the way the room list names them.
     const { channels } = useHomeChannels(placeId ?? null);
     const deleteRooms = useMemo<PlaceDeleteRoom[]>(
         () =>
@@ -137,7 +112,6 @@ export const PlaceDetailPage = () => {
         }
     };
 
-    // After a leave the user is taken to DoU Home: out of the cloud session, onto the relay.
     const goToDouHome = async () => {
         setDialog(null);
         try {
@@ -155,7 +129,6 @@ export const PlaceDetailPage = () => {
             await placeRepo.deletePlace(placeId);
             setDialog(null);
             toast({ title: t('placeDelete.done') });
-            // Home moves the session off the deleted place (to the cloud's first place, or none).
             navigate(ROUTES.root, { replace: true });
         } catch (error) {
             const failure = placeActionFailure(error);
@@ -182,18 +155,8 @@ export const PlaceDetailPage = () => {
 
     const isHomePlace = place.id === HOME_PLACE_ID;
     const exitAction = isHomePlace || isGuest ? null : place.isOwner ? 'delete' : 'leave';
-    // The place in the URL decides this, NOT the active session. `resolvePlaceDisplayName` ORs its
-    // `isDefaultCloud` flag with the id check, so passing the session's `selectedCloudId === 'default'`
-    // would brand ANY place row viewed while the relay is active as "DoU Home" — including a cloud
-    // place reached by direct URL. Feeding it the same `isHomePlace` the avatar uses keeps the name
-    // and the illustration from ever disagreeing.
     const displayName = resolvePlaceDisplayName(place, { isDefaultCloud: isHomePlace }, t);
-    // The relay's one place reads as owned, not invited-into — `isOwner` never arrives from relay, so
-    // this is an explicit override rather than a consequence of the field being absent.
     const nameLabel = isHomePlace || place.isOwner ? 'placeDetail.nameLabel' : 'placeDetail.invitedNameLabel';
-    // Zero-padded and locale-aware: ko renders Figma's "2026. 08. 07.", en renders "08/07/2026".
-    // `libs/shared`'s formatDate is a date+time `toLocaleString()`, which this screen does not want.
-    // Product removed this row for the relay's place regardless of whether `createdAt` is present.
     const createdAt =
         !isHomePlace && place.createdAt
             ? new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
@@ -212,9 +175,6 @@ export const PlaceDetailPage = () => {
                 <div className="flex flex-col gap-6">
                     <InfoField label={t(nameLabel)}>{displayName}</InfoField>
 
-                    {/* No `isHomePlace` branch, unlike the two rows below — the introduction shows on
-                        every place. An empty string is falsy, so clearing it removes the row, which is
-                        the same "don't state what the server didn't send" rule the others follow. */}
                     {place.desc && (
                         <InfoField label={t('placeDetail.descLabel')}>
                             <Text variant="body" className="whitespace-pre-wrap text-foreground">
@@ -225,8 +185,6 @@ export const PlaceDetailPage = () => {
 
                     {createdAt && <InfoField label={t('placeDetail.createdAtLabel')}>{createdAt}</InfoField>}
 
-                    {/* Removed for the relay's place by product decision, not just because `ownerId` is
-                        absent there — see the component doc comment. */}
                     {!isHomePlace && place.ownerId && (
                         <InfoField label={t('placeDetail.ownerLabel')}>
                             <div className="flex items-center gap-2.5 px-1 py-1.5">

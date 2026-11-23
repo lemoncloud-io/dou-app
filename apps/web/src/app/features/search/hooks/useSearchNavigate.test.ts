@@ -85,8 +85,6 @@ describe('useSearchNavigate', () => {
         const { result } = renderHook(() => useSearchNavigate());
         await result.current.goTo('/channels/ch1/room', { cid: 'c2', sid: 's2' });
 
-        // The handshake is awaited twice: once before the cloud switch, once after it, because
-        // switchSite rides the target cloud's freshly bound socket.
         expect(order).toEqual(['wait', 'cloud', 'wait', 'site', 'navigate']);
         expect(switchCloud).toHaveBeenCalledWith('c2');
         expect(switchSite).toHaveBeenCalledWith('s2');
@@ -124,8 +122,6 @@ describe('useSearchNavigate', () => {
     });
 
     it("switches the site after a cloud switch even when the sid matches the previous cloud's", async () => {
-        // sid is only unique within a cloud, and the target cloud's session picks its own active
-        // site — a matching string carries no information once the cloud changed.
         setSelection('c1', 's1');
         const { result } = renderHook(() => useSearchNavigate());
         await result.current.goTo('/channels/ch1/room', { cid: 'c2', sid: 's1' });

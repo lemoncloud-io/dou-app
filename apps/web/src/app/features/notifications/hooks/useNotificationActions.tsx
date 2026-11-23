@@ -10,14 +10,8 @@ import { useNotificationStore } from '../../../stores/useNotificationStore';
 import type { NotificationItem } from '../../../utils/notifications';
 import { notificationTarget } from '../utils/rowParts';
 
-/** How long the undo toast stays. */
 export const NOTIFICATION_UNDO_MS = 3000;
 
-/**
- * What a notification list does with its items: open one (it reads, then goes to the message), mark
- * some read, delete some — the last two with a 3-second toast that can undo exactly what changed.
- * Deleting takes items off the inbox only; the messages stay in their rooms.
- */
 export const useNotificationActions = () => {
     const { t } = useTranslation();
     const { toast } = useToast();

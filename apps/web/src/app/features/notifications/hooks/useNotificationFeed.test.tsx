@@ -103,7 +103,6 @@ describe('useNotificationFeed', () => {
         render([channel()]);
         emit('ch1', [mention(5)]);
 
-        // The mention was edited away.
         emit('ch1', [row(5)]);
 
         expect(items()).toEqual({});

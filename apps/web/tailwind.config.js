@@ -2,14 +2,10 @@ const { join } = require('path');
 
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
 
-/** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ['class'],
     content: [
         join(__dirname, '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'),
-        // Named outright, as desktop-web does: `createGlobPatternsForDependencies` reads the nx
-        // project graph and returns [] when vite runs without one. The Block Kit card's type sizes
-        // are classes only that lib writes, so a missed scan would draw every card at inherited sizes.
         join(__dirname, '../../libs/block-kit/src/**/*!(*.stories|*.spec|*.test).{ts,tsx}'),
         ...createGlobPatternsForDependencies(__dirname),
     ],
@@ -24,32 +20,8 @@ module.exports = {
         },
         extend: {
             maxWidth: {
-                /**
-                 * The app's column. `apps/web` fills a phone and stops here; on anything wider
-                 * (an unfolded foldable, iPhone Duo's inner display, a tablet, a desktop browser
-                 * opening an invite link) the column centres with a margin either side rather than
-                 * stretching a phone layout across the viewport.
-                 *
-                 * Always paired with `w-full` and `mx-auto`: fill whatever the device gives, stop
-                 * here, stay centred.
-                 *
-                 * The number lives in `--app-width` (`src/styles.css`), not here: the overlay
-                 * primitives in `libs/ui-kit` are `fixed` and portalled out of the shell, so they
-                 * have to re-declare the cap themselves and cannot read a Tailwind token that only
-                 * this app's config defines. One variable, both readers.
-                 */
                 app: 'var(--app-width, 600px)',
 
-                /**
-                 * The longest comfortable measure for a paragraph. Not a layout width — the column
-                 * still fills the device — but a bound on the words inside it: past roughly 40
-                 * characters of Korean a line stops being read and starts being scanned, and the
-                 * column is now wide enough (an unfolded foldable) to cross that on its own.
-                 *
-                 * Applies to read-only prose only: onboarding copy, terms, privacy, guidance
-                 * paragraphs. Form fields and actions deliberately do NOT take it — a bounded CTA
-                 * ends up stranded in the middle of the screen.
-                 */
                 reading: '30rem',
             },
             colors: {
@@ -61,13 +33,8 @@ module.exports = {
                 primary: {
                     DEFAULT: 'hsl(var(--primary))',
                     foreground: 'hsl(var(--primary-foreground))',
-                    // Readable-on-background ink, not the lime fill. `--primary` is a brand
-                    // surface colour here; as text it is illegible on white, so links and
-                    // mentions in a shared message renderer resolve to this instead.
                     ink: 'hsl(var(--primary-ink))',
                 },
-                // Links in the shared message renderer. Kept apart from `primary.ink`,
-                // which also colors mentions, so each app can give links their own hue.
                 link: 'hsl(var(--link))',
                 secondary: {
                     DEFAULT: 'hsl(var(--secondary))',
@@ -93,7 +60,6 @@ module.exports = {
                     DEFAULT: 'hsl(var(--card))',
                     foreground: 'hsl(var(--card-foreground))',
                 },
-                // Figma design system tokens
                 label: 'hsl(var(--label))',
                 placeholder: 'hsl(var(--placeholder))',
                 description: 'hsl(var(--description))',
@@ -134,7 +100,6 @@ module.exports = {
                     muted: 'hsl(var(--toast-muted))',
                 },
                 'dialog-subtitle': 'hsl(var(--dialog-subtitle))',
-                // Chatic custom colors
                 'bubble-mine': {
                     DEFAULT: 'hsl(var(--bubble-mine))',
                     foreground: 'hsl(var(--bubble-mine-foreground))',
@@ -151,21 +116,11 @@ module.exports = {
                 'tab-active': 'hsl(var(--tab-active))',
                 'tab-inactive': 'hsl(var(--tab-inactive))',
                 overlay: 'hsl(var(--overlay))',
-                // Layering surfaces the shared message renderer draws with — a rule inside a
-                // message, and the recessed ground under a code block.
                 hairline: 'hsl(var(--hairline))',
                 well: 'hsl(var(--well))',
                 'code-inline': 'hsl(var(--code-inline))',
                 warning: 'hsl(var(--warning))',
             },
-            // Semantic type scale for `libs/block-kit`'s renderer, which both apps share.
-            //
-            // The names match apps/desktop-web's scale on purpose — the renderer asks for
-            // `text-body` and each app answers with its own value. Body is 16px here because
-            // that is what a message bubble already uses (`MessageBubble`), where desktop's is
-            // 15px; copying desktop's numbers would make block text smaller than the text
-            // beside it. Only the steps that renderer uses are defined; the rest of this app
-            // still sizes type with utilities.
             fontSize: {
                 title: ['1.25rem', { lineHeight: '1.75rem', letterSpacing: '-0.017em', fontWeight: '700' }],
                 heading: ['1.0625rem', { lineHeight: '1.5rem', letterSpacing: '-0.009em', fontWeight: '600' }],
@@ -204,11 +159,6 @@ module.exports = {
                     '0%': { opacity: '1' },
                     '100%': { opacity: '0' },
                 },
-                // The ui-kit Toaster's snackbar. The off-screen end of each slide is the toast's own
-                // height plus `--snackbar-offset`, so it enters and leaves from fully below the
-                // screen edge, not from just below its resting spot. The exit starts from wherever a swipe let
-                // go (`--radix-toast-swipe-end-y`, unset on a timed close), so a swiped toast keeps
-                // moving down instead of jumping back up first.
                 'snackbar-in': {
                     '0%': { transform: 'translateY(calc(100% + var(--snackbar-offset, 16px)))' },
                     '100%': { transform: 'translateY(0)' },

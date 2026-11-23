@@ -15,16 +15,10 @@ import { MiniAppSheet } from '../components/MiniAppSheet';
 import { useCloudMiniApps } from '../hooks/useCloudMiniApps';
 import { useMiniAppEditor } from '../hooks/useMiniAppEditor';
 
-/** What the tab hands this screen when the hub asked the owner to add a mini app. */
 export interface MiniAppManageState {
     add?: boolean;
 }
 
-/**
- * The owner's list: every mini app with a switch for whether members see it, a row to add one while
- * the cloud has room, and each row opening its sheet. Anyone who is not the cloud's owner is sent back
- * to the tab, once the catalog has said so — until then the screen waits rather than bounce an owner.
- */
 export const MiniAppManagePage = () => {
     const { t } = useTranslation();
     const miniApps = useCloudMiniApps();
@@ -35,9 +29,6 @@ export const MiniAppManagePage = () => {
     const navigate = useNavigate();
     const canAdd = !miniApps.isLoading && !miniApps.isError && apps.length < MINI_APP_LINK_LIMIT;
 
-    // Asked to add (the hub's "add a mini app"): the sheet opens once the owner is known and the list
-    // has room — at ten there is nothing to add. The ask is taken off the history entry as it is used,
-    // so returning to this entry, or reloading it, does not open the sheet again.
     const addAsked = useRef((location.state as MiniAppManageState | null)?.add === true);
     useEffect(() => {
         if (!addAsked.current || !isOwner || miniApps.isLoading) return;
@@ -108,12 +99,6 @@ export const MiniAppManagePage = () => {
     );
 };
 
-/**
- * One mini app with its switch. The switch shows the asked-for state while the change is out and
- * takes no other press meanwhile; a refused change falls back and says so. It stays focusable while
- * the change is out — disabling the button under the user's finger would drop keyboard and screen
- * reader focus — and the row says it is busy instead. A held mini app's switch is locked off.
- */
 const ManageRow = ({
     app,
     onEdit,

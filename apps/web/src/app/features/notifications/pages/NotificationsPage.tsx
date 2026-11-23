@@ -33,40 +33,24 @@ import { pickedIn, useNotificationActions, useNotificationAvatars, useNotificati
 import { useNotificationsViewStore } from '../stores/useNotificationsViewStore';
 import { countedActionLabel, formatDayHeading } from '../utils/rowParts';
 
-/**
- * "내 알림" — the notifications tab (Figma 6021:18427). Everything that called or answered the reader
- * where the session is, read or not: five tabs with their unread counts, an "unread only" filter,
- * "mark all read" for the tab, the items by day, newest first. A tap opens the message; a long press
- * or "Select" enters selection mode (Figma 6026:19667 · 6192:25181 · 6206:25408), where the bottom bar
- * marks the picked unread items read — keeping the picks, so they can be deleted next — or deletes.
- */
 export const NotificationsPage = () => {
     const { t, i18n } = useTranslation();
     const locale = i18n.language === 'ko' ? 'ko-KR' : 'en-US';
     const items = useScopedNotifications();
-    // Tab and filter outlive the page so a return from an opened item lands on the same list; the
-    // scroll offset below is only meaningful against that list.
     const tab = useNotificationsViewStore(state => state.tab);
     const setTab = useNotificationsViewStore(state => state.setTab);
     const unreadOnly = useNotificationsViewStore(state => state.unreadOnly);
     const setUnreadOnly = useNotificationsViewStore(state => state.setUnreadOnly);
     const resetView = useNotificationsViewStore(state => state.reset);
-    // The offset belongs to one place's list: another place or cloud lists other items, and landing
-    // its reader mid-way down at a position they never scrolled to is no better than the top.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const scrollKey = `notifications:${toCloudId(selectedCloudId)}:${selectedSiteId ?? ''}`;
 
-    // Only a return (a back press, POP) lands where the reader left. Any other way in — the bottom
-    // nav's bell, whose dot means something new arrived, and new items sort to the top — is a fresh
-    // look at the inbox: "all", the filter off, the top. Settled before the restore below claims the
-    // offset (layout effects run in order) and before paint, so the old tab never shows.
     const navigationType = useNavigationType();
     const enteredFresh = useRef(navigationType !== 'POP');
     useLayoutEffect(() => {
         if (!enteredFresh.current) return;
         resetView();
         takeScroll(scrollKey);
-        // Once, at entry: a later change of scope while the page is open is not a new entry.
     }, []);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const actions = useNotificationActions();
@@ -74,7 +58,6 @@ export const NotificationsPage = () => {
     const counts = useMemo(() => unreadCounts(items), [items]);
     const inTab = useMemo(() => newestFirst(byTab(items, tab)), [items, tab]);
     const selection = useNotificationSelection();
-    // Under "unread only", marking picks read would drop them mid-selection; held ones stay listed.
     const visible = useMemo(
         () => withHeld(filterUnreadOnly(inTab, unreadOnly), inTab, selection.held),
         [inTab, unreadOnly, selection.held]
@@ -83,23 +66,16 @@ export const NotificationsPage = () => {
     const groups = groupByDay(visible, now);
     const picked = pickedIn(visible, selection.selected);
     const avatarOf = useNotificationAvatars(visible);
-    // Opening an item navigates away and unmounts this page, so without this a back press lands at
-    // the top. Ready once rows are drawn: an offset applied to an empty list clamps to 0 and is lost.
     const {
         containerRef: scrollContainerRef,
         onScroll: handleListScroll,
         consumePendingRestore,
     } = useScrollRestoration(scrollKey, visible.length > 0);
-    // The large title steps down once the list moves, so the rows get the reader's eye and the header
-    // reads as a bar rather than a heading (no sticky row here: the tabs sit outside the list).
     const { scrolled, track: trackScroll } = useScrollChrome();
-    // Changing the filter changes the list under a claim still waiting for rows (say, the return
-    // landed on "nothing unread"): the old offset means nothing against the new list, so drop it.
     const changeUnreadOnly = (on: boolean) => {
         consumePendingRestore();
         setUnreadOnly(on);
     };
-    // The action bar takes the bottom nav's place while selecting, as the design swaps them.
     const setNavSuppressed = useBottomNavSuppression(state => state.setSuppressed);
     useEffect(() => {
         setNavSuppressed(selection.active);
@@ -111,8 +87,6 @@ export const NotificationsPage = () => {
     const tabLabel = (id: NotificationTab) => t(`notifications.inbox.tabs.${id}`);
     const countedLabel = (key: string, count: number) => countedActionLabel(t, key, count);
 
-    // Haptics: a tick for every toggle and switch, a firmer tap as a long press commits to selection
-    // mode, a warning as the delete confirm opens; the actions play their own success.
     const tick = () => haptics.play('selection');
     const onPress = (item: NotificationItem) => {
         if (!selection.active) return actions.open(item);
@@ -130,12 +104,10 @@ export const NotificationsPage = () => {
     };
 
     const markPickedRead = () => {
-        // The mode and the picks stay: the next step is often deleting the same items.
         selection.hold(picked.unreadIds);
         actions.markRead(picked.unreadIds);
     };
 
-    // The design's empty block: a bell in a grey disc, centred (Figma 6033:21159 · 6033:21419).
     const bell = <IconNavBell size={28} />;
     const empty = !hasAnything ? (
         <IconEmptyState
@@ -185,9 +157,6 @@ export const NotificationsPage = () => {
                         key="browsing"
                         className="flex w-full items-center justify-between duration-200 animate-in fade-in-0 motion-reduce:animate-none"
                     >
-                        {/* Only the type shrinks; the bar keeps its height. A shorter bar would hand
-                            its height to the list, and a list just long enough to scroll would then
-                            fit, snap back to the top and grow the bar again — over and over. */}
                         <h1
                             data-compact={scrolled}
                             className={cn(
