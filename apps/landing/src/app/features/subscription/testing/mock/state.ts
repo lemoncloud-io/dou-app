@@ -48,22 +48,15 @@ export const FAIL_FLAGS = [
 
 export type FailFlag = (typeof FAIL_FLAGS)[number];
 
-/** What the stand-in consent page offers, and which of them it selects first. */
 export type ConsentChoice = 'continue' | 'noAccount' | 'canceled' | 'expired';
 
-/** A payment attempt plus what the mock needs to settle it later. */
 export interface MockAttempt extends PaymentAttempt {
-    /** Wall-clock milliseconds at which a `processing` attempt settles. */
     settleAt: number;
-    /** How it settles. Decided when it starts, from the fail flag in force then. */
     settlesAs: 'succeeded' | 'failed';
-    /** The plan an upgrade or a first checkout is for. */
     planId?: PlanId;
-    /** Who a first checkout is charged by, from its billing country. */
     provider?: PaymentProvider;
 }
 
-/** One address's code: when it was sent and dies, how many tries and codes are left, any lock. */
 export interface MockEmailCode {
     sentAt: number;
     expiresAt: number;
@@ -72,25 +65,18 @@ export interface MockEmailCode {
     lockedUntil?: number;
 }
 
-/** The whole mock server: one account and everything it owns. */
 export interface MockState {
-    /** Bumped when this shape changes, so a stored older shape is rebuilt rather than misread. */
     version: 4;
     scenario: ScenarioId;
-    /** The mock's today, an ISO date. */
     today: string;
     fail: FailFlag | null;
-    /** `&cards=0` — start the scenario with no payment method. */
     noCards: boolean;
-    /** The query strings already applied, so the same URL is not applied twice (see `createMockPort`). */
     appliedSearches: string[];
 
     signedIn: boolean;
-    /** Who a successful sign-in becomes. */
     account: Account;
     signIn: {
         defaultChoice: ConsentChoice;
-        /** The masked address a provider shows when there is no linked account (Google only). */
         hint?: string;
     };
     pendingSignIn?: { nonce: string; provider: SignInProvider; next?: string; startedAt: number };
@@ -99,10 +85,8 @@ export interface MockState {
     paymentMethods: PaymentMethod[];
     invoices: Invoice[];
     billing: BillingInfo;
-    /** The verification code in flight per billing email id. Instants are wall-clock milliseconds. */
     emailCodes: Record<string, MockEmailCode>;
     attempts: MockAttempt[];
     failedCardAttempts: number;
-    /** Counter behind every id the mock hands out. */
     seq: number;
 }

@@ -9,11 +9,6 @@ import { ROUTES } from '../../../routes/paths';
 
 const LINK = 'whitespace-nowrap underline hover:text-navy transition-colors';
 
-/**
- * The company's business details on the left, ending in the copyright line, and the three policy
- * links on the right, level with that last line. A site that sells a subscription shows who sells it,
- * so these details are on every visit, not only on the subscription pages.
- */
 export const Footer = (): JSX.Element => {
     const { t } = useTranslation();
 

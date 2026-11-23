@@ -1,11 +1,6 @@
 import type { SandboxQuery } from './createHttpPort';
 import type { runtime } from '@chatic/runtime';
 
-/**
- * The HTTP port hands the sandbox query to the runtime's subscription repository. A repository method
- * with fewer parameters would still satisfy the port's own `SubscriptionApi`, and drop the query without
- * a word — so these check, at compile time, that each payer-scoped method really takes it.
- */
 type Repository = ReturnType<typeof runtime.data.useRuntimeRepositories>['subscription'];
 type Takes<F, I extends number> = F extends (...args: infer A) => unknown
     ? SandboxQuery extends NonNullable<A[I]>

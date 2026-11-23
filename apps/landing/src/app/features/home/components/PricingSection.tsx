@@ -9,7 +9,6 @@ export const PricingSection = (): JSX.Element => {
 
     return (
         <div className="mt-16 md:mt-32 xl:mt-[132px]">
-            {/* Title */}
             <h2
                 className="font-heading font-bold text-white text-center
                            text-[32px] md:text-[52px] xl:text-[64px]
@@ -20,9 +19,7 @@ export const PricingSection = (): JSX.Element => {
                 {t('pricing.title')}
             </h2>
 
-            {/* Cards: side by side from `xl` as in the design, stacked below it */}
             <div className="flex flex-col xl:flex-row xl:items-stretch gap-[26px]">
-                {/* Basic Service */}
                 <div className="glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 xl:flex-1 xl:flex xl:flex-col xl:justify-center animate-fade-in-up animate-delay-100 text-center">
                     <h3 className="font-semibold text-[24px] md:text-[32px] text-navy mb-6">
                         {t('pricing.basic.title')}
@@ -41,7 +38,6 @@ export const PricingSection = (): JSX.Element => {
                     </div>
                 </div>
 
-                {/* Subscription Service */}
                 <div className="glass-card border border-main-green rounded-[34px] md:rounded-[42px] p-9 md:p-12 xl:flex-1 animate-fade-in-up animate-delay-200 text-center">
                     <h3 className="font-semibold text-[24px] md:text-[32px] text-navy mb-4">
                         {t('pricing.subscription.title')}
@@ -76,7 +72,6 @@ export const PricingSection = (): JSX.Element => {
                 </div>
             </div>
 
-            {/* The way on to the plans, which are listed on every host */}
             <div className="mt-10 flex justify-center animate-fade-in-up animate-delay-300">
                 <Link
                     to={ROUTES.subscription.plans}

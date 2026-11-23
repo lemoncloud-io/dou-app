@@ -14,12 +14,6 @@ import { useResumeFlow } from './useResumeFlow';
 
 import type { Subscription } from '../../types';
 
-/**
- * W-15 — cancelling, and the scheduled-end result.
- *
- * Which of the two it shows follows the subscription's state rather than a step in the page, so a
- * reload after cancelling lands on the result and a second cancel is never offered.
- */
 export const CancelSubscriptionPage = (): JSX.Element => {
     const { t } = useTranslation();
     const { subscriptionId } = useParams();
@@ -83,7 +77,6 @@ const CancelForm = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
 
     const rows = [
         { label: t(`${key}.plan`), value: fmt.planName(sub.planId) },
-        // Cancelling stops the next renewal, so the subscription runs until the day it would have renewed.
         { label: t(`${key}.endsAt`), value: fmt.date(sub.nextBillingAt) },
         { label: t(`${key}.next`), value: t(`${key}.nextValue`) },
     ];
@@ -143,7 +136,6 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
         onResumed: () => navigate(ROUTES.subscription.detail(sub.id)),
     });
     const key = 'subscription.manage.cancel.done';
-    // The way back is left out where the port has no server for undoing a cancellation.
     const resumable = useSupports()('resumeSubscription');
 
     return (

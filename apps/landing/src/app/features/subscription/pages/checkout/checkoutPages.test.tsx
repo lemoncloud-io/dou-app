@@ -14,7 +14,6 @@ beforeAll(async () => {
     await i18n.changeLanguage('en');
 });
 
-// Attempts settle on the next call, so a flow runs to its end without waiting out the mock's delay.
 const mockSetup = (search: string): PortSetup & { controller: MockController } => {
     const { port, clock, controller } = createMockPort({
         store: memoryStateStore(),
@@ -25,7 +24,6 @@ const mockSetup = (search: string): PortSetup & { controller: MockController } =
     return { port, clock, standInWindow: controller, controller };
 };
 
-/** A setup whose account already has a verified primary billing address, as after W-24. */
 const withBillingEmail = async (search: string): Promise<PortSetup> => {
     const setup = mockSetup(search);
     await setup.port.adoptSignInEmail();
@@ -42,8 +40,6 @@ const Where = () => {
     );
 };
 
-// The card and billing-email screens are open unless `management` says otherwise: they are hidden by
-// default in the app (`lib/screens.tsx`), and the last describe below is about that.
 const renderAt = (url: string, setup: PortSetup, { management = true }: { management?: boolean } = {}) =>
     render(
         <MemoryRouter initialEntries={[url]}>
@@ -140,14 +136,12 @@ describe('W-24 email step', () => {
             await requestCode('billing@minji-studio.kr');
 
             vi.setSystemTime(Date.now() + 61_000);
-            // The resend button re-reads the clock on the form's one-second tick, which stays real here.
             const resend = await screen.findByRole('button', { name: 'Resend' }, { timeout: 5000 });
             fireEvent.click(resend);
 
             expect(
                 await screen.findByText('Too many codes requested. Please verify again in 10 minutes.')
             ).toBeTruthy();
-            // The code step shuts until the lock lifts, counting down to it.
             expect(screen.getByText(/^Verify again in \d{2}:\d{2}$/)).toBeTruthy();
             expect(screen.getByLabelText('6-digit code').hasAttribute('disabled')).toBe(true);
         } finally {
@@ -234,7 +228,6 @@ const PAYER = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail
 const pickCountry = async (code: string) =>
     fireEvent.change(await screen.findByLabelText('Billing country'), { target: { value: code } });
 
-/** Korea is billed in won, which asks for the payer. */
 const fillPayer = async () => {
     await pickCountry('KR');
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: PAYER.name } });
@@ -261,11 +254,9 @@ describe('W-08 checkout', () => {
         expect(screen.queryByRole('button', { name: 'Get a code' })).toBeNull();
         const next = screen.getByRole('button', { name: 'Next · Add a payment method' }) as HTMLButtonElement;
 
-        // Nothing is chosen for the reader: no country, no payer to ask for, no amount yet.
         expect((screen.getByLabelText('Billing country') as HTMLSelectElement).value).toBe('');
         expect(screen.queryByLabelText('Name')).toBeNull();
         expect(screen.getByText('Choose a country to see what you pay.')).toBeTruthy();
-        // Pressing on without one says what is missing.
         fireEvent.click(next);
         expect((await screen.findByRole('alert')).textContent).toBe('Choose your billing country first.');
         expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
@@ -292,7 +283,6 @@ describe('W-08 checkout', () => {
         await pickCountry('US');
         expect(await screen.findByText('You pay in US dollars ($).')).toBeTruthy();
         expect(screen.queryByLabelText('Name')).toBeNull();
-        // Monthly and due today, the trial being used — and no VAT claimed for a dollar price.
         expect(await screen.findAllByText('$6.80')).toHaveLength(2);
         expect(screen.queryByText(/\$6\.80 \(VAT/)).toBeNull();
         await consentAll();
@@ -317,7 +307,6 @@ describe('W-08 checkout', () => {
             expect(
                 screen.getByText('For now you can subscribe only with South Korea as the billing country.')
             ).toBeTruthy();
-            // No currency, no amount, no payer, no consents and no way on.
             expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();
             expect(screen.queryByText('$6.80')).toBeNull();
             expect(screen.queryByText('Choose a country to see what you pay.')).toBeNull();
@@ -325,7 +314,6 @@ describe('W-08 checkout', () => {
             expect(screen.queryByLabelText('Agree to all')).toBeNull();
             expect(screen.queryByRole('button', { name: 'Next · Add a payment method' })).toBeNull();
 
-            // Korea goes on as before.
             await fillPayer();
             expect(screen.queryByText('Paying from outside Korea is not available yet')).toBeNull();
             expect(screen.getByText('You pay in Korean won (₩).')).toBeTruthy();
@@ -380,7 +368,6 @@ describe('W-08 checkout', () => {
         await act(async () => {
             await new Promise(resolve => setTimeout(resolve, 20));
         });
-        // Neither the notice nor a price: the answer may go either way.
         expect(screen.queryByText('Paying from outside Korea is not available yet')).toBeNull();
         expect(screen.queryByText('You pay in US dollars ($).')).toBeNull();
         expect(screen.queryByText('$6.80')).toBeNull();
@@ -412,7 +399,6 @@ describe('W-08 checkout', () => {
             </MemoryRouter>
         );
 
-        // Read while the answer is out, the country would be refused and the form open empty.
         await act(async () => {
             await new Promise(resolve => setTimeout(resolve, 20));
         });
@@ -497,7 +483,6 @@ describe('checkout with the card and billing-email screens hidden', () => {
         expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
         await pickCountry('KR');
         expect(screen.getByText("Receipts and notices go to your account's email address.")).toBeTruthy();
-        // The account has an address, so the payer is not asked for one.
         expect(screen.queryByLabelText('Email')).toBeNull();
     });
 
@@ -530,7 +515,6 @@ describe('checkout with the card and billing-email screens hidden', () => {
         await fillPayer();
         await consentAll();
         expect(screen.queryByText("Receipts and notices go to your account's email address.")).toBeNull();
-        // Name, number and consents are all in: only the address holds the way on.
         expect(next().disabled).toBe(true);
         const email = screen.getByLabelText('Email');
         fireEvent.change(email, { target: { value: 'minji@' } });
@@ -578,7 +562,6 @@ describe('W-05 card, W-09 and W-06', () => {
 
         expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
         expect(screen.getByText('2026.12.01')).toBeTruthy();
-        // The amount is read from the invoice the charge left.
         expect(screen.getByText('Amount paid')).toBeTruthy();
         expect(screen.getByText('₩8,900')).toBeTruthy();
     });
@@ -635,7 +618,6 @@ describe('W-05 card, W-09 and W-06', () => {
 
         expect(await screen.findByText('Payment canceled')).toBeTruthy();
         expect(where()).toBe('/subscription/checkout/status?plan=pro-tier-01&outcome=closed');
-        // The retry carries W-08's details along, so W-05 opens instead of sending the reader back.
         fireEvent.click(screen.getByRole('link', { name: 'Pay again' }));
         expect(await screen.findByRole('heading', { name: 'Add a payment method' })).toBeTruthy();
     });
@@ -646,7 +628,6 @@ describe('W-05 card, W-09 and W-06', () => {
 
         afterEach(() => clearPendingCheckout());
 
-        /** The mock never leaves the page, so what the provider's return would say is put in its place. */
         const returnedWith = async (
             result: Awaited<ReturnType<PortSetup['port']['completePaymentMethodRegistration']>>
         ) => {
@@ -656,7 +637,6 @@ describe('W-05 card, W-09 and W-06', () => {
             return { setup, complete };
         };
 
-        /** A card the mock really holds, so the charge that follows the return has one to use. */
         const returnedRegistered = async () => {
             const setup = await withBillingEmail('?mock=new');
             const registered = await setup.port.startPaymentMethodRegistration({
@@ -733,7 +713,6 @@ describe('W-14 plan change', () => {
 
         expect(await screen.findByText('You have upgraded to DoU Cloud 3')).toBeTruthy();
         expect(screen.getByText('₩26,700', { exact: false })).toBeTruthy();
-        // The upgrade confirmation keeps the bar's back button; the first subscription's has none.
         expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
     });
 
@@ -786,7 +765,6 @@ describe('W-14 plan change', () => {
         expect(await screen.findByText('Change to DoU Cloud 1 scheduled')).toBeTruthy();
         expect(where()).toBe('/subscription/checkout/complete?change=downgrade');
         expect(screen.getByText('You keep DoU Cloud 2 until 2026.11.19.')).toBeTruthy();
-        // A scheduled downgrade is an account page: the sidebar is there, the purchase flow's back button is not.
         expect(screen.getAllByRole('link', { name: 'Payment methods' }).length).toBeGreaterThan(0);
     });
 
@@ -828,8 +806,6 @@ describe('W-14 plan change', () => {
     });
 });
 
-// W-01's currency and W-08's notice follow one answer (`useForeignBilling`): the plans page cannot show
-// dollars that the checkout then refuses, nor won where the checkout would take dollars.
 describe('W-01 and W-08 on one dollar answer', () => {
     const subscribeFromPlans = async (price: RegExp) => {
         fireEvent.click(await screen.findByRole('button', { name: price }));

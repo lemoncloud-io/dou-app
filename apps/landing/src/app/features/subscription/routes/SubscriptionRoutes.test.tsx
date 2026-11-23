@@ -12,9 +12,6 @@ import { SubscriptionRoutes } from './index';
 
 import type { PortSetup } from '../lib/createPortSetup';
 
-// The screens are not under test here — only which one a URL reaches, which shell holds it and where
-// the guards send the reader. Each screen stands in as its id, so filling a screen never breaks this
-// file; the shells and guards stay real.
 vi.mock('../pages/entry', () => ({
     PlansPage: () => <p>W-01</p>,
     LoginPage: () => <p>W-02</p>,
@@ -59,7 +56,6 @@ const Where = () => {
     return <output data-testid="where">{pathname + search}</output>;
 };
 
-// `management` opens the card and billing-email screens, which are hidden by default (`lib/screens.tsx`).
 const renderAt = (
     url: string,
     setup: PortSetup,
@@ -76,7 +72,6 @@ const renderAt = (
 
 const where = () => screen.getByTestId('where').textContent;
 
-// The account shell's sidebar, so a plan name there is not confused with the same name on a screen.
 const sidebar = async () => within(await screen.findByRole('complementary'));
 
 describe('SubscriptionRoutes', () => {
@@ -251,7 +246,6 @@ describe('SubscriptionRoutes', () => {
             });
         });
         const registered = await screen.findByRole('button', { name: 'Registered' });
-        // The declined card is what the fail flag implies, so that answer is the one marked.
         expect(screen.getByRole('button', { name: 'Registration failed' }).hasAttribute('data-suggested')).toBe(true);
         fireEvent.click(registered);
 

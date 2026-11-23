@@ -19,7 +19,6 @@ const ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chr
 const IOS_SAFARI =
     'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Safari/604.1';
 
-// jsdom's location cannot be pointed at another host, so the page reads a stand-in.
 const visit = (href: string, userAgent: string) => {
     const url = new URL(href);
     vi.stubGlobal('location', {
@@ -53,8 +52,6 @@ describe('SubWebViewLinkPage', () => {
         expect(openUrlMock.mock.calls[0][0].startsWith('intent://apps/quiz?seed=7#Intent;')).toBe(true);
     });
 
-    // Android's launch falls back to this page with the marker when the app is missing: it stays here,
-    // does not launch again, and offers the app's store through the same button.
     it('stays on the page, without launching again, when Android comes back with the app-missing marker', () => {
         visit('https://app.chatic.io/apps/quiz?seed=7#app-missing', ANDROID);
 
@@ -63,7 +60,6 @@ describe('SubWebViewLinkPage', () => {
         expect(screen.queryByText('home')).toBeNull();
     });
 
-    // The page is meant to run in the app: the browser is never offered, only the app and the store.
     it('offers the app and not the browser', () => {
         visit('https://app.chatic.io/apps/quiz', IOS_SAFARI);
 

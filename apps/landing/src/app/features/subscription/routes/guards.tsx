@@ -9,12 +9,6 @@ import { signInRedirect } from '../lib/sessionEnded';
 
 const isStoreBilled = (source: string) => source === 'appStore' || source === 'googlePlay';
 
-/**
- * The pages that need a signed-in reader. Without a session it sends them to sign in and back here
- * afterwards. A store subscriber is sent to the store notice instead — their subscription is changed
- * in the store, so nothing on these pages applies — unless `allowStoreBilled`, which is the notice
- * itself.
- */
 export const RequireSession = ({ allowStoreBilled = false }: { allowStoreBilled?: boolean }): JSX.Element => {
     const session = useSession();
     const location = useLocation();
@@ -27,7 +21,6 @@ export const RequireSession = ({ allowStoreBilled = false }: { allowStoreBilled?
     return <Outlet />;
 };
 
-/** The sign-in page for someone already signed in: on to `next`, or to where a sign-in lands. */
 export const RedirectIfSignedIn = ({ children }: { children: JSX.Element }): JSX.Element => {
     const session = useSession();
     const [params] = useSearchParams();

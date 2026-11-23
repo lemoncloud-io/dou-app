@@ -30,7 +30,6 @@ export const ChatBubbleIllustration = (): JSX.Element => {
             className="relative w-full mx-auto overflow-hidden"
             style={{ height: DESIGN_WIDTH * scale }}
         >
-            {/* Scaled inner container — all children stay at design size */}
             <div
                 className="absolute top-0"
                 style={{
@@ -41,7 +40,6 @@ export const ChatBubbleIllustration = (): JSX.Element => {
                     left: offsetX,
                 }}
             >
-                {/* Mascot */}
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
                     <img
                         src={Logo.logo}
@@ -50,7 +48,6 @@ export const ChatBubbleIllustration = (): JSX.Element => {
                     />
                 </div>
 
-                {/* "Hello!" bubble - top left */}
                 <div
                     className="absolute top-[2%] left-[8%] bg-[#F8F8F8]
                                px-7 py-3
@@ -61,7 +58,6 @@ export const ChatBubbleIllustration = (): JSX.Element => {
                     <span className="text-[28px] font-medium text-[#171725]">Hello!</span>
                 </div>
 
-                {/* "Welcome~" bubble - top right */}
                 <div
                     className="absolute top-[12%] right-[3%] bg-navy
                                px-7 py-3
@@ -72,7 +68,6 @@ export const ChatBubbleIllustration = (): JSX.Element => {
                     <span className="text-[28px] font-medium text-white">Welcome~</span>
                 </div>
 
-                {/* Bottom-left emoji bubble - 🤝🫶 */}
                 <div
                     className="absolute bottom-[3%] left-[8%] bg-[#F8F8F8]
                                px-7 py-3
@@ -85,7 +80,6 @@ export const ChatBubbleIllustration = (): JSX.Element => {
                     </span>
                 </div>
 
-                {/* Bottom-right emoji bubble - 😊☺️ */}
                 <div
                     className="absolute bottom-[8%] right-[5%] bg-navy
                                px-7 py-3

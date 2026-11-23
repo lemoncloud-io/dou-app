@@ -50,11 +50,9 @@ describe('W-01 plans', () => {
         renderAt('/subscription/plans', setup);
 
         expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
-        // The first-subscription list is drawn without tags; the entry plan is the one already picked.
         expect(screen.queryByText('First plan · 7 days free')).toBeNull();
         expect(screen.queryByText('After subscribing')).toBeNull();
         expect(screen.getByRole('button', { name: /DoU Cloud 1/, pressed: true })).toBeTruthy();
-        // Asking for a visitor's subscriptions would read as a lost session and bounce them to sign in.
         expect(listSubscriptions).not.toHaveBeenCalled();
         expect(where()).toBe('/subscription/plans');
 
@@ -69,14 +67,11 @@ describe('W-01 plans', () => {
         expect(await screen.findByText('Trial used')).toBeTruthy();
         expect(screen.getByText(/day 1 of each month/)).toBeTruthy();
 
-        // The English page reads the price in dollars, as the checkout preview gives it.
         fireEvent.click(screen.getByRole('button', { name: /^Subscribe to DoU Cloud 1 — \$6\.80 today$/ }));
 
         expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
     });
 
-    // Whether dollars are open is the server's dollar catalog's to say (`useForeignBilling`); the fake
-    // server sells dollars unless told otherwise, so the test above is the open case.
     it.each(['empty', 'failure'] as const)(
         'lists won to a signed-in English reader where the dollar catalog is %s',
         async answer => {
@@ -106,7 +101,6 @@ describe('W-01 plans', () => {
 
         release();
         expect(await screen.findByRole('button', { name: /^Subscribe to DoU Cloud 1 — \$6\.80 today$/ })).toBeTruthy();
-        // The answer and the dollar list are one read.
         expect(listPlans.mock.calls.filter(([input]) => input?.currency === 'USD')).toHaveLength(1);
     });
 
@@ -199,7 +193,6 @@ describe('W-01 plans', () => {
         const reads = { subscriptions: listSubscriptions.mock.calls.length, session: getSession.mock.calls.length };
         expect(reads.subscriptions).toBe(1);
 
-        // To the subscription list and back: both pages read the same answers, which are still fresh.
         const go = async (item: string) => {
             fireEvent.click(screen.getByRole('button', { name: i18n.t('subscription.common.account.menu') }));
             fireEvent.click(await screen.findByRole('menuitem', { name: item }));
@@ -226,7 +219,6 @@ describe('W-01 plans', () => {
     });
 });
 
-// Where the signed-in pages are shut — the production host — the route table mounts the plans alone.
 describe('W-01 plans with the account surface shut', () => {
     const renderCatalog = (url: string) =>
         render(
@@ -245,7 +237,6 @@ describe('W-01 plans with the account surface shut', () => {
         renderCatalog('/subscription/plans?mock=active');
 
         expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
-        // A price list: every plan at full strength, none tagged by the web checkout's rules.
         expect(screen.getByText('$34.00')).toBeTruthy();
         expect(screen.queryByText('First plan · 7 days free')).toBeNull();
         expect(screen.queryByText('After subscribing')).toBeNull();
@@ -257,7 +248,6 @@ describe('W-01 plans with the account surface shut', () => {
         expect(screen.getByRole('link', { name: 'Google Play' }).getAttribute('href')).toMatch(
             /^https:\/\/play\.google\.com\//
         );
-        // Nothing here leads to a page that does not exist on this host.
         expect(screen.queryByRole('button', { name: /^Subscribe/ })).toBeNull();
         expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
         expect(screen.queryByRole('link', { name: 'Manage subscription' })).toBeNull();
@@ -329,7 +319,6 @@ describe('W-02 sign-in', () => {
 });
 
 describe('W-02 return', () => {
-    // The sign-in record is single-use; under StrictMode a second exchange would report it expired.
     it('completes a sign-in once under StrictMode and lands on next', async () => {
         renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=visitor'), { strict: true });
 
@@ -385,7 +374,6 @@ describe('W-02 return', () => {
 
     it('shows that it is signing in while the port answers', async () => {
         const setup = mockSetup('?mock=visitor');
-        // An answer that never comes keeps the page on its processing card for as long as the test looks.
         vi.spyOn(setup.port, 'completeSignIn').mockReturnValue(new Promise(() => undefined));
         renderAt('/subscription/login/callback?provider=google&nonce=n&result=continue', setup);
 
@@ -432,7 +420,6 @@ describe('W-02b no linked account', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Apple' }));
 
         expect(await screen.findByText(/No DoU account is linked to this Apple account/)).toBeTruthy();
-        // The footer carries the company's mail address; the page itself names none.
         expect(within(screen.getByRole('main')).queryByText(/@/)).toBeNull();
         expect(screen.getByText('Sign in to the app with the same Apple account')).toBeTruthy();
     });

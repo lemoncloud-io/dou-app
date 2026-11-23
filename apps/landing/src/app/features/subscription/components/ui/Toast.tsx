@@ -4,7 +4,6 @@ const TOAST_MS = 2500;
 
 const ToastContext = createContext<(message: ReactNode) => void>(() => undefined);
 
-/** Shows one short message at the bottom of the screen at a time. */
 export const ToastProvider = ({ children }: { children: ReactNode }): JSX.Element => {
     const [message, setMessage] = useState<ReactNode>(null);
     const show = useCallback((next: ReactNode) => setMessage(next), []);

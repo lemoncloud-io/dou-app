@@ -5,12 +5,6 @@ import { type HttpPortOptions, type SubscriptionApi, createHttpPort } from './cr
 import type { SubscriptionWire } from './wire';
 import type { CardToken } from '../../../types';
 
-/**
- * The port against the subscription server's contract: every response below is the shape that
- * server answers with (its `?mock` samples, which follow the same views). The server's calls are a
- * table of routes, each call standing for the request the runtime's repository makes, so each test
- * says what the server holds and reads what the port made of it.
- */
 const PAYER = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
 const at = (iso: string) => new Date(`${iso}T12:00:00`).getTime();
 const NOW = at('2026-11-10');
@@ -27,7 +21,6 @@ const PLANS = {
     })),
 };
 
-// The dollar products, priced in cents.
 const STRIPE_PLANS = {
     total: 5,
     list: [1, 2, 3, 4, 5].map(sort => ({
@@ -71,7 +64,6 @@ const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPor
         calls.push({ method, path, params, body });
         const answer = routes[`${method} ${path}`];
         if (answer === undefined) throw httpError(404);
-        // A GET has no body; its route reads the query instead.
         return (typeof answer === 'function' ? (answer as Route)(body ?? params) : answer) as T;
     };
     const api: SubscriptionApi = {
@@ -140,7 +132,6 @@ const subscription = (wire: Partial<SubscriptionWire>): SubscriptionWire => ({
     ...wire,
 });
 
-/** The membership as the server answers it, with the subscription record it carries. */
 const membershipOf = (record: SubscriptionWire) => ({
     platform: record.platform,
     status: record.status === 'expired' ? 'expired' : 'active',
@@ -197,7 +188,6 @@ describe('createHttpPort — session', () => {
     });
 
     it('treats a session the server refuses as gone for the rest of the page', async () => {
-        // Refused once only: a session read afterwards would succeed if it were asked.
         let refused = false;
         const { port, calls } = setup({
             ...BASE_ROUTES,
@@ -320,10 +310,7 @@ describe('createHttpPort — plans and subscription', () => {
         expect(await port.listSubscriptions()).toEqual([]);
         expect(await port.getSession()).toMatchObject({ billingSource: 'appStore' });
         expect(isPortError(await port.previewChange('pro-tier-03').catch(e => e), 'conflict')).toBe(true);
-        // The store record's trial flag is not the web's: eligibility reads the membership alone.
         expect(await port.previewCheckout('pro-tier-01')).toMatchObject({ withTrial: true });
-        // A card added on its own asks for the won provider's first product, not the store's. (The real
-        // server refuses this while the store subscription is in use; what is checked is what is sent.)
         await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER });
         expect(calls.find(call => call.path === '/subscriptions/0/issue')?.body).toEqual({
             productId: 'dou-web-tier-01_dev',
@@ -349,11 +336,9 @@ describe('createHttpPort — plans and subscription', () => {
         setup({ ...BASE_ROUTES, 'GET /memberships/0/mine': membership }).port.previewCheckout('pro-tier-01');
 
     it("follows the server's trialEligible over the trial-used flags", async () => {
-        // Never used a trial, yet not eligible (the server has a payments record): charged at once.
         expect(
             await previewWith({ platform: 'portone', status: 'expired', trialUsed: false, trialEligible: false })
         ).toMatchObject({ withTrial: false, amountToday: { amount: 8600 }, firstChargeAt: '2026-11-10' });
-        // Eligible by the server's rule even with the flag set: the trial, for the product's length.
         expect(
             await previewWith({ platform: 'portone', status: 'expired', trialUsed: true, trialEligible: true })
         ).toMatchObject({ withTrial: true, trialEndsAt: '2026-11-17' });
@@ -387,17 +372,14 @@ describe('createHttpPort — checkout', () => {
             productId: 'dou-web-tier-01_dev',
         });
         expect(paymentWindow).toHaveBeenCalledWith({
-            // An answer that lists no required fields is from before the server listed them: all three.
             issue: { ...ISSUE, required: ['name', 'phone', 'email'] },
             payer: PAYER,
             purpose: 'start',
             planId: 'pro-tier-01',
             country: 'KR',
-            // Only a card field of ours states the terms; the won provider's window draws its own.
             terms: {},
             redirectUrl: 'http://localhost:5004/subscription/checkout/payment?plan=pro-tier-01',
         });
-        // A checkout's card goes with the start, not on its own.
         expect(calls.some(call => call.path === '/subscriptions/0/card')).toBe(false);
 
         const attempt = await port.startCheckout({
@@ -417,8 +399,6 @@ describe('createHttpPort — checkout', () => {
         expect(await port.getPaymentAttempt(attempt.id)).toMatchObject({ status: 'succeeded' });
     });
 
-    // The completion page reads an attempt by its id alone, which says how it ended but not which
-    // subscription it produced; without one the page waits for a subscription it never asks for.
     it('reads a settled success back with the subscription it produced', async () => {
         const held = subscription({
             status: 'active',
@@ -462,7 +442,6 @@ describe('createHttpPort — checkout', () => {
         expect(calls).toEqual([]);
     });
 
-    // The dollar provider's registration: a card field in our dialog, with no payer.
     const STRIPE_ISSUE = {
         provider: 'stripe',
         publishableKey: 'pk_test_0000',
@@ -554,7 +533,6 @@ describe('createHttpPort — checkout', () => {
         expect(await port.startPaymentMethodRegistration({ purpose: 'addCard' })).toMatchObject({
             outcome: 'registered',
         });
-        // The card goes to the provider the subscription is charged by, so the issue names its product.
         expect(calls.find(call => call.path === '/subscriptions/0/issue')?.body).toEqual({
             productId: 'dou-web-stripe-tier-02_dev',
         });
@@ -740,7 +718,6 @@ describe('createHttpPort — plan change and cancelling', () => {
 
     it('reads the account and its subscription in one membership read per preview and change', async () => {
         const { port, calls } = setup({ ...ACTIVE, 'POST /subscriptions/0/change': subscription({}) });
-        // The server's calls each makes, leaving out the catalog, which is read once for the page.
         const made = async (work: () => Promise<unknown>) => {
             const from = calls.length;
             await work();
@@ -761,7 +738,6 @@ describe('createHttpPort — plan change and cancelling', () => {
         const change = vi.fn(() => subscription({ productId: '#dou-web-tier-03_dev' }));
         const { port } = setup({ ...ACTIVE, 'POST /subscriptions/0/change': change });
         const preview = await port.previewChange('pro-tier-03');
-        // 8,600 more a month, 21 of 30 days left.
         expect(preview).toMatchObject({
             kind: 'upgrade',
             effectiveAt: '2026-11-10',
@@ -823,7 +799,6 @@ describe('createHttpPort — cards', () => {
         ]);
     });
 
-    // The card list carries every provider's cards, and each provider marks a default of its own.
     const DOLLAR_CARD = {
         id: 'pm_1',
         provider: 'stripe',
@@ -949,7 +924,6 @@ describe('createHttpPort — cards', () => {
 });
 
 describe('createHttpPort — sandbox payments', () => {
-    // A subscription the mock provider started, then a second card and the calls on both.
     const sandboxRoutes = {
         ...BASE_ROUTES,
         'GET /memberships/0/mine': membershipOf(subscription({})),
@@ -1003,7 +977,6 @@ describe('createHttpPort — sandbox payments', () => {
                 expect({ path: call.path, params: call.params }).toEqual({ path: call.path, params: undefined });
             }
         }
-        // Each of the six was made at least once, so none passed by being absent.
         for (const path of payerScoped) expect(calls.some(call => call.path === path)).toBe(true);
         expect(calls.some(call => call.path === '/memberships/0/mine')).toBe(true);
         expect(calls.some(call => call.path === '/subscriptions/0/cancel')).toBe(true);

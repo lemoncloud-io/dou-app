@@ -37,9 +37,7 @@ import type {
     Subscription,
 } from '../../types';
 
-/** The tests' handle on the fake server. */
 export interface MockController extends PaymentWindowHost {
-    /** Reads the query first (see `createMockPort`), so it may commit — never call it during render. */
     getState(): MockState;
     setFail(fail: FailFlag | null): void;
 }
@@ -51,22 +49,16 @@ export interface MockSetup {
 }
 
 export interface MockOptions {
-    /** Where the state lives; a test hands the same store to a second fake to stand for a reload. */
     store?: StateStore;
-    /** The query string the scenario is read from. */
     readSearch?: () => string;
-    /** Latency of every call. */
     delayMs?: number;
-    /** How long a payment attempt stays `processing`. */
     settleMs?: number;
-    /** Wall clock, for settling attempts and timing out sign-ins. */
     nowMs?: () => number;
     nonce?: () => string;
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** The query parameters the mock reads; any other query leaves it alone. */
 const MOCK_PARAMS = ['mock', 'fail', 'now', 'cards'];
 
 const APPLIED_SEARCHES_KEPT = 50;
@@ -85,8 +77,6 @@ const isCompletePayer = (payer: Payer | undefined): boolean =>
 
 const publicAttempt = ({ settleAt: _s, settlesAs: _a, planId: _p, ...attempt }: MockAttempt): PaymentAttempt => attempt;
 
-// A rough proration for the mock: the price difference for the days left in the current period,
-// rounded down to ten won. The real figure is the payment provider's.
 const prorate = (from: Money, to: Money, today: string, nextBillingAt: string | undefined): Money => {
     const diff = to.amount - from.amount;
     if (!nextBillingAt) return { amount: diff, currency: to.currency };
@@ -98,19 +88,6 @@ const prorate = (from: Money, to: Money, today: string, nextBillingAt: string | 
 
 const CARD_BRANDS = ['국민', '삼성', '롯데', '하나'];
 
-/**
- * The tests' in-memory subscription server, behind the real port interface. Nothing the app runs
- * imports it (`testing/boundary.test.ts`).
- *
- * It holds one account's state, picked by `?mock=<scenario>` in the query a test hands it, and every
- * method changes that state the way the server would — cancelling schedules an end, a successful
- * upgrade changes the plan — so a flow can be walked end to end. It decides nothing about what a screen
- * shows: that is `lib/`'s.
- *
- * The query is read at the start of every call, and each one is applied once: a second fake on the
- * same store keeps the state it had, a one-shot `&fail=` is spent once, and a different `?mock=` starts
- * that scenario over.
- */
 export const createMockPort = (options: MockOptions = {}): MockSetup => {
     const store = options.store ?? memoryStateStore();
     const readSearch = options.readSearch ?? (() => '');
@@ -132,11 +109,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
     const syncFromUrl = () => {
         const search = readSearch();
         const params = new URLSearchParams(search);
-        // A query with none of the mock's own parameters says nothing to it.
         if (!MOCK_PARAMS.some(name => params.has(name))) return;
-        // Applied once per page session. A sign-in returning to `next` comes back to the very query
-        // that started it; applying a one-shot `fail=session-ended` there again would end the new
-        // session as well, round and round.
         if (state.appliedSearches.includes(search)) return;
         const scenario = params.get('mock');
         const cards = params.get('cards');
@@ -161,14 +134,11 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
     const findSubscription = (s: MockState, id: string): Subscription =>
         s.subscriptions.find(sub => sub.id === id) ?? fail('notFound', `no subscription ${id}`);
 
-    /** Whether a first subscription now starts with the trial: the account's own answer, as the server gives it. */
     const trialEligible = (s: MockState): boolean => s.account.trialEligible ?? !s.account.trialUsed;
 
-    /** The card `provider` charges: each provider keeps a default of its own. */
     const defaultCard = (s: MockState, provider: PaymentProvider): PaymentMethod | undefined =>
         s.paymentMethods.find(pm => pm.provider === provider && pm.isDefault);
 
-    /** A subscription's plan, priced in the currency its provider charges. */
     const planFor = (sub: Subscription, planId: PlanId = sub.planId): Plan =>
         planOf(planId, currencyOfProvider(sub.provider));
 
@@ -180,8 +150,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         attemptsLeft: sent.attemptsLeft,
     });
 
-    // Sends a code to an address, applying the resend rules: not again within the interval, and once
-    // the codes run out, a lock before the address can start over.
     const sendCode = (s: MockState, emailId: string): EmailCodeTicket => {
         const now = nowMs();
         const previous = s.emailCodes[emailId];
@@ -198,7 +166,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             s.fail = null;
             lockedOut(now + MOCK_POLICY.emailLockMinutes * 60_000);
         }
-        // A lock that has passed starts the address over with a full set of codes.
         const fresh = !previous || (lockedUntil !== undefined && now >= lockedUntil);
         if (!fresh) {
             if (now < previous.sentAt + MOCK_POLICY.emailResendSeconds * 1000) {
@@ -218,8 +185,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         return ticketOf(emailId, sent);
     };
 
-    // Applies what a processing attempt does once it settles. Called before every operation, so a
-    // list read after the attempt's time is up already shows its result.
     const settleDue = (s: MockState) => {
         for (const attempt of s.attempts) {
             if (attempt.status !== 'processing' || nowMs() < attempt.settleAt) continue;
@@ -292,7 +257,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         const sub = findSubscription(s, attempt.subscriptionId as string);
         const from = planFor(sub);
         const to = planFor(sub, attempt.planId as PlanId);
-        // A trial upgrade changes the plan and charges nothing today, as its preview said.
         const amount =
             sub.status === 'trial'
                 ? { amount: 0, currency: to.monthly.currency }
@@ -353,7 +317,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
 
     const previewChangeFor = (s: MockState, planId: PlanId): ChangePreview => {
         const sub = liveSubscription(s) ?? fail('conflict', 'no subscription to change');
-        // An ending subscription has no next period to change; it is resumed first.
         if (sub.status === 'cancelScheduled') fail('conflict', 'subscription is ending');
         const from = planFor(sub);
         const to = planFor(sub, planId);
@@ -377,10 +340,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         return preview;
     };
 
-    /**
-     * Runs one port call: latency, the URL, attempts that came due, the fail flag, the session check,
-     * then the operation on a copy of the state — committed only if the operation does not throw.
-     */
     const call = async <T>(op: (s: MockState) => T, { auth = true }: { auth?: boolean } = {}): Promise<T> => {
         if (delayMs > 0) await new Promise(resolve => setTimeout(resolve, delayMs));
         syncFromUrl();
@@ -409,8 +368,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
     };
 
     const port: SubscriptionPort = {
-        // Reading the session is how a page finds out it has none, so it never fails with the flags
-        // meant for the calls after it.
         getSession: async () => {
             if (delayMs > 0) await new Promise(resolve => setTimeout(resolve, delayMs));
             syncFromUrl();
@@ -422,8 +379,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 s => {
                     const pending = { nonce: nonce(), provider, next, startedAt: nowMs() };
                     s.pendingSignIn = pending;
-                    // The provider answers at once, with the scenario's choice: straight back to the
-                    // callback, as a provider's consent page would send the browser.
                     const query = new URLSearchParams({
                         provider,
                         nonce: pending.nonce,
@@ -439,11 +394,9 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 s => {
                     const pending = s.pendingSignIn;
                     delete s.pendingSignIn;
-                    // The record is spent either way, so the outcome is committed even when it fails.
                     commit(clone(s));
                     const tooLate =
                         !!pending && nowMs() - pending.startedAt > MOCK_POLICY.signInAttemptMinutes * 60_000;
-                    // A failed round trip still hands back where it was going, so trying again keeps it.
                     const detail = pending?.next ? { next: pending.next } : undefined;
                     if (!pending || callback.get('nonce') !== pending.nonce || tooLate) {
                         fail('signInExpired', undefined, detail);
@@ -474,7 +427,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 { auth: false }
             ),
 
-        // Without a currency asked for, the plans come priced the way the subscription in force is charged.
         listPlans: input =>
             call(
                 s => {
@@ -503,21 +455,13 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 };
             }),
 
-        // The provider's window. When a presenter is registered (the stand-in dialog), it asks the
-        // reader for the outcome, with the one the fail flag implies preselected; without one (tests)
-        // that outcome is taken as is. A declined card fails the window itself only when adding a card
-        // is all it is for: ahead of a charge the card registers and the charge that follows is what
-        // fails, the way the designs split the two.
         startPaymentMethodRegistration: async ({ purpose, planId, country, payer }) => {
-            // A checkout's card goes to the provider of its billing country; any other card to the
-            // provider of the account's subscription, ended or not, as the server does.
             const providerFor = (s: MockState): PaymentProvider =>
                 purpose === 'start'
                     ? providerOfCountry(country ?? KOREA)
                     : ((liveSubscription(s) ?? s.subscriptions[0])?.provider ??
                       (country ? providerOfCountry(country) : 'portone'));
             const suggested = await call((s): RegistrationOutcome => {
-                // The won provider's card company refuses a card without its holder, as the real window does.
                 if (payerRequiredFor(providerFor(s)) && !isCompletePayer(payer)) {
                     fail('invalid', 'mock: payer name, phone and email are required');
                 }
@@ -557,14 +501,11 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             });
         },
 
-        // The stand-in window is a dialog on the page and never leaves it, so nothing comes back from one.
         completePaymentMethodRegistration: () =>
             Promise.reject(new SubscriptionPortError('conflict', 'mock: no payment window left the page')),
 
         startCheckout: ({ planId, country, emailId, payer }) =>
             call(s => {
-                // A second submit while the first is still processing gets the same attempt back,
-                // as a server would, rather than a second subscription when both settle.
                 const pending = s.attempts.find(a => a.purpose === 'start' && a.status === 'processing');
                 if (pending) return publicAttempt(pending);
                 const provider = providerOfCountry(country);
@@ -574,8 +515,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 if (liveSubscription(s)) fail('conflict', 'already subscribed');
                 if (changeKindOf(undefined, planOf(planId), s.account) !== 'new') fail('conflict', 'plan not sellable');
                 if (!defaultCard(s, provider)) fail('conflict', 'no payment method');
-                // A checkout without a billing email (the billing-email screens are hidden) is charged
-                // with the payer's own address, which is all the card company asks for.
                 if (emailId !== undefined) {
                     const email = s.billing.emails.find(e => e.id === emailId);
                     if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
@@ -610,7 +549,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             call(s => {
                 const sub = findSubscription(s, subscriptionId);
                 if (!sub.pendingChange) fail('conflict', 'no scheduled change');
-                // On the day it applies the charge may already be under way.
                 if (sub.pendingChange?.effectiveAt === s.today) fail('conflict', 'change applies today');
                 delete sub.pendingChange;
                 sub.nextAmount = planFor(sub).monthly;
@@ -647,7 +585,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         setDefaultPaymentMethod: id =>
             call(s => {
                 const card = s.paymentMethods.find(pm => pm.id === id) ?? fail('notFound', `no card ${id}`);
-                // The default changes within the card's provider; the other provider's default stays.
                 s.paymentMethods
                     .filter(pm => pm.provider === card.provider)
                     .forEach(pm => (pm.isDefault = pm.id === id));
@@ -690,11 +627,8 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 }
                 const existing = s.billing.emails.find(e => e.address.toLowerCase() === address.toLowerCase());
                 if (existing?.status === 'verified') fail('conflict', 'already verified');
-                // An address still waiting keeps its live code — asking again within its lifetime hands back
-                // the same ticket rather than a "too soon"; once the code is dead it gets a fresh one.
                 if (existing) {
                     const live = s.emailCodes[existing.id];
-                    // Only a code that can still be used: one spent on wrong entries is not handed back.
                     if (live && nowMs() < live.expiresAt && !live.lockedUntil && live.attemptsLeft > 0) {
                         return ticketOf(existing.id, live);
                     }
@@ -722,9 +656,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         verifyEmailCode: (emailId, code) =>
             call(s => {
                 const email = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
-                // A second check of an address already verified (a retry, another tab) is not an error.
                 if (email.status === 'verified') return email;
-                // An address a scenario seeds as waiting has no send on record: count it as sent just now.
                 if (!s.emailCodes[emailId] && email.status === 'pending') sendCode(s, emailId);
                 const sent = s.emailCodes[emailId] ?? fail('codeExpired', 'no code sent');
                 if (s.fail === 'code-expired') {
@@ -735,7 +667,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 if (nowMs() > sent.expiresAt) fail('codeExpired');
                 if (sent.attemptsLeft <= 0) fail('tooManyAttempts');
                 if (code !== MOCK_POLICY.emailCode) {
-                    // The wrong entry counts even though the call fails.
                     sent.attemptsLeft -= 1;
                     commit(clone(s));
                     if (sent.attemptsLeft <= 0) fail('tooManyAttempts');
@@ -778,7 +709,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                     s.billing.emails.find(e => e.id === newEmailId) ?? fail('notFound', `no email ${newEmailId}`);
                 if (old.id === next.id) fail('conflict', 'the same address');
                 if (next.status !== 'verified') fail('conflict', 'only a verified address can take over');
-                // The primary mark moves with the old address; a new address that already was primary keeps it.
                 next.primary = next.primary || old.primary;
                 next.receives = [...old.receives];
                 s.billing.emails = s.billing.emails.filter(e => e.id !== old.id);
@@ -820,21 +750,13 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         },
     };
 
-    // Local noon of the fake's today: the same calendar day in every time zone a reader is in. Read
-    // during render, so it does not read the query; that was applied when the fake was created.
     const clock: Clock = { now: () => new Date(`${state.today}T12:00:00`) };
 
-    // The first URL is applied now, before anything renders, so the first screen already reads the
-    // scenario's today.
     syncFromUrl();
 
     return { port, controller, clock };
 };
 
-/**
- * How the fake provider answers a sign-in: the scenario's own answer, unless a sign-in fail flag asks
- * for the canceled or timed-out round trip instead.
- */
 export const consentDefaultOf = (state: MockState): ConsentChoice => {
     if (state.fail === 'signin-canceled') return 'canceled';
     if (state.fail === 'signin-expired') return 'expired';

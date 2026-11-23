@@ -8,14 +8,6 @@ const INPUT =
     'h-[47px] rounded-lg border bg-white px-4 text-sm font-medium text-ink outline-none placeholder:text-[#b4b6bc] ' +
     'focus:border-navy/40';
 
-/**
- * The cardholder's name and mobile number, which the card company requires with every card. Drawn in
- * W-08's form-row style, and reused where a card is added later — nothing typed here is kept, so each
- * card asks again. A field says what is wrong with it only once the reader has left it.
- *
- * The card company wants an email address too. It is normally the account's own and not asked for;
- * `askEmail` adds a field for it where the account has none (see `payerEmailOf`).
- */
 export const PayerFields = ({
     value,
     onChange,

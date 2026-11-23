@@ -2,18 +2,8 @@ import { type JSX, type ReactNode, createContext, useContext, useEffect } from '
 
 import { cn } from '../utils';
 
-/**
- * How a page tells the account shell its name. On a phone the shell's top bar carries the page title
- * and the page itself shows only the subtitle; the page keeps no copy of the title for that width.
- */
 export const AccountTitleContext = createContext<(title: string | undefined) => void>(() => undefined);
 
-/**
- * A management page's head: the title and its one-line subtitle, and an action to the right of them.
- * From `md` the title is the page's own heading; below it the shell's top bar shows it instead, so the
- * heading steps aside — unless the page keeps its heading on a phone (`titleOnPhone`), as the payment
- * methods and billing history do.
- */
 export const PageHeader = ({
     title,
     subtitle,
@@ -24,7 +14,6 @@ export const PageHeader = ({
 }: {
     title: string;
     subtitle?: ReactNode;
-    /** What the phone's top bar says when it is not the heading's own words. */
     barTitle?: string;
     titleOnPhone?: boolean;
     action?: ReactNode;
