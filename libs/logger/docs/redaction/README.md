@@ -138,6 +138,12 @@ which the entry ids fall back to, can be reconstructed from the ids every upload
 here needs randomness or a per-device secret, and the web and the app mask alike. The cost: two numbers
 that end in the same four digits read the same.
 
+**The SHA-256 is hand-written because masking cannot wait.** WebCrypto's `subtle` is asynchronous, and
+masking runs inside the `JSON.stringify` replacer and the wire mapper, which are synchronous; Hermes
+has no `crypto` at all, and `TextEncoder` is not guaranteed on every Hermes the app ships to, so the
+UTF-8 encoding is hand-written too. A library would be the first dependency of a package that has
+none. It runs only on a value a rule has already matched, so speed is not a concern.
+
 **`{ strict: true }`** prints the bare forms, folds detailed ones that arrive already masked back to
 bare, and leaves out the safe lists added for the log pipeline's readers (query values,
 `responseCode`, `httpStatus`); `redactText`, `redactSensitive`, `redactMaybeJson`, `safeStringify` and

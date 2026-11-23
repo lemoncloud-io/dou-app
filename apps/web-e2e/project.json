@@ -10,7 +10,43 @@
             "executor": "nx:run-commands",
             "options": {
                 "cwd": "apps/web-e2e",
-                "command": "playwright test"
+                "command": "playwright test --grep @visual"
+            }
+        },
+        "e2e-chaos": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "apps/web-e2e",
+                "command": "playwright test --grep @chaos"
+            }
+        },
+        "e2e-load": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "apps/web-e2e",
+                "command": "playwright test --grep @load --repeat-each=3 --workers=1"
+            }
+        },
+        "e2e-visual": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "apps/web-e2e",
+                "command": "playwright test --grep @visual"
+            },
+            "configurations": {
+                "docker": {
+                    "command": "./scripts/visual-docker.sh"
+                },
+                "update": {
+                    "command": "./scripts/visual-docker.sh --update-snapshots"
+                }
+            }
+        },
+        "feature-coverage": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "apps/web-e2e",
+                "command": "jiti src/feature-map/check.ts"
             }
         }
     }

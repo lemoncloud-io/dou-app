@@ -8,9 +8,6 @@ import { buildSimplePush, buildUnicastEvent, sendUnicast, type UnicastTarget } f
 import type { UsersStage } from '../../api/userApi';
 import type { ObservedDevice, ObservedUser } from '../../mock/observed-users';
 
-/**
- * `components/observe/UnicastPanel.tsx`
- */
 export interface UnicastPanelProps {
     stage: UsersStage;
     user: ObservedUser;

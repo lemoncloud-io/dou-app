@@ -1,12 +1,62 @@
 {
     "extends": "./tsconfig.app.json",
     "compilerOptions": {
-        "outDir": "../../dist/out-tsc",
-        "module": "commonjs",
-        "types": ["jest", "node"],
-        "rootDir": "."
+        "outDir": "../../dist/out-tsc/web-spec",
+        "tsBuildInfoFile": "../../dist/out-tsc/web-spec/tsconfig.spec.tsbuildinfo",
+        "rootDir": ".",
+        "types": ["jest", "node", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts", "vite/client"]
     },
-    // Override app's exclude (which drops *.test/*.spec) so test files belong to this project.
+    // Its own outDir and build info: inheriting the app's tsBuildInfoFile made `tsc -b` treat this
+    // project as built whenever the app was, so no test file was ever type checked. `module` stays the
+    // base's esnext (ts-jest emits CommonJS on its own), and the references are the app's, so the
+    // libs come in as built projects instead of unlisted sources (TS6307).
     "exclude": ["out-tsc", "dist"],
-    "include": ["jest.config.js", "src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
+    "references": [
+        {
+            "path": "../../libs/config/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/runtime-web/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/http/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/policy-content/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/block-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/web-ui-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../assets/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/storage/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/ui-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/perf/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/runtime/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/bridge-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/shared/tsconfig.lib.json"
+        }
+    ]
 }

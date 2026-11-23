@@ -842,7 +842,7 @@ describe('useChats — gaps in the cached history', () => {
         // The repository binds a subscription to the cloud selected when it is made. The new cloud's
         // ranges have not arrived yet, as a mirrored stream's first value may not have.
         const observeFeedCoverage = jest.fn(
-            (channelId: string, callback: (covered: Array<[number, number]>) => void) =>
+            (channelId: string, callback: (covered: Array<[number, number]>) => void): (() => void) =>
                 observeFeedCoverage.mock.calls.length === 1 ? observeCoverage(channelId, callback) : () => undefined
         );
         (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({

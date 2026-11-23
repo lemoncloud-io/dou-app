@@ -4,7 +4,6 @@ import { redactText } from './valuePatterns';
 
 const fingerprint = (value: string) => createHash('sha256').update(value).digest('hex').slice(0, 6);
 
-/** The bare placeholders these cases name are what a strict caller gets; the detailed forms are below. */
 const STRICT = { strict: true } as const;
 
 describe('redactText — 모양으로 마스킹한다', () => {
@@ -37,11 +36,6 @@ describe('redactText — 모양으로 마스킹한다', () => {
         expect(redactText('someone@user.test / +821012345678', STRICT)).toBe('[EMAIL] / [PHONE]');
     });
 
-    /**
-     * This app puts capability material in the query string — `routeTrail`'s security comment
-     * already spells out that rule (`/invite/accept?…`, `/s?…`). But there were six places in
-     * native where an entry put the whole URL into message.
-     */
     describe('URL 쿼리는 이름만 남기고 값을 가린다', () => {
         it('절대 URL의 쿼리 값을 가리고 파라미터 이름은 남긴다', () => {
             expect(redactText('url=https://app.dou.io/invite/accept?code=abc123&token=xyz')).toBe(
@@ -59,7 +53,6 @@ describe('redactText — 모양으로 마스킹한다', () => {
             expect(redactText('navigate to /s?k=shortcode')).toBe('navigate to /s?k=[REDACTED]');
         });
 
-        // A fragment isn't guaranteed to be key=value shaped — auth flows put bare tokens there.
         it('프래그먼트는 통째로 가린다', () => {
             expect(redactText('chatic://open/chat?cid=c1#access_token=secret')).toBe(
                 'chatic://open/chat?cid=c1#[REDACTED]'
@@ -83,11 +76,6 @@ describe('redactText — 모양으로 마스킹한다', () => {
         });
     });
 
-    /**
-     * Guards against over-masking. Every value here is either a tracing join axis or a
-     * diagnostic field — redacting it just because it looks random defeats the whole point of
-     * collecting logs.
-     */
     describe('지우면 안 되는 것은 그대로 둔다', () => {
         it('uuid·복합 id·runId는 건드리지 않는다', () => {
             const ids = [

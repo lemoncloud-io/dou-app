@@ -338,7 +338,7 @@ describe('useReturnKeyFlow', () => {
     });
 
     it('stops listening once unmounted', () => {
-        const { unmount } = render(<Host />);
+        const { unmount } = render(<Host>{null}</Host>);
         unmount();
         render(
             <>

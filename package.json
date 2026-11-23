@@ -19,6 +19,8 @@
     "ratchet": "node scripts/ratchet.js",
     "ratchet:check": "node scripts/ratchet.js check",
     "ratchet:update": "node scripts/ratchet.js update",
+    "gate": "node scripts/gate.js",
+    "worktree:setup": "node scripts/worktree-setup.js",
     "generate:emoji-names": "node scripts/generate-emoji-names.js",
     "generate:app-icons": "node scripts/generate-app-icons.js",
     "block-kit:test": "cd libs/block-kit && ../../node_modules/.bin/vitest run",

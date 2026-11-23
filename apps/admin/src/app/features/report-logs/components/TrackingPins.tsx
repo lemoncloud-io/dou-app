@@ -1,22 +1,9 @@
-/**
- * `components/report-logs/TrackingPins.tsx`
- * - The active tracking context, shown as chips above everything else.
- *
- * A pin is a server-side narrowing, so it changes what the whole screen is about — every
- * count, every facet, every chart below it is scoped to these values. That is why they sit
- * at the top as a persistent statement of context rather than inside the filter rail with
- * the client-side narrowings.
- */
 import { useT } from '../../../i18n';
 import type { PinKey } from '../lib/pinAxes';
 
 interface TrackingPinsProps {
     pins: Array<{ key: PinKey; value: string }>;
     onUnpin: (key: PinKey) => void;
-    /**
-     * Set when a pinned `uid` cannot reach the user's own issue reports — Slack reports
-     * are not stamped with a `uid`, so the filter only matches batch log entries.
-     */
     uidCaveat?: boolean;
 }
 

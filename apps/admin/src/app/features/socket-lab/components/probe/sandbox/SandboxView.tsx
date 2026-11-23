@@ -23,7 +23,6 @@ export default function SandboxView({ sandbox }: SandboxViewProps) {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* toolbar */}
             <div
                 style={{
                     display: 'flex',

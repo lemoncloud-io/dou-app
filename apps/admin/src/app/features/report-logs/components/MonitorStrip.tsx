@@ -1,15 +1,3 @@
-/**
- * `components/report-logs/MonitorStrip.tsx`
- * - Level counts and a spike flag, across the top of the console.
- *
- * "Is something on fire right now" is a different question from "find me this user's
- * logs", and it should not require switching views to answer. So the answer sits above
- * the view switch, always visible, computed from the same corpus everything else uses.
- *
- * The spike test compares the most recent bucket against the median of the ones before
- * it. A mean would be dragged up by the very spike it is meant to detect, and comparing
- * against the previous bucket alone flags ordinary jitter.
- */
 import { useMemo } from 'react';
 
 import { useT } from '../../../i18n';
@@ -20,19 +8,11 @@ import { formatNumber } from '../lib/timeFormat';
 
 interface MonitorStripProps {
     rows: ReportLogRow[];
-    /** Rows the counts are computed over, for the caption. */
     corpusSize: number;
 }
 
-/**
- * Levels shown first, in severity order rather than by frequency, so the strip reads the
- * same every time. Anything else the app emits is appended after these rather than
- * dropped — a level introduced next release must not become invisible on the screen whose
- * job is "is something on fire right now".
- */
 const KNOWN_LEVELS = ['error', 'warn', 'info', 'debug'] as const;
 
-/** Stands in for a log with no level while counting; named in the viewer's language on render. */
 const NO_LEVEL = '';
 
 const median = (values: number[]): number => {
@@ -42,9 +22,7 @@ const median = (values: number[]): number => {
     return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 };
 
-/** How many times the latest bucket exceeds the baseline before it counts as a spike. */
 const SPIKE_FACTOR = 2;
-/** Below this the ratio is meaningless — 1 row against a baseline of 0 is not a spike. */
 const SPIKE_MIN_COUNT = 5;
 
 export const MonitorStrip = ({ rows, corpusSize }: MonitorStripProps) => {
@@ -59,8 +37,6 @@ export const MonitorStrip = ({ rows, corpusSize }: MonitorStripProps) => {
                 byLevel.set(level, (byLevel.get(level) ?? 0) + 1);
             } else reports += 1;
         }
-        // Known levels first in severity order, then whatever else turned up, so the
-        // numbers on screen always add up to the log rows in view.
         const known = KNOWN_LEVELS.map(level => [level, byLevel.get(level) ?? 0] as const).filter(
             ([, count]) => count > 0
         );
@@ -77,8 +53,6 @@ export const MonitorStrip = ({ rows, corpusSize }: MonitorStripProps) => {
         const latest = buckets[buckets.length - 1];
         const baseline = median(buckets.slice(0, -1).map(b => b.count));
         if (latest.count < SPIKE_MIN_COUNT) return null;
-        // With a zero baseline, clearing SPIKE_MIN_COUNT above is the whole test — there is
-        // no ratio to apply.
         if (baseline > 0 && latest.count < baseline * SPIKE_FACTOR) return null;
         return { count: latest.count, baseline };
     }, [rows]);

@@ -35,10 +35,6 @@ const cloudB = { config: { url: 'wss://cloud-b', deviceId: 'd', wssType: 'cloud'
 const A = slotKeyOf('cloud-a');
 const B = slotKeyOf('cloud-b');
 
-/**
- * Just enough of SocketManager to observe the reconcile order: a slot counts as bound from the moment
- * bootstrap is called, because the real bootstrap calls `ensure` before its first `await`.
- */
 const makeManager = () => {
     const bound = new Set<SlotKey>();
     const log: string[] = [];
@@ -71,7 +67,6 @@ describe('SocketBinder (one reconciler for every slot)', () => {
     });
 
     const configsBooted = () => mockedBootstrap.mock.calls.map(call => call[0].config);
-    /** A binder that has applied `slots`; `pass` applies the next slots, `stop` detaches every boot. */
     const startBinder = (slots: RuntimeSocketSlots) => {
         const binder = new SocketBinder(fake.manager as unknown as ISocketManager);
         binder.apply(slots, delegate);
@@ -107,9 +102,6 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         expect(configsBooted()).toEqual([cloudB.config]);
     });
 
-    // This used to be the one switch the binder could not do: the reboot key held, so the socket
-    // stayed up serving the outgoing cloud, and a dedicated guard reported it. With slots keyed by
-    // the cloud, B is a different slot whatever its URL.
     it('a switch to a cloud on the same wss host is an ordinary switch — no error, B gets its own slot', () => {
         const sameHostB = { config: { ...cloudB.config, url: cloudA.config.url } };
         const { rerender } = startBinder({ relay: relaySlot, cloud: cloudA });
@@ -147,7 +139,6 @@ describe('SocketBinder (one reconciler for every slot)', () => {
             fake.log.length = 0;
             mockedBootstrap.mockClear();
 
-            // After the commit, A is the background one and B the committed one — same keys, same configs.
             rerender({ relay: relaySlot, cloud: cloudB, background: [cloudA] });
 
             expect(fake.log).toEqual([`active ${B}`]);
@@ -239,14 +230,12 @@ describe('SocketBinder (one reconciler for every slot)', () => {
 
         rerender({ relay: relaySlot, cloud: { config: { ...cloudA.config, url: 'wss://cloud-a-2' } } });
 
-        // Same slot, new URL: `ensure` inside bootstrap rebuilds the client, so nothing is destroyed.
         expect(configsBooted()).toEqual([{ ...cloudA.config, url: 'wss://cloud-a-2' }]);
         expect(firstCleanup).toHaveBeenCalledTimes(1);
         expect(fake.manager.destroy).not.toHaveBeenCalled();
     });
 
     it('tears down a slot the manager holds even when this binder never booted it', () => {
-        // A remount forgets what the previous mount booted; the manager does not.
         fake.bound.add(A);
 
         startBinder({ relay: relaySlot });
@@ -256,7 +245,6 @@ describe('SocketBinder (one reconciler for every slot)', () => {
     });
 
     it('a stop and a restart: the first boot detaches itself, the second is kept, and no socket is destroyed', async () => {
-        // React StrictMode's mount → unmount → mount of the host does exactly this to the controller.
         const cleanups: jest.Mock[] = [];
         mockedBootstrap.mockImplementation(({ config }) => {
             fake.bound.add(slotKeyOf(config.cid));
@@ -269,7 +257,6 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         const second = startBinder({ relay: relaySlot, cloud: cloudA });
         await Promise.resolve();
 
-        // Two starts → two boots per slot. The first start's boots resolve after it was stopped.
         expect(cleanups).toHaveLength(4);
         expect(cleanups.slice(0, 2).map(c => c.mock.calls.length)).toEqual([1, 1]);
         expect(cleanups.slice(2).map(c => c.mock.calls.length)).toEqual([0, 0]);
@@ -300,7 +287,6 @@ describe('SocketBinder (one reconciler for every slot)', () => {
 
         binder.apply({ relay: relaySlot, cloud: cloudA }, delegate);
 
-        // The first call threw; the second pass made it again instead of skipping the slots as done.
         expect(fake.manager.setActiveSlot).toHaveBeenCalledTimes(2);
         expect(fake.manager.setActiveSlot).toHaveBeenLastCalledWith(A);
     });
@@ -347,7 +333,6 @@ describe('SocketBinder (one reconciler for every slot)', () => {
         );
         mockedBootstrap.mockClear();
 
-        // Any later pass re-boots it — here the relay slot's device id moved.
         rerender({ relay: { config: { ...relaySlot.config, deviceId: 'd2' } }, cloud: cloudA });
 
         expect(configsBooted()).toEqual(expect.arrayContaining([cloudA.config]));

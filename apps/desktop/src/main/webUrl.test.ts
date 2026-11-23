@@ -57,8 +57,6 @@ describe('isTrustedUrl', () => {
     });
 
     it('rejects the data: URLs the shell paints for splash and error pages', () => {
-        // The shell loads splash/error as data: URLs — did-fail-load and the IPC gate must
-        // not treat those frames as the trusted web.
         expect(isTrustedUrl('data:text/html;charset=utf-8,%3Ch1%3Ehi%3C/h1%3E')).toBe(false);
     });
 
@@ -73,8 +71,6 @@ describe('custom UI origin', () => {
     beforeEach(() => initWebUrl(REMOTE));
 
     it('gives the custom scheme a comparable origin', () => {
-        // Node's URL leaves non-special schemes with an opaque origin ("null"), so the
-        // shell has to assemble this one itself or it could never match.
         expect(safeOrigin(`${CUSTOM_UI_ORIGIN}/assets/app.js`)).toBe(CUSTOM_UI_ORIGIN);
     });
 
@@ -114,9 +110,6 @@ describe('custom UI origin', () => {
     });
 
     it('never comes up active from the remote URL alone — nothing is serving the scheme yet', () => {
-        // A misconfigured MAIN_VITE_DESKTOP_WEB_URL must not seed the custom-UI origin: no
-        // protocol handler is registered at init, so "active" here is a blank window with the
-        // remote URL no longer reachable.
         initWebUrl(`${CUSTOM_UI_ORIGIN}/`);
         expect(isCustomUiActive()).toBe(false);
         expect(isTrustedUrl(`${CUSTOM_UI_ORIGIN}/`)).toBe(false);
@@ -131,8 +124,6 @@ describe('custom UI origin', () => {
     });
 
     it('identifies a failing load as the bundle regardless of activation state', () => {
-        // did-fail-load reports the URL that failed; the answer must not depend on whether
-        // the shell has already been switched off the bundle.
         expect(isCustomUiUrl(`${CUSTOM_UI_ORIGIN}/index.html`)).toBe(true);
         expect(isCustomUiUrl(`${REMOTE}/chat`)).toBe(false);
         expect(isCustomUiUrl('data:text/html,x')).toBe(false);

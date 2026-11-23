@@ -1,10 +1,3 @@
-/**
- * `i18n/locales.spec.ts`
- *
- * The English files are typed as their Korean twins, which catches a missing key at compile time —
- * but not in the event-name maps (plain records), and not a key left empty. This checks both
- * languages leaf by leaf, so a failure names the key.
- */
 import { describe, expect, it } from 'vitest';
 
 import { EVENT_NAMES, NAMESPACES, resources } from './locales';

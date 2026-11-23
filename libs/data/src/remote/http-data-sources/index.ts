@@ -32,7 +32,6 @@ export interface HttpDataSources {
     pairing: IPairingHttpDataSource;
 }
 
-/** Gathers HttpDataSource construction in one place — symmetric with the socket axis's `createSocketDataSources`. */
 export const createHttpDataSources = ({ gateways }: { gateways: HttpGatewayBundle }): HttpDataSources => ({
     auth: new AuthHttpDataSource(gateways.auth),
     user: new UserHttpDataSource(gateways.user),

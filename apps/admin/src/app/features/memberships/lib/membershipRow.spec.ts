@@ -1,6 +1,3 @@
-/**
- * `lib/memberships/membershipRow.spec.ts`
- */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { describeGrade, describeOverrideBadge, hasDerivationMismatch } from './membershipRow';
@@ -47,7 +44,6 @@ describe('describeOverrideBadge', () => {
         expect(badge.label).toContain('canceled');
     });
 
-    // An expired grant is no longer a grant — if the badge lingers, the operator gets misled.
     it('만료된 오버라이드는 없음으로 돌아간다', () => {
         expect(describeOverrideBadge(view({ adminStatus: 'active', adminUntil: NOW - HOUR }), NOW).kind).toBe('none');
     });
@@ -114,7 +110,6 @@ describe('describeTargetServer', () => {
         expect(describeTargetServer('https://api.example.com/dou-v1/').isProd).toBe(true);
     });
 
-    // Insisting a production URL is dev is the expensive mistake. A backend endpoint (/v1) isn't a relay either.
     it('규칙에 안 맞으면 개발이라고 단정하지 않고 모른다고 한다', () => {
         expect(describeTargetServer('https://api.example.com/x9').label).toBe('Unknown');
         expect(describeTargetServer('https://api.example.com/v1').label).toBe('Unknown');
@@ -140,7 +135,6 @@ describe('relayStageOf', () => {
     });
 });
 
-// The two stages on different hosts, as they are once the dev stage moved domain.
 const DEV_RELAY = 'https://dev.example.com/dou-d1';
 const PROD_RELAY = 'https://prod.example.com/dou-v1';
 
@@ -160,7 +154,6 @@ describe('relayEndpointFor', () => {
         expect(relayEndpointFor('v1')).toBe(PROD_RELAY);
     });
 
-    // The session's relay is not a template for the other stage: its host may not serve that stage.
     it('is empty when that stage is not configured, whatever the session relay is', () => {
         stubStages(DEV_RELAY);
         vi.stubEnv('VITE_V1_RELAY_ENDPOINT', '');
@@ -183,9 +176,6 @@ describe('targetEndpointFor', () => {
 describe('endpointOverrideFor', () => {
     afterEach(() => vi.unstubAllEnvs());
 
-    // Don't send an override when the stage is already configured. Sending one would discard the
-    // relay the client resolves (deep links and the window override take precedence) and pin it to
-    // the build-time value instead — that was the cause of the 404 regression.
     it('leaves the configured stage alone', () => {
         stubStages(DEV_RELAY);
 
@@ -207,7 +197,6 @@ describe('endpointOverrideFor', () => {
         expect(endpointOverrideFor('d1')).toBe(DEV_RELAY);
     });
 
-    // Undefined here would quietly send the call to the session's relay — the other stage.
     it('throws, naming the key, when the other stage is not configured', () => {
         stubStages(DEV_RELAY);
         vi.stubEnv('VITE_V1_RELAY_ENDPOINT', '');

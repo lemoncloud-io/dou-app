@@ -1,0 +1,47 @@
+{
+    "$comment": "Each folder under apps/web/src/app/features and the scenarios (paths under src/specs) that exercise it. An empty list is a feature with no scenario yet. A spec that belongs to no single feature goes under crossCutting. `npx nx run web-e2e:feature-coverage` checks this file against both trees.",
+    "features": {
+        "account": [],
+        "appUpdate": ["app-version-floor.spec.ts", "visual/screens.spec.ts"],
+        "auth": [],
+        "channels": [
+            "attachment-picker.spec.ts",
+            "audio-files.spec.ts",
+            "chat-paging.spec.ts",
+            "room-mute.spec.ts",
+            "room-read.spec.ts",
+            "chaos/offline-send.spec.ts",
+            "chaos/room-entry-socket-loss.spec.ts",
+            "load/image-room.spec.ts",
+            "load/long-room.spec.ts",
+            "load/message-burst.spec.ts",
+            "visual/screens.spec.ts"
+        ],
+        "debug": [],
+        "feedback": [],
+        "home": [
+            "cloud-switch.spec.ts",
+            "chaos/boot-http-faults.spec.ts",
+            "chaos/cloud-switch-chaos.spec.ts",
+            "load/room-list.spec.ts",
+            "visual/screens.spec.ts"
+        ],
+        "invite": ["cloud-invite-entry.spec.ts", "relay-invite-entry.spec.ts"],
+        "miniapps": [],
+        "mypage": ["installed-app-declaration.spec.ts", "oauth-login.spec.ts", "visual/screens.spec.ts"],
+        "notifications": [],
+        "onboarding": [],
+        "pairing": ["device-pairing.spec.ts"],
+        "place": [],
+        "search": [],
+        "share": [],
+        "subscription": ["subscription-purchase.spec.ts", "subscription-web-checkout.spec.ts", "visual/screens.spec.ts"]
+    },
+    "crossCutting": [
+        "app-resume.spec.ts",
+        "back-navigation.spec.ts",
+        "boot-splash.spec.ts",
+        "push-navigation.spec.ts",
+        "chaos/token-expiry.spec.ts"
+    ]
+}

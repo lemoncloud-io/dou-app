@@ -1,6 +1,3 @@
-/**
- * `lib/report-logs/groupReportLogs.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { groupReportLogs } from './groupReportLogs';
@@ -27,7 +24,7 @@ describe('groupReportLogs', () => {
         expect(groups[0].message).toBe('Network Error');
         expect(groups[0].count).toBe(2);
         expect(groups[0].apps.sort()).toEqual(['mobile', 'web']);
-        expect(groups[0].latestAt).toBe(3); // most recent kept
+        expect(groups[0].latestAt).toBe(3);
     });
 
     it('sorts by count desc, then latest', () => {
@@ -57,7 +54,6 @@ describe('groupReportLogs', () => {
 
 describe('groupReportLogs — 발생 시각 기준', () => {
     it('picks the sample by occurrence time, not arrival time', () => {
-        // The later-arriving row happened first, so the other one is the group's latest.
         const earlyEvent = row({ message: 'boom', timestamp: 100, createdAt: 9_000 });
         const lateEvent = row({ message: 'boom', timestamp: 800, createdAt: 1_000 });
 

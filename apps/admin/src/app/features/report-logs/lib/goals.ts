@@ -1,11 +1,3 @@
-/**
- * `lib/report-logs/goals.ts`
- * - The performance goals the statistics tab reads against, and how one is measured from records.
- *
- * The targets are the product's own (boot 1.5 s and switches 1 s at p95, FCP 1.8 s and LCP 2.5 s at
- * p75 — the web-vitals "good" thresholds). Room entry deliberately has no target yet: its card
- * shows the numbers without a verdict rather than inventing one.
- */
 import { eventAt } from './eventTime';
 import type { ReportLogRow } from './parseReportLog';
 import { inWindow, type ResolvedPeriod } from './period';
@@ -15,13 +7,9 @@ export type GoalKey = 'boot' | 'roomEntry' | 'switch' | 'fcp' | 'lcp';
 
 export interface GoalDef {
     key: GoalKey;
-    /** Statistics tags the goal is read from; fetched one by one, narrowed on the server. */
     tags: string[];
-    /** Keep only these records of the tag (a web-vitals record names its vital in an attribute). */
     match?: (row: ReportLogRow) => boolean;
-    /** The value of one record, in milliseconds. */
     value: (row: ReportLogRow) => number | undefined;
-    /** Which percentile the target is read at. */
     p: 75 | 95;
     targetMs?: number;
 }
@@ -33,9 +21,6 @@ export const GOALS: GoalDef[] = [
     {
         key: 'boot',
         tags: ['perf.boot'],
-        // A JS context the phone app started over itself (a sign-out, an owner switch) is not a launch
-        // anyone tapped, and runs with the app already warm. Content-process reloads stay counted, as
-        // they always were: they are the crash the start-up number should show.
         match: row => row.attrs?.boot_type !== 'restart',
         value: duration,
         p: 95,
@@ -61,20 +46,15 @@ export const GOALS: GoalDef[] = [
     },
 ];
 
-/** Every tag any goal reads, once each. */
 export const GOAL_TAGS = [...new Set(GOALS.flatMap(goal => goal.tags))];
 
 export interface GoalReading {
-    /** Records measured. */
     n: number;
-    /** Value at the goal's percentile. */
     value?: number;
     median?: number;
-    /** `met` / `missed` against the target; `none` without one; `noData` without records. */
     verdict: 'met' | 'missed' | 'none' | 'noData';
 }
 
-/** Read one goal over the records of its tags that fall in the window. */
 export const readGoal = (
     goal: GoalDef,
     rows: ReportLogRow[],

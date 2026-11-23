@@ -1,4 +1,3 @@
-/** Korean copy for the issue-reports tab. */
 export const reports = {
     search: { label: '제보 검색', placeholder: '제목, 내용, 사용자로 찾기' },
     inbox: { label: '받은 제보', attachments: '첨부 {{count}}개' },

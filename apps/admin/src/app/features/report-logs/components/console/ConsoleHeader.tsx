@@ -1,11 +1,3 @@
-/**
- * `components/report-logs/console/ConsoleHeader.tsx`
- * - The page's own header: its name, which server it reads, the five tabs, and a link to share.
- *
- * The server switch lives here, not in a filter column, because it changes what every number on
- * every tab means — reading prod while believing it is dev (or the reverse) is the mistake this
- * header exists to make impossible. It never collapses, at any width.
- */
 import { useEffect, useState } from 'react';
 
 import { Link2 } from 'lucide-react';
@@ -87,8 +79,6 @@ export const ConsoleHeader = ({ tab, onTab, stage, onStage }: ConsoleHeaderProps
                     </button>
                 </div>
             </div>
-            {/* Navigation between views rather than an ARIA tab widget: each tab is its own URL, so
-                buttons marked with `aria-current` say exactly what they are. */}
             <nav aria-label={t('console.tabsLabel')} className="-mb-px flex gap-1 overflow-x-auto">
                 {CONSOLE_TABS.map(value => (
                     <button

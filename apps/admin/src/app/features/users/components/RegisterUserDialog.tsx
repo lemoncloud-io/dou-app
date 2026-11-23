@@ -31,7 +31,6 @@ type UserFormData = {
 };
 
 interface RegisterUserDialogProps {
-    /** The stage the page is on; the account is created on that stage's relay. */
     stage: ServiceStage;
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -47,7 +46,6 @@ export const RegisterUserDialog = ({
     onFail,
 }: RegisterUserDialogProps): JSX.Element => {
     const { mutateAsync: registerUser, isPending } = runtime.session.useRegisterUserV2();
-    // Shown in the dialog: the page passes no failure handler, so this is the only place it reads.
     const [failure, setFailure] = useState<string | null>(null);
 
     const {
@@ -76,8 +74,6 @@ export const RegisterUserDialog = ({
                 stereo: 'user',
                 ...data,
             };
-            // Resolved at submit: an unset stage key throws here and shows below like any failure.
-            // Cast: the form's `email` field and the hook's boolean `email` flag share a name.
             await registerUser({ ...body, email: isEmail, endpoint: relayOverrideFor(stage) } as RegisterUserV2Body & {
                 email: boolean;
                 endpoint?: string;
@@ -104,41 +100,6 @@ export const RegisterUserDialog = ({
                 </DialogHeader>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <div className="space-y-4 py-4 ">
-                        {/* <div className="space-y-2">
-                            <Label htmlFor="cloudId">Cloud ID</Label>
-                            <div className="flex gap-2">
-                                <Input id="cloudId" {...register('cloudId', { required: 'Cloud ID is required' })} />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setValue('cloudId', generateRandomId())}
-                                >
-                                    <Dices className="h-4 w-4" />
-                                </Button>
-                            </div>
-                            {errors.cloudId && <p className="text-sm text-destructive">{errors.cloudId.message}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="siteId">Site ID</Label>
-                            <div className="flex gap-2">
-                                <Input id="siteId" {...register('siteId', { required: 'Site ID is required' })} />
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setValue('siteId', generateRandomId())}
-                                >
-                                    <Dices className="h-4 w-4" />
-                                </Button>
-                            </div>
-                            {errors.siteId && <p className="text-sm text-destructive">{errors.siteId.message}</p>}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="siteNm">Site Name</Label>
-                            <Input id="siteNm" {...register('siteNm', { required: 'Site Name is required' })} />
-                            {errors.siteNm && <p className="text-sm text-destructive">{errors.siteNm.message}</p>}
-                        </div> */}
                         <div className="space-y-2">
                             <Label htmlFor="name">Name</Label>
                             <Input id="name" {...register('name', { required: 'Name is required' })} />

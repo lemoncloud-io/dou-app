@@ -1,6 +1,3 @@
-/**
- * `api/userApi.spec.ts`
- */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getUsersBase, mapDeviceView } from './userApi';
@@ -9,8 +6,6 @@ describe('userApi', () => {
     describe('getUsersBase', () => {
         afterEach(() => vi.unstubAllEnvs());
 
-        // The old rule stripped `/d1` off the backend endpoint, which left a production backend
-        // (`…/v1`) untouched and produced `…/v1/skt-v1`.
         it("reads each stage's presence service from its own key", () => {
             vi.stubEnv('VITE_D1_PRESENCE_ENDPOINT', 'https://dev.example.com/skt-d1');
             vi.stubEnv('VITE_V1_PRESENCE_ENDPOINT', 'https://prod.example.com/skt-v1/');

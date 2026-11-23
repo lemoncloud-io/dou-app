@@ -1,6 +1,5 @@
 import type { events as ko } from '../ko/events';
 
-/** Display names for log areas and statistics tags, English. Same keys as the Korean file. */
 export const events: typeof ko = {
     areas: {
         global: 'App error',

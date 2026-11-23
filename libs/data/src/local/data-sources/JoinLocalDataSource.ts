@@ -13,7 +13,6 @@ import {
 export interface IJoinLocalDataSource
     extends ILocalDataSource<DomainJoin, DomainJoinListPayload, DomainListResult<DomainJoin>> {}
 
-/** The read position a join row carries — `readNo` and `chatNo` both track it. */
 const cursorOf = (join: Partial<DomainJoin> | null | undefined): number | undefined => {
     if (!join) return undefined;
     const { readNo, chatNo } = join;
@@ -21,15 +20,6 @@ const cursorOf = (join: Partial<DomainJoin> | null | undefined): number | undefi
     return Math.max(readNo ?? 0, chatNo ?? 0);
 };
 
-/**
- * Merges `item` over `existing`, except that the read cursor never moves backwards.
- *
- * A read position only ever advances on the server, but answers reach this cache out of order: a
- * join sync that left before the read was marked lands after it, and its older cursor would put the
- * unread badge back on a room the user has just read. So when the incoming cursor is behind the one
- * stored, the stored cursor is kept together with the `metaNo` snapshot taken at it (the two only mean
- * something as a pair), while every other field — nick, notify, joined — still takes the new value.
- */
 const mergeJoin = (existing: DomainJoin | null | undefined, item: Partial<DomainJoin>, id: string, cid: string) => {
     const merged: DomainJoin = {
         ...(existing ?? ({} as DomainJoin)),
@@ -52,7 +42,6 @@ const mergeJoin = (existing: DomainJoin | null | undefined, item: Partial<Domain
     return merged;
 };
 
-/** Persists channel membership records and scopes observer invalidation by channel id. */
 export class JoinLocalDataSource extends BaseLocalDataSource<'join'> implements IJoinLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'join'>) {
         super(contextProvider, storages);
@@ -162,7 +151,6 @@ export class JoinLocalDataSource extends BaseLocalDataSource<'join'> implements 
         const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        // Only the affected channel set is needed, so ids omitted because they are absent do not matter.
         const storage = this.storage(scope);
         const existingItems = await storage.loadMany(validIds);
         await storage.deleteAll(validIds);
@@ -202,16 +190,6 @@ export class JoinLocalDataSource extends BaseLocalDataSource<'join'> implements 
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueChannels = Array.from(new Set(channelIds.map(channelId => channelId || '__none__')));
-        // Re-emit ONLY the written channels. A bare `${scopeKey}|joins` prefix used to sit in front
-        // of these and looked harmless, but `flush` matches with `key.startsWith(prefix)` and every
-        // join observer key begins with it — so one write woke every channel's observer, and each
-        // wake re-reads storage. With one observer per channel (useMyJoins) that made a single write
-        // cost N round trips; measured on device it was 16.5 reads per write.
-        //
-        // No catch-all entry: `cacheReadList` requires channelId, so a channel-less observer cannot
-        // exist. The per-channel prefix still spans that channel's query variants (activeOnly).
-        // The trailing `|` pins the match to a whole key segment; without it `channel:ch-1` also
-        // matches `channel:ch-10`.
         return uniqueChannels.map(channelId => `${scopeKey}|joins|channel:${channelId}|`);
     }
 }

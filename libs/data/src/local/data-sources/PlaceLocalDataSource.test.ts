@@ -16,7 +16,6 @@ describe('PlaceLocalDataSource', () => {
         const storage = createPartitionedMemoryStorage('site');
         const dataSource = new PlaceLocalDataSource(contextProvider as any, storage);
 
-        // order/name are intentionally out of id order to prove id drives the sort.
         await dataSource.cacheWriteMany([
             { id: '10', name: 'Bravo', order: 1 } as any,
             { id: '2', name: 'Alpha', order: 2 } as any,
@@ -25,21 +24,12 @@ describe('PlaceLocalDataSource', () => {
 
         const result = await dataSource.cacheReadList(undefined);
 
-        // id order, with numeric awareness so '10' sorts after '2'.
         expect(result?.list.map(item => item.id)).toEqual(['1', '2', '10']);
     });
 
-    // Reemit routing is keyed by {cid, uid} scope. The observer's scope is fixed at SUBSCRIBE time, so
-    // any DataContextProvider whose reported cid lags behind a cloud switch (the mock `provider` below
-    // simulates that) leaves an observer that keys off the live provider registered under the
-    // pre-commit cid, never hearing the post-commit write. An explicit contextOverride pins the
-    // observer's scope to the target cloud and closes that gap. (This used to be caused in practice by
-    // `RuntimeDataBinder` pushing the provider in an effect that ran after the home hook subscribed;
-    // that binder is now an inert no-op and the real provider, `ActiveScope`, derives its value live
-    // from `session/store` with no such lag — this test guards the LocalDataSource-level defense.)
     describe('cloud-switch reemit routing (P1)', () => {
         const flush = async () => {
-            await jest.advanceTimersByTimeAsync(60); // past the 50ms reemit debounce
+            await jest.advanceTimersByTimeAsync(60);
         };
 
         beforeEach(() => jest.useFakeTimers());
@@ -59,16 +49,14 @@ describe('PlaceLocalDataSource', () => {
             const ds = new PlaceLocalDataSource(provider as any, storage);
 
             const cb = jest.fn();
-            ds.observeList(undefined, cb); // keyed under cloud-a (provider still lagging on the old cloud)
-            await flush(); // initial emit (empty)
+            ds.observeList(undefined, cb);
+            await flush();
             cb.mockClear();
 
-            // Cloud switch commits: the provider flips to the new cloud, THEN discovery writes its places.
             provider.setContext({ cid: 'cloud-b', sid: '', uid: 'me' });
             await ds.cacheWriteMany([{ id: 'p1', name: 'Place 1' } as any]);
             await flush();
 
-            // Bug: the cloud-a-keyed observer never hears the cloud-b reemit → list stays stale.
             expect(cb).not.toHaveBeenCalled();
         });
 
@@ -86,7 +74,6 @@ describe('PlaceLocalDataSource', () => {
             const ds = new PlaceLocalDataSource(provider as any, storage);
 
             const cb = jest.fn();
-            // The home hook knows the target cloud from the React session, so it pins the observer scope.
             ds.observeList(undefined, cb, { cid: 'cloud-b', uid: 'me' });
             await flush();
             cb.mockClear();
@@ -107,18 +94,15 @@ describe('PlaceLocalDataSource', () => {
             const ds = new PlaceLocalDataSource(provider, places);
 
             const pending = ds.cacheWrite({ id: 'p1', name: 'Place 1' } as any);
-            // The switch lands while the write is waiting on its read of the existing row.
             live = { cid: 'cloud-b', uid: 'me' };
             await pending;
 
-            // Stored, stamped and filed under one scope — the one current when the write began.
             expect(await places.forScope({ cid: 'cloud-a', uid: 'me' }).load('p1')).toMatchObject({ cid: 'cloud-a' });
             expect(await places.forScope({ cid: 'cloud-b', uid: 'me' }).load('p1')).toBeNull();
         });
 
         it('a write that started with no session does not wake the account that signs in during it', async () => {
             const places = createPartitionedMemoryStorage('site');
-            // No `uid` key at all: the provider has no session yet.
             let live: Record<string, string | undefined> = { cid: 'default' };
             const provider = { getContext: () => live, setContext: () => undefined };
             const ds = new PlaceLocalDataSource(provider, places);
@@ -132,8 +116,6 @@ describe('PlaceLocalDataSource', () => {
             await pending;
             await flush();
 
-            // Nothing was stored (there was no partition to store it in), so the account that
-            // arrived mid-write has nothing to hear about.
             expect(accountObserver).not.toHaveBeenCalled();
             expect(await places.forScope({ cid: 'default', uid: 'account' }).load('p1')).toBeNull();
         });
@@ -146,8 +128,6 @@ describe('PlaceLocalDataSource', () => {
             const ds = new PlaceLocalDataSource(provider, places);
 
             const cb = jest.fn();
-            // Pinned to the target cloud before the provider has caught up. Keying the observer by the
-            // pin is half of it — its read has to come from the pinned partition too.
             ds.observeList(undefined, cb, { cid: 'cloud-b', uid: 'me' });
             await flush();
 
@@ -155,16 +135,11 @@ describe('PlaceLocalDataSource', () => {
         });
     });
 
-    // Embedded-$site pollution (relay-default-place-scoping.md): a fetch that lands while a cloud
-    // is active can tag the relay's single personal place (id '0000') with that cloud's cid. The
-    // write-time guard stops NEW rows; this is what keeps an already-poisoned row (including one
-    // written before the guard existed) from resurfacing.
     describe("mistagged relay home place ('0000' under a non-default cid)", () => {
         it('cacheReadList filters it out', async () => {
             const storage = createPartitionedMemoryStorage('site');
             const dataSource = new PlaceLocalDataSource(contextProvider as any, storage);
 
-            // contextProvider is fixed on cid 'cloud-a' — the write stamps that cid onto id '0000'.
             await dataSource.cacheWriteMany([
                 { id: '0000', name: 'default' } as any,
                 { id: 'p1', name: 'Real place' } as any,
@@ -212,7 +187,6 @@ describe('PlaceLocalDataSource', () => {
 
         const result = await dataSource.cacheReadList(undefined);
 
-        // Scope clear should leave no residual place rows behind.
         expect(result?.list).toEqual([]);
     });
 });

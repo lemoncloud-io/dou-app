@@ -1,12 +1,7 @@
-/**
- * `lib/cost-monitor/display.ts`
- * - Names and colours the table, the detail panel and the chart share.
- */
 import type { DouCloud } from '../api/costApi';
 import type { UsageKey } from './cost';
 import type { PoolStatus, SlotState, Tenant } from './relations';
 
-/** One colour per metric, the same in the bars, the legend and the rate table. */
 export const METRIC_COLORS: Record<UsageKey, string> = {
     logIngestBytes: '#4e79a7',
     wsMessages: '#f28e2b',

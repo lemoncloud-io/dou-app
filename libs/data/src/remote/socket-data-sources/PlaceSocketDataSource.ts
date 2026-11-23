@@ -14,29 +14,14 @@ export type PlaceLeaveInput = Parameters<PlaceSocketDomainGateway['leave']>[0];
 export type { PlaceLeaveResult };
 
 export interface IPlaceSocketDataSource {
-    /** Requests the places (= sites) a user can reach and returns them as domain models. */
     fetchPlace(payload: UserMySiteInput | undefined, context: DataContext): Promise<DomainListResult<DomainPlace>>;
-    /** Requests creation of a new place. */
     createPlace(payload: PlaceCreateInput, context: DataContext): Promise<DomainPlace>;
-    /** Requests an edit to a place. */
     updatePlace(payload: PlaceUpdateInput, context: DataContext): Promise<DomainPlace>;
-    /** Requests deletion of a place. The contract does not say what the answer holds, so it is dropped. */
     deletePlace(payload: PlaceDeleteInput): Promise<void>;
-    /**
-     * `place.leave` — I leave the place, or with `userId` its owner removes that member. Unlike the
-     * delete, the answer is returned as it came: its `leftChannelIds` are what the caller clears from
-     * the cache.
-     */
     leavePlace(payload: PlaceLeaveInput): Promise<PlaceLeaveResult>;
-    /** `place.get` — one place as the server has it now. Rejects with 404 for a deleted place. */
     getPlace(id: string, context: DataContext): Promise<DomainPlace>;
 }
 
-/**
- * Place remote source. Single boundary where place (site) API views become
- * domain models; callers receive domain shapes only. The request-time
- * `context` is supplied by the caller to keep a late response on its scope.
- */
 export class PlaceSocketDataSource implements IPlaceSocketDataSource {
     constructor(private readonly gateway: PlaceSocketDomainGateway) {}
 
@@ -53,12 +38,6 @@ export class PlaceSocketDataSource implements IPlaceSocketDataSource {
     }
 
     public async createPlace(payload: PlaceCreateInput, context: DataContext): Promise<DomainPlace> {
-        // Unlike get/update/delete, `place.create` answers with the new OWNER PROFILE, not the site
-        // itself — its top-level `id` is the profile's (uid-scoped), while the actual created site
-        // rides along embedded as `site$`. Spreading `site$` over the profile fields corrects `id`
-        // (and any other site-owned field) without losing profile-only extras (e.g. `thumbnail`).
-        // Using the profile's `id` here would cache a place row under the wrong key, so every later
-        // lookup (place.get, switchSite, ...) 404s against a site that was never created.
         const remote = await this.gateway.create<MySiteView & { site$?: MySiteView }>(payload);
         const { site$, ...profile } = remote || {};
         return toDomainPlace({ ...profile, ...site$ } as MySiteView, context);

@@ -13,7 +13,6 @@ import type { RuntimeBridgeHostOptions } from './host';
 import { RUNTIME_CONTRACT_VERSION } from './contract';
 import { RUNTIME_ERROR_CODE, RUNTIME_NOT_AVAILABLE_CODE } from './errors';
 
-/** An engine with the members the tests reach, each recording how it was called. */
 const fakeEngine = () => {
     const sessionListeners = new Set<() => void>();
     let snapshot = { auth: { isAuthenticated: true }, relayUser: { id: 'u1' } };
@@ -136,15 +135,12 @@ describe('createRuntimeBridgeHost — hello', () => {
         });
     });
 
-    // A first hello answered RUNTIME_STARTING, a WebView remount with a bridge of its own: either way the
-    // runtime may hold the session before this bridge answered anyone native.
     it('refuses a page that shares no contract once the process runtime holds the session, on any bridge', async () => {
         const { host } = setup();
 
         await expect(host.hello({ contracts: [999] })).resolves.toMatchObject({
             failure: { code: RUNTIME_CONTRACT_MISMATCH_CODE },
         });
-        // Nothing was taken: a page that does share the contract is still answered native.
         await expect(host.hello(hello)).resolves.toMatchObject({ value: { sessionOwner: 'native' } });
     });
 
@@ -201,7 +197,6 @@ describe('createRuntimeBridgeHost — hello', () => {
             { seq: 1, signals: ['session'], session: { auth: { isAuthenticated: false }, relayUser: { id: 'u2' } } },
         ]);
         await expect(host.hello(hello)).resolves.toMatchObject({ value: { seq: 1 } });
-        // One push subscription, however many pages said hello.
         expect(fake.sessionListeners.size).toBe(1);
     });
 });
@@ -250,7 +245,6 @@ describe('createRuntimeBridgeHost — the views and the sign-out', () => {
                 })
         );
         const answered = host.call({ target: 'session', method: 'switchSite', args: ['s3'] });
-        // A change while the call runs leaves a push due; the bridge then closes before the call settles.
         fake.changeSession({ auth: { isAuthenticated: false }, relayUser: { id: 'u3' } });
         host.dispose();
         finish();
@@ -436,7 +430,6 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
         host.unsubscribe({ subscriptionId: 'h1' });
         expect(fake.stops).toEqual(['hold:cloud-a']);
 
-        // A reloaded page says hello again: what the last document still held goes with it.
         await host.hello(hello);
         expect(fake.stops).toEqual(['hold:cloud-a', 'hold:cloud-b']);
         expect(events).toEqual([]);
@@ -450,7 +443,6 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
             const deliveries: { resolve: () => void; reject: (error: unknown) => void }[] = [];
             const join = {
                 updateJoin: jest.fn(async (_payload: unknown) => {
-                    // Handled at once, as the outbox's own promise is.
                     const delivered = new Promise<void>((resolve, reject) => deliveries.push({ resolve, reject }));
                     delivered.catch(() => undefined);
                     return { delivered };
@@ -471,7 +463,6 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
                 topic: 'join.updateJoin',
                 args: [{ channelId: 'ch1', notify: 'none' }],
             });
-            // Started as the subscribe arrives, as in-process: a call the page sends next finds it made.
             expect(join.updateJoin).toHaveBeenCalledWith({ channelId: 'ch1', notify: 'none' });
             await expect(answered).resolves.toEqual({ value: {} });
             await turns();
@@ -645,7 +636,6 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
         fake.observers.get('user:u1')?.({ id: 'u1' });
         fake.observers.get('user:u1')?.({ id: 'u1' });
 
-        // The page reloaded: a new hello, and its mirror opens the same id again.
         await host.hello(hello);
         await host.subscribe({
             subscriptionId: 'm1',
@@ -654,8 +644,6 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
             args: ['u2', RUNTIME_LISTENER_MARKER],
         });
         fake.observers.get('user:u2')?.({ id: 'u2' });
-        // The last document's listener, still called by its source: its stream ended at the hello, so it
-        // sends nothing that the new document's `m1` could mistake for its own.
         fake.observers.get('user:u1')?.({ id: 'u1' });
 
         expect(events.map(event => [event.seq, event.event])).toEqual([
@@ -709,8 +697,6 @@ describe('createRuntimeBridgeHost — subscriptions', () => {
 });
 
 describe('createRuntimeBridgeHost — with the real scheduler', () => {
-    // The page has to keep a stream's events from before its subscribe answer: with a microtask
-    // scheduler a view's first value is sent ahead of that answer.
     it("sends a view's first value before the subscribe is answered", async () => {
         const fake = fakeEngine();
         const order: string[] = [];

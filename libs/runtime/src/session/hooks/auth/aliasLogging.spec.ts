@@ -5,14 +5,6 @@ import type { VerifyAliasBody } from '@chatic/auth';
 import { useFindAlias } from './useFindAlias';
 import { useVerifyAlias } from './useVerifyAlias';
 
-/**
- * The two hooks are one-line wrappers around a mutation, so the only thing worth testing is what
- * they record on failure — and that they record neither the address, the code nor the password
- * (ADR-0099).
- *
- * `useCustomMutation` is stubbed to hand back the mutation function itself: driving these through a
- * real react-query client would test react-query, not the entries.
- */
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -31,8 +23,6 @@ const findMock = findAlias as jest.Mock;
 beforeEach(() => jest.clearAllMocks());
 
 describe('useVerifyAlias — 계정 이메일 검증 실패 기록', () => {
-    // Typed as the production body, not `as const` literals: the second case varies `step` to
-    // 'change' and adds a password, and a `typeof body` cast would have pinned `step` to 'check'.
     const body: VerifyAliasBody = {
         type: 'email',
         mode: 'signup',
@@ -41,8 +31,6 @@ describe('useVerifyAlias — 계정 이메일 검증 실패 기록', () => {
         code: '123456',
     };
 
-    // One endpoint doubles for two journeys × five steps — without mode/step, there's no telling
-    // which leg broke.
     it('mode와 step을 message와 data에 함께 남긴다', async () => {
         verifyMock.mockRejectedValue(new Error('boom'));
         const run = useVerifyAlias() as unknown as (b: VerifyAliasBody) => Promise<unknown>;
@@ -95,7 +83,6 @@ describe('useFindAlias — 계정 조회 실패 기록', () => {
         expect(error.mock.calls[0][2].data).toEqual({ type: 'email' });
     });
 
-    // Whether the account exists is exactly the fact an enumeration attack is after.
     it('주소도 조회 결과도 싣지 않는다', async () => {
         findMock.mockRejectedValue(new Error('boom'));
         const run = useFindAlias() as unknown as (b: typeof body) => Promise<unknown>;

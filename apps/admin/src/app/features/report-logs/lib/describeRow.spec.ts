@@ -27,7 +27,6 @@ describe('describeRow', () => {
         expect(eventNameOf('perf.chat_room_open', 'en')).toBe('Room entry');
         expect(eventNameOf('MYSTERY', 'en')).toBeUndefined();
         expect(eventLabelOf('MYSTERY', 'en')).toBe('MYSTERY');
-        // A prototype key is not a name.
         expect(eventNameOf('constructor', 'en')).toBeUndefined();
     });
 

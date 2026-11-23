@@ -33,10 +33,10 @@ beforeEach(() => {
     setLaunchSessionOwner(undefined);
     resetRouteTrail();
     mockSession.mockReturnValue(sessionState());
-    delete (window as Record<string, unknown>).CHATIC_APP_RUN_ID;
-    delete (window as Record<string, unknown>).CHATIC_APP_CURRENT_VERSION;
-    delete (window as Record<string, unknown>).CHATIC_APP_PLATFORM;
-    delete (window as Record<string, unknown>).CHATIC_APP_DEVICE_MODEL;
+    delete (window as unknown as Record<string, unknown>).CHATIC_APP_RUN_ID;
+    delete (window as unknown as Record<string, unknown>).CHATIC_APP_CURRENT_VERSION;
+    delete (window as unknown as Record<string, unknown>).CHATIC_APP_PLATFORM;
+    delete (window as unknown as Record<string, unknown>).CHATIC_APP_DEVICE_MODEL;
     mockInsideTheApp = false;
 });
 
@@ -138,7 +138,7 @@ describe('reportRunIdJoin — 조인이 깨진 실행을 말한다', () => {
 
     it('주입이 있으면 아무것도 남기지 않는다', () => {
         insideTheApp();
-        (window as Record<string, unknown>).CHATIC_APP_RUN_ID = 'native-run-1';
+        (window as unknown as Record<string, unknown>).CHATIC_APP_RUN_ID = 'native-run-1';
 
         reportRunIdJoin();
 
@@ -171,7 +171,7 @@ describe('readLogContext — statistics context', () => {
 
     it('takes the injected platform inside the app', () => {
         mockInsideTheApp = true;
-        (window as Record<string, unknown>).CHATIC_APP_PLATFORM = 'ios';
+        (window as unknown as Record<string, unknown>).CHATIC_APP_PLATFORM = 'ios';
 
         expect(readLogContext()).toMatchObject({ platform: 'ios', host: 'app' });
     });

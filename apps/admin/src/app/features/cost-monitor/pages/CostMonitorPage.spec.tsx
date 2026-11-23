@@ -1,13 +1,3 @@
-/**
- * `pages/cost-monitor/CostMonitorPage.spec.tsx`
- *
- * Drives the assembled screen against fake goods and relay calls. The lib specs cover the numbers; what
- * only shows up here is the wiring — that the stage's own goods base is called, that rows, DoU names and
- * the slot pool reach the screen, that a missing Cost Explorer day reads "not collected", that a
- * calibration day scales today, and that one account's failed metrics stay in its own row.
- *
- * The screen sits behind an admin OAuth gate, so this stands in for clicking through it.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -47,7 +37,6 @@ const { CostMonitorPage } = await import('./CostMonitorPage');
 const GOOD = '111111111111';
 const BROKEN = '222222222222';
 const today = todayKst();
-/** One SQS million per KST hour of `day`, so a day is $0.40 × 24 before discount. */
 const hourly = (day: string) => ({
     sqsRequests: Array.from({ length: 24 }, (_, h) => ({
         t: new Date(kstDay(day)[0] + h * 3_600_000).toISOString(),
@@ -57,7 +46,6 @@ const hourly = (day: string) => ({
 const ce = (cost: number): Actual => ({ total: cost, items: [{ useType: 'APN2-Requests-Tier1', totCost: cost }] });
 
 const NO_ACTUALS = { byDay: new Map(), truncated: false };
-/** The good account's Cost Explorer amount on one UTC day. */
 const actualsFor = (day: string, actual: Actual) => ({
     byDay: new Map([[day.replace(/-/g, ''), new Map([[GOOD, actual]])]]),
     truncated: false,
@@ -145,12 +133,10 @@ describe('CostMonitorPage', () => {
 
         const error = await screen.findByTitle('The security token included in the request is invalid.');
         expect(error.textContent).toBe('error');
-        // The good account alone: 24 × $0.40, no discount by default.
         await waitFor(() => expect(screen.getAllByText('$9.6000').length).toBeGreaterThan(0));
     });
 
     it('scales today by the calibration day, and the switch turns it off', async () => {
-        // Calibration day estimate is 24 × $0.40; Cost Explorer billed twice that.
         const estimate = 24 * 0.4;
         fetchActuals.mockResolvedValue(actualsFor(addDays(today, -2), ce(estimate * 2)));
         renderPage();
@@ -164,7 +150,6 @@ describe('CostMonitorPage', () => {
     });
 
     it("keeps a late answer for the previous date from overwriting the new date's actuals", async () => {
-        // The first date's cost list answers last.
         const late: { resolve?: (value: CostApi.ActualsByDay) => void } = {};
         fetchActuals
             .mockImplementationOnce(() => new Promise(resolve => (late.resolve = resolve)))

@@ -1,11 +1,3 @@
-/**
- * `hooks/report-logs/use-log-stats-many.ts`
- * - Several server aggregations at once, for comparisons the server cannot make in one answer.
- *
- * `groupBy` counts per value but cannot count distinct users per value. Asking once per value —
- * users of app 0.29.2, users of 0.29.1, … — answers that, at one small request each. Callers keep
- * the list short (the top few values); each entry is cached like a single `useLogStats`.
- */
 import { useQueries } from '@tanstack/react-query';
 
 import { fetchReportLogs } from '../api/reportLogApi';

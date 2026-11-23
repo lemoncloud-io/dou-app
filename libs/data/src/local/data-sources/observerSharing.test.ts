@@ -2,19 +2,6 @@ import type { CacheStorage, ScopedCacheStorage } from '../ports';
 import { UserLocalDataSource } from './UserLocalDataSource';
 import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
-/**
- * The contract for how many times an observer reads storage.
- *
- * Notifying an observer re-reads storage (`callback(await query())`), so one read is one bridge round
- * trip on native. Grouping merged re-emits, but **each mount still read on its own**, and in a screen
- * where several hooks watch the same data one entry produced that many round trips. Three paths are
- * pinned here: when a value already exists, when a read is in flight, and when there is neither.
- */
-/**
- * Lets pending reads settle. Generous on purpose: a read here passes through the counting wrapper
- * and the partitioned store, and pinning an exact number of microtask turns would test the fixture
- * rather than the data source. Nothing below asserts on a state that a few extra turns could skip.
- */
 const flushPromises = async () => {
     for (let turn = 0; turn < 10; turn += 1) await Promise.resolve();
 };
@@ -24,10 +11,6 @@ interface Counters {
     load: number;
 }
 
-/**
- * The shared partitioned fixture with every partition's reads counted, and optionally held behind
- * `gate`. Counted across partitions because several cases observe under two scopes and pin the total.
- */
 const createCountingStorage = (counters: Counters, gate?: { block: Promise<void> }): ScopedCacheStorage<'user'> => {
     const slot = createPartitionedMemoryStorage('user');
     const instrumented = new Set<CacheStorage<'user'>>();
@@ -83,7 +66,6 @@ describe('observer group sharing', () => {
         dataSource.observeList({ channelId: 'ch-1' } as any, second);
         await flushPromises();
 
-        // The second subscriber receives a value too, but storage was not read again.
         expect(second).toHaveBeenCalledTimes(1);
         expect(second.mock.calls[0][0]?.list.map((item: any) => item.id)).toEqual(['u1']);
         expect(counters.loadAll).toBe(1);
@@ -130,7 +112,7 @@ describe('observer group sharing', () => {
         await flushPromises();
 
         await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any);
-        await new Promise(resolve => setTimeout(resolve, 80)); // past the flush timer (50ms)
+        await new Promise(resolve => setTimeout(resolve, 80));
         counters.loadAll = 0;
 
         const second = jest.fn();
@@ -141,9 +123,6 @@ describe('observer group sharing', () => {
         expect(counters.loadAll).toBe(0);
     });
 
-    // A screen transition's destroy/recreate cycle: when the last subscriber leaves the group stays in
-    // grace, so a returning subscriber skips storage (a bridge round trip on native) and gets the value
-    // immediately.
     it('after the last subscriber leaves, a resubscribe within grace still receives the value immediately without a read', async () => {
         const counters: Counters = { loadAll: 0, load: 0 };
         const dataSource = new UserLocalDataSource(
@@ -151,7 +130,7 @@ describe('observer group sharing', () => {
             createCountingStorage(counters)
         );
         await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any);
-        await new Promise(resolve => setTimeout(resolve, 80)); // past the write re-emit flush
+        await new Promise(resolve => setTimeout(resolve, 80));
 
         const unsubscribe = dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
         await flushPromises();
@@ -178,16 +157,13 @@ describe('observer group sharing', () => {
         unsubscribe();
 
         await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any);
-        await new Promise(resolve => setTimeout(resolve, 80)); // the flush invalidates the retired group
+        await new Promise(resolve => setTimeout(resolve, 80));
         counters.loadAll = 0;
 
         const returning = jest.fn();
         dataSource.observeList({ channelId: 'ch-1' } as any, returning);
         await flushPromises();
 
-        // There was no re-query with nobody listening (above, the flush does not read even before the
-        // counter reset), and the resubscribe reads the post-write answer afresh rather than the value
-        // held in grace.
         expect(counters.loadAll).toBe(1);
         expect(returning.mock.calls[0][0]?.list.map((item: any) => item.id)).toEqual(['u1']);
     });
@@ -215,7 +191,6 @@ describe('observer group sharing', () => {
         try {
             const users = createPartitionedMemoryStorage('user');
             const storage = users.forScope({ cid: 'c', uid: 'u' });
-            // Storage that fails only on the first call — reproducing momentary congestion (a bridge timeout).
             const originalLoadAll = storage.loadAll.bind(storage);
             let attempts = 0;
             storage.loadAll = async (...args: unknown[]) => {
@@ -232,7 +207,6 @@ describe('observer group sharing', () => {
             dataSource.observeList({ channelId: 'ch-1' } as any, observer);
             await flushPromises();
 
-            // Back when the failure was merely swallowed, this was where the news stopped for good (a screen stuck empty).
             expect(observer).not.toHaveBeenCalled();
 
             jest.advanceTimersByTime(1_000);
@@ -259,7 +233,7 @@ describe('observer group sharing', () => {
             unsubscribe();
             counters.loadAll = 0;
 
-            jest.advanceTimersByTime(60_000); // RETIRED_GROUP_TTL_MS elapsed
+            jest.advanceTimersByTime(60_000);
 
             dataSource.observeList({ channelId: 'ch-1' } as any, jest.fn());
             await flushPromises();
@@ -279,13 +253,10 @@ describe('item observer scope isolation', () => {
 
         const fromCloudA = jest.fn();
         const fromCloudB = jest.fn();
-        // Same id, different scope. When the raw id was the key, the second subscriber inherited the
-        // first's query closure and received cloud-a's data.
         dataSource.observeItem('u1', fromCloudA, { cid: 'cloud-a' });
         dataSource.observeItem('u1', fromCloudB, { cid: 'cloud-b' });
         await flushPromises();
 
-        // Evidence the groups split: both subscribers read on their own (a shared group would have folded it to one).
         expect(counters.load).toBe(2);
     });
 
@@ -331,8 +302,6 @@ describe('sid is not part of the observer scope (ADR-0085)', () => {
 
         const fromSite1 = jest.fn();
         const fromSite2 = jest.fn();
-        // Storage partitions by {cid, uid} only, so these two read the very same physical row.
-        // While sid was in the scope key they were separate groups and read it twice.
         dataSource.observeItem('u1', fromSite1, { sid: 'site-1' });
         dataSource.observeItem('u1', fromSite2, { sid: 'site-2' });
         await flushPromises();
@@ -350,9 +319,6 @@ describe('sid is not part of the observer scope (ADR-0085)', () => {
         await flushPromises();
         observer.mockClear();
 
-        // The failure this pins: a site switch clears and re-selects the sid on its own timeline, so
-        // the write and the subscription routinely disagreed on it — and the row went stale on screen
-        // even though the cache held it.
         await dataSource.cacheWrite({ id: 'u1', name: 'written-under-site-2' } as any, { sid: 'site-2' });
         await new Promise(resolve => setTimeout(resolve, 80));
 
@@ -378,11 +344,6 @@ describe('sid is not part of the observer scope (ADR-0085)', () => {
 });
 
 describe('a subscriber that left before its first read landed', () => {
-    /**
-     * The shared partitioned fixture with one cloud's reads held until `release`; every other
-     * partition answers at once. That is the ordering a refused cloud switch produces: the screen
-     * moves to the cloud, its read there is a round trip, and the move is undone before it returns.
-     */
     const holdCloud = (heldCid: string) => {
         const slot = createPartitionedMemoryStorage('user');
         let release: () => void = () => undefined;
@@ -414,17 +375,14 @@ describe('a subscriber that left before its first read landed', () => {
             held.storages
         );
         await dataSource.cacheWrite({ id: 'u1', channelIds: ['ch-1'] } as any, { cid: 'relay' });
-        await new Promise(resolve => setTimeout(resolve, 80)); // past the write re-emit flush
+        await new Promise(resolve => setTimeout(resolve, 80));
 
-        // One screen state, as a hook's setState would be: whatever was delivered last is shown.
         const shown = jest.fn();
         const query = { channelId: 'ch-1' } as any;
         const leaveRelay = dataSource.observeList(query, shown, { cid: 'relay' });
         await flushPromises();
         leaveRelay();
 
-        // Into the cloud: its read is out. Then the move is undone, and the relay — still in grace —
-        // answers from memory at once.
         const leaveCloud = dataSource.observeList(query, shown, { cid: 'cloud' });
         await flushPromises();
         leaveCloud();
@@ -432,7 +390,6 @@ describe('a subscriber that left before its first read landed', () => {
         await flushPromises();
         expect(shown.mock.calls.map(([result]) => ids(result))).toEqual([['u1'], ['u1']]);
 
-        // The cloud's read lands last. It must not reach a subscription that already ended.
         held.release();
         await flushPromises();
 

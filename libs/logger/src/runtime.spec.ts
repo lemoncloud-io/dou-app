@@ -2,15 +2,6 @@ import { ingestLogEntry, logger, logHub, setLogContextProvider } from './runtime
 
 import type { LogEntry } from './core/types';
 
-/**
- * The hub is the only way to observe an entry now.
- *
- * These cases used to assert against the ring buffer, which captured everything
- * regardless of subscribers. That store is gone: what a log entry *is* is now
- * defined entirely by what the hub publishes, so a subscriber is the assertion
- * surface. Cases that need the zero-subscriber path (the console fallback)
- * deliberately do not install one.
- */
 const collect = () => {
     const entries: LogEntry[] = [];
     const unsubscribe = logHub.subscribe(entry => entries.push(entry));
@@ -51,18 +42,11 @@ describe('logger facade', () => {
     });
 
     it('구독자가 없으면 아무 데도 찍히지 않는다 — 콘솔 폴백은 없다', () => {
-        // Previously the console only turned on when there were 0 subscribers. A sink whose
-        // output appears and disappears based on subscriber count isn't pub/sub — it would make
-        // "detach one listener" also decide whether the console prints (principle 16). The
-        // console subscribes too.
         logger.info('TEST', 'nowhere');
 
         expect(consoleLogSpy).not.toHaveBeenCalled();
     });
 
-    // Back when there was a ring buffer, "it accumulates regardless of subscription" was a
-    // structural guarantee. Now an entry that fires before anything subscribes survives nowhere
-    // — that's why principle 15 pins the wiring order down as an invariant.
     it('구독 전에 나온 엔트리는 이후 구독자에게 배달되지 않는다', () => {
         logger.info('TEST', 'before subscribe');
 
@@ -134,8 +118,6 @@ describe('엔트리 id와 발생 시점 컨텍스트', () => {
     });
 
     it('컨텍스트가 바뀌면 이후 엔트리만 새 값을 갖고 이전 엔트리는 옛 값을 유지한다', () => {
-        // The whole point of capturing at dispatch: a queue drained later must
-        // not relabel entries with whatever the session looks like by then.
         const { entries, unsubscribe } = collect();
 
         setLogContextProvider(() => ({ uid: 'guest', cid: 'default' }));
@@ -198,8 +180,6 @@ describe('엔트리 id와 발생 시점 컨텍스트', () => {
     });
 
     it('id 없이 건너온 엔트리에는 id를 채우되 timestamp·컨텍스트는 덮지 않는다', () => {
-        // An older app relays entries without an id; without a backfill a
-        // resend would store a second document.
         setLogContextProvider(() => ({ uid: 'current-web-user' }));
         const { entries, unsubscribe } = collect();
 
@@ -220,12 +200,6 @@ describe('엔트리 id와 발생 시점 컨텍스트', () => {
     });
 });
 
-/**
- * The third argument used to mean different things per level: `error` unwrapped `{ error, data }`,
- * the other three stored it whole. 42 call sites wrote the options shape at `warn`/`info`/`debug`
- * anyway, so every one of them buried its fields at `data.data` and left `entry.error` empty —
- * including the `observation` discriminator that ADR-0099 exists to make readable.
- */
 describe('세 번째 인자는 레벨과 무관하게 같은 뜻이다', () => {
     it.each(['debug', 'info', 'warn', 'error'] as const)('%s가 { error, data }를 풀어 담는다', level => {
         const { entries, unsubscribe } = collect();
@@ -249,7 +223,6 @@ describe('세 번째 인자는 레벨과 무관하게 같은 뜻이다', () => {
         expect(entries[0].error).toBeUndefined();
     });
 
-    // Only error keeps a different signature — the shorthand of passing an exception straight through has been used for a long time.
     it('error에 예외를 바로 넘기면 error 필드로 간다', () => {
         const { entries, unsubscribe } = collect();
         const boom = new Error('boom');

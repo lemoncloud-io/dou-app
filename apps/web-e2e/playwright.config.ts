@@ -5,6 +5,8 @@ import type { E2EOptions } from './src/support/test';
 
 const CI = !!process.env['CI'];
 
+const BROWSER_SERVER = process.env['WEB_E2E_BROWSER_SERVER'];
+
 /** The suffix the app's WebView adds to the system user agent (`applicationNameForUserAgent` in `AppWebView`). */
 const appUserAgent = (prefix: string, platform: string) => `(${prefix}; DoU E2E/0.28.1; ${platform}; Build:1)`;
 
@@ -18,17 +20,26 @@ const appUserAgent = (prefix: string, platform: string) => `(${prefix}; DoU E2E/
 export default defineConfig<E2EOptions>({
     testDir: './src/specs',
     outputDir: '../../dist/.playwright/apps/web-e2e/test-results',
+    snapshotPathTemplate: '{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}',
+    expect: {
+        toHaveScreenshot: { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.001 },
+    },
     fullyParallel: true,
     forbidOnly: CI,
     retries: CI ? 1 : 0,
     // Each scenario boots the whole app; more workers than this mostly queue on the dev server.
-    workers: CI ? 2 : undefined,
-    reporter: CI
-        ? [['list'], ['html', { open: 'never', outputFolder: '../../dist/.playwright/apps/web-e2e/report' }]]
-        : 'list',
+    workers: CI || BROWSER_SERVER ? 2 : undefined,
+    reporter: [
+        ['list'],
+        ['./src/reporter/evidence-reporter.ts'],
+        ...(CI
+            ? [['html', { open: 'never', outputFolder: '../../dist/.playwright/apps/web-e2e/report' }] as const]
+            : []),
+    ],
     use: {
         baseURL: E2E_BASE_URL,
         trace: 'retain-on-failure',
+        ...(BROWSER_SERVER ? { connectOptions: { wsEndpoint: BROWSER_SERVER, exposeNetwork: '<loopback>' } } : {}),
         screenshot: 'only-on-failure',
     },
     projects: [

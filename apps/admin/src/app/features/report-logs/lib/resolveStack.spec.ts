@@ -2,10 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { decodeSegment, mapMatchesStack, readBundleNames, resolveStack } from './resolveStack';
 
-// Hand-built so the expected positions are derivable by reading the mappings
-// rather than by trusting a generator:
-//   line 1, "AAAA"  -> generated col 0 = source 0, line 0, col 0 (no name)
-//   line 1, "SAASA" -> +9 cols = generated col 9, same source/line, col 9, name 0
 const MAP = {
     sources: ['../../apps/web/src/app/hooks/useMyProfile.ts'],
     names: ['getMyProfile'],
@@ -68,7 +64,6 @@ describe('readBundleNames', () => {
     });
 });
 
-// A different build means the column coordinates drift and silently resolve to the wrong line. Comparing names is the only defense against that.
 describe('mapMatchesStack', () => {
     const stack = 'a@https://x/assets/index-abc.js:1:1';
 

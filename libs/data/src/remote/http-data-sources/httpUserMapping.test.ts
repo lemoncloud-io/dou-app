@@ -2,12 +2,6 @@ import type { UserView as BackendUserView } from '@lemoncloud/chatic-backend-api
 import type { DataContext } from '../../repositories/types';
 import { toDomainUserFromHttp } from './httpUserMapping';
 
-/**
- * The bridge from the HTTP axis's `UserView` to the socket-typed `toDomainUser`. Its cast is
- * invisible at runtime, so what is actually worth watching is the thing the cast could hide: an
- * HTTP-only field arriving in the domain model unchanged, and the identity fields surviving the
- * trip. The day a `stereo` value needs branching, the third test below is what says so.
- */
 describe('toDomainUserFromHttp', () => {
     const context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'user-1' };
 
@@ -23,8 +17,6 @@ describe('toDomainUserFromHttp', () => {
     });
 
     it('carries the HTTP-only stereo values through untouched', () => {
-        // '#alias' · 'session' · '#code' are OAuth-internal markers the socket axis never sees.
-        // Passing them through unread is exactly what makes reusing the socket mapper safe here.
         for (const stereo of ['#alias', 'session', '#code']) {
             expect(toDomainUserFromHttp(view({ stereo }), context)).toMatchObject({ stereo });
         }
@@ -42,7 +34,6 @@ describe('toDomainUserFromHttp', () => {
     });
 
     it('gives a missing id the empty string rather than undefined', () => {
-        // A user row is keyed by id downstream; `undefined` would key a cache row as "undefined".
         expect(toDomainUserFromHttp({} as BackendUserView, context).id).toBe('');
     });
 });

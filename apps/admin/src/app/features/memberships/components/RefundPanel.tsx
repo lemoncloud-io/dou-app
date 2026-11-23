@@ -1,14 +1,3 @@
-/**
- * `components/memberships/RefundPanel.tsx`
- * - The web subscription refund: one button, and the confirmation that stands between it and the relay.
- *
- * When the button may be pressed and how a refusal reads live in `lib/refund.ts`. This file collects
- * the reason and shows the outcome.
- *
- * The relay is resolved once, here, and that exact value is what the gate checks, what the dialog
- * names and what the call is sent to. A refund is irreversible, so "the server shown" and "the server
- * written to" must not be able to differ.
- */
 import { useState } from 'react';
 
 import { logger } from '@chatic/bridges';
@@ -35,7 +24,6 @@ import { describeTargetServer, targetEndpointFor, type RelayStage } from '../lib
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 import type { JSX } from 'react';
 
-/** What the panel reports back from the relay's response — the payments-side subscription. */
 interface RefundOutcome {
     status?: string;
     validUntil?: number;
@@ -43,7 +31,6 @@ interface RefundOutcome {
 
 interface RefundPanelProps {
     membership: MembershipView;
-    /** The stage the console is on. The refund resolves it to a relay itself — see the file comment. */
     stage: RelayStage;
 }
 
@@ -61,7 +48,6 @@ export const RefundPanel = ({ membership, stage }: RefundPanelProps): JSX.Elemen
     const canSubmit = availability.enabled && isRefundReasonValid(reason) && !isPending;
 
     const submit = async () => {
-        // Re-checked at the moment of sending, not only when the button rendered.
         if (!refundAvailability(membership, endpoint).enabled || !isRefundReasonValid(reason)) return;
         setFailure(null);
         try {
@@ -110,7 +96,6 @@ export const RefundPanel = ({ membership, stage }: RefundPanelProps): JSX.Elemen
                 onOpenChange={open => {
                     if (isPending) return;
                     setConfirming(open);
-                    // A cancelled reason must not sit there pre-filled, one click from firing.
                     if (!open) setReason('');
                 }}
             >
@@ -129,7 +114,6 @@ export const RefundPanel = ({ membership, stage }: RefundPanelProps): JSX.Elemen
                                         The charge is refunded in full and the subscription expires immediately. This
                                         cannot be undone.
                                     </li>
-                                    {/* The membership view cannot tell a trial apart, so the relay decides. */}
                                     <li>
                                         A trial or an unconfirmed first charge has nothing to refund; the server will
                                         refuse it.

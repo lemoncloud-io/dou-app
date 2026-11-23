@@ -1,11 +1,3 @@
-/**
- * `lib/cost-monitor/costRows.ts`
- * - One table row per tenant: today's and yesterday's estimate, yesterday's actual, and the hours.
- *
- * Today is a KST day. Yesterday is compared as a UTC day (KST 09:00 the day before to 09:00), because
- * that is the day Cost Explorer bills. Calibration uses the UTC day before that, the latest one Cost
- * Explorer has finished filling — so three KST days of metrics are fetched per row.
- */
 import {
     actual7,
     addDays,
@@ -36,22 +28,14 @@ export interface CostRow {
     loading: boolean;
     today: number;
     yesterdayEstimate: number;
-    /** Yesterday's Cost Explorer amount for the seven usage types; absent until collected. */
     actual7?: number;
-    /** Yesterday's Cost Explorer amount for the whole account. */
     actualAll?: number;
-    /** (estimate − actual7) / actual7. */
     diff?: number;
-    /** The estimate and the Cost Explorer amount (7 types) of the calibration day — the UTC day before yesterday. */
     calibEstimate: number;
     calibActual7?: number;
-    /** actual ÷ estimate applied to `today`, `hours` and `dayCost`; absent when not calibrated. */
     factor?: number;
-    /** Whose ratio `factor` is: this account's own, or every account's together. */
     factorFrom?: 'account' | 'all';
-    /** `today` before calibration. */
     rawToday: number;
-    /** Estimated cost per KST hour, by metric. */
     hours: Usage[];
     hourUsage: Usage[];
     dayUsage: Usage;
@@ -101,16 +85,8 @@ export const buildCostRow = (
 const scale = (usage: Usage, f: number): Usage =>
     Object.fromEntries(Object.entries(usage).map(([key, v]) => [key, v * f])) as Usage;
 
-/**
- * Brings each row's estimate to what Cost Explorer billed: × (actual ÷ estimate) of the calibration
- * day. An account with both numbers on that day uses its own ratio; any other row uses the ratio of all
- * of those together; with none at all nothing is touched. The per-metric split and the hourly shape stay
- * the metrics' — Cost Explorer has no hours.
- * ponytail: no clamp on an account's ratio; a tiny estimate can give a wild one — fall back to `all` under a floor if it shows.
- */
 const hasCalibration = (row: CostRow): boolean => row.calibActual7 !== undefined && row.calibEstimate > 0;
 
-/** Cost Explorer ÷ estimate of the calibration day over every row that has both; the ratio for the rest. */
 export const allFactorOf = (rows: CostRow[]): number | undefined => {
     const known = rows.filter(hasCalibration);
     const estimate = known.reduce((sum, row) => sum + row.calibEstimate, 0);
@@ -138,17 +114,14 @@ export interface CostSummary {
     today: number;
     rawToday: number;
     yesterdayEstimate: number;
-    /** Rows with a Cost Explorer amount for yesterday; the actual and the diff count only these. */
     withActual: number;
     actual7: number;
     actualAll: number;
-    /** (estimate − actual7) / actual7 over `withActual` rows, estimate included only for them. */
     diff?: number;
     calibratedOwn: number;
     calibratedByAll: number;
 }
 
-/** The header cards' numbers for the rows on screen. */
 export const summarizeRows = (rows: CostRow[]): CostSummary => {
     const sum = (list: CostRow[], pick: (row: CostRow) => number | undefined): number =>
         list.reduce((total, row) => total + (pick(row) ?? 0), 0);
@@ -171,7 +144,6 @@ export const summarizeRows = (rows: CostRow[]): CostSummary => {
     };
 };
 
-/** The axis top: the smallest 1 · 2 · 5 × 10ⁿ at or above `max` (1 when there is nothing). */
 export const niceCeil = (max: number): number => {
     if (!(max > 0)) return 1;
     const p = 10 ** Math.floor(Math.log10(max));

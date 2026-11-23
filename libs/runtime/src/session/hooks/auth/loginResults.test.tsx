@@ -12,7 +12,6 @@ import { useLogin } from './useLogin';
 import { useLoginRelayGuestByDevice } from './useLoginRelayGuestByDevice';
 import { useLoginRelaySocial } from './useLoginRelaySocial';
 
-// What every login command answers with — the account, without its token (the engine strips it).
 const account = { uid: 'u1', name: 'Me', createdAt: 1 } as unknown as SessionAccountView;
 const loginUser = jest.fn(async () => account);
 const loginBySocialToken = jest.fn(async () => account);

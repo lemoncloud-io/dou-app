@@ -1,6 +1,3 @@
-/**
- * `lib/report-logs/badgeClass.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { levelBadgeClass, levelTextClass, rowBadge, typeBadgeClass } from './badgeClass';
@@ -18,8 +15,6 @@ const row = (over: Partial<ReportLogRow> = {}): ReportLogRow => ({
 
 describe('rowBadge', () => {
     it('labels a log entry by its level, not by its kind', () => {
-        // Every batch row shares the `log-entry` kind, so the kind carries no information;
-        // the level is the axis an operator scans by.
         expect(rowBadge(row({ type: 'log-entry', level: 'warn' })).label).toBe('warn');
     });
 
@@ -50,9 +45,6 @@ describe('level lookups', () => {
         expect(levelTextClass(undefined)).toBe('text-foreground');
     });
 
-    // `row.level` is whatever the device put in `meta.level` — no union check on the way
-    // in. A plain-object lookup would inherit these off `Object.prototype` and hand back a
-    // function, which is truthy and would survive into a className.
     it.each(['toString', 'constructor', 'valueOf', '__proto__', 'hasOwnProperty'])(
         'returns a string for the prototype key %s',
         key => {

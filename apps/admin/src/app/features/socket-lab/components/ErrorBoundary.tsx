@@ -19,9 +19,6 @@ export default class ErrorBoundary extends Component<Props, State> {
     override componentDidCatch(error: Error, info: ErrorInfo): void {
         this.setState({ error, info: info.componentStack ?? '' });
 
-        // The fallback below already shows the crash on screen, so this is for the
-        // record rather than the operator: the entry joins the upload queue and
-        // reaches the collector with the component stack that identifies it.
         logger.error('GLOBAL', '[socket-lab] render crash', { error, data: { componentStack: info.componentStack } });
     }
 

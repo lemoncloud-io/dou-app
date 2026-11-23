@@ -1,6 +1,3 @@
-/**
- * `lib/memberships/overrideForm.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -22,14 +19,13 @@ const form = (over: Partial<OverrideFormState> = {}): OverrideFormState => ({
     ...over,
 });
 
-const NOW = new Date(2026, 8, 10, 12, 0, 0).getTime(); // 2026-09-10 12:00 local time
+const NOW = new Date(2026, 8, 10, 12, 0, 0).getTime();
 
 describe('toEpochEndOfDay', () => {
     it('빈 값이면 undefined다 — 무기한의 인코딩이다', () => {
         expect(toEpochEndOfDay('')).toBeUndefined();
     });
 
-    // "Valid through 12-31" only makes sense if that whole day is included.
     it('고른 날의 마지막 밀리초를 준다', () => {
         expect(toEpochEndOfDay('2026-12-31')).toBe(new Date(2026, 11, 31, 23, 59, 59, 999).getTime());
     });
@@ -39,7 +35,6 @@ describe('toEpochEndOfDay', () => {
         expect(toEpochEndOfDay('nope')).toBeUndefined();
     });
 
-    // The Date constructor silently rolls an out-of-range value into the next month or year.
     it('달력에 없는 날짜를 굴리지 않고 거절한다', () => {
         expect(toEpochEndOfDay('2026-13-40')).toBeUndefined();
         expect(toEpochEndOfDay('2026-02-30')).toBeUndefined();
@@ -65,7 +60,6 @@ describe('validateOverrideForm', () => {
         );
     });
 
-    // Converted to end-of-day, so picking today still counts as the future — it doesn't trip the server's "reject the past" rule.
     it('오늘을 고르면 통과한다', () => {
         expect(validateOverrideForm(form({ until: '2026-09-10' }), NOW)).toEqual([]);
     });
@@ -101,7 +95,6 @@ describe('buildOverrideBody', () => {
         expect(buildOverrideBody(form({ mode: 'block', blockStatus: 'canceled' })).adminStatus).toBe('canceled');
     });
 
-    // Blocking revokes eligibility entirely, so a tier is meaningless here.
     it('차단에는 등급을 싣지 않는다', () => {
         const body = buildOverrideBody(form({ mode: 'block', productId: 'pro_tier_03' }));
         expect('adminProductId' in body).toBe(false);

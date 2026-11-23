@@ -1,13 +1,3 @@
-/**
- * `lib/report-logs/userActivity.ts`
- * - One user's records, shaped the way support asks about them: who is this, on what device, and
- *   what happened each time they opened the app.
- *
- * "Each time they opened the app" is a run: every record carries the `runId` of the app process
- * that wrote it, so grouping by it turns a pile of rows into visits. Issue reports carry no run —
- * they are written by a different path that stamps neither `runId` nor a top-level `uid` — so a
- * report is placed in the run that was going on when it was sent, and stands alone when none was.
- */
 import { byEventAtAsc, eventAt } from './eventTime';
 import type { ReportLogRow } from './parseReportLog';
 
@@ -21,10 +11,8 @@ export interface DeviceInfo {
 }
 
 export interface RunSummary {
-    /** Stable key for React and the URL: the run id, or a marker for rows without one. */
     key: string;
     runId?: string;
-    /** Oldest first — a run is read in order. */
     rows: ReportLogRow[];
     startAt?: number;
     endAt?: number;
@@ -36,27 +24,22 @@ export interface RunSummary {
 
 export interface UserSummary {
     uid: string;
-    /** From an issue report, the only record that carries a name. */
     name?: string;
     device: DeviceInfo;
     runs: number;
     errors: number;
     reports: number;
     lastSeenAt?: number;
-    /** Distinct clouds the records came from. A uid is per cloud, so more than one means several people. */
     clouds: string[];
 }
 
-/** Records without a run id share one group; reports outside every run get one each. */
 export const NO_RUN_KEY = 'no-run';
 
-/** How far outside a run's first and last record a report still counts as sent during it. */
 const REPORT_SLACK_MS = 2 * 60 * 1000;
 
 const isError = (row: ReportLogRow): boolean =>
     row.type === 'error' || (row.type === 'log-entry' && row.level === 'error');
 
-/** The newest value of each device field, so a run that updated mid-way shows where it ended. */
 export const deviceOf = (rows: ReportLogRow[]): DeviceInfo => {
     const device: DeviceInfo = {};
     for (const row of [...rows].sort(byEventAtAsc)) {
@@ -86,9 +69,6 @@ const summarize = (key: string, runId: string | undefined, rows: ReportLogRow[])
     };
 };
 
-/**
- * Group a user's records into runs, newest run first, with their reports placed in.
- */
 export const groupRuns = (rows: ReportLogRow[], reports: ReportLogRow[] = []): RunSummary[] => {
     const byRun = new Map<string, ReportLogRow[]>();
     for (const row of rows) {
@@ -114,7 +94,6 @@ export const groupRuns = (rows: ReportLogRow[], reports: ReportLogRow[] = []): R
                 ? undefined
                 : spans
                       .filter(span => at >= span.start - REPORT_SLACK_MS && at <= span.end + REPORT_SLACK_MS)
-                      // The closest run, measured to its nearest edge, when runs overlap.
                       .sort((a, b) => distance(at, a) - distance(at, b))[0];
         if (home) byRun.get(home.key)?.push(report);
         else loose.push(report);
@@ -129,7 +108,6 @@ export const groupRuns = (rows: ReportLogRow[], reports: ReportLogRow[] = []): R
 const distance = (at: number, span: { start: number; end: number }): number =>
     at < span.start ? span.start - at : at > span.end ? at - span.end : 0;
 
-/** The user card. `rows` are the user's records, `reports` their issue reports. */
 export const summarizeUser = (uid: string, rows: ReportLogRow[], reports: ReportLogRow[] = []): UserSummary => {
     const all = [...rows, ...reports];
     const times = all.map(eventAt).filter((ms): ms is number => ms !== undefined);
@@ -154,11 +132,6 @@ export interface RecentUser {
     device: DeviceInfo;
 }
 
-/**
- * Users seen in the fetched records, most recent first, narrowed by a search over the id and the
- * name. This is the "search within what was fetched" half of finding a user; an exact id goes to
- * the server instead.
- */
 export const recentUsers = (rows: ReportLogRow[], query = '', limit = 50): RecentUser[] => {
     const byUser = new Map<string, ReportLogRow[]>();
     for (const row of rows) {
@@ -187,7 +160,6 @@ export const recentUsers = (rows: ReportLogRow[], query = '', limit = 50): Recen
         .slice(0, limit);
 };
 
-/** The run that holds an instant, for opening the right card when arriving from a report. */
 export const runAt = (runs: RunSummary[], at: number): RunSummary | undefined =>
     runs.find(
         run =>
@@ -199,12 +171,10 @@ export const runAt = (runs: RunSummary[], at: number): RunSummary | undefined =>
 
 export interface CloudSeen {
     cid: string;
-    /** The cloud's name, when an issue report from it carried one. */
     name?: string;
     records: number;
 }
 
-/** Clouds a user's records came from, the busiest first. */
 export const cloudsOf = (rows: ReportLogRow[]): CloudSeen[] => {
     const seen = new Map<string, CloudSeen>();
     for (const row of rows) {
@@ -219,7 +189,6 @@ export const cloudsOf = (rows: ReportLogRow[]): CloudSeen[] => {
     return [...seen.values()].sort((a, b) => b.records - a.records || a.cid.localeCompare(b.cid));
 };
 
-/** The cloud an issue report was sent from — inside the report, since reports carry no top-level `cid`. */
 export const reportCloudOf = (row: ReportLogRow): string | undefined => {
     const id = row.payload?.cloud?.cloudId;
     return typeof id === 'string' && id ? id : (row.cid ?? undefined);

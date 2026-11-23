@@ -1,6 +1,5 @@
 import type { stats as ko } from '../ko/stats';
 
-/** English copy for the statistics tab. */
 export const stats: typeof ko = {
     views: {
         label: 'View',

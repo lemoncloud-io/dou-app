@@ -1,17 +1,3 @@
-/**
- * `components/report-logs/ReportDetailBody.tsx`
- * - The report detail itself: sections for the parsed payload, with a raw-JSON block
- *   always backing them up.
- *
- * Payload schemas differ between error and issue reports (and `device` shape differs
- * too), so structured sections render generic key/value pairs without assuming fixed
- * fields. Batch log entries have no report payload at all and take their own branch.
- *
- * Split out of the old right-side drawer. The shell became a fixed panel so
- * tracking work can read the list and the detail at once, but the section renderers below
- * — in particular the stack symbolication, which is the highest-value thing on this
- * screen — moved across unchanged.
- */
 import { useEffect, useState } from 'react';
 
 import { useT } from '../../../i18n';
@@ -31,19 +17,12 @@ const stringify = (value: unknown): string => {
     }
 };
 
-/**
- * Replace base64 image payloads with a short marker before rendering raw JSON.
- * An attached screenshot is ~100 KB of data URL; a handful of them turn the raw
- * block into megabytes of text that no one reads and the browser has to lay out.
- * The images themselves are shown properly by `ImagesSection`.
- */
 const redactDataUrls = (text: string): string =>
     text.replace(
         /data:image\/[a-z+]+;base64,[A-Za-z0-9+/=\\]+/g,
         match => `data:image…(${match.length} chars, omitted)`
     );
 
-/** Render an object as a key/value grid; skips nullish values. Returns null when empty. */
 const KeyValueSection = ({ title, data }: { title: string; data?: Record<string, unknown> | null }) => {
     if (!data || typeof data !== 'object') return null;
     const entries = Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== '');
@@ -65,13 +44,6 @@ const KeyValueSection = ({ title, data }: { title: string; data?: Record<string,
     );
 };
 
-/**
- * A failed request, read in the order it happened: the endpoint, what we sent,
- * then what came back. The generic key/value renderer would sort these by
- * whatever order the payload happened to carry, which puts the response body
- * next to the URL and buries the request — and "what did we send" is usually
- * the question that decides whether it is a client or a server bug.
- */
 const HttpSection = ({ http }: { http?: ReportPayload['http'] }) => {
     const { t } = useT('allLogs');
     if (!http) return null;
@@ -81,8 +53,6 @@ const HttpSection = ({ http }: { http?: ReportPayload['http'] }) => {
         status: http.status,
         statusText: http.statusText,
         code: http.code,
-        // Ahead of the raw body: this is the server's stated reason, which is
-        // what the reader is looking for inside `responseData` anyway.
         reason: http.reason,
         responseData: http.responseData,
     };
@@ -104,10 +74,6 @@ interface LogEntry {
     error?: string;
 }
 
-/**
- * Render the issue report's attached recent logs (fixed schema:
- * level/tag/message/timestamp/data/error) as a readable list rather than raw JSON.
- */
 const LogsSection = ({ logs }: { logs: unknown[] }) => {
     const { t, lng } = useT('allLogs');
     const entries = logs.filter((l): l is LogEntry => typeof l === 'object' && l !== null);
@@ -145,13 +111,6 @@ const LogsSection = ({ logs }: { logs: unknown[] }) => {
     );
 };
 
-/**
- * Detail view for a `'log-entry'` row (batch-uploaded structured log — see
- * `parseReportLog.ts`). There is no report `payload` to unwrap here, so this
- * renders straight from the `LogEntry` fields lifted onto the row, plus
- * whatever context fields (`sid`/`appVersion`/`route`/device info/…) survived
- * in the raw record.
- */
 const LogEntryDetailSection = ({ row }: { row: ReportLogRow }) => {
     const { t } = useT('allLogs');
     const rawObj = row.raw && typeof row.raw === 'object' ? (row.raw as Record<string, unknown>) : undefined;
@@ -196,11 +155,6 @@ const LogEntryDetailSection = ({ row }: { row: ReportLogRow }) => {
     );
 };
 
-/**
- * Screenshots the reporter attached, as a thumbnail grid. Each opens full size in a
- * new tab — base64 data URLs can be megabytes, so rendering them inline at full
- * resolution would stall the drawer.
- */
 const ImagesSection = ({ images }: { images: string[] }) => {
     const { t } = useT('allLogs');
     return (
@@ -231,7 +185,6 @@ const ImagesSection = ({ images }: { images: string[] }) => {
     );
 };
 
-/** Render a multiline text block (message/stack); returns null when empty. */
 const TextSection = ({ title, text }: { title: string; text?: string }) => {
     if (!text) return null;
     return (
@@ -244,25 +197,9 @@ const TextSection = ({ title, text }: { title: string; text?: string }) => {
     );
 };
 
-/**
- * Stack view with two ways out of a minified trace.
- *
- * "Trace to IDE" copies the stack with the header `yarn trace` needs to fetch the
- * build's map itself and print repo-relative frames — the whole trace lands in
- * the editor, which is where it gets read anyway. "Choose source map" stays for a look
- * without leaving the browser: maps are not deployed (serving them would
- * publish the sources), so the operator supplies one from the build's
- * `sourcemaps-*` CI artifact and it is read locally, never uploaded.
- *
- * Either way the bundle names are shown so the right artifact is identifiable,
- * and a map that does not belong is called out rather than silently resolving
- * to plausible wrong lines.
- */
 const StackSection = ({ row }: { row: ReportLogRow }) => {
     const { t } = useT('allLogs');
     const [resolved, setResolved] = useState<string | null>(null);
-    // A key and its values rather than the text, so a notice already on screen follows a
-    // language switch.
     const [notice, setNotice] = useState<{ key: string; values?: Record<string, string> } | null>(null);
     const [copied, setCopied] = useState(false);
 
@@ -272,9 +209,6 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
         return () => clearTimeout(timer);
     }, [copied]);
 
-    // Stack + `Caused by:` chain as one block: the cause frames are usually the
-    // ones worth reading, and composing first means one symbolication pass
-    // resolves them all.
     const stack = composeStackText(row.payload);
     if (!stack) return null;
 
@@ -295,9 +229,6 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
         setNotice(null);
         try {
             const map = JSON.parse(await file.text());
-            // A map only speaks for its own bundle. Pin it to that one when the
-            // trace spans several, so the others stay minified instead of
-            // resolving against the wrong file.
             const named = file.name.replace(/\.map$/, '');
             const out = resolveStack(map, stack, bundles.length > 1 && bundles.includes(named) ? named : undefined);
             setResolved(out);
@@ -358,10 +289,6 @@ interface ReportDetailBodyProps {
     row: ReportLogRow;
 }
 
-/**
- * Section stack for one row. Takes no callbacks — the shell owns the header, the pins and
- * the close affordance, so this stays a pure rendering of the record.
- */
 export const ReportDetailBody = ({ row }: ReportDetailBodyProps) => {
     const { t } = useT('allLogs');
     const p = row.payload;
@@ -374,8 +301,6 @@ export const ReportDetailBody = ({ row }: ReportDetailBodyProps) => {
                 </p>
             )}
 
-            {/* Outside the `p &&` block: attachments live in the record's meta, not the
-                payload, so they are still viewable when payload parsing failed. */}
             {row.images && row.images.length > 0 && <ImagesSection images={row.images} />}
 
             {row.type === 'log-entry' ? (
@@ -410,11 +335,4 @@ export const ReportDetailBody = ({ row }: ReportDetailBodyProps) => {
     );
 };
 
-/**
- * Raw-record JSON for the clipboard — redacted exactly like the Raw section on screen.
- *
- * Without the redaction an `issue` row's attachments put megabytes of base64 data URLs on
- * the clipboard, which is the thing `redactDataUrls` exists to prevent. The images are
- * still reachable: `ImagesSection` renders each one and links it at full size.
- */
 export const rawRecordText = (row: ReportLogRow): string => redactDataUrls(stringify(row.raw));

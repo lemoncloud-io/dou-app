@@ -1,7 +1,5 @@
 import { createCoreSessionView } from './sessionView';
 
-// The stores, as the view reads them. Each test sets what the stores hold and fires the signal that
-// would announce it, the way the real stores do.
 type Listener = () => void;
 const mockStore = {
     context: null as unknown,
@@ -40,7 +38,6 @@ jest.mock('@chatic/session', () => ({
 jest.mock('@chatic/transport', () => ({
     backgroundClouds: { subscribe: (listener: Listener) => listen(mockBackgroundListeners)(listener) },
 }));
-/** The relay session's logout callbacks, as it keeps them: run once, then emptied. */
 const mockLogoutCallbacks = new Set<() => void>();
 const signOut = () => {
     [...mockLogoutCallbacks].forEach(callback => callback());
@@ -61,7 +58,6 @@ jest.mock('@chatic/auth', () => ({
     },
 }));
 
-/** What the session signal does on a write: invalidators first, eagerly; then the listeners. */
 const emitSession = () => {
     mockInvalidators.forEach(invalidate => invalidate());
     [...mockSessionListeners].forEach(listener => listener());

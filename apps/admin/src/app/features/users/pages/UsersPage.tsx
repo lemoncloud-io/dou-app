@@ -12,17 +12,6 @@ import { useUsers } from '../api/usersQuery';
 
 import type { JSX } from 'react';
 
-/**
- * Relay user list + registration, carried over from the retired `apps/admin` (ADR-0070, step 5).
- *
- * **The token-issuance column did not come with it.** In admin that action logged in AS the listed
- * user with a password hash hardcoded in the source, and handed back their identityToken to copy.
- * The hook behind it (`useIssueToken`) had no definition anywhere in the repo, so the column could
- * not have worked in its final state either. Reviving it would mean planting that shared credential
- * into a new app — a deliberate decision, not a side effect of a package move. If the capability is
- * needed, build it against `generateToken` (`POST /auth/0/generate-token`), which is a real endpoint
- * with real inputs rather than an impersonation shortcut.
- */
 const PAGE_SIZE = 10;
 
 const STAGE_LABEL: Record<ServiceStage, string> = { d1: 'Development (d1)', v1: 'Production (v1)' };
@@ -37,7 +26,6 @@ export const UsersPage = (): JSX.Element => {
     const target = relayTargetFor(stage);
 
     const setPage = (next: number) => setSearchParams({ page: String(next), stage });
-    // A page number belongs to the relay it was read from.
     const setStage = (next: ServiceStage) => setSearchParams({ page: '0', stage: next });
 
     const header = (

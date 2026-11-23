@@ -1,0 +1,9 @@
+{
+    "apps/admin": 1,
+    "apps/block-kit-builder": 1,
+    "apps/desktop": 1,
+    "apps/desktop-web": 1,
+    "apps/mobile": 1,
+    "libs/block-kit": 1,
+    "libs/theme": 1
+}

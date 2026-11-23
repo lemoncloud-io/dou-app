@@ -1,9 +1,3 @@
-/**
- * Display names for log areas and statistics tags, Korean.
- *
- * `areas` is keyed by the lower-cased old tag (`SOCKET` → `socket`) or the part before the first dot
- * of a dotted tag; `tags` names a dotted tag as a whole. A tag in neither falls back to its raw text.
- */
 export const events: { areas: Record<string, string>; tags: Record<string, string> } = {
     areas: {
         global: '앱 오류',

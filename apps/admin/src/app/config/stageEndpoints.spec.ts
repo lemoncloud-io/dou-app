@@ -1,6 +1,3 @@
-/**
- * `config/stageEndpoints.spec.ts`
- */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -37,7 +34,6 @@ describe('readStageEndpoint', () => {
         );
     });
 
-    // No fallback to another key: the stages do not share a host, so a guess would be a wrong server.
     it('is empty when the key is unset, even if the other stage is set', () => {
         const env: Record<string, string> = { VITE_D1_ARCHIVE_ENDPOINT: 'https://dev.example.com/arc-d1' };
         expect(readStageEndpoint(name => env[name], 'archive', 'v1')).toBe('');
@@ -63,7 +59,6 @@ describe('openingStage', () => {
         expect(openingStage()).toBe('v1');
     });
 
-    // The session signs in to production in every build; the opening stage does not follow it.
     it('opens every other build on development, whatever the session relay', () => {
         vi.stubEnv('VITE_DOU_ENDPOINT', 'https://prod.example.com/dou-v1');
         vi.stubEnv('VITE_ENV', 'DEV');

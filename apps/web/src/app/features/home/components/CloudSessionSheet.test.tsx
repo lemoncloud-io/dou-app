@@ -90,18 +90,9 @@ const activeCloud = (id: string, over: Record<string, unknown> = {}) => ({
 });
 
 const onAddCloud = jest.fn();
-const refreshCloudUnread = jest.fn();
 let cloudUnread: Record<string, number> = {};
 const renderSheet = () =>
-    render(
-        <CloudSessionSheet
-            open
-            onOpenChange={jest.fn()}
-            onAddCloud={onAddCloud}
-            cloudUnread={cloudUnread}
-            refreshCloudUnread={refreshCloudUnread}
-        />
-    );
+    render(<CloudSessionSheet open onOpenChange={jest.fn()} onAddCloud={onAddCloud} cloudUnread={cloudUnread} />);
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -126,7 +117,9 @@ describe('CloudSessionSheet — section layout', () => {
 
         // CollapsibleSection renders a <section> per group; its title is a <span>, not a heading
         // (SectionHeader has never used heading markup), so assert DOM order instead of roles.
-        const titles = [...baseElement.querySelectorAll('section')].map(s => s.querySelector('span')?.textContent);
+        const titles = Array.from(baseElement.querySelectorAll('section')).map(
+            s => s.querySelector('span')?.textContent
+        );
         expect(titles).toEqual([
             'cloudSessionSheet.sectionHome',
             'cloudSessionSheet.sectionMy',

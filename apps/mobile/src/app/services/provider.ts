@@ -7,7 +7,6 @@ import {
     SESSION_OWNER_ATTRIBUTE,
     configurePerfTraces,
 } from '@chatic/perf';
-// Deep path, per the barrel policy: this module imports react-native-mmkv.
 import { MmkvLogUploadQueuePersistence } from './log/uploadQueue/persistence';
 import { attachNativeLoggerBridge } from './log/native/nativeLoggerBridge';
 import { attachNativeLogContext, readNativeLogContext, setLogSessionOwnerSource } from './log/native/nativeLogContext';
@@ -56,7 +55,6 @@ import type { ISubWebViewService, SubWebViewManifestStore } from './subWebView';
 import { createSubWebViewManifestStore, SubWebViewService } from './subWebView';
 import DeviceInfo from 'react-native-device-info';
 import type { ISecureStorageService } from './secureStorage';
-// Deep paths, per the barrel policy: these modules import react-native-keychain and react-native-mmkv.
 import { SecureStorageService } from './secureStorage/SecureStorageService';
 import { MmkvSecureStorageInstallFlag } from './secureStorage/MmkvSecureStorageInstallFlag';
 
@@ -82,27 +80,20 @@ import type { ILogUploadQueueService } from './log/uploadQueue/types';
 class DependencyProvider {
     private static instance: DependencyProvider;
 
-    // Eager — foundational or boot-critical (logging, storage, boot metrics, deep link / notification
-    // cold-start capture, crash reporting). Constructed in the constructor.
     public readonly logService: ILogService;
     public readonly logUploadQueueService: ILogUploadQueueService;
     public readonly keyValueStorage: IKeyValueStorage;
     public readonly bootMetricsService: IBootMetricsService;
-    /** Records Firebase Performance traces; the WebView reaches it through `StartPerfTrace`/`StopPerfTrace`. */
     public readonly perfTraceBackend: FirebasePerfTraceBackend;
     public readonly notificationService: INotificationService;
     public readonly pushEventManager: IPushEventManager;
     public readonly deeplinkManager: DeepLinkManager;
     public readonly deeplinkService: IDeeplinkService;
     public readonly firebaseCrashlyticsService: IFirebaseCrashlyticsService;
-    /** Lifts the launch splash once the web is worth showing; read by the very first WebView messages. */
     public readonly bootSplashService: IBootSplashService;
     public readonly pendingReportQueueService: IPendingReportQueueService;
-    /** The device vault (`nativeSecure`); its read starts here so the web's first StorageGet finds it done. */
     public readonly secureStorageService: ISecureStorageService;
 
-    // Lazy — created on first access via getters to keep them off the boot critical path (see
-    // boot-optimization.md 4.4). Backing fields are memoized after first construction.
     private _sqliteDatabase?: ISqliteDatabase;
     private _deviceService?: IDeviceService;
     private _clipboardService?: IClipboardService;
@@ -138,17 +129,7 @@ class DependencyProvider {
     private constructor() {
         this.logService = new LogService();
         this.keyValueStorage = new MmkvStorage(this.logService);
-        // Before the boot metrics service, which opens the `boot` trace in its constructor: a trace
-        // is recorded on the backend configured when it starts, and until this line that is none.
-        // No sampling, unlike the log-pipeline metrics this replaces — Firebase traces do not
-        // compete with diagnostic logs for the upload queue, which was the reason to sample.
         this.perfTraceBackend = new FirebasePerfTraceBackend();
-        // Native traces also go to the log pipeline, into this app's own upload queue, unjudged — the
-        // web uploader decides on sampling when it draws them. Firebase receives what it always has.
-        // The pipeline's copy says which side holds the session this launch, on the traces the
-        // catalog compares between the two (the boot among them), read when each one ends: the owner
-        // the page actually runs on, so a launch set to the app's runtime that failed to start it is
-        // counted with the page's. The boot ends at WebAppReady, which the page sends once settled.
         const nativeTelemetryRecorder = createNativeTelemetryRecorder({ context: readNativeLogContext });
         configurePerfTraces(
             new FanOutPerfTraceBackend([
@@ -159,29 +140,16 @@ class DependencyProvider {
                 ),
             ])
         );
-        // Constructed first after that, so its baseline sits as close to JS entry as possible.
         this.bootMetricsService = new BootMetricsService(
             this.logService,
             this.keyValueStorage,
             DeviceInfo.getVersion()
         );
 
-        // The buffer itself lives in the core logger (merged native+web,
-        // fixed capacity); this service only wires MMKV persistence to it.
-        // The server-bound queue is a different store with a different lifetime
-        // (ADR-0063): non-debug only, its own MMKV key, and nothing leaves it
-        // before the web acks a successful upload. Constructed next to the buffer
-        // because both must exist before the first dispatch.
         this.logUploadQueueService = new LogUploadQueueService(new MmkvLogUploadQueuePersistence(), __DEV__);
 
-        // Deep link / notification services stay eager: cold-start capture reads them during the first
-        // render (getInitialUrl / getInitialNotification), so they must exist before then.
-        // Eager: the handshake that may lift the splash is among the first messages the web sends, and
-        // construction is a Set — there is nothing to defer.
         this.bootSplashService = new BootSplashService(this.logService, BootSplashBridge);
-        // The splash lifting is the end of the launch a person sees: `first_screen`.
         this.bootSplashService.subscribe(reason => this.bootMetricsService.recordReveal(reason));
-        // The permission prompt waits for the launch splash to lift; see NotificationService.
         this.notificationService = new NotificationService(this.logService, () =>
             this.bootSplashService.whenRevealed()
         );
@@ -189,44 +157,23 @@ class DependencyProvider {
         this.deeplinkManager = new DeepLinkManager(this.logService);
         this.deeplinkService = new DeeplinkService(this.deeplinkManager, this.logService);
         this.firebaseCrashlyticsService = new FirebaseCrashlyticsService(this.logService);
-        // Eager, and its keychain read starts now: the web asks for the vault while it boots, and
-        // the read runs on the native side while the WebView is still being created.
         this.secureStorageService = new SecureStorageService(
             this.logService,
             new MmkvSecureStorageInstallFlag(),
             DeviceInfo.getBundleId()
         );
 
-        // Initialize Logging
-        // Context first: it is stamped at dispatch, so anything logged before
-        // this would carry no runId and be unattributable to this app run.
         attachNativeLogContext();
-        // Which side holds the session this launch, on every entry from here on.
         setLogSessionOwnerSource(launchSessionOwner);
-        // The hub's listeners, wired before anything logs (principle 15). The app
-        // keeps three: the console, the store, and Crashlytics (below).
-        //
-        // Timestamps are on because relayed web entries arrive later than they
-        // happened — the terminal's own arrival order would misread the merged
-        // timeline, which is the reason to have one.
         if (__DEV__) logHub.subscribe(createConsoleListener({ timestamps: true }));
         this.logUploadQueueService.init();
-        // Pure-native (Kotlin/Swift) logs join the same core buffer with
-        // source:'native'; ready() flushes the native cold-start queue (ADR-0097).
         attachNativeLoggerBridge();
 
-        // After the log hub is wired, so the read's outcome is logged.
         this.secureStorageService.start();
 
-        // Initialize Crashlytics immediately — boot-window crash reporting takes priority over the
-        // small synchronous cost, so it stays eager while other services became lazy (4.4).
         this.firebaseCrashlyticsService.init();
         void this.firebaseCrashlyticsService.setupUser();
 
-        // ADR-0097: native-side error detection. Uncaught JS exceptions and
-        // unhandled rejections queue deferred reports the web relays; the
-        // relaunch check reads the previous run's last-log timestamp, restored
-        // from MMKV by logUploadQueueService.init() above.
         this.pendingReportQueueService = new PendingReportQueueService();
         const detectionDeps = {
             logService: this.logService,
@@ -236,25 +183,16 @@ class DependencyProvider {
         installNativeErrorDetection(detectionDeps);
         void checkCrashOnPreviousExecution(detectionDeps);
 
-        // Boot timeline: eager provider initialization done. Non-essential services (SQLite/cache,
-        // IAP, app icon, SMS, OAuth, clipboard, permission, preference, device, firebase
-        // installation) are created lazily on first access — see boot-optimization.md 4.4.
         this.bootMetricsService.mark('provider-ready');
     }
 
-    // --- Lazy service getters (created + memoized on first access, see boot-optimization.md 4.4) ---
-
     public get sqliteDatabase(): ISqliteDatabase {
         if (!this._sqliteDatabase) {
-            // Schemas are initialized on first DB access (was eager in the constructor before 4.4).
-            // SqliteDatabase itself gates every query on migrations completing, so no explicit
-            // initTables() call or await is needed here.
             this._sqliteDatabase = new SqliteDatabase(this.logService);
         }
         return this._sqliteDatabase;
     }
 
-    /** Memoized SQLite-backed data sources shared by the cache and test-record services. */
     private get dataSources() {
         if (!this._dataSources) {
             const db = this.sqliteDatabase;
@@ -308,7 +246,6 @@ class DependencyProvider {
         return this._testRecordService;
     }
 
-    /** The debug panel's storage screen. Lazy like the cache services: it opens SQLite. */
     public get nativeStorageService(): INativeStorageService {
         if (!this._nativeStorageService) {
             this._nativeStorageService = new NativeStorageService(
@@ -374,7 +311,6 @@ class DependencyProvider {
         return this._preferenceService;
     }
 
-    /** Backs `@chatic/config`'s shell lane — the generic, meaning-blind KV store (ADR-0079 decision 9). */
     public get configKvService(): IConfigKvService {
         if (!this._configKvService) {
             this._configKvService = new ConfigKvService(this.logService, this.keyValueStorage);
@@ -404,8 +340,6 @@ class DependencyProvider {
     public get subWebViewManifestStore(): SubWebViewManifestStore {
         if (!this._subWebViewManifestStore) {
             this._subWebViewManifestStore = createSubWebViewManifestStore({
-                // `no-store`: iOS networking keeps an HTTP cache on disk, and a cached manifest would
-                // keep a withdrawn permission alive across launches.
                 fetch: (url, init) => fetch(url, { ...init, credentials: 'omit', cache: 'no-store' }),
                 logger: this.logService,
             });

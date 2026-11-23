@@ -1,6 +1,3 @@
-/**
- * `lib/memberships/cloudAggregation.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { readAggrBuckets } from './cloudAggregation';
@@ -17,7 +14,6 @@ describe('readAggrBuckets', () => {
         ]);
     });
 
-    // ListResult.aggr is `R | R[]`, so it has to accept the server sending either shape.
     it('배열로 와도 합쳐서 편다', () => {
         expect(readAggrBuckets([{ status: { active: 2 } }, { status: { active: 1, hold: 4 } }])).toEqual([
             ['active', 3],

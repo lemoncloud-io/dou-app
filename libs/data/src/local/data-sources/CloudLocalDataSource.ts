@@ -12,30 +12,13 @@ import {
 
 export interface ICloudLocalDataSource extends ILocalDataSource<DomainCloud, void, DomainListResult<DomainCloud>> {}
 
-/**
- * Clouds are stored in a single global partition (cid/uid='global'), so their list
- * observer key is fixed too — switching the active cid must not split cloud observers.
- */
 const CLOUD_LIST_KEY = 'global|clouds';
 
-/**
- * Keeps cloud cache entries isolated per cloud scope and re-emits affected observers.
- *
- * Backed by the 'invitecloud' cache storage slot (physical cache key kept for
- * backward-compatible IndexedDB/SQLite partitions; only the domain naming moved to Cloud).
- */
 export class CloudLocalDataSource extends BaseLocalDataSource<'invitecloud'> implements ICloudLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'invitecloud'>) {
         super(contextProvider, storages);
     }
 
-    /**
-     * Clouds live in one global storage partition (`resolveScopedContext` forces cid/uid='global'),
-     * so their observer scope must be fixed too — the same reason `CLOUD_LIST_KEY` is a constant.
-     * The inherited scope key is built from the ACTIVE cid/sid/uid, which would split one physical
-     * partition across several observer scopes: a write made under cloud A would not reemit the
-     * observer that subscribed under cloud B, even though both read the very same rows.
-     */
     protected override getScopeKey(): string {
         return 'global';
     }

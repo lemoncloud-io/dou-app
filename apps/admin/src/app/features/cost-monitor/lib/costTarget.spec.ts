@@ -1,6 +1,3 @@
-/**
- * `lib/cost-monitor/costTarget.spec.ts`
- */
 import { describe, expect, it, vi } from 'vitest';
 
 const env: Record<string, string | undefined> = {

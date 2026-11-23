@@ -1,13 +1,3 @@
-/**
- * `pages/ReportLogsPage.spec.tsx`
- *
- * The assembled console against a fake list endpoint: which tab opens, that every tab's state
- * survives the URL, the hops between tabs (a report to its user's timeline, an incident to its
- * cases), the empty states' next step, and the language switch. The full-log tab's own wiring is
- * covered in `tabs/AllLogsTab.spec.tsx`.
- *
- * The console sits behind the admin OAuth gate, so this stands in for clicking through it.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -27,7 +17,6 @@ vi.mock('../api/reportLogApi', async () => {
 
 const { ReportLogsPage } = await import('./ReportLogsPage');
 
-// 2026-10-26 14:30 KST.
 const NOW = Date.parse('2026-10-26T14:30:00+09:00');
 const MIN = 60_000;
 
@@ -54,7 +43,6 @@ const issue = (id: string, uid: string, at = NOW - 30 * MIN): RawMockView => ({
 
 type Route = (params: Record<string, unknown>) => ReportLogListResponse | undefined;
 
-/** Answer each request by its parameters; anything unmatched gets an empty page. */
 const serve = (...routes: Route[]) =>
     fetchReportLogs.mockImplementation(async (params = {}) => {
         for (const route of routes) {
@@ -237,7 +225,6 @@ describe('ReportLogsPage — user tab, clouds and runs', () => {
         fireEvent.click(screen.getByRole('button', { name: '찾기' }));
 
         await waitFor(() => expect(calls().some(call => call.uid === 'u5')).toBe(true));
-        // Only the first, deliberate "everyone" request: none with an empty user while the new one settles.
         expect(calls().filter(call => !call.uid && !call.type)).toHaveLength(1);
     });
 });
@@ -303,7 +290,6 @@ describe('ReportLogsPage — reports tab', () => {
 
         fireEvent.click(await screen.findByRole('button', { name: /Photos do not send/ }));
         expect(params().get('report')).toBe('rep1');
-        // Once as the message, once more inside the folded developer details.
         expect((await screen.findAllByText('I tried three times')).length).toBeGreaterThan(0);
 
         fireEvent.click(screen.getByRole('button', { name: '그때 이 사용자 로그 보기' }));

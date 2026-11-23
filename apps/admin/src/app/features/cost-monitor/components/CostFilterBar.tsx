@@ -1,7 +1,3 @@
-/**
- * `components/cost-monitor/CostFilterBar.tsx`
- * - The date, the row filters, the estimate inputs and the Cost Explorer calibration switch.
- */
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Switch } from '@chatic/ui-kit/components/ui/switch';
@@ -36,7 +32,6 @@ interface CostFilterBarProps {
     calibrate: boolean;
     onCalibrateChange: (on: boolean) => void;
     summary: CostSummary;
-    /** The ratio every account without its own takes — over all rows, whatever the filters show. */
     allFactor?: number;
 }
 

@@ -29,10 +29,6 @@ import { BaseRepository, type DisposableRepository } from './types';
 
 export interface ChatRefreshResult {
     fetchedCount: number;
-    /**
-     * The highest `chatNo` in the page written, or 0 for an empty page. A caller waiting for the
-     * page to reach a list can wait for this row rather than for any emission.
-     */
     latestNo: number;
     cursorNo?: number;
     readNo?: number;
@@ -40,37 +36,11 @@ export interface ChatRefreshResult {
 }
 
 export interface ChatRefreshOptions {
-    /**
-     * Called once the server page has arrived, before it is written to the cache. A caller timing the
-     * refresh can then tell the server round trip from the local write, which awaiting the whole call
-     * cannot. It must not throw: it runs between the fetch and the write, so a throw would drop the
-     * page it was told about.
-     */
     onFetched?: () => void;
-    /**
-     * Marks a cached row the page left out as deleted (`hidden`). The server leaves out only
-     * soft-deleted rows, so within the range a page answers for, a row this device still holds but
-     * the server did not send was deleted while the device was not listening — a delete that live
-     * sync never replays. Only for callers that refetch history they already hold (a gap fill, a
-     * re-check of old rows, a thread root's page); the entry refresh leaves it off. The mark is
-     * recorded as inferred (`hiddenByFeed`), and the cache undoes it when a server copy of the row
-     * comes back without saying it is hidden — a delete the server announced is never undone.
-     */
     markMissingHidden?: boolean;
-    /**
-     * The request cursor is a row the server numbered (a cached chat), so the channel's head is at
-     * or above it. Lets a page that ran down to the start of history answer for everything below the
-     * cursor even when its newest numbers were all deleted; without it the range stops at the newest
-     * row the page carried.
-     */
     cursorIsRow?: boolean;
 }
 
-/**
- * Feed query plus the desktop opt-in `includeUnsent`: `chat_no: 0` rows (sending / failed) sort
- * lowest in the pagination index, so a newest-N page drops them unless the reader asks for them.
- * Read by the local source and the query executor; the socket request never carries it.
- */
 export type ChatObserveQuery = ChatFeedInput & Pick<ChatQueryOptions, 'includeUnsent'>;
 
 export interface IChatRepository extends DisposableRepository {
@@ -78,13 +48,6 @@ export interface IChatRepository extends DisposableRepository {
     observeLastList(channelIds: string[], callback: (result: DomainLastChat[]) => void): () => void;
 
     refreshList(query: ChatFeedInput, options?: ChatRefreshOptions): Promise<ChatRefreshResult>;
-    /**
-     * The chat-number ranges of `channelId` a feed page has answered for in this run (see
-     * `FeedCoverage`): now, then after each change, until the returned function is called. A missing
-     * chat number inside them is a deleted message; outside them, history not fetched yet —
-     * `uncoveredIn(covered, low, high)` reads which. A stream rather than a question asked in the same
-     * turn, so the record can sit in another process than the screen that reads it.
-     */
     observeFeedCoverage(channelId: string, callback: (covered: readonly FeedRange[]) => void): () => void;
     getChat(payload: ChatGetInput): Promise<DomainChat>;
     sendChat(payload: ChatSendPayload): Promise<DomainChat>;
@@ -92,21 +55,11 @@ export interface IChatRepository extends DisposableRepository {
     deleteChat(payload: ChatDeleteInput): Promise<DomainChat>;
     setReaction(payload: ChatReactionInput): Promise<DomainChat>;
 
-    /** Declares image slots for an attachment message; one ticket per slot, same order. */
     startUploads(payload: UploadStartInput): Promise<PresignedUploadStartResult>;
-    /** Settles the slots — failed transfers included — and returns each upload's final status. */
     completeUploads(payload: UploadCompleteInput): Promise<CheckedUploadCompleteResult>;
-    /**
-     * Writes the optimistic row of an image message before any byte moves, one `sending` slot per
-     * image, and the message's text when it has one. With `pendingId` it re-arms that same row for a
-     * retry instead of adding another.
-     */
     createPendingImageChat(input: PendingImageChatInput): Promise<string>;
-    /** Sends the pending row's text with its stored uploads and swaps in the server's row. Throws on failure. */
     sendPendingImageChat(pendingId: string, input: { uploadIds: string[] }): Promise<DomainChat>;
-    /** Marks the pending row and every one of its slots failed. A row that is gone is left gone. */
     failPendingImageChat(pendingId: string): Promise<void>;
-    /** Pending image rows of a channel, unsent ones included — the rows a page may have left behind. */
     listPendingImageChats(channelId: string): Promise<DomainChat[]>;
 
     cacheRead(id: string): Promise<DomainChat | null>;
@@ -117,12 +70,7 @@ export interface IChatRepository extends DisposableRepository {
     cacheClear(): Promise<void>;
     cacheClearByChannelId(channelId: string): Promise<void>;
 
-    /**
-     * One page of a room's attachments or links of one kind from this device's cache, newest first —
-     * the local data source's `listRoomMedia`, handed through unchanged so a screen can reach it.
-     */
     listRoomMedia(input: ListRoomMediaInput): Promise<RoomMediaPage>;
-    /** How many attachments and links of each kind a room has in this device's cache — handed through likewise. */
     countRoomMedia(input: { channelId: string }): Promise<RoomMediaCounts>;
 }
 
@@ -135,53 +83,17 @@ export interface PendingFileDetails {
 export interface PendingImageChatInput {
     channelId: string;
     parentId?: string;
-    /** One preview per picked file, in picking order. */
     localThumbUrls: string[];
-    /**
-     * Per slot, a video or document's name, type and size (`null` for an image). Left out on a
-     * rewrite of the same row, which keeps what the row already holds.
-     */
     localFiles?: (PendingFileDetails | null)[];
-    /**
-     * Text sent in the same message as the files (a caption), trimmed. Absent or blank is a message
-     * of files alone. Left out on a rewrite of the same row, which keeps the text the row holds.
-     */
     content?: string;
-    /**
-     * Who the text calls out, as the composer picked it. Left out on a rewrite of the same row, which
-     * keeps the mention the row holds — like the text, it belongs to the message the user sent.
-     */
     mention?: ChatMentionBody;
-    /** Re-arm this row (a retry) rather than create one. */
     pendingId?: string;
 }
 
-/**
- * How many rows a pending-row read looks at. A channel holds at most a handful of unsent image
- * messages; this only has to be comfortably more than that.
- */
 const PENDING_IMAGE_SCAN_LIMIT = 50;
 
-/** The page size the server applies when a request names none. */
 const SERVER_DEFAULT_FEED_LIMIT = 20;
 
-/**
- * The chat numbers a feed page answered for. The server counts a page down from the request cursor —
- * or from the channel's head, whichever is lower — `limit` numbers at a time, looks each one up, and
- * leaves out the soft-deleted ones. It returns the lowest number it counted as the next cursor, or 0
- * when the count ran down to the start of what this member may see. So:
- *
- * - With a returned cursor, the range is exactly `[cursor, cursor + limit − 1]`. The top is read from
- *   the answer, never from the request: a request cursor above the head (a block re-check near the
- *   newest messages) counts only up to the head, and claiming more would mark a message that arrived
- *   meanwhile as deleted.
- * - With 0, the range runs from the start of history up to the newest row the page carried — or up to
- *   the request cursor when the caller knows it is a numbered row (`cursorIsRow`), which puts the head
- *   at or above it. An empty page then proves nothing.
- * - `tombstoneLow` is where a row missing from the page may be read as deleted. At the start of
- *   history it stops at the oldest row the page carried: below that sit rows from before my join,
- *   which the server also leaves out and which are hidden by the join window, not deleted.
- */
 const provenRange = ({
     requestCursor,
     limit,
@@ -212,9 +124,7 @@ const provenRange = ({
     return { low: 1, high, tombstoneLow: Number.isFinite(oldest) ? oldest : high + 1 };
 };
 
-/** Manages local-first chat timelines, pending states, and remote synchronization. */
 export class ChatRepository extends BaseRepository implements IChatRepository {
-    /** Revision notices already acted on this session, by `cid:uid:noticeId` (see `syncRevisedTargets`). */
     private readonly settledNotices = new Set<string>();
 
     constructor(
@@ -226,15 +136,8 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         super(contextProvider);
     }
 
-    /**
-     * The scope each pending image row was written in. An image send spans seconds to minutes, long
-     * enough for a cloud switch, and a later read or write under the new scope would miss the row —
-     * the send would find it "gone" and the failure would leave it `sending` in the old cloud forever.
-     * Held for the page's life only, like the files the row belongs to.
-     */
     private readonly pendingImageScopes = new Map<string, DataContext>();
 
-    /** The pending row's own scope; the current one for a row this page did not write (a leftover). */
     private pendingImageScope(pendingId: string): DataContext {
         return this.pendingImageScopes.get(pendingId) ?? this.getRequestContext();
     }
@@ -270,7 +173,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return this.chatLocalDataSource.cacheDelete(id, this.getRepositoryContext());
     }
 
-    // A clear takes what pages answered for with it (`FeedCoverage.forget`), before the rows go.
     public cacheClear(): Promise<void> {
         const { cid, uid } = this.getNormalizedContext();
         const scope = feedCoverageScope(cid, uid);
@@ -284,8 +186,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return this.chatLocalDataSource.cacheClearByChannelId(channelId, this.getRepositoryContext());
     }
 
-    // Pass-throughs: the index and its fallbacks live in the local data source. The repository only
-    // gives it the scope this graph reads in, as every other cache read here does.
     public listRoomMedia(input: ListRoomMediaInput): Promise<RoomMediaPage> {
         return this.chatLocalDataSource.listRoomMedia(input, this.getRepositoryContext());
     }
@@ -313,9 +213,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
                 ? await this.cachedRowsMissingFrom(query.channelId, proven, domainList, requestContext)
                 : [];
         await this.chatLocalDataSource.cacheWriteMany([...domainList, ...missing], requestContext);
-        // Not awaited: the page is the caller's answer, and the revised messages follow it into the cache.
         void this.syncRevisedTargets(domainList, requestContext);
-        // Recorded after the write, so a reader that sees the range answered for also sees its rows.
         if (proven) {
             const { cid, uid } = this.getNormalizedContext(requestContext);
             feedCoverage.add(feedCoverageKey(cid, uid, query.channelId), proven.low, proven.high);
@@ -330,26 +228,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         };
     }
 
-    /**
-     * Brings the messages that a page's revision notices point at to their current state.
-     *
-     * The server records each edit or delete as a revision notice (`subType: 'edit'`) on the room's next
-     * chat number. A device that was online got the change itself; one that was not finds the notice
-     * in a page it reads later, and only re-reading the message tells it what changed. The live socket
-     * path does the same inside the sync plan; this covers the pages the app reads itself — opening a
-     * room, a gap, older pages, a re-check, and the per-channel reads behind lists and catch-up.
-     *
-     * Those reads are frequent, and a notice stays on the newest page until newer messages push it out,
-     * so a notice is acted on once per session, not once per page:
-     * - A notice already settled is skipped — its message re-read and written, or not cached here (it
-     *   will arrive current with whatever page brings it), or gone on the server (404/403, nothing to
-     *   read). One whose read failed for any other reason stays open for the next page that holds it.
-     * - A message the same page carries is current already and is not re-read.
-     *
-     * Edit and delete are not told apart: the message's own row says which it now is. A re-read row is
-     * written only if the message is still cached when the answer lands, so a room left or cleared while
-     * the read was in flight does not get a row back.
-     */
     private async syncRevisedTargets(page: DomainChat[], context: DataContext): Promise<void> {
         try {
             const { cid, uid } = this.getNormalizedContext(context);
@@ -406,10 +284,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return unsubscribe;
     }
 
-    /**
-     * Cached rows inside `range` that a page answering for it did not carry, returned marked deleted.
-     * Rows still being sent are left alone: they have no chat number the server could answer for.
-     */
     private async cachedRowsMissingFrom(
         channelId: string,
         range: { low: number; high: number; tombstoneLow: number },
@@ -469,11 +343,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         }
     }
 
-    /**
-     * Uploads live on the chat facade because they exist only to become a message's attachments —
-     * a separate repository would own no state of its own. Nothing is cached: a ticket holds signed
-     * URLs, which must not be stored, and the message row is what the screen renders.
-     */
     public startUploads(payload: UploadStartInput): Promise<PresignedUploadStartResult> {
         return this.uploadSocketDataSource.start(payload);
     }
@@ -496,12 +365,9 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         if (input.pendingId) {
             const requestContext = this.pendingImageScope(input.pendingId);
             const existing = await this.chatLocalDataSource.cacheRead(input.pendingId, requestContext);
-            // A merge into a row that was deleted would recreate it with no channel: refuse instead.
             if (!existing) {
                 throw new Error(`[ChatRepository] pending image chat ${input.pendingId} is gone`);
             }
-            // A retry or a switch to thumbnails passes previews only; the files, and their details, are
-            // the same ones.
             const kept = (existing.upload$$ ?? []).map(slot => {
                 if (!isPendingUploadSlot(slot) || !slot.localContentType) return {};
                 const { localName, localContentType, localSize } = slot;
@@ -514,7 +380,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
                     isPending: true,
                     isFailed: false,
                     upload$$: slots,
-                    // The write merges, so a rewrite that names no text keeps the row's own.
                     ...(input.content !== undefined ? { content: input.content.trim() } : {}),
                     ...(input.mention !== undefined ? { mention$: toMentionRecord(input.mention) } : {}),
                     updatedAtMs: Date.now(),
@@ -526,13 +391,11 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
         const slots = slotsWith((input.localFiles ?? []).map(detailsOf));
         const requestContext = this.getRequestContext();
-        // Random suffix: two sends in one millisecond (a double tap) must not share a row.
         const id = `optimistic-chat-images-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
         this.pendingImageScopes.set(id, requestContext);
         const row = this.createOptimisticChat(
             {
                 channelId: input.channelId,
-                // On the row from the start, so the pending message shows its text while the files go up.
                 content: input.content?.trim() ?? '',
                 ...(input.parentId ? { parentId: input.parentId } : {}),
                 ...(input.mention ? { mention: input.mention } : {}),
@@ -547,21 +410,15 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     public async sendPendingImageChat(pendingId: string, input: { uploadIds: string[] }): Promise<DomainChat> {
         const requestContext = this.pendingImageScope(pendingId);
         const normalizedContext = this.getNormalizedContext(requestContext);
-        // The send goes out on this graph's socket. On the app graph that follows the selection, so
-        // once the selection has left the row's cloud the uploads belong to another cloud: fail
-        // rather than post them there. A graph bound to one cloud always sends on that cloud's own
-        // socket, so on it the two always agree and the row's cloud is where the send goes.
         if (this.getNormalizedContext().cid !== normalizedContext.cid) {
             throw new Error(`[ChatRepository] pending image chat ${pendingId} belongs to another cloud`);
         }
         const pending = await this.chatLocalDataSource.cacheRead(pendingId, requestContext);
         if (!pending) throw new Error(`[ChatRepository] pending image chat ${pendingId} is gone`);
 
-        // The row's own mention, for the same reason as its text: a retry sends what was written.
         const mention = toMentionBody(pending.mention$);
         const payload: ChatSendPayload = {
             channelId: pending.channelId,
-            // The row's own text, not the caller's: a retry sends the text it was written with.
             content: pending.content ?? '',
             uploadIds: input.uploadIds,
             ...(pending.parentId ? { parentId: pending.parentId } : {}),
@@ -573,13 +430,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return this.readBackImageChat(sent, requestContext);
     }
 
-    /**
-     * `chat.send`'s answer names the uploads but not where to fetch them — its `upload$$` is
-     * `{ id, status, stereo }`, and the sender gets no broadcast of its own message to fill the gap
-     * (measured on dev). `chat.get` answers the signed addresses, so the confirmed row reads itself
-     * back once. The message is sent either way: if the read fails, the row keeps the send's answer
-     * and the images appear the next time the room reads its feed.
-     */
     private async readBackImageChat(sent: DomainChat, requestContext: DataContext): Promise<DomainChat> {
         if (!sent.id) return sent;
         try {
@@ -602,7 +452,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
     public async failPendingImageChat(pendingId: string): Promise<void> {
         const requestContext = this.pendingImageScope(pendingId);
         const pending = await this.chatLocalDataSource.cacheRead(pendingId, requestContext);
-        // Deleted while its upload was still running: failing it would bring it back.
         if (!pending) return;
         await this.chatLocalDataSource.cacheWrite(
             {
@@ -620,9 +469,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
 
     public async listPendingImageChats(channelId: string): Promise<DomainChat[]> {
         this.assertRequiredString(channelId, 'channelId');
-        // The two backends reach unsent rows (`chatNo: 0`) differently: the web store appends them
-        // when asked with `includeUnsent`, the native store ignores that flag but honours `sort`, and
-        // ascending by number puts `0` first. Asking for both reaches them on either.
         const query: ChatFeedInput & ChatQueryOptions = {
             channelId,
             limit: PENDING_IMAGE_SCAN_LIMIT,
@@ -660,19 +506,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         }
     }
 
-    /**
-     * Publish a reaction on/off event.
-     *
-     * The reaction is not a field on the target message but a separate event chat, so
-     * the optimistic write is an event of our own: a provisional row with no `chatNo`,
-     * which the fold sorts last and therefore treats as the newest state for that
-     * (message, person, emoji). The chip flips on the click, not on the round trip.
-     *
-     * On success the provisional row is replaced by the server's event; the broadcast
-     * echo carries the same `chatNo` and lands on that same row. On failure it is
-     * removed, so the chip returns to what the remaining events say — there is no
-     * previous value to restore, because the event never existed anywhere but here.
-     */
     public async setReaction(payload: ChatReactionInput): Promise<DomainChat> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
@@ -683,7 +516,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             id: provisionalId,
             tempId: provisionalId,
             cid: normalizedContext.cid ?? 'default',
-            // The event belongs to the target's channel — the id is `<channelId>:<chatNo>`.
             channelId: channelIdOfChatId(chatId),
             chatNo: 0,
             stereo: 'system',
@@ -712,23 +544,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         }
     }
 
-    /**
-     * Delete a message. NOT optimistic: the row is hidden only once the server confirms.
-     *
-     * The server's delete is a soft delete — `chat.delete` maps to `PUT { hidden: true }`
-     * and the row survives — so hiding it here would mean marking the cached row rather
-     * than removing it, and that mark could not be taken back. `cacheWrite` MERGES, so
-     * writing the previous record back cannot clear a key that record never had: the
-     * optimistic `hidden: true` survived its own rollback, and a failed delete left the
-     * message looking deleted while it was alive on the server. The rollback was not
-     * fixed, it was made unnecessary — nothing is written before the answer arrives, so
-     * a failure changes nothing and only has to be reported.
-     *
-     * Delete is the operation with the least to gain from optimism anyway: it already
-     * costs a confirmation step, it is rare, and it cannot be undone. Showing it as done
-     * before the server knows is not speed. Send and update keep their optimistic paths,
-     * where the immediacy is worth it and a rollback actually works.
-     */
     public async deleteChat(payload: ChatDeleteInput): Promise<DomainChat> {
         this.assertRequiredString((payload as { id?: string }).id, 'id');
         const requestContext = this.getRequestContext();
@@ -739,7 +554,6 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return domainChat;
     }
 
-    /** Writes the server's row and drops the optimistic one it answers — the one swap both send paths share. */
     private async replaceOptimisticChat(
         optimisticId: string,
         remote: DomainChat,
@@ -753,11 +567,8 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         return domainChat;
     }
 
-    // Optimistic chats are built as domain literals (no mapper); cacheWrite fills any remaining defaults.
     private createOptimisticChat(payload: ChatSendPayload, id: string, normalizedContext: DataContext): DomainChat {
         const now = Date.now();
-        // The row is the only copy of a send that fails, and a resend is rebuilt from it — so it keeps
-        // the mention the send carried, in the stored record's shape.
         const mention$ = toMentionRecord(payload.mention);
         return {
             id,

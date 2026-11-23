@@ -142,12 +142,7 @@ import type {
 } from './model';
 import type { BaseMessage } from './types';
 
-// ======================================================================
-// Message Data Map Definition
-// ======================================================================
-/** Structure that maps each message type to its corresponding Data (Payload) type. */
 export type AppMessageDataMap = {
-    // 1. Device & System
     OnUpdateDeviceInfo: OnUpdateDeviceInfoPayload;
     OnBackgroundStatusChanged: OnBackgroundStatusChangedPayload;
     OnSetCanGoBack: OnSetCanGoBackPayload;
@@ -178,8 +173,6 @@ export type AppMessageDataMap = {
     OnPrepareVideo: OnPrepareVideoPayload;
     OnReadAttachment: OnReadAttachmentPayload;
     OnReadVideoFrame: OnReadVideoFramePayload;
-    // The reply to `StartAudioRecording`, and to `StopAudioRecording`. The second is also pushed when
-    // the shell ends a recording itself: at its limit, or interrupted.
     OnAudioRecordingStarted: OnAudioRecordingStartedPayload;
     OnAudioRecordingEnded: OnAudioRecordingEndedPayload;
     OnFetchShareIntake: OnFetchShareIntakePayload;
@@ -198,7 +191,6 @@ export type AppMessageDataMap = {
     OnChangeAppIcon: OnChangeAppIconPayload;
     Pong: PongPayload;
 
-    // 2. Notification
     OnFetchFcmToken: OnFetchFcmTokenPayload;
     OnReceiveNotification: OnNotificationPayload;
     OnFetchBadgeCount: OnFetchBadgeCountPayload;
@@ -208,7 +200,6 @@ export type AppMessageDataMap = {
     OnShowNotification: OnShowNotificationPayload;
     OnFetchUrlMetadata: OnFetchUrlMetadataPayload;
 
-    // 3. IAP
     OnFetchCurrentPurchases: OnFetchCurrentPurchasesPayload;
     OnFetchProducts: OnFetchProductsPayload;
     OnPurchase: OnPurchasePayload;
@@ -217,7 +208,6 @@ export type AppMessageDataMap = {
     OnFinishPurchaseTransaction: OnFinishPurchaseTransactionPayload;
     OnOpenSubscriptionManagement: OnOpenSubscriptionManagementPayload;
 
-    // 4. Cache
     OnFetchAllCacheData: OnFetchAllCacheDataPayload;
     OnFetchCacheData: OnFetchCacheDataPayload;
     OnFetchManyCacheData: OnFetchManyCacheDataPayload;
@@ -233,20 +223,16 @@ export type AppMessageDataMap = {
     OnCountChatMediaCacheData: OnCountChatMediaCacheDataPayload;
     OnSaveChatMediaCacheData: OnSaveChatMediaCacheDataPayload;
 
-    // 5. Preference
     OnFetchPreference: OnFetchPreferencePayload;
     OnSavePreference: OnSavePreferencePayload;
     OnDeletePreference: OnDeletePreferencePayload;
 
-    // 6. Auth
     OnOAuthLogin: OnOAuthLoginPayload;
     OnOAuthLogout: OnOAuthLogoutPayload;
 
-    // 6.5 Config (ADR-0079 shell lane — general-purpose KV bridge)
     OnSaveConfigValue: OnSaveConfigValuePayload;
     OnClearConfigValue: OnClearConfigValuePayload;
 
-    // 6.6 Debug panel (ADR-0080 decision 11)
     OnDeleteFcmToken: OnDeleteFcmTokenPayload;
     OnFetchBootRecords: OnFetchBootRecordsPayload;
     OnClearBootRecords: OnClearBootRecordsPayload;
@@ -256,7 +242,6 @@ export type AppMessageDataMap = {
     OnFetchNativeStorageSummary: OnFetchNativeStorageSummaryPayload;
     OnClearNativeCache: OnClearNativeCachePayload;
 
-    // 7. Common & Others
     OnWebAppReady: OnWebAppReadyPayload;
     OnSendLog: OnSendLogPayload;
     OnFetchLogUploadQueue: OnFetchLogUploadQueuePayload;
@@ -271,23 +256,19 @@ export type AppMessageDataMap = {
     OnStartPerfTrace: OnStartPerfTracePayload;
     OnStopPerfTrace: OnStopPerfTracePayload;
 
-    // 8. Test DB Scenario Validation
     OnFetchTestRecord: OnFetchTestRecordPayload;
     OnFetchAllTestRecords: OnFetchAllTestRecordsPayload;
     OnSaveTestRecord: OnSaveTestRecordPayload;
     OnSaveAllTestRecords: OnSaveAllTestRecordsPayload;
     OnClearTestRecords: OnClearTestRecordsPayload;
 
-    // 9. Auto Update (desktop)
     OnUpdateStatus: OnUpdateStatusPayload;
     OnStartUpdateDownload: OnStartUpdateDownloadPayload;
     OnRestartToUpdate: OnRestartToUpdatePayload;
 
-    // 10. App Update (mobile)
     OnCheckAppUpdate: OnCheckAppUpdatePayload;
     OnOpenStore: OnOpenStorePayload;
 
-    // 11. Sub WebView
     OnOpenSubWebView: OnOpenSubWebViewPayload;
     OnCloseSubWebView: OnCloseSubWebViewPayload;
     OnSubWebViewClosed: OnSubWebViewClosedPayload;
@@ -303,18 +284,14 @@ export type AppMessageDataMap = {
     OnGetSubWebViewStorageInfo: OnGetSubWebViewStorageInfoPayload;
     OnGetSubWebViewPermission: OnGetSubWebViewPermissionPayload;
     OnRequestSubWebViewPermission: OnRequestSubWebViewPermissionPayload;
-    // Pushed to a sub WebView page only, by its own host.
     OnSubWebViewContextChanged: OnSubWebViewContextChangedPayload;
     OnSubWebViewCloseRequested: OnSubWebViewCloseRequestedPayload;
-    // 12. Runtime — replies to the main web's runtime requests, and the two pushes of a shell that owns
-    // the session.
     OnRuntimeHello: OnRuntimeHelloPayload;
     OnRuntimeCall: OnRuntimeCallPayload;
     OnRuntimeSubscribe: OnRuntimeSubscribePayload;
     OnRuntimeUnsubscribe: OnRuntimeUnsubscribePayload;
     OnRuntimeEvent: OnRuntimeEventPayload;
     OnRuntimeSessionChanged: OnRuntimeSessionChangedPayload;
-    // 13. Session owner — replies to the owner switch.
     OnFetchSessionOwner: OnFetchSessionOwnerPayload;
     OnSetSessionOwner: OnSetSessionOwnerPayload;
     OnSetDefaultSessionOwner: OnSetDefaultSessionOwnerPayload;
@@ -322,19 +299,12 @@ export type AppMessageDataMap = {
 
 export type AppMessageType = keyof AppMessageDataMap;
 
-// ======================================================================
-// App Message Core Interfaces & Types
-// ======================================================================
 export type AppMessageError = {
     code: string;
     message: string;
     details?: unknown;
 };
 
-/**
- * Success response type used when request() resolves.
- * success is fixed to true so strict handler/request types can narrow the success payload precisely.
- */
 export type AppSuccessMessage<T extends AppMessageType> = BaseMessage & {
     type: T;
     success: true;
@@ -342,7 +312,6 @@ export type AppSuccessMessage<T extends AppMessageType> = BaseMessage & {
     error?: never;
 };
 
-/** AppMessage-family error response used when a handler or wire response represents a failure state. */
 export type AppFailureMessage<T extends AppMessageType = AppMessageType> = BaseMessage & {
     type: T;
     success: false;

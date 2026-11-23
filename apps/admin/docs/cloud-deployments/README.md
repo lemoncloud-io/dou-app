@@ -176,6 +176,8 @@ the same gap — so the admin login in front of this screen is the only gate on 
   branch if it names one, and `develop` otherwise — which is why the box shows `develop` as the
   default and the confirmation reads "catalog branch, else develop". Typing `develop` is not the same
   thing: it overrides a catalog that names another branch.
+- **The relay's cloud list is not retried.** The table waits for it on first paint, and a second
+  attempt at a failing relay would only hold the deploy targets back for details that are decoration.
 - **A cloud missing a service is marked `partial`**; the missing service is simply not deployed.
 - **A rejected signature looks like a network failure.** The gateway's 403 for a bad signature
   carries no CORS headers, so the browser reports no status at all; the screen says so instead of

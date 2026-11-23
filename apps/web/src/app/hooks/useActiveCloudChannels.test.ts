@@ -31,7 +31,7 @@ const channel = (id: string, sid: string): DomainChannel => ({ id, sid }) as unk
 const emit = (rows: DomainChannel[]) => {
     const dispose = jest.fn();
     observeListMock.mockImplementation((_query, cb, scope?: { cid?: string }) => {
-        cb({ list: rows.map(row => ({ cid: scope?.cid, ...row })) });
+        cb({ list: rows.map(row => Object.assign({ cid: scope?.cid }, row)) });
         return dispose;
     });
     return dispose;

@@ -1,16 +1,3 @@
-/**
- * `stats/PerfCompare.tsx`
- * - "Did the new version get slower, and for whom?" — one goal at a time, split by app version, OS,
- *   device or platform, with its daily trend, its distribution and the slowest cases.
- *
- * The goal and the split are URL parameters (`goal`, `by`), so a link to "room entry by device"
- * opens on exactly that. Every number is computed from the goal's own records in the window, by
- * occurrence time, at the goal's own percentile — the same reading the overview card makes, so the
- * two never disagree. Goal records are kept from every run, so the counts are real, not estimates.
- *
- * Each slow case leads to that user's timeline at that moment, which is where "why was it slow"
- * gets answered.
- */
 import { useMemo } from 'react';
 
 import { useT } from '../../../i18n';
@@ -67,8 +54,6 @@ export const PerfCompare = ({ nav }: PerfCompareProps) => {
     const rawBy = nav.param('by');
     const by: PerfSplit = (PERF_SPLITS as readonly string[]).includes(rawBy) ? (rawBy as PerfSplit) : 'appVersion';
 
-    // One fetch per statistic, named so the hooks keep a fixed order. All five run whatever the goal:
-    // they share the overview's cache, and switching the goal then shows its numbers at once.
     const boot = useStatRows(nav.stage, period, 'perf.boot');
     const room = useStatRows(nav.stage, period, 'perf.chat_room_open');
     const cloudSwitch = useStatRows(nav.stage, period, 'perf.cloud_switch');
@@ -296,8 +281,6 @@ export const PerfCompare = ({ nav }: PerfCompareProps) => {
             <section className="flex flex-col gap-3">
                 <SectionTitle
                     title={t('spread.title')}
-                    // The line is drawn only where the target falls inside the drawn range; when every
-                    // measurement is well under it, saying "the line is the target" would point at nothing.
                     hint={
                         target &&
                         goal.targetMs !== undefined &&

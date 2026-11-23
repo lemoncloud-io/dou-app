@@ -1,12 +1,9 @@
 import { pushedEventErrors, pushedEvents } from './appEventContract';
 
-// updater.ts reaches electron and electron-updater, neither of which loads under jest. Packaged, so
-// startUpdater runs; the feed is a stub whose events the tests fire by hand.
 jest.mock('electron', () => ({
     app: { isPackaged: true, on: jest.fn(), getPath: () => 'logs', getVersion: () => '1.0.0' },
     powerMonitor: { on: jest.fn() },
 }));
-// The updater's file log is covered by its own suite; here it must not write into the real logs.
 jest.mock('./updaterLog', () => {
     const log = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
     return { createUpdaterLog: jest.fn(() => log) };
@@ -33,7 +30,6 @@ type Feed = {
     logger?: unknown;
 };
 
-/** A fresh updater per test: its listeners attach once per module, and it remembers the last status. */
 const start = (beforeQuit: () => void = jest.fn()) => {
     const host = { pushEvent: jest.fn(), registerHandler: jest.fn() };
     let feed!: Feed;
@@ -54,7 +50,6 @@ const start = (beforeQuit: () => void = jest.fn()) => {
     };
 };
 
-// startUpdater arms a check loop; no test here needs it to run.
 beforeEach(() => jest.spyOn(global, 'setInterval').mockReturnValue(0 as any));
 afterEach(() => jest.restoreAllMocks());
 
@@ -87,7 +82,6 @@ describe('updater app → web event contract', () => {
         expect(pushedEventErrors(pushedEvents(host.pushEvent))).toEqual([]);
     });
 
-    // A background check that fails retries on the next trigger instead of flashing a warning.
     it('pushes nothing for a failed background check', () => {
         const { host, fire } = start();
 
@@ -98,8 +92,6 @@ describe('updater app → web event contract', () => {
 });
 
 describe('updater restart', () => {
-    // Close-to-tray swallows the window's close unless the quit guard is flipped first: the installer
-    // would start while the app it replaces is still running.
     it('flips the quit guard, then installs with the default arguments', () => {
         const order: string[] = [];
         const { feed, handler } = start(() => order.push('beforeQuit'));
@@ -114,7 +106,6 @@ describe('updater restart', () => {
 });
 
 describe('updater log', () => {
-    // Without a logger electron-updater writes to the console, which a packaged app does not have.
     it('gives the feed the file log, opened with the version and the executable', () => {
         const { feed, createUpdaterLog } = start();
         const log = createUpdaterLog.mock.results[0].value;

@@ -1,4 +1,3 @@
-/** Korean copy for the statistics tab's performance-details view. */
 export const statsDetail = {
     none: '(값 없음)',
     partial: '기간 안 기록이 많아서, 가장 최근 기록 일부로 계산했어요.',

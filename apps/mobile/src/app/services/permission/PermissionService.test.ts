@@ -110,8 +110,6 @@ describe('PermissionService request', () => {
         await expect(service.request('CAMERA')).resolves.toBe('DENIED');
     });
 
-    // On Android the library's `check` never answers BLOCKED, so the blocked state has to come
-    // from the request itself — a separate check after a denial always read DENIED there.
     it('reports BLOCKED from the request answer without a separate check', async () => {
         (request as jest.Mock).mockResolvedValue('blocked');
         (check as jest.Mock).mockResolvedValue('denied');

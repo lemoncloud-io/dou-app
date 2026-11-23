@@ -13,7 +13,6 @@ const contextProvider: DataContextProvider = {
     setContext: () => undefined,
 };
 
-/** A storage that remembers where it was put, and answers like an empty cache. */
 const fakeStorage = (type: CacheType, route: string) => ({
     type,
     route,
@@ -25,7 +24,6 @@ const fakeStorage = (type: CacheType, route: string) => ({
     clearAll: jest.fn(),
 });
 
-/** Cache ports whose routing the case controls, recording what the assembly asked. */
 const fakePorts = (routeOf: (type: CacheType) => string) => {
     const routed: CacheRoute[][] = [];
     const asked: CacheType[] = [];
@@ -47,9 +45,6 @@ const fingerprintOf = (sources: ReturnType<typeof createLocalDataSources>) =>
 
 beforeEach(() => runtimeStores.configure({ device: new MemoryStore() }));
 
-// Sync cursors are stamped with the routing they were written under, so a cursor cannot claim
-// "already synced" after its domain moved stores. The fingerprint is built from the decisions actually
-// made while assembling, which is what keeps it from drifting when a cache type is added later.
 describe('createLocalDataSources routing fingerprint', () => {
     it('records every type the platform routed, so two routings cannot share a fingerprint', () => {
         localCachePlatform.configure(fakePorts(() => 'web').ports);
@@ -63,8 +58,6 @@ describe('createLocalDataSources routing fingerprint', () => {
         expect(webPrint).not.toEqual(nativePrint);
     });
 
-    // A sync cursor compares this string byte for byte with the one it was written under, so its shape
-    // is part of the contract, not a detail: one `type:route` per domain, sorted, comma-joined.
     it('writes the fingerprint as sorted type:route pairs, comma-joined', () => {
         localCachePlatform.configure(fakePorts(type => (type === 'invitecloud' ? 'session' : 'web')).ports);
 
@@ -95,8 +88,6 @@ describe('createLocalDataSources routing fingerprint', () => {
         );
     });
 
-    // An injected factory means the caller, not the platform, chose the stores — there is nothing
-    // honest to stamp or report, so both switch off rather than guessing.
     it('leaves the fingerprint unset, and reports nothing, when the storage factory is injected', () => {
         const { ports, routed } = fakePorts(() => 'web');
         localCachePlatform.configure(ports);
@@ -108,9 +99,6 @@ describe('createLocalDataSources routing fingerprint', () => {
     });
 });
 
-// `@chatic/data` builds a storage per (cid, uid) partition on first use, so the factory also runs
-// after assembly. The route decided at assembly must hold for those later partitions: inside the phone
-// app, the shell's capability report can land in between and change the platform's answer.
 describe('createLocalDataSources route per type', () => {
     it('a partition first reached later keeps the route decided at assembly, and the platform is not asked again', () => {
         let answer = 'web';

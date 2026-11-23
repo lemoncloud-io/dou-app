@@ -1,4 +1,3 @@
-/** Korean copy for the statistics tab's version adoption view. */
 export const statsVersions = {
     summary: {
         title: '한눈에 보기',

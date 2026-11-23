@@ -15,30 +15,19 @@ export type DomainChannel = CacheChannelView;
 export type DomainChat = CacheChatView;
 export type DomainJoin = CacheJoinView;
 
-// Re-export the chat enums so apps reference `subType`/`stereo` values through the data layer
-// rather than reaching into the upstream socials-api package. The fields themselves already flow
-// onto DomainChat/DomainChannel via ChatView/ChannelView inheritance.
 export type { ChatStereo, ChatSubType } from '@lemoncloud/chatic-socials-api';
 
-/** The local-only payload a repository uses when reading a join list. */
 export interface DomainJoinListPayload {
     channelId?: string;
     activeOnly?: boolean;
 }
 
 export interface DomainChannelListPayload extends ChatMineInput {
-    /** Target site/place id (when absent). */
     sid?: string;
 }
 
 export type DomainUser = CacheUserView;
 
-/**
- * A member of one place, as `place.list-user` lists them. The display fields are the user's own
- * (backend) name and picture — the place profile, when there is one, lives in the profile cache and
- * wins over these. `isOwner` is per place, so it rides on this shape only and never reaches the
- * cloud-wide user cache.
- */
 export type DomainPlaceMember = Pick<DomainUser, 'id' | 'cid' | 'name' | 'nick' | 'thumbnail'> & {
     isOwner?: boolean;
 };
@@ -47,7 +36,6 @@ export type DomainPlace = CacheSiteView;
 export type DomainProfile = CacheProfileView;
 
 export interface DomainProfileListPayload {
-    /** V2 prefers `sid`/`uid` but still accepts API-shaped aliases. */
     sid?: string;
     uid?: string;
     siteId?: string;
@@ -58,14 +46,8 @@ export type SiteProfileBody = ProfileBody;
 export type SiteProfileView = DomainProfile;
 export type DomainCloud = CacheCloudView;
 
-/** Sender-side relay 1:1 invite card, credential fields (code/deeplink) already stripped. */
 export type DomainInvite = CacheInviteView;
 
-/**
- * The standard wrapper for a domain list.
- * It keeps the existing ListResult shape and adds `meta` to carry the common sync/integrity
- * information.
- */
 export interface DomainListResult<TModel> {
     list: TModel[];
     meta: ListMetaData;

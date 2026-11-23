@@ -1,10 +1,3 @@
-/**
- * `stats/VersionAdoption.spec.tsx`
- *
- * The version view against a fake list endpoint that aggregates: people per version with the
- * statistics coverage and the newest version, the day-by-day table, switching the split to OS,
- * and the states for an empty period and a backend that does not aggregate.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -24,12 +17,10 @@ vi.mock('../api/reportLogApi', async () => {
 
 const { VersionAdoption } = await import('./VersionAdoption');
 
-// 2026-10-26 14:30 KST.
 const NOW = Date.parse('2026-10-26T14:30:00+09:00');
 const DAY_25 = Date.parse('2026-10-25T00:00:00+09:00');
 const DAY_26 = Date.parse('2026-10-26T00:00:00+09:00');
 
-/** Users per version per day: 0.30.0 arrives on the 26th, 0.29.1 cannot send statistics. */
 const VERSIONS: Record<string, Array<[number, number]>> = {
     '0.29.2': [
         [DAY_25, 6],
@@ -44,7 +35,6 @@ const VERSIONS: Record<string, Array<[number, number]>> = {
 
 const usersOf = (version: string) => VERSIONS[version].reduce((acc, [, n]) => acc + n, 0);
 
-/** An aggregating backend: answers each request by its parameters. */
 const aggregating = (params: Record<string, unknown> = {}): ReportLogListResponse => {
     const groupBy = params.groupBy as string[] | undefined;
     if (groupBy?.[0] === 'appVersion') {
@@ -122,7 +112,6 @@ describe('VersionAdoption', () => {
 
         const bars = await screen.findByRole('list', { name: '앱 버전별 사용자 수' });
         const rows = within(bars).getAllByRole('listitem');
-        // Sorted by users: 0.29.2 (8), 0.30.0 (6), 0.29.1 (4); shares are of all 25 users.
         expect(rows.map(row => row.textContent)).toEqual([
             expect.stringContaining('0.29.2'),
             expect.stringContaining('0.30.0'),
@@ -133,13 +122,11 @@ describe('VersionAdoption', () => {
         expect(within(rows[0]).getByText('통계 보냄')).toBeTruthy();
         expect(within(rows[2]).queryByText('통계 보냄')).toBeNull();
 
-        // 14 of the 18 per-version users are on 0.29.2 or later.
         await waitFor(() => expect(screen.getByText('78%')).toBeTruthy());
         expect(screen.getByText('앱 사용자 18명 중 14명')).toBeTruthy();
         expect(screen.getByText('0.30.0', { selector: 'span.text-3xl' })).toBeTruthy();
         expect(screen.getByText(/10월 26일.*에 처음 보였어요/)).toBeTruthy();
 
-        // Every value is asked for distinct users, with the daily split, over the period's days.
         expect(fetchReportLogs).toHaveBeenCalledWith(
             expect.objectContaining({ appVersion: '0.30.0', interval: 'day', users: true, from: '2026-10-20' })
         );
@@ -153,10 +140,8 @@ describe('VersionAdoption', () => {
         expect(head.textContent).toContain('0.29.2');
         expect(head.textContent).toContain('0.30.0');
         expect(body).toHaveLength(2);
-        // The 25th: 6 of 8 app users on 0.29.2, nobody on 0.30.0 yet.
         expect(body[0].textContent).toContain('75% · 6명');
         expect(body[0].textContent).toContain('0% · 0명');
-        // The 26th: 0.30.0 has 6 of 10.
         expect(body[1].textContent).toContain('60% · 6명');
     });
 

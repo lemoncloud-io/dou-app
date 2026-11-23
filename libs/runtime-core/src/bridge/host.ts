@@ -38,69 +38,36 @@ import {
     REPOSITORY_STREAMS,
 } from './repositories';
 
-/**
- * The marker a page puts in a `RuntimeSubscribe`'s `args` where the member takes its listener — the
- * callback of an `observe*` method, `onServerEvent`'s listener, an observer. The host puts its own
- * listener there, and what that listener is called with becomes one `OnRuntimeEvent` (its arguments,
- * as an array). A stream with no listener (`registerTarget`, `holdCloud`) has no marker: it stands while
- * subscribed.
- */
 export const RUNTIME_LISTENER_MARKER = { $listener: true } as const;
 
-/** The `code` a hello answers with while the runtime is still starting: the page asks again. */
 export const RUNTIME_STARTING_CODE = 'RUNTIME_STARTING';
-/**
- * The `code` a hello answers with when the shell already holds the session for this launch but the page
- * shares no contract with it — a page newer than the installed app by a contract. The page must not
- * take the session (the shell keeps running it), so it is not told `web`; it is told it cannot mirror
- * this app.
- */
 export const RUNTIME_CONTRACT_MISMATCH_CODE = 'RUNTIME_CONTRACT_MISMATCH';
-/** The `code` a call or subscription answers with before a hello was answered `native`. */
 export const RUNTIME_NOT_STARTED_CODE = 'RUNTIME_NOT_STARTED';
-/**
- * The `code` for a result or an event larger than the host sends. A subscription whose event is too
- * large ends with `{ $ended: failure }` as its last event, so the page knows it stopped hearing.
- */
 export const RUNTIME_PAYLOAD_TOO_LARGE_CODE = 'RUNTIME_PAYLOAD_TOO_LARGE';
 
-/** The largest body the host sends, in UTF-16 code units of its JSON — a safety cap, not a budget. */
 export const DEFAULT_RUNTIME_PAYLOAD_LIMIT = 4 * 1024 * 1024;
-/** How long a hello waits for the runtime to start before answering `RUNTIME_STARTING`. */
 export const DEFAULT_RUNTIME_HELLO_WAIT_MS = 5_000;
 
-/** What crossed, and how big it was — for the shell's own measurements. */
 export interface RuntimePayloadSample {
     kind: 'hello' | 'call' | 'event' | 'session';
-    /** `<target>.<method>` for a call, the stream's for an event. */
     name?: string;
-    /** UTF-16 code units of the body's JSON. */
     size: number;
 }
 
-/** A host answer: the payload to reply with, or the failure to reply with. */
 export type RuntimeHostAnswer<T> = { value: T } | { failure: AppMessageError };
 
-/** The pushes the host sends the page on its own. */
 export interface RuntimeHostSend {
     event(payload: OnRuntimeEventPayload): void;
     sessionChanged(payload: OnRuntimeSessionChangedPayload): void;
 }
 
 export interface RuntimeBridgeHostOptions {
-    /**
-     * The runtime, started on first ask, or `null` when this process does not run the session this
-     * launch. Called on each hello; it has to answer the same engine every time.
-     */
     engine: () => Promise<RuntimeEngine | null>;
     send: RuntimeHostSend;
-    /** The contract versions this build speaks. */
     contracts?: readonly number[];
     helloWaitMs?: number;
     payloadLimit?: number;
-    /** Hears every body's size; the host itself logs nothing. */
     onPayload?: (sample: RuntimePayloadSample) => void;
-    /** When the session push runs after a change; a microtask by default, so one turn's changes push once. */
     schedule?: (run: () => void) => void;
 }
 
@@ -109,13 +76,11 @@ export interface RuntimeBridgeHost {
     call(payload: RuntimeCallPayload): Promise<RuntimeHostAnswer<OnRuntimeCallPayload>>;
     subscribe(payload: RuntimeSubscribePayload): Promise<RuntimeHostAnswer<Record<string, never>>>;
     unsubscribe(payload: RuntimeUnsubscribePayload): RuntimeHostAnswer<Record<string, never>>;
-    /** Ends every subscription and the session push. */
     dispose(): void;
 }
 
 type Invoke = (...args: unknown[]) => unknown;
 
-/** The streams that take no listener: they stand while subscribed and send no events. */
 const LISTENERLESS_STREAMS = new Set([`${SYNC_TARGET}.registerTarget`, `${DATA_TARGET}.holdCloud`]);
 
 const isListenerMarker = (value: unknown): boolean =>
@@ -132,7 +97,6 @@ const repositoryMethod = (repositories: object, name: string): Invoke | null => 
     return typeof member === 'function' ? (member as Invoke).bind(repository) : null;
 };
 
-/** A view a page mirrors through a subscription (`VIEW_STREAMS`): its value now, and its changes. */
 const viewOf = (
     engine: RuntimeEngine,
     target: string,
@@ -153,11 +117,6 @@ const viewOf = (
     return null;
 };
 
-/**
- * The member a `RuntimeCall` or `RuntimeSubscribe` names, bound and with the arguments it takes — or
- * `null` when the contract does not list it for that kind. Only listed members are reached: a page names
- * them by string, and nothing outside the contract is callable however it is spelled.
- */
 const resolveMember = (
     engine: RuntimeEngine,
     kind: 'call' | 'stream' | 'receipt',
@@ -165,7 +124,6 @@ const resolveMember = (
     method: string,
     args: unknown[]
 ): { invoke: Invoke; args: unknown[] } | null => {
-    // Only a repository method answers with a write receipt; every other target lists none.
     const listed = (calls: readonly string[], streams: readonly string[], receipts: readonly string[] = []) =>
         has(kind === 'call' ? calls : kind === 'stream' ? streams : receipts, method);
     const bound = (owner: object, name: string): Invoke | null => {
@@ -198,7 +156,6 @@ const resolveMember = (
             }
             break;
         case DATA_CLOUD_TARGET:
-            // A cloud's graph rather than the live scope's: the cloud id comes first.
             if (
                 typeof args[0] === 'string' &&
                 args[0] !== '' &&
@@ -212,25 +169,12 @@ const resolveMember = (
     return invoke ? { invoke, args: rest } : null;
 };
 
-/** What a write receipt's stream sends: the local half done (`written`), then the server's (`delivered`). */
 export type RuntimeReceiptEvent = { written: RuntimeWireValue } | { delivered: true };
 
-/**
- * A repository method that answers with a write receipt, as a stream: its result's promise cannot cross,
- * so each half of the write is an event of its own. `{ written }` carries the receipt without its
- * delivery once the method resolves; `{ delivered: true }` follows once the server has the write. The
- * method's own failure, and a delivery the server refused, end the stream with the failure — the same
- * error a page's `await` or `delivered.catch` would have seen in-process.
- *
- * Stopping only stops the events: the write is the outbox's, and it goes out whether or not the page is
- * still listening.
- */
 const receiptMember = (method: { invoke: Invoke; args: unknown[] }): { invoke: Invoke; args: unknown[] } => ({
     invoke: (listener: unknown, fail: unknown) => {
         const emit = listener as (event: RuntimeReceiptEvent) => void;
         const endWith = fail as (error: unknown) => void;
-        // Invoked now, not on a later turn: in-process the write starts as the method is called, and a
-        // call the page sends right after this subscribe must find it started.
         let answered: Promise<unknown>;
         try {
             answered = Promise.resolve(method.invoke(...method.args));
@@ -249,29 +193,6 @@ const receiptMember = (method: { invoke: Invoke; args: unknown[] }): { invoke: I
     args: [RUNTIME_LISTENER_MARKER],
 });
 
-/**
- * The shell's half of the runtime across the bridge: it answers a page's hello, runs the calls the
- * contract lists, keeps the page's subscriptions and pushes the session as it changes. It is the same
- * for every shell — the shell supplies the engine and the way to send, and wires the four requests to
- * it — so this half is plain logic, testable without a WebView.
- *
- * - **Hello.** Waits for the engine (`helloWaitMs`), then answers with `answerRuntimeHello`. A runtime
- *   still starting answers `RUNTIME_STARTING`, which a page reads as "no answer" and asks again. A hello
- *   is a new document saying it is there, so the previous document's subscriptions end.
- * - **Calls.** Only members the contract lists, by target. Anything else answers
- *   `RUNTIME_NOT_AVAILABLE`; a member that throws answers `RUNTIME_ERROR` with the crossing fields.
- * - **Subscriptions.** The listener goes where the page put `RUNTIME_LISTENER_MARKER`; each call of it
- *   is one `OnRuntimeEvent`, numbered per subscription and from 1 in each document. A new subscription
- *   under a known id replaces the old one. A repository method that answers with a write receipt is
- *   subscribed to under its own name (`receiptMember`).
- * - **The session.** Every change of the session view, coalesced per `schedule`, is one
- *   `OnRuntimeSessionChanged` with the next number; the hello's answer carries the number it is at. A
- *   push still waiting when a call settles goes out before the call's answer.
- * - **Size.** A result or event larger than `payloadLimit` is not sent: the call fails, and the
- *   subscription ends with `{ $ended: failure }`. Every body's size goes to `onPayload`. The size is the
- *   length of the body's JSON — an approximation of what crosses, which adds the envelope and its
- *   encoding; a hello's answer and a session push are measured but never refused.
- */
 export const createRuntimeBridgeHost = ({
     engine: startEngine,
     send,
@@ -287,9 +208,6 @@ export const createRuntimeBridgeHost = ({
     let pushScheduled = false;
     let stopSessionPush: (() => void) | null = null;
     const subscriptions = new Map<string, () => void>();
-    // The last event number under each subscription id, kept across a replacement under the same id:
-    // an event of the old stream still in flight then never numbers above the new stream's first.
-    // Kept for one document only — `endSubscriptions` forgets it (see there).
     const lastEventSeq = new Map<string, number>();
 
     const tooLarge = (name: string, size: number): AppMessageError => ({
@@ -299,15 +217,11 @@ export const createRuntimeBridgeHost = ({
 
     const snapshotOf = (live: RuntimeEngine) => ({ seq: sessionSeq, session: live.session.snapshot() });
 
-    // What happened since the last push: a change of the view, a sign-out, or both.
     const pendingSignals = new Set<string>();
 
-    // Runs from the schedule, or sooner from a call's answer (`flushSessionPush`); whichever comes
-    // first sends the push and the other finds nothing due.
     const pushSession = () => {
         if (!pushScheduled) return;
         pushScheduled = false;
-        // A call still running when the bridge closed settles after it: no one is there to push to.
         if (!engine || disposed) return;
         sessionSeq += 1;
         const signals = [...pendingSignals];
@@ -331,7 +245,6 @@ export const createRuntimeBridgeHost = ({
     const startSessionPush = (live: RuntimeEngine) => {
         if (stopSessionPush) return;
         const offChange = live.session.subscribe(() => schedulePush(SESSION_CHANGE_SIGNAL));
-        // A sign-out is a moment, not a state: the snapshot after it may look like the one before.
         const offLogout = live.session.onLogout(() => schedulePush(SESSION_LOGOUT_SIGNAL));
         stopSessionPush = () => {
             offChange();
@@ -342,11 +255,6 @@ export const createRuntimeBridgeHost = ({
     const endSubscriptions = () => {
         subscriptions.forEach(stop => stop());
         subscriptions.clear();
-        // A new document's mirror numbers its ids from the start again (`m1`, `m2`, …) and expects each
-        // stream's events from 1. Carrying the last document's numbers over made every reused id open
-        // with a jump the mirror logs as skipped events, which buries a real gap. Nothing of the old
-        // streams can reach the new document after this: they are stopped above, and what they sent
-        // before arrives ahead of the hello's answer, before the new document has subscribed.
         lastEventSeq.clear();
     };
 
@@ -366,11 +274,6 @@ export const createRuntimeBridgeHost = ({
         failure: { code: RUNTIME_NOT_STARTED_CODE, message: 'the page has not been answered native yet' },
     });
 
-    /**
-     * Opens a stream under `subscriptionId`. The member is invoked with the host's listener where its
-     * arguments hold the marker; a member that has to end its stream on its own (a view whose read
-     * failed) is handed `fail` as its last argument.
-     */
     const subscribeTo = (
         subscriptionId: string,
         name: string,
@@ -420,7 +323,6 @@ export const createRuntimeBridgeHost = ({
         try {
             const returned = member.invoke(...callArgs);
             if (typeof returned !== 'function') {
-                // A stream that cannot be stopped would outlive the page that asked for it.
                 ended = true;
                 return { failure: toRuntimeFailure(new Error(`${name} answered no way to stop it`)) };
             }
@@ -428,7 +330,6 @@ export const createRuntimeBridgeHost = ({
         } catch (error) {
             return { failure: toRuntimeFailure(error) };
         }
-        // An event during the subscribing call itself may already have ended it.
         if (ended) {
             stop();
             return { value: {} };
@@ -449,8 +350,6 @@ export const createRuntimeBridgeHost = ({
                 return { failure: { code: RUNTIME_STARTING_CODE, message: 'the runtime is still starting' } };
             }
             if (disposed) return { failure: { code: RUNTIME_NOT_STARTED_CODE, message: 'the bridge has closed' } };
-            // A hello is a new document, whatever it is answered: what the last one subscribed to is
-            // no one's now.
             endSubscriptions();
             const answer = answerRuntimeHello(payload, {
                 contracts,
@@ -458,10 +357,6 @@ export const createRuntimeBridgeHost = ({
                 session: () => snapshotOf(live as RuntimeEngine),
             });
             if (answer.sessionOwner === 'web' && live) {
-                // The process runtime holds the session — started by this hello, by an earlier one this
-                // bridge answered `native`, or by a page on a bridge before this one — so a page that
-                // shares no contract must not take it as well. Only a runtime that declined (`null`)
-                // leaves the session to the page.
                 return {
                     failure: {
                         code: RUNTIME_CONTRACT_MISMATCH_CODE,
@@ -478,7 +373,6 @@ export const createRuntimeBridgeHost = ({
         },
 
         call: async ({ target, method, args }) => {
-            // A call that reaches a closed bridge does nothing: nothing it did would be answered.
             if (disposed) return { failure: { code: RUNTIME_NOT_STARTED_CODE, message: 'the bridge has closed' } };
             if (!engine) return notStarted();
             const member = resolveMember(engine, 'call', target, method, Array.isArray(args) ? args : []);
@@ -490,15 +384,12 @@ export const createRuntimeBridgeHost = ({
                 pushSession();
                 return { failure: toRuntimeFailure(error) };
             }
-            // What the call did to the session goes out before its answer, so a page whose command
-            // resolves already holds the snapshot that shows it.
             pushSession();
             const name = `${target}.${method}`;
             let size: number;
             try {
                 size = sizeOf(value);
             } catch (error) {
-                // A result that is not JSON (a cycle, a BigInt) cannot cross.
                 return { failure: toRuntimeFailure(error) };
             }
             onPayload?.({ kind: 'call', name, size });
@@ -511,7 +402,6 @@ export const createRuntimeBridgeHost = ({
             const given = Array.isArray(args) ? args : [];
             const view = viewOf(engine, target, topic);
             if (view) {
-                // A view: its current value at once, then each change, coalesced per turn.
                 const viewArgs = [RUNTIME_LISTENER_MARKER];
                 let scheduled = false;
                 const viewMember = {
@@ -527,8 +417,6 @@ export const createRuntimeBridgeHost = ({
                                 try {
                                     value = view.read();
                                 } catch (error) {
-                                    // A read that throws ends the mirror, saying so, rather than leaving
-                                    // the page on a value that silently stopped changing.
                                     endWith(error);
                                     return;
                                 }
@@ -548,9 +436,6 @@ export const createRuntimeBridgeHost = ({
             const member = resolveMember(engine, 'stream', target, topic, given);
             if (!member) return { failure: runtimeNotAvailableFailure(target, topic) };
 
-            // Exactly one listener where the member takes one, none where it takes none (`registerTarget`,
-            // `holdCloud`, which stand while subscribed): a stream run without its listener would fail at its
-            // first emission, inside the runtime rather than in front of the page.
             const markers = member.args.filter(isListenerMarker).length;
             if (markers !== (LISTENERLESS_STREAMS.has(`${target}.${topic}`) ? 0 : 1)) {
                 return {

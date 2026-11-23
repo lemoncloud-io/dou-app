@@ -2,12 +2,6 @@ import { logHub, logger as coreLogger } from '@chatic/logger';
 import type { LogErrorOptions, LogListener } from '@chatic/logger';
 import type { ILogService } from './types';
 
-/**
- * Core-backed log service: thin delegation to the shared `@chatic/logger`
- * singleton so every native entry lands in the same hub the bridged web
- * entries use (ADR-0097). Kept as a class so provider wiring and
- * DI-typed consumers stay unchanged.
- */
 export class LogService implements ILogService {
     subscribe(listener: LogListener): () => void {
         return logHub.subscribe(listener);

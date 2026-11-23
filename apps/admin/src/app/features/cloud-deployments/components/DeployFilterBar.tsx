@@ -1,7 +1,3 @@
-/**
- * `components/cloud-deployments/DeployFilterBar.tsx`
- * - The cloud stage filter, the services to deploy with a branch each, `force`, and `slack`.
- */
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Checkbox } from '@chatic/ui-kit/components/ui/checkbox';
 import { Input } from '@chatic/ui-kit/components/ui/input';
@@ -49,7 +45,6 @@ export const DeployFilterBar = ({
                     size="sm"
                     className="h-7"
                     variant={stageFilter === filter ? 'default' : 'outline'}
-                    // Without this the active filter is conveyed by background colour alone.
                     aria-pressed={stageFilter === filter}
                     onClick={() => onStageFilterChange(filter)}
                 >

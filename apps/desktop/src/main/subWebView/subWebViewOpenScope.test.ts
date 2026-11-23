@@ -5,15 +5,9 @@ import { DesktopSubWebViewService } from './DesktopSubWebViewService';
 
 jest.mock('../unfurl', () => ({ fetchUrlMetadata: jest.fn() }));
 
-/**
- * The main window's handshake is what desktop-web reads before it offers anything that opens a sub
- * view: `OpenSubWebView` listed, and how far it opens. The web ships before the shell, so an older
- * shell — which lists neither — keeps the control hidden.
- */
 describe("the main window's handshake", () => {
     const handshake = async () => {
         const sent: any[] = [];
-        // Built the way createWindow builds it: the options constant, then the handlers.
         const host = new AppBridgeHost({
             sendToWeb: raw => sent.push(JsonProtocol.decode(raw)),
             ...DESKTOP_MAIN_HOST_OPTIONS,

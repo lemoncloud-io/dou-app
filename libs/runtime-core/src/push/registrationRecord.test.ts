@@ -106,7 +106,6 @@ describe('PushRegistrationRecord — 설치당 1회 등록 기록', () => {
             seed.write(identity, 'tok-1', mirror);
             await Promise.resolve();
 
-            // A cleared webview: fresh local store, same native mirror.
             const record = new PushRegistrationRecord(makeStore());
             expect(record.read(identity)).toBeNull();
 
@@ -194,8 +193,6 @@ describe('PushRegistrationRecord — 설치당 1회 등록 기록', () => {
             await Promise.resolve();
             await Promise.resolve();
 
-            // The web tier is wiped mid-session; nothing was ever persisted natively, so the record
-            // must read as "never registered" and let a registration through.
             store.map.clear();
 
             expect(record.read(identity)).toBeNull();

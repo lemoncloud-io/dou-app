@@ -1,27 +1,11 @@
-/**
- * `components/memberships/MembershipStatusStrip.tsx`
- * - Status counts across the top of the console.
- *
- * "What does this slice look like" is a different question from "find me this user", and it should
- * not require scrolling the table to answer. So the answer sits above the view, always visible.
- *
- * The counts describe the rows on screen, never the whole result. The membership list endpoint
- * returns no aggregation — unlike the cloud list — so a number that looked like a total would be a
- * lie. The caption says which it is.
- */
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
 interface MembershipStatusStripProps {
-    /** Rows after the browser-side filters, i.e. exactly what the table shows. */
     rows: MembershipView[];
-    /** Rows the server returned for this page, before those filters. */
     pageSize: number;
-    /** The server's count for the whole query. */
     total: number;
 }
 
-/** Shown first, in lifecycle order rather than by frequency, so the strip reads the same every
- *  time. Anything else the relay emits is appended after these rather than dropped. */
 const KNOWN_STATUSES = ['active', 'canceled', 'expired', 'none'] as const;
 
 const TONE: Record<string, string> = {

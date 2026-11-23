@@ -37,7 +37,6 @@ function SyncBadge({
         const t = window.setInterval(() => setTick(n => n + 1), 1000);
         return () => window.clearInterval(t);
     }, []);
-    // With no socket for the stage the container never connects; "CONNECTING" would never end.
     const b = configured ? badgeFor(state) : NOT_CONFIGURED;
     return (
         <>

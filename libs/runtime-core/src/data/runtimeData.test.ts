@@ -38,7 +38,6 @@ jest.mock('./factories/localFactory', () => ({
 }));
 jest.mock('./pageRepositories', () => ({ pageRepositoriesOf: (graph: unknown) => ({ page: graph }) }));
 
-// Required after the mocks: their factories read the `mock*` values above.
 const { createCoreRuntimeData } = require('./runtimeData') as typeof RuntimeDataModule;
 
 beforeEach(() => {

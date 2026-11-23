@@ -101,6 +101,50 @@ reads as "fall back for this read".
 The services are passed as getters and read on each message, so SQLite still opens on the first cache
 message, whichever caller sends it.
 
+A message that gets no answer within 10 seconds (`IN_PROCESS_CACHE_TIMEOUT_MS`, the WebView bridge
+client's default budget) rejects with `TIMEOUT`. Without it a promise that never settled would stay in
+the adapter's shared in-flight reads and every later read of the same key would wait on it.
+
+## What the cache does when it cannot answer
+
+The web deploys ahead of the app, so the cache answers an unknown or failed request in a way the web
+can fall back from, not with an error it cannot tell apart from a real one.
+
+- **Supported types are declared, not assumed.** `SUPPORTED_CACHE_TYPES` in `CacheCrudService.ts`
+  lists the types that have a data source. The bridge handshake reports it (`supportedCacheTypes`),
+  because a web that knows a newer type would otherwise send it here, reach the `default` arm and
+  get `null` with `success: true` — a cache that is permanently empty and never says so. Adding a
+  type to the list without a data source makes the web trust a store that drops writes.
+- **Failures are answered, not thrown.** A failed read answers `items: null` (or `id: null`), a failed
+  write answers `success: false` inside a `success: true` reply. The web reads `null` as "fall back for
+  this read only". `fetchMany` on an unsupported type, or one that fails, answers an empty list.
+- **Some operations throw so the web is not misled.** `clearByChannel` accepts only `chat` and a
+  non-empty channel id and lets a failure through, so the handler can answer `success: false` and the
+  web does not believe a left room's messages were removed (`clear` swallows errors; this one must
+  not). The room media index calls throw too, and the handler turns them into `items: null`,
+  `counts: null` or `success: false`, so an empty page stays an honest empty page and a room is not
+  marked filled after a failed write. A last-chat read that cannot answer returns `null`, and the web
+  falls back to a windowed query for that read.
+- **Search is the exception.** A failed search is `success: false`, which a bridge client turns into
+  a rejection.
+
+### The domain-version report in the handshake
+
+`resolveCacheDomainVersions` (`services/cache/cacheDomainVersions.ts`) measures the per-domain cache
+contract from the schema version of the database the install actually reached, instead of repeating a
+compile-time constant.
+
+- It never rejects. When the database is unreachable or does not answer within 3 seconds
+  (`MEASURE_TIMEOUT_MS`) it resolves `undefined` and the bridge host falls back to the static
+  declaration. The web's handshake request times out at 10 seconds, and losing the whole handshake
+  costs more than losing the per-domain detail.
+- Only a real answer is remembered for the process. A schema version cannot change within a run, and a
+  WebView reload sends another handshake, so re-measuring would reopen the database on a path that
+  has to stay cheap. A non-answer is not remembered: a wedged first boot or a lock held by a migration
+  is transient, and caching it would pin every later handshake to the static fallback.
+- The database is opened inside the measuring function, not at import. The module is loaded during
+  boot; the work runs only when the web asks.
+
 ## Batch reads (`FetchManyCacheData`)
 
 Every web call is one bridge round trip, so round-trip count is the cost that matters. A merge write

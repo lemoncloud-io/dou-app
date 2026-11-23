@@ -20,7 +20,6 @@ jest.mock('../session', () => ({
 
 const { useInviteInfo } = require('./useInviteInfo');
 
-// Each test gets a fresh client with retries off so a disabled/failed query settles deterministically.
 const makeWrapper = () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     return ({ children }: { children: ReactNode }) => createElement(QueryClientProvider, { client }, children);
@@ -30,8 +29,6 @@ describe('useInviteInfo', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockFetchInviteInfoWithCode.mockResolvedValue({ inviter$: { name: '홍길동' } });
-        // Default to an unconfigured relay endpoint so the no-backend cases stay disabled; the relay
-        // test opts in by returning an endpoint.
         mockGetDynamicRelayBackend.mockReturnValue('');
     });
 
@@ -95,7 +92,6 @@ describe('useInviteInfo', () => {
 
     it('code가 없거나, backend와 릴레이 엔드포인트가 모두 없으면 조회하지 않는다', () => {
         mockUseSessionAuth.mockReturnValue({ isAuthenticated: true });
-        // getDynamicRelayBackend returns '' here (beforeEach default), so nothing resolves an endpoint.
 
         renderHook(() => useInviteInfo(null, undefined), { wrapper: makeWrapper() });
         renderHook(() => useInviteInfo('invt:1:abc', undefined), { wrapper: makeWrapper() });

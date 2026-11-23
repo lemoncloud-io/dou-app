@@ -1,6 +1,5 @@
 import type { common as ko } from '../ko/common';
 
-/** English copy shared across the console: the app nav, the page header, periods and common states. */
 export const common: typeof ko = {
     nav: {
         brand: 'Admin',

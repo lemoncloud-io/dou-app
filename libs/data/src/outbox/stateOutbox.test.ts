@@ -6,11 +6,6 @@ import { createStateOutbox, OutboxAccountChangedError, type StateSpecs } from '.
 const CID = 'cloud-a';
 const UID = 'me';
 
-/**
- * A transport the test drives: readiness per cloud it flips, timers that only run when fired, a uid
- * per cloud it can change, and a graph that is just a marker — the specs below record what they were
- * asked to do with it.
- */
 const fakeTransport = () => {
     const listeners = new Map<string, (ready: boolean) => void>();
     const readiness = new Map<string, boolean>();
@@ -61,7 +56,6 @@ const fakeTransport = () => {
     };
 };
 
-/** A spec whose every hook is a mock; `deliver` answers per call. Only the value rules vary. */
 const mockSpec = <V>(rules: Pick<StateSpec<V>, 'merge' | 'isCovered'> = {}) => ({
     op: 'join.read' as const,
     deliver: jest.fn<Promise<unknown>, [DataRepositories, StateWrite<V>]>().mockResolvedValue({ answer: true }),
@@ -70,14 +64,12 @@ const mockSpec = <V>(rules: Pick<StateSpec<V>, 'merge' | 'isCovered'> = {}) => (
     ...rules,
 });
 
-/** A read-like spec: the higher value wins and a lower one is already there. */
 const cursorSpec = () =>
     mockSpec<number>({
         merge: (waiting, next) => Math.max(waiting, next),
         isCovered: (accepted, next) => next <= accepted,
     });
 
-/** A setting-like spec: the last value wins and the same value is already there. */
 const settingSpec = () => mockSpec<string>({ isCovered: (accepted, next) => accepted === next });
 
 const setup = <V>(spec: ReturnType<typeof mockSpec<V>>, observer?: OutboxObserver) => {
@@ -98,7 +90,6 @@ const setup = <V>(spec: ReturnType<typeof mockSpec<V>>, observer?: OutboxObserve
     return { ...fake, outbox, write };
 };
 
-/** An observer on a clock the test moves, keeping every delivery it is told about. */
 const fakeObserver = () => {
     let time = 0;
     const deliveries: OutboxDelivery[] = [];
@@ -115,7 +106,6 @@ const fakeObserver = () => {
     };
 };
 
-/** A promise the test settles, for a request whose answer has to wait for the clock to move. */
 const deferred = <T>() => {
     let resolve!: (value: T) => void;
     let reject!: (error: unknown) => void;
@@ -245,7 +235,6 @@ describe('createStateOutbox', () => {
             answer();
             await Promise.all([toB.delivered, backToA.delivered]);
 
-            // Skipping the second 'A' as "already on the server" would have left 'B' there.
             expect(sentValues(spec)).toEqual(['A', 'B', 'A']);
         });
     });

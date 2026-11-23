@@ -1,5 +1,6 @@
 {
     "source": "enforce",
     "knip": "observe",
-    "jscpd": "observe"
+    "jscpd": "observe",
+    "testTypecheck": "enforce"
 }

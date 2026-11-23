@@ -60,8 +60,6 @@ describe('useBackgroundClouds', () => {
         expect(setBackgroundClouds).toHaveBeenLastCalledWith([]);
     });
 
-    // What StrictMode does to every effect in development: a cleanup, then a mount, in the same task.
-    // (This test environment does not double-invoke effects under StrictMode, so it is spelled out.)
     it('does not withdraw the list when the hook mounts again before the end of the task', () => {
         const first = renderHook(() => useBackgroundClouds(['a']));
         first.unmount();

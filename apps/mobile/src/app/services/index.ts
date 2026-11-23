@@ -24,13 +24,6 @@ export * from '../database';
 export * from './deeplinks/DeeplinkService';
 export * from './deeplinks/DeepLinkManager';
 
-// Commonly used services.
-//
-// SQLite-backed services (sqliteDatabase, cacheCrudService, cacheSearchService, testRecordService)
-// are intentionally NOT re-exported here: a module-level `export const x =
-// provider.x` would invoke the lazy getter at barrel load — which happens during boot — and open
-// SQLite on the pre-webview critical path. Access them via `provider.x` at the point of use so the
-// database opens only when first needed (first web cache message). See boot-optimization.md 4.4.
 export const logger = provider.logService;
 export const logUploadQueueService = provider.logUploadQueueService;
 export const pendingReportQueueService = provider.pendingReportQueueService;

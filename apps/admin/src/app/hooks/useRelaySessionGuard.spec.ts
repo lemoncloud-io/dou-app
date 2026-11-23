@@ -1,15 +1,3 @@
-/**
- * `hooks/useRelaySessionGuard.spec.ts`
- *
- * The probe/refresh BODY is runtime-core's `RelayCredentialGuard` (reached through
- * `runtime.session.useSessionStalenessGuard`) and is covered by its own tests — offline skip, the
- * preemptive floor, and why a failed refresh is only logged.
- *
- * What is admin's and therefore tested here is the POLICY. The guard refreshes and never ends a
- * session — it no longer has a teardown option at all: that was a second, speculative logout engine
- * ("the refresh did not run" is a statement about the socket, not the session), and the server's own
- * verdict (`authFailureReaction`) is the one that ends sessions.
- */
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 

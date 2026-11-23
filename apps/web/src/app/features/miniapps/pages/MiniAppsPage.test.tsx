@@ -79,7 +79,7 @@ const HELD = miniApp('coupon', { status: 'held' });
 
 const row = (name: string) => screen.queryByRole('button', { name: new RegExp(`${name}`) });
 const listed = () =>
-    [...document.querySelectorAll('[data-mini-app-id]')].map(node => node.getAttribute('data-mini-app-id'));
+    Array.from(document.querySelectorAll('[data-mini-app-id]')).map(node => node.getAttribute('data-mini-app-id'));
 
 const show = async (apps: DomainMiniApp[]) => {
     mockRepo.listMiniApps.mockResolvedValue(apps);

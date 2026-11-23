@@ -11,7 +11,6 @@ import { createMirrorConversation } from './conversation';
 import { createMirrorEngine } from './mirrorEngine';
 import type { RuntimeMirrorPort } from './port';
 
-/** A runtime with the members these tests reach, each recording how it was called. */
 const fakeRuntime = () => {
     const sessionListeners = new Set<() => void>();
     const logoutListeners = new Set<() => void>();
@@ -31,9 +30,6 @@ const fakeRuntime = () => {
     let refused: string[] = ['ch-gone'];
     const listeners = new Map<string, (...args: unknown[]) => void>();
     const stopped: string[] = [];
-    // Each write receipt's delivery, in the order the writes were made: the test settles it as the
-    // server would. Handled at once, as the outbox's own promise is, so a refusal no one waits for is
-    // not an unhandled rejection.
     const deliveries: { resolve: () => void; reject: (error: unknown) => void }[] = [];
     const writeReceipt = async () => {
         const delivered = new Promise<void>((resolve, reject) => deliveries.push({ resolve, reject }));
@@ -92,7 +88,6 @@ const fakeRuntime = () => {
                 changeSession({ auth: { ...session.auth, isAuthenticated: false }, relayUser: null });
                 logoutListeners.forEach(listener => listener());
             }),
-            // The relay stopped delegating every paired cloud: the runtime tears them down and names them.
             checkPairedClouds: jest.fn(async () => {
                 const ended = session.pairing.cloudIds;
                 changeSession({ pairing: { ...session.pairing, cloudIds: [] } });
@@ -177,7 +172,6 @@ describe('createMirrorEngine — every member the in-process engine has', () => 
 
 describe('createMirrorEngine — the session', () => {
     it('reads the hello snapshot, and a command resolves with its change already mirrored', async () => {
-        // A shell whose own push would wait past the answer: the answer must not overtake it.
         const { mirror } = await setup({ schedule: run => void setTimeout(run, 0) });
         expect(mirror.session.snapshot().auth.isAuthenticated).toBe(false);
         const seen: boolean[] = [];
@@ -185,7 +179,6 @@ describe('createMirrorEngine — the session', () => {
 
         await expect(mirror.commands.loginGuestByDevice('dev-1')).resolves.toEqual({ id: 'dev-1' });
 
-        // No turn passed between the answer and this line: the push came before it.
         expect(mirror.session.snapshot().auth.isAuthenticated).toBe(true);
         expect(mirror.session.snapshot().relayUser).toEqual({ id: 'dev-1' });
         expect(seen).toEqual([true]);
@@ -213,8 +206,6 @@ describe('createMirrorEngine — the session', () => {
         expect(heard).toEqual(['null']);
     });
 
-    // The page runs the paired-cloud check on a launch the runtime owns too (apps/web's
-    // useCloudCredentialRenewal): it reads the paired clouds off the mirrored session and asks the runtime.
     it('runs the paired-cloud check on the runtime: the paired clouds mirrored, the ended ones answered', async () => {
         const { fake, loopback, mirror } = await setup();
         fake.changeSession({ pairing: { ...fake.raw.session.snapshot().pairing, cloudIds: ['c9'] } });
@@ -317,9 +308,7 @@ describe('createMirrorEngine — calls and streams', () => {
     it("reaches a channel's webhooks, which the room settings read as soon as an owner opens them", async () => {
         const { fake, mirror } = await setup();
 
-        await expect(mirror.data.repositories().webhook.list('ch1')).resolves.toEqual([
-            { id: 'w1', channelId: 'ch1' },
-        ]);
+        await expect(mirror.data.repositories().webhook.list('ch1')).resolves.toEqual([{ id: 'w1', channelId: 'ch1' }]);
         expect(fake.raw.data.repositories().webhook.list).toHaveBeenCalledWith('ch1');
     });
 
@@ -429,7 +418,6 @@ describe('createMirrorEngine — calls and streams', () => {
 });
 
 describe('createMirrorEngine — write receipts', () => {
-    /** Whether `promise` has settled yet, without waiting for it. */
     const settledYet = (promise: Promise<unknown>) => {
         let settled = false;
         promise.then(
@@ -444,7 +432,6 @@ describe('createMirrorEngine — write receipts', () => {
         const receipt = await mirror.data.repositories().join.updateJoin({ channelId: 'ch1', notify: 'none' } as never);
         expect(fake.raw.data.repositories().join.updateJoin).toHaveBeenCalledWith({ channelId: 'ch1', notify: 'none' });
 
-        // A promise, as in-process: a screen chains `.catch` on it.
         expect(typeof receipt.delivered.catch).toBe('function');
         const delivered = settledYet(receipt.delivered);
         await loopback.settle();
@@ -492,7 +479,6 @@ describe('createMirrorEngine — write receipts', () => {
     it('calls the method as before on an app that does not stream receipts, and resolves delivered at once', async () => {
         const { fake, loopback, mirror } = await setup();
         mirror.dispose();
-        // An app from before: it has the method as a call only, and refuses the stream.
         const refusedStreams: string[] = [];
         const port: RuntimeMirrorPort = {
             ...loopback.port,
@@ -509,7 +495,6 @@ describe('createMirrorEngine — write receipts', () => {
         expect(fake.raw.data.repositories().join.updateJoin).toHaveBeenCalledTimes(1);
         await expect(receipt.delivered).resolves.toBeUndefined();
 
-        // The refusal is remembered: each later write is one call, and the missing delivery is logged once.
         const next = await older.data.repositories().join.updateJoin({ channelId: 'ch1', nick: 'c' } as never);
         await older.data.repositories().join.updateJoin({ channelId: 'ch2', nick: 'd' } as never);
         expect(fake.raw.data.repositories().join.updateJoin).toHaveBeenCalledTimes(3);

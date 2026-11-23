@@ -1,10 +1,3 @@
-/**
- * `stats/PerfDetails.spec.tsx`
- *
- * The performance-details view against a fake list endpoint: each section reads its own statistic,
- * an empty statistic shows its empty state rather than zeros, and the message-send split follows
- * the URL.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -24,7 +17,6 @@ vi.mock('../api/reportLogApi', async () => {
 const { useConsoleNav } = await import('../hooks/use-console-nav');
 const { PerfDetails } = await import('./PerfDetails');
 
-// 2026-10-26 14:30 KST.
 const NOW = Date.parse('2026-10-26T14:30:00+09:00');
 const MIN = 60_000;
 
@@ -135,9 +127,7 @@ describe('PerfDetails', () => {
 
         const api = sectionOf('서버 요청');
         const endpointRow = within(api).getByText('/clouds/:id').closest('tr') as HTMLElement;
-        // One kept record at a 20% rate stands for five requests.
         expect(within(endpointRow).getByText('5')).toBeTruthy();
-        // A single sampled request: its 100% is shown, but not highlighted as a failing endpoint.
         expect(within(endpointRow).getByText('100%').className).not.toContain('text-red-600');
         expect(within(endpointRow).getByText('중계 서버')).toBeTruthy();
 

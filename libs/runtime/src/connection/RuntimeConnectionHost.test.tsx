@@ -10,13 +10,9 @@ import { coreEngine } from '@chatic/runtime-core/engine';
 import type { RuntimeEngine } from '@chatic/runtime-core';
 import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 
-// The hooks start their work from the engine the entry point hands over; these use the core one.
 beforeEach(() => initAppRuntime(coreEngine));
 afterEach(() => resetRuntimeEngine());
 
-// The session controller is runtime-core's and has its own tests; here it is a fake whose readiness
-// the test sets, so the host's gate and the ONE difference between the two hosts — whether the guest
-// keep-alive starts — are observable.
 let mockReady = true;
 const mockReadyListeners = new Set<() => void>();
 const mockInitialize = jest.fn(() => Promise.resolve());
@@ -38,13 +34,10 @@ const setReady = (ready: boolean): void => {
     act(() => mockReadyListeners.forEach(listener => listener()));
 };
 
-// The device id the host hands the controller: the page's own id, unless the shell injected one.
 jest.mock('../session/hooks/app/useDynamicDeviceId', () => ({
     resolveDeviceIds: () => ({ deviceId: 'device-1' }),
 }));
 
-// What the controller drives, stubbed where it would reach a server. The controller itself is real:
-// these tests are about the host starting and stopping it at the right moments.
 jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({
     bootstrapSocketConnection: jest.fn().mockResolvedValue(jest.fn()),
 }));
@@ -75,8 +68,6 @@ jest.mock('@chatic/sync/runtime', () => ({
     startBackgroundReceive: () => mockStartReceive(),
 }));
 
-// SPREAD the real module: the keep-alive and init hooks are mocked, but the session barrel still
-// re-exports the rest of the store and a narrow mock would leave those undefined.
 jest.mock('@chatic/session/store', () => ({
     ...jest.requireActual('@chatic/session/store'),
     getCommittedCloudId: jest.fn().mockReturnValue(null),
@@ -102,15 +93,6 @@ beforeEach(() => {
     mockedCommitted.mockReturnValue(null);
 });
 
-/**
- * The two hosts are one component with a single switch flipped. That switch is these two cases —
- * apart from turning guest keep-alive on or off, the init gate, the socket auth loop, and
- * reauthentication are all identical.
- *
- * This is why they're split by name: if it were a prop with a default, the moment a caller forgot
- * to pass the prop it would silently get a guest session. That regression has no symptom on
- * screen, so the test is the only line of defense.
- */
 describe('두 호스트의 유일한 차이 — 게스트 keep-alive', () => {
     it('RuntimeConnectionHost는 게스트를 살려 둔다', () => {
         render(<RuntimeConnectionHost />);
@@ -126,8 +108,6 @@ describe('두 호스트의 유일한 차이 — 게스트 keep-alive', () => {
 });
 
 describe('RuntimeConnectionHost', () => {
-    // An app mounts the host and passes NOTHING: the slots come from the session, the delegate from
-    // the controller.
     it('binds the slots it derives from the session, with a delegate of its own', () => {
         render(
             <RuntimeConnectionHost>
@@ -188,10 +168,6 @@ describe('RuntimeConnectionHost', () => {
         expect(detachBoot).toHaveBeenCalledTimes(1);
     });
 
-    // The scenario the in-commit flush exists for: something above the host already listens to the
-    // session, so React schedules its render before the controller hears the signal. The screens then
-    // commit — and run their effects — in that render. The pass has to have moved the active slot by
-    // the time they do.
     it("moves the active slot before the children's effects on a later change too", async () => {
         const subscribeCloud = (listener: () => void) => sessionSignal.subscribe(['cloud:token'], listener);
         const readSlots = () => getSocketSlotContext();
@@ -208,7 +184,6 @@ describe('RuntimeConnectionHost', () => {
             }, [slots]);
             return null;
         };
-        // The session gate opens after the first render, so the controller subscribes after `Above`.
         mockReady = false;
         const tree = () => (
             <Above>
@@ -232,8 +207,6 @@ describe('RuntimeConnectionHost', () => {
         expect(activeSeenByChild).toEqual([null, 'cloud-a']);
     });
 
-    // desktop-web runs under StrictMode: mount → unmount → mount. The second mount re-bootstraps on
-    // the same clients, the first mount's boots detach themselves, and nothing is torn down.
     it('survives StrictMode: one receive loop and one keep-alive left running, no socket destroyed', async () => {
         const detachBoots: jest.Mock[] = [];
         mockedBootstrap.mockImplementation(() => {
@@ -254,8 +227,6 @@ describe('RuntimeConnectionHost', () => {
         expect(detachBoots).toHaveLength(2);
         expect(detachBoots.map(detach => detach.mock.calls.length)).toEqual([1, 0]);
         expect(getSocketManager().destroy).not.toHaveBeenCalled();
-        // The session controller is asked twice and stopped once; the controller itself makes the second
-        // init and the second guest login join the first (its own tests pin that).
         expect(mockInitialize).toHaveBeenCalledTimes(2);
         expect(mockKeepAlive).toHaveBeenCalledTimes(2);
         expect(mockStopKeepAlive).toHaveBeenCalledTimes(1);

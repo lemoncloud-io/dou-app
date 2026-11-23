@@ -46,7 +46,7 @@ describe('InviteRepository', () => {
 
         const result = await repository.list();
 
-        expect(result).toBe(invites); // pass-through: the same reference — nothing is reordered or remapped
+        expect(result).toBe(invites);
     });
 
     it('list delegates with null when there is no filter', async () => {
@@ -133,7 +133,6 @@ describe('InviteRepository', () => {
         await repository.list();
         await repository.list();
 
-        // Acceptance happens on the other device and there is no notification packet — if the cache were authoritative you would only ever see a stale card.
         expect(inviteSocketDataSource.listInvites).toHaveBeenCalledTimes(2);
     });
 
@@ -181,10 +180,6 @@ describe('InviteRepository', () => {
         });
     });
 
-    // If the only thing that fills the cache is the list mirror, the cache trails this device's own
-    // actions by one round trip — an invite just issued is absent locally (a cold boot or offline
-    // waiting screen comes up empty), and an invite just cancelled claims to be pending until the next
-    // list. So every server answer about an invite I own is mirrored.
     describe('cache mirroring for command responses', () => {
         it('the create response is cached with credentials stripped (it does not wait for the next list)', async () => {
             const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
@@ -200,7 +195,6 @@ describe('InviteRepository', () => {
             expect(written).toEqual([expect.objectContaining({ id: 'invt-9', state: 'pending' })]);
             expect(written[0]).not.toHaveProperty('code');
             expect(written[0]).not.toHaveProperty('deeplink');
-            // The caller has to hand the deep link on, so the return value is the untouched original.
             expect(result).toBe(view);
         });
 
@@ -217,9 +211,6 @@ describe('InviteRepository', () => {
             expect(written).toEqual([expect.objectContaining({ id: 'invt-9', state: 'canceled', canceledAt: 7 })]);
         });
 
-        // This is a recipient-side command. The recipient's invite.list does not return that row (the
-        // list holds the inviter's cards), so caching it would only create an orphan row nobody reads
-        // again.
         it('accept/reject are not mirrored (recipient-side commands)', async () => {
             const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
                 cid: 'default',
@@ -246,8 +237,6 @@ describe('InviteRepository', () => {
             expect(inviteLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
         });
 
-        // A response with no id would be stored under an empty-string id and collide with the next row
-        // on the same key — rather than create a poisoning row, it is simply skipped.
         it('a response with no id is not cached', async () => {
             const { repository, inviteSocketDataSource, inviteLocalDataSource } = createRepository({
                 cid: 'default',
@@ -366,7 +355,6 @@ describe('InviteRepository', () => {
     });
 });
 
-/** Where a late `invite.list` answer actually lands — a real local data source on partitioned storage. */
 describe('InviteRepository — the scope an answer is written under', () => {
     const createScopedRepository = (initial: Record<string, string>) => {
         const context = new DataContextHolder(initial);

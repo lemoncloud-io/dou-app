@@ -9,10 +9,6 @@ import { useGlobalSession } from './session/readers/useGlobalSession';
 import { useSessionAuth } from './session/readers/useSessionAuth';
 import { useSessionIdentity } from './session/readers/useSessionIdentity';
 
-// The readers these hooks subscribe to are runtime-client's (`session/sessionReads`); this is the
-// React side — that a hook re-renders with what the engine reports next.
-// The session the engine hands over is the only thing these read: an engine with a fake session view,
-// and nothing of the stores.
 const session = fakeSessionView();
 const base = emptySessionSnapshot();
 const signedIn = {

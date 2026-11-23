@@ -1,10 +1,3 @@
-/**
- * `components/memberships/RefundPanel.spec.tsx`
- *
- * The refund panel as an operator meets it: closed on Production, open on Development, a reason
- * required before the dialog will fire, and the call aimed at exactly the relay the dialog names.
- * The relay itself is mocked — nothing here can move money.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -53,7 +46,6 @@ const refundButton = () => screen.getByRole('button', { name: 'Refund web subscr
 beforeEach(() => {
     refundSubscriptionByAdmin.mockReset();
     fetchAdminClouds.mockResolvedValue({ list: [] });
-    // Operators' `.env` usually names Production; the console reaches Development by stage switch.
     vi.stubEnv('VITE_DOU_ENDPOINT', PROD);
     vi.stubEnv('VITE_D1_RELAY_ENDPOINT', DEV);
     vi.stubEnv('VITE_V1_RELAY_ENDPOINT', PROD);
@@ -150,7 +142,6 @@ describe('MembershipDetailPanel refund section', () => {
         expect(screen.getByText('Web subscription refund')).toBeTruthy();
     });
 
-    // Closing the drawer under an open confirmation would unmount a panel whose refund may be in flight.
     it('leaves Escape to an open confirmation instead of closing the drawer', () => {
         const onClose = vi.fn();
         withClient(

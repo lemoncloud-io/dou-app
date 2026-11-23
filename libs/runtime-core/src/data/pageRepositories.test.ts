@@ -12,7 +12,6 @@ class FakeAuthRepository {
     get secretLength() {
         return this.secret.length;
     }
-    // A method that reaches another of its own through `this`.
     sendTwice = async () => {
         await this.sendPhoneCode();
         return this.sendPhoneCode();

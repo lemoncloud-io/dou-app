@@ -1,39 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { dirname, join, normalize, relative } from 'path';
 
-/**
- * There is no import cycle inside this package, or inside any package cut from it.
- *
- * **Why an absence check and not a lint rule.** Both cycles this test was written for were invisible
- * until the graph was drawn. `sessionDelegate` → `renewers` → `renewCloudSession` → `sessionDelegate`
- * was introduced by ADR-0076 itself, while its own doc argued at length about which folder may import
- * which — and `renewers.ts` instantiates two classes at module load, so that ring had construction
- * inside it. The other spanned both engines (`socket/runtime` → `SyncManager` → `plans` →
- * `data/runtime` → `DataManager` → `socketFactory` → `socket/runtime`) and survived every review of
- * the two ADRs that built it.
- *
- * Neither broke at runtime — every offending reference sat inside a function body, so the
- * partially-initialised module was fully populated by the time anything read it. That is exactly what
- * makes them dangerous: the failure appears later, when someone moves one of those reads to module
- * scope and gets `undefined` in an order-dependent way.
- *
- * Same reasoning as [`refreshAbsence.test.ts`](./refreshAbsence.test.ts) and
- * [`authUpdateAbsence.test.ts`](./authUpdateAbsence.test.ts): the path-based lint rule this
- * package used to carry died silently when a symbol moved, and an absence check has no such failure
- * mode — it re-measures the tree every run. The one-off script that first found these cycles got the
- * count WRONG (a greedy regex swallowed intermediate import lines), which is the other half of the
- * argument for measuring in the suite rather than by hand.
- *
- * Scope: relative `import` statements between source files, which is where a cycle can carry a value.
- * Statement-level `import type` is erased at compile time (that erasure is load-bearing — see
- * `http/credentialRecovery.ts`, now in `@chatic/transport`, whose type-only import was the one
- * thing keeping `data` → `http` → `session` open) and is therefore not an edge. Tests are excluded:
- * a test importing its own subject is not a cycle in the shipped graph.
- *
- * The packages cut from this one are walked too, each as its own graph: a package import is not an
- * edge here, and the package graph already refuses a cycle between packages. A module that leaves
- * @chatic/runtime takes no exemption with it, so each one extracted is added to the list.
- */
 const LIBS = join(__dirname, '..', '..');
 const ROOTS = ['runtime', 'runtime-client', 'runtime-core', 'runtime-web', 'session', 'transport', 'sync', 'auth'].map(
     lib => join(LIBS, lib, 'src')
@@ -47,7 +14,6 @@ const sourceFiles = (dir: string): string[] =>
         return [path];
     });
 
-/** Mirrors the resolution a bundler does for a relative specifier: file first, then the directory barrel. */
 const resolve = (specifier: string, from: string): string | null => {
     const base = normalize(join(dirname(from), specifier));
     for (const candidate of [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts'), join(base, 'index.tsx')]) {
@@ -64,22 +30,14 @@ const valueImports = (file: string): string[] => {
     const source = readFileSync(file, 'utf8');
     const edges: string[] = [];
 
-    // One statement at a time. `[^;]` is the bound — every import in this package ends in a
-    // semicolon — so a match can never run from one `import` past its own statement into a later
-    // one's specifier. An earlier attempt used a lazy `[\s\S]*?` instead and did exactly that:
-    // it read `import { logger } from '@chatic/bridges'` followed by `import type { X } from './x'`
-    // as a single value edge to `./x`. Statement bounds are what make the `type` check below mean
-    // anything.
     const clauses = /(?:^|\n)\s*import\b([^;]*?)from\s*'([^']+)'/g;
     for (const [, clause, specifier] of source.matchAll(clauses)) {
-        if (/^\s*type\s/.test(clause)) continue; // erased at compile time — not an edge
-        if (!specifier.startsWith('.')) continue; // package import — outside this graph
+        if (/^\s*type\s/.test(clause)) continue;
+        if (!specifier.startsWith('.')) continue;
         const target = resolve(specifier, file);
         if (target) edges.push(target);
     }
 
-    // Side-effect imports (`import './x';`) carry no specifier but do carry the module's load, so
-    // they are edges too. Kept as its own pass because the clause form above requires a `from`.
     const bare = /(?:^|\n)\s*import\s*'(\.[^']+)'/g;
     for (const [, specifier] of source.matchAll(bare)) {
         const target = resolve(specifier, file);
@@ -89,7 +47,6 @@ const valueImports = (file: string): string[] => {
     return edges;
 };
 
-/** Tarjan — reports every strongly connected component larger than one node. */
 const findCycles = (graph: Map<string, string[]>): string[][] => {
     const index = new Map<string, number>();
     const low = new Map<string, number>();
@@ -117,7 +74,6 @@ const findCycles = (graph: Map<string, string[]>): string[][] => {
         }
         low.set(node, lowest);
 
-        // Root of its component: everything above it on the stack belongs to that component.
         if (lowest === own) {
             const component: string[] = [];
             for (let member = stack.pop(); member !== undefined; member = stack.pop()) {
@@ -142,7 +98,6 @@ describe('runtime — 순환 import 부재', () => {
             .map(component => component.map(file => relative(LIBS, file)).sort())
             .sort((left, right) => left[0].localeCompare(right[0]));
 
-        // Compared as whole components so a regression names the ring instead of only failing a count.
         expect(cycles).toEqual([]);
     });
 });

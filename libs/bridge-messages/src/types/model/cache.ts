@@ -9,53 +9,34 @@ import type {
 } from '@lemoncloud/chatic-socials-api';
 import type { CloudView, MyInviteView, MySiteView } from '@lemoncloud/chatic-backend-api';
 
-/** Definition of cacheable domain types */
 export type CacheType = 'channel' | 'chat' | 'user' | 'join' | 'site' | 'invitecloud' | 'profile' | 'meta' | 'invite';
 
-/**
- * Per-domain cache contract version number (ADR-0053).
- *
- * The app declares the version it **implements**, and the web declares the version it
- * **requires**, each independently. If both sides imported the same constant, it would become
- * an identity rather than a negotiation, so here we share **only the type**, not the value.
- * Version numbers increase monotonically and are unrelated to the global SQLite schema number or
- * to when a domain was added.
- *
- * See libs/runtime-web/docs/cache/README.md for the full design.
- */
 export type CacheDomainVersions = Partial<Record<CacheType, number>>;
 
-/** Common metadata for paging and list handling */
 export type PagingMeta = {
-    page?: number; // Page number
-    cursorNo?: number; // Cursor number
-    limit?: number; // Items per page
-    total?: number; // Total item count
-    readNo?: number; // Number of the last message read
+    page?: number;
+    cursorNo?: number;
+    limit?: number;
+    total?: number;
+    readNo?: number;
     took?: number;
 };
 
-/** Cache expiration/sync metadata */
 export type CacheTtlMeta = {
     lastSyncedAt: number;
     expiresAt: number;
 };
 
-/** Common meta base for cache models */
 export type CacheViewBase = {
     __cacheMeta?: CacheTtlMeta;
 };
 
-/** Common base fields for every cache message */
 type CacheBasePayload<K extends CacheType> = {
-    type: K; // Domain type
-    cid: string; // Cloud ID
-    uid: string; // User ID;
+    type: K;
+    cid: string;
+    uid: string;
 };
 
-/*
- * Maps each CacheType to the data structure it actually holds.
- */
 export type CacheModelMap = {
     channel: CacheChannelView;
     chat: CacheChatView;
@@ -71,7 +52,6 @@ export type CacheModelMap = {
 export type CacheModelOf<TType extends CacheType> = CacheModelMap[TType];
 export type CacheQueryOf<TType extends CacheType> = CacheQueryMap[TType];
 
-/** Cloud/server info view */
 export type CacheCloudView = CloudView &
     CacheViewBase & {
         id: string;
@@ -79,133 +59,59 @@ export type CacheCloudView = CloudView &
         backend?: string;
         wss?: string;
         cid: string;
-        /** Classifies a cloud as invited ('invited') vs. self-owned ('owner') */
         cloudType?: 'invited' | 'owner';
-        /**
-         * Device user ids that accepted an invite into this cloud — the `delegatorId` each
-         * acceptance was bound to. The cache is one partition per device, not per user, and apps/web
-         * reads this to keep one device user's invited cloud out of another's list; desktop-web and
-         * the runtime's push recovery neither write nor read it yet. Absent on rows written before
-         * it existed, which therefore cannot be attributed.
-         */
         acceptedBy?: string[];
     };
 
-/** Channel info view (includes Site ID and domain fields) */
 export type CacheChannelView = ChannelView &
     CacheViewBase & {
         id: string;
         cid: string;
         sid: string;
         isNotificationEnabled: boolean;
-        /**
-         * Activity time used for sorting. **Optional — nothing currently populates this value.**
-         *
-         * It used to be declared required, but since no mapper or data source used it, including
-         * `toDomainChannel` — that left `libs/data` failing to build (and that stale `dist` was
-         * leaving phantom type errors in `apps/web`) — and having a mapper fill it in arbitrarily
-         * isn't the answer either: the chat cache owns "when a channel last moved" (ADR-0057), so
-         * `toDomainChannel` deliberately does not read `lastChat$` — folding a server summary in
-         * here would give one channel two different answers to "when did it last move." Its only
-         * reader (the desktop-web ChannelList) already reads
-         * `lastChat?.createdAt ?? channel.lastActivityAt`, and `relativeTime` renders an empty
-         * string when it receives `undefined`. The stored shape doesn't change, so there's no
-         * reason to bump the cache contract version (ADR-0053) either.
-         */
         lastActivityAt?: number;
     };
 
-/**
- * One attachment slot of a message that has not been sent yet. Local names only — never the server's
- * `status` / `error` / `url` / `thumbnail` — because the server's `'failed'` is terminal while a
- * local `'failed'` can be retried, and a reader that met the same name would take one for the other.
- * The shell stores the row as-is, so this needs nothing from it.
- */
 export type PendingUploadSlot = {
     localStatus: 'sending' | 'failed';
-    /** An object URL for this page only; it dies with the page and is never sent anywhere. */
     localThumbUrl: string;
-    /**
-     * A video or document's own details, for the card drawn while it is sent — it has no preview.
-     * Absent on an image slot, and on any slot written before other kinds could be sent.
-     */
     localName?: string;
     localContentType?: string;
     localSize?: number;
 };
 
-/**
- * The kinds a message's media index entry can be. Stored as text in the shell's `chat_media` table and
- * in IndexedDB rows, so a value here is part of both schemas: adding one is a schema decision, renaming
- * one strands every row written under the old name.
- */
 export type ChatMediaKind = 'image' | 'video' | 'file' | 'audio' | 'link';
 
-/** Every kind, in the order a count lists them. */
 export const CHAT_MEDIA_KINDS: readonly ChatMediaKind[] = ['image', 'video', 'file', 'audio', 'link'];
 
-/**
- * One entry of a message's media index: an attachment or a link the message carries.
- *
- * Computed once by the web (`chatMediaEntries` in `@chatic/data`) and carried on the chat row it came
- * from; the stores only store and index it, so the shell never has to know the rules.
- */
 export interface ChatMediaEntry {
     kind: ChatMediaKind;
-    /**
-     * Order within the message. An attachment is its `upload$$` position (0..n-1), a link is n plus its
-     * order in the text — so attachments come first and the order survives a re-index.
-     */
     idx: number;
-    /** An attachment's server upload id, or a link's URL. */
     ref: string;
 }
 
-/** Chat message view (includes send status and domain fields) */
 export type CacheChatView = Omit<ChatView, 'upload$$'> &
     CacheViewBase & {
-        /** Server uploads once sent; pending slots while an image message is still on its way. */
         upload$$?: (UploadView | PendingUploadSlot)[];
         id: string;
         cid: string;
         channelId: string;
         chatNo: number;
-        isPending: boolean; // Narrowed: non-optional
-        isFailed: boolean; // Narrowed: non-optional
-        createdAtMs: number; // Added: timestamp
-        updatedAtMs: number; // Added: timestamp
+        isPending: boolean;
+        isFailed: boolean;
+        createdAtMs: number;
+        updatedAtMs: number;
         tempId?: string;
-        /**
-         * Local only: `hidden` was set by this device because a feed page answering for the row's
-         * number left it out, not by a delete the server announced. Such a mark is undone by the next
-         * server copy of the row that does not say it is hidden; a delete the server sent is not.
-         */
         hiddenByFeed?: boolean;
-        /**
-         * The message's media index entries, attached by the web on every chat write so the store can
-         * rewrite them in the same transaction as the row.
-         *
-         * Absent and empty are different answers. Absent means the writer predates the index (an
-         * older web bundle), so the store leaves the message's entries as they are; an empty list
-         * means the message has none (a deleted, unsent or text-only message), so the store removes
-         * whatever it had.
-         */
         mediaEntries?: ChatMediaEntry[];
-        /**
-         * The rules version `mediaEntries` was decided under (`CHAT_MEDIA_ENTRIES_VERSION`), written with
-         * it. Absent reads as 0. Filling a room's index (`SaveChatMediaCacheData`) writes a message's
-         * entries only while this is below the fill's version — so a write that landed after the fill
-         * read the row, a delete mark included, is never undone by it.
-         */
         mediaEntriesVersion?: number;
     };
 
-/** Site info view */
 export type CacheSiteView = MySiteView &
     CacheViewBase & {
         id: string;
         cid: string;
-        order: number; // Narrowed: non-optional
+        order: number;
     };
 
 export type CacheJoinView = JoinView &
@@ -216,13 +122,6 @@ export type CacheJoinView = JoinView &
         userId: string;
         joined: number;
         readNo: number;
-        /**
-         * Snapshot of `channel.metaNo` at the time of the read cursor (`chatNo`). The server sends
-         * it in the join payload, but the published `JoinView` doesn't declare it yet, so it's
-         * widened here. Used when computing unread counts based on user messages —
-         * `(channel.chatNo - channel.metaNo) - (join.chatNo - join.metaNo)`.
-         * Absent on rows written before the server started leaving this snapshot.
-         */
         metaNo?: number;
     };
 
@@ -232,115 +131,73 @@ export type CacheUserView = UserView &
         cid: string;
     };
 
-/**
- * Key-value metadata view scoped to cid/uid, such as sync cursors.
- * `id` is the meta kind (e.g. 'channel-sync'), and the value holds the sync cursor (`syncedAt`).
- */
 export type CacheMetaView = CacheViewBase & {
     id: string;
     cid: string;
     uid: string;
     syncedAt?: number;
-    /**
-     * Cache storage routing fingerprint at the time this cursor was saved (ADR-0053).
-     *
-     * The cursor points at a sync position in **another domain**, so if that domain moves to a
-     * different store, a leftover cursor lies and says "already synced" — the new store is empty
-     * but only deltas get fetched. If the fingerprint differs, the cursor is treated as invalid
-     * and a full resync (`since=0`) is forced.
-     */
     routing?: string;
 };
 
-/**
- * Cache view of a relay 1:1 invite card sent by the sender.
- *
- * `code` and `deeplink` are deliberately excluded — `code` is a credential, not an identifier, and
- * `deeplink` embeds it whole as `?code=<code>`. Leaving them out of this type is only a
- * compile-time contract; the actual enforcement happens in the allowlist mapper
- * (`toCacheInviteView`) right before saving.
- */
 export type CacheInviteView = Omit<MyInviteView, 'code' | 'deeplink'> &
     CacheViewBase & {
         id: string;
         cid: string;
         uid: string;
-        /** When this row was locally hidden (epoch ms). A display decision on this device, not server state. */
         dismissedAt?: number;
     };
 
-/** Display profile view per place (site) */
 export type CacheProfileView = ProfileView &
     Partial<ProfileDisplay> &
     CacheViewBase & {
         id: string;
         cid: string;
-        sid: string; // Narrowed: non-optional
+        sid: string;
         uid: string;
         userId: string;
-        updatedAtMs: number; // Added: update time
+        updatedAtMs: number;
     };
 
-/**
- * Defines which conditions (sort, filters, etc.) identify data during FetchAll/SaveAll.
- */
 export type BaseQueryOptions = {
     cid?: string;
     uid?: string;
 };
 
-/** Query for listing channels */
 export type ChannelQueryOptions = BaseQueryOptions & {
-    sid?: string; // Filter channels within a specific site
-    keyword?: string; // Search keyword
+    sid?: string;
+    keyword?: string;
 };
 
-/** Query for listing chats */
 export type ChatQueryOptions = BaseQueryOptions & {
     channelId?: string;
     sort?: 'asc' | 'desc';
     keyword?: string;
     limit?: number;
     cursorNo?: number;
-    /**
-     * Includes unsent rows (`chatNo: 0` — sending or failed) alongside the latest page.
-     *
-     * Defaults to false, in which case behavior is **exactly the same** as before this option
-     * existed. It's opt-in because `apps/web` (mobile) runs through the same executor — only the
-     * caller that turns it on sees a behavior change. See the comment on `ChatQueryExecutor` for
-     * why this is needed.
-     */
     includeUnsent?: boolean;
 };
 
 export type InviteCloudQueryOptions = BaseQueryOptions;
 
-/** Query for join info */
 export type JoinQueryOptions = BaseQueryOptions & {
     channelId?: string;
     userId?: string;
 };
 
-/** Query for user info */
 export type UserQueryOptions = BaseQueryOptions;
 
-/** Query for site info */
 export type SiteQueryOptions = BaseQueryOptions & {
-    keyword?: string; // Search keyword
+    keyword?: string;
 };
 
-/** Query for place profiles */
 export type ProfileQueryOptions = BaseQueryOptions & {
-    sid?: string; // Filter by a specific site/place
+    sid?: string;
 };
 
-/** Meta query (scoped to cid/uid, no extra filters) */
 export type MetaQueryOptions = BaseQueryOptions;
 
-/** Invite query (scoped to cid/uid, no extra filters) */
 export type InviteQueryOptions = BaseQueryOptions;
 
-/** Mapping of query options per domain */
 export type CacheQueryMap = {
     channel: ChannelQueryOptions;
     chat: ChatQueryOptions;
@@ -353,94 +210,42 @@ export type CacheQueryMap = {
     invite: InviteQueryOptions;
 };
 
-/** [Request] Fetch a single item by ID */
 export type FetchCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string };
 }[CacheType];
 
-/** [Response] Returns a single item (item is null if not found) */
 export type OnFetchCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string; item: CacheModelMap[K] | null };
 }[CacheType];
 
-/**
- * [Request] Fetch multiple items by a list of IDs.
- *
- * Produces the same result as sending `FetchCacheData` once per id, but in a single bridge
- * round trip. The cache layer's merge write (`cacheWriteMany`) has to read the existing row for
- * each item, and when that turned into N round trips, it became a real cost on native storage —
- * saving 50 chats meant 51 round trips. N in-process SQLite queries are cheap; round trips are
- * what's expensive, so only the round trips are collapsed.
- *
- * If the app doesn't know this message, the host rejects it with `NOT_FOUND` and the web falls
- * back to per-id fetches (`NativeDBAdapter.loadMany`) — since the web ships ahead of the app, this
- * fallback isn't optional, it's required.
- */
 export type FetchManyCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[] };
 }[CacheType];
 
-/**
- * [Response] Rows corresponding to the requested ids.
- *
- * IDs that don't exist aren't left as empty slots — they're simply omitted, so order and length
- * don't match the request. Since the caller re-indexes by id (`loadMany`), there's no reason to
- * send padded empty slots, and `null` entries would only add to the payload size.
- */
 export type OnFetchManyCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[]; items: CacheModelMap[K][] | null };
 }[CacheType];
 
-/**
- * [Request] Fetch a single latest preview per channel (chat only, ADR-0057).
- *
- * Instead of the home channel list reading a 30-row window per channel, this collapses the whole
- * list into a single round trip. Preview eligibility (excluding thread replies, reaction events,
- * system rows, and failed sends; including tombstones; preferring the latest unsent) is computed
- * by the app's SQL, but the web remains the final owner of that semantics — it re-validates the
- * returned rows and, if one fails, falls back to a windowed query for that channel only.
- *
- * Every phone shell the web still runs in (app 0.30.0 and later) answers it. When a read fails
- * anyway, the web answers that read with a per-channel windowed fetch
- * (`NativeDBAdapter.loadLastPerChannel` resolves `null`).
- */
 export type FetchLastChatsDataPayload = CacheBasePayload<'chat'> & { channelIds: string[] };
 
-/** Latest-preview eligibility result for one channel */
 export interface LastChatItem {
     channelId: string;
-    /** Max chatNo in that channel's cache (regardless of preview eligibility) — the baseline the web's head trigger compares against */
     lastNo: number;
-    /** Latest row that passed the preview rules (never a thread reply). null if the channel has no previewable row */
     item: CacheChatView | null;
-    /**
-     * Latest row that counts as activity — `item`'s rules with thread replies allowed — so it is `item` or
-     * newer. null if none. Absent from an app build that predates it, which the web answers with a
-     * windowed read for that channel.
-     */
     activityItem?: CacheChatView | null;
 }
 
-/**
- * [Response] Preview eligibility results for the requested channels.
- *
- * `items: null` signals a native processing error (same convention as sibling handlers) — the web
- * only falls back for that single read. A channel with no
- * cached rows isn't represented by null but by `{ lastNo: 0, item: null }`.
- */
 export type OnFetchLastChatsDataPayload = CacheBasePayload<'chat'> & {
     channelIds: string[];
     items: LastChatItem[] | null;
 };
 
-/** [Request] Fetch multiple/paged data (combines query and meta to build the cache key) */
 export type FetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         query?: CacheQueryMap[K] & PagingMeta;
     };
 }[CacheType];
 
-/** [Response] Returns multiple items */
 export type OnFetchAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         items: CacheModelMap[K][] | null;
@@ -448,17 +253,14 @@ export type OnFetchAllCacheDataPayload = {
     };
 }[CacheType];
 
-/** [Request] Save a single item */
 export type SaveCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string; item: CacheModelMap[K] };
 }[CacheType];
 
-/** [Response] Result of a single save */
 export type OnSaveCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string | null; success: boolean };
 }[CacheType];
 
-/** [Request] Save multiple items (including paging index) */
 export type SaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         query?: CacheQueryMap[K] & PagingMeta;
@@ -466,7 +268,6 @@ export type SaveAllCacheDataPayload = {
     };
 }[CacheType];
 
-/** [Response] Result of a multi-save */
 export type OnSaveAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & {
         ids: string[];
@@ -475,78 +276,48 @@ export type OnSaveAllCacheDataPayload = {
     };
 }[CacheType];
 
-/** [Request] Delete a single item */
 export type DeleteCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string };
 }[CacheType];
 
-/** [Response] Result of a single delete */
 export type OnDeleteCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { id: string | null; success: boolean };
 }[CacheType];
 
-/** [Request] Delete by multiple IDs */
 export type DeleteAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[] };
 }[CacheType];
 
-/** [Response] Result of a multi-delete */
 export type OnDeleteAllCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { ids: string[]; success: boolean };
 }[CacheType];
 
-/** [Request] Clear an entire domain table */
 export type ClearCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K>;
 }[CacheType];
 
-/** [Response] Clear result */
 export type OnClearCacheDataPayload = {
     [K in CacheType]: CacheBasePayload<K> & { success: boolean };
 }[CacheType];
 
-/**
- * [Request] Delete only the rows for one channel (ADR-0067).
- *
- * Why this is a separate message instead of adding `channelId` onto `ClearCacheData`: since the
- * web ships ahead of the app, an older app that doesn't know this field simply ignores it and
- * **clears the entire table for that scope**. A new message type cannot fail that way; every
- * phone shell the web still runs in (app 0.30.0 and later) handles it.
- */
 export type ClearCacheDataByChannelPayload = {
     [K in CacheType]: CacheBasePayload<K> & { channelId: string };
 }[CacheType];
 
-/** [Response] Result of a channel-scoped delete */
 export type OnClearCacheDataByChannelPayload = {
     [K in CacheType]: CacheBasePayload<K> & { channelId: string; success: boolean };
 }[CacheType];
 
-/** [Request] Keyword-based global search */
 export type SearchGlobalCacheDataPayload = {
     keyword: string;
     cid?: string;
     uid?: string;
 };
 
-/** [Response] List of global search results */
 export type OnSearchGlobalCacheDataPayload = {
     items: (CacheChatView | CacheChannelView | CacheSiteView)[];
 };
 
-/**
- * [Request] One page of a room's media index for one kind (chat only).
- *
- * Newest first by `chatNo`, and within one message by `idx`. `cursorNo` reads below that message
- * number; absent, from the newest. A page never splits a message: when the `limit`-th entry's message
- * has more entries of this kind, they are all included, so the page can be a little longer than
- * `limit` — the cursor is one message number, and a message cut in half would lose its tail to the
- * next page.
- *
- * Answered from the shell's `chat_media` table. A shell that has no handler for it (built before the
- * index) is detected from the handshake and never sent this; the web pages through plain chat rows
- * instead.
- */
 export type FetchChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
     channelId: string;
     kind: ChatMediaKind;
@@ -554,24 +325,17 @@ export type FetchChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
     limit: number;
 };
 
-/** One index entry with the cached row of the message it belongs to. */
 export interface ChatMediaCacheItem extends ChatMediaEntry {
     chatId: string;
     chatNo: number;
     chat: CacheChatView;
 }
 
-/** One page of a room's media index, as both stores answer it. */
 export interface ChatMediaPage {
     items: ChatMediaCacheItem[];
-    /** The page's last message number, to read the next page below it; `null` when nothing is cached below. */
     nextCursorNo: number | null;
 }
 
-/**
- * [Response] A page of the media index. `items: null` is a native processing error (the sibling
- * handlers' convention): the web answers that one read through the plain-row path.
- */
 export type OnFetchChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
     channelId: string;
     kind: ChatMediaKind;
@@ -579,21 +343,17 @@ export type OnFetchChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
     nextCursorNo: number | null;
 };
 
-/** How many index entries a room has of each kind. A kind with none is 0. */
 export type ChatMediaCounts = Record<ChatMediaKind, number>;
 
-/** [Request] Count a room's media index entries per kind (chat only). */
 export type CountChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
     channelId: string;
 };
 
-/** [Response] Per-kind counts. `counts: null` is a native processing error, answered as for the list. */
 export type OnCountChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
     channelId: string;
     counts: ChatMediaCounts | null;
 };
 
-/** One message's entries as a room fill computed them from the row it read. */
 export interface ChatMediaFillItem {
     chatId: string;
     channelId: string;
@@ -601,22 +361,11 @@ export interface ChatMediaFillItem {
     entries: ChatMediaEntry[];
 }
 
-/**
- * [Request] Write the media entries of messages a room already had cached — the first-read fill —
- * without writing their rows (chat only).
- *
- * For each item the store replaces the message's entries only while its chat row still exists and the
- * row's `mediaEntriesVersion` (absent = 0) is below `version`; otherwise it skips the item. The row's
- * own channel and number are used, and the row is never written — so its cache stamp and the screens
- * reading it are untouched, and anything written to it since the fill read it wins. A shell that does
- * not list this message is never sent it, and never filled.
- */
 export type SaveChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
     items: ChatMediaFillItem[];
     version: number;
 };
 
-/** [Response] `success: false` is a native processing error: the fill stops and the room is not marked. */
 export type OnSaveChatMediaCacheDataPayload = CacheBasePayload<'chat'> & {
     success: boolean;
 };

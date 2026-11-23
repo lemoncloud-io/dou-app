@@ -4,7 +4,6 @@ import type { LogHub } from './LogHub';
 import type { LogContext, LogContextProvider, LogEntry, LogErrorOptions, Logger, LogLevel } from './types';
 
 export interface CoreLoggerOptions {
-    /** Where published entries are broadcast. */
     hub: LogHub;
 }
 
@@ -13,52 +12,20 @@ const isLogErrorOptions = (value: unknown): value is LogErrorOptions => {
     return 'error' in value || 'data' in value;
 };
 
-/** An HTTP status is an integer in 100..599; anything else is not one, and is dropped. */
 const toHttpStatus = (value: unknown): number | undefined =>
     typeof value === 'number' && Number.isInteger(value) && value >= 100 && value <= 599 ? value : undefined;
 
-/**
- * An error code is carried as a string. SDKs hand back numbers too (`409`), and a number is kept
- * rather than dropped — the server stores the field as a keyword either way.
- */
 const toErrorCode = (value: unknown): string | undefined => {
     if (typeof value === 'string') return value || undefined;
     if (typeof value === 'number' && Number.isFinite(value)) return String(value);
     return undefined;
 };
 
-/**
- * Splits the third argument into `{ error, data }`.
- *
- * A value that is not the options shape is `data` — `logger.info(tag, msg, { kind })` means the
- * object is the payload. The one exception is `error(tag, msg, err)`, whose long-standing shorthand
- * passes the exception itself; `asError` says which reading applies.
- */
 const normalizeErrorOptions = (options: LogErrorOptions | unknown, asError: boolean): LogErrorOptions => {
     if (options === undefined || isLogErrorOptions(options)) return (options as LogErrorOptions) ?? {};
     return asError ? { error: options } : { data: options };
 };
 
-/**
- * The logging engine: stamps entries and publishes them to the hub.
- *
- * Pure in the sense that matters here — it reads no platform state itself. The
- * hub and the context provider both come from outside, so the same class serves
- * the process-wide singleton in `runtime.ts` and an isolated instance in a test.
- *
- * The engine holds no store of its own, and no sink either. It used to carry a
- * console fallback that fired whenever the hub happened to have no subscriber —
- * which meant output appeared or vanished depending on how many listeners were
- * attached at that instant, and made "detach a listener" a decision about
- * console output too. That is not pub/sub. Anything that wants to see entries
- * subscribes, including the console (principle 16).
- *
- * It holds no store either. It used to push every entry into a ring buffer,
- * which was how entries dispatched before any app wiring ran were still
- * captured. That guarantee is now the wiring order's job: the listeners
- * subscribe to the hub, and boot registers them before anything logs
- * (principle 15).
- */
 export class CoreLogger implements Logger {
     private readonly hub: LogHub;
     private contextProvider?: LogContextProvider;
@@ -67,41 +34,16 @@ export class CoreLogger implements Logger {
         this.hub = options.hub;
     }
 
-    /**
-     * Registers the source of occurrence-time context (runId, session, route,
-     * device). The host app wires this at boot, before anything logs; the pure
-     * core never reads platform state itself. Pass `undefined` to detach.
-     */
     public setContextProvider(provider: LogContextProvider | undefined): void {
         this.contextProvider = provider;
     }
 
-    /**
-     * Ingests an entry that was already stamped in another runtime (bridge
-     * relay, native emitter): published as-is, WITHOUT restamping `timestamp`
-     * or its context, so entries that crossed a boundary keep their original
-     * occurrence times and labels. (ADR-0097)
-     *
-     * The one field that may be filled in is `id`, and only when absent: the
-     * native log emitter and the web's pending-report relay hand entries over
-     * without one, and such an entry would otherwise be undedupable, so a
-     * resend would store a second document. Backfilling here gives it a stable
-     * key from the moment it enters this runtime.
-     */
     public ingest(entry: LogEntry): void {
         const stamped: LogEntry = entry.id ? entry : { ...entry, id: createLogId() };
 
         this.hub.publish(stamped);
     }
 
-    /**
-     * All four levels normalize the same third argument.
-     *
-     * `debug`/`info`/`warn` used to store it verbatim, so `{ error, data }` — the shape 42 call
-     * sites wrote — landed as `data.data` with `entry.error` empty. Unwrapping here rather than at
-     * those sites means the trap cannot come back: a new caller writing either shape gets the same
-     * entry. See {@link LogErrorOptions}.
-     */
     public debug(tag: string, message: string, options?: LogErrorOptions): void;
     public debug(tag: string, message: string, data?: unknown): void;
     public debug(tag: string, message: string, options?: LogErrorOptions | unknown): void {
@@ -141,8 +83,6 @@ export class CoreLogger implements Logger {
         const httpStatus = toHttpStatus(options.httpStatus);
         const errorCode = toErrorCode(options.errorCode);
 
-        // Context is spread first so the entry's own fields always win, and the id
-        // is issued here (not at flush) so it survives retries of the same entry.
         this.ingest({
             ...this.readContext(),
             id: createLogId(),
@@ -151,7 +91,6 @@ export class CoreLogger implements Logger {
             message,
             data: options.data,
             error: options.error,
-            // Only when set, so an entry that never had them gains no `undefined` keys.
             ...(httpStatus !== undefined ? { httpStatus } : {}),
             ...(errorCode !== undefined ? { errorCode } : {}),
             timestamp: Date.now(),
@@ -164,7 +103,6 @@ export class CoreLogger implements Logger {
         try {
             return this.contextProvider() ?? {};
         } catch {
-            // A broken provider must never take logging down with it.
             return {};
         }
     }

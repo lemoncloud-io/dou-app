@@ -1,19 +1,8 @@
-/**
- * The shell's own drawing around a sub view: a dimmed backdrop over the main window, the modal's
- * card and its bar — the title and a close control. One local page in a view of its own under the
- * page's view, so nothing the page does can draw over it or reach it. Electron-free; the window code
- * loads the HTML and calls the functions it defines.
- *
- * Every value that came from outside (a title, an error) is handed in base64 and decoded inside the
- * page, so it never becomes part of the HTML or the script. The close control navigates to
- * `SUB_WEBVIEW_CLOSE_URL`, which main catches before anything loads.
- */
 import { SUB_WEBVIEW_BAR_HEIGHT, type Rect } from './desktopSubWebViewPolicy';
 import { SUB_WEBVIEW_CLOSE_URL } from './subWebViewContract';
 
 const base64 = (value: string): string => Buffer.from(value, 'utf8').toString('base64');
 
-/** The chrome's labels, in the app's language. */
 export const subWebViewChromeLabels = (language: string): { close: string; loadFailed: string } =>
     language === 'ko'
         ? { close: '닫기', loadFailed: '페이지를 열지 못했어요.' }
@@ -57,7 +46,6 @@ window.__title("${base64(input.title)}");
 
 export const chromeDataUrl = (html: string): string => `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 
-/** The calls the window makes into the chrome page. */
 export const chromeLayoutScript = (card: Rect): string =>
     `window.__layout(${Math.round(card.x)},${Math.round(card.y)},${Math.round(card.width)},${Math.round(card.height)})`;
 export const chromeTitleScript = (title: string): string => `window.__title("${base64(title)}")`;

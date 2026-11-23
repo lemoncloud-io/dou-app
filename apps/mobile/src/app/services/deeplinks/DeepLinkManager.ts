@@ -4,23 +4,11 @@ import type { ILogService } from '../log';
 
 const LATE_URL_WAIT_MS = 500;
 
-/**
- * DeepLinkManager
- *
- * Captures raw deep link URLs from the OS.
- * Handles React Native deep link events, cold start (getInitialURL),
- * and native iOSAppDelegate universal link buffering workaround.
- */
 export class DeepLinkManager {
     private linkingSubscription: { remove: () => void } | null = null;
     private coldStartResolve: (() => void) | null = null;
     private coldStartPromise: Promise<void> | null = null;
     private lateUrlTimeout: ReturnType<typeof setTimeout> | null = null;
-    /**
-     * Resolver for the late-url wait inside getInitialUrl. A url event that lands first hands its
-     * url here instead of only clearing the timeout — clearing alone would strand getInitialUrl
-     * (and whoever awaits the initial URL) on a promise that never settles.
-     */
     private lateUrlResolve: ((url: string | null) => void) | null = null;
     private routerListener: ((url: string) => void) | null = null;
 
@@ -34,10 +22,6 @@ export class DeepLinkManager {
         this.logger?.error('DEEPLINK', `[DeepLinkManager] ${message}`, error);
     }
 
-    /**
-     * Retrieves the initial universal link buffered in AppDelegate on iOS Release builds.
-     * Workaround for standard Linking.getInitialURL() race condition.
-     */
     private async getNativeInitialUrl(): Promise<string | null> {
         if (Platform.OS !== 'ios') return null;
         try {
@@ -53,34 +37,23 @@ export class DeepLinkManager {
         }
     }
 
-    /**
-     * Completes the cold start phase and clears timeouts.
-     */
     private finishColdStart(): void {
         if (this.lateUrlTimeout) {
             clearTimeout(this.lateUrlTimeout);
             this.lateUrlTimeout = null;
         }
-        // A wait abandoned without its event or timeout (unsubscribe mid-capture) must still
-        // settle: a pending getInitialUrl would hang its caller forever.
         this.lateUrlResolve?.(null);
         this.lateUrlResolve = null;
         this.coldStartResolve?.();
         this.coldStartResolve = null;
     }
 
-    /**
-     * Wait for cold start deep link capture to complete.
-     */
     async waitForColdStart(): Promise<void> {
         if (this.coldStartPromise) {
             await this.coldStartPromise;
         }
     }
 
-    /**
-     * Resolves the initial URL for React Navigation's getInitialURL method.
-     */
     async getInitialUrl(): Promise<string | null> {
         this.trace('getInitialUrl started');
         this.coldStartPromise = new Promise<void>(resolve => {
@@ -88,7 +61,6 @@ export class DeepLinkManager {
         });
 
         try {
-            // 1. Check standard getInitialURL
             const url = await Linking.getInitialURL();
             if (url) {
                 this.trace('Cold start URL captured from Linking.getInitialURL', { url });
@@ -96,7 +68,6 @@ export class DeepLinkManager {
                 return url;
             }
 
-            // 2. Fallback to buffered native AppDelegate universal link
             const nativeUrl = await this.getNativeInitialUrl();
             if (nativeUrl) {
                 this.trace('Cold start URL captured from native module', { url: nativeUrl });
@@ -104,10 +75,6 @@ export class DeepLinkManager {
                 return nativeUrl;
             }
 
-            // 3. Fallback: wait briefly for late addEventListener 'url' event delivery. A url event
-            // that lands first resolves this wait with its url through lateUrlResolve (see
-            // subscribe) — waiting on the timeout alone would strand getInitialUrl forever once
-            // finishColdStart clears it.
             const lateUrl = await new Promise<string | null>(resolve => {
                 this.lateUrlResolve = resolve;
                 this.lateUrlTimeout = setTimeout(() => {
@@ -133,10 +100,6 @@ export class DeepLinkManager {
         }
     }
 
-    /**
-     * Subscribes to incoming URL events (warm starts / late cold starts)
-     * and forwards them to React Navigation.
-     */
     subscribe(listener: (url: string) => void): () => void {
         this.trace('Subscribing to Linking url events');
         this.routerListener = listener;
@@ -144,11 +107,6 @@ export class DeepLinkManager {
         const sub = Linking.addEventListener('url', ({ url }) => {
             this.trace('Hot/warm URL event received from OS', { url, hasRouterListener: !!this.routerListener });
             if (this.lateUrlResolve) {
-                // Cold start still inside the late-url wait: hand the url to getInitialUrl
-                // directly. finishColdStart alone only clears the timeout, which would leave
-                // the wait (and the initial-URL caller) pending forever. The url then
-                // travels the cold-start path only; forwarding it to the router listener
-                // as well would navigate to it a second time as a warm start.
                 const resolve = this.lateUrlResolve;
                 this.lateUrlResolve = null;
                 resolve(url);
@@ -172,8 +130,6 @@ export class DeepLinkManager {
                 clearTimeout(this.lateUrlTimeout);
                 this.lateUrlTimeout = null;
             }
-            // An abandoned late-url wait must settle so a concurrent getInitialUrl
-            // does not hang its caller.
             this.lateUrlResolve?.(null);
             this.lateUrlResolve = null;
         };

@@ -1,16 +1,7 @@
-/**
- * `lib/report-logs/reportLogFormat.ts`
- * - CSV export for report rows. On-screen dates and numbers live in `timeFormat.ts`.
- */
 import { eventAt, ingestLagMs } from './eventTime';
 import { formatOs } from './parseReportLog';
 import type { ReportLogRow } from './parseReportLog';
 
-/**
- * ISO 8601, or blank. `eventAt` already rejects an implausible clock, but `createdAt` is
- * exported raw — and `toISOString` throws `RangeError` past 8.64e15, which would take the
- * whole export down from inside a click handler. One bad row must not cost the CSV.
- */
 const iso = (ms?: number): string => {
     if (ms === undefined) return '';
     try {
@@ -20,12 +11,6 @@ const iso = (ms?: number): string => {
     }
 };
 
-/**
- * Both clocks are exported, plus the gap between them. A spreadsheet is where someone
- * re-sorts this data, and sorting by the wrong clock is exactly the mistake the screen
- * exists to prevent — so `eventAt` leads and `createdAt` is kept alongside it rather than
- * replaced.
- */
 const CSV_COLUMNS: Array<[header: string, get: (r: ReportLogRow) => string]> = [
     ['id', r => r.id],
     ['type', r => r.type],
@@ -38,11 +23,8 @@ const CSV_COLUMNS: Array<[header: string, get: (r: ReportLogRow) => string]> = [
     ['appVersion', r => r.appVersion ?? ''],
     ['webVersion', r => r.webVersion ?? ''],
     ['route', r => r.route ?? ''],
-    // Composed for the export's benefit: the row keeps name and version apart because the
-    // filters match them apart.
     ['os', r => formatOs(r.os, r.osVersion) ?? ''],
     ['model', r => r.model ?? ''],
-    // Statistics: blank on a log. Structured values as compact JSON, so one column holds each.
     ['kind', r => r.recordKind ?? ''],
     ['durationMs', r => (r.durationMs === undefined ? '' : String(r.durationMs))],
     ['attrs', r => (r.attrs ? JSON.stringify(r.attrs) : '')],
@@ -65,17 +47,14 @@ const CSV_COLUMNS: Array<[header: string, get: (r: ReportLogRow) => string]> = [
     ],
 ];
 
-/** Escape a CSV cell (RFC 4180: wrap in quotes, double inner quotes). */
 const csvCell = (value: string): string => `"${value.replace(/"/g, '""')}"`;
 
-/** Serialize rows to a CSV string with a header line. */
 export const rowsToCsv = (rows: ReportLogRow[]): string => {
     const header = CSV_COLUMNS.map(([h]) => csvCell(h)).join(',');
     const lines = rows.map(row => CSV_COLUMNS.map(([, get]) => csvCell(get(row))).join(','));
     return [header, ...lines].join('\n');
 };
 
-/** Trigger a client-side download of `content` as `filename`. */
 export const downloadTextFile = (filename: string, content: string, mime = 'text/csv;charset=utf-8'): void => {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -85,7 +64,5 @@ export const downloadTextFile = (filename: string, content: string, mime = 'text
     document.body.appendChild(a);
     a.click();
     a.remove();
-    // Defer revoke so the browser has committed the download (revoking synchronously
-    // after click() can cancel it in some browsers).
     setTimeout(() => URL.revokeObjectURL(url), 0);
 };

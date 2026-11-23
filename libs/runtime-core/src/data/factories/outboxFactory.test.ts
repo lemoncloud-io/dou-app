@@ -124,8 +124,6 @@ describe('isOutboxRefusal', () => {
     });
 });
 
-// What a real server refusal looks like once the socket layer has recovered its code: the message is
-// the server's own text with no status in front, and the status rides on `errorCode`.
 it('reads a server refusal by the errorCode it carries, not only by a status prefix', () => {
     const refusal = Object.assign(new Error('@chatNo[999] is invalid - overflow[5] - chat.read:error'), {
         errorCode: 400,

@@ -9,7 +9,6 @@ import { MemoryStore } from '@chatic/storage';
 import { runtimeStores } from '../storage/runtimeStores';
 import { applyPendingSyncCursorReset, getSyncCursorsValidAfter, requestSyncCursorReset } from './syncCursorWatermark';
 
-// The runtime's device store, in memory: the watermark is its only reader here.
 beforeEach(() => runtimeStores.configure({ device: new MemoryStore() }));
 
 describe('syncCursorWatermark', () => {
@@ -21,7 +20,6 @@ describe('syncCursorWatermark', () => {
 
     it("moves the watermark to the booting page's start time once a clear asked for it", () => {
         requestSyncCursorReset();
-        // The clear's own page does not move it — the in-flight write it must cover lands later.
         expect(getSyncCursorsValidAfter()).toBe(0);
 
         applyPendingSyncCursorReset(5_000);
@@ -58,7 +56,6 @@ describe('syncCursorWatermark', () => {
 
     it('keeps the request for the next boot when the watermark could not be written', () => {
         const device = new MemoryStore();
-        // A full storage: the write is dropped, as the tolerant device store drops it.
         device.set = key => {
             if (key === 'chatic.syncCursors.validAfter') return;
             MemoryStore.prototype.set.call(device, key, '1');

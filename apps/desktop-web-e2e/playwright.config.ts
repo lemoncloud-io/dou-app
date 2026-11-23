@@ -17,7 +17,13 @@ export default defineConfig({
     retries: 0,
     timeout: 90_000,
     expect: { timeout: 15_000 },
-    reporter: 'list',
+    reporter: [
+        ['list'],
+        [
+            '../web-e2e/src/reporter/evidence-reporter.ts',
+            { outputDir: '../../dist/.playwright/apps/desktop-web-e2e/evidence', featureMap: false },
+        ],
+    ],
     use: {
         ...devices['Desktop Chrome'],
         baseURL: E2E_BASE_URL,

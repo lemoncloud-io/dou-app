@@ -80,8 +80,6 @@ describe('SubscriptionHttpDataSource', () => {
         expect(gateway.adminClouds).toHaveBeenCalledWith('1000904', undefined, undefined);
     });
 
-    // The `1`/absent encoding is the wire's and lives here, mirroring `CloudHttpDataSource`'s
-    // `dryRun`. The console only ever says `auto: true`.
     it('spells `auto` for the wire — 1 when asked for, absent otherwise', async () => {
         gateway.updateMembershipByAdmin.mockResolvedValue({} as any);
 
@@ -107,8 +105,6 @@ describe('SubscriptionHttpDataSource', () => {
         });
     });
 
-    // The stage switch is the only reason these three take an endpoint at all; the app's own calls
-    // must stay on the relay they authenticated against.
     it('passes an endpoint override through to the gateway', async () => {
         gateway.adminMemberships.mockResolvedValue({ list: [] } as any);
         gateway.adminClouds.mockResolvedValue({ list: [] } as any);
@@ -157,8 +153,6 @@ describe('SubscriptionHttpDataSource', () => {
         expect(gateway.cancelSubscription).toHaveBeenCalledTimes(1);
     });
 
-    // The refund takes no query params of its own; the relay's `auto`/`dryRun` defaults are what the
-    // console wants, so only the body and the stage's endpoint travel.
     it('refundSubscriptionByAdmin — forwards the reason and the endpoint, and returns the raw view', async () => {
         gateway.refundSubscriptionByAdmin.mockResolvedValue({ status: 'expired' });
         const endpoint = 'https://api.example.com/dou-d1';

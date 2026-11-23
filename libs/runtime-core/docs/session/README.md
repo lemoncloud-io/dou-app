@@ -19,6 +19,7 @@ session/
 ├── sessionController.ts      createSessionController — initialize, isReady, the guest keep-alive
 ├── relayCredentialGuard.ts   RelayCredentialGuard — refreshes the relay credential before it lapses
 ├── cloudCredentialGuard.ts   CloudCredentialGuard — re-issues each cloud's tokens before they lapse
+├── secretStorage.ts          prepareSecretStorage and its helpers — the device vault's boot step, before createRuntime
 ├── foreground.ts             ForegroundSignal and its holder, filled when the runtime is built
 ├── snapshot.ts               SessionSnapshot and SessionView — the session as screens read it
 ├── sessionView.ts            createCoreSessionView — that view over this process's stores
@@ -189,6 +190,24 @@ all of them. A read that throws leaves the view stale, so the next call reads ag
 one snapshot, so the first read after a change builds all of it: the context (which needs the relay's
 endpoint resolvers), the uid map (which reads the token cache) and the pairing. That is why the engine
 has to be handed over, and the stores wired, before the first render — which every entry point does.
+
+**Sign-out listeners are registered again after each sign-out.** The core view keeps its own list and
+holds one callback on the relay session, which empties its list every time it runs it. That suits a
+page, where a sign-out reloads it, and not a process that lives on: the app's runtime hears every
+sign-out of its run. So the view registers its callback again, a microtask after each sign-out, once
+the relay session has emptied its list; a listener that throws is logged and does not stop the rest.
+
+### The device vault
+
+`prepareSecretStorage` (`session/secretStorage.ts`) is the boot step for an entry that keeps the
+session's secrets in a device vault — a page's or the phone app's — and it runs before
+`createRuntime`. It finishes a logout whose vault clear was never confirmed (the vault is emptied
+before it is read) and moves secrets an older build left in web storage into the vault. It never
+rejects: a vault that cannot be used is an outcome (`unavailable`), not an error. The mechanics are
+`@chatic/auth`'s `secretStorageMigration`.
+
+- `hasWebSessionCopy` / `discardWebSessionCopy` — whether web storage still holds a copy of the tokens that no boot has moved, and deleting it. The boot lets such a copy replace what the vault holds, so a page that hands the session to the vault, or whose session has moved on (a sign-out on a launch the shell owns), asks first and discards it.
+- `setSecretLogoutPending` — records in a plain store whether a logout's vault clear is still unconfirmed. The phone app keeps one plain store per side (the page's `localStorage`, the runtime's file) and either may own the next launch, so a clear one side could not confirm has to be visible to the other's boot. `true` sets the marker the boot finishes the logout from; `false` removes it once a clear is confirmed, so a later sign-in is not emptied by it.
 
 ### The commands
 

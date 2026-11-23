@@ -34,7 +34,6 @@ describe('isAllowedSubWebViewUrl', () => {
         ['a port', 'https://foo.apps.chatic.io:8443/'],
         ['userinfo before the host', 'https://user@foo.apps.chatic.io/'],
         ['userinfo that hides the real host', 'https://foo.apps.chatic.io@evil.example/'],
-        // Android reads the backslash as a slash and loads evil.example.
         ['a backslash before userinfo', 'https://evil.example\\@foo.apps.chatic.io/'],
         ['whitespace', 'https://foo.apps.chatic.io/a b'],
         ['a control character', 'https://foo.apps.chatic.io/\u0000'],
@@ -44,8 +43,6 @@ describe('isAllowedSubWebViewUrl', () => {
         expect(isAllowedSubWebViewUrl(url)).toBe(false);
     });
 
-    // The web app would boot a second copy of itself; the deep-link domain is trusted by the main
-    // WebView's bridge. Neither may ever be a sub WebView page.
     it.each(['https://dou.chatic.io/', 'https://dou-dev.chatic.io/', 'https://app.chatic.io/', 'https://x.chatic.io/'])(
         'refuses %s, which is not under a sub WebView domain',
         url => {
@@ -88,7 +85,6 @@ describe('SubWebViewService', () => {
             expect(service.current()).toBeNull();
         });
 
-        // Any plain https site opens now, each in its tier; only a url a parser could read two ways is refused.
         it('answers NOT_ALLOWED for a url a sub WebView does not open, and logs it', () => {
             const logger = createLogger();
             const service = createService(logger);
@@ -160,7 +156,6 @@ describe('SubWebViewService', () => {
             expect(events).toEqual([{ type: 'closed', viewId: 'view-1', reason: 'user', notifyHost: true }]);
         });
 
-        // The screen closes on unmount too; by then the view is usually closed already.
         it('answers NOT_OPEN, and reports nothing, for a view that is not showing', () => {
             const service = createService();
             service.open({ url: 'https://foo.apps.chatic.io/a' });
@@ -213,7 +208,6 @@ describe('SubWebViewService', () => {
             expect(events).toEqual([{ type: 'closed', viewId: 'view-1', reason: 'host', notifyHost: false }]);
         });
 
-        // Every handshake calls it, the first one included.
         it('does nothing when no view is showing', () => {
             const service = createService();
             const events = record(service);

@@ -10,7 +10,6 @@ import { toDomainProfile } from '../../domain';
 import type { DataContext } from '../../repositories/types';
 import type { ProfileSocketDomainGateway } from '../gateways';
 
-/** Result of a profile sync: domain upserts, ids to remove, and the server cursor. */
 export interface ProfileSyncDomainResult {
     upserts: DomainProfile[];
     removals: string[];
@@ -26,11 +25,6 @@ export interface IProfileSocketDataSource {
 
 const makeProfileId = (sid: string, uid: string): string => (sid && uid ? `${sid}@${uid}` : '');
 
-/**
- * Profile remote source. Single boundary where profile API views become domain
- * models keyed by the canonical `sid@uid` id; callers receive domain shapes only.
- * The request-time `context` is supplied by the caller to keep responses on scope.
- */
 export class ProfileSocketDataSource implements IProfileSocketDataSource {
     constructor(private readonly gateway: ProfileSocketDomainGateway) {}
 
@@ -68,7 +62,6 @@ export class ProfileSocketDataSource implements IProfileSocketDataSource {
         return { upserts, removals, syncedAt: remote?.syncedAt };
     }
 
-    /** Resolves the `sid@uid` identity from the view or context, then maps to a domain profile. */
     private toDomain(view: unknown, context: DataContext): DomainProfile {
         const source = (view ?? {}) as { siteId?: string; userId?: string };
         const sid = source.siteId || context.sid || '';

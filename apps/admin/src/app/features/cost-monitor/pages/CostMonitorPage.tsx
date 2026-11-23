@@ -1,12 +1,3 @@
-/**
- * `pages/cost-monitor/CostMonitorPage.tsx`
- * - What each subscription account costs: today by hour, yesterday's estimate against Cost Explorer,
- *   the slot pool, and how users, workspaces, slots and accounts connect.
- *
- * The page holds the picks; the numbers are pure functions in `lib/`, and the reads are the queries in
- * `api/costQuery.ts`. The one thing here that costs money is loading a date (metrics calls), and the
- * header counts it.
- */
 import { useMemo, useState } from 'react';
 
 import { Badge } from '@chatic/ui-kit/components/ui/badge';
@@ -197,7 +188,6 @@ export const CostMonitorPage = () => {
             </div>
 
             <div className="flex min-h-0 flex-1">
-                {/* A <section>, not a <main>: `PrivateLayout` already renders the page's `main`. */}
                 <section className="flex min-w-0 flex-1 flex-col overflow-auto">{main}</section>
                 <aside className="w-[28rem] shrink-0 overflow-auto border-l border-border xl:w-[36rem]">
                     {sel ? (

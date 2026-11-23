@@ -41,15 +41,8 @@ export * from './SyncMetaRepository';
 export * from './UserRepository';
 export * from './WebhookRepository';
 
-/** App-injected repository policies. Every field is optional — omitted means current behavior. */
 export interface DataRepositoriesOptions {
     user?: UserRepositoryOptions;
-    /**
-     * The state outbox every graph hands its state writes to (`../outbox`). The app runtime injects
-     * one, shared by every graph, whose transport waits for each cloud's socket. Omitted, a graph
-     * builds its own that sends at once and treats every failure as final — for tests and hosts with
-     * no socket runtime.
-     */
     outbox?: OutboxPort;
 }
 
@@ -81,13 +74,7 @@ const buildRepositories = (
     httpDataSources: HttpDataSources | undefined,
     graph: () => DataRepositories
 ): Omit<DataRepositories, 'withContext' | 'dispose'> => {
-    // Built ahead of the literal because the user repository loads place members' profiles through
-    // its save path.
     const profile = new ProfileRepository(socketDataSources.profile, localDataSources.profile, context);
-    // `localDataSources.chat` so a leave can purge the room's messages, not just the channel
-    // row — the cache is what the screen renders, so the server's rejoin cursor reset alone
-    // changed nothing. Built ahead of the literal because leaving a place clears the
-    // channels it took me out of through it.
     const channel = new ChannelRepository(
         socketDataSources.channel,
         localDataSources.channel,
@@ -97,11 +84,6 @@ const buildRepositories = (
     const outbox =
         options?.outbox ?? createStateOutbox({ specs: STATE_SPECS, transport: createImmediateTransport(graph) });
     return {
-        // auth/device take no local data source: they are remote-only access surfaces
-        // (session-identity commands, viewing signals) with nothing to cache. `invite` (ADR-0052)
-        // is local-first for reads of its own list but still has no cache slot for the other
-        // command-shaped calls (create/accept/cancel/reject/get). `subscription` (ADR-0070, late
-        // stage 2) is remote-only too, and HTTP-only — it has no socket data source either.
         auth: new AuthRepository(socketDataSources.auth, context, httpDataSources?.auth),
         channel,
         chat: new ChatRepository(socketDataSources.chat, localDataSources.chat, context, socketDataSources.upload),
@@ -115,10 +97,8 @@ const buildRepositories = (
         device: new DeviceRepository(socketDataSources.device, context),
         invite: new InviteRepository(socketDataSources.invite, localDataSources.invite, context),
         join: new JoinRepository(socketDataSources.join, localDataSources.join, context, outbox),
-        // Remote-only and HTTP-only like `subscription` — a pairing is a handshake, not a cached entity.
         pairing: new PairingRepository(context, httpDataSources?.pairing),
         profile,
-        // Remote-only and HTTP-only like `subscription` — a report has nothing to cache.
         report: new ReportRepository(context, httpDataSources?.report),
         place: new PlaceRepository(socketDataSources.place, localDataSources.place, context, channel),
         subscription: new SubscriptionRepository(context, httpDataSources?.subscription),
@@ -132,7 +112,6 @@ const buildRepositories = (
             httpDataSources?.user,
             profile
         ),
-        // Remote-only with no cache: the list is read on open and a token is shown once.
         webhook: new WebhookRepository(socketDataSources.webhook, context),
         syncMeta: new SyncMetaRepository(localDataSources.syncMeta, context),
     };
@@ -149,11 +128,8 @@ export const createRepositories = ({
     localDataSources: LocalDataSources;
     context: DataContextProvider;
     options?: DataRepositoriesOptions;
-    /** Optional through stage 2 — apps that haven't wired `httpFactory` yet omit this and every
-     * existing call site stays green (ADR-0070 decision 5, libs/data/docs/repositories/README.md). */
     httpDataSources?: HttpDataSources;
 }): DataRepositories => {
-    // The default outbox delivers through this very graph, which exists only once it is returned.
     let graph: DataRepositories | null = null;
     const repositories = buildRepositories(
         socketDataSources,

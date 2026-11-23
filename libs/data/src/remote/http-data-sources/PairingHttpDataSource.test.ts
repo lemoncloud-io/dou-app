@@ -59,7 +59,6 @@ describe('PairingHttpDataSource', () => {
         expect(gateway.list).toHaveBeenCalledTimes(1);
     });
 
-    // The first approved answer of a relay approval is the only one carrying the session.
     it('returns the claim answer untouched, session and all', async () => {
         const answer = {
             status: 'approved' as const,

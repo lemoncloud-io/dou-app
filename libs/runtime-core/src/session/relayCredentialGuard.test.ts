@@ -22,8 +22,6 @@ jest.mock('@chatic/auth/socket/requestRelaySessionRefresh', () => ({
 const mockAuthStatus = jest.fn();
 jest.mock('@chatic/auth/socket/authStatus', () => ({
     getAuthStatus: (...a: unknown[]) => mockAuthStatus(...(a as [])),
-    // The real predicate — the point of these cases is which STATUS the guard sees, not a re-stub
-    // of the truth table it reads.
     canRefreshThroughSocket: (status: string) => status === 'verified' || status === 'stale',
 }));
 jest.mock('@chatic/logger', () => ({
@@ -35,7 +33,6 @@ jest.mock('@chatic/session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: (...a: unknown[]) => mockTimeToExpiry(...(a as [])), isStale: jest.fn() },
 }));
 
-/** The relay slot's verification, as the manager reports it to a subscriber. */
 let relayVerified = false;
 let notifyVerified: (verified: boolean) => void = () => undefined;
 jest.mock('@chatic/transport/socket/runtime', () => ({
@@ -52,7 +49,6 @@ jest.mock('@chatic/transport/socket/runtime', () => ({
     }),
 }));
 
-/** A network and a foreground the test drives. */
 let online = true;
 let visible = true;
 let notifyForeground: () => void = () => undefined;
@@ -60,7 +56,6 @@ let notifyForeground: () => void = () => undefined;
 const warned = (message: string) =>
     (logger.warn as jest.Mock).mock.calls.some(([, text]) => typeof text === 'string' && text.includes(message));
 
-/** Every start a test made, stopped after it. */
 const started: Array<() => void> = [];
 afterEach(() => started.splice(0).forEach(stop => stop()));
 
@@ -70,7 +65,6 @@ const startGuard = (policy: SessionStalenessPolicy) => {
     return guard;
 };
 
-/** A guard with no triggers armed, checked once. */
 const runCheck = async (policy: SessionStalenessPolicy = {}) => {
     const guard = new RelayCredentialGuard({ intervalMs: null, ...policy });
     await guard.check();
@@ -83,9 +77,6 @@ beforeEach(() => {
     mockHasStored.mockReturnValue(true);
     mockIsExpired.mockReturnValue(false);
     mockRequestRefresh.mockResolvedValue(true);
-    // "Can't measure" is the default — the actual state of a test session with no credential, and in
-    // that case the preemptive refresh fires unconditionally as before (the describe below pins that
-    // contract separately).
     mockTimeToExpiry.mockReturnValue(null);
     mockAuthStatus.mockReturnValue('stale');
     relayVerified = false;
@@ -138,11 +129,6 @@ describe('RelayCredentialGuard — 프로브', () => {
     });
 });
 
-/**
- * A refresh that did not run is only ever logged — the guard has no way to end a session. What the
- * log says is the part that matters: a socket that could not carry the refresh is no evidence the
- * session is dead, and the renewer's own confirmation window owns that decision.
- */
 describe('RelayCredentialGuard — a refresh that did not run', () => {
     beforeEach(() => {
         mockIsExpired.mockReturnValue(true);
@@ -186,8 +172,6 @@ describe('RelayCredentialGuard — a refresh that did not run', () => {
 });
 
 describe('RelayCredentialGuard — forceRefresh (부팅/포그라운드 선제 갱신)', () => {
-    // The handshake's auth.update emits no token, so boot runs on the pre-sleep credential until the
-    // SDK's own 5-min timer fires. The expiry probe alone cannot see a credential that is running out.
     it('만료되지 않았어도 refresh를 요청한다', async () => {
         await runCheck({ forceRefresh: true });
 
@@ -282,7 +266,6 @@ describe('RelayCredentialGuard — 트리거', () => {
         await Promise.resolve();
         expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
 
-        // Being told again while already verified is not an edge.
         notifyVerified(true);
         await Promise.resolve();
         expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
@@ -298,15 +281,12 @@ describe('RelayCredentialGuard — 트리거', () => {
         expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
     });
 
-    // React StrictMode starts, stops and starts the same guard: the second start must not see the
-    // verified socket the first one already saw as a fresh edge.
     it('a stop and a start do not re-fire the edge the first start already saw', async () => {
         mockIsExpired.mockReturnValue(true);
         relayVerified = true;
         const guard = new RelayCredentialGuard({ intervalMs: null, checkOnRelayVerified: true });
 
         guard.start()();
-        // Let the first check finish, so the second start cannot simply join it in flight.
         await new Promise(resolve => setImmediate(resolve));
         started.push(guard.start());
         await new Promise(resolve => setImmediate(resolve));
@@ -314,9 +294,6 @@ describe('RelayCredentialGuard — 트리거', () => {
         expect(mockRequestRefresh).toHaveBeenCalledTimes(1);
     });
 
-    // The guard watches the relay slot only while it runs, so turning it on with the socket already
-    // verified is an edge: one probe, which refreshes only an expired or expiring credential. The hook
-    // it replaced tracked the slot even while disabled and fired nothing here.
     it('turning the guard on while relay is already verified probes once', async () => {
         mockIsExpired.mockReturnValue(true);
         relayVerified = true;
@@ -372,13 +349,6 @@ describe('RelayCredentialGuard — 트리거', () => {
     });
 });
 
-/**
- * The preemptive refresh **doesn't close its eyes**. It used to fire unconditionally on every edge,
- * so even a credential minted a moment ago got refreshed on every foreground return (and produced a
- * `superseded` by overlapping with the reauthentication that happens right at login).
- * Now it measures the relay credential's actual `Expiration`, and stays quiet if there's more slack
- * than one refresh cycle.
- */
 describe('RelayCredentialGuard — forceRefresh는 자격증명을 재고 나서 쏜다', () => {
     it('여유가 한 주기보다 많으면 쏘지 않는다 — 소유자가 알아서 갱신한다', async () => {
         mockTimeToExpiry.mockReturnValue(50 * 60_000);

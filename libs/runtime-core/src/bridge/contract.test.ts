@@ -167,8 +167,6 @@ describe('settleRuntimeHello', () => {
         expect(settleRuntimeHello({ failure: { code: 'NOT_FOUND' } }, [1])).toEqual({ sessionOwner: 'web' });
     });
 
-    // The shell may already own the session when its answer is lost; a page that booted its own then
-    // would be a second owner.
     it.each([
         ['a timeout', { failure: { code: 'TIMEOUT' } }],
         ['another bridge failure', { failure: { code: 'INTERNAL_ERROR' } }],
@@ -205,7 +203,6 @@ describe('the sockets and the sync engine across the bridge', () => {
         expect([...listed].sort()).toEqual(Object.keys(createCoreRuntimeConnection()).sort());
         expect(new Set(listed).size).toBe(listed.length);
         expect(CONNECTION_STREAMS).toEqual(['onServerEvent', 'observeRequests']);
-        // What crosses is a domain result: a raw request and every frame stay in the runtime's process.
         expect(CONNECTION_LOCAL_MEMBERS).toEqual(['requestOnSlot', 'onServerMessage']);
         expect(CONNECTION_TARGET).toBe('connection');
     });

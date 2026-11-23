@@ -101,7 +101,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                 flexDirection: 'column',
             }}
         >
-            {/* header */}
             <div
                 style={{
                     display: 'flex',
@@ -187,7 +186,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                 </div>
             </div>
 
-            {/* auth */}
             <div
                 style={{
                     padding: '12px 14px',
@@ -197,7 +195,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                     gap: 9,
                 }}
             >
-                {/* Button dedicated to WS connect/disconnect (independent of the token) */}
                 {connecting ? (
                     <button
                         disabled
@@ -239,7 +236,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                     </button>
                 )}
 
-                {/* Token — entered only after connecting; the Apply (Enter) button next to it is optional auth */}
                 <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', color: 'var(--sm-text-5)' }}>
                     USER TOKEN {verified ? <span style={{ color: '#3fb950' }}>· verified</span> : null}
                 </span>
@@ -307,7 +303,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                 ) : null}
             </div>
 
-            {/* actions */}
             <div
                 style={{
                     padding: '12px 14px',
@@ -318,7 +313,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                     opacity: verified ? 1 : 0.4,
                 }}
             >
-                {/* channel */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', color: 'var(--sm-text-5)' }}>
                         CHANNEL
@@ -392,7 +386,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                         </div>
                     ) : null}
                 </div>
-                {/* chat */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <span
@@ -455,7 +448,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                         </button>
                     </div>
                 </div>
-                {/* device / presence */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                     <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '.06em', color: 'var(--sm-text-5)' }}>
                         DEVICE / PRESENCE
@@ -504,7 +496,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                 </div>
             </div>
 
-            {/* metrics */}
             <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--sm-border)' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8 }}>
                     {tiles.map(t => (
@@ -576,7 +567,6 @@ export default function ClientPanel({ c, ctrl, onRemove }: ClientPanelProps) {
                 </div>
             </div>
 
-            {/* log */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div
                     style={{

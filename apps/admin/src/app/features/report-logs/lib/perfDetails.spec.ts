@@ -1,9 +1,3 @@
-/**
- * `lib/perfDetails.spec.ts`
- *
- * The performance-details numbers: outcome order, cache medians, sampled counts weighed by `1/sr`,
- * what counts as a failure, the highlight thresholds, and CLS read back from its ×1000 storage.
- */
 import { describe, expect, it } from 'vitest';
 
 import type { ReportLogRow } from './parseReportLog';
@@ -142,7 +136,6 @@ describe('endpointStats', () => {
         expect(ok).toMatchObject({ key: 'GET /ok', failing: true, slow: false });
         expect(ok.failureRate).toBeCloseTo(0.05);
         expect(slow).toMatchObject({ key: 'GET /slow', failing: false, slow: true });
-        // One record is not a failure rate: no highlight below five.
         expect(rare).toMatchObject({ key: 'GET /rare', failureRate: 1, failing: false, slow: false });
     });
 });

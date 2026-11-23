@@ -1,10 +1,3 @@
-/**
- * `components/cloud-deployments/DeployConfirmDialog.tsx`
- * - The last look before a run: which goods service, how many clouds and products, which branches.
- *
- * Shaped after the membership override confirmation. The target is named here as well as in the
- * header because admin is not deployed — it calls whatever the operator's own `.env` resolves to.
- */
 import { Badge } from '@chatic/ui-kit/components/ui/badge';
 import {
     AlertDialog,

@@ -75,7 +75,7 @@ describe('readyBackgroundConfigs', () => {
     it('leaves out a cloud whose tokens are still being prepared', () => {
         backgroundClouds.setJoined(['a', 'b']);
         entries.a = entry('wss://a', 'token-a');
-        remaining.a = 60_000; // inside the margin, and not bound: it is about to be re-issued
+        remaining.a = 60_000;
         entries.b = entry('wss://b', 'token-b');
         remaining.b = HOUR;
 

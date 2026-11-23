@@ -1,10 +1,3 @@
-/**
- * `api/memberships/refundMutation.spec.tsx`
- *
- * The refund hook's own decisions: the reason travels trimmed, the endpoint travels exactly as the
- * panel gated on it, and a success refreshes both the list and the cloud panel. A refusal has no
- * branch here — the invalidation lives in `onSuccess`, which react-query only runs on success.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -61,8 +54,6 @@ describe('useRefundSubscriptionByAdmin', () => {
         expect(invalidate).toHaveBeenCalledWith({ queryKey: adminCloudsKeys.all });
     });
 
-    // The gateway falls back to the client's own relay on an empty endpoint; the hook must not let
-    // a Production or unnamed relay through even if a caller skipped the panel's gate.
     it.each(['https://api.example.com/dou-v1', '', 'https://relay.example.com'])(
         'refuses before calling the relay when the endpoint is not Development (%s)',
         async endpoint => {
