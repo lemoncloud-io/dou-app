@@ -1,19 +1,3 @@
-/**
- * `tabs/StatsTab.tsx`
- * - The statistics tab: one period, five views of what the apps measure.
- *
- * - **Overview** — goals against their targets, and usage at a glance.
- * - **Performance by version and device** — one goal split by app version, OS or device, its daily
- *   trend, its distribution, and the slowest cases with the way to that user's timeline.
- * - **Usage patterns** — people and app opens per day and by hour, sessions per person, how long
- *   a session lasts, which screens are used, how sessions start.
- * - **Performance details** — room entry outcomes and cache use, server requests per endpoint,
- *   stalls per screen, the other web vitals.
- * - **Version adoption** — how users split across app versions, OS and devices, and how much of it
- *   can send statistics at all.
- *
- * The view is a URL parameter (`view`) like every other screen state.
- */
 import { useT } from '../../../i18n';
 import { PeriodPicker } from '../components/console/PeriodPicker';
 import { ChoiceRow, Page, Panel } from '../components/console/ui';
@@ -69,7 +53,6 @@ export const StatsTab = ({ nav }: StatsTabProps) => {
                         label={t('views.label')}
                         value={view}
                         options={STATS_VIEWS.map(value => ({ value, label: t(`views.${value}`) }))}
-                        // Each view keeps its own choices; switching drops the previous view's.
                         onChange={next =>
                             nav.patch({ view: next === 'overview' ? '' : next, goal: '', by: '', dim: '' })
                         }

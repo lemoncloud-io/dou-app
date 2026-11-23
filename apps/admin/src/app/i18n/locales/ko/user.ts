@@ -1,4 +1,3 @@
-/** Korean copy for the user-lookup tab. */
 export const user = {
     search: {
         label: '사용자 ID',

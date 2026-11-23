@@ -1,7 +1,3 @@
-/**
- * `components/cost-monitor/TenantTable.tsx`
- * - One row per AWS account: who it belongs to, its slots, the day in hours, and the four amounts.
- */
 import { KEYS } from '../lib/cost';
 import { pct, usd, type CostRow } from '../lib/costRows';
 import { cloudLabel, ownersOf, SLOT_LABEL, SLOT_TONE, tenantKind, tenantTitle } from '../lib/display';
@@ -86,8 +82,6 @@ export const TenantTable = ({ rows, clouds, actualsLoaded, selected, onSelect }:
                             key={tenant.key}
                             className={`cursor-pointer border-b border-border hover:bg-muted/40 ${tenant.key === selected ? 'bg-accent' : ''}`}
                             onClick={() => onSelect(tenant.key)}
-                            // A <tr> with only onClick leaves the detail panel unreachable without a
-                            // pointer; tabIndex + Enter/Space keeps the row a table row.
                             tabIndex={0}
                             onKeyDown={event => {
                                 if (event.key !== 'Enter' && event.key !== ' ') return;

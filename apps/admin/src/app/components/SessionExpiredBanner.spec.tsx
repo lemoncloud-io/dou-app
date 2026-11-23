@@ -1,10 +1,3 @@
-/**
- * `components/SessionExpiredBanner.spec.tsx`
- *
- * The banner exists so a server-confirmed expiry no longer THROWS an admin out of the screen they
- * were working on. So the cases here are mostly about what it does not do: it renders nothing
- * until the notice is raised, and clicking away is the admin's choice, not an automatic redirect.
- */
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';

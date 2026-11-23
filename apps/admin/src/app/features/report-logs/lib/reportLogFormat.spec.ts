@@ -1,6 +1,3 @@
-/**
- * `lib/report-logs/reportLogFormat.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { rowsToCsv } from './reportLogFormat';
@@ -38,7 +35,6 @@ describe('rowsToCsv', () => {
 
     it('escapes quotes and commas by quoting cells', () => {
         const csv = rowsToCsv([row({ title: 'a,"b"' })]);
-        // inner quotes doubled, whole cell quoted → "a,""b"""
         expect(csv).toContain('"a,""b"""');
     });
 });
@@ -62,8 +58,6 @@ describe('rowsToCsv — 확장 컬럼', () => {
     };
 
     it('exports both clocks and the gap between them', () => {
-        // A spreadsheet is where this gets re-sorted, and sorting by the wrong clock is the
-        // mistake the screen exists to prevent — so both are present, not one.
         const csv = rowsToCsv([row({ timestamp: 1_000, createdAt: 61_000 })]);
         const out = cells(csv);
 
@@ -77,7 +71,6 @@ describe('rowsToCsv — 확장 컬럼', () => {
     });
 
     it('survives an absurd device clock instead of throwing away the whole export', () => {
-        // `toISOString` throws RangeError past 8.64e15, from inside a click handler.
         const csv = rowsToCsv([row({ timestamp: 1.7e18, createdAt: 1_000 })]);
 
         expect(csv).toContain('r1');

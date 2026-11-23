@@ -107,6 +107,50 @@ every feature it had. The nav item and the page title are the same name: "로그
 | `event`                     | errors                          | the open incident (its tag)                                                        |
 | `report`                    | reports                         | the open report's id                                                               |
 
+## How the statistics are read
+
+Definitions the views rely on, for anyone checking a number:
+
+- **A group needs five measurements before it is judged.** A percentile over a handful of values is
+  mostly noise (one slow launch moves a p95 of four values by seconds), so smaller groups show their
+  percentiles with no verdict. Versions order by `x.y.z`, ignoring a pre-release or build suffix; the
+  same rule is used by the adoption view so the two never disagree about which version is newest, and
+  ties in the table put the newest version first.
+- **The distribution leaves out the slowest 1%.** Bins run from the fastest measurement to the 99th
+  percentile, so one minute-long launch does not squeeze every other value into the first bar; the
+  clipped count is named under the chart. Under 20 measurements nothing is clipped. The target line is
+  drawn only where the target falls inside the drawn range.
+- **Failure and highlight rules (performance details).** A request or send failed when its
+  `status_class` starts with 4 or 5, or its `outcome` is anything but `ok`/`success`; a record with
+  neither says nothing and counts as not failed. An endpoint is highlighted when it has at least five
+  records and a failure share of 5% or more, or a p95 of one second or more — one sampled failure is
+  not a 100% failure rate. Stall records exist only for screen visits that had a long task, so the
+  counts are visits with stalls; a `max_ms` of 0 means the stall was not the screen's own and is
+  skipped. CLS is stored times 1000 to stay an integer and divided back for display. INP is read
+  against the product's own reference (200 ms); CLS (0.1) and TTFB (800 ms) show the web-vitals "good"
+  thresholds for orientation only. Room-entry outcomes list `shown`, `empty`, `timeout`, `background`,
+  `left` first and any other value after them.
+- **Screen time comes from the next view.** A view does not know how long it will last; the following
+  one reports it as `prev_dwell_ms` for `prev_screen`. So a screen's time is read from the views that
+  followed it, and a session's last screen has none — time-spent counts can be below the view count.
+- **Server buckets are filled in, folded and never summed for people.** Empty buckets the server left
+  out are filled so a quiet day is a short column, unless a bucket sits off the expected boundary, in
+  which case they are shown as they came. The hour-of-day chart adds counts across days; distinct
+  users do not add, so only counts are folded. Charts use days for periods over two days and hours
+  otherwise.
+- **Version adoption counts people per value.** Someone who updated during the period is counted under
+  both versions, so sums run high and shares are approximate; the bars never draw past full. The view
+  asks the server for every version it will count (not just the busiest few), because a release in its
+  first hours has few records and would otherwise never be found as the newest, and then asks for
+  distinct users of the top values plus the newest app version. Every app version sends logs but
+  statistics exist only from 0.29.2, so counting statistics alone would hide the people still on an
+  older version. Records lacking the field being split on (the browser web has no app version) fall in
+  no row, so rows need not add up to the total.
+- **Reports are placed in the run they were sent during.** Issue reports carry no `runId`, so a report
+  joins the run whose span, widened by two minutes either side, holds it (the nearest edge wins when
+  runs overlap) and otherwise stands alone. A user card's device is the newest value of each device
+  field, so a run that changed mid-way shows where it ended.
+
 ## Periods against a server that filters by day
 
 The server's range filter is whole Korean days on **arrival** time (`from`/`to`, `YYYY-MM-DD`). A
@@ -137,6 +181,36 @@ many in the newest 500". Where the console reports counts it decides per screen 
 - **A backend without the aggregation** answers without `stats`; the screen falls back to rows and
   says the count may be short. Never zeros.
 
+## Reading stored records
+
+- **Screenshots live in the payload carried by `message`.** The client first sent them as the report's
+  `meta.images`, but the backend discards a client-supplied `meta`; only `message` survives. The parser
+  still probes the `meta` shapes so older records, and any backend that keeps `meta`, still show their
+  images. Only values an `<img>` can render are kept.
+- **A batch log entry is recognised by `level` and `tag` together**, which a Slack report never sets, and
+  skips the title and payload unwrap. A record with `meta: null` is "nothing stored", not corrupt.
+- **Axes are read from `meta` first, then the record's own copy.** The server hoists some fields to the
+  top of the document and a re-sent entry may have dropped either half, so both places are read.
+  Records written before the hoist have the `meta` half only.
+- **OS name and version stay apart** (`ios` and `18.0`) because they are stored and filtered
+  separately; joining them into a facet value would send `ios 18.0` at a field holding `ios` and match
+  nothing. A joined label is built only for display and CSV.
+- **A report's version and route come from its context.** The attached version info is the
+  `{ appVersion, webVersion, … }` object from the bridge messages (the unrelated `{ version, buildTime }`
+  type elsewhere in the repo does not reach here). The `path` of a report is always the feedback
+  screen itself, so the screen in question is the second-to-last `routeTrail` entry.
+- **Error categories are a frozen reader.** The `[app] <category>` title tokens come from records
+  written before the automatic reporter was retired; the list is not extended.
+- **Free-text search and facets are cheap by design.** A query matches when every whitespace-separated
+  term appears somewhere in the row (AND, not phrase); each row's search text is cached per row since it
+  includes full stack traces and runs on every keystroke. Facet values count most frequent first, ties
+  alphabetical so the list does not reshuffle as pages arrive; rows missing an axis are skipped rather
+  than counted under a placeholder. A facet with fewer than two values is hidden unless it is the
+  selected one, which a server-narrowed axis always is, so the control never disappears under the
+  operator. Facets are counted over the whole corpus, not the filtered rows, so choosing a value never
+  strands you without the others. `app`/`env` exist only on reports and `tag`/`source`/`os` only on
+  batch entries.
+
 ## The readable timeline
 
 `lib/describeRow.ts` turns a record into a sentence from its own words: the area's display name plus
@@ -160,6 +234,13 @@ Everything below describes the developer's view, which is the console as it was 
 Its filter rail shows level, the date range and search; kind (`kind` → `type`), records (`record`)
 and the facets are under a folded "Advanced filters", open when any of them is set. Below `xl` the
 rail opens as a drawer from a "Filters" button instead of disappearing.
+
+The monitor strip above it counts levels in severity order and appends any other level the app emits,
+so a level introduced next release never becomes invisible. Its spike flag compares the newest time
+bucket with the median of the buckets before it, not the mean (which the spike itself would drag up)
+and not the previous bucket alone (ordinary jitter), and needs a minimum count so one row against a
+zero baseline is not a spike. The group (aggregate) view counts over the collected rows, groups by
+whitespace-collapsed message and shows the most frequent type per group, not the first seen.
 
 ## Design principles
 
@@ -224,6 +305,33 @@ deduplication:
 - `from = limit * page`, and with one page only `from=0` is ever sent — far inside
   Elasticsearch's default `max_result_window` (10,000). Pinned by a test.
 
+- **The walk also has two backstops** so it always ends: a hard ceiling on requests per set of axes
+  (eight), and a stall rule that gives up after two consecutive pages add no new distinct rows. One
+  repeated page is tolerated, because a full page means the server has more and the offset window
+  over a non-unique `createdAt` can hand back a band it already gave (a batch upload stamps its whole
+  batch with one `createdAt`). A full page of repeats forever would otherwise keep "collecting" true,
+  which disables both the re-collect button and the new-log probe. Whenever the walk stops early for
+  any reason, the truncation notice shows; it is not tied to hitting the cap.
+- **Requests cannot be aborted.** The relay transport's request builder exposes no abort signal, so
+  cancellation is cooperative: the walk stops between pages, and a response for axes that have since
+  changed lands under the old query key and is never shown. The cost is at most one wasted in-flight
+  page per filter change.
+- **The corpus is cached by its axes.** The axes are the query key, so pin, unpin and re-pin are served
+  from cache. A held corpus is served for two minutes and then still renders at once while it
+  refetches behind the rows (old rows beat a blank screen); an unused one is dropped after five
+  minutes, because an issue row carries its screenshots as base64 and holding many is real memory.
+  The app's client never goes stale by default, so this screen overrides that. Axes settle for a
+  quarter of a second before a walk starts, and while they settle the query for the previous axes does
+  not run, so choosing a user never paints the old, user-less rows under the new one. **Recollect
+  throws away what is held**: other cached corpora are removed, the one on screen refetches behind its
+  rows — otherwise a corpus collected before the refresh would come back after an unpin, quietly older
+  than the server. Rows merged from the new-logs banner are kept outside the cache, so a cache hit is
+  always what a fresh walk would return.
+- **Counting from the server asks for one record.** The count queries send `limit=1`: the counts do not
+  depend on the page size, and one record keeps the answer small even when the match holds
+  screenshot-laden reports. The server can count records per value but not people per value, so
+  per-value distinct users cost one query each.
+
 ## Logs and statistics
 
 **Two different "kinds".** The `kind` URL parameter is the _report type_ (log entry, issue, legacy
@@ -265,6 +373,52 @@ statistic in view it says so instead of showing zeros — no data and zero are d
 Overviews over weeks, trends and version comparisons need the server to aggregate the statistics
 fields, which it does not store at the top of a record yet.
 
+## Watching for new logs
+
+`hooks/use-new-log-probe.ts` looks for rows that arrived after the corpus was collected without
+touching it. Every 15 seconds it asks for page 0 with a limit of 50, which works because the default
+order is newest arrival first; it never writes to the corpus, and the operator's click on the banner
+merges the rows it found. Rules that keep it from losing data:
+
+- **An overflowed window is not merged.** If every row of a full page is newer than the corpus
+  watermark, more arrived than one page holds and the count is only a floor. Merging would move the
+  watermark past the rows that did not fit and they could never be probed again, so the banner offers a
+  fresh walk instead.
+- **An empty corpus is a valid starting point.** With no watermark everything in range counts as new, so
+  a view that was empty (a run that had not logged yet) still notices later arrivals.
+- **The banner counts what will actually show up.** The probe knows only the server axes, so its finds
+  are counted through the client-side filters; every fetched row is still merged. Recollecting also
+  resets the probe, since its finds were measured against the corpus being replaced.
+- **It is quiet when nobody looks.** It skips a hidden tab (the watermark does not move meanwhile, so
+  nothing is missed) and a corpus that is still walking, and it does not probe on mount — the walk has
+  just delivered the newest rows, and an immediate probe would cost a request per mount and per axis
+  change. Finds are cleared when the axes change, not when the corpus refetches, so returning to the
+  tab does not wipe a pending banner.
+
+## Reading a minified stack
+
+A report keeps its stack as text, so frames read like `index-<hash>.js:2:845134`. Source maps are not
+deployed (serving them would publish the sources), so the operator brings one:
+
+- **"Trace to IDE"** copies the stack with a one-line header (`# chatic-report` followed by
+  `key=value` pairs: id, app, web version, time) that `yarn trace` uses to find the build's map itself.
+  The two facts it needs are which CI build produced the bundle (taken from the app) and when the
+  error happened. Values with whitespace are underscored, because the header is split on whitespace.
+- **"Choose source map"** resolves in the browser, with a map taken from the build's `sourcemaps-*` CI
+  artifact. It is read locally and never uploaded. The decoder is inline (base64-VLQ); a 5 MB map
+  decodes in about 60 ms.
+- **The stack and its `Caused by:` chain are one block**, so one pass resolves both. The cause's
+  frames are usually the ones worth reading, since the outer stack points at whoever re-threw.
+- **A map only speaks for its own bundle.** A line and column lookup succeeds against any map, so when
+  a trace spans several bundles the map is pinned to the one named after its file name, and other
+  frames stay minified. A map whose name matches none of the stack's bundles is called out, because
+  column offsets shift between builds and a wrong map gives plausible wrong lines without failing.
+  Frames a map cannot place are left as they were.
+- **Screenshots are kept out of text.** An attached screenshot is a base64 data URL of about 100 KB, so
+  the raw JSON block and the copied record replace them with a short marker; the images themselves open
+  full size from the thumbnails. Failed requests, when a record has one, read endpoint, then what was
+  sent, then what came back, so a client bug and a server bug can be told apart.
+
 ## Occurrence-time handling
 
 `lib/eventTime.ts` defines `eventAt(row) = row.timestamp ?? row.createdAt` and an ingest-lag
@@ -272,6 +426,15 @@ calculation that badges a row once the gap between the two crosses a threshold (
 Because the server's date-range filter is on `createdAt`, not `eventAt`, rows can leak in or out
 right at a range boundary — this function is the one place that fact is computed, and the screen
 surfaces it rather than hiding the discrepancy.
+
+A clock value counts as real only between 0 and 9,999,999,999,999 ms (about the year 2286), for both
+clocks. A client stamping microseconds would otherwise make `toISOString` throw during CSV export and
+stretch the trend chart over a year-55000 span, so one bad row would break every view; an implausible
+value is ignored and the other clock is used. Negative lag (a device clock ahead of the server) is
+shown as no lag. Sorting treats clockless rows as last in either direction and never subtracts, since
+`NaN` comparisons leave the order undefined. The CSV export writes both `eventAt` and `createdAt`, so
+re-sorting in a spreadsheet cannot silently use the wrong clock, and a `createdAt` that cannot be
+formatted is exported blank rather than failing the download.
 
 ## Two filter tiers, one population
 

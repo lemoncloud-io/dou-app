@@ -1,6 +1,3 @@
-/**
- * `mock/observed-users.ts`
- */
 export type Presence = 'green' | 'yellow' | 'red';
 
 export interface ObservedDevice {

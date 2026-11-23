@@ -1,16 +1,3 @@
-/**
- * `components/report-logs/RunTimeline.tsx`
- * - One app run's logs in the order they happened, with the gaps between them.
- *
- * A `runId` identifies a single app session, and within one session the only question
- * worth asking is sequence: what preceded the failure. So this is the one view that sorts
- * ascending, and it sorts on `eventAt` — ordering a run by arrival time would scramble it,
- * since the whole run typically uploads in one or two batches.
- *
- * The gap between consecutive entries is rendered because it is often the finding: a
- * 30-second hole before an error says something a list of timestamps makes the reader
- * compute for themselves.
- */
 import { useMemo } from 'react';
 
 import { useT, type Language } from '../../../i18n';
@@ -24,19 +11,13 @@ interface RunTimelineProps {
     rows: ReportLogRow[];
     onSelect: (row: ReportLogRow) => void;
     selectedId?: string;
-    /** The pinned run, for the header. Absent when the view is open without a pin. */
     runId?: string;
-    /** Which record kinds are shown. Every kind of the run sits on one line, in occurrence order. */
     kinds?: RecordKind[];
     onToggleKind?: (kind: RecordKind) => void;
 }
 
 const ALL_KINDS: RecordKind[] = ['log', 'trace', 'sample', 'event'];
 
-/**
- * A trace drawn as a bar against the run's longest one, so slow spans stand out while scrolling.
- * A trace's `timestamp` is when it ended; the bar is its length, not its position.
- */
 const TraceBar = ({ durationMs, longest, lng }: { durationMs: number; longest: number; lng: Language }) => (
     <span className="flex w-40 shrink-0 items-center gap-1.5">
         <span className="h-1.5 flex-1 rounded bg-muted">
@@ -51,14 +32,12 @@ const TraceBar = ({ durationMs, longest, lng }: { durationMs: number; longest: n
     </span>
 );
 
-/** A statistic's dimensions and numbers on one line, for scanning. */
 const statSummary = (row: ReportLogRow): string =>
     [
         ...Object.entries(row.attrs ?? {}).map(([k, v]) => `${k}=${v}`),
         ...Object.entries(row.metrics ?? {}).map(([k, v]) => `${k}=${v}`),
     ].join(' · ');
 
-/** Gaps below this are ordinary chatter and not worth drawing attention to. */
 const GAP_NOTICE_MS = 1_000;
 
 export const RunTimeline = ({
@@ -77,9 +56,6 @@ export const RunTimeline = ({
     const longest = useMemo(() => Math.max(0, ...ordered.map(row => row.durationMs ?? 0)), [ordered]);
     const present = useMemo(() => new Set(rows.map(recordKindOf)), [rows]);
 
-    // Offered once the run holds a statistic — a run of logs alone needs no toggles — and whenever
-    // a kind the run holds is hidden: the choice outlives a re-pin, and without the toggle a run of
-    // only that kind would show nothing with no way back.
     const toggles =
         onToggleKind &&
         ([...present].some(kind => kind !== 'log') || [...present].some(kind => !kinds.includes(kind))) ? (

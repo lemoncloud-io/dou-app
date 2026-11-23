@@ -1,7 +1,6 @@
 const { join } = require('path');
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
 
-/** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ['class'],
     content: [
@@ -17,8 +16,6 @@ module.exports = {
                 primary: {
                     DEFAULT: 'hsl(var(--primary))',
                     foreground: 'hsl(var(--primary-foreground))',
-                    // `ui-kit`'s link variant and Switch edge. This console's primary is a blue
-                    // that already reads as text, so ink and fill are the same colour.
                     ink: 'hsl(var(--primary))',
                 },
                 muted: {
@@ -47,17 +44,11 @@ module.exports = {
                 },
                 input: 'hsl(var(--input))',
                 ring: 'hsl(var(--ring))',
-                // `ui-kit` form controls are written against the mobile token names. Without these
-                // aliases `Input`/`Textarea` lose their border and background here and render as
-                // bare text fields, so they are mapped onto this console's own scale.
                 surface: 'hsl(var(--background))',
                 'input-border': 'hsl(var(--input))',
                 placeholder: 'hsl(var(--muted-foreground))',
                 'focus-border': 'hsl(var(--ring))',
-                // The Switch's off track. Mapped onto the console's existing `--input` so its
-                // switches look as they did before the kit named the token.
                 'control-border': 'hsl(var(--input))',
-                // The scrim behind ui-kit's dialogs and sheets.
                 overlay: 'hsl(var(--overlay))',
             },
             borderRadius: {

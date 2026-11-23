@@ -1,6 +1,5 @@
 import type { errors as ko } from '../ko/errors';
 
-/** English copy for the errors tab. */
 export const errors: typeof ko = {
     summary: {
         count: 'Errors',

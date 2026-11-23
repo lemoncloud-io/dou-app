@@ -1,9 +1,3 @@
-/**
- * `session/authFailureNotice.spec.ts`
- *
- * The store exists so one expiry produces one banner, no matter how many requests it kills at
- * once — that coalescing is the only real behavior here, so it is what the cases pin.
- */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { authFailureNotice } from './authFailureNotice';

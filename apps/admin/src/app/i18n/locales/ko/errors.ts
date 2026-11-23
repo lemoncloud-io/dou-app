@@ -1,4 +1,3 @@
-/** Korean copy for the errors tab. */
 export const errors = {
     summary: {
         count: '에러',

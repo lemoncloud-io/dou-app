@@ -1,15 +1,3 @@
-/**
- * `tabs/ReportsTab.tsx`
- * - Issue reports as an inbox: who wrote in, about what, from which app, and what they attached.
- *
- * Opening a report shows what the user wrote and saw, and one button that answers the next question
- * — "what was happening to them at that moment?" — by opening that user's timeline on the half hour
- * either side of the report.
- *
- * Reports are fetched by their own stored type (`stereo=issue`) on the server. A report is written
- * without a top-level `uid`, so the server cannot narrow them by user; the reporter id lives inside
- * the report and is read from there.
- */
 import { useMemo, useState } from 'react';
 
 import { ArrowLeft, Paperclip, Search } from 'lucide-react';
@@ -36,7 +24,6 @@ interface ReportsTabProps {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === 'object' && !Array.isArray(value);
 
-/** A short device line from whatever the report's `device` carried — its shape varies by app. */
 const deviceText = (row: ReportLogRow): string | undefined => {
     const device = isRecord(row.payload?.device) ? row.payload.device : undefined;
     if (!device) return undefined;
@@ -157,12 +144,9 @@ export const ReportsTab = ({ nav }: ReportsTabProps) => {
 
     const reports = useMemo(() => {
         const matches = makeQueryMatcher(query);
-        return (
-            corpus.rows
-                // The stored type is shared with older error records written before reports had their own.
-                .filter(row => row.type === 'issue' && inWindow(eventAt(row), period) && matches(row))
-                .sort(byEventAtDesc)
-        );
+        return corpus.rows
+            .filter(row => row.type === 'issue' && inWindow(eventAt(row), period) && matches(row))
+            .sort(byEventAtDesc);
     }, [corpus.rows, period, query]);
 
     const selected = selectedId ? corpus.rows.find(row => row.id === selectedId) : undefined;

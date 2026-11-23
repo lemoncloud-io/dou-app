@@ -1,10 +1,3 @@
-/**
- * `stats/PerfCompare.spec.tsx`
- *
- * The performance comparison view against a fake list endpoint: a goal split by app version with
- * the newest version marked, the empty state, switching the goal and the split through the URL,
- * and the hop from a slow case to that user's timeline.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -24,7 +17,6 @@ vi.mock('../api/reportLogApi', async () => {
 
 const { PerfCompare } = await import('./PerfCompare');
 
-// 2026-10-26 14:30 KST.
 const NOW = Date.parse('2026-10-26T14:30:00+09:00');
 const MIN = 60_000;
 

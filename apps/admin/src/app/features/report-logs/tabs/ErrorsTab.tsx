@@ -1,17 +1,3 @@
-/**
- * `tabs/ErrorsTab.tsx`
- * - "Is something breaking right now, and for how many people?"
- *
- * Errors are grouped into incidents by tag, ranked by how often they happened, each with the people
- * affected, when it started and last happened, and its shape over the period. Opening one lists its
- * cases, and each case leads to that person's timeline — the same path support takes from the other
- * direction.
- *
- * Counts come from the server's aggregation whenever the fetched page cannot cover the period
- * (`lib/errorGroups` decides, and says so on screen). Cases come from a fetch narrowed to the one
- * tag on the server, so an incident's list is not limited to whatever of it landed in the newest
- * page of all errors.
- */
 import { useMemo, useState } from 'react';
 
 import { ArrowLeft, ChevronRight } from 'lucide-react';
@@ -37,10 +23,8 @@ interface ErrorsTabProps {
     nav: ConsoleNav;
 }
 
-/** How many incidents the server is asked to count, most frequent first. */
 const GROUP_LIMIT = 50;
 
-/** Server buckets: hourly up to two days, daily beyond — enough bars to see a shape, not a wall. */
 const intervalFor = (period: ResolvedPeriod) => (period.toMs - period.fromMs <= 2 * 86_400_000 ? 'hour' : 'day');
 
 const Sparkline = ({ values, label }: { values: number[]; label: string }) => {
@@ -100,9 +84,6 @@ const CaseList = ({
         () => cases.rows.filter(row => inWindow(eventAt(row), period)).sort(byEventAtDesc),
         [cases.rows, period]
     );
-    // Same rule as the incident list: the fetched cases are the answer when they hold the whole
-    // window. The server's count covers whole days, so it stands in only for a day-shaped period —
-    // for a rolling one it would be a count over a wider span than the screen says.
     const covered = coversWindow(cases.rows, cases.isTruncated, period.fromMs);
     const useServer = !covered && tagStats.supported && period.exact;
     const count = useServer ? (tagStats.total ?? rows.length) : rows.length;
@@ -239,7 +220,6 @@ export const ErrorsTab = ({ nav }: ErrorsTabProps) => {
 
     const wider = widerPreset(period.preset);
     const loading = corpus.phase === 'collecting' && corpus.loaded === 0;
-    // The server was asked for the top GROUP_LIMIT incidents; a full list means there may be more.
     const incidentsCapped = overview.source === 'server' && overview.groups.length >= GROUP_LIMIT;
 
     const sourceNote =

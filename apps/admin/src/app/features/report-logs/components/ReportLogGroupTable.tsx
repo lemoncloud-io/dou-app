@@ -1,15 +1,3 @@
-/**
- * `components/report-logs/ReportLogGroupTable.tsx`
- * - Aggregated view: one row per distinct message with occurrence count.
- *
- * Counts are over the collected corpus, not the server's full result set — the backend's
- * aggregation is fixed to `stereo` and takes no parameter, so there is no "count by
- * message" to ask it for (`logFacets.ts` explains the same constraint). The header above
- * this table states the scope.
- *
- * "Last occurred" is occurrence time, matching the list, so a group's latest is the latest thing
- * that actually happened rather than the last upload to land.
- */
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@chatic/ui-kit/components/ui/table';
 
 import { useT } from '../../../i18n';
@@ -47,9 +35,6 @@ export const ReportLogGroupTable = ({ groups, onSelect }: ReportLogGroupTablePro
                     <TableRow
                         key={group.key}
                         onClick={() => onSelect(group)}
-                        // Same reason as the list: without this the aggregate view's rows,
-                        // and so the detail panel, are pointer-only. The row keeps its own
-                        // role — see the note in `ReportLogTable`.
                         tabIndex={0}
                         onKeyDown={event => {
                             if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -63,7 +48,6 @@ export const ReportLogGroupTable = ({ groups, onSelect }: ReportLogGroupTablePro
                                 <span className="w-10 shrink-0 text-right font-semibold tabular-nums text-foreground">
                                     {formatNumber(group.count, lng)}
                                 </span>
-                                {/* Relative bar for quick visual ranking. */}
                                 <span className="h-1.5 flex-1 rounded bg-muted">
                                     <span
                                         className="block h-full rounded bg-primary"

@@ -1,6 +1,4 @@
-/** Korean copy for the full-log tab (the developer's view). */
 export const allLogs = {
-    // Shared row counts. Korean has no plural, but English does, so both forms exist on both sides.
     rowsOne: '{{n}}건',
     rowsOther: '{{n}}건',
 

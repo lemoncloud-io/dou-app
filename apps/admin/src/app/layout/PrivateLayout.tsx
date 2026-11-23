@@ -3,7 +3,6 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { SessionExpiredBanner } from '../components/SessionExpiredBanner';
 import { LANGUAGES, setLanguage, useT } from '../i18n';
 
-/** App-level features reachable from the top nav. Labels are keys in the `common` namespace. */
 const NAV_LINKS = [
     { to: '/socket-lab', key: 'nav.socketLab' },
     { to: '/report-logs', key: 'nav.reportLogs' },
@@ -16,11 +15,6 @@ const NAV_LINKS = [
 const linkClass = ({ isActive }: { isActive: boolean }): string =>
     `app-nav-link ${isActive ? 'app-nav-link-active' : ''}`;
 
-/**
- * The viewer's language, Korean or English. Remembered in this browser only — see `i18n/index.ts`.
- * Each option is written in its own language, so it can be found by someone who cannot read the
- * other one.
- */
 export const LanguageSwitch = () => {
     const { t, lng } = useT('common');
     return (
@@ -42,14 +36,6 @@ export const LanguageSwitch = () => {
     );
 };
 
-/**
- * Full-height shell with a slim top nav, painted from the shared monitoring scale so the chrome and
- * the screens inside it read as one surface.
- *
- * The main area gets a definite height (`flex: 1; min-height: 0`) so feature screens that fill their
- * container — the socket-lab shell, the membership console — size to the remaining space instead of
- * overflowing the viewport.
- */
 export const PrivateLayout = () => {
     const { t } = useT('common');
     return (

@@ -1,19 +1,3 @@
-/**
- * `components/memberships/MembershipFilterRail.tsx`
- * - The left column: every filter, grouped by whether the server or the browser applies it.
- *
- * The grouping is the point of the layout, the same as the log console's rail. Here it carries an
- * awkward fact: **the relay applies none of them.** `GET /memberships/0/list` maps a field into its
- * search model only when `hasAdmin` is set, and the list route calls its transformer without —
- * so `status`, `platform`, `userId`, `productId` and `isSuper` are accepted and silently ignored.
- *
- * They are still sent, so the screen starts narrowing server-side the moment that is fixed, and
- * they are applied here in the meantime. The rail says which is happening rather than letting an
- * operator read "3 items" and believe it came from the whole table.
- *
- * The text fields hold their own state and settle into the URL on a delay: without it every
- * keystroke writes a URL and re-runs the query.
- */
 import { useEffect, useState } from 'react';
 
 import { useDebounce } from '@chatic/shared';
@@ -23,7 +7,6 @@ import type { FilterValues } from '../lib/filters';
 interface MembershipFilterRailProps {
     values: FilterValues;
     onChange: (patch: Record<string, string>) => void;
-    /** Rows the browser-side filters are working over, for the group's caption. */
     pageSize: number;
 }
 
@@ -41,7 +24,6 @@ export const MembershipFilterRail = ({ values, onChange, pageSize }: MembershipF
     const settledUserId = useDebounce(userIdDraft, 300);
     const settledProduct = useDebounce(productDraft, 300);
 
-    // The drafts own the field; the URL is written only once typing settles.
     useEffect(() => {
         if (settledUserId.trim() !== (values.userId ?? '')) onChange({ userId: settledUserId.trim() });
     }, [settledUserId]);
@@ -50,7 +32,6 @@ export const MembershipFilterRail = ({ values, onChange, pageSize }: MembershipF
         if (settledProduct.trim() !== (values.productId ?? '')) onChange({ productId: settledProduct.trim() });
     }, [settledProduct]);
 
-    // A cleared chip has to reach the field too, or the input keeps showing what was cleared.
     useEffect(() => setUserIdDraft(values.userId ?? ''), [values.userId]);
     useEffect(() => setProductDraft(values.productId ?? ''), [values.productId]);
 

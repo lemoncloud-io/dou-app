@@ -1,6 +1,3 @@
-/**
- * `model/endpoint-presets.spec.ts`
- */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { defaultWsUrl, endpointPresets } from './endpoint-presets';

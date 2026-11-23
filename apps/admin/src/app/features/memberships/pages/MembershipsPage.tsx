@@ -1,12 +1,3 @@
-/**
- * `pages/memberships/MembershipsPage.tsx`
- * - Admin membership console: filters, the list, and the detail column that grants/blocks/releases.
- *
- * Composed like the log console — header strip, filter rail, list, detail column — because the work
- * is the same shape: narrow, scan, act, narrow again.
- *
- * Filters and stage live in the URL so a refresh or a shared link keeps the view.
- */
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -30,7 +21,6 @@ export const MembershipsPage = () => {
     const [selected, setSelected] = useState<MembershipView | null>(null);
     const [autoRefresh, setAutoRefresh] = useState(false);
 
-    // A hand-edited or shared `?page=x` would otherwise put NaN into the query key and the footer.
     const parsedPage = parseInt(searchParams.get('page') || '0', 10);
     const page = Number.isInteger(parsedPage) && parsedPage >= 0 ? parsedPage : 0;
 
@@ -48,10 +38,7 @@ export const MembershipsPage = () => {
     const setParams = (patch: Record<string, string>) => {
         const next = new URLSearchParams(searchParams);
         Object.entries(patch).forEach(([key, value]) => (value ? next.set(key, value) : next.delete(key)));
-        // Any filter or stage change invalidates the current offset.
         if (!('page' in patch)) next.delete('page');
-        // A row belongs to the relay it was read from. Kept across a stage switch, its userId would
-        // address a different user on the other relay — an override or a refund would land there.
         if ('stage' in patch && patch.stage !== stage) setSelected(null);
         setSearchParams(next);
     };
@@ -62,13 +49,11 @@ export const MembershipsPage = () => {
         stage
     );
 
-    // One instant for the whole render, so every row judges override expiry against the same clock.
     const now = Date.now();
     const target = describeTargetServer(targetEndpointFor(stage));
     const chips = toChips(filters);
 
     const fetched = data?.list ?? [];
-    // The relay ignores these axes on this route, so they are applied here — see `MembershipFilterRail`.
     const rows = fetched.filter(row => matchesFilters(row, filters));
     const total = data?.total ?? 0;
 
@@ -114,7 +99,6 @@ export const MembershipsPage = () => {
                     Refresh
                 </button>
 
-                {/* The console is not deployed — it writes to whatever this stage resolves to. */}
                 <span
                     className={`rounded border px-1.5 py-0.5 text-[10px] ${
                         target.isProd
@@ -217,8 +201,6 @@ export const MembershipsPage = () => {
                     now={now}
                     stage={stage}
                     onClose={() => setSelected(null)}
-                    // The mutation response IS the updated view, so the open panel takes it directly
-                    // rather than waiting on a refetch the search index may not have caught up to.
                     onUpdated={setSelected}
                 />
             }

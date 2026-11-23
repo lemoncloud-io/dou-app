@@ -1,6 +1,3 @@
-/**
- * `store/domain-stores.ts`
- */
 import type { DeviceView } from '@lemoncloud/chatic-sockets-lib';
 import type { DemoChannelView, DemoChatView } from '../demo-model';
 import { createMemoryStore, type Store, type StoreBacking } from './store';

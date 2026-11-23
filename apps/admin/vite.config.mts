@@ -7,7 +7,6 @@ export default defineConfig({
     root: import.meta.dirname,
     cacheDir: '../../node_modules/.vite/apps/admin',
 
-    // Browser shims for node-oriented transitive deps (backend/socket libs expect these globals).
     define: {
         'process.env': {},
         global: 'window',
@@ -26,18 +25,13 @@ export default defineConfig({
         host: 'localhost',
     },
 
-    // nxViteTsPaths maps @chatic/* to libs/<name>/src per tsconfig.base paths (src, not dist).
     plugins: [react(), nxViteTsPaths()],
 
     build: {
         // PROD emits maps too, as 'hidden': no sourceMappingURL comment is left in the
-        // bundle, so nothing points at a file that is not served. Deploy excludes *.map
-        // and CI archives them, which is what makes this safe — see
-        // libs/web-core/docs/error-reporting.md.
         sourcemap: process.env.VITE_ENV === 'PROD' ? 'hidden' : true,
         outDir: '../../dist/apps/admin',
         emptyOutDir: true,
-        // Some backend/socket deps ship CommonJS with mixed ES modules; keep interop on.
         commonjsOptions: {
             include: [/node_modules/],
             extensions: ['.js', '.cjs'],

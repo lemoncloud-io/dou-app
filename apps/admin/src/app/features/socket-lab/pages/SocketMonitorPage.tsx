@@ -22,8 +22,6 @@ export const SocketMonitorPage = () => {
     const sandbox = useSandbox(endpoint);
     const load = useLoadTest();
 
-    // Deep link from report-logs: `/socket-lab?observe=<uid>` resolves the user and adds it to the
-    // Observe watchlist (tab already defaults to 'observe'). Handled once per uid.
     const [searchParams] = useSearchParams();
     const observeUid = searchParams.get('observe');
     const observedHandled = useRef<string | null>(null);
@@ -37,7 +35,6 @@ export const SocketMonitorPage = () => {
                 const user = res.list[0];
                 if (user) wl.addUser(user);
             })
-            // An unset presence key throws here; without this it is only an unhandled rejection.
             .catch(error => console.warn(`[socket-lab] could not open ?observe=${observeUid}`, error));
     }, [observeUid, wl]);
 

@@ -1,12 +1,3 @@
-/**
- * `components/report-logs/console/FetchNotice.tsx`
- * - The one line that says whether what is on screen is everything: still loading, failed, or
- *   cut short at the fetch limit.
- *
- * A cut-short fetch is said in words a non-engineer can act on — "only the newest N, narrow the
- * period" — because the alternative is someone reading "no errors on the new version" off the
- * newest 500 records of everything.
- */
 import { useT } from '../../../../i18n';
 import type { LogCorpus } from '../../hooks/use-log-corpus';
 import { formatNumber } from '../../lib/timeFormat';

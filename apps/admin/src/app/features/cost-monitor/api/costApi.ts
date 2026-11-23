@@ -1,15 +1,3 @@
-/**
- * `api/cost-monitor/costApi.ts`
- * - The cost monitor's reads: goods workspaces, slots, metrics and Cost Explorer amounts (relayed from
- *   the cost service); the relay's clouds for their DoU names. Nothing here writes.
- *
- * All app-local signed requests, as on the deploy screen. Only the fields the screen shows are kept —
- * `secret$` and the like never reach screen state.
- *
- * What costs money: every metrics call makes the goods service call CloudWatch `GetMetricData` once or
- * more ($0.01 per 1,000 metrics). Caching them is the query layer's job (`costQuery.ts`); collecting
- * Cost Explorer is the cost service's nightly job, not this screen's.
- */
 import { runtime } from '@chatic/runtime';
 
 import {
@@ -29,7 +17,6 @@ export interface Metrics {
     usage: Usage;
     series: Series;
 }
-/** The slice of the relay's `CloudView` the monitor shows. */
 export interface DouCloud {
     id?: string;
     name?: string;
@@ -39,17 +26,13 @@ export interface DouCloud {
 export interface Tenants {
     tenants: Tenant[];
     pool: PoolStatus;
-    /** The pool was counted from the slot list because `view=status` gave nothing. */
     poolFromList: boolean;
     duplicates: number;
-    /** A list stopped short of its reported total. */
     partial: string[];
 }
 
-/** Metrics calls sent from this tab — each is at least one `GetMetricData`. */
 export const counter = { metrics: 0 };
 
-/** The response body says why a call failed; a call with no response is named, as on the deploy screen. */
 const describeError = (error: unknown, service: string): Error => {
     const response = (error as { response?: { status?: number; data?: unknown } } | null | undefined)?.response;
     const data = response?.data;
@@ -84,7 +67,6 @@ const signed = async <T>(
 const GOODS = 'the goods service';
 const RELAY = 'the relay';
 
-// Only the fields shown.
 const pickWorkspace = (ws: WorkspaceRow): WorkspaceRow => ({
     id: ws.id,
     name: ws.name,
@@ -110,7 +92,6 @@ interface ListResponse<T> {
     total?: number;
 }
 
-/** Workspaces with an account and every slot, folded into one row per account. */
 export const fetchTenants = async (goods: string): Promise<Tenants> => {
     const [ws, slots, status] = await Promise.all([
         signed<ListResponse<WorkspaceRow>>(GOODS, 'GET', `${goods}/workspaces/0/list`, {
@@ -137,10 +118,8 @@ export const fetchTenants = async (goods: string): Promise<Tenants> => {
 const CLOUD_PAGE = 100;
 const CLOUD_CAP = 2000;
 
-/** Account number → the relay's clouds on it, for their DoU names. `valid: 0` keeps expired clouds. */
 export interface CloudsByAccount {
     byAccount: Map<string, DouCloud[]>;
-    /** The walk stopped at the cap with more left — names past it are missing. */
     truncated: boolean;
 }
 
@@ -172,12 +151,6 @@ export const fetchClouds = async (relay: string): Promise<CloudsByAccount> => {
     return { byAccount, truncated };
 };
 
-/**
- * Runs `task` once one of `size` slots is free. A load asks for three days of every account at once, and
- * each answer is a goods → CloudWatch round trip; firing a hundred and fifty of them together
- * gets throttled downstream. A task whose query was dropped before its turn (another date or stage) is
- * not sent — it would be billed for nothing.
- */
 export const createLimiter = (size: number) => {
     const state = { running: 0, waiting: [] as (() => void)[] };
     const release = (): void => {
@@ -198,7 +171,6 @@ export const createLimiter = (size: number) => {
 
 const metricsSlot = createLimiter(5);
 
-/** The seven metrics of one KST day in hourly buckets. Admin only on the goods side. */
 export const fetchMetrics = (
     goods: string,
     workspaceId: string,
@@ -218,18 +190,10 @@ export const fetchMetrics = (
         return { usage: res.metrics$.usage$, series: res.metrics$.series$ ?? {} };
     }, signal);
 
-/** `YYYY-MM-DD` or `YYYYMMDD` → `YYYYMMDD`, so either form the cost service stores compares equal. */
 const dayKey = (date?: string): string => (date ?? '').replace(/-/g, '');
 
-/**
- * Cost Explorer amounts of UTC days `from` ~ `to` (inclusive) as day → account number → amount. Read
- * through the goods service (`GET /workspaces/0/costs`), which relays to the cost service: the cost
- * service's own API does not accept this console's signing role. The cost service collects these every
- * night (`sync-ce-daily`, 22:40 KST) and keeps them in OpenSearch.
- */
 export interface ActualsByDay {
     byDay: Map<string, Map<string, Actual>>;
-    /** Fewer rows came back than the reported total — accounts past them read as not collected. */
     truncated: boolean;
 }
 
@@ -253,7 +217,6 @@ export const fetchActuals = async (goods: string, from: string, to: string): Pro
     return { byDay, truncated: (res?.total ?? 0) > list.length };
 };
 
-/** The accounts of one UTC day out of {@link fetchActuals}. */
 const NO_ACTUALS: Map<string, Actual> = new Map();
 
 export const actualsOf = (byDay: Map<string, Map<string, Actual>>, date: string): Map<string, Actual> =>

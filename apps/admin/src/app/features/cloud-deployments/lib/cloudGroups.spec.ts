@@ -1,6 +1,3 @@
-/**
- * `lib/cloud-deployments/cloudGroups.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -117,7 +114,6 @@ describe('buildCloudGroups', () => {
                 product('backend', 'p4', { ownerId: 'u3', owner$: undefined }),
                 product('backend', 'p3', { ownerId: 'u2', owner$: { name: 'Bob' } }),
                 product('backend', 'p2', { ownerId: 'u1', owner$: { name: 'Alice' } }),
-                // Same owner as p2 under an older copy of the name — it still sorts beside p2.
                 product('backend', 'p5', { ownerId: 'u1', owner$: { name: 'Zoe' } }),
                 product('backend', 'p1', { ownerId: 'u0', owner$: { name: 'Alice' } }),
             ])
@@ -165,7 +161,6 @@ describe('buildCloudGroups with DoU clouds', () => {
     it('puts DoU-owned clouds first and keeps one DoU owner together, never merging the two id systems', () => {
         const { groups } = buildCloudGroups(
             lists([
-                // A goods owner whose id happens to equal a DoU user id is still a different owner.
                 product('backend', 'g1', { ownerId: 'd1', owner$: { name: 'Aaron' } }),
                 product('backend', 'p2'),
                 product('backend', 'p1'),
@@ -202,7 +197,6 @@ describe('sortCloudGroups', () => {
     it('sorts by owner name either way, keeping goods owners after DoU owners', () => {
         expect(order({ key: 'owner', direction: 'asc' })).toEqual(['c', 'a', 'b', 'z']);
         expect(order({ key: 'owner', direction: 'desc' })).toEqual(['b', 'a', 'c', 'z']);
-        // Names in reading order: case does not put `alice` after `Zed`.
         const cased = [
             group('z', { ownerName: 'Zed' }),
             group('a', { ownerName: 'alice' }),

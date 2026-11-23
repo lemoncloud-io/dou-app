@@ -54,7 +54,6 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                 minHeight: 340,
             }}
         >
-            {/* MASTER */}
             <div
                 style={{
                     background: 'var(--sm-sidebar)',
@@ -239,7 +238,6 @@ export default function WatchlistMasterDetail({ wl }: WatchlistMasterDetailProps
                 </div>
             </div>
 
-            {/* DETAIL */}
             <div
                 style={{
                     background: 'var(--sm-sidebar)',

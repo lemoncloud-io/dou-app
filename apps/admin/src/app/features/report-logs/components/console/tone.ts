@@ -1,11 +1,3 @@
-/**
- * `components/report-logs/console/tone.ts`
- * - Line emphasis for the readable timelines: errors and reports marked by a coloured edge and a
- *   faint wash, the text itself left in the normal colour.
- *
- * Colouring the words instead (red text on a red wash) costs contrast exactly on the lines that
- * matter most, so the colour goes to the edge and the label chip, and the sentence stays readable.
- */
 import type { Tone } from '../../lib/describeRow';
 
 export const TONE_ROW: Record<Tone, string> = {

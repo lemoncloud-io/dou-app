@@ -1,6 +1,5 @@
 import type { statsDetail as ko } from '../ko/statsDetail';
 
-/** English copy for the statistics tab's performance-details view. */
 export const statsDetail: typeof ko = {
     none: '(no value)',
     partial: 'The period held many records, so these numbers are from the newest part of it.',

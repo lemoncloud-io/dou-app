@@ -1,17 +1,9 @@
-/**
- * `lib/cost-monitor/relations.ts`
- * - User → workspace → slot → AWS account, as the goods service records them. Pure functions only.
- *
- * One row (a tenant) per AWS account. A slot with no workspace is a row of its own, keyed by the slot
- * when it has no account either. Shapes are the goods service's slot and workspace views.
- */
 export type SlotState = 'provisioning' | 'idle' | 'assigned' | 'releasing' | 'cleaning' | 'error' | 'archived';
 export interface WorkspaceRow {
     id: string;
     name?: string;
     code?: string;
     accountNo: string;
-    /** Set by the service that provisioned it — a DoU cloud's workspace has one. */
     createdBy?: string;
     ownerId?: string;
     owner$?: { id?: string; name?: string };
@@ -48,10 +40,8 @@ export interface Tenant {
     workspaces: WsInfo[];
     slots: SlotInfo[];
     dou: boolean;
-    /** The workspace whose metrics stand for the account; absent when the row has no workspace. */
     workspaceId?: string;
 }
-/** goods `GET /slots/0/list?view=status` (`PoolStatusView`). */
 export interface PoolStatus {
     total: number;
     idle: number;
@@ -66,11 +56,6 @@ export type SlotFilter = 'all' | 'assigned' | 'idle' | 'problem';
 
 const isAwsAccount = (accountNo?: string): accountNo is string => !!accountNo && /^\d{12}$/.test(accountNo);
 
-/**
- * The goods search index can return one slot twice (an old idle document beside the new assigned one;
- * 13 such slots were measured on 2026-10-28). Keeps the latest `updatedAt` and says how many repeats
- * were dropped. The cause is the index; the screen only papers over it.
- */
 export const latestSlots = (slots: SlotRow[]): { slots: SlotRow[]; duplicates: number } => {
     const byId = slots.reduce((map, slot) => {
         const prev = map.get(slot.id);
@@ -93,7 +78,6 @@ export const countPool = (slots: SlotRow[]): PoolStatus => {
     };
 };
 
-/** A problem: the `error` state, or an assignment the slot and the workspace do not agree on (either way). */
 const slotProblem = (
     slot: SlotRow,
     wsById: Map<string, WorkspaceRow>,
@@ -127,8 +111,6 @@ export const buildTenants = (workspaces: WorkspaceRow[], slots: SlotRow[]): Tena
         slots: [],
         dou: false,
     });
-    // An account number that is not 12 digits is no AWS account: its metrics are always 0, and the cost
-    // service leaves it out of Cost Explorer too.
     const byWs = workspaces
         .filter(ws => isAwsAccount(ws.accountNo))
         .reduce((map, ws) => {
@@ -141,7 +123,6 @@ export const buildTenants = (workspaces: WorkspaceRow[], slots: SlotRow[]): Tena
                 ownerName: ws.owner$?.name,
                 slotId: ws.slotId,
             };
-            // Metrics come from the DoU workspace when there is one — the cost service's priority too.
             const pick = !prev.workspaceId || (!prev.dou && info.dou);
             return map.set(ws.accountNo, {
                 ...prev,

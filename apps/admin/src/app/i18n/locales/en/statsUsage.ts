@@ -1,6 +1,5 @@
 import type { statsUsage as ko } from '../ko/statsUsage';
 
-/** English copy for the statistics tab's usage patterns view. */
 export const statsUsage: typeof ko = {
     empty: {
         title: 'No usage records in this period',

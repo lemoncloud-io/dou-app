@@ -1,6 +1,3 @@
-/**
- * `lib/stats.ts`
- */
 import type { Presence } from '../mock/observed-users';
 
 export const ACCENT = '#2dd4bf';
@@ -41,7 +38,6 @@ export const sinceSec = (at: number): number => Math.max(0, Math.round((Date.now
 export type MetricKey = 'fanout' | 'rtt' | 'send' | 'handshake' | 'loss' | 'catchup' | 'reconnect';
 export type SliStatus = 'green' | 'yellow' | 'red';
 
-/** SLI thresholds [warn, crit]. */
 export const THRESHOLDS: Record<MetricKey, [number, number]> = {
     fanout: [90, 180],
     rtt: [140, 280],

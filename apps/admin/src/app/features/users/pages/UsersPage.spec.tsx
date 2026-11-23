@@ -1,9 +1,3 @@
-/**
- * `pages/UsersPage.spec.tsx`
- *
- * The user screen on each stage: which relay it lists from, and where Add User creates the account.
- * The relay is mocked; the session signs in to production, as the console always does.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -19,7 +13,6 @@ vi.mock('@chatic/runtime', async () =>
     })
 );
 
-// No shell: an empty host profile, so the config adapter reads the stage from the build.
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() }, hostProfile: () => ({ globals: {} }) }));
 
 import { UsersPage } from './UsersPage';
@@ -58,7 +51,6 @@ describe('UsersPage', () => {
         expect(screen.getByText(DEV)).toBeTruthy();
     });
 
-    // The session's own relay takes no override, so the http client's own overrides still apply.
     it("lists production on the session's relay, with no override", async () => {
         renderPage('/users?stage=v1');
 
@@ -82,11 +74,9 @@ describe('UsersPage', () => {
 
         expect(await screen.findByText(/VITE_D1_RELAY_ENDPOINT is not set/)).toBeTruthy();
         expect(listRelayUsers).not.toHaveBeenCalled();
-        // The select is the way out of the error.
         expect(screen.getByRole('combobox')).toBeTruthy();
     });
 
-    // Started off the build's own stage, so a page link that lost the stage would fall back to d1.
     it('keeps the stage when paging', async () => {
         vi.stubEnv('VITE_ENV', 'DEV');
         listRelayUsers.mockResolvedValue({

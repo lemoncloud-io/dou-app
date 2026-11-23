@@ -1,6 +1,3 @@
-/**
- * `lib/cloud-deployments/listPaging.spec.ts`
- */
 import { describe, expect, it, vi } from 'vitest';
 
 import { collectPages, LIST_CAP, type ListPage } from './listPaging';

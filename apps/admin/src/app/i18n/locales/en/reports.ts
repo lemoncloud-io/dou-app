@@ -1,6 +1,5 @@
 import type { reports as ko } from '../ko/reports';
 
-/** English copy for the issue-reports tab. */
 export const reports: typeof ko = {
     search: { label: 'Search reports', placeholder: 'Search title, text or user' },
     inbox: { label: 'Received reports', attachments: 'Attachments: {{count}}' },

@@ -1,9 +1,3 @@
-/**
- * `config/admin.spec.ts`
- *
- * The declaration exists to boot the console exactly as it booted before it: every port on one fixed
- * adapter, and the session on the console's own store objects. Those are what the cases pin.
- */
 import { describe, expect, it, vi } from 'vitest';
 
 import { startRuntime } from '@chatic/runtime-web';
@@ -23,7 +17,6 @@ const EXPECTED_DEFAULTS = {
 
 type Read = NonNullable<StartRuntimeOptions['read']>;
 
-/** Starts the declaration with every collaborator faked except the adapters themselves. */
 const start = async (read: Read = () => undefined) => {
     const config = { init: vi.fn(), isInitialized: vi.fn(() => false), snapshot: vi.fn(() => undefined) };
     const createRuntime = vi.fn((_ports: unknown) => ({}) as never);

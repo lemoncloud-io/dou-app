@@ -1,10 +1,3 @@
-/**
- * `pages/memberships/MembershipsPage.spec.tsx`
- *
- * A row belongs to the relay it was read from: its `userId` on the other relay is somebody else.
- * Switching stage therefore has to close the open row, or an override or refund aimed at the new
- * relay would land on that other user.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
