@@ -35,7 +35,6 @@ const Trigger = ({ actions }: { actions: RoomFileMoreAction[] }) => {
     );
 };
 
-// Figma 6082:23508 "종류=일반", without the forward-to-DoU row.
 export const Regular: Story = {
     render: () => (
         <Trigger
@@ -50,7 +49,6 @@ export const Regular: Story = {
     ),
 };
 
-// Someone else's file: no delete row.
 export const NotMine: Story = {
     render: () => (
         <Trigger

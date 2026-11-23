@@ -7,7 +7,6 @@ const items: FloatingTabBarItem[] = [
     { key: 'my', label: 'MY', icon: <span>m</span> },
 ];
 
-// Both glyphs of a tab stay mounted so they can cross-fade; the one not showing is faded out.
 const isFaded = (glyph: HTMLElement) => glyph.parentElement?.classList.contains('opacity-0') ?? false;
 const labelOf = (tab: HTMLElement) => tab.querySelector('[data-expanded]');
 
@@ -23,7 +22,6 @@ describe('FloatingTabBar', () => {
         render(<FloatingTabBar items={items} onSelect={jest.fn()} />);
         const chat = screen.getByRole('button', { name: '채팅' });
         expect(chat).toHaveAttribute('aria-current', 'page');
-        // The active tab shows the uppercase active glyph and fades the line one out.
         expect(isFaded(screen.getByText('C'))).toBe(false);
         expect(isFaded(screen.getByText('c'))).toBe(true);
         expect(screen.getByRole('button', { name: 'MY' })).not.toHaveAttribute('aria-current');
@@ -61,12 +59,9 @@ describe('FloatingTabBar', () => {
                 onSelect={jest.fn()}
             />
         );
-        // The count is not lost behind the button's aria-label.
         expect(screen.getByRole('button', { name: '채팅, 5' })).toBeInTheDocument();
     });
 
-    // An unselected tab shows no text, so a badge label alone ("5 unread") would leave a screen
-    // reader no way to tell which tab it is on.
     it('puts the tab name before a supplied badgeLabel in the accessible name', () => {
         render(
             <FloatingTabBar
@@ -77,9 +72,6 @@ describe('FloatingTabBar', () => {
         expect(screen.getByRole('button', { name: '채팅, 5개 안 읽음' })).toBeInTheDocument();
     });
 
-    // Figma 5780:17209: only the selected tab spells out its name; the rest are icons alone. Every
-    // tab keeps its label mounted, folded shut, so it can unfold when the tab is picked — and the
-    // name still reaches a screen reader on every tab through the button's own label.
     it('unfolds the label on the selected tab only, while every tab keeps it as its accessible name', () => {
         render(<FloatingTabBar items={items} onSelect={jest.fn()} />);
 
@@ -91,8 +83,6 @@ describe('FloatingTabBar', () => {
         expect(labelOf(my)).toHaveClass('grid-cols-[0fr]', 'opacity-0');
     });
 
-    // The animation is CSS transitions between these states, so a reduced-motion setting must be
-    // able to switch every one of them off.
     it('lets reduced motion turn off every transition it runs', () => {
         render(<FloatingTabBar items={items} onSelect={jest.fn()} />);
 
@@ -121,13 +111,10 @@ describe('FloatingTabBar', () => {
 
         expect(labelOf(screen.getByRole('button', { name: '채팅' }))).toHaveAttribute('data-expanded', 'false');
         expect(labelOf(screen.getByRole('button', { name: 'MY' }))).toHaveAttribute('data-expanded', 'true');
-        // Back to the line glyph once it is no longer selected.
         expect(isFaded(screen.getByText('c'))).toBe(false);
         expect(isFaded(screen.getByText('C'))).toBe(true);
     });
 
-    // The selected tab's icon sits left of its name, so the badge is anchored to the icon — a
-    // button-centred badge would cover the text.
     it('hangs the badge off the icon on an unselected tab and off the capsule corner on the selected one', () => {
         const badged = (active: boolean): FloatingTabBarItem[] => [
             { key: 'chat', label: '채팅', icon: <span>c</span>, badge: 3, active },
@@ -140,7 +127,6 @@ describe('FloatingTabBar', () => {
         const badge = screen.getByText('3');
         expect(badge).toHaveAttribute('data-badge-at', 'capsule');
         expect(badge).toHaveClass('right-0', 'top-0');
-        // Still on its own tab, which is what the button's accessible name speaks for.
         expect(screen.getByRole('button', { name: '채팅, 3' })).toContainElement(badge);
     });
 
@@ -173,8 +159,6 @@ describe('FloatingTabBar', () => {
         expect(screen.getByRole('button', { name: '알림' })).toBeInTheDocument();
     });
 
-    // Four 72px slots, the gaps and a label run past 343px on a 375 screen: the bar spans the width
-    // and the unselected tabs share what the selected one leaves, so nothing spills past the pill.
     it('spreads four tabs across the full width, the unselected ones sharing the room', () => {
         const four: FloatingTabBarItem[] = [
             { key: 'chat', label: 'Chat', icon: <span>c</span> },

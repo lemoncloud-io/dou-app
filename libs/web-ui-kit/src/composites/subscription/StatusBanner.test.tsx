@@ -48,7 +48,6 @@ describe('StatusBanner', () => {
             <StatusBanner {...base} onClick={onClick} action={{ label: 'Choose clouds', onClick: onAction }} />
         );
 
-        // A section around two sibling buttons — a button never nests inside another.
         expect(container.querySelector('section')).not.toBeNull();
         expect(container.querySelectorAll('button button')).toHaveLength(0);
         fireEvent.click(screen.getByRole('button', { name: /Subscription active/ }));

@@ -2,8 +2,6 @@ import type { Meta, StoryObj } from '@storybook/react';
 
 import { AvatarGroup } from '@chatic/web-ui-kit';
 
-// A 24px ringed circle stand-in for a member avatar. `mine` gets the accent ring,
-// peers get the surface ring — matching the header treatment.
 const dot = (color: string, mine = false) => (
     <span
         className={`inline-block size-6 rounded-full border ${mine ? 'border-main-accent' : 'border-surface'}`}

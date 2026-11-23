@@ -11,14 +11,9 @@ export default meta;
 
 type Story = StoryObj<typeof ReadReceipt>;
 
-// Group chat, one member read, many still unread.
 export const PartiallyRead: Story = { args: { readCount: 1, unreadCount: 99 } };
-// 1:1 chat, peer hasn't read yet.
 export const SingleUnread: Story = { args: { readCount: 1, unreadCount: 1 } };
-// Everyone has read — only the read count remains, the unread segment disappears.
 export const AllRead: Story = { args: { readCount: 8, unreadCount: 0 } };
 
-// DM mode — the KakaoTalk-style "1" badge shown while the peer hasn't read.
 export const DmUnread: Story = { args: { mode: 'dm', readCount: 1, unreadCount: 1 } };
-// DM mode, peer has read — renders nothing.
 export const DmRead: Story = { args: { mode: 'dm', readCount: 2, unreadCount: 0 } };

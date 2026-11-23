@@ -11,7 +11,6 @@ import { ScreenLayout } from '@chatic/web-ui-kit';
 const meta: Meta<typeof ScreenLayout> = {
     title: 'web-ui-kit/composites/ScreenLayout',
     component: ScreenLayout,
-    // Constrain height so the full-height scaffold has room to lay out in the canvas.
     decorators: [
         Story => (
             <div className="h-[720px] w-[390px] overflow-hidden border border-input-border">
@@ -24,11 +23,6 @@ export default meta;
 
 type Story = StoryObj<typeof ScreenLayout>;
 
-/**
- * Profile-setup screen (Figma 2891:19824) built purely by composing DS
- * components into the layout slots — header, avatar, text input, footer — with
- * no bespoke screen component.
- */
 const ProfileSetup = () => {
     const [name, setName] = useState('');
     const valid = name.trim().length > 0;

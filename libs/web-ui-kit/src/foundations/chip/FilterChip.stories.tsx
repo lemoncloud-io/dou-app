@@ -17,10 +17,8 @@ const Toggle = () => {
     return <FilterChip label="안 읽은 알림만" check selected={on} onClick={() => setOn(v => !v)} />;
 };
 
-/** The notification screen's "unread only" toggle — tap to switch. */
 export const UnreadOnly: Story = { render: () => <Toggle /> };
 
-/** The quick-select row of selection mode. */
 export const QuickSelect: Story = {
     render: () => (
         <div className="flex gap-1.5">
@@ -31,7 +29,6 @@ export const QuickSelect: Story = {
     ),
 };
 
-/** The find-me sheet's tabs, with counts. */
 export const SheetTabs: Story = {
     render: () => (
         <div className="flex gap-1.5">

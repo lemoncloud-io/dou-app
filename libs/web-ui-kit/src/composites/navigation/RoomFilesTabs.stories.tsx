@@ -27,13 +27,10 @@ export default meta;
 
 type Story = StoryObj<typeof RoomFilesTabs>;
 
-/** Figma 6072:23221 — the audio tab selected. */
 export const Default: Story = {};
 
-/** Selection mode: faded, and tapping another tab does nothing. */
 export const Dimmed: Story = { args: { dimmed: true } };
 
-/** Click through the tabs. */
 export const Interactive: Story = {
     render: function Render(args) {
         const [value, setValue] = useState('audio');

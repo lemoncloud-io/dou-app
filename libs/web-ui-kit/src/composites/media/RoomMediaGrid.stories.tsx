@@ -4,7 +4,6 @@ import type { Meta, StoryObj } from '@storybook/react';
 
 import { RoomMediaGrid, type RoomMediaGridItem } from './RoomMediaGrid';
 
-// Inline SVG placeholders so the story needs no network.
 const swatch = (hue: number) =>
     `data:image/svg+xml;utf8,${encodeURIComponent(
         `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="hsl(${hue} 55% 62%)"/></svg>`
@@ -38,15 +37,12 @@ export default meta;
 
 type Story = StoryObj<typeof RoomMediaGrid>;
 
-/** The photos·videos tab — no design node; follows the kit's photo grid. */
 export const Default: Story = {};
 
-/** Selection mode with two picked. */
 export const Selecting: Story = {
     args: { selection: { selectedKeys: new Set(['m0', 'm5']), onToggle: () => undefined } },
 };
 
-/** Long-press a tile to start selecting, then tap to toggle. */
 export const Interactive: Story = {
     render: function Render(args) {
         const [selected, setSelected] = useState<Set<string> | null>(null);

@@ -3,24 +3,14 @@ import { cn } from '@chatic/ui-kit';
 import { ProfileAvatar } from '../../foundations/avatar/ProfileAvatar';
 
 export interface InviteLinkCardProps {
-    /** Group/room name shown as the card title. */
     name: string;
-    /** Full invite URL shown as the subtitle. */
     url: string;
-    /** Room avatar image URL; falls back to the group placeholder glyph. */
     avatarSrc?: string;
-    /** Called when the trailing copy action is tapped. */
     onCopy?: () => void;
-    /** Visible label of the trailing copy action (host supplies a localized string). */
     copyLabel?: string;
     className?: string;
 }
 
-/**
- * Invite-link card — the Figma "invite link" screen card (3266-32893): a rounded filled row
- * with the room avatar, its name + full invite URL, and a trailing underlined text link
- * that copies the URL.
- */
 export const InviteLinkCard = ({
     name,
     url,

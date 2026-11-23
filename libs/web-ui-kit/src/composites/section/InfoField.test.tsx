@@ -17,8 +17,6 @@ describe('InfoField', () => {
         expect(screen.getByText('두유 홈').className).toContain('text-foreground');
     });
 
-    // A node value (a member row) is placed as-is: the field must not wrap it in body typography,
-    // which would fight the row's own text scales.
     it('places a node value untouched', () => {
         render(
             <InfoField label="소유자 정보">

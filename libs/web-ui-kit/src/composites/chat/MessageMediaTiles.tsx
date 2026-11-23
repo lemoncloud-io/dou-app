@@ -7,68 +7,30 @@ import { IconAlert, IconImage, IconPlaySolid, IconSpinner } from '../../resource
 import { clampFileProgress } from './messageFile';
 import { ProgressRing } from './ProgressRing';
 
-/**
- * - `ready` — drawn from `preview`. A `ready` tile with no `preview` yet is one the host is still
- *   resolving (reading it from a local cache, say), drawn as an empty tile rather than as a missing
- *   image.
- * - `sending` / `failed` — a message still on its way, drawn from its local preview.
- * - `broken` — the server reports the upload unusable (missing, not the sender's, never finished).
- *   Drawn as a placeholder rather than dropped, so the count still matches what was sent.
- */
 export type MessageMediaTileState = 'ready' | 'sending' | 'failed' | 'broken';
 
-/** What a tile stands for. A video is drawn from its poster and is never played in the feed. */
 export type MessageMediaKind = 'image' | 'video';
 
 export interface MessageMediaTileItem {
     key: string;
     kind: MessageMediaKind;
-    /**
-     * What the tile draws: an image's thumbnail (or the original, when the server made none), a
-     * video's poster frame. A video may have none at all — one picked in a browser travels without a
-     * poster, and a shell video's poster arrives only once it has been prepared.
-     */
     preview?: string;
-    /**
-     * A video with no `preview` that may draw its own first frame from this address: a muted `<video>`
-     * that loads only its metadata and the frame half a second in, and never plays. The host sets it
-     * only for a tile on screen, and only where it cannot make the frame into an image itself — the
-     * element has no other cache than the browser's, and asks the server for every tile it is in.
-     * Ignored while `preview` is set.
-     */
     frameUrl?: string;
     state: MessageMediaTileState;
-    /**
-     * 0..1 of a `sending` tile's bytes. Omit while it is not known — not started, or a sender that
-     * cannot count — and the tile turns a spinner instead of filling a ring.
-     */
     progress?: number;
 }
 
 export interface MessageMediaTilesProps {
     items: readonly MessageMediaTileItem[];
-    /** Fired with the tapped item's index. Omit to draw the tiles inert. */
     onOpen?: (index: number) => void;
-    /** Accessible name for a tile; receives the 1-based position and what the tile stands for. */
     tileLabel?: (position: number, kind: MessageMediaKind) => string;
-    /** Accessible name of a sending tile's progress. */
     sendingLabel?: string;
-    /**
-     * Fired with the index of a preview that failed to load. Signed addresses expire, so the host can
-     * fetch fresh ones; the tile itself only reports it.
-     */
     onImageError?: (index: number) => void;
     className?: string;
-    /** The grid's own element — for a host that needs to know when the tiles are on screen. */
     ref?: Ref<HTMLDivElement>;
 }
 
-/** A message never draws more than the server attaches to one. */
 export const MESSAGE_IMAGE_RENDER_MAX = 10;
-/**
- * Past this many, the last visible tile carries a "+n" for the rest. Exported so a host that resolves
- * addresses itself can skip the previews no tile draws.
- */
 export const MESSAGE_IMAGE_VISIBLE_MAX = 4;
 
 const gridClass = (count: number) => {
@@ -80,23 +42,6 @@ const gridClass = (count: number) => {
 const defaultTileLabel = (position: number, kind: MessageMediaKind) =>
     `${kind === 'video' ? 'Video' : 'Photo'} ${position}`;
 
-/**
- * The photos and videos of one chat message, as fixed-size tiles in the order they were sent: one
- * square, two or three in a row, four or more as a 2×2 whose last tile says how many more there are.
- *
- * Fixed size because the message carries no dimensions for its media — the server leaves them out of
- * what it embeds and expects the app to draw a fixed tile — so there is nothing to reserve an aspect
- * ratio from before the preview arrives.
- *
- * A video tile is a still: its poster when it has one, a grey panel when it has none, and a play
- * mark in the middle so it never reads as a photo. A `<video>` element appears only when the host
- * hands a tile a `frameUrl` — one per tile would have every video in a scrolled-past conversation start
- * fetching, so the host does that for tiles on screen alone, and only where it has no image of the
- * frame to give. Even then it never plays: the viewer a tap opens is where a video plays. The play mark
- * gives way to whatever else claims the centre — the sending spinner, the failed mark, the "+n" count —
- * and a broken video is the same placeholder as a broken photo: it cannot be played, so a play mark on
- * it would promise what the tap cannot keep.
- */
 export const MessageMediaTiles = ({
     items,
     onOpen,
@@ -119,7 +64,6 @@ export const MessageMediaTiles = ({
         >
             {visible.map((item, index) => {
                 const more = hidden > 0 && index === visible.length - 1 ? hidden : 0;
-                // The "+n" tile keeps the plain spinner: its count already sits where the percentage would.
                 const ratio = item.state === 'sending' && more === 0 ? clampFileProgress(item.progress) : undefined;
                 const progressId = ratio === undefined ? undefined : `${progressIdBase}-${index}`;
                 const video = item.kind === 'video';
@@ -136,8 +80,6 @@ export const MessageMediaTiles = ({
                         ) : video && item.state !== 'broken' && item.frameUrl ? (
                             <VideoFrame key={item.frameUrl} url={item.frameUrl} />
                         ) : video && item.state !== 'broken' ? (
-                            // No poster yet (or none coming): the panel says "video" on its own, and is dark
-                            // enough for the white marks drawn over it.
                             <span data-video-panel className="block size-full bg-media-tile" />
                         ) : item.state === 'ready' ? (
                             <span className="block size-full bg-muted" />
@@ -179,7 +121,6 @@ export const MessageMediaTiles = ({
                         key={item.key}
                         type="button"
                         aria-label={tileLabel(index + 1, item.kind)}
-                        // A button's content is not read out, so the percentage reaches a screen reader this way.
                         aria-describedby={progressId}
                         onClick={() => onOpen(index)}
                         className={tileClass}
@@ -196,11 +137,6 @@ export const MessageMediaTiles = ({
     );
 };
 
-/**
- * What a sending tile carries over its preview: a ring filling with its bytes and the percentage inside
- * it — a 300MB video takes minutes, and a spinner says nothing of how many — or a spinner while that is
- * not known.
- */
 const SendingMark = ({ ratio, label, id }: { ratio: number | undefined; label: string; id?: string }) => (
     <span className="absolute inset-0 flex items-center justify-center bg-black/30">
         {ratio === undefined ? (
@@ -223,12 +159,6 @@ const SendingMark = ({ ratio, label, id }: { ratio: number | undefined; label: s
     </span>
 );
 
-/**
- * A video's first frame drawn by the browser itself, on the grey panel it replaces. The `#t=0.5`
- * fragment is what makes an element that never plays draw a picture at all — without it the engines
- * measured showed their default grey — and half a second in passes the black a recording often opens
- * on. A load that fails leaves the panel: an expired address is the viewer's to refresh when tapped.
- */
 const VideoFrame = ({ url }: { url: string }) => {
     const [failed, setFailed] = useState(false);
     return (

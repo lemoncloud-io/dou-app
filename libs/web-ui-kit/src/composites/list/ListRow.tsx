@@ -3,38 +3,17 @@ import * as React from 'react';
 import { cn } from '@chatic/ui-kit';
 
 export interface ListRowProps extends Omit<React.HTMLAttributes<HTMLElement>, 'title'> {
-    /** Leading slot (avatar / icon). */
     leading?: React.ReactNode;
-    /** Primary text (or a node, e.g. name + StatusBadge). */
     title: React.ReactNode;
-    /** Secondary text below the title. */
     subtitle?: React.ReactNode;
-    /**
-     * A small glyph leading the subtitle's line, in the subtitle's own colour — what the line is, when
-     * it is not what it usually is (e.g. a pencil on a chat row showing the unsent draft instead of the
-     * last message). A glyph rather than a coloured word keeps the row's only colour for what needs
-     * attention (the unread badge), and leaves the line's width to the text. Shown even without a
-     * subtitle; give it its own accessible name.
-     */
     subtitleIcon?: React.ReactNode;
-    /** Trailing slot (chevron / toggle / badge). */
     trailing?: React.ReactNode;
-    /** Renders the title in the destructive color (e.g. Delete room). */
     destructive?: boolean;
-    /** Makes the whole row a button. */
     onClick?: () => void;
-    /** Disables the row button (only meaningful together with `onClick`). */
     disabled?: boolean;
     className?: string;
 }
 
-/**
- * Generic list / settings row — one component for the many similar rows in the
- * room-settings and menu screens: profile row, alarm toggle, member rows, and
- * destructive menu items. Leading/trailing are slots; the row is a button when
- * `onClick` is set. Stateless — a toggle passed as `trailing` is controlled by
- * the host. Extra props (aria-*, data-*, …) pass through to the root element.
- */
 export const ListRow = ({
     leading,
     title,

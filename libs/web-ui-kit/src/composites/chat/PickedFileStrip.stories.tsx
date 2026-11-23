@@ -24,10 +24,8 @@ export default meta;
 type Story = StoryObj<typeof PickedFileStrip>;
 
 export const One: Story = {};
-/** More than fit: the row scrolls sideways, and a long name keeps its extension. */
 export const Several: Story = { args: { files: FILES } };
 
-/** Press × to remove a file; the row is gone once the last one is. */
 const Removable = () => {
     const [files, setFiles] = useState(FILES);
     return (

@@ -49,7 +49,6 @@ describe('AppHeader', () => {
     it('holds the badge slot with a placeholder while the tier is loading', () => {
         const { container } = render(<AppHeader logo={<span>DoU</span>} planLoading onPlanClick={jest.fn()} />);
 
-        // The placeholder borrows a FREE pill's text for its size, hidden — but no tier control exists.
         expect(screen.queryByRole('button', { name: /FREE|PRO/ })).not.toBeInTheDocument();
         expect(container.querySelector('[aria-hidden="true"].animate-pulse')).not.toBeNull();
     });

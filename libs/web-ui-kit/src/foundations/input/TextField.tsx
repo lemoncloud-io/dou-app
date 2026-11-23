@@ -5,53 +5,20 @@ import { cn } from '@chatic/ui-kit';
 import { IconCheck } from '../../resources/icons';
 
 export interface TextFieldProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
-    /** Field label rendered above the input. */
     label?: string;
-    /** Renders a red asterisk before the label. */
     required?: boolean;
-    /** Controlled value. */
     value: string;
-    /** Controlled change handler — receives the raw string. */
     onChange: (value: string) => void;
-    /** When set, shows an "N/max" counter inside the field and caps input length. */
     maxLength?: number;
-    /**
-     * Whether `maxLength` also hard-caps typed input. Defaults to `true`.
-     * Set `false` to keep the counter (and let callers surface an over-limit
-     * `error`) while still allowing the value to exceed `maxLength` — e.g. a
-     * "21/20" over-limit state that a hard cap would make unreachable.
-     */
     enforceMaxLength?: boolean;
-    /** Helper text below the field. Hidden when `error` is present. */
     description?: string;
-    /** Error text below the field; reddens the border + copy. Overrides `description`. */
     error?: string;
-    /** Completed/valid state — greens the border and shows a trailing check. */
     success?: boolean;
-    /**
-     * Content rendered inside the field, before the input — the mirror of `trailing` (e.g. a phone
-     * field's country picker). Sits inside the border, so a focusable control here lights the whole
-     * field's focus ring: the slot and the input read as one input group, which is the point.
-     */
     leading?: React.ReactNode;
-    /**
-     * Action rendered inside the field, after the counter — the design guide's in-field text link
-     * (e.g. Request verification / Resend). Sits inside the border, so it stays put while the value scrolls.
-     */
     trailing?: React.ReactNode;
-    /**
-     * Content pinned to the right of the helper line, opposite `description`/`error` (e.g. the OTP
-     * countdown + extend-time link). Renders the helper row even when there is no helper text.
-     */
     helperTrailing?: React.ReactNode;
 }
 
-/**
- * Labeled text field — the design guide's "Input": label (+ optional required
- * mark), a bordered input with an optional character counter, and a
- * description/error line. States: default (focus highlights border), error (red
- * border), success/completed (green border + check).
- */
 export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
     (
         {

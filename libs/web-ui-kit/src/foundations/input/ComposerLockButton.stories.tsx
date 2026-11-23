@@ -13,7 +13,6 @@ type Story = StoryObj<typeof ComposerLockButton>;
 
 export const Default: Story = { args: { onClick: () => undefined } };
 
-/** In a locked composer: the field takes no input, and the padlock is the one thing left to tap. */
 export const InLockedComposer: Story = {
     render: () => (
         <MessageInput

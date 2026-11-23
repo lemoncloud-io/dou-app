@@ -47,7 +47,6 @@ describe('AttachPanel', () => {
         expect(screen.queryByRole('button', { name: '파일' })).not.toBeInTheDocument();
     });
 
-    // A shell that cannot record passes no handler, and the panel draws no voice entry for it.
     it('offers voice after files only where the host can record, and fires it', () => {
         const { rerender } = render(<AttachPanel {...props()} />);
         expect(screen.queryByRole('button', { name: '음성' })).not.toBeInTheDocument();
@@ -60,7 +59,6 @@ describe('AttachPanel', () => {
         expect(onVoice).toHaveBeenCalledTimes(1);
     });
 
-    // A shell that cannot read the library passes no row; the panel must not draw an empty one.
     it('draws the recent row only when one is given', () => {
         const { rerender } = render(<AttachPanel {...props()} />);
         expect(screen.queryByTestId('recent')).not.toBeInTheDocument();
@@ -69,8 +67,6 @@ describe('AttachPanel', () => {
         expect(screen.getByTestId('recent')).toBeInTheDocument();
     });
 
-    // The app's back handler finds the topmost overlay by `[data-state="open"][role="dialog"]`; the
-    // panel has to match it to be closed by back, and must not claim the page as a modal would.
     it('centres its entries in the panel when there is no recent row, and puts them under the row when there is', () => {
         const { rerender } = render(<AttachPanel {...props()} />);
         expect(screen.getByTestId('attach-entries')).toHaveClass('my-auto');
@@ -80,7 +76,6 @@ describe('AttachPanel', () => {
         expect(screen.getByTestId('attach-entries')).toHaveClass('pt-6');
         expect(screen.getByTestId('attach-entries')).not.toHaveClass('my-auto');
 
-        // A row with nothing to draw stays mounted to fold away; the entries centre all the same.
         rerender(<AttachPanel {...props({ recent: <div data-testid="recent" />, recentEmpty: true })} />);
         expect(screen.getByTestId('recent')).toBeInTheDocument();
         expect(screen.getByTestId('attach-entries')).toHaveClass('my-auto');
@@ -132,8 +127,6 @@ describe('AttachPanel', () => {
         });
     });
 
-    // The keyboard and the panel hand the same slot to each other: where the keyboard does the moving,
-    // the panel has to be there, or gone, without a slide of its own.
     describe('enter and exit', () => {
         const transformEnd = (element: Element) => {
             const event = new Event('transitionend', { bubbles: true });
@@ -199,7 +192,6 @@ describe('AttachPanel', () => {
             expect(onTransitionEnd).toHaveBeenCalledWith('closed');
         });
 
-        // The swap the room makes: in instantly behind the keyboard, out with a slide on ×.
         it('mixes the two: an instant enter followed by a slide out slides', () => {
             const onTransitionEnd = jest.fn();
             const { rerender } = render(<AttachPanel {...props({ open: false, enter: 'instant', onTransitionEnd })} />);
@@ -215,7 +207,6 @@ describe('AttachPanel', () => {
             expect(onTransitionEnd.mock.calls).toEqual([['open'], ['closed']]);
         });
 
-        // Hidden tab or reduced motion: no transitionend ever comes, and a held composer offset must still go.
         it('reports a slide whose end is never reported once the slide’s length has passed', () => {
             const onTransitionEnd = jest.fn();
             const { rerender } = render(<AttachPanel {...props({ open: false, onTransitionEnd })} />);
@@ -241,7 +232,6 @@ describe('AttachPanel', () => {
         });
     });
 
-    // The host moves the panel and its composer from one frame loop, so the two cannot part by a frame.
     describe('moved by its host', () => {
         const handle = React.createRef<AttachPanelHandle>();
         const external = (overrides: Partial<AttachPanelProps> = {}) => (
@@ -265,7 +255,6 @@ describe('AttachPanel', () => {
 
             rerender(external({ onTransitionEnd }));
             const dialog = panel() as HTMLElement;
-            // In the page at once, at the slide's start, for the host's first frame.
             expect(dialog).toHaveClass('translate-y-full', 'transition-none');
             expect(dialog).not.toHaveClass('transition-transform');
             expect(dialog).toHaveAttribute('data-state', 'open');
@@ -286,7 +275,6 @@ describe('AttachPanel', () => {
             const dialog = panel() as HTMLElement;
             expect(dialog).toHaveAttribute('data-state', 'closed');
             expect(dialog).toHaveAttribute('inert');
-            // Where the slide starts, until the host has drawn its first frame.
             expect(dialog).toHaveClass('translate-y-0');
             expect(onTransitionEnd).not.toHaveBeenCalled();
 
@@ -321,7 +309,6 @@ describe('AttachPanel', () => {
             expect(onTransitionEnd.mock.calls).toEqual([['open'], ['closed']]);
         });
 
-        // Its own transition says when a slide ends; a stray settle must not cut one short.
         it('ignores settle while it moves itself', () => {
             const onTransitionEnd = jest.fn();
             const { rerender } = render(<AttachPanel ref={handle} {...props({ onTransitionEnd })} />);
@@ -355,7 +342,6 @@ describe('AttachPanel', () => {
             expect(onClose).not.toHaveBeenCalled();
         });
 
-        // The photo grid and the editor open above the panel, portalled after it; Escape and back are theirs.
         it('leaves Escape to an overlay opened above it', () => {
             const onClose = jest.fn();
             render(
@@ -390,7 +376,6 @@ describe('AttachPanel', () => {
             expect(onClose).toHaveBeenCalledTimes(1);
         });
 
-        // A Radix overlay dismisses itself on the press and marks it handled before the panel hears it.
         it('ignores an Escape something else already handled', () => {
             const onClose = jest.fn();
             render(<AttachPanel {...props({ onClose })} />);
@@ -412,7 +397,6 @@ describe('AttachPanel', () => {
         });
     });
 
-    // A snackbar raised while the panel is up would otherwise sit on its tiles.
     it('lifts the snackbar by its height while open, and stops on close', () => {
         const { rerender, unmount } = render(<AttachPanel {...props({ height: 306 })} />);
         expect(lift()).toBe('306px');
@@ -422,7 +406,6 @@ describe('AttachPanel', () => {
         unmount();
     });
 
-    // On a white page the panel has no other edge; the design draws it with an upward shadow.
     it('draws the panel with the rounded top and the upward shadow', () => {
         render(<AttachPanel {...props()} />);
 

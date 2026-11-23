@@ -3,25 +3,12 @@ import { cn } from '@chatic/ui-kit';
 import { IconCheck } from '../../resources/icons';
 
 export interface CheckboxProps {
-    /** Checked state (controlled). */
     checked?: boolean;
-    /** Change handler — receives the next checked value. */
     onCheckedChange?: (checked: boolean) => void;
     disabled?: boolean;
-    /** Diameter in pixels. Defaults to the Figma spec (28). */
     size?: number;
-    /**
-     * Checked-state fill. `primary` is the Figma "CheckBox" component; `accent` is the
-     * "Check Circle" glyph used by the chat-room management list (#90C304 disc, white check);
-     * `ink` is the notification selection check (6023:18847, navy disc, white check).
-     */
     tone?: 'primary' | 'accent' | 'ink';
-    /** Accessible label (used when interactive). */
     label?: string;
-    /**
-     * When false, renders a non-interactive visual indicator (a <span>) — use
-     * this when a parent element (e.g. a selectable row) owns the click/role.
-     */
     interactive?: boolean;
     className?: string;
 }
@@ -32,11 +19,6 @@ const CHECKED_TONE = {
     ink: 'border-chip-ink bg-chip-ink text-white',
 } as const;
 
-/**
- * Round checkbox — the Figma "CheckBox": a circle that is a filled green disc with a check when
- * checked, and a neutral outline when unchecked. Stateless and controlled. The checked fill comes
- * from `tone` — the two greens are distinct design tokens, not interchangeable.
- */
 export const Checkbox = ({
     checked = false,
     onCheckedChange,
@@ -54,8 +36,6 @@ export const Checkbox = ({
         interactive && 'active:scale-90',
         className
     );
-    // Keyed on `checked` so the pop-in animation restarts every time the check mark newly
-    // appears, rather than once and never again (a stable key would only mount it the first time).
     const glyph = checked ? (
         <span key="check" className="animate-in zoom-in-50 fade-in-0 duration-200">
             <IconCheck className="size-4" strokeWidth={3} />

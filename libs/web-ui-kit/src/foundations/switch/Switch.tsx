@@ -1,20 +1,13 @@
 import { cn } from '@chatic/ui-kit';
 
 export interface SwitchProps {
-    /** On/off state (controlled). */
     checked?: boolean;
-    /** Change handler — receives the next value. */
     onCheckedChange?: (checked: boolean) => void;
     disabled?: boolean;
-    /** Accessible label. */
     label?: string;
     className?: string;
 }
 
-/**
- * Toggle switch — the Figma "Toggle" used in settings rows. A pill track with a
- * sliding thumb; on = primary track. Stateless and controlled.
- */
 export const Switch = ({
     checked = false,
     onCheckedChange,

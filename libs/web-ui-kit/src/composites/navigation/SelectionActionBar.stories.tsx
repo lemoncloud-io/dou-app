@@ -24,7 +24,6 @@ export const Default: Story = {
     },
 };
 
-/** Nothing picked yet — both off. */
 export const NothingSelected: Story = {
     args: {
         secondary: { label: '읽음으로 표시', onClick: () => undefined, disabled: true },
@@ -32,7 +31,6 @@ export const NothingSelected: Story = {
     },
 };
 
-/** In a bottom sheet's footer — laid out in place, the sheet already clears the safe area. */
 export const Inline: Story = {
     args: {
         placement: 'inline',

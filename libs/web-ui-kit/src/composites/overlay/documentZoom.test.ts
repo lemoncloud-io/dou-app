@@ -41,7 +41,6 @@ describe('isDocumentDoubleTap', () => {
 
 describe('documentZoomScroll', () => {
     it('keeps the content under the focal point where it was', () => {
-        // The point 100px into a scroll at 0 sits at 200px once doubled, and the scroll moves 100px.
         expect(documentZoomScroll({ x: 0, y: 300 }, { x: 100, y: 50 }, 1, 2)).toEqual({ x: 100, y: 650 });
     });
 

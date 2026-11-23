@@ -26,7 +26,6 @@ const ALL: SelectedAvatarItem[] = [
     { id: 'd', name: '가나다마라아아' },
 ];
 
-/** Toggle friends in and out to see the pop-in / fade-out transitions. */
 const InteractiveDemo = () => {
     const [selectedIds, setSelectedIds] = useState<string[]>(['a', 'b']);
     const items = ALL.filter(item => selectedIds.includes(item.id));

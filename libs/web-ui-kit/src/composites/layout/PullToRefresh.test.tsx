@@ -8,9 +8,7 @@ import {
     resolvePullStep,
 } from './PullToRefresh';
 
-/** Finger travel that clears the threshold once resistance halves it. */
 const PAST_THRESHOLD = PULL_TO_REFRESH_THRESHOLD * 2 + 10;
-/** Finger travel for one step of the gauge, after resistance halves it. */
 const STEP_TRAVEL = (PULL_TO_REFRESH_THRESHOLD / PULL_TO_REFRESH_STEPS) * 2;
 
 const renderList = (onRefresh: () => Promise<unknown>, props: { disabled?: boolean } = {}) => {
@@ -24,14 +22,12 @@ const renderList = (onRefresh: () => Promise<unknown>, props: { disabled?: boole
 
 const touch = (clientY: number, clientX = 0, identifier = 1) => ({ touches: [{ identifier, clientX, clientY }] });
 
-/** One finger down at y=0, dragged to `toY`, then lifted. */
 const pull = (node: HTMLElement, toY: number, toX = 0) => {
     fireEvent.touchStart(node, touch(0));
     fireEvent.touchMove(node, touch(toY, toX));
     fireEvent.touchEnd(node, { touches: [] });
 };
 
-/** A promise the test resolves by hand, to hold a refresh open. */
 const deferred = () => {
     let resolve!: () => void;
     const promise = new Promise<void>(res => (resolve = res));
@@ -144,7 +140,6 @@ describe('PullToRefresh', () => {
 
         expect(onRefresh).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('status')).toBeInTheDocument();
-        // Settled into the indicator's slot rather than left under a finger that is gone.
         expect(node.lastElementChild).toHaveStyle({ transform: 'translateY(64px)' });
     });
 
@@ -152,7 +147,6 @@ describe('PullToRefresh', () => {
         const node = renderList(jest.fn().mockResolvedValue(undefined));
 
         fireEvent.touchStart(node, touch(0));
-        // Short of the fill, so the move does not also start a refresh that settles after the test.
         const notCancelled = fireEvent.touchMove(node, touch(PULL_TO_REFRESH_THRESHOLD));
 
         expect(notCancelled).toBe(false);
@@ -204,7 +198,6 @@ describe('PullToRefresh', () => {
 
         await act(async () => {
             fireEvent.touchStart(node, touch(0));
-            // iOS delivers one-pixel moves: the first can be flat, or a sideways twitch.
             fireEvent.touchMove(node, touch(0, 1));
             fireEvent.touchMove(node, touch(2, 1));
             fireEvent.touchMove(node, touch(PAST_THRESHOLD));
@@ -225,7 +218,6 @@ describe('PullToRefresh', () => {
 
     it('still puts the list back when the element under the finger is removed mid-drag', async () => {
         const onRefresh = jest.fn().mockResolvedValue(undefined);
-        // Different element types, so React really removes the skeleton instead of reusing it.
         const List = ({ loading }: { loading: boolean }) => (
             <PullToRefresh data-testid="list" onRefresh={onRefresh}>
                 {loading ? <div data-testid="skeleton">skeleton</div> : <p>row</p>}
@@ -235,10 +227,7 @@ describe('PullToRefresh', () => {
         const skeleton = screen.getByTestId('skeleton');
 
         fireEvent.touchStart(skeleton, touch(0));
-        // Short of the fill, so only the release can put the list back.
         fireEvent.touchMove(skeleton, touch(PULL_TO_REFRESH_THRESHOLD));
-        // The host swaps the skeleton for real rows. The finger's events keep targeting the node,
-        // which is now detached and bubbles to nobody.
         rerender(<List loading={false} />);
         expect(skeleton.isConnected).toBe(false);
         await act(async () => {
@@ -288,7 +277,6 @@ describe('PullToRefresh', () => {
         jest.useRealTimers();
     });
 
-    /** Renders a list whose refresh never answers, so a test can follow one touch past the fill. */
     const renderGauge = () => {
         const onTick = jest.fn();
         const onFill = jest.fn();
@@ -306,7 +294,6 @@ describe('PullToRefresh', () => {
     it('ticks once per step on the way down, then fills once and starts the refresh', async () => {
         const { node, moveTo, onTick, onFill, onRefresh } = renderGauge();
 
-        // Async: the refresh is called a microtask after the fill.
         await act(async () => {
             fireEvent.touchStart(node, touch(0));
             for (let step = 1; step <= PULL_TO_REFRESH_STEPS; step += 1) moveTo(step);
@@ -351,7 +338,6 @@ describe('PullToRefresh', () => {
         act(() => {
             fireEvent.touchStart(node, touch(0));
             moveTo(3);
-            // One pull pixel under the boundary and back, twice: inside the hysteresis.
             fireEvent.touchMove(node, touch(3 * STEP_TRAVEL - 2));
             moveTo(3);
             fireEvent.touchMove(node, touch(3 * STEP_TRAVEL - 2));
@@ -412,8 +398,6 @@ describe('PullToRefresh', () => {
 
         act(() => pull(node, PULL_TO_REFRESH_THRESHOLD));
 
-        // Half full when the finger let go, and still half full as the slot collapses — not emptied
-        // on the first frame of the way out.
         const disc = node.firstElementChild?.firstElementChild as HTMLElement;
         expect(disc.style.opacity).toBe('0.5');
     });

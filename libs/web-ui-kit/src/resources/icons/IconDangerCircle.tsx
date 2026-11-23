@@ -1,22 +1,9 @@
 import * as React from 'react';
 
 export interface IconDangerCircleProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (glyph is square). */
     size?: number;
 }
 
-/**
- * Duotone danger circle — a filled disc with a knocked-out exclamation (Figma icon node 2910:37176,
- * used by the contacts-permission notice on the friend picker, node 3263:29626).
- *
- * Two-tone the way {@link IconCheckCircleSolid} is: the disc and the mark each take a token rather
- * than the design's literal hex, so the glyph inverts with the theme instead of staying a fixed
- * light-grey disc on a dark background. `--input-border` IS the design's disc colour in light mode
- * (#EAEAEC) and a dark grey in dark mode; `--foreground` is the strongest ink in either. The
- * exported SVG this replaces carried `#EAEAEC`/`#102346` literally and could not do that.
- *
- * The path data is the exported vector, unchanged — only the fills are tokenised.
- */
 export const IconDangerCircle = ({ size = 28, className, ...props }: IconDangerCircleProps) => (
     <svg
         width={size}

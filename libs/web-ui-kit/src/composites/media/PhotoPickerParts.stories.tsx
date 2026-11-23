@@ -26,7 +26,6 @@ export const Recent: Story = {
     ),
 };
 
-/** The attach panel's row: picks in place, numbered in pick order, locked at the cap (3 here). */
 const RecentPickingDemo = () => {
     const [picked, setPicked] = useState<string[]>(['p1']);
     return (
@@ -66,10 +65,6 @@ export const Picked: Story = {
     ),
 };
 
-/**
- * Tappable thumbnails (the app opens its editor on one), the first photo edited — turned and cropped,
- * drawn from a rendition of the whole photo, with the pencil mark.
- */
 export const PickedAndEdited: Story = {
     render: () => (
         <div className="w-[375px]">
@@ -100,11 +95,6 @@ export const PickedAndEdited: Story = {
     ),
 };
 
-/**
- * The compact row a chat composer keeps above its field while photos wait for its send button, laid
- * out the way the room lays it: inside the composer's 16px gutter, flush with the pill and 8px above
- * it, over a photo message scrolling behind. Remove all three to see the button need text.
- */
 const PickedAboveComposerDemo = () => {
     const [picked, setPicked] = useState(() => [
         photos[0],
@@ -141,12 +131,6 @@ const PickedAboveComposerDemo = () => {
 
 export const PickedAboveComposer: Story = { render: () => <PickedAboveComposerDemo /> };
 
-/**
- * How the strip moves, in both sizes. Pick the first photo and it opens, pushing what is under it down
- * (a stand-in grid for `regular`; the composer's strip rises above the field for `compact`); pick more
- * and each widens in, the row scrolling along once it overflows; remove one and the rest slide over;
- * remove the last and it closes. With reduced motion turned on in the OS, all of it is instant.
- */
 const PickedMotionDemo = () => {
     const [size, setSize] = useState<'regular' | 'compact'>('regular');
     const [picked, setPicked] = useState<typeof photos>([]);

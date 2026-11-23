@@ -13,7 +13,6 @@ describe('pagerDragOffset', () => {
 });
 
 describe('pagerReleaseStep', () => {
-    // A 400px pager: a fifth of it is 80px, more than the 48px floor.
     const width = 400;
 
     it('turns to the next page on a long drag to the left, and back on one to the right', () => {

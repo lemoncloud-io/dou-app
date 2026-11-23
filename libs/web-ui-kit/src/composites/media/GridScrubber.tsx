@@ -4,41 +4,20 @@ import { cn } from '@chatic/ui-kit';
 
 import { scrollTopForScrubber, scrubberOffset, showsScrubber } from './photoGridLayout';
 
-/** The handle's touch target, in CSS pixels. The drawn pill inside it is narrower. */
 const HANDLE_HEIGHT = 48;
-/** Space kept clear at the track's top and bottom, so the handle never sits under the sheet's edge. */
 const TRACK_INSET = 8;
-/** How long the handle stays after the last scroll or drag. */
 const HIDE_AFTER_MS = 1500;
 
-/** The handle's run: the scroller's height, less the insets at both ends and what covers its bottom. */
 const trackLength = (viewportHeight: number, insetBottom: number) =>
     Math.max(0, viewportHeight - insetBottom - TRACK_INSET * 2);
 
 export interface GridScrubberProps {
-    /** The element the handle scrolls. Its parent must be positioned: the handle lays over its right edge. */
     scroller: HTMLElement | null;
-    /** The scrolled content's height — the handle re-measures when it changes, without showing itself. */
     contentHeight: number;
-    /**
-     * How much of the scroller's bottom something lies over — the photo grid's footer. The track stops
-     * above it, so the handle is never dragged out of sight under it. Default 0.
-     */
     insetBottom?: number;
     className?: string;
 }
 
-/**
- * A fast-scroll handle for a long grid, as the system photo apps have: it appears on the right edge
- * while the grid scrolls, fades a moment after, and dragging it moves through the whole list at once —
- * the handle's place along the track is the scroll position's place along the content.
- *
- * Shown only for content longer than three screens. It is pointer-only and hidden from assistive
- * tech: the scroller itself scrolls by every other means, and a second scroll control would only be
- * read out as noise.
- *
- * Its presses never reach the sheet around it — a drag down the handle is a scroll, not a dismissal.
- */
 export const GridScrubber = ({ scroller, contentHeight, insetBottom = 0, className }: GridScrubberProps) => {
     const [eligible, setEligible] = React.useState(false);
     const [offset, setOffset] = React.useState(0);
@@ -90,8 +69,6 @@ export const GridScrubber = ({ scroller, contentHeight, insetBottom = 0, classNa
 
     React.useEffect(measure, [measure, contentHeight]);
 
-    // The handle unmounts when the content shrinks below the threshold, mid-drag included, and its
-    // release never comes. Without this it would come back still "dragging" and never fade.
     React.useEffect(() => {
         if (eligible) return;
         drag.current = null;

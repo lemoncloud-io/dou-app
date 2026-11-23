@@ -26,7 +26,6 @@ export default meta;
 
 type Story = StoryObj<typeof AppHeader>;
 
-// Type 1 — no cloud connected, no place profile yet: DoU brand mark + default avatar glyph.
 export const NoCloud: Story = {
     args: {
         kind: 'no-cloud',
@@ -39,7 +38,6 @@ export const NoCloud: Story = {
     },
 };
 
-// Type 1 — no cloud connected, with a place profile picture on the right.
 export const NoCloudWithPlaceAvatar: Story = {
     args: {
         ...NoCloud.args,
@@ -47,7 +45,6 @@ export const NoCloudWithPlaceAvatar: Story = {
     },
 };
 
-// Type 2 — cloud connected: owner-set cloud avatar + cloud name (+ place profile on the right).
 export const Cloud: Story = {
     args: {
         kind: 'cloud',
@@ -63,8 +60,6 @@ export const Cloud: Story = {
     },
 };
 
-// Tier not decided yet (membership or catalog still in flight) — the pill's slot pulses at the
-// pill's own size instead of staying empty.
 export const PlanLoading: Story = {
     args: {
         ...Cloud.args,
@@ -73,8 +68,6 @@ export const PlanLoading: Story = {
     },
 };
 
-// Cloud connected, but the owner hasn't set a profile photo yet — falls back to
-// a Slack-style initials avatar derived from the cloud name.
 export const CloudWithInitialsAvatar: Story = {
     args: {
         ...Cloud.args,
@@ -83,7 +76,6 @@ export const CloudWithInitialsAvatar: Story = {
     },
 };
 
-// Cloud switcher opens a DropdownMenu (Radix owns open state; AppHeader stays stateless).
 export const CloudWithDropdown: Story = {
     args: {
         ...Cloud.args,

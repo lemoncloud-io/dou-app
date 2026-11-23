@@ -30,8 +30,6 @@ describe('Textarea', () => {
         expect(screen.getByLabelText('내용')).toHaveAttribute('aria-invalid', 'true');
     });
 
-    // The counter is TextField's behaviour, not this one's — long-form input should not
-    // display a visible cap. A caller that needs a hard cap clamps in `onChange`.
     it('never renders a character counter', () => {
         render(<Textarea label="내용" value="1234" onChange={jest.fn()} maxLength={10} />);
 

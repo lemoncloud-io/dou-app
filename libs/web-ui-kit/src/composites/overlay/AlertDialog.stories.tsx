@@ -49,7 +49,6 @@ export const Destructive: Story = {
     ),
 };
 
-// Single full-width action — the Figma one-button notice dialog (e.g. an expired invite).
 export const SingleAction: Story = {
     render: () => (
         <Trigger

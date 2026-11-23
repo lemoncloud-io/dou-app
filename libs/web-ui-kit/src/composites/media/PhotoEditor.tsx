@@ -24,18 +24,12 @@ import { VideoMark } from './VideoMark';
 
 export interface PhotoEditorItem {
     id: string;
-    /** The grid's square preview — drawn (object-contain) until `src` is ready. */
     previewSrc: string;
-    /** Display rendition of the whole upright photo; absent while the host reads it. */
     src?: string;
-    /** Upright pixel size of the ORIGINAL, the space `edit` is measured in; absent while loading. */
     width?: number;
     height?: number;
-    /** Absent = unedited. */
     edit?: PhotoEdit;
-    /** False for a video or a GIF: shown, tool disabled. */
     editable: boolean;
-    /** The host could not read it: tool disabled, a line says so. */
     failed?: boolean;
     kind?: PhotoItemKind;
     durationMs?: number;
@@ -51,17 +45,11 @@ export interface PhotoEditorLabels {
     cancel: string;
     apply: string;
     aspects: Record<CropAspect, string>;
-    /** The line under the toolbar when the showing item is a video or a GIF. */
     notEditable: string;
-    /** The line while the host is still reading the showing photo. */
     loading: string;
-    /** The line, and the page's own notice, when the host could not read the showing photo. */
     failed: string;
-    /** Where the pager is, e.g. "2 / 5". */
     counter: (position: number, total: number) => string;
-    /** Accessible name of a thumbnail in the bottom strip; receives the 1-based position. */
     thumbnail: (position: number) => string;
-    /** Accessible name of the editor. Not drawn. */
     title: string;
 }
 
@@ -94,16 +82,12 @@ const DEFAULT_LABELS: PhotoEditorLabels = {
 export interface PhotoEditorProps {
     open: boolean;
     items: PhotoEditorItem[];
-    /** Host-owned page index. */
     index: number;
     onIndexChange: (index: number) => void;
-    /** Apply in crop mode reports the new edit for that item. */
     onEditChange: (id: string, edit: PhotoEdit) => void;
-    /** ✕, Escape, Android back (delivered as Escape) outside crop mode. Host confirms if dirty. */
     onCancel: () => void;
     onDone: () => void;
     onSend: () => void;
-    /** Already carries the count, e.g. "3장 보내기". */
     sendLabel: string;
     sending?: boolean;
     labels?: Partial<PhotoEditorLabels>;
@@ -114,21 +98,17 @@ interface Press {
     x: number;
     y: number;
     at: number;
-    /** Which way the drag went once it passed the slop. Only a sideways one is the pager's. */
     axis: 'x' | 'y' | null;
 }
 
-/** Whether the host has handed over what the page draws the photo from. */
 const isLoaded = (item: PhotoEditorItem): item is PhotoEditorItem & { src: string; width: number; height: number } =>
     Boolean(item.src && item.width && item.height && item.width > 0 && item.height > 0);
 
-/** Whether the crop & rotate tool can open on an item: a photo the host has read, that can be edited. */
 const canCrop = (
     item: PhotoEditorItem | undefined
 ): item is PhotoEditorItem & { src: string; width: number; height: number } =>
     Boolean(item && item.editable && !item.failed && isLoaded(item));
 
-/** What the line under the toolbar says about an item the tool cannot open on, if anything. */
 const statusOf = (item: PhotoEditorItem | undefined): 'failed' | 'notEditable' | 'loading' | null => {
     if (!item) return null;
     if (item.failed) return 'failed';
@@ -148,12 +128,6 @@ interface EditorPageProps {
     failedLabel: string;
 }
 
-/**
- * One page of the pager. A photo the host has read is drawn with its edit; until then its square
- * grid preview stands in, with a spinner while the host is still reading it. A video shows its poster
- * with the play mark — it is in the pager because it is in the pick, not because anything can be done
- * to it here.
- */
 const EditorPage = ({ item, failedLabel }: EditorPageProps) => {
     const preview = item.previewSrc ? (
         <img
@@ -186,8 +160,6 @@ const EditorPage = ({ item, failedLabel }: EditorPageProps) => {
         return (
             <>
                 {preview}
-                {/* Centred rather than in a corner: the poster is letterboxed, and the page's corner
-                    is not the poster's. */}
                 <VideoMark
                     durationMs={item.durationMs}
                     className="bottom-auto left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2.5 py-1 text-[13px]"
@@ -210,7 +182,6 @@ const EditorPage = ({ item, failedLabel }: EditorPageProps) => {
     return (
         <>
             {preview}
-            {/* A GIF is never read for editing: its preview is all it gets, with nothing promised. */}
             {item.editable && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <IconSpinner className="size-8 animate-spin text-white" aria-hidden />
@@ -220,36 +191,6 @@ const EditorPage = ({ item, failedLabel }: EditorPageProps) => {
     );
 };
 
-/**
- * The photos picked in the grid, full screen and editable before they are sent (product decision:
- * edit in the grid, send from the grid or from here). A black screen like `MediaViewer`'s, sliding up
- * the same way, with a pager over the picked items in pick order: ✕, a count and Done along the top,
- * and along the bottom a strip of the picked items (the showing one ringed; a tap jumps to it), the
- * crop & rotate tool and the send button.
- *
- * - ✕ — and Escape, which is also how Android's back arrives — asks to leave without keeping what was
- *   changed since the editor opened (`onCancel`). It does not close anything itself: the host decides,
- *   and asks first when something did change. Done (`onDone`) leaves keeping the edits; send
- *   (`onSend`) sends from here.
- * - A horizontal swipe turns the page, as in the viewer and with the same thresholds. There is no
- *   tap-to-close and no pull-to-close: either would throw away edits on a stray touch.
- * - Videos and GIFs are in the pager and the strip, but the tool stays greyed and a line says why.
- *   A photo still being read shows its square preview and says so; one the host could not read says
- *   that instead.
- *
- * Crop mode — the tool, on the showing photo — hides the pager, the strip and send. It draws the whole
- * photo as turned and mirrored so far with the crop box over it, the aspect presets, rotate left, flip
- * and Reset, and swaps ✕ / Done for Cancel / Apply. Everything there is a draft held here (the state of
- * one gesture, as the kit allows): Apply reports it through `onEditChange`, Cancel and Escape drop it,
- * and Reset only sets the draft back to the untouched photo — it still needs Apply. Crop mode opens only
- * on a photo the host has read (`src`, `width`, `height`) that can be edited.
- *
- * Stateless otherwise: the index, the items and their edits belong to the host. Only the showing page
- * and its neighbours are drawn, so ten renditions are not decoded at once.
- *
- * On `@radix-ui/react-dialog` directly, for the reason `MediaViewer` gives: focus, Escape and the
- * portal are what is wanted, not the styled card.
- */
 export const PhotoEditor = ({
     open,
     items,
@@ -269,10 +210,6 @@ export const PhotoEditor = ({
         aspects: { ...DEFAULT_LABELS.aspects, ...labels?.aspects },
     };
 
-    // What was showing, kept through the close: the editor is still on screen while it slides away,
-    // and a host that clears the pick as it sends would otherwise leave it sliding away empty. A ref
-    // written after each open commit rather than state: hosts build `items` afresh on every render, and
-    // state would render the editor twice for each of theirs.
     const keptRef = React.useRef({ items, index });
     React.useLayoutEffect(() => {
         if (open) keptRef.current = { items, index };
@@ -285,9 +222,6 @@ export const PhotoEditor = ({
     const hasPrevious = many && current > 0;
     const hasNext = many && current < list.length - 1;
 
-    // The crop & rotate tool's draft, for one item. It is dropped as soon as it no longer applies — the
-    // editor closed, or the host moved the page or took the item away — so coming back to the photo
-    // does not reopen a half-made crop.
     const [crop, setCrop] = React.useState<{ id: string; draft: PhotoEdit } | null>(null);
     const cropValid = crop !== null && open && showing?.id === crop.id && canCrop(showing);
     if (crop && !cropValid) setCrop(null);
@@ -305,20 +239,14 @@ export const PhotoEditor = ({
     };
 
     const [footerRef, footer] = useBoxSize<HTMLDivElement>();
-    // The snackbar rests at the bottom too; while the editor shows, it rests above the toolbar instead
-    // of on the send button. The height is the bar's own, above the bottom inset the snackbar already
-    // clears.
     useToastLift(open && footer.height > 0 ? footer.height : null);
 
     const go = (step: -1 | 1) => {
-        // Sliding away, or cropping: a page turn now would act on a screen the user is not looking at.
         if (!open || cropping) return;
         const target = current + step;
         if (target >= 0 && target < list.length) onIndexChange(target);
     };
 
-    // The thumbnail of the showing item, scrolled to the middle of the strip when the page turns, so a
-    // swipe through ten photos never leaves the ringed one off screen.
     const thumbStripRef = React.useRef<HTMLDivElement | null>(null);
     React.useEffect(() => {
         const strip = thumbStripRef.current;
@@ -327,8 +255,6 @@ export const PhotoEditor = ({
         if (!thumb || typeof strip.scrollTo !== 'function') return;
         strip.scrollTo({ left: thumb.offsetLeft - (strip.clientWidth - thumb.offsetWidth) / 2, behavior: 'smooth' });
     }, [open, current, cropping]);
-
-    // --- Pager ---
 
     const [dragX, setDragX] = React.useState(0);
     const [dragging, setDragging] = React.useState(false);
@@ -342,9 +268,6 @@ export const PhotoEditor = ({
     };
 
     const onPointerDown = (event: React.PointerEvent) => {
-        // A second finger is not a swipe: let the strip settle back where it was. Told by `isPrimary`
-        // rather than by a press already being held — a release that landed outside the pager before
-        // the drag was captured never reached it, and that stale press must not swallow the next one.
         if (event.isPrimary === false) {
             if (pressRef.current) endDrag();
             return;
@@ -366,14 +289,12 @@ export const PhotoEditor = ({
         if (!press.axis) {
             if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_SLOP_PX) return;
             press.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-            // Only a sideways drag with somewhere to go is the pager's; nothing else here drags.
             if (press.axis === 'y' || !many) {
                 pressRef.current = null;
                 return;
             }
             setDragging(true);
             try {
-                // Keep the moves coming when the finger leaves the photo or the screen edge.
                 (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
             } catch {
                 // A synthetic or already-released pointer — the moves still arrive while inside.
@@ -391,8 +312,6 @@ export const PhotoEditor = ({
                 Date.now() - press.at,
                 pagerRef.current?.clientWidth ?? 0
             );
-            // Dropping the offset and moving the index in the same render lets the strip slide on from
-            // wherever the finger left it.
             if (step !== 0) go(step);
         }
         endDrag();
@@ -419,12 +338,7 @@ export const PhotoEditor = ({
                 />
                 <Dialog.Content
                     aria-describedby={undefined}
-                    // The editor fills the screen, so anything "outside" it is drawn on top of it — a toast
-                    // with a button of its own, or the host's discard dialog. Pressing it must not close
-                    // the editor on the way.
                     onInteractOutside={event => event.preventDefault()}
-                    // The host decides what leaving means, so Radix never closes on its own: in crop mode
-                    // Escape only leaves crop mode, and outside it the host is asked.
                     onEscapeKeyDown={event => {
                         event.preventDefault();
                         if (cropping) leaveCrop();
@@ -437,8 +351,6 @@ export const PhotoEditor = ({
                     }}
                     className={cn(
                         'fixed inset-0 z-50 flex flex-col overflow-hidden bg-black text-white outline-none',
-                        // Nothing on it is pressable while it slides away. Important, because Radix's modal
-                        // layer sets `pointer-events: auto` inline.
                         'data-[state=closed]:!pointer-events-none',
                         'data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom-full data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom-full',
                         VIEWER_MOTION
@@ -503,7 +415,6 @@ export const PhotoEditor = ({
                                 onPointerMove={event => isOwnEvent(event) && onPointerMove(event)}
                                 onPointerUp={event => isOwnEvent(event) && onPointerUp(event)}
                                 onPointerCancel={event => isOwnEvent(event) && endDrag()}
-                                // The drag is all ours: no browser pan or pinch fights the strip.
                                 className="size-full touch-none"
                             >
                                 <div

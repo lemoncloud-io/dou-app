@@ -12,17 +12,10 @@ const VARIANT = {
 } as const;
 
 export interface TextProps extends React.HTMLAttributes<HTMLElement> {
-    /** Typography role from the type scale. */
     variant?: keyof typeof VARIANT;
-    /** Element to render (span by default). */
     as?: React.ElementType;
 }
 
-/**
- * Typography primitive — renders text at a named scale step. Polymorphic via
- * `as` (span/p/h1…); color is left to the caller (defaults to inherit) so it
- * composes with token text-colors.
- */
 export const Text = ({ variant = 'body', as, className, children, ...props }: TextProps) => {
     const Comp = as ?? 'span';
     return (

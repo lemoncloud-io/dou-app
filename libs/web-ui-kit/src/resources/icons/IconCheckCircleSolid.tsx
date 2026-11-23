@@ -1,17 +1,9 @@
 import * as React from 'react';
 
 export interface IconCheckCircleSolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (glyph is square). */
     size?: number;
 }
 
-/**
- * Filled check disc — the "currently connected" mark on the cloud-switcher rows (Figma 3477-23611).
- * The disc takes `currentColor` (callers pass `text-primary`, which resolves to the lime #b0ea10)
- * and the tick is always white, matching the design in both light and dark themes.
- *
- * Replaces the disc-plus-lucide-`Check` combination that DouHomeItem and CloudItem each hand-rolled.
- */
 export const IconCheckCircleSolid = ({ size = 28, className, ...props }: IconCheckCircleSolidProps) => (
     <svg
         width={size}

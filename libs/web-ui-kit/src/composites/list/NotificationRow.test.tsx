@@ -9,7 +9,6 @@ const base: NotificationRowProps = {
     body: 'How about Sapporo?',
 };
 
-// jsdom has no PointerEvent, so `fireEvent.pointer*` would drop the coordinates a scroll is told by.
 beforeAll(() => {
     if (!('PointerEvent' in window)) {
         Object.defineProperty(window, 'PointerEvent', { value: class extends MouseEvent {}, configurable: true });
@@ -60,7 +59,6 @@ describe('NotificationRow', () => {
         rerender(<NotificationRow {...base} selectable selected unread />);
         const row = screen.getByRole('button');
         expect(row).toHaveAttribute('aria-pressed', 'true');
-        // A picked row is tinted navy even when it is unread.
         expect(row).toHaveClass('bg-nav-ink/[0.06]');
     });
 

@@ -15,8 +15,6 @@ import { FloatingTabBar } from './FloatingTabBar';
 const meta: Meta<typeof FloatingTabBar> = {
     title: 'web-ui-kit/composites/FloatingTabBar',
     component: FloatingTabBar,
-    // The bar self-positions with `fixed`; give the canvas a phone-sized, relative
-    // frame so it pins to the bottom of the frame rather than the whole viewport.
     decorators: [
         Story => (
             <div className="relative h-[720px] w-[375px] overflow-hidden border border-input-border bg-background">
@@ -68,10 +66,8 @@ export const Default: Story = { render: () => <Demo /> };
 
 export const WithUnreadBadge: Story = { render: () => <Demo badge={1200} /> };
 
-/** The notifications tab's red dot — something new, no number. */
 export const WithNotificationDot: Story = { render: () => <Demo badge={3} dot /> };
 
-/** Coloured rows behind the bar, so the frost, the saturation lift and the rims can be judged. */
 export const OverContent: Story = {
     render: () => (
         <>

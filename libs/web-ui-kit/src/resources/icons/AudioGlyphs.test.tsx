@@ -4,7 +4,6 @@ import { IconAudioWave } from './IconAudioWave';
 import { IconPauseSolid } from './IconPauseSolid';
 import { IconSkip15 } from './IconSkip15';
 
-/** The audio player's glyphs keep the kit's glyph contract: square, `size`-driven, hidden from assistive tech. */
 describe.each([
     ['IconPauseSolid', (size?: number) => <IconPauseSolid size={size} />, 20],
     ['IconAudioWave', (size?: number) => <IconAudioWave size={size} />, 20],

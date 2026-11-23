@@ -33,8 +33,6 @@ const ManageList = () => {
     return (
         <>
             {rooms.map(room => (
-                // DefaultAvatar has exactly two images, `user` and `group` — there is no `self`.
-                // The self room is marked by the badge in the title instead.
                 <ManageChannelItem
                     key={room.id}
                     leading={<DefaultAvatar size={46} variant="user" />}
@@ -51,7 +49,6 @@ const ManageList = () => {
                     subtitle={room.preview || undefined}
                     time="09:41"
                     unread={room.unread ?? 0}
-                    // Self-chat can be neither deleted nor left, so it is not selectable.
                     selectable={!room.self}
                     checked={!!selected[room.id]}
                     onToggle={next => setSelected(s => ({ ...s, [room.id]: next }))}
@@ -67,7 +64,6 @@ const ManageList = () => {
 
 export const ChannelManageList: Story = { render: () => <ManageList /> };
 
-/** Trailing copy action is an underlined text link (Figma 3266-32893), not an icon button. */
 export const InviteLinkCardWithTextCopy: Story = {
     render: () => (
         <div className="p-4">

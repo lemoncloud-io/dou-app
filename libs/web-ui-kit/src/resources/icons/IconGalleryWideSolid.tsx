@@ -1,18 +1,9 @@
 import * as React from 'react';
 
 export interface IconGalleryWideSolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Solid wide-gallery glyph — the "photos" action in the chat attach menu. Exported from the Figma
- * "Bold / Video, Audio, Sound / Gallery Wide" instance the attach menu carries (node `3758:30475`
- * inside `3749:27536`). Not a lucide stand-in: the design's glyph is a filled frame with a second
- * stacked frame above it, which no outline icon reproduces.
- *
- * The `viewBox` is the icon's own 32×32 frame. Fills with `currentColor` so the tile colours it.
- */
 export const IconGalleryWideSolid = ({ size = 32, className, ...props }: IconGalleryWideSolidProps) => (
     <svg
         width={size}

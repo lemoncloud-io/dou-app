@@ -37,8 +37,6 @@ describe('CollapsibleSection', () => {
         fireEvent.click(toggle);
         expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
-        // The body stays mounted through the collapse animation and unmounts when the
-        // grid-row height transition ends.
         const body = screen.getByText('row').closest('.grid') as HTMLElement;
         fireEvent.transitionEnd(body, { propertyName: 'grid-template-rows' });
         expect(screen.queryByText('row')).not.toBeInTheDocument();
@@ -82,7 +80,6 @@ describe('CollapsibleSection', () => {
             </CollapsibleSection>
         );
 
-        // Controlled: body stays hidden regardless of internal clicks.
         expect(screen.queryByText('row')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
@@ -107,8 +104,6 @@ describe('CollapsibleSection', () => {
             </CollapsibleSection>
         );
 
-        // Guards the existing home Place/Chat markup: consumers that never pass the new props get
-        // exactly two children — the header and the animated body wrapper.
         const section = container.querySelector('section') as HTMLElement;
         expect(section.children).toHaveLength(2);
     });
@@ -124,9 +119,6 @@ describe('CollapsibleSection', () => {
             </CollapsibleSection>
         );
 
-        // The `.grid` wrapper is what animates to 0fr and clips its content, so containment — not
-        // mere presence — is the real guarantee. jsdom applies no CSS, so asserting "still in the
-        // document" after a collapse would pass even if these nodes were moved inside the clip.
         const clipped = screen.getByText('row').closest('.grid') as HTMLElement;
         expect(clipped).not.toBeNull();
         expect(clipped.contains(screen.getByText('나만의 공간에서 그룹 대화 시작'))).toBe(false);
@@ -145,12 +137,10 @@ describe('CollapsibleSection', () => {
             </CollapsibleSection>
         );
 
-        // Collapse and let the height transition finish so the body unmounts.
         const body = screen.getByText('row').closest('.grid') as HTMLElement;
         fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
         fireEvent.transitionEnd(body, { propertyName: 'grid-template-rows' });
 
-        // Only `children` unmounts — the header caption and the footer survive.
         expect(screen.queryByText('row')).not.toBeInTheDocument();
         expect(screen.getByText('나만의 공간에서 그룹 대화 시작')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'add cloud' })).toBeInTheDocument();

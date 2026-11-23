@@ -1,21 +1,9 @@
 import * as React from 'react';
 
 export interface IconUserProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * The single-person glyph — a filled head + shoulders silhouette, extracted from the Figma
- * `1-person Profile` avatar (node 3185:13127). This is THE user glyph for avatars: the room avatar has
- * exactly two images, this and {@link IconGroup}, so there is no outline variant to choose between
- * (the lucide outline lives on as `IconUserOutline` for grey placeholder slots, which are a
- * different job).
- *
- * The `viewBox` (0 0 42 42) matches the avatar circle, so the glyph sits circle-relative when
- * rendered at the avatar's full size. Fills with `currentColor`, so callers set the color via
- * `className`/`color`.
- */
 export const IconUser = ({ size = 24, className, ...props }: IconUserProps) => (
     <svg
         width={size}

@@ -23,15 +23,12 @@ export default meta;
 
 type Story = StoryObj<typeof PromoBanner>;
 
-/** Relay home: inline action link plus dismiss. */
 export const HomeVariant: Story = {
     args: { actionLabel: '클라우드 추가', onAction: () => undefined, onDismiss: () => undefined },
 };
 
-/** Cloud switcher sheet: dismiss only — the section footer already carries the add button. */
 export const SheetVariant: Story = {
     args: { onDismiss: () => undefined },
 };
 
-/** No affordances at all — pure notice. */
 export const CopyOnly: Story = {};

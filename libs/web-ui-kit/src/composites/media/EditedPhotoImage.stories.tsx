@@ -10,8 +10,6 @@ export default meta;
 
 type Story = StoryObj<typeof EditedPhotoImage>;
 
-// A 1200 × 900 photo, drawn from a rendition of half that size: the edit is measured against the
-// original, and the rendition is stretched to it.
 const SRC = 'https://picsum.photos/seed/dou-edit/600/450';
 const WIDTH = 1200;
 const HEIGHT = 900;
@@ -40,11 +38,8 @@ const Grid = ({ fit, size }: { fit: 'contain' | 'cover'; size: number }) => (
     </div>
 );
 
-/** The editor's page: the whole edited result, letterboxed. */
 export const Contain: Story = { render: () => <Grid fit="contain" size={180} /> };
-/** The picked strip's and the editor strip's thumbnails: the edited result filling a square. */
 export const Cover: Story = { render: () => <Grid fit="cover" size={64} /> };
-/** Resize the frame: the photo re-fits its box. */
 export const Resizable: Story = {
     render: () => (
         <div className="h-[320px] w-[320px] resize overflow-hidden bg-black">

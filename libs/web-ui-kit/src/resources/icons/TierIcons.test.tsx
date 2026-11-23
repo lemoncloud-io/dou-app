@@ -3,10 +3,6 @@ import { render } from '@testing-library/react';
 import { IconBoltSolid } from './IconBoltSolid';
 import { IconStarsSolid } from './IconStarsSolid';
 
-/**
- * The two subscription-tier glyphs exported from the Figma subscription status badge component. Grouped because
- * the contract is identical: square, 16px frame, `currentColor`, `size`-driven.
- */
 describe.each([
     ['IconBoltSolid', IconBoltSolid],
     ['IconStarsSolid', IconStarsSolid],
@@ -43,8 +39,6 @@ describe.each([
     });
 });
 
-// The design's FREE glyph is a star plus TWO separate sparks placed by their own insets — merging
-// them (or dropping one) is exactly the drift that made the lucide stand-in read as "almost right".
 it('IconStarsSolid keeps the star and both sparks as separately placed shapes', () => {
     const { container } = render(<IconStarsSolid />);
 

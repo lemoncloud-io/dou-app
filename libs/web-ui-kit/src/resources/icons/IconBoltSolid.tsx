@@ -1,19 +1,9 @@
 import * as React from 'react';
 
 export interface IconBoltSolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Solid lightning bolt — the PRO tier glyph. Exported from the Figma "Bold / Essentional, UI /
- * Bolt" instance the subscription badge carries (node `2676:25776` inside `2870:20411`), replacing
- * the lucide `Zap` stand-in: the design's bolt is a filled shape with a different silhouette, which
- * is what made the badge read as "almost right".
- *
- * The `viewBox` is the icon's own 16×16 frame; the glyph sits inset 8.33% vertically / 16.67%
- * horizontally inside it, so the path is translated instead of rescaled. Fills with `currentColor`.
- */
 export const IconBoltSolid = ({ size = 16, className, ...props }: IconBoltSolidProps) => (
     <svg
         width={size}

@@ -3,29 +3,15 @@ import * as React from 'react';
 import { cn } from '@chatic/ui-kit';
 
 export interface SelectableCardProps {
-    /** Item name. Truncates on one line. */
     title: string;
-    /** 42px leading slot — an avatar or a product glyph. */
     leading?: React.ReactNode;
-    /** Lime label left of the radio (e.g. "Selected"). */
     trailingLabel?: string;
-    /** Whether the radio is filled. Owned by the host. */
     checked: boolean;
-    /** Called with the opposite of `checked` on tap; the host decides what that means for the list. */
     onToggle?: (next: boolean) => void;
-    /** Blocks the tap and dims the card. */
     disabled?: boolean;
     className?: string;
 }
 
-/**
- * Radio card — the Figma pick-list card on the subscription screens (choose a plan, choose which
- * clouds to keep): an optional leading avatar, a title, an optional lime label and a radio.
- *
- * The radio is drawn exactly like the plan picker's in `apps/web` (25px ring, 13px dot) so the two
- * lists read as one control. Stateless — `checked` belongs to the host, which is also what lets the
- * same card serve single-pick and multi-pick lists.
- */
 export const SelectableCard = ({
     title,
     leading,
@@ -43,7 +29,6 @@ export const SelectableCard = ({
             disabled={disabled}
             onClick={() => onToggle?.(!checked)}
             className={cn(
-                // BK_50 edge — `--secondary` is that value in light mode.
                 'flex w-full items-center rounded-[20px] border border-secondary bg-card px-1 py-2 text-left',
                 'shadow-[0_2px_7px_rgba(0,0,0,0.08)] dark:border-border dark:shadow-none',
                 'disabled:cursor-not-allowed disabled:opacity-50',

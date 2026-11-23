@@ -12,8 +12,6 @@ import {
 } from './NavIcons';
 
 describe('NavIcons', () => {
-    // The app sets a `<base href>`, against which a `url(#…)` reference can resolve to nothing on
-    // any other path. None of these glyphs may depend on one.
     it.each([
         ['IconNavChat', IconNavChat],
         ['IconNavChatSolid', IconNavChatSolid],
@@ -30,8 +28,6 @@ describe('NavIcons', () => {
         expect(container.innerHTML).not.toContain('url(#');
     });
 
-    // The design's line is 1.5px inside the outline; the glyph shrinks the path and widens the
-    // stroke by the same factor, so what reaches the screen is still a 1.5px line.
     it('draws the line chat glyph with a stroke that comes out at 1.5px after its inset scale', () => {
         const { container } = render(<IconNavChat />);
 

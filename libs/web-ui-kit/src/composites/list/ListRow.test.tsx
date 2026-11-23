@@ -26,7 +26,6 @@ describe('ListRow', () => {
         render(<ListRow title="Room" subtitle="half a thought" subtitleIcon={<svg role="img" aria-label="Draft" />} />);
 
         const icon = screen.getByRole('img', { name: 'Draft' });
-        // In the subtitle's own tone, ahead of its text — no colour of its own.
         expect(icon.closest('[data-slot="subtitle-icon"]')?.parentElement).toHaveTextContent('half a thought');
         expect(icon.closest('[data-slot="subtitle-icon"]')?.parentElement).toHaveClass('text-description');
     });

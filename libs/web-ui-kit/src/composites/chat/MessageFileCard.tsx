@@ -19,57 +19,26 @@ import {
 import { clampFileProgress, formatFileSize, messageFileKind, splitFileName, type MessageFileKind } from './messageFile';
 import { ProgressRing } from './ProgressRing';
 
-/**
- * Where the file itself stands — the same four states a media tile has.
- *
- * - `ready` — sent and stored; the card can be opened and downloaded.
- * - `sending` / `failed` — a message still on its way, drawn from the name and size picked locally.
- *   Nothing is downloadable yet, so there is no download button.
- * - `broken` — the server reports the upload unusable. Kept as a dimmed card that says it cannot be
- *   opened, rather than dropped, so what was sent still shows.
- */
 export type MessageFileCardState = 'ready' | 'sending' | 'failed' | 'broken';
 
-/**
- * The download button of a `ready` card.
- *
- * - `idle` — not downloaded this session; pressing it starts the download.
- * - `downloading` — a ring filling with `progress`, or a spinner while that is unknown. Pressing it
- *   again cancels.
- * - `done` — downloaded; pressing it opens the downloaded file.
- */
 export type MessageFileDownloadState = 'idle' | 'downloading' | 'done';
 
 export interface MessageFileCardLabels {
-    /** The name drawn for an upload that carries none — older uploads did not. */
     untitled: string;
     download: string;
     cancel: string;
     open: string;
-    /** The line a `broken` card shows in place of its size. */
     broken: string;
-    /** Accessible names of the sending spinner or ring, and of the failed mark. */
     sending: string;
     failed: string;
 }
 
 export interface MessageFileCardProps {
-    /** The file's name, extension included. Omitted for an old upload that has none. */
     name?: string;
-    /** In bytes. Left out of the card when missing. */
     size?: number;
     state?: MessageFileCardState;
-    /** The download button's state; only a `ready` card has one. */
     download?: MessageFileDownloadState;
-    /**
-     * 0..1 — of the download while `downloading`, of the upload while `sending`. Omit when it is not
-     * known, and a spinner turns instead.
-     */
     progress?: number;
-    /**
-     * Tap on the card's body. What it does is the host's — a preview where the shell has one, the
-     * same download as the button where it does not. Omit to draw the body inert.
-     */
     onPress?: () => void;
     onDownload?: () => void;
     onCancel?: () => void;
@@ -88,9 +57,6 @@ const DEFAULT_LABELS: MessageFileCardLabels = {
     failed: "Couldn't send",
 };
 
-// The glyph and its tint for each kind. The tint follows the colour each family's own programs
-// have taught people to look for (red PDF, blue word processor, green spreadsheet); the tag drawn on
-// the glyph carries the same news for anyone the colour does not reach.
 const KIND_GLYPH: Readonly<Record<MessageFileKind, { Icon: React.ComponentType<FileKindIconProps>; tint: string }>> = {
     pdf: { Icon: IconFilePdf, tint: 'text-destructive' },
     doc: { Icon: IconFileDoc, tint: 'text-point-blue' },
@@ -101,22 +67,6 @@ const KIND_GLYPH: Readonly<Record<MessageFileKind, { Icon: React.ComponentType<F
     file: { Icon: IconFileGeneric, tint: 'text-description' },
 };
 
-/**
- * A document in a chat message (pdf, word processor, spreadsheet, slides, Hangul, plain text): the
- * kind's glyph, the name, the size, and a download button at the right edge.
- *
- * The button is always in sight rather than behind a menu — a document is something people come to a
- * chat to take away, so downloading it is one press from the feed. Its hit area is 44px square, the
- * smallest a thumb reliably lands on, though the circle drawn inside it is smaller. The card's body is
- * a separate target, and what it does is the host's (`onPress`).
- *
- * The name wraps to two lines and is cut short in the middle, never at the end: the body is clamped,
- * the extension sits after it untouched. Two files that differ only in what they are — `report.pdf`
- * and `report.hwp` — must not both read "report…".
- *
- * Stateless: the host owns the download, its progress and what "done" means (a session-long record of
- * which uploads have been saved, say). The card draws the state it is handed.
- */
 export const MessageFileCard = ({
     name,
     size,
@@ -139,7 +89,6 @@ export const MessageFileCard = ({
     const ready = state === 'ready';
 
     const ratio = clampFileProgress(progress);
-    // While it goes up, how much of it has: the ring alone says little about a 300MB video's minutes.
     const sentBytes = state === 'sending' && ratio !== undefined && size !== undefined ? ratio * size : undefined;
     const sub = broken
         ? text.broken
@@ -151,8 +100,6 @@ export const MessageFileCard = ({
         <>
             <Icon size={36} className={cn('shrink-0', tint)} />
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {/* The name as one string for assistive tech — the drawn one is two spans, which a screen
-                    reader would otherwise read as "report", pause, "dot pdf". */}
                 <span id={nameId} className="sr-only">
                     {shown}
                 </span>
@@ -228,7 +175,6 @@ export const MessageFileCard = ({
             <button
                 type="button"
                 aria-label={button.label}
-                // Names which file, so a list of cards is not a list of identical "Download" buttons.
                 aria-describedby={nameId}
                 data-download={download}
                 onClick={button.onClick}

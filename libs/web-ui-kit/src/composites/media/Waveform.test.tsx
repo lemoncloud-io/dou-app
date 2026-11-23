@@ -2,16 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { decorativeWaveform, Waveform } from './Waveform';
 
-/** jsdom lays nothing out, so give the row a 200px box starting at x = 100. */
 const stubBox = (element: HTMLElement) => {
     element.getBoundingClientRect = () =>
         ({ left: 100, top: 0, width: 200, height: 140, right: 300, bottom: 140, x: 100, y: 0 }) as DOMRect;
 };
 
-/**
- * jsdom has no `PointerEvent`, so `fireEvent.pointerDown` would dispatch a bare `Event` with no
- * coordinates. A `MouseEvent` under the pointer type name carries `clientX`, and React listens by name.
- */
 const pointer = (type: string, element: HTMLElement, clientX: number, pointerId = 1) => {
     const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0, clientX });
     Object.defineProperty(event, 'pointerId', { value: pointerId });
@@ -120,12 +115,10 @@ describe('Waveform', () => {
         expect(onSeek).not.toHaveBeenCalled();
         expect(slider).toHaveAttribute('aria-valuenow', '75');
 
-        // Past the row's end clamps to the end.
         pointer('pointermove', slider, 400);
         pointer('pointerup', slider, 400);
         expect(onSeek).toHaveBeenCalledTimes(1);
         expect(onSeek).toHaveBeenCalledWith(1);
-        // The drag is over, so the host's progress is drawn again.
         expect(slider).toHaveAttribute('aria-valuenow', '0');
     });
 

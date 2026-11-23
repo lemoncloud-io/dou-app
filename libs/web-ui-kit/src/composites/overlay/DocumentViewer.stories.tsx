@@ -19,7 +19,6 @@ export default meta;
 
 type Story = StoryObj<typeof DocumentViewer>;
 
-/** Stand-in pages: a title and a few grey lines, drawn on the canvas the viewer hands over. */
 const fakePages = (pageCount: number): DocumentViewerPages => ({
     pageCount,
     aspectRatio: Math.SQRT2,

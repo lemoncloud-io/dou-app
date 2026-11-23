@@ -39,14 +39,6 @@ import {
     Zap,
 } from 'lucide-react';
 
-/**
- * Central icon set for web-ui-kit. Components import semantic icons from here
- * (never `lucide-react` directly) so the icon library is swappable in one place
- * — e.g. replacing these with the Figma-exported SVG set later touches only this
- * file, not every component.
- *
- * All icons share the lucide API (size, className, strokeWidth, currentColor).
- */
 export type IconProps = LucideProps;
 
 export const IconBack: LucideIcon = ChevronLeft;
@@ -60,7 +52,6 @@ export const IconClose: LucideIcon = X;
 export const IconMore: LucideIcon = MoreHorizontal;
 export const IconPlus: LucideIcon = Plus;
 export const IconSearch: LucideIcon = Search;
-/** Gear — the MY hub's entry into the settings depth. */
 export const IconSettings: LucideIcon = Settings;
 export const IconSend: LucideIcon = ArrowUp;
 export const IconSpinner: LucideIcon = Loader2;
@@ -68,79 +59,47 @@ export const IconPlan: LucideIcon = Sparkles;
 export const IconBolt: LucideIcon = Zap;
 export const IconImage: LucideIcon = ImageGlyph;
 export const IconLink: LucideIcon = Link2;
-/** Outline person — grey placeholder slots only. Avatars use the solid `IconUser`. */
 export const IconUserOutline: LucideIcon = User;
 export const IconUsers: LucideIcon = Users;
 export const IconClock: LucideIcon = Clock;
-/** Two stacked sheets — the message action sheet's copy message row (Figma Code Connect: `IconCopy`). */
 export const IconCopy: LucideIcon = Copy;
-/** Room notifications on / off — the home row's mute swipe action and its muted-state glyph. */
 export const IconBell: LucideIcon = Bell;
-/** The mention mark — the notification row's mention chip and the room's mention jump pill. */
 export const IconAtSign: LucideIcon = AtSign;
 export const IconBellOff: LucideIcon = BellOff;
-/** Leave a room — the member's destructive swipe action. */
 export const IconLeave: LucideIcon = LogOut;
-/** Delete a room — the owner's destructive swipe action. */
 export const IconTrash: LucideIcon = Trash2;
-/** Save a file to the device — the idle state of a chat document card's download button. */
 export const IconDownload: LucideIcon = Download;
-/** The photo editor's crop & rotate tool. */
 export const IconCrop: LucideIcon = Crop;
-/** Turn a photo a quarter to the left — the crop & rotate tool's rotate button. */
 export const IconRotateLeft: LucideIcon = RotateCcw;
-/** Mirror a photo left-right — the crop & rotate tool's flip button. */
 export const IconFlipHorizontal: LucideIcon = FlipHorizontal2;
-/** Edit — the photo grid's edit button, and the mark on a picked photo that has been edited. */
 export const IconEdit: LucideIcon = Pencil;
-/** A locked composer — the chat input lock's button in the composer's leading slot. */
 export const IconLock: LucideIcon = Lock;
 
-/** Share a file out of the app — the audio detail's and a file list's share action. */
 export const IconShare: LucideIcon = Share;
-/** Send again — a failed upload's retry chip. */
 export const IconRetry: LucideIcon = RotateCw;
-/** Collect view — the audio detail header's way into the room's file list. */
 export const IconCollection: LucideIcon = LayoutGrid;
 
-// Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUser.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';
 export { IconUser, type IconUserProps } from './IconUser';
 export { IconChatAdd, type IconChatAddProps } from './IconChatAdd';
 export { IconPin, type IconPinProps } from './IconPin';
-// Reaction / thread glyphs (Figma 4701:43432, 4712:16496) — the emoji-add affordance at the end
-// of every chip row, and the doubled speech bubble the action sheet's thread row carries.
 export { IconEmojiAdd, type IconEmojiAddProps } from './IconEmojiAdd';
 export { IconThread, type IconThreadProps } from './IconThread';
-// Duotone glyphs — filled shapes with a half/40%-opacity companion layer. Their lucide
-// outline counterparts (IconClock, IconUsers, IconImage) remain exported: this barrel is
-// the kit's single icon source, so an alias staying available without a current caller is
-// the normal state, not dead code.
 export { IconClockSolid, type IconClockSolidProps } from './IconClockSolid';
 export { IconUsersGroup, type IconUsersGroupProps } from './IconUsersGroup';
 export { IconImageSolid, type IconImageSolidProps } from './IconImageSolid';
 export { IconGalleryAdd, type IconGalleryAddProps } from './IconGalleryAdd';
 export { IconCheckCircleSolid, type IconCheckCircleSolidProps } from './IconCheckCircleSolid';
 export { IconDangerCircle, type IconDangerCircleProps } from './IconDangerCircle';
-// Subscription tier glyphs (Solar "Bold" set, exported from the subscription status badge component). The lucide
-// `IconBolt`/`IconPlan` aliases above are the older stand-ins and stay exported for callers that
-// want the outline look; the tier pills use these.
 export { IconBoltSolid, type IconBoltSolidProps } from './IconBoltSolid';
 export { IconStarsSolid, type IconStarsSolidProps } from './IconStarsSolid';
-// Chat attach-menu glyphs (Solar "Bold" set, exported from the attach sheet `3749:27536`): photos ·
-// camera · files, and the voice entry drawn to match them. Each is 32px in the design and coloured by
-// its tile, so they fill `currentColor`.
 export { IconGalleryWideSolid, type IconGalleryWideSolidProps } from './IconGalleryWideSolid';
 export { IconCameraSolid, type IconCameraSolidProps } from './IconCameraSolid';
 export { IconFileSolid, type IconFileSolidProps } from './IconFileSolid';
 export { IconMicrophoneSolid, type IconMicrophoneSolidProps } from './IconMicrophoneSolid';
 export { IconFileCheck, type IconFileCheckProps } from './IconFileCheck';
 export { IconGalleryWide, type IconGalleryWideProps } from './IconGalleryWide';
-// Chat attachment glyphs drawn for the message feed: the play mark a video tile carries, and the
-// file-kind sheets a document card leads with. Both fill `currentColor`; the tile or card colours them.
 export { IconPlaySolid, type IconPlaySolidProps } from './IconPlaySolid';
-// Audio player glyphs (Figma 6040:20822 · 6072:22653): pause beside play, the waveform mark an
-// unplayable file or a list row carries, and the detail's 15-second skips.
 export { IconPauseSolid, type IconPauseSolidProps } from './IconPauseSolid';
 export { IconAudioWave, type IconAudioWaveProps } from './IconAudioWave';
 export { IconSkip15, type IconSkip15Props } from './IconSkip15';
@@ -154,8 +113,6 @@ export {
     IconFileText,
     type FileKindIconProps,
 } from './FileKindIcons';
-// Bottom nav glyphs (Figma 5780:17209): each tab has a line icon and a filled one for its selected
-// state. They fill or stroke `currentColor`; the tab bar colours them with `text-nav-ink`.
 export {
     IconNavBell,
     IconNavBellSolid,
@@ -167,6 +124,4 @@ export {
     IconNavMySolid,
     type NavIconProps,
 } from './NavIcons';
-// Notification glyphs (Figma 5774:29146): the thread type chip's bubble, the filter chip's check and
-// the jump pill's arrow. They stroke `currentColor`; the chip, filter or pill colours them.
 export { IconCheckSmall, IconJumpArrow, IconThreadChip, type NotifyGlyphProps } from './NotifyGlyphs';

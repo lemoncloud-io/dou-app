@@ -58,7 +58,6 @@ export const Destructive: Story = {
     args: { title: '방 삭제', destructive: true, onClick: () => undefined },
 };
 
-/** A chat row whose composer holds an unsent draft: a pencil leads the line, the draft follows. */
 export const WithSubtitleIcon: Story = {
     args: {
         leading: <ProfileAvatar src={AVATAR} size={36} />,

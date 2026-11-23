@@ -8,8 +8,6 @@ const items: RoomMediaGridItem[] = [
     { key: 'c', kind: 'image' },
 ];
 
-// jsdom has no PointerEvent, so `fireEvent.pointerDown` drops the coordinates; a MouseEvent of the
-// pointer type keeps them and React still routes it to the pointer handlers.
 const pointer = (type: string, target: Element, clientX: number, clientY: number) =>
     fireEvent(target, new MouseEvent(type, { bubbles: true, clientX, clientY }));
 
@@ -25,7 +23,6 @@ describe('RoomMediaGrid', () => {
         expect(screen.getByRole('button', { name: 'Photo 1' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Video 2' })).toBeInTheDocument();
         const images = container.querySelectorAll('img');
-        // The third item has no thumbnail and stays a bare tile.
         expect(images).toHaveLength(2);
         images.forEach(img => expect(img).toHaveAttribute('loading', 'lazy'));
     });
@@ -76,7 +73,6 @@ describe('RoomMediaGrid', () => {
         act(() => jest.advanceTimersByTime(ROOM_MEDIA_LONG_PRESS_MS));
         expect(onLongPress).toHaveBeenCalledWith('b');
 
-        // The host enters selection mode with the tile picked; the release must not unpick it.
         rerender(
             <RoomMediaGrid
                 items={items}

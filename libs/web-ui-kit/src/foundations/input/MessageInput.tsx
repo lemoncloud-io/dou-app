@@ -5,68 +5,23 @@ import { cn } from '@chatic/ui-kit';
 import { IconSend } from '../../resources/icons';
 
 export interface MessageInputProps {
-    /** Controlled value. */
     value: string;
-    /** Controlled change handler — receives the raw string. */
     onChange: (value: string) => void;
-    /**
-     * Fired when the send button is pressed with the trimmed value — non-empty, unless `sendReady`
-     * let it go with nothing typed.
-     */
     onSend?: (value: string) => void;
-    /**
-     * The host has something to send besides the text — photos picked in the attach panel — so the
-     * send button is live even with the field empty, and `onSend` then receives the trimmed value,
-     * empty or not. A host wiring Enter-to-send can rely on the same rule.
-     */
     sendReady?: boolean;
     placeholder?: string;
-    /** Disables typing and sending. */
     disabled?: boolean;
-    /**
-     * Height (px) at which the field stops growing and starts scrolling.
-     * Matches the Figma "Max Height" case; override for shorter viewports.
-     */
     maxHeight?: number;
-    /** Accessible label for the textarea. Host supplies a localized string. */
     label?: string;
-    /** Accessible name of the send button. Host supplies a localized string. */
     sendLabel?: string;
-    /**
-     * Optional key handler on the textarea — e.g. the host wiring Enter-to-send on
-     * desktop while leaving Enter as a newline on mobile.
-     */
     onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-    /**
-     * Optional ref to the underlying textarea (e.g. so the host can re-anchor a
-     * scroll view on focus). Merged with the component's own auto-sizing ref.
-     */
     inputRef?: React.RefObject<HTMLTextAreaElement | null>;
-    /**
-     * Optional control drawn before the textarea, inside the pill — the chat room's attach button
-     * (Figma "Text Area" leading slot, `3749:27998`). A slot rather than an `onAttach` prop so this
-     * component never learns what attaching is: the thread and invite-waiting screens use the same
-     * input and have nothing to attach.
-     */
     leadingSlot?: React.ReactNode;
     className?: string;
 }
 
-// Height (px) below which the field stays a single-line pill; above it the field
-// reads as multi-line and switches to the rounded-rectangle treatment.
 const PILL_MAX_HEIGHT = 48;
 
-/**
- * Chat message composer — the Figma "Text Area" component. Auto-grows with its
- * content from a single-line pill up to `maxHeight`, then scrolls internally and
- * switches to a rounded rectangle. The send button is idle while empty/disabled
- * and becomes active (brand ink) once there is trimmed text to send — or, with
- * `sendReady`, something else the host will send with it.
- *
- * Stateless: `value` is fully controlled by the host and the component holds no
- * React state. Auto-sizing is a layout effect that sizes the textarea and flags
- * the multi-line treatment via a `data-multiline` attribute (no re-render state).
- */
 export const MessageInput = ({
     value,
     onChange,
@@ -85,7 +40,6 @@ export const MessageInput = ({
     const containerRef = React.useRef<HTMLDivElement>(null);
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
-    // Merge the auto-sizing ref with the optional host ref onto the one textarea.
     const setTextareaRef = React.useCallback(
         (node: HTMLTextAreaElement | null) => {
             textareaRef.current = node;
@@ -94,8 +48,6 @@ export const MessageInput = ({
         [inputRef]
     );
 
-    // Size the textarea to its content up to maxHeight (scroll past it) and flag
-    // the pill<->rect switch on the container. Runs on every value change.
     React.useLayoutEffect(() => {
         const el = textareaRef.current;
         const box = containerRef.current;
@@ -110,23 +62,12 @@ export const MessageInput = ({
     const hasText = !disabled && value.trim().length > 0;
     const canSend = hasText || (!disabled && sendReady);
 
-    // Keep the mobile keyboard open when the composer chrome — the pill padding, the gap next to
-    // the textarea, or the send button — is tapped instead of the textarea. Only the textarea
-    // itself should take/hold the caret; a finger slipping a few px off the send button must not
-    // blur it and drop the keyboard.
-    //
-    // Both `pointerdown` and `mousedown`, because iOS (WKWebView) needs the latter: a tap there
-    // runs touchstart → touchend → mousedown → mouseup → click, and WebKit moves focus as the
-    // `mousedown` default action, so cancelling `pointerdown` alone does not hold the caret.
-    // Cancelling `mousedown` leaves `click` intact, so the send button keeps firing. Never cancel
-    // `touchstart` — that suppresses the very click that sends.
     const keepCaretOnTextarea = (event: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
         if (event.target !== textareaRef.current) event.preventDefault();
     };
 
     const handleSend = () => {
         if (!canSend) return;
-        // Emit the trimmed value to match the onSend contract (trimmed; empty only with `sendReady`).
         onSend?.(value.trim());
     };
 
@@ -138,14 +79,9 @@ export const MessageInput = ({
             onPointerDown={keepCaretOnTextarea}
             onMouseDown={keepCaretOnTextarea}
             className={cn(
-                // `touch-action: manipulation` — no double-tap gesture on the composer, so rapid
-                // repeat sends are handled as plain taps instead of a zoom candidate WebKit has to
-                // disambiguate (which is what made send-send-send drop the keyboard).
                 'touch-manipulation',
                 'flex w-full items-center gap-1.5 rounded-[100px] border bg-white/[0.92] px-1.5 py-2 backdrop-blur-[4px] transition-[border-radius,border-color] dark:bg-black/[0.92]',
                 'data-[multiline=true]:items-end data-[multiline=true]:rounded-2xl data-[multiline=true]:py-3',
-                // The border speaks for the field, the button for the message: picked photos with
-                // nothing typed light the button and leave the field looking empty, which it is.
                 hasText ? 'border-focus-border' : 'border-input-border',
                 className
             )}
@@ -165,12 +101,6 @@ export const MessageInput = ({
             <button
                 type="button"
                 onClick={handleSend}
-                // Idle (nothing to send) is `aria-disabled`, NOT the `disabled` attribute: a
-                // disabled form control gets no pointer events at all — not even bubbling ones —
-                // so the container's keep-the-keyboard preventDefault above would never run and
-                // tapping it would blur the textarea and drop the software keyboard. The real
-                // attribute is reserved for the whole-composer `disabled` state, where the
-                // textarea is disabled too and there is no keyboard left to preserve.
                 disabled={disabled}
                 aria-disabled={!canSend}
                 aria-label={sendLabel}

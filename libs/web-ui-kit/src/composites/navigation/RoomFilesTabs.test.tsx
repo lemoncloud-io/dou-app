@@ -65,7 +65,6 @@ describe('RoomFilesTabs', () => {
         fireEvent.click(links);
         fireEvent.keyDown(screen.getByRole('tablist'), { key: 'ArrowRight' });
         expect(onChange).not.toHaveBeenCalled();
-        // The selection is still reported, so the reader knows which list is being picked from.
         expect(screen.getByRole('tab', { name: 'Audio 3' })).toHaveAttribute('aria-selected', 'true');
     });
 });

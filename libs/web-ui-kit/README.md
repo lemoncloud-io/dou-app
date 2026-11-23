@@ -9,6 +9,11 @@ It is not the repo's generic component library. That is [`libs/ui-kit`](../ui-ki
 between the two is the first thing to get right — see [The boundary with
 `libs/ui-kit`](#the-boundary-with-libsui-kit).
 
+## Component notes
+
+What each component is for, and the prop and behaviour notes a name or type cannot say, are in
+[`docs/components`](./docs/components/README.md).
+
 ## Purpose
 
 `apps/web` is the only consumer, and it sees the `@chatic/web-ui-kit` barrel and nothing else.

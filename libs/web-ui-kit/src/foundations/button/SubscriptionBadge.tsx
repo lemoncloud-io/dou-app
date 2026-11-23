@@ -7,46 +7,22 @@ import { buttonSurfaceClass } from './Button';
 
 export type SubscriptionTier = 'free' | 'pro';
 
-/** Glyph + default label for a tier — shared so the badge and the button cannot say different things. */
 export const subscriptionTierIcon = (tier: SubscriptionTier): React.ReactNode =>
     tier === 'pro' ? <IconBoltSolid className="size-4" /> : <IconStarsSolid className="size-4" />;
 
 export const subscriptionTierLabel = (tier: SubscriptionTier): string => (tier === 'pro' ? 'PRO' : 'FREE');
 
-/**
- * Per-tier trim for the in-menu (`xs`) pill. The two Figma components differ by a hair — PRO packs
- * its glyph 2px from the label on an opaque ground (`2870:20411`), FREE breathes 4px and carries the
- * extra pixel on the right (`4135:24750`) — so both are reproduced instead of averaged.
- */
 const XS_TIER_CLASS = {
     pro: 'gap-0.5 bg-background px-2',
     free: '',
 } as const;
 
 export interface SubscriptionBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-    /** Subscription tier — drives the icon, tone and default label. */
     tier: SubscriptionTier;
-    /** Overrides the default label (FREE / PRO). */
     label?: string;
-    /** `sm` matches the header control; `xs` is the tighter pill used inside dropdown rows. */
     size?: 'sm' | 'xs';
 }
 
-/**
- * The non-interactive twin of {@link SubscriptionButton} — same pill, rendered as a `<span>`.
- *
- * Exists because the tier pill sometimes appears INSIDE another button (the cloud switcher's
- * "+ Add Cloud" pill, Figma 3769:34789): a `<button>` nested in a `<button>` is invalid HTML and
- * carves a dead zone out of the parent's tap target. Its surface classes and its glyph/label both
- * come from the same source as the button's, so the two cannot drift apart.
- *
- * Use it for a tier MARKER — "this is a PRO feature" — and `SubscriptionButton` when the pill is the
- * control that routes to subscription. A marker takes no membership state: it says what the feature
- * costs, not what the viewer has.
- *
- * `aria-hidden` is deliberately NOT applied: the paid-feature signal is information, not decoration,
- * so it joins the parent button's accessible name.
- */
 export const SubscriptionBadge = React.forwardRef<HTMLSpanElement, SubscriptionBadgeProps>(
     ({ tier, label, size = 'sm', className, ...props }, ref) => (
         <span
@@ -67,22 +43,9 @@ export const SubscriptionBadge = React.forwardRef<HTMLSpanElement, SubscriptionB
 SubscriptionBadge.displayName = 'SubscriptionBadge';
 
 export interface SubscriptionBadgeSkeletonProps extends React.HTMLAttributes<HTMLSpanElement> {
-    /** Which pill it stands in for — the header control (`sm`) or the in-menu pill (`xs`). */
     size?: 'sm' | 'xs';
 }
 
-/**
- * Stand-in for the tier pill while the tier is still undecided. Guessing FREE and flipping to PRO
- * a beat later tells a paying user the wrong thing; leaving the slot empty makes the pill pop in
- * and shove its neighbours. A pulse of the pill's own size avoids both.
- *
- * The size is not written down here: it is a FREE pill built from the same surface classes, with
- * its ink hidden. The rendered height comes from the label's line box, not from any single class,
- * so a hardcoded box would drift from the real pill the first time its type or padding changed.
- *
- * `aria-hidden`: the pill carries no information until it has a tier, and a live "loading" here
- * would only repeat whatever the surrounding screen already announces.
- */
 export const SubscriptionBadgeSkeleton = React.forwardRef<HTMLSpanElement, SubscriptionBadgeSkeletonProps>(
     ({ size = 'sm', className, ...props }, ref) => (
         <span

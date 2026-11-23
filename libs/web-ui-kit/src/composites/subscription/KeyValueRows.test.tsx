@@ -54,7 +54,6 @@ describe('KeyValueRows', () => {
     });
 
     it('lets a long value wrap instead of forcing one line', () => {
-        // The 320px guarantee: a value that cannot fit must wrap inside its column, never overflow.
         render(<KeyValueRows rows={[{ label: 'Clouds', value: 'My Cloud, Family Cloud, Work Cloud' }]} />);
 
         expect(screen.getByText('My Cloud, Family Cloud, Work Cloud')).not.toHaveClass('whitespace-nowrap');
