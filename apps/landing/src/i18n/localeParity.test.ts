@@ -1,10 +1,3 @@
-/**
- * Every key in one language exists in the other. A key that only Korean has renders as the raw key
- * to an English reader, and nothing on the Korean page shows it — so the check has to be a test.
- *
- * Reads every `ko.json` / `en.json` pair under `locales/`, so a new folder of copy is covered the
- * day it is added without touching this file.
- */
 type Messages = { [key: string]: string | Messages };
 
 const files = import.meta.glob<Messages>('./locales/**/*.json', { eager: true, import: 'default' });

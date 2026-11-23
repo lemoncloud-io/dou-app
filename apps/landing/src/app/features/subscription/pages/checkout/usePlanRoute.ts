@@ -5,14 +5,6 @@ import { checkoutRouteFor, planFromQuery } from './flow';
 
 import type { Plan, Subscription } from '../../types';
 
-/**
- * What W-08, W-05 and W-14 all start from: the plan `?plan=` names, the subscription in force, and
- * which of the three screens that pair belongs on.
- *
- * A failed read is reported as an error, never read as an answer: a subscription list that did not
- * load is not "no subscription", and taking it for one would put an existing subscriber through a
- * first checkout.
- */
 export const usePlanRoute = (): {
     loading: boolean;
     error: unknown;

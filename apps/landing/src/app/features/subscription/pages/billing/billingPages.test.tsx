@@ -12,9 +12,6 @@ import { SubscriptionRoutes } from '../../routes';
 import type { PortSetup } from '../../lib/createPortSetup';
 import type { ManagementScreens } from '../../lib/screens';
 
-// The pages are rendered through the real routes, so they sit in the account shell with the port,
-// the query client, the toasts and the stand-in payment window exactly as a reader meets them.
-
 beforeAll(async () => {
     await i18n.changeLanguage('en');
 });
@@ -52,7 +49,6 @@ const where = () => screen.getByTestId('where').textContent;
 
 const cardRow = async (label: string) => (await screen.findByText(label)).closest('li') as HTMLElement;
 
-// The account menu in the sidebar prints the sign-in address too; the row is the one in a list item.
 const emailRow = (address: string) =>
     waitFor(() => {
         const row = screen
@@ -63,7 +59,6 @@ const emailRow = (address: string) =>
         return row as HTMLElement;
     });
 
-/** Fills in the payer the add-card dialog asks for, then opens the payment window from it. */
 const openPaymentWindow = async () => {
     const dialog = await screen.findByRole('dialog', { name: 'Add card' });
     fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: '김민지' } });
@@ -90,7 +85,6 @@ describe('W-12 payment methods', () => {
 
         const row = await cardRow('신한 ···· 1234');
         expect(within(row).getByText('Default')).toBeTruthy();
-        // An open dialog hides the page behind it, so the other card is read first.
         expect(within(await cardRow('현대 ···· 5678')).getByRole('button', { name: 'Remove' })).toBeTruthy();
         fireEvent.click(within(row).getByRole('button', { name: 'Remove' }));
 
@@ -196,7 +190,6 @@ describe('W-12 payment methods', () => {
 
     it('asks for an address with the payer when the account has none to give the card company', async () => {
         const setup = mockSetup('?mock=active');
-        // An account the server holds no address for, with the billing-email screens hidden as in production.
         const getSession = setup.port.getSession.bind(setup.port);
         setup.port.getSession = async () => {
             const account = await getSession();
@@ -370,12 +363,10 @@ describe('W-16 billing info', () => {
 
         fireEvent.click(within(pending).getByRole('button', { name: 'Verify' }));
         const dialog = await screen.findByRole('dialog', { name: 'Verify billing email' });
-        // The waiting address is filled in; asking for a code picks up where it left off.
         expect((within(dialog).getByLabelText('Email address') as HTMLInputElement).value).toBe(
             'billing@lemon.example'
         );
         fireEvent.click(within(dialog).getByRole('button', { name: 'Get a code' }));
-        // The tries left come from the port's answer, not from a count the page keeps.
         await enterCode(dialog, '000000');
         expect(await within(dialog).findByText("That code isn't right. 4 tries left.")).toBeTruthy();
         expect(within(dialog).getByRole('button', { name: 'Done' }).hasAttribute('disabled')).toBe(true);
@@ -425,7 +416,6 @@ describe('W-16 billing info', () => {
         const setup = mockSetup('?mock=email-pending');
         renderAt(url, '?mock=email-pending', setup);
         await emailRow('billing@lemon.example');
-        // Verified behind the page's back (another tab): the list on screen still says it is waiting.
         const { emailId } = await setup.port.requestEmailCode('billing@lemon.example');
         await setup.port.verifyEmailCode(emailId, MOCK_POLICY.emailCode);
 
@@ -456,7 +446,6 @@ describe('W-16 billing info', () => {
         const current = await emailRow('minji.kim@gmail.com');
         fireEvent.click(within(current).getByRole('button', { name: 'Change' }));
         const dialog = await screen.findByRole('dialog', { name: 'Change billing email' });
-        // The billing variant marks the current address primary and says who is told about the change.
         expect(within(dialog).getByText('Primary')).toBeTruthy();
         expect(within(dialog).getByText(/we let both the old and the new address know/)).toBeTruthy();
         expect(within(dialog).getByRole('button', { name: 'Change' }).hasAttribute('disabled')).toBe(true);
@@ -476,7 +465,6 @@ describe('W-16 billing info', () => {
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
         const replaced = await emailRow('accounting@lemon.example');
         await waitFor(() => expect(within(replaced).getByText('Primary')).toBeTruthy());
-        // The old address is gone rather than demoted, and the page has no save step.
         await waitFor(() =>
             expect(screen.getAllByText('minji.kim@gmail.com').every(node => !node.closest('li'))).toBe(true)
         );
@@ -515,7 +503,6 @@ describe('W-16 billing info', () => {
 
         fireEvent.click(await screen.findByRole('button', { name: '+ Add email' }));
         const dialog = await screen.findByRole('dialog', { name: 'Add billing email' });
-        // The primary address is registered, and it is the primary already.
         sendCode(dialog, 'Email address', 'minji.kim@gmail.com');
         expect(await within(dialog).findByText('That address is already registered.')).toBeTruthy();
     });
@@ -523,7 +510,6 @@ describe('W-16 billing info', () => {
     it('refuses another address past the limit', async () => {
         renderAt(url, '?mock=active');
 
-        // The scenario has one address; fill the rest of the allowance with pending ones.
         for (let n = 1; n < MOCK_POLICY.maxBillingEmails; n++) {
             fireEvent.click(await screen.findByRole('button', { name: '+ Add email' }));
             const dialog = await screen.findByRole('dialog', { name: 'Add billing email' });

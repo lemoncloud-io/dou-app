@@ -5,8 +5,6 @@ import { useNavigateWithTransition } from './usePageTransition';
 const navigate = jest.fn();
 jest.mock('react-router-dom', () => ({ useNavigate: () => navigate }));
 
-// The package's executor, reduced to what this hook relies on: it runs the update callback once and
-// returns a promise of its own. `transitionResult` is that promise, set per test.
 let transitionResult: Promise<void> = Promise.resolve();
 let viewTransitionSupported = true;
 const executePageTransition = jest.fn((update: () => Promise<void> | void, _options?: unknown) => {
@@ -40,8 +38,6 @@ const deferred = () => {
     return { promise, resolve, reject };
 };
 
-// Spelled out rather than imported: web-ui-kit's HeaderGlass reads this exact name and its tests pin
-// the same literal, so renaming it on one side breaks a test instead of silently ending the hold.
 const ATTRIBUTE = 'data-page-transition';
 const marked = () => document.documentElement.hasAttribute(ATTRIBUTE);
 
@@ -74,7 +70,6 @@ describe('useNavigateWithTransition', () => {
                 void result.current('/channels/c1/room');
             });
 
-            // The update callback's promise is what the browser waits on before capturing.
             expect(update?.()).toBe(landed);
             expect(order).toEqual(['wait', 'navigate']);
             expect(waitForDestination).toHaveBeenCalledWith({ traversal: false });
@@ -117,7 +112,6 @@ describe('useNavigateWithTransition', () => {
                 expect.any(Function),
                 expect.objectContaining({ direction: 'back' })
             );
-            // The transition options are this hook's; the router only sees its own.
             expect(navigate).toHaveBeenLastCalledWith('/', { replace: true });
         });
 
@@ -160,8 +154,6 @@ describe('useNavigateWithTransition', () => {
             expect(waitForDestination).not.toHaveBeenCalled();
         });
 
-        // The package clears every class it set when a transition finishes, a newer running one's
-        // included, so a second transition started inside the first would lose its animation midway.
         it('navigates without a second transition while one is running, after the first has navigated', async () => {
             const first = deferred();
             const order: string[] = [];
@@ -181,7 +173,6 @@ describe('useNavigateWithTransition', () => {
             await act(async () => {
                 await Promise.resolve();
             });
-            // The browser has not run the first update yet, so the second must not overtake it.
             expect(order).toEqual([]);
 
             await act(async () => {
@@ -191,7 +182,6 @@ describe('useNavigateWithTransition', () => {
             expect(executePageTransition).toHaveBeenCalledTimes(1);
             expect(order).toEqual(['-1', '-1']);
 
-            // Once the first has finished, the next navigation animates again.
             await act(async () => {
                 first.resolve();
                 await first.promise;
@@ -250,7 +240,6 @@ describe('useNavigateWithTransition', () => {
             act(() => {
                 done = result.current('/channels/c1/room');
             });
-            // A header mounting inside the transition reads this to hold its opaque pane.
             expect(marked()).toBe(true);
 
             await act(async () => {
@@ -272,7 +261,6 @@ describe('useNavigateWithTransition', () => {
                 secondDone = result.current('/b');
             });
 
-            // The second navigation goes through without a transition of its own and settles early.
             await act(async () => {
                 await secondDone;
             });

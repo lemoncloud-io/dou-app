@@ -4,6 +4,12 @@
 
 ### Chores
 
+- (comments) remove comments from runtime-web, bridges and shared
+
+## [2026-11-23] - No version updates
+
+### Chores
+
 - (comments) remove comments from session, http and sync
 
 ## [2026-11-23] - No version updates

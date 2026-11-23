@@ -23,74 +23,16 @@ export interface AppBridgeHostConfig {
     sendToWeb: (message: string) => void;
     version?: string;
     eventBuffer?: IMessageQueue<EventMessage>;
-    /**
-     * Called on every WebAppReady handshake with what the web declared in it. The payload is what
-     * lets a shell tell a web build that will send a later signal (`holdsBootSplash`) from an older
-     * one that never will; a shell that does not care can ignore the argument.
-     */
     onAppReady?: (payload: WebAppReadyPayload) => void;
-    /**
-     * This host's local cache DB schema version, reported in the handshake. Kept for debugging and
-     * for web bundles that predate per-domain contract versions; the current web does NOT route on
-     * it. Omitted by hosts with no local cache DB — the web then treats this host as legacy.
-     */
     cacheSchemaVersion?: number;
-    /**
-     * CacheTypes this host can persist. The web reads a listed type as contract version 1.
-     *
-     * Static declaration, so it is only the FALLBACK once `resolveCacheDomainVersions` is supplied
-     * — see there.
-     */
     supportedCacheTypes?: string[];
-    /**
-     * Per-domain cache contract versions this host actually implements (ADR-0053). A thunk, not a
-     * value: the answer is measured from the local DB, and the host must not touch that DB before
-     * the web asks. Awaited inside the WebAppReady handler, so it MUST settle promptly — bound any
-     * slow work on the implementing side, which is the only side that knows how slow it can be.
-     * Rejecting (or resolving undefined) simply omits the field, leaving the two fields above as
-     * the report, which is exactly what a pre-ADR-0053 host sends.
-     *
-     * When it DOES answer, the reported `supportedCacheTypes` is derived from its keys instead of
-     * the static list. That is not a second policy but the same statement twice: a domain this host
-     * could not actually materialize must not be reported as supported, or the web's name-based
-     * fallback (a listed type counts as version 1) would cancel out the measurement.
-     */
     resolveCacheDomainVersions?: () => Promise<CacheDomainVersions | undefined>;
-    /**
-     * A sub WebView's context, reported in the handshake as `subWebView`. Only a sub WebView's own
-     * host passes it. A thunk so the reply carries the theme and language as they are when the page
-     * asks, not as they were when the host was built.
-     */
     subWebViewContext?: () => SubWebViewContext;
-    /**
-     * How far this shell's `OpenSubWebView` opens, reported in the handshake as `subWebViewOpenScope`.
-     * Only a main window's host that opens sub WebViews passes it; omitted, the field is left out,
-     * which a web reads as a shell that opens the reviewed pages only.
-     */
     subWebViewOpenScope?: SubWebViewOpenScope;
-    /**
-     * The longest message, as a serialized string, this host handles. A longer one is answered
-     * `TOO_LARGE` without reaching its handler. Unset means no limit — the main web's own messages
-     * (log batches, cache writes) have none.
-     */
     maxMessageLength?: number;
 }
 
 export class AppBridgeHost implements IAppBridgeHost {
-    /**
-     * Message types that originate from log relay infrastructure rather than
-     * application code. The web logger relays from the earliest module-evaluation
-     * phase — long before the web app can receive events. Treating them as the
-     * readiness signal flushes buffered events (e.g. a cold-start OnNavigate) into
-     * a page with no listeners, where they are silently lost.
-     *
-     * The storage requests are on the list for the same reason: the web loads the device vault before
-     * its runtime boots and before anything listens, so the first of them arrives well ahead of
-     * `WebAppReady`. So is the runtime conversation: a page asks a shell that owns the session for
-     * the handshake before its runtime boots, and its runtime then calls and subscribes while it boots —
-     * all of it before anything listens for the buffered events. The runtime's own pushes follow the
-     * buffer like any event: they reach the page in order once it is ready.
-     */
     private static readonly NON_READINESS_MESSAGE_TYPES = new Set([
         'SendLog',
         'StorageGet',
@@ -122,19 +64,14 @@ export class AppBridgeHost implements IAppBridgeHost {
         this.eventBuffer = config.eventBuffer ?? new MessageQueue();
         this.maxMessageLength = config.maxMessageLength;
 
-        // WebAppReady isn't a plain ready signal — it's a handshake that exchanges web/mobile protocol capability.
         this.registerHandler('WebAppReady', async message => {
             config.onAppReady?.(message.data ?? {});
-            // Measured, so it can fail or be slow; a failure must not cost the rest of the
-            // handshake, which is the only chance the web gets to learn any of this.
             let cacheDomainVersions: CacheDomainVersions | undefined;
             try {
                 cacheDomainVersions = await config.resolveCacheDomainVersions?.();
             } catch (error) {
                 logger.warn('BRIDGE', '[AppBridgeHost] cache domain versions unavailable', { error });
             }
-            // Measured domains win over the static list (see the config field's note); without a
-            // measurement the static list stands, which is the pre-ADR-0053 payload.
             const supportedCacheTypes = cacheDomainVersions
                 ? Object.keys(cacheDomainVersions)
                 : config.supportedCacheTypes;
@@ -145,15 +82,10 @@ export class AppBridgeHost implements IAppBridgeHost {
                 data: {
                     appVersion: this.version,
                     protocolVersion: message.version ?? this.version,
-                    // What this host answers, read when the reply is built rather than taken from
-                    // the compiled message map: a shell that leaves a request unregistered must not
-                    // advertise it, or a web build reading this list offers a control that fails.
                     supportedWebMessages,
                     supportedAppMessages: [
                         ...new Set(supportedWebMessages.map(type => WEB_MESSAGE_RESPONSE_TYPE[type]).filter(Boolean)),
                     ],
-                    // Reported only when the host declares them, so a host with no local cache DB
-                    // (desktop main process) sends exactly the payload it sent before these existed.
                     ...(config.cacheSchemaVersion !== undefined
                         ? { cacheSchemaVersion: config.cacheSchemaVersion }
                         : {}),
@@ -165,8 +97,6 @@ export class AppBridgeHost implements IAppBridgeHost {
             };
         });
 
-        // A liveness probe answered by the host itself, so every shell answers it the same way and
-        // a round trip that reaches any host comes back as `Pong`, not as `NOT_FOUND`.
         this.registerHandler('Ping', message => ({
             type: 'Pong',
             success: true,
@@ -178,15 +108,10 @@ export class AppBridgeHost implements IAppBridgeHost {
         try {
             const parsed = this.protocol.decode(data) as RequestMessage;
             if (parsed && typeof parsed.type === 'string') {
-                // Log/console relay traffic must NOT count as the web-ready signal (see
-                // NON_READINESS_MESSAGE_TYPES). Any other message type originates from app
-                // code running after the web app has bootstrapped — most explicitly the
-                // WebAppReady handshake — so it is a safe point to flush buffered events.
                 if (!this.isWebReady && !AppBridgeHost.NON_READINESS_MESSAGE_TYPES.has(parsed.type)) {
                     this.isWebReady = true;
                     this.flushBuffer();
                 }
-                // Parsed first so the refusal can carry the request's refId; the handler never sees it.
                 if (this.maxMessageLength !== undefined && data.length > this.maxMessageLength) {
                     this.sendToWeb(
                         this.protocol.encode(
@@ -203,8 +128,6 @@ export class AppBridgeHost implements IAppBridgeHost {
                 await this.processRequest(parsed);
             }
         } catch (error) {
-            // Inbound path (web → app), so logging here cannot re-enter the outbound
-            // `SendLog` relay the way `NativeBridgeAdapter.postMessage` would.
             logger.error('BRIDGE', '[AppBridgeHost] failed to parse or process message', { error });
         }
     }
@@ -250,7 +173,6 @@ export class AppBridgeHost implements IAppBridgeHost {
     private async processRequest(message: RequestMessage): Promise<void> {
         const handler = this.handlers.get(message.type);
 
-        // No handler registered — send an error response immediately
         if (!handler) {
             this.sendToWeb(
                 this.protocol.encode(
@@ -269,23 +191,10 @@ export class AppBridgeHost implements IAppBridgeHost {
         }
 
         try {
-            // Run the handler
             const result = await handler(message);
 
-            // A handler that returns nothing means "no response" — stop here.
-            //
-            // A response is not free. `sendToWeb` goes down to `evaluateJavascript` on Android
-            // and `evaluateJavaScript` on iOS, both of which use the UI thread — the exact
-            // resource cache requests/responses are contending for. But a fire-and-forget
-            // message like `SendLog`, sent up without a refId, has no pending entry to match on
-            // the web side, so its response flows through as an event and is discarded with no
-            // listener — a 100% wasted round trip that was occupying the UI thread once per log.
-            //
-            // A handler that returns a value behaves exactly as before, so the web's
-            // `request()` path, which expects a response, is unaffected by this branch.
             if (!result) return;
 
-            // The handler returns only the domain response; the host reattaches request metadata to it.
             const response = {
                 ...result,
                 refId: message.refId,
@@ -294,7 +203,6 @@ export class AppBridgeHost implements IAppBridgeHost {
 
             this.sendToWeb(this.protocol.encode(response) as string);
         } catch (error: any) {
-            // Fallback safety net for when an unexpected fatal exception (uncaught exception) occurs inside a handler
             this.sendToWeb(
                 this.protocol.encode(
                     this.createErrorResponse(
@@ -318,7 +226,6 @@ export class AppBridgeHost implements IAppBridgeHost {
         errorMessage: string,
         options: Partial<BridgeErrorResponse['error']> = {}
     ): BridgeErrorResponse {
-        // Don't put the whole payload in details — keep only type/version-centric trace info.
         return {
             type: 'ERROR',
             refId: message.refId,

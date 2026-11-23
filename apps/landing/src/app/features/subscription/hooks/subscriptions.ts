@@ -5,11 +5,6 @@ import { subscriptionKeys } from './keys';
 
 import type { Currency, PlanId } from '../types';
 
-/**
- * The plans, priced in `currency` — or, without one, in the currency the subscription in force is
- * charged in (won when there is none). Every screen about a subscription reads them that way; the plans
- * page and the checkout ask for a currency of their own.
- */
 export const usePlans = (currency?: Currency) => {
     const port = usePort();
     return useQuery({
@@ -36,10 +31,6 @@ export const useSubscription = (id: string | undefined) => {
     });
 };
 
-/**
- * Invalidates everything a change to a subscription can show up in: the list, every detail, the plans'
- * currency, the session (its billing source and trial flag), the invoices and any open preview.
- */
 export const useInvalidateSubscriptionState = () => {
     const queryClient = useQueryClient();
     return () =>
@@ -47,7 +38,6 @@ export const useInvalidateSubscriptionState = () => {
             [
                 subscriptionKeys.subscriptions(),
                 ['subscription', 'getSubscription'],
-                // The plans come priced the way the subscription in force is charged.
                 ['subscription', 'listPlans'],
                 subscriptionKeys.session(),
                 subscriptionKeys.invoices(),
@@ -84,7 +74,6 @@ export const usePreviewChange = (planId: PlanId | undefined) => {
     });
 };
 
-/** An upgrade resolves with a payment attempt (follow it with `usePaymentAttempt`); a downgrade is scheduled. */
 export const useChangePlan = () => {
     const port = usePort();
     const invalidate = useInvalidateSubscriptionState();

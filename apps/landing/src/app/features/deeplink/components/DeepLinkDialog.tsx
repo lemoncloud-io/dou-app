@@ -9,10 +9,6 @@ interface DeepLinkDialogProps {
     onConfirm: () => void;
 }
 
-/**
- * Dialog component for deep link confirmations.
- * Based on Figma design (node-id: 37:4487)
- */
 export const DeepLinkDialog = ({
     title,
     subtitle,
@@ -23,14 +19,10 @@ export const DeepLinkDialog = ({
 }: DeepLinkDialogProps): JSX.Element => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Backdrop */}
             <div className="absolute inset-0 bg-black/50 animate-fadeIn" onClick={onCancel} />
 
-            {/* Dialog */}
             <div className="relative bg-card rounded-xl w-[288px] flex flex-col items-center pt-7 animate-scaleIn">
-                {/* Content */}
                 <div className="flex flex-col gap-[26px] items-center w-full">
-                    {/* Text area */}
                     <div className="flex flex-col gap-2 items-center px-[18px] text-center w-full">
                         <p className="text-foreground text-base font-semibold leading-[1.5] w-full">{title}</p>
                         {subtitle && (
@@ -38,7 +30,6 @@ export const DeepLinkDialog = ({
                         )}
                     </div>
 
-                    {/* Buttons */}
                     <div className="flex items-start w-full">
                         <button
                             onClick={onCancel}

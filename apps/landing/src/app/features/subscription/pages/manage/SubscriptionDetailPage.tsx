@@ -30,14 +30,12 @@ import type { TFunction } from 'i18next';
 
 const PILL = 'rounded-full';
 
-/** The actions that call a port method of their own, which the port may have no server for. */
 const SERVER_CALL = {
     invoices: 'listInvoices',
     resume: 'resumeSubscription',
     cancelScheduledChange: 'cancelScheduledChange',
 } as const satisfies Partial<Record<SceneAction, keyof SubscriptionPort>>;
 
-/** W-18 — one subscription: banner and actions from `sceneOf`, recent invoices. */
 export const SubscriptionDetailPage = (): JSX.Element => {
     const { t } = useTranslation();
     const { subscriptionId } = useParams();
@@ -68,7 +66,6 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
     const today = useToday();
     const methods = usePaymentMethods();
     const screens = useManagementScreens();
-    // `management` is the card screens: the card tile and a failed payment lead to them.
     const management = screens.cards;
     const billingInfo = useBillingInfo({ enabled: screens.emails });
     const session = useSession();
@@ -79,8 +76,6 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
 
     const scene = sceneOf(sub, today);
     const { banner } = scene;
-    // With the card screens hidden, the buttons that lead to them go with them. An action whose call
-    // the port has no server for is left out the same way.
     const supports = useSupports();
     const actions = scene.actions.filter(
         action =>
@@ -105,8 +100,6 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             },
             onError: error => {
                 setDialog(null);
-                // A conflict here means the change is no longer there to cancel (another tab, or it
-                // applied); the refetched state shows which. Same-day is caught before the dialog opens.
                 if (isPortError(error, 'unauthenticated')) return;
                 toast(t(commonErrorKey(error)));
             },
@@ -163,7 +156,6 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             )}
             <SceneBannerView sub={sub} banner={banner} card={card} fmt={fmt} />
 
-            {/* A phone reads the four facts as one bordered card in two rows; from `md` they are four tiles. */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-4 rounded-[14px] border border-line p-4 md:grid-cols-4 md:gap-3 md:rounded-none md:border-0 md:p-0">
                 <SummaryTile label={t('subscription.manage.detail.tiles.product')} value={fmt.planName(sub.planId)} />
                 <SummaryTile
@@ -342,10 +334,6 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
     );
 };
 
-/**
- * The two right-hand tiles, which change with the scene: the next payment for a subscription in good
- * standing, the restriction date and the overdue amount when a payment failed.
- */
 const sceneTiles = (
     sub: Subscription,
     banner: SceneBanner,
@@ -397,7 +385,6 @@ const InfoCard = ({
 }: {
     title: string;
     line: string;
-    /** Left out, the card has no button. */
     action?: string;
     onAction: () => void;
 }): JSX.Element => (

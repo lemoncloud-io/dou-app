@@ -1,9 +1,3 @@
-/**
- * Web ships ahead of the app. So "can native store this domain" can't be answered from web's own
- * type union (web always knows more than the app it's running against) — it can only be answered by
- * the handshake report plus the frozen legacy set. This suite pins down that judgment rule —
- * libs/runtime-web/docs/cache/README.md.
- */
 import type { CacheType } from '@chatic/bridge-messages';
 
 import {
@@ -21,17 +15,12 @@ jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-// 'invite' is the first CacheType added to this repo after the fact, so by definition it's
-// outside the frozen LEGACY_NATIVE_CACHE_TYPES set and can only be recognized as native through the
-// handshake report — it's a real type that embodies the exact reason this hook exists.
 const FUTURE_TYPE = 'invite';
 
 beforeEach(() => {
     resetNativeCacheSupport();
 });
 
-// The verdicts as the routing and the chat storage ask them: of the report this page recorded, read
-// at the moment of asking.
 const isNativeCacheTypeUsable = (type: CacheType): boolean => isCacheTypeUsableBy(getNativeCacheSupport(), type);
 const isNativeCacheMessageHandled = (type: Parameters<typeof isCacheMessageHandledBy>[1]): boolean =>
     isCacheMessageHandledBy(getNativeCacheSupport(), type);
@@ -49,9 +38,6 @@ describe('isCacheTypeUsableBy, of the recorded report', () => {
         expect(isNativeCacheTypeUsable(FUTURE_TYPE)).toBe(true);
     });
 
-    // A report can only ADD types, never remove them: a bug where the app omits a type from its list
-    // must not silently move a warm native cache over to web storage. This is why the legacy set is
-    // the floor for the version number.
     it('legacy 타입은 앱이 목록에서도 판번호에서도 빠뜨려도 네이티브를 유지한다', () => {
         setNativeCacheSupport({ cacheSchemaVersion: 3, supportedCacheTypes: [], cacheDomainVersions: {} });
 
@@ -107,9 +93,6 @@ describe('isCacheMessageHandledBy, of the recorded report', () => {
     });
 });
 
-// The version number is the max of three sources. This max is what makes the transition harmless
-// (an app reporting only names counts as version 1) — this pins down that no source can pull the
-// others' version down.
 describe('도메인 판번호 (세 근거의 최댓값)', () => {
     afterEach(() => {
         delete REQUIRED_DOMAIN_VERSION.chat;
@@ -133,7 +116,6 @@ describe('도메인 판번호 (세 근거의 최댓값)', () => {
         expect(isNativeCacheTypeUsable('chat')).toBe(false);
     });
 
-    // Reporting only names counts as version 1. Most apps a new web build encounters are this shape.
     it('이름만 보고해도 요구 1판(기본값)은 통과한다', () => {
         setNativeCacheSupport({ supportedCacheTypes: [FUTURE_TYPE] });
 
@@ -150,8 +132,6 @@ describe('도메인 판번호 (세 근거의 최댓값)', () => {
         expect(isNativeCacheTypeUsable(FUTURE_TYPE)).toBe(true);
     });
 
-    // The global schema number is no longer read for this judgment — the point where the defect of
-    // an unrelated domain's migration bumping the baseline went away.
     it('전역 cacheSchemaVersion은 판정에 영향을 주지 않는다', () => {
         REQUIRED_DOMAIN_VERSION.invite = 2;
 
@@ -163,9 +143,6 @@ describe('도메인 판번호 (세 근거의 최댓값)', () => {
     });
 });
 
-// For this domain alone, the gate's failure mode isn't a "recoverable durability drop" but an
-// "unrecoverable loss". The type itself refuses to let a floor be drawn (GateableCacheType), so here
-// we pin down the runtime contract.
 describe('로컬 권위 도메인 (invitecloud)', () => {
     it('REQUIRED_DOMAIN_VERSION에 항목이 없다', () => {
         for (const type of LOCAL_AUTHORITY_CACHE_TYPES) {
@@ -192,8 +169,6 @@ describe('로컬 권위 도메인 (invitecloud)', () => {
     });
 
     it('legacy 동결 집합에 속해 하한선이 1판으로 보장된다', () => {
-        // Drop out of this set and a non-reporting app's invitecloud gets pushed to web storage,
-        // losing the invited cloud.
         resetNativeCacheSupport();
         for (const type of LOCAL_AUTHORITY_CACHE_TYPES as readonly CacheType[]) {
             expect(isNativeCacheTypeUsable(type)).toBe(true);
@@ -201,8 +176,6 @@ describe('로컬 권위 도메인 (invitecloud)', () => {
     });
 });
 
-// The verdicts as functions of a report handed in, which a cache assembled from its own host facts
-// asks directly; the recorded-report functions above are these, asked of what this page recorded.
 describe('the verdicts over a report handed in', () => {
     it('reads a reply into a report, with each missing field empty', () => {
         expect(readNativeCacheSupport({})).toEqual({

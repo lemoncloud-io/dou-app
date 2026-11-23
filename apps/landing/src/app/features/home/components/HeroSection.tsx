@@ -16,7 +16,6 @@ export const HeroSection = (): JSX.Element => {
                            px-6 md:px-10
                            pt-16 md:pt-0 pb-0 md:pb-0 min-h-screen"
             >
-                {/* Text content */}
                 <div className="md:flex-1 text-center pb-[66px] md:pb-0 animate-fade-in-up">
                     <div className="flex flex-col gap-[45px] md:gap-12 items-center">
                         <div className="flex flex-col gap-2 md:gap-[14px] w-full">
@@ -34,12 +33,10 @@ export const HeroSection = (): JSX.Element => {
                             </p>
                         </div>
 
-                        {/* Desktop illustration (inside text flow on mobile) */}
                         <div className="md:hidden w-full">
                             <ChatBubbleIllustration />
                         </div>
 
-                        {/* Desktop store buttons */}
                         <div className="hidden md:flex flex-wrap items-center gap-3 justify-center animate-fade-in-up animate-delay-200">
                             <StoreButton href={storeUrls.ios} icon={<AppleIcon />} label={t('hero.appStore')} />
                             <StoreButton
@@ -51,13 +48,11 @@ export const HeroSection = (): JSX.Element => {
                     </div>
                 </div>
 
-                {/* Desktop/Tablet illustration */}
                 <div className="hidden md:block md:w-[40%] xl:w-[45%] flex-shrink-0 self-center animate-fade-in-up animate-delay-100">
                     <ChatBubbleIllustration />
                 </div>
             </div>
 
-            {/* Mobile bottom buttons - absolute within hero, not fixed */}
             <div className="md:hidden absolute bottom-0 left-0 right-0 z-40 px-4 pb-[44px]">
                 <div className="flex gap-[10px]">
                     <StoreButton href={storeUrls.ios} icon={<AppleIcon />} label={t('hero.appStore')} fullWidth />

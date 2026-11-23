@@ -1,9 +1,5 @@
 import { decodeInviteLink, isEncodedInviteUrl, readInviteLink } from './inviteLink';
 
-/**
- * Encodes a payload the way the server does, using Node's own base64url rather than the module
- * under test — a helper built from the same code it verifies would agree with any bug it has.
- */
 const link = (payload: Record<string, unknown>, path = '/i'): string =>
     `https://app.chatic.io${path}?t=${Buffer.from(JSON.stringify(payload)).toString('base64url')}`;
 
@@ -13,8 +9,6 @@ describe('isEncodedInviteUrl — /i 링크 판정', () => {
     it.each([
         ['https://app.chatic.io/i?t=abc', true],
         ['https://app.chatic.io/i/?t=abc', true],
-        // A `/i` with no token is still ours. "Broken link of ours" and "not our link" get
-        // different fallbacks, and only decoding can tell them apart.
         ['https://app.chatic.io/i', true],
         ['/i?t=abc', true],
         ['https://app.chatic.io/s?code=x', false],
@@ -77,8 +71,6 @@ describe('decodeInviteLink — payload 해독', () => {
         expect(decodeInviteLink(url)).toBeNull();
     });
 
-    // A throwing decoder dies inside landing's catch, which only flips a loading flag and tells
-    // the user nothing at all.
     it('어떤 입력에도 던지지 않는다', () => {
         const inputs = ['', '/i', '/i?t=%%%', 'http://[::1/i?t=abc', `https://app.chatic.io/i?t=${'A'.repeat(5000)}`];
         inputs.forEach(input => {
@@ -90,7 +82,6 @@ describe('decodeInviteLink — payload 해독', () => {
     it('비ASCII payload가 깨지지 않는다', () => {
         const code = 'invt:우리집🏠:홍길동';
         const url = link({ c: code, r: 1 });
-        // Pin that the input really carries a url-safe character an `atob` route would choke on.
         expect(url).toContain('-');
         expect(decodeInviteLink(url)?.code).toBe(code);
     });
@@ -121,8 +112,6 @@ describe('decodeInviteLink — characters glued after the token', () => {
     const intact = link({ c: CODE, a: 'a1b2c3d4e5', s: 'prod' });
     const expected = decodeInviteLink(intact);
 
-    // The shapes a messenger's link detection produced on 2026-10-18 and that an emulator reproduced:
-    // each was refused whole before, though the token in front of the junk was intact.
     it.each([
         ['Korean text', `${intact}입니다`],
         ['Korean text, percent-encoded', `${intact}${encodeURIComponent('입니다')}`],
@@ -146,8 +135,6 @@ describe('decodeInviteLink — characters glued after the token', () => {
     describe("on a platform whose query parser throws on a malformed escape (React Native's)", () => {
         const BrowserURL = globalThis.URL;
 
-        // React Native's URLSearchParams runs every value through decodeURIComponent; node's never
-        // throws, so the device behaviour has to be stood in for here.
         beforeAll(() => {
             globalThis.URL = class extends BrowserURL {
                 override get searchParams(): URLSearchParams {

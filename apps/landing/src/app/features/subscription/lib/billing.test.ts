@@ -117,8 +117,6 @@ describe('billing country', () => {
     });
 });
 
-// Whether dollars are open is the server's dollar catalog's to say, and nothing else's: the build has no
-// part in it, so these are the same on every stage.
 describe('billing outside Korea', () => {
     const plan = { id: 'pro-tier-01' };
 

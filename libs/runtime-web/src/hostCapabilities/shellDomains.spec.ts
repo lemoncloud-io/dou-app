@@ -33,7 +33,6 @@ describe.each(Object.entries(kinds))('the %s port', (key, kindOf) => {
     });
     afterEach(() => warn.mockRestore());
 
-    // The answer the page gave before the port: `isNative()` meant the app does it.
     it('answers a host that declares nothing as isNative() did', () => {
         expect(kindOf(phone('ios'))).toBe('shell');
         expect(kindOf(desktop())).toBe('shell');
@@ -55,7 +54,6 @@ describe.each(Object.entries(kinds))('the %s port', (key, kindOf) => {
     it('falls back to the browser, and says so, when a version-4 declaration leaves the key out or names something else', () => {
         expect(kindOf(phone('ios', v4({})))).toBe('browser');
         expect(kindOf(phone('ios', v4({ [key]: 'native' })))).toBe('browser');
-        // Both are logged: the missing key where the declaration is read, the unknown value here.
         expect(warn).toHaveBeenCalledTimes(2);
     });
 });

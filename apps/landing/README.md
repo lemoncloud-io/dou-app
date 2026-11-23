@@ -67,6 +67,13 @@ refund policy and business details on the same site as the sales pages, and the 
 and the payment provider's script and the billing pages stay out of the product app's bundle and
 origin. ADR-0227 records the decision.
 
+## Further reading
+
+- [Subscription](./docs/subscription/README.md) — the reasoning behind the account surface's billing rules and its checkout and
+  session contracts
+- [Deep links](./docs/deeplink/README.md) — how invite and sub WebView links are read, forwarded and launched
+- [Routing](./docs/routing/README.md) — why the invite route and the error fallback are built the way they are
+
 ## Design principles
 
 Principles 1–6 were written for the public surface and keep their numbers; 1 and 2 now say so.

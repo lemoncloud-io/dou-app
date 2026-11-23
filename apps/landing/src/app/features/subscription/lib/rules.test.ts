@@ -48,7 +48,6 @@ const card = (id: string, isDefault = false): PaymentMethod => ({
     expiringSoon: false,
 });
 
-// Local noon, so the calendar day is the same in every time zone the tests may run in.
 const at = (iso: string) => new Date(`${iso}T12:00:00`);
 
 describe('calendar', () => {
@@ -205,9 +204,7 @@ describe('canRemovePaymentMethod', () => {
             provider: 'stripe',
         });
         const methods = [card('a', true), dollar('b', true), dollar('c')];
-        // The won subscription's only card stays, however many dollar cards there are.
         expect(canRemovePaymentMethod(methods[0], methods, live)).toBe('last');
-        // A dollar card charges nothing to a won subscription, but the dollar default waits for another.
         expect(canRemovePaymentMethod(methods[2], methods, live)).toBe('ok');
         expect(canRemovePaymentMethod(methods[1], methods, live)).toBe('default');
         expect(canRemovePaymentMethod(dollar('b', true), [methods[0], dollar('b', true)], live)).toBe('ok');

@@ -17,7 +17,6 @@ const nameOf = (value: unknown) => (value as object).constructor.name;
 const row = (id: string, acceptedBy?: string[]): Row =>
     ({ id, cid: id, name: `cloud-${id}`, cloudType: 'invited', acceptedBy }) as Row;
 
-/** The store the import reads, holding `rows` for invited clouds. */
 const holding = (rows: Row[]) => {
     const loadAll = jest.fn().mockResolvedValue(rows);
     const storage = jest.fn(() => ({ loadAll }) as unknown as CacheStorage<'invitecloud'>);

@@ -15,30 +15,16 @@ export type { HttpSandbox, PaymentWindow, PaymentWindowResult } from './createHt
 
 export interface HttpSetup {
     port: HttpPort;
-    /** Wraps the account surface's routes: the session lives inside it. */
     Host: ComponentType<{ children: ReactNode }>;
-    /** Where the port asks for a card typed into our own dialog (`CardEntryWindow`). */
     cardEntry: CardEntryChannel;
-    /** In sandbox payments: where the stand-in card window (`MockPaymentWindow`) registers. */
     sandboxWindow?: PaymentWindowHost;
 }
 
-/**
- * The HTTP port, loaded on first use. The implementation pulls in the shared session runtime and the
- * payment SDK, which the production host's plans page does not need, so this
- * module holds only a stand-in that loads the real one when it is first called or rendered.
- */
 export const createHttpSetup = (server: SubscriptionServer, options: { sandbox?: HttpSandbox } = {}): HttpSetup => {
-    // Made here, outside the loaded chunk, so the dialogs can be mounted before the port is loaded.
     const cardEntry = createCardEntryChannel();
     const sandboxWindow = options.sandbox ? createSandboxWindow() : undefined;
     let live: Promise<typeof Live> | undefined;
     let port: Promise<HttpPort> | undefined;
-    // A failed chunk load is forgotten, so the next call tries again instead of failing until a
-    // reload — the chunk can be missing for a moment after a deploy. A failed port is forgotten too,
-    // but that only retries the chunk: a runtime start that failed stays failed for the page
-    // (`startLandingRuntime` answers every later call with the first start), so a port whose start
-    // failed fails again until a reload.
     const load = () =>
         (live ??= import('./live').catch(error => {
             live = undefined;
@@ -68,7 +54,6 @@ export const createHttpSetup = (server: SubscriptionServer, options: { sandbox?:
         ])
     ) as unknown as HttpPort;
 
-    // The port is made before the host renders, so the runtime has started before the host reads it.
     const LazyHost = lazy(() => loadPort().then(() => load().then(module => ({ default: module.SessionHost }))));
     const Host = ({ children }: { children: ReactNode }) =>
         createElement(Suspense, { fallback: null }, createElement(LazyHost, null, children));

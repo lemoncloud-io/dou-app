@@ -1,18 +1,11 @@
 import { drawVideoFrame, isBlankFrame, makeVideoPoster, VIDEO_POSTER } from './videoPoster';
 
-// jsdom has neither a media pipeline nor a canvas, so both elements are stubbed. What is under test is
-// the routine around them: which fragment is loaded, when a frame is drawn, the blank-frame retry, the
-// size steps, and that every way out lets go of the object URL.
-
 type Scenario = {
     duration: number;
     width: number;
     height: number;
-    /** Which event a load reports once its metadata is in. `error` fails the load instead. */
     ready: 'seeked' | 'loadeddata' | 'error' | 'never';
-    /** One entry per capture, in order: whether that capture reads blank. The last repeats. */
     blank: boolean[];
-    /** The JPEG size `toBlob` produces at each quality, by quality. Default: always small. */
     sizeAt?: (quality: number) => number | null;
 };
 
@@ -50,7 +43,6 @@ const fakeVideo = () => {
         load: jest.fn(),
         set src(value: string) {
             sources.push(value);
-            // A real element reports asynchronously, and a new source discards the old load's events.
             const generation = sources.length;
             setTimeout(() => {
                 if (generation !== sources.length) return;
@@ -109,7 +101,6 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
-/** Runs the routine to completion under fake timers. */
 const settle = async <T>(promise: Promise<T>): Promise<T> => {
     for (let i = 0; i < 50; i += 1) await jest.advanceTimersByTimeAsync(100);
     return promise;

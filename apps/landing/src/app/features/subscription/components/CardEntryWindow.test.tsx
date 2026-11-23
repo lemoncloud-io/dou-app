@@ -12,7 +12,6 @@ beforeAll(async () => {
     await i18n.changeLanguage('en');
 });
 
-/** A card field that is a plain input, and a confirmation the test decides. */
 const fakeRequest = (answers: CardEntryConfirmation[], terms: CardEntryRequest['terms'] = {}) => {
     const confirm = vi.fn(async () => answers.shift() ?? { outcome: 'failed' as const });
     const unmount = vi.fn();

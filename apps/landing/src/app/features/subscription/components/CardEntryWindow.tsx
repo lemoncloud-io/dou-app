@@ -7,21 +7,9 @@ import { formatDate, formatMoney } from '../utils';
 
 import type { CardEntryChannel, CardEntryRequest } from '../lib/port/cardEntry';
 
-/**
- * The dialog a card is typed into when the payment provider hands over a card field rather than a
- * window of its own. Mounted once at the route root when the port can ask for one (`PortSetup.cardEntry`).
- * The field is the provider's; around it the dialog states the recurring charge the card agrees to — when,
- * how often, how much, and how to stop it — and the card is registered only once that is ticked.
- *
- * The dialog is not modal: the card's own security check, when it asks for one, opens over the page
- * outside the dialog and has to take clicks, which a modal dialog would block. It looks the same, backdrop
- * included, and while a registration is being confirmed nothing closes it. (Switching modality on the
- * way would remount the dialog's content, and the card field with it.)
- */
 export const CardEntryWindow = ({ channel }: { channel: CardEntryChannel }): JSX.Element | null => {
     const request = useSyncExternalStore(channel.subscribe, channel.pending, () => null);
     if (!request) return null;
-    // A new request starts a new field, so the dialog's state starts over with it.
     return <CardEntryDialog key={String(requestKey(request))} request={request} channel={channel} />;
 };
 
@@ -49,7 +37,6 @@ const CardEntryDialog = ({
     const [confirming, setConfirming] = useState(false);
     const k = (key: string) => `subscription.common.cardEntry.${key}`;
 
-    // The ref is set once the dialog's portal has rendered the field's box; the field is put in it then.
     const attach = (node: HTMLDivElement | null) => {
         if (!node || field.current) return;
         field.current = node;
@@ -61,9 +48,6 @@ const CardEntryDialog = ({
             }
         );
     };
-    // Gone for good — the reader left the account surface — the field is taken away and the request ends
-    // as a closed window, so its caller is not left waiting. Checked a moment later, because a development
-    // build unmounts and mounts every effect once on purpose.
     const alive = useRef(false);
     useEffect(() => {
         alive.current = true;
@@ -76,7 +60,6 @@ const CardEntryDialog = ({
             });
         };
     }, [request, channel]);
-    // Another page within the account surface: the dialog belongs to the one that opened it.
     const { pathname } = useLocation();
     const openedOn = useRef(pathname);
     useEffect(() => {

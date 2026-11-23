@@ -20,12 +20,6 @@ export type { WebStorageCacheOptions } from './webStorageCache';
 export { routedCachePorts } from './routedCachePorts';
 export type { RoutedCachePortsOptions } from './routedCachePorts';
 
-/**
- * The cache's ports for a web page, as every web app has them: `routedCachePorts` over the page's
- * shared IndexedDB, the phone shell's SQLite across the page's bridge, and `tab` — the raw tab store
- * a plain tab's invited clouds live in — routed by this page's host profile and the shell report
- * `setNativeCacheSupport` recorded (read at each decision, so a report that lands later still counts).
- */
 export const webLocalCachePorts = (tab: KeyValueStore): LocalCachePorts => {
     const indexedDb = indexedDbCache();
     return routedCachePorts({

@@ -11,7 +11,6 @@ describe('windowResultOf', () => {
     });
 
     it('reads the reader cancelling in the window as closed, by what the answer says', () => {
-        // As measured on the test channel when the window was closed and the cancel question confirmed.
         expect(
             windowResultOf({
                 code: 'FAILURE_TYPE_PG',

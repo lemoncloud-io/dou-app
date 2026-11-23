@@ -6,10 +6,6 @@ import { ddayParts, monthDay } from './manageModel';
 
 import type { Money, PaymentMethod, Plan, PlanId } from '../../types';
 
-/**
- * The few ways the management screens print a value, bound to the reader's language. A value the
- * port leaves out prints as a dash rather than as an empty gap in a sentence.
- */
 export const useManageFormat = () => {
     const { t, i18n } = useTranslation();
     const plans = usePlans();
@@ -26,7 +22,6 @@ export const useManageFormat = () => {
             const { key, count } = ddayParts(dday);
             return t(`subscription.manage.dday.${key}`, { count });
         },
-        /** `11.02 · 11.04` — a list of days, e.g. the retries of a failed charge. */
         days: (isos: string[]): string => isos.map(monthDay).join(' · '),
         card: (pm: PaymentMethod): string => t('subscription.manage.cardLabel', { brand: pm.brand, last4: pm.last4 }),
         planOf,

@@ -13,16 +13,6 @@ import type { SubscriptionServer } from '../../../../../config/subscriptionServe
 
 export { SessionHost } from './SessionHost';
 
-/**
- * Everything the HTTP port needs from the browser and the shared runtime, put together. This module
- * is what `index.ts` loads on first use, so the session runtime and the payment SDKs reach a page only
- * when the account surface runs against the server. The card entry is the provider's that the server's
- * `issue` answer names: the won provider's own window, or the dollar provider's card field in the dialog
- * `cardEntry` reaches. In sandbox payments it is neither: the stand-in window `sandbox` brings.
- *
- * The port is made once the session runtime has started, so it reads the runtime's repositories on a
- * runtime that is up.
- */
 export const createLiveHttpPort = async (
     server: SubscriptionServer,
     cardEntry: CardEntryChannel,

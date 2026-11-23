@@ -19,27 +19,16 @@ import {
 export interface PortSetup {
     port: SubscriptionPort;
     clock: Clock;
-    /** What the port really answers; everything when omitted (see `PortSupports`). */
     supports?: PortSupports;
-    /** Present where something opens the stand-in card window (`MockPaymentWindow`): sandbox payments. */
     standInWindow?: PaymentWindowHost;
-    /** Wraps the routes when the port needs a session host above them. */
     Host?: ComponentType<{ children: ReactNode }>;
-    /** Present when the port may ask for a card typed into our own dialog (`CardEntryWindow`). */
     cardEntry?: CardEntryChannel;
-    /** Present whenever the port is the server's: the sandbox payments switch and its settings. */
     sandbox?: SandboxSetup;
 }
 
-/** The renewal periods a sandboxed start can ask for; `''` is the product's own month. */
 export const SANDBOX_INTERVALS = ['', '10m', '1h', '1d'] as const;
 export type SandboxInterval = (typeof SANDBOX_INTERVALS)[number];
 
-/**
- * Sandbox payments on a server tab: whether they are on, the renewal period of the next start, and the
- * two switches the dev panel turns. Turning them on or off reloads the page, since the port is made
- * once per page with or without them; the period applies from the next start.
- */
 export interface SandboxSetup {
     enabled: boolean;
     interval(): SandboxInterval;
@@ -50,10 +39,6 @@ export interface SandboxSetup {
 const SANDBOX_KEY = 'subscription.sandbox';
 const INTERVAL_KEY = 'subscription.sandboxInterval';
 
-/**
- * Whether a server tab runs on sandbox payments: `?sandbox=1` turns them on and `?sandbox=0` off, and
- * the choice holds for the tab. Off unless asked for.
- */
 export const sandboxOf = (search: string, stored: string | null): boolean => {
     const asked = new URLSearchParams(search).get('sandbox');
     if (asked === '1') return true;
@@ -67,11 +52,6 @@ const isInterval = (value: string | null): value is SandboxInterval =>
 const isHttpMethod = (method: keyof SubscriptionPort): method is HttpMethod =>
     (HTTP_METHODS as ReadonlyArray<keyof SubscriptionPort>).includes(method);
 
-/**
- * The whole port over the server: its methods from the HTTP port, and every other one refusing. Nothing
- * stands in for a method with no server — the screens leave out what would call it (`supports`). The
- * catalog port is the list of every method, since it implements each one.
- */
 export const serverPortOf = (http: HttpPort): SubscriptionPort => {
     const refusing = Object.fromEntries(
         Object.keys(createCatalogPort()).map(method => [
@@ -98,10 +78,6 @@ const save = (key: string, value: string): void => {
     }
 };
 
-/**
- * Takes `?sandbox` out of the address once it is read, so the tab's stored choice is the only one: an
- * address left with it would turn the choice back whenever the reader returned to that entry.
- */
 const forgetSandboxQuery = (): void => {
     try {
         const url = new URL(window.location.href);
@@ -113,30 +89,11 @@ const forgetSandboxQuery = (): void => {
     }
 };
 
-/** The panel's switch: stored for the tab, then the page again, since the port is made once per page. */
 const turnSandbox = (on: boolean): void => {
     save(SANDBOX_KEY, on ? '1' : '0');
     window.location.reload();
 };
 
-/**
- * The port the subscription pages run on, chosen here and nowhere else.
- *
- * - Where the account surface is shut — the production host, or a build without the server's addresses
- *   (`isSubscriptionAccountOpen`) — it is the catalog port, which knows the plans and nothing else.
- * - Otherwise it is the server. The methods with no server yet refuse, and `supports` tells the screens
- *   which they are. There is no in-page mock: the screens run on a real server or not at all, and the
- *   tests bring their own fake.
- * - A server tab may run on sandbox payments (`sandboxOf`): the server's real subscription flow on the
- *   payment server's mock provider, with no card and no charge. Only here, so only where the account
- *   surface is open, and even there never on the production host (`app.chatic.io`, whatever the build)
- *   and never with a build whose addresses are production's (`VITE_ENV=PROD`, whatever the host). The
- *   server does not refuse the query on production, so not sending it there is the first defence:
- *   sandbox records would sit among real users'.
- *
- * Whether a checkout may be billed outside Korea is not decided here: the build has no say in it, the
- * server's dollar catalog does (`useForeignBilling`).
- */
 export const createPortSetup = ({
     account,
     server = subscriptionServer ?? null,
@@ -145,17 +102,13 @@ export const createPortSetup = ({
     createHttp = createHttpSetup,
 }: {
     account: boolean;
-    /** `null`: the build has no server. */
     server?: SubscriptionServer | null;
     search?: string;
-    /** Whether the page is served from the production host. */
     productionHost?: boolean;
     createHttp?: (server: SubscriptionServer, options: { sandbox?: HttpSandbox }) => HttpSetup;
 }): PortSetup => {
     if (!account || !server) return { port: createCatalogPort(), clock: systemClock };
 
-    // A build pointed at production's servers has no sandbox, whatever host it runs on; nor has the
-    // production host, whatever build it serves.
     const productionBuild = readProductionBuild(server.env('VITE_ENV'));
     const sandboxAllowed = !productionBuild && !productionHost;
     const enabled = sandboxAllowed && sandboxOf(search, read(SANDBOX_KEY));

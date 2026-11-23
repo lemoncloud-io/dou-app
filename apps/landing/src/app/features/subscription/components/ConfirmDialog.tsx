@@ -3,11 +3,6 @@ import { useTranslation } from 'react-i18next';
 
 import { Button, type ButtonVariant, Dialog } from './ui';
 
-/**
- * A question with one action. Leave out `onConfirm` for a notice that only closes (the "cannot do
- * that" dialogs); `pending` disables both buttons while the action runs, `confirmDisabled` only the
- * action — for a dialog whose fields are not filled in yet.
- */
 export const ConfirmDialog = ({
     open,
     onOpenChange,

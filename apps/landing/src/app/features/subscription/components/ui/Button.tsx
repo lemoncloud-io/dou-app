@@ -24,7 +24,6 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     size?: ButtonSize;
 }
 
-/** The one button the subscription pages use. Landing tokens only — no UI kit. */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ({ variant = 'primary', size = 'md', className, type = 'button', ...props }, ref): JSX.Element => (
         <button

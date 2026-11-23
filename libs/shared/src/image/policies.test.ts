@@ -1,10 +1,6 @@
 import { AVATAR_IMAGE, CHAT_ATTACHMENT, REPORT_PHOTO } from './policies';
 import { INLINE_PROFILE } from './profiles';
 
-// These assert intent, not arithmetic. A policy is a decision written as data, and what is worth
-// pinning is the decision — that an avatar crops, that an attachment does not resize — so changing
-// one is a deliberate edit to a failing test rather than a quiet drift.
-
 describe('AVATAR_IMAGE', () => {
     it('base64로 나가고 정사각으로 자른다', () => {
         expect(AVATAR_IMAGE.avatar.as).toBe('dataUrl');
@@ -19,8 +15,6 @@ describe('REPORT_PHOTO', () => {
     });
 
     it('인라인 기본값과 같은 크기에 품질만 낮다', () => {
-        // A report carries several at once, so the encoded total is the bound — and it is bought
-        // with quality rather than pixels, because a screenshot has to stay readable.
         expect(REPORT_PHOTO.photo.profile.maxEdge).toBe(INLINE_PROFILE.maxEdge);
         expect(REPORT_PHOTO.photo.profile.quality).toBeLessThan(INLINE_PROFILE.quality);
     });
@@ -29,7 +23,6 @@ describe('REPORT_PHOTO', () => {
 describe('CHAT_ATTACHMENT', () => {
     it('원본은 바이트로 나가고 프로필이 없다 — 그 부재가 결정이다', () => {
         expect(CHAT_ATTACHMENT.original.as).toBe('file');
-        // No profile means the sender's own bytes go up, unresized.
         expect('profile' in CHAT_ATTACHMENT.original).toBe(false);
     });
 

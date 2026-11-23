@@ -2,10 +2,6 @@ import { type JSX, type ReactNode } from 'react';
 
 import { cn } from '../utils';
 
-/**
- * A label-over-value fact, as in the subscription card's row of them. On a phone the facts sit bare
- * inside a shared bordered card the caller draws; from `md` each is its own pale tile.
- */
 export const SummaryTile = ({
     label,
     value,

@@ -406,6 +406,55 @@ and sub WebView ones point the mock at the two `utils/` files with `jest.require
 `consts/` and those two files as the only platform-neutral parts of this lib: a new import added to a
 file they can reach becomes a React Native dependency, whether or not the code is ever run there.
 
+## Constraints the helpers keep
+
+- **EXIF orientation is decided once, in `decodeImage`, by reading through an `<img>`.** Browsers apply
+  `image-orientation: from-image` by default, so a portrait photo reports its portrait size and does not
+  arrive on its side. `createImageBitmap` was measured to do the same in a current Chrome, but `<img>` is
+  the oldest route and needs no support check. A source the browser cannot read (HEIC outside Safari) gives
+  `null`, not a rejection, because nearly every caller has something better to do than fail.
+- **A video poster is held to the server's thumbnail ceiling.** `VIDEO_POSTER` uses the same rule as the
+  shells' posters: a thumbnail over 200,000 bytes (decimal) is dropped by the server without saying so.
+  `makeVideoPoster` seeks with the `#t=0.5` URL fragment, set before anything loads, because setting
+  `currentTime` on a paused element never completes on iOS WebKit (`seeking` fires, `seeked` does not).
+  It waits `settleMs` after the frame is reported ready, because Android's WebView reports `seeked` before
+  the frame is readable (blank in 10 of 17 tries without the wait, right 17 of 17 with 300 ms), retries once
+  on a blank frame, and gives up with `null` rather than blocking an upload. Half a second in avoids the black
+  first frame many phone recordings have.
+- **`ErrorFallback` matches Korean substrings but no bare English words.** The error it classifies is not
+  always ours, and a Korean-speaking backend can pass its message through as `error.message`. Words such as
+  `token`, `server` or `request` are left out on purpose: they appear in ordinary crashes ("reading
+  'accessToken'", "Unexpected token '<'") and would send a plain bug to the login screen.
+- **`useErrorScreenText` never suspends.** The app's top-level error boundary sits outside its `<Suspense>`,
+  so a screen that suspended while `/locales` loads would render nothing instead of the English defaults.
+- **The phone helpers are mobile-only and E.164.** `libphonenumber-js/mobile` is imported, not `/min`,
+  because the flow delivers a code by SMS and `/min` calls a Korean landline valid. E.164 is the wire value:
+  the backend's phone hasher reads `countryCode` only for a local (`0…`) number and ignores it once the
+  string starts with `+`, and E.164 cannot collide across countries the way local forms can. A missing
+  country is "not yet answerable", not "invalid". The default country is the last explicit pick, then the
+  caller's preferred one, then the device locale's region, then none; an empty picker with a disabled button
+  says "pick one" without accusing the user of a mistake.
+- **A drag in a partly shown rail keeps the tiles that are not on screen.** `ui.railOrder` can be shown
+  with part of its list (a read failed, a source is late), so the stored order re-inserts every unseen id
+  after the tile it followed. A removed cloud's id therefore stays in the record until logout; reading
+  skips it. Duplicate ids are collapsed on read because a hand-edited record must not become duplicate
+  React keys or drag ids.
+- **The admin override reads the raw fields, not the derived `status`.** The relay derives `status` once at
+  write time and nothing sweeps it afterwards, so a lapsed override leaves `status: 'active'` behind.
+  `isAdminOverrideActive` compares `adminUntil` with a required `now` (a missing time treated as `0` would
+  make every expired override read as active). An empty `adminStatus` is the release encoding, and an absent
+  or `0` `adminUntil` means indefinite: the wire has no special value for it.
+- **The invite decoder avoids `atob` and `TextDecoder`.** `atob` rejects the url-safe `-` and `_` and
+  React Native may not ship it; `TextDecoder` is absent from jsdom and not guaranteed on device. Decoding
+  by hand behaves the same in every engine, and a latin1 shortcut would mangle the Korean cloud and place
+  names a payload usually carries. The decoder checks nothing about the payload's authenticity: anyone
+  holding a link can edit the address in it and re-encode it, which is equally true of the older `/s` link.
+- **`VersionUpdateBanner` is `fixed`, so it caps itself at the host's `--app-width`** and centres over the
+  column its screens use; a host that declares no app width (a desktop layout) keeps the full-bleed 100%.
+- **The jest config lists subpath entries before the generic `@chatic/*` rule**, which would otherwise
+  turn `config/react` into a path that does not exist. `@chatic/assets` is stubbed with the web app's mock
+  because it builds URLs with `import.meta.url`, which the CommonJS transform cannot parse.
+
 ## How to verify
 
 ```bash

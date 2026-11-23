@@ -1,13 +1,7 @@
-/**
- * Nothing the app runs imports `testing/`. The fake server there answers every call with made-up
- * accounts; one import from a page or a hook would put it back into the build, where a tab could run on
- * it without anyone noticing, which is exactly what moving it here took out. Only tests may reach it.
- */
 const sources = import.meta.glob<string>('/src/**/*.{ts,tsx}', { eager: true, query: '?raw', import: 'default' });
 
 const isTest = (path: string) => /\.test\.tsx?$/.test(path) || path.includes('/testing/');
 
-// `from '…'`, a bare `import '…'`, `import('…')`, `require('…')` and `vi.mock('…')`.
 const IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\(\s*|vi\.mock\(\s*)['"]([^'"]+)['"]/g;
 
 const specifiersOf = (source: string): string[] => [...source.matchAll(IMPORT)].map(match => match[1]);

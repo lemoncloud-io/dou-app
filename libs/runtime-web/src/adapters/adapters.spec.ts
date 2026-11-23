@@ -1,4 +1,3 @@
-// The IndexedDB adapter opens a real database in its constructor, so a shim must exist first.
 import 'fake-indexeddb/auto';
 
 import type { CacheType } from '@chatic/bridge-messages';
@@ -20,10 +19,6 @@ const context: DataContextProvider = { getContext: () => ({ cid: 'c1', uid: 'u1'
 const nameOf = (value: unknown) => (value as object).constructor.name;
 const emptyStorage = {} as RuntimePorts['storage'];
 
-/**
- * A fresh module registry for the environment, so the host profile and the shell report are read again.
- * `storageMedia` is what the shell injected as `CHATIC_APP_STORAGE_MEDIA`; left out, it injected nothing.
- */
 const load = async (inPhoneApp: boolean, storageMedia?: string[]) => {
     jest.resetModules();
     if (inPhoneApp) (window as any).ReactNativeWebView = { postMessage: jest.fn() };
@@ -185,8 +180,6 @@ describe('web adapters — cache', () => {
 });
 
 describe('web adapters — site data blocked', () => {
-    // Where the browser blocks site data, reading either web storage throws and every raw web store is
-    // a fresh memory store: two of them would never see each other's rows.
     const blockSiteData = () => {
         for (const name of ['localStorage', 'sessionStorage'] as const) {
             jest.spyOn(window, name, 'get').mockImplementation(() => {

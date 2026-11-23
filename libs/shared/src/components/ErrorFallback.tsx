@@ -24,10 +24,6 @@ const ERROR_ICONS: Record<ErrorType, ReactNode> = {
     unknown: <AlertTriangle className="h-8 w-8 text-muted-foreground" />,
 };
 
-// The Korean substrings stay: the `Error` this classifies isn't always ours, and a Korean-speaking
-// backend can pass its message straight through as `error.message`. Bare English words such as
-// `token`, `server` or `request` are deliberately not matched — they turn up in ordinary crashes
-// ("reading 'accessToken'", "Unexpected token '<'") and would send a plain bug to the login screen.
 const inferErrorType = (error: Error): ErrorType => {
     const message = error.message.toLowerCase();
 
@@ -97,21 +93,17 @@ export const ErrorFallback: ComponentType<ErrorFallbackProps> = ({ error, resetE
             tabIndex={-1}
             className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background p-6 outline-none"
         >
-            {/* Logo */}
             <div className="mb-10 opacity-40">
                 <img src={Logo.logo} alt="DoU" className="h-16 w-16 object-contain" />
             </div>
 
-            {/* Icon */}
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">{icon}</div>
 
-            {/* Title & Description */}
             <h2 className="mb-2 text-[18px] font-semibold leading-[1.5] text-foreground">{messages.title}</h2>
             <p className="mb-6 max-w-[280px] text-center text-[14px] leading-[1.571] text-muted-foreground">
                 {messages.description}
             </p>
 
-            {/* Error Detail (collapsible) */}
             <details className="mb-8 w-full max-w-[320px]">
                 <summary className="cursor-pointer text-center text-[12px] text-muted-foreground hover:text-foreground">
                     {messages.details}
@@ -123,7 +115,6 @@ export const ErrorFallback: ComponentType<ErrorFallbackProps> = ({ error, resetE
                 </div>
             </details>
 
-            {/* Actions */}
             <div className="flex w-full max-w-[280px] flex-col gap-3">
                 <Button
                     onClick={handleRetry}

@@ -20,11 +20,6 @@ const TONE: Record<SceneBanner['kind'] | 'replaced', BannerTone> = {
     replaced: 'neutral',
 };
 
-/**
- * The detail screen's top banner. Which banner, and the dates and amounts in it, come from `sceneOf`;
- * this only puts them into words. The failure date and the overdue amount are read off the
- * subscription itself, which `sceneOf` does not repeat.
- */
 export const SceneBannerView = ({
     sub,
     banner,
@@ -95,7 +90,6 @@ export const SceneBannerView = ({
                 };
             }
             case 'expired':
-                // Replaced by the next subscription: nothing was lost and there is nothing to restore.
                 if (sub.endedReason === 'replaced') {
                     return {
                         title: t(`${key}.replacedTitle`, { date: fmt.date(banner.date) }),
