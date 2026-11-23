@@ -1,7 +1,6 @@
 import { pushRoomPlace } from './pushRoomPlace';
 
 describe('pushRoomPlace', () => {
-    // B wrote from P1; the room lives in P2.
     it("lands a 1:1 push on the room's cached place, not the place its sender was in", () => {
         expect(pushRoomPlace('me@peer', 'P1', { id: 'me@peer', sid: 'P2', stereo: 'dm', cid: 'c1' } as never)).toBe(
             'P2'

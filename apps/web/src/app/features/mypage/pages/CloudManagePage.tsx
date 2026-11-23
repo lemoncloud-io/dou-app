@@ -13,25 +13,9 @@ import { CloudManageRow } from '../components/CloudManageRow';
 import { SectionLabel } from '../components/SectionLabel';
 import { useOwnedClouds } from '../hooks/useOwnedClouds';
 
-/**
- * "클라우드 관리" — the owned clouds under the subscription that allows them (Figma 4472-75743
- * without a subscription · 4998-50957 · 4998-50603 · 4998-52524 · 4998-52720 · 4999-53562 the list
- * · 5000-54966 · 5002-56919 with a banner).
- *
- * The list is the relay catalog; everything the subscription has to say about it — the banner, the
- * allowance figure, the plan card — comes composed from `features/subscription`, which is the only
- * feature that derives the membership. A row opens the cloud's own hub; releasing a cloud moved
- * there, so this screen holds no destructive action.
- *
- * The add button is away while a banner is up: a block, a lapse or a queued downgrade is the state
- * in which the server would refuse the cloud, and the banner is what explains it. Otherwise the
- * button stays whatever the allowance says — the add-cloud flow tells, it does not hide.
- */
 export const CloudManagePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
-    // Subscribing is offered where the host sells in its app store (`runtime.checkout`), which is the
-    // phone app. Elsewhere the empty state says a subscription takes the app.
     const sellsInStore = runtime.checkout.kind === 'store';
 
     const { clouds, isPendingClouds } = useOwnedClouds();
@@ -40,7 +24,6 @@ export const CloudManagePage = () => {
     const requestAddCloud = useAddCloudRequest(s => s.requestAddCloud);
 
     const isLoading = isSceneLoading || isPendingClouds;
-    // A figure needs both sides. An unresolved allowance is not zero (see `useCloudQuota`).
     const figure = limit != null ? `${used} / ${limit}` : undefined;
 
     const body = isLoading ? (
@@ -48,9 +31,6 @@ export const CloudManagePage = () => {
             <IconSpinner className="size-6 animate-spin text-muted-foreground" />
         </div>
     ) : !hasSubscription ? (
-        // Same card the subscription list shows for an account that never subscribed, with the
-        // same call to action: the guide, which is where a first subscription starts. The copy is
-        // this screen's own — it reports no cloud in use, where the list reports no subscription.
         <div className="flex flex-col gap-6 px-4 pt-2">
             <SectionLabel title={t('mypage.cloudManage.sectionMine')} />
             <div className="flex flex-col items-center gap-3 rounded-[18px] bg-card px-4 py-8 shadow-[0_2px_6px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
@@ -130,7 +110,6 @@ export const CloudManagePage = () => {
 
     return (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
-            {/* The page is the scrollport, so the bar sticks — see SettingsPage. */}
             <div className="sticky top-0 z-20 shrink-0">
                 <PageHeader title={t('mypage.cloudManage.title')} />
             </div>

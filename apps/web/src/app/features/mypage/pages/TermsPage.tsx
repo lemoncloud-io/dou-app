@@ -15,17 +15,12 @@ export const TermsPage = () => {
         <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('mypage.policy.terms')} />
 
-            {/* Content */}
             <div className="flex-1 overflow-y-auto px-5 py-6">
-                {/* The scroll container stays full width so the scrollbar sits at the screen edge;
-                    the prose inside it takes the reading measure and centres. */}
                 <div className="mx-auto max-w-reading">
-                    {/* Effective date */}
                     <p className="mb-6 text-right text-sm text-muted-foreground">
                         {t('mypage.policy.effectiveDate')}: {currentVersion?.effectiveDate}
                     </p>
 
-                    {/* Sections */}
                     <div className="space-y-8">
                         {currentVersion?.sections.map((section, index) => (
                             <div key={index}>

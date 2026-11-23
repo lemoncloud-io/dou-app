@@ -8,12 +8,6 @@ import { PageHeader } from '../../../ui/components';
 import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';
 import { haptics } from '../../../bridge/haptics';
 
-/**
- * Notification preferences, one level under the settings depth. The Figma settings list only
- * carries the "알림 설정" entry row; this screen is the destination it implies, so it holds the two
- * notification toggles the MY hub used to show inline. Revisit the row layout when the depth's own
- * design lands.
- */
 export const NotificationSettingsPage = () => {
     const { t } = useTranslation();
     const { pushEnabled, setPushEnabled, isSupported: pushSupported } = useDevicePushMute();
@@ -21,18 +15,12 @@ export const NotificationSettingsPage = () => {
 
     return (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
-            {/* The page itself is the scrollport, so the bar has to stick: left in the flow it
-                would scroll away and take the frosted notch strip with it, and the rows passing
-                the status bar would pass it unblurred. */}
             <div className="sticky top-0 z-20 shrink-0">
                 <PageHeader title={t('mypage.notificationSettings')} />
             </div>
 
             <div className="flex flex-col gap-[18px] px-4 pb-8 pt-4">
                 <MenuCard>
-                    {/* Device-global push mute. ON = notifications received (muted:false). Outside a
-                        native shell no push device exists (the write would 404), so the toggle is
-                        disabled with a hint instead of erroring — see useDevicePushMute. */}
                     <ListRow
                         title={t('mypage.pushNotifications')}
                         subtitle={pushSupported ? undefined : t('mypage.push.appOnly')}

@@ -18,7 +18,6 @@ interface CloudManageRowProps {
     onOpen: (cloudId: string) => void;
 }
 
-/** The badge each row state wears, and its word. `null` is a plain row. */
 const BADGE: Record<CloudRowState, { variant: CloudStatusVariant; key: string } | null> = {
     provisioning: { variant: 'provisioning', key: 'provisioning' },
     setupFailed: { variant: 'failed', key: 'setupFailed' },
@@ -28,15 +27,6 @@ const BADGE: Record<CloudRowState, { variant: CloudStatusVariant; key: string } 
     ready: null,
 };
 
-/**
- * One owned cloud on the management list — the Figma "DoU/Cloud Row" (4897:15154): avatar, name,
- * the state badge, and a chevron into the cloud's own screens.
- *
- * Every row opens, whatever its state. A provisioning cloud has nothing to manage yet, but its
- * information screen is where the wait is explained; a failed or held one is exactly the row the
- * user has to open, because releasing it happens there. The caption under a row that needs a look
- * is the design's one sentence, not the state — the badge already says which state it is.
- */
 export const CloudManageRow = ({ cloud, onOpen }: CloudManageRowProps) => {
     const { t } = useTranslation();
     const state = resolveCloudRowState(cloud);
@@ -47,8 +37,6 @@ export const CloudManageRow = ({ cloud, onOpen }: CloudManageRowProps) => {
     return (
         <ListRow
             leading={<CloudAvatar name={name} size="md" />}
-            // Held rows grey their text; the span carries its own colour so it wins over the
-            // row's default foreground.
             title={<span className={cn('truncate', isRestricted && 'text-placeholder')}>{name}</span>}
             subtitle={
                 needsCloudAttention(state) ? (

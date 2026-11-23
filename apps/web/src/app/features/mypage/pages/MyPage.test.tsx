@@ -18,13 +18,10 @@ jest.mock('@chatic/shared', () => ({
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         session: { useIsPairedSession: () => mockPaired },
-        // Which side of a pairing this device takes, as the host's `signIn` port says: the phone app holds
-        // its own device's sign-in and approves; a browser tab's sign-in ends with the tab.
         get signIn() {
             const tab = require('@chatic/runtime/testing').browserSignIn();
             return mockNative ? { ...tab, sessionScope: 'device', approvesPairing: true } : tab;
         },
-        // How the host sells, as the `checkout` port says: the store's in the app, the website's in a browser.
         get checkout() {
             return mockNative ? { kind: 'store', store: 'apple' } : { kind: 'web', open: jest.fn() };
         },

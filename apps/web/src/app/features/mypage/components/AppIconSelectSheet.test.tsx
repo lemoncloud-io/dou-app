@@ -17,7 +17,6 @@ jest.mock('@chatic/ui-kit/components/ui/sheet', () => ({
     SheetDescription: () => null,
 }));
 
-// What the app reports: the primary icon listed with a null id, the alternates by name.
 const icons = [
     { id: null, label: 'Default' },
     { id: 'WhiteIcon', label: 'White' },
@@ -54,7 +53,6 @@ describe('AppIconSelectSheet', () => {
         );
 
         expect(screen.getAllByTestId('checked')).toHaveLength(1);
-        // The `t` mock echoes the key, which the sheet reads as untranslated and falls back to the label.
         expect(checkedRowText()).toBe('Aurora');
     });
 });

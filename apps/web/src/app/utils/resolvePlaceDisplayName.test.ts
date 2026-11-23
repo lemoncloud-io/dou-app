@@ -2,7 +2,6 @@ import type { TFunction } from 'i18next';
 
 import { HOME_PLACE_ID, resolvePlaceDisplayName } from './resolvePlaceDisplayName';
 
-// Stand-in for i18next: returns the key so assertions read as "the branded label was used".
 const t = ((key: string) => key) as unknown as TFunction;
 
 describe('resolvePlaceDisplayName', () => {
@@ -26,7 +25,6 @@ describe('resolvePlaceDisplayName', () => {
 
     it('returns an empty string when a regular place has no name yet', () => {
         expect(resolvePlaceDisplayName({ id: 'site-1', name: undefined }, { isDefaultCloud: false }, t)).toBe('');
-        // `??` not `||`: an empty name stays empty rather than falling through to anything else.
         expect(resolvePlaceDisplayName({ id: 'site-1', name: '' }, { isDefaultCloud: false }, t)).toBe('');
         expect(resolvePlaceDisplayName(null, { isDefaultCloud: false }, t)).toBe('');
         expect(resolvePlaceDisplayName(undefined, { isDefaultCloud: false }, t)).toBe('');

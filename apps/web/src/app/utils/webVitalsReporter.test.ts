@@ -35,8 +35,6 @@ describe('receiveVital', () => {
     });
 
     it('records INP, CLS and TTFB as samples too, CLS scaled ×1000 to an integer', () => {
-        // Firebase never receives these three: @chatic/perf's catalogue keeps them on the log
-        // pipeline. That rule is pinned in libs/perf's catalog.spec.ts, not here.
         configurePerfTraces(backend);
 
         receiveVital(vital('INP', 180));

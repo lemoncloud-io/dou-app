@@ -431,3 +431,4 @@ sheet and `useClearLocalCaches` for the clear-cache row.
 - [debug](../debug/README.md) · [feedback](../feedback/README.md) — the two features Lab and
   Settings hand off to.
 - [subscription](../subscription/README.md) — where the subscription row goes.
+- [login-and-settings-notes.md](./login-and-settings-notes.md) — the login, profile, icon and settings rules.

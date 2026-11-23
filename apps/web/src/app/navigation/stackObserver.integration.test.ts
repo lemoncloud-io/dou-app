@@ -4,15 +4,6 @@ import { observeRouterRoutes, onTransientUiTransition, resetTransientUiListeners
 import { getRouteTrail, resetRouteTrail } from '../utils/routeTrail';
 import { routeStackTracker } from './stackTracker';
 
-/**
- * Drives a REAL `createBrowserRouter` in jsdom, because what the stack depends on is a router
- * internal: `completeNavigation` notifies subscribers before it writes the history entry, so a
- * PUSH is seen while `history.state.idx` is still one behind (see `resolveTransitionIndex`).
- *
- * A hand-rolled fake router would happily agree with whatever we assumed. This suite is the thing
- * that fails if a react-router upgrade reorders those two steps — the failure mode it guards
- * against is silent: every displayed depth off by one.
- */
 const paths = () => routeStackTracker.getSnapshot().entries.map(entry => entry.pathname);
 
 const routes = [
@@ -22,13 +13,6 @@ const routes = [
     { path: '/c', element: null },
 ];
 
-/**
- * Goes back and waits for it to land.
- *
- * `navigate(-1)` delegates to `history.go`, which resolves before jsdom dispatches `popstate` — so
- * awaiting the call is not enough, and a fixed timeout would only be flaky. Poll the router's own
- * location instead.
- */
 const goBack = async (router: ReturnType<typeof createBrowserRouter>): Promise<void> => {
     const from = router.state.location.pathname;
     await router.navigate(-1);
@@ -40,12 +24,6 @@ const goBack = async (router: ReturnType<typeof createBrowserRouter>): Promise<v
     if (router.state.location.pathname === from) throw new Error(`back navigation never landed from ${from}`);
 };
 
-/**
- * jsdom exposes no `Request`, and the router builds one for every navigation
- * (`createClientSideRequest`). These routes declare no loaders, so the object is created and never
- * read — a carrier is enough. Scoped to this suite rather than `jest.setup.ts`: a global fetch
- * primitive would change what 270 other suites see.
- */
 const installRequestStub = (): (() => void) => {
     const globalRef = globalThis as { Request?: unknown };
     if (globalRef.Request) return () => undefined;
@@ -72,7 +50,6 @@ describe('observeRouterRoutes — 실제 라우터 연동', () => {
     });
 
     beforeEach(() => {
-        // A fresh entry with no router index, as a cold tab has.
         window.history.pushState(null, '', '/');
         routeStackTracker.reset();
         resetRouteTrail();
@@ -105,11 +82,9 @@ describe('observeRouterRoutes — 실제 라우터 연동', () => {
         await goBack(router);
         await router.navigate('/c');
 
-        // Stack: /b disappears and /c takes its place.
         expect(paths()).toEqual(['/', '/a', '/c']);
         expect(routeStackTracker.getSnapshot().currentIndex).toBe(2);
 
-        // Trail: the visit order is preserved as-is. The point is that the two stores give different answers.
         expect(getRouteTrail()).toEqual(['/', '/a', '/b', '/a', '/c']);
     });
 
@@ -143,9 +118,6 @@ describe('observeRouterRoutes — 실제 라우터 연동', () => {
         expect(getRouteTrail()).toEqual(['/']);
     });
 
-    // Driven through the real router rather than the pure rule, because what has to hold is that
-    // the listener fires on transitions the ROUTER produces — the pure test cannot tell whether
-    // the observer is feeding it the right actions.
     it('전이 때 transient UI 리스너를 부르고, 첫 기록에서는 부르지 않는다', async () => {
         const dismissed = jest.fn();
         onTransientUiTransition(dismissed);
@@ -153,7 +125,6 @@ describe('observeRouterRoutes — 실제 라우터 연동', () => {
         const router = createBrowserRouter(routes);
         unsubscribe = observeRouterRoutes(router);
 
-        // Subscribing records the current location; nothing can have been raised yet.
         expect(dismissed).not.toHaveBeenCalled();
 
         await router.navigate('/a');

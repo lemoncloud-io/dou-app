@@ -3,14 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { runtime, type DomainCloud } from '@chatic/runtime';
 import { useCustomMutation } from '@chatic/shared';
 
-/**
- * Asks the relay to set up a cloud whose setup failed, again.
- *
- * The catalog is re-read once the relay accepts, rather than patched with the returned row: the
- * catalog row is what every cloud screen reads its state from, and the relay is the one that moved
- * it back to provisioning. The re-read is awaited so the caller's success toast lands on a screen
- * that already shows the new state.
- */
 export const useRetryCloudSetup = () => {
     const { cloud } = runtime.data.useRuntimeRepositories();
     const queryClient = useQueryClient();

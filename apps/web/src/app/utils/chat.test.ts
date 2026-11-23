@@ -52,8 +52,6 @@ describe('isFeedVisible — 본문 피드 가시성', () => {
         expect(isFeedVisible(feedChat({ parentId: 'C1:1' }))).toBe(false);
     });
 
-    // The row stays and renders as a tombstone. A message that just vanishes leaves
-    // the people who were reading it with no account of what happened.
     it('삭제된 메시지는 tombstone으로 남긴다', () => {
         expect(isFeedVisible(feedChat({ hidden: true }))).toBe(true);
     });
@@ -62,8 +60,6 @@ describe('isFeedVisible — 본문 피드 가시성', () => {
         expect(isFeedVisible(feedChat({ stereo: 'system', subType: 'join' }))).toBe(true);
     });
 
-    // These are the input to foldReactions, shown as chips under the message they
-    // point at. As feed rows they would be empty pills — the exact bug ADR-0093 fixes.
     it('리액션 이벤트는 숨긴다', () => {
         expect(isFeedVisible(feedChat({ stereo: 'system', subType: 'reaction' }))).toBe(false);
     });
@@ -82,13 +78,10 @@ describe('isPreviewableChat — 홈 목록 미리보기 자격', () => {
         expect(isPreviewableChat(feedChat({ hidden: true }))).toBe(true);
     });
 
-    // It never reached the channel, and it keeps chatNo 0 indefinitely — ranked as
-    // newest it would hold the preview and freeze the row's time.
     it('실패한 전송은 미리보기가 되지 않는다', () => {
         expect(isPreviewableChat(feedChat({ chatNo: 0, isFailed: true }))).toBe(false);
     });
 
-    // The room's feed leaves replies to the thread page, so the preview does too.
     it('does not preview a thread reply', () => {
         expect(isPreviewableChat(feedChat({ parentId: 'C1:1' }))).toBe(false);
     });
@@ -112,8 +105,6 @@ describe('pickPreviewChat — 미리보기로 쓸 최신 메시지 선택', () =
         expect(picked?.content).toBe('newest');
     });
 
-    // A pending send carries chatNo 0 and would lose every numeric comparison, so your
-    // own message would be missing from the home row until the server answered.
     it('내가 방금 보낸 pending 행이 확정 행들을 이긴다', () => {
         const picked = pickPreviewChat([
             feedChat({ id: 'C1:9', chatNo: 9, content: 'persisted' }),

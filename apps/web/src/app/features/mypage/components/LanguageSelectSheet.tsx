@@ -13,8 +13,6 @@ interface LanguageSelectSheetProps {
     onClose: () => void;
 }
 
-// A language names itself in its own script, so it can be found whatever the screen is showing now.
-// `system` is the one row that has to be translated.
 const LANGUAGE_LABELS: Record<Exclude<LanguagePreference, 'system'>, string> = {
     ko: '한국어',
     en: 'English',

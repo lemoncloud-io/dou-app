@@ -61,12 +61,10 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </>
     ),
 }));
-// The real app list, through the barrel's own name for it.
 jest.mock('../../../bridge', () => ({
     openSubWebView: (...args: unknown[]) => openSubWebView(...args),
     resolveSubWebViewAppUrl: jest.requireActual('../../../bridge/subWebViewApps').resolveSubWebViewAppUrl,
 }));
-// `import.meta` is out of reach of the CommonJS transform; the stage is the test's to choose.
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 jest.mock('../../../hooks', () => ({
     useChatInputLockExperiment: () => ({ isEnabled: false, setEnabled: setChatInputLock }),
@@ -74,7 +72,6 @@ jest.mock('../../../hooks', () => ({
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: () => null }));
 jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
-// The card's own behaviour is MiniAppCard.test.tsx's; here it only has to be placed, with the rows handed to it.
 jest.mock('../components/MiniAppCard', () => ({
     MiniAppCard: ({ children, withLauncher }: { children?: React.ReactNode; withLauncher: boolean }) => (
         <section aria-label="mini app card" data-launcher={String(withLauncher)}>
@@ -82,7 +79,6 @@ jest.mock('../components/MiniAppCard', () => ({
         </section>
     ),
 }));
-// The real list, without the policy content the barrel also carries.
 jest.mock('../consts', () => jest.requireActual('../consts/inAppPages'));
 jest.mock('../../debug', () => ({
     DebugUnlockDialog: () => null,
@@ -134,7 +130,6 @@ describe('LabPage — sub WebView pages', () => {
         expect(miniApps().dataset.launcher).toBe('true');
     });
 
-    // While the mini app tab is on, the cloud's mini apps live there; DoU's own pages stay here.
     it('keeps only the pages in the mini app card while the mini app tab is on', () => {
         mockMiniAppTab = true;
 
@@ -182,7 +177,6 @@ describe('LabPage — sub WebView pages', () => {
         );
     });
 
-    // Locked, as a store build is until the flask's unlock, the debug-only card is not drawn at all.
     it('draws no debug-only card while debug mode is off', () => {
         mockDebugMode = false;
         render(<LabPage />);

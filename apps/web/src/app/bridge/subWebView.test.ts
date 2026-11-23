@@ -6,7 +6,6 @@ import { openSubWebView } from './subWebView';
 let mockNative = true;
 const openURL = jest.fn();
 const requestOpen = jest.fn();
-// The app's sub WebView where the host has one, and the OS browser beside it; a browser has neither.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
@@ -68,7 +67,6 @@ describe('openSubWebView', () => {
         expect(requestOpen).toHaveBeenCalledWith(URL_, expect.objectContaining({ appId: 'quiz' }));
     });
 
-    // An app built before the sub WebView never meets the request: it would answer NOT_FOUND.
     it('hands the page to the OS browser when the handshake does not list it', async () => {
         shellCapabilities.setReport(report(['OpenURL']));
 
@@ -91,8 +89,6 @@ describe('openSubWebView', () => {
         open.mockRestore();
     });
 
-    // A refusal means this page asked for something the app will not show; hiding it behind the
-    // OS browser would hide the bug.
     it("rejects with the shell's refusal instead of falling back", async () => {
         shellCapabilities.setReport(report(['OpenSubWebView']));
         requestOpen.mockRejectedValue(Object.assign(new Error('not allowed'), { code: 'NOT_ALLOWED' }));

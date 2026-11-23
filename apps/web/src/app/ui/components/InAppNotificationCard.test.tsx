@@ -2,7 +2,6 @@ import { fireEvent, render, screen } from '@testing-library/react';
 
 import { InAppNotificationCard } from './InAppNotificationCard';
 
-// Echo keys so assertions target the key, not the shipped Korean/English copy.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
 const NOW_KEY = 'notifications.inApp.now';
@@ -18,14 +17,11 @@ describe('InAppNotificationCard', () => {
         expect(screen.getByText(NOW_KEY)).toBeTruthy();
     });
 
-    // A foreground push has, by definition, just arrived, so even a push with no body
-    // (title only) keeps the time label — it's a fixed phrase, not a relative-time calculation.
     it('본문이 없으면 본문 줄만 빠지고 "지금" 라벨은 남는다', () => {
         render(<InAppNotificationCard title="#general" />);
 
         expect(screen.getByText('#general')).toBeTruthy();
         expect(screen.getByText(NOW_KEY)).toBeTruthy();
-        // Only two nodes — title + time label — no body node besides them.
         expect(screen.queryByText('안녕하세요')).toBeNull();
     });
 
@@ -49,8 +45,6 @@ describe('InAppNotificationCard', () => {
         expect(screen.queryByRole('button')).toBeNull();
     });
 
-    // If a photo is given, it renders that face; otherwise, the default glyph. The photo is
-    // marked decorative with alt="", so it's checked in the accessibility tree only as a nameless image.
     it('아바타 사진이 오면 이미지로, 없으면 이미지 없이 기본 글리프로 그린다', () => {
         const { container, unmount } = render(
             <InAppNotificationCard title="#general" avatarUrl="https://example.com/a.png" />

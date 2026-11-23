@@ -37,7 +37,6 @@ describe('subWebViewTargetOfUrl', () => {
         });
     });
 
-    // A page of the other stage would run against this build's session.
     it.each([
         ['a development page in a production build', false, 'https://dou-raise.apps-dev.chatic.io/'],
         ['a production page in a development build', true, 'https://dou-raise.apps.chatic.io/'],
@@ -47,7 +46,6 @@ describe('subWebViewTargetOfUrl', () => {
         expect(subWebViewTargetOfUrl(url)).toBeNull();
     });
 
-    // An app link names an app, which is resolved for this build's stage whatever its host.
     it("names the app for the other stage's app link too", () => {
         mockDevBuild = true;
 

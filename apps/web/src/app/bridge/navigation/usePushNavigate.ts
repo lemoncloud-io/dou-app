@@ -19,16 +19,10 @@ import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
 import { shellCapabilities } from '../shellCapabilities';
 import { openSubWebViewTarget } from '../subWebViewLink';
 
-/** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
 
-/** How long a push waits on the room's cached row before landing on the place its link names. */
 const ROOM_ROW_READ_TIMEOUT_MS = 1_000;
 
-/**
- * The room's cached row, or `null` on a miss, a failure or a read that does not answer in time. It
- * runs while the push holds the in-flight guard, so it must always settle.
- */
 const readRoomRow = <T>(read: () => Promise<T | null>): Promise<T | null> =>
     new Promise(resolve => {
         const timer = setTimeout(() => resolve(null), ROOM_ROW_READ_TIMEOUT_MS);
@@ -41,123 +35,29 @@ const readRoomRow = <T>(read: () => Promise<T | null>): Promise<T | null> =>
             .finally(() => clearTimeout(timer));
     });
 
-/**
- * Strips only the hash so push targets can be compared against the current location.
- * The query string must participate in the comparison: some targets (e.g. the invite
- * deeplink `/?provider=invite&code=...`) share a pathname with the current screen but
- * carry their whole meaning in query params — a pathname-only match would drop them.
- */
 const toLocationKey = (target: string): string => target.split('#')[0];
 
-/**
- * Is this pathname a channel room? Mirrors `ROUTES.channels.room` — kept as a pattern because the
- * route builder takes an id and this has to match any of them.
- *
- * Only a room is treated as a disposable history entry (see `navigateNormalized`): rooms are peers
- * that a push hops between, so stacking them buries the screen the user actually wants to return to.
- * Every other screen is somewhere the user chose to be.
- */
 const isChannelRoomPath = (pathname: string): boolean => /^\/channels\/[^/]+\/room$/.test(pathname);
 
-/**
- * Shared navigation primitive for push-originated route changes — native `OnNavigate`
- * events (push taps / deep links) and in-app notification clicks both funnel here so
- * every push entry point behaves identically.
- *
- * Push notifications can deep-link into a channel room that lives in a different cloud/site
- * than the one currently active. Channel data is loaded from the *active* server's repository,
- * so the target cloud/site must be switched *before* navigating — otherwise the room page
- * cannot find the channel and bounces back home. The cloud switch clears the selected site,
- * so the site switch is ordered after it, and both are awaited before the route change.
- *
- * Relay-origin pushes carry the literal `cid` `'#'` (see RELAY_ORIGIN_CID) rather than a real
- * cloud id, so they must never reach `switchCloud`. When a cloud session is active they instead
- * leave the cloud via `logoutCloudSession()` — relay auth underpins the cloud session
- * (delegation-token exchange), so dropping the cloud is enough to land back in relay without a
- * re-login. When relay is already active, no transition is needed at all. (ADR-0045)
- *
- * A cloud/site switch re-issues tokens against the active server, so attempting it before the
- * base socket handshake completes (e.g. on cold start) races the connection and fails, which
- * rolls the selection back. We therefore wait for the handshake (`isVerified`) before switching;
- * if it does not complete within the timeout we skip the switch and navigate best-effort.
- *
- * Push-driven navigation also normalizes the history stack instead of plainly pushing: repeated
- * push taps used to stack room entries (`[home, roomA, roomB, ...]`) so "back" walked through
- * stale rooms instead of leaving the chat. See `navigateNormalized` — it replaces the current
- * entry rather than pushing, so the stack never grows on repeated taps.
- *
- * Overlapping push events are dropped: the store can deliver a duplicate/rapid second event while
- * the first is still awaiting a cloud/site switch, which would interleave switches and
- * double-navigate. An in-flight guard processes one push entry at a time.
- *
- * A push naming a specific chat (`chatId`) navigates in two legs — channel room, then the chat's
- * thread if it turns out to be a reply. See `hopToThread`; a top-level message simply stops at the
- * room, which is the common case.
- *
- * A push whose whole destination is another cloud's main screen (`/?cid=<cid>`, the cloud-ready push)
- * is the one exception to best-effort. Landing on the root after its switch failed would show the
- * cloud the user was already in, as if it were the one the push named — most often because that
- * cloud has since been released. It stays where it is and says the switch failed instead — after a
- * failed switch, and when the socket never verified for the switch to run at all.
- *
- * Must be used within the router tree (relies on `useNavigate`).
- */
 export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const navigate = useNavigate();
     const enterStack = useStackNavigate();
     const { t } = useTranslation();
     const { toast } = useToast();
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
-    // Committed session truth for the relay-return decision: `kind` is 'cloud' only while the
-    // cloud session is fully active (tokens present), unlike the selection-derived cloud id.
     const { activeServer } = runtime.session.useGlobalSession();
     const { switchCloud } = runtime.session.useSwitchCloudSession();
     const { logoutCloudSession } = useLogoutCloudSession();
     const { switchSite } = useSiteSwitch();
-    // Cloud repository for invited-cloud recovery (see the switch block below); chat for
-    // resolving whether a notified message is a thread reply (see `hopToThread`).
     const { chat: chatRepository, channel: channelRepository } = runtime.data.useRuntimeRepositories();
-    // One push navigation is processed at a time; overlapping events are dropped (see below).
     const inFlightRef = useRef(false);
 
-    /**
-     * Navigates to a push target while keeping "back" meaningful.
-     *
-     * The three rules that used to live here — skip the exact target, replace a channel room,
-     * push everywhere else — are now rows in `navigation/stackPolicy`, which is also where the
-     * reasoning for each of them is written down. They moved without changing: this is the entry
-     * kind `'push'`, and `useHandlePushNavigation.test.ts` passing untouched is what says so.
-     *
-     * The hash is stripped before handing the target over, because a push payload may carry the
-     * relay sentinel and the policy compares targets for equality.
-     */
     const navigateNormalized = useCallback((target: string) => enterStack('push', toLocationKey(target)), [enterStack]);
 
-    /**
-     * Second leg of a push into a thread reply: having landed on the channel room, ask whether
-     * the notified chat is a reply and, if so, open its thread on top.
-     *
-     * Ordered after the room rather than instead of it, for three reasons. Back stays meaningful
-     * (thread → room → wherever the reader came from). The room's own load is what warms the chat
-     * cache this lookup reads. And an unresolvable chat degrades to a screen that is still right,
-     * instead of a thread page with no root.
-     *
-     * PUSHED deliberately, not routed through `navigateNormalized`: that helper REPLACES the
-     * current entry when it is a channel room, which is correct for the room-to-room hops it was
-     * written for and wrong here — it would drop the room we just placed underneath and send back
-     * to whatever preceded it.
-     *
-     * Silent on every failure. The reader is already on a screen that makes sense, so a missing
-     * chat, a cold cache with no socket, or a rejected fetch all mean "no hop" rather than an
-     * error to report. The location is re-checked first because the awaits above give the reader
-     * time to navigate away, and hijacking a screen they chose would be worse than no hop at all.
-     */
     const hopToThread = useCallback(
         async (chatId: string) => {
             try {
                 if (!isChannelRoomPath(window.location.pathname)) return;
-                // Cache first: after a push the row is usually already synced, and this avoids a
-                // round trip. `getChat` is the cold-start path (cache miss / evicted history).
                 const cached = await chatRepository.cacheRead(chatId);
                 const target = resolveThreadTarget(cached ?? (await chatRepository.getChat({ id: chatId })), chatId);
                 if (!target || !isChannelRoomPath(window.location.pathname)) return;
@@ -175,16 +75,10 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
 
     return useCallback(
         async (rawPath: string) => {
-            // A sub WebView page's link is not a route: the page opens over whatever is showing, so
-            // closing it returns the user to where they were. The link names an app, resolved here to
-            // where it is hosted; an app built before app ids hands over the page's URL instead. An
-            // unknown app or a refusal leaves the screen as it is.
             const link = readSubWebViewLinkPath(rawPath);
             const handedPageUrl = link ? null : subWebViewPageUrlOfNavigatePath(rawPath);
             const subWebViewTarget = link ? { link } : handedPageUrl ? { pageUrl: handedPageUrl } : null;
             if (subWebViewTarget) {
-                // A page link opens in the app or not at all: `openSubWebView` would hand it to the OS
-                // browser in an app without the sub WebView, which is the one place it must not go.
                 if (!shellCapabilities.supports('OpenSubWebView')) {
                     logger.warn('router.sub_webview_link_unsupported', 'This app cannot show a sub WebView page', {
                         appId: link?.appId,
@@ -195,9 +89,6 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                 return;
             }
 
-            // Drop overlapping push navigations: a duplicate/rapid second event arriving while the
-            // first is still awaiting a cloud/site switch would interleave switches and
-            // double-navigate. Process one push entry at a time.
             if (inFlightRef.current) {
                 logger.info('ROUTER', `Push navigation already in flight; dropping: ${rawPath}`);
                 return;
@@ -206,15 +97,10 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
 
             const { target, cid, sid: pushSid, chatId } = resolvePushNavigation(rawPath);
 
-            // Relay-origin push (`cid === '#'`): return to relay when a cloud is active; when relay
-            // is already active there is nothing to switch — the sentinel must never hit switchCloud.
             const isRelayPush = cid === RELAY_ORIGIN_CID;
             const needsRelayReturn = isRelayPush && activeServer.kind === 'cloud';
             const needsCloudSwitch = !!cid && !isRelayPush && cid !== selectedCloudId;
 
-            // A 1:1 opens in its own place, not the one its sender wrote from (`pushRoomPlace`). Its
-            // row is read only in the cloud already open — another cloud's cache is not this one's —
-            // and a miss there falls back to the place its id names.
             const roomChannelId = channelIdOfRoomPath(target);
             const cachedRoom =
                 roomChannelId && !needsCloudSwitch && !needsRelayReturn
@@ -224,23 +110,14 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             logger.info('ROUTER', `Push navigation requested: ${rawPath}`, { target, cid, sid, pushSid, chatId });
             const needsSiteSwitch = !!sid && sid !== selectedSiteId;
             const needsSwitch = needsRelayReturn || needsCloudSwitch || needsSiteSwitch;
-            // Nothing to land on but the cloud itself — see the hook's note on the cloud-ready push.
             const isCloudMainPush = needsCloudSwitch && target === ROUTES.root;
             let cloudSwitched = false;
 
-            /**
-             * Land on the resolved target, then take the thread leg when the push named a chat.
-             * Every exit below routes through this so a reply push opens its thread whichever way
-             * the switch went — including the best-effort paths, where the room still loads and the
-             * hop can still succeed off the cache.
-             */
             const land = async () => {
                 navigateNormalized(target);
                 if (chatId) await hopToThread(chatId);
             };
 
-            // The room traces begun by whoever called this (a tap, a banner) learn what the switch
-            // cost: which kind ran, and when it was done. Marked in place — the room ends them.
             if (needsSwitch) {
                 roomOpenTrace.putAttribute(
                     roomChannelId,
@@ -251,10 +128,8 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
 
             try {
                 if (needsSwitch) {
-                    // Gate the switch on the base handshake so we do not switch over a half-open socket.
                     const verified = await runtime.connection.waitUntilVerified(null, HANDSHAKE_WAIT_TIMEOUT_MS);
                     if (!verified && isCloudMainPush) {
-                        // Landing would show the cloud already open as the one the push named.
                         logger.warn('ROUTER', 'Socket not verified for a cloud-ready push; staying put', { cid });
                         toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
                         return;
@@ -268,22 +143,11 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                         await land();
                         return;
                     }
-                    // Each await below is marked as it finishes, so a slow switch says which step held
-                    // it: `switch_done` alone cannot tell this wait from the token exchange or the
-                    // place switch. A step that did not run leaves no mark.
                     roomOpenTrace.mark(roomChannelId, 'handshake_done');
-                    // Native cold-DB eviction can drop an INVITED source cloud from the cache, so a
-                    // deep-link / push-tap into it would have nothing to switch to. Re-derive and
-                    // re-cache it first (idempotent: a no-op when already cached), mirroring the
-                    // foreground-push recovery in InvitedCloudDurabilityRunner so both push entry
-                    // points behave identically, behind the same condition: only where the app hands
-                    // the page its notifications, the native WebView: a browser has no native cache to
-                    // evict from. Relay-backed, so it runs after the handshake gate.
                     if (cid && !isRelayPush && runtime.push.notifications) {
                         await runtime.data.recoverInvitedCloudIfMissing(cid);
                         roomOpenTrace.mark(roomChannelId, 'recover_done');
                     }
-                    // Cloud transition first (it clears the selected site), then site, then route.
                     if (needsRelayReturn) await logoutCloudSession();
                     if (cid && needsCloudSwitch) {
                         await switchCloud(cid);
@@ -300,7 +164,6 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
                     return;
                 }
-                // Best-effort: attempt the route anyway so a switch failure doesn't strand the user.
                 await land();
             } finally {
                 inFlightRef.current = false;
