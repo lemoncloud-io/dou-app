@@ -1,18 +1,5 @@
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * User-facing preferences, absorbed from `PREFERENCES` (`apps/web/src/app/stores/preferenceKeys.ts`).
- *
- * `ui.onboardingCompleted` drops the old inversion: the legacy `isFirstRun` state was the negation
- * of what its localStorage key stored, which needed a comment to warn readers. This key's name
- * matches what it holds.
- *
- * `channelSort`/`pinnedChannels`/`homeSectionsCollapsed`/`recentSearches`/`photoGridColumns`/
- * `photoSendGrouped` are `'internal'` on purpose even though a person changes them — the place they
- * change is a sort picker, a pin gesture, a section header, a search box, a pinch on the photo grid,
- * the photo grid's "send as one message" box, not a settings screen, so a generic settings UI must not
- * render a row for them.
- */
 export const uiModule: ConfigRegistryModule = {
     'ui.theme': {
         title: 'Theme',
@@ -24,9 +11,6 @@ export const uiModule: ConfigRegistryModule = {
         writableBy: ['shell', 'local'],
         persist: 'shell',
     },
-    // `shell`, like the theme, so the choice reaches the native app and survives a WebView storage
-    // wipe. apps/web resolves the language while its i18n module is imported, before `config.init()`,
-    // so it reads the boot envelope and the local mirror itself, in the resolver's order.
     'ui.language': {
         title: 'Language',
         description: "The app's display language. 'system' follows the device language.",
@@ -137,10 +121,6 @@ export const uiModule: ConfigRegistryModule = {
         writableBy: ['local'],
         persist: 'local',
     },
-    // The country a phone field opens on — the last one the person picked. `local`, not `shell`: it is a
-    // convenience of this browser or WebView, and the device locale is a fine answer when it is lost.
-    // Empty means "never picked". It moved here from its own `localStorage` key, which each entry point
-    // carries over after `config.init()` (`migrateLegacyPhoneCountry`).
     'ui.phoneCountry': {
         title: 'Last picked phone country',
         description: 'The country a phone number field opens on, as the person last picked it.',

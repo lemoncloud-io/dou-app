@@ -6,12 +6,6 @@ import { IndexedDBAdapter } from '../indexeddb/IndexedDBAdapter';
 import { IndexedDbGlobalSearchSource } from './IndexedDbGlobalSearchSource';
 import { NativeGlobalSearchSource } from './NativeGlobalSearchSource';
 
-/**
- * Shared contract test (ADR-0088 "adapter behavior parity"): the same fixtures and the same
- * expectation table run against both the IndexedDB (web) and native (bridge) search
- * sources. A semantic change to one that isn't mirrored in the other fails here.
- */
-
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 if (typeof globalThis.structuredClone !== 'function') {
     globalThis.structuredClone = ((value: unknown) => clone(value)) as typeof structuredClone;
@@ -46,12 +40,8 @@ const FIXTURES: Fixture[] = [
     { domain: 'channel', id: 'ch-4', cid: 'cloud-b', uid: 'user-1', sid: 'site-4', name: 'Lemon Bistro' },
     { domain: 'site', id: 'site-1', cid: 'cloud-a', uid: 'user-1', name: 'Lemon HQ' },
     { domain: 'site', id: 'site-2', cid: 'cloud-b', uid: 'user-1', name: 'Beta Base' },
-    // Same sid string in both clouds — context maps must key by cloud, not by id alone.
     { domain: 'site', id: 'site-1', cid: 'cloud-b', uid: 'user-1', name: 'Beta Annex' },
     { domain: 'join', id: 'join-1', cid: 'cloud-a', uid: 'user-1', channelId: 'ch-1', userId: 'user-1', readNo: 7 },
-    // Another member of the SAME channel, cached under MY partition (uid) — read receipts cache
-    // every member's cursor, so `uid` alone does not mean "my row". Written after mine on purpose:
-    // a map keyed by channelId without a userId check would end up holding this one.
     { domain: 'join', id: 'join-2', cid: 'cloud-a', uid: 'user-1', channelId: 'ch-1', userId: 'user-2', readNo: 99 },
     { domain: 'join', id: 'join-3', cid: 'cloud-a', uid: 'user-2', channelId: 'ch-1', userId: 'user-2', readNo: 55 },
     {
@@ -81,7 +71,6 @@ const FIXTURES: Fixture[] = [
         chatNo: 1,
         content: 'another lemon chat',
     },
-    // Unsent (chatNo 0): newest by insertion order, never eligible as a preview.
     {
         domain: 'chat',
         id: 'chat-pending',
@@ -91,8 +80,6 @@ const FIXTURES: Fixture[] = [
         chatNo: 0,
         content: 'still sending',
     },
-    // ch-4's only cached row is unsent — the case where the guard actually decides the outcome
-    // (elsewhere chatNo 0 sorts lowest and loses on ordering alone).
     {
         domain: 'chat',
         id: 'chat-only-pending',
@@ -153,7 +140,6 @@ const EXPECTATIONS: Expectation[] = [
 interface ContextExpectation {
     description: string;
     query: GlobalCacheContextQuery;
-    /** Only the keys asserted here are checked; `null` means "must be absent from the map". */
     expected: {
         channels?: Record<string, string | null>;
         sites?: Record<string, string | null>;
@@ -344,11 +330,6 @@ runContractSuite('IndexedDB (web)', async () => {
     return new IndexedDbGlobalSearchSource(db);
 });
 
-/**
- * Stands in for the native side: `SearchGlobalCacheData` mirrors SQLite `LIKE` semantics, and
- * `FetchAllCacheData` mirrors the per-domain SQL — cid/uid WHERE clauses plus the chat query's
- * `channel_id` + `ORDER BY chat_no DESC` + `LIMIT` (apps/mobile ChatDataSource.ts:46-72).
- */
 const mockNativeBridge = () =>
     ({
         request: jest.fn(async (message: { type: string; data: Record<string, any> }) => {
@@ -358,7 +339,6 @@ const mockNativeBridge = () =>
                 const items = FIXTURES.filter(f => {
                     if (uid && f.uid !== uid) return false;
                     if (cid && f.cid !== cid) return false;
-                    // join rows have no searchable field
                     if (f.domain === 'join') return false;
                     const field = f.domain === 'chat' ? f.content : f.name;
                     return field.toLowerCase().includes(kw);

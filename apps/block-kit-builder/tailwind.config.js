@@ -2,14 +2,10 @@ const { join } = require('path');
 
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
 
-/** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ['class'],
     content: [
         join(__dirname, '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'),
-        // Named outright, as desktop-web does: `createGlobPatternsForDependencies` reads the nx
-        // project graph and returns [] when vite runs without one. The Block Kit card's type sizes
-        // are classes only that lib writes, so a missed scan would draw every card at inherited sizes.
         join(__dirname, '../../libs/block-kit/src/**/*!(*.stories|*.spec|*.test).{ts,tsx}'),
         ...createGlobPatternsForDependencies(__dirname),
     ],
@@ -73,7 +69,6 @@ module.exports = {
                     DEFAULT: 'hsl(var(--sidebar))',
                     foreground: 'hsl(var(--sidebar-foreground))',
                 },
-                // Figma design system tokens
                 label: 'hsl(var(--label))',
                 placeholder: 'hsl(var(--placeholder))',
                 description: 'hsl(var(--description))',
@@ -87,7 +82,6 @@ module.exports = {
                     muted: 'hsl(var(--toast-muted))',
                 },
                 'dialog-subtitle': 'hsl(var(--dialog-subtitle))',
-                // Chatic custom colors
                 'bubble-mine': {
                     DEFAULT: 'hsl(var(--bubble-mine))',
                     foreground: 'hsl(var(--bubble-mine-foreground))',
@@ -104,7 +98,6 @@ module.exports = {
                 'tab-active': 'hsl(var(--tab-active))',
                 'tab-inactive': 'hsl(var(--tab-inactive))',
                 overlay: 'hsl(var(--overlay))',
-                // Engineering pass — layering surfaces (depth without hardcoded grays)
                 elevated: 'hsl(var(--elevated))',
                 hairline: 'hsl(var(--hairline))',
                 well: 'hsl(var(--well))',
@@ -115,8 +108,6 @@ module.exports = {
                 md: 'calc(var(--radius) - 2px)',
                 sm: 'calc(var(--radius) - 4px)',
             },
-            // Semantic type scale (size / leading / tracking / weight) — controls
-            // hierarchy via weight+tracking, not just size (skill Rule 1).
             fontSize: {
                 display: ['1.5rem', { lineHeight: '1.875rem', letterSpacing: '-0.024em', fontWeight: '800' }],
                 title: ['1.125rem', { lineHeight: '1.625rem', letterSpacing: '-0.017em', fontWeight: '700' }],
@@ -127,8 +118,6 @@ module.exports = {
                 micro: ['0.72rem', { lineHeight: '0.95rem', letterSpacing: '0' }],
                 overline: ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.08em', fontWeight: '600' }],
             },
-            // Restrained, tinted elevation by level. Cool --shadow-color, low opacity —
-            // honest depth, not heavy decorative shadows.
             boxShadow: {
                 raised: '0 1px 2px 0 hsl(var(--shadow-color) / 0.04), 0 1px 3px -1px hsl(var(--shadow-color) / 0.07)',
                 overlay:

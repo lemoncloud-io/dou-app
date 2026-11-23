@@ -26,10 +26,8 @@ const chat = (id: string, overrides: Record<string, unknown> = {}) =>
         ...overrides,
     }) as any;
 
-/** cid/uid must differ per test — IndexedDBDatabase instances share the same DB. */
 const scopeOf = (cid: string, uid: string) => ({ getContext: () => ({ cid, uid }), setContext: () => undefined });
 
-/** Committed messages with chat_no 1..count (0 is the value for an uncommitted row) */
 const committedChats = (count: number, channelId = 'channel-main', idPrefix = 'c') =>
     Array.from({ length: count }, (_, index) =>
         chat(`${idPrefix}-${String(index + 1).padStart(2, '0')}`, { channelId, chatNo: index + 1 })
@@ -37,7 +35,6 @@ const committedChats = (count: number, channelId = 'channel-main', idPrefix = 'c
 
 const idsOf = (items: Array<{ id: string }>) => items.map(item => item.id).sort();
 
-/** An IIndexedDB stub for inspecting call counts/arguments. Overrides only the specified methods. */
 const createStubDb = (overrides: Partial<Record<keyof IIndexedDB, jest.Mock>> = {}): IIndexedDB =>
     ({
         save: jest.fn().mockResolvedValue(undefined),
@@ -174,9 +171,6 @@ describe('IndexedDBAdapter', () => {
             expect(evictedPage).toEqual([]);
         });
 
-        // A channel at its cap is a hot path every message passes through — reading values for
-        // the over-cap check (the old version: deserializing limit+1 rows) makes the cap most
-        // expensive at exactly the point where it should be helping most.
         it('probes the boundary with a key cursor, never reading row values', async () => {
             const findNewestKeyBeyond = jest.fn().mockResolvedValue(null);
             const loadWithCursor = jest.fn().mockResolvedValue([]);
@@ -196,9 +190,6 @@ describe('IndexedDBAdapter', () => {
             expect(clearByRange).not.toHaveBeenCalled();
         });
 
-        // The boundary must be an absolute key. Deriving it from a count would let a concurrent
-        // removal between the two lookups push the boundary upward and delete messages that
-        // are still visible.
         it('deletes up to the probed boundary key itself, not a count-derived position', async () => {
             const boundaryKey = ['chat', 'probe-over', 'u1', 'channel-main', 42];
             const findNewestKeyBeyond = jest.fn().mockResolvedValue(boundaryKey);
@@ -266,14 +257,6 @@ describe('IndexedDBAdapter', () => {
     });
 });
 
-/**
- * With no session in scope (uid absent), no cache operation should ever touch storage.
- *
- * Previously, an empty uid was filled in as `'default'`, reading and writing to a phantom
- * partition, `chat:default:default:*`. Rows and sync cursors written in that window between
- * relay logout and login were never read again after login, freezing the channel list empty
- * while `channel.sync` kept fetching only deltas.
- */
 describe('IndexedDBAdapter — 세션이 없으면 건너뛴다', () => {
     const noSession = { getContext: () => ({ cid: 'cloud-a' }), setContext: () => undefined } as never;
 
@@ -300,8 +283,6 @@ describe('IndexedDBAdapter — 세션이 없으면 건너뛴다', () => {
         expect(stub.loadAll).not.toHaveBeenCalled();
     });
 
-    // Delete is the riskiest case — deleting a phantom partition is harmless, but picking the
-    // wrong scope deletes someone else's partition. The correct answer with no session is to do nothing at all.
     it('삭제는 아무것도 지우지 않는다', async () => {
         const stub = createStubDb();
         const adapter = new IndexedDBAdapter(stub, 'chat', noSession);
@@ -343,7 +324,6 @@ describe('IndexedDBAdapter — 버린 것을 기록한다 (ADR-0099)', () => {
 
     beforeEach(() => jest.clearAllMocks());
 
-    // When eviction succeeds the user notices nothing, but old messages are gone — the retry result is half the information.
     it('쿼터 초과를 축출로 복구하면 재시도 결과까지 한 줄로 남긴다', async () => {
         const save = jest.fn().mockRejectedValueOnce(quota()).mockResolvedValueOnce(undefined);
         const storage = new IndexedDBAdapter(
@@ -374,7 +354,6 @@ describe('IndexedDBAdapter — 버린 것을 기록한다 (ADR-0099)', () => {
         expect(error.mock.calls[0][1]).toContain('retry after eviction failed');
     });
 
-    // A client with no cap has no safety net at all — the write is simply lost.
     it('비울 대상이 없으면 error로 남기고 던진다', async () => {
         const save = jest.fn().mockRejectedValue(quota());
         const storage = new IndexedDBAdapter(createStubDb({ save }), 'user', scopeOf('quota-none', 'u1'));
@@ -415,7 +394,6 @@ describe('IndexedDBAdapter — 버린 것을 기록한다 (ADR-0099)', () => {
         expect(info).not.toHaveBeenCalled();
     });
 
-    // The caller is told the whole batch was saved, and one of them is simply not there.
     it('id 없는 항목이 saveAll에서 탈락하면 건수를 남긴다', async () => {
         const storage = new IndexedDBAdapter(createStubDb(), 'chat', scopeOf('drop-id', 'u1'));
 

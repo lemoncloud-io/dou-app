@@ -30,8 +30,6 @@ describe('PayloadPane', () => {
         ]);
     });
 
-    // Half of every paste is a half-typed brace. Clearing the preview there would
-    // destroy the message the reader is in the middle of checking.
     it('keeps the last valid payload and reports the problem when the JSON is broken', () => {
         const { onBlocks, onError, editor } = setup();
         fireEvent.change(editor, { target: { value: '{"blocks":[' } });
@@ -39,8 +37,6 @@ describe('PayloadPane', () => {
         expect(onError).toHaveBeenLastCalledWith(expect.objectContaining({ ok: false }));
     });
 
-    // The preview says what went wrong; this pane says where. Without the marker
-    // the reader is handed a line number to count out by hand.
     it('marks the line the parser blamed', () => {
         const { editor } = setup();
         fireEvent.change(editor, { target: { value: '{\n  "blocks": [\n    {,}\n  ]\n}' } });
@@ -55,8 +51,6 @@ describe('PayloadPane', () => {
         expect(onError).toHaveBeenLastCalledWith(null);
     });
 
-    // Typing changes the blocks, which changes `json`, which must not be mistaken
-    // for an outside edit and reformatted under the caret.
     it('does not overwrite what the reader typed with the reformatted payload', () => {
         const { editor } = setup();
         const typed = '{"blocks":[{"type":"divider"}]}';

@@ -17,16 +17,12 @@ const fenced = (lines: number): KnownBlock[] => [
 ];
 
 describe('CollapsibleCode', () => {
-    // Five lines is two saved for one line of chrome — the floor, and below it
-    // the fold costs more than it returns. A short trace stays a short trace.
     it('leaves a short block alone', () => {
         render(<BlockKitMessage blocks={fenced(5)} raw="" />);
         expect(screen.queryByRole('button')).toBeNull();
         expect(screen.getByText(/line 5/)).toBeDefined();
     });
 
-    // The design's error card carries six trace lines and folds them. That card
-    // is what set the threshold, so it is the case worth pinning.
     it('folds the six-line trace the design folds', () => {
         render(<BlockKitMessage blocks={fenced(6)} raw="" />);
         expect(screen.getByRole('button')).toBeDefined();
@@ -51,15 +47,10 @@ describe('CollapsibleCode', () => {
         expect(screen.queryByText(/line 9/)).toBeNull();
     });
 
-    // The fold is how much of the trace is on screen, not how much of it exists.
-    // Search, the sidebar preview and OS notifications read the flattened copy,
-    // and folding must not reach them.
     it('does not fold the flattened copy', () => {
         expect(blocksToPlainText(fenced(9))).toContain('line 9');
     });
 
-    // The desktop card sets its trace and its toggle a step larger than the phone's; both have to
-    // follow the scale the caller asked for, not only the blocks drawn directly by the message.
     it.each([
         ['phone', 'text-[0.8125rem]'],
         ['desktop', 'text-[0.875rem]'],

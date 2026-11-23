@@ -31,8 +31,6 @@ describe('BlockKitMessage', () => {
         expect(screen.getByText('denied').tagName).toBe('EM');
     });
 
-    // The composer writes `**x**` for bold; Slack's parser must not read that as
-    // an italic wrapped in stray asterisks.
     it('leaves the composer dialect literal', () => {
         draw([{ type: 'section', text: { type: 'mrkdwn', text: '**not bold**' } }]);
         expect(screen.queryByText('not bold')).toBeNull();
@@ -55,8 +53,6 @@ describe('BlockKitMessage', () => {
         expect(link.getAttribute('href')).toBe('https://x.dev');
     });
 
-    // A caller that knows how to leave its shell takes the press; the anchor must not
-    // also follow it, or the mobile WebView loads the target over the app.
     it('hands a pressed link to the caller instead of following it', () => {
         const onLinkClick = vi.fn();
         render(
@@ -71,8 +67,6 @@ describe('BlockKitMessage', () => {
         expect(onLinkClick).toHaveBeenCalledWith('https://x.dev');
     });
 
-    // The builder and desktop have no handler to give, and the anchor's default is
-    // right for both: a browser tab, and an Electron window the shell hands to the OS.
     it('leaves the anchor default alone when the caller has no handler', () => {
         draw([{ type: 'section', text: { type: 'mrkdwn', text: '<https://x.dev>' } }]);
         expect(fireEvent.click(screen.getByRole('link', { name: 'https://x.dev' }))).toBe(true);
@@ -92,9 +86,6 @@ describe('BlockKitMessage', () => {
         expect(screen.getByText('Silly')).toBeDefined();
     });
 
-    // Slack writes a field as "*Label*\nvalue" and newlines are significant in every
-    // text object. jsdom has no layout, so the whitespace rule is the only observable
-    // — but it is the thing that broke, and nothing else in the block reinstates it.
     it('preserves the line breaks Slack puts inside a text object', () => {
         const { container } = draw([
             { type: 'section', fields: [{ type: 'mrkdwn', text: 'chatic-sockets-api\nap-northeast-2' }] },
@@ -104,9 +95,6 @@ describe('BlockKitMessage', () => {
         expect(container.textContent).toContain('\n');
     });
 
-    // "*Label*\nvalue" is Slack's field shape. The label is a caption over the value,
-    // not a bold run, so the two bold lines of a two-field row do not compete with
-    // the card's title.
     it('draws a field written as a bold first line as a caption over its value', () => {
         const { container } = draw([
             {
@@ -130,8 +118,6 @@ describe('BlockKitMessage', () => {
         expect(screen.getByText(/\*Commit\*/)).toBeDefined();
     });
 
-    // The rendered context line and the flattened one go to different surfaces — the
-    // message and the sidebar preview — so they have to agree on the spacing.
     it('separates context elements the same way the flattener does', () => {
         const elements: BlockTextObject[] = [
             { type: 'mrkdwn', text: '*Owner:* platform' },
@@ -150,7 +136,6 @@ describe('BlockKitMessage', () => {
         ];
         const report = 'https://example.com/reports/report.json';
 
-        // The design's place for it: after everything the card says, as its own line.
         it("draws a labelled link as the card's last line, and leaves the heading plain text", () => {
             const { container } = render(
                 <BlockKitMessage blocks={blocks} raw="" sourceUrl={report} labels={{ openSource: '원문 보기' }} />
@@ -182,8 +167,6 @@ describe('BlockKitMessage', () => {
             ]);
         });
 
-        // The caller judged the card on the blocks before the server's source line moved out, so
-        // nothing drawable may be left: the body is then the message's own text, the link after it.
         it('draws the message text with the link when no block is left to draw', () => {
             const unknown: KnownBlock[] = [{ type: 'unknown', raw: '{"type":"actions"}' } as KnownBlock];
             for (const remaining of [[], unknown]) {
@@ -216,7 +199,6 @@ describe('BlockKitMessage', () => {
         const card: KnownBlock[] = [{ type: 'header', text: { type: 'plain_text', text: 'Title' } }];
         const badgeOf = (container: HTMLElement) => container.querySelector('.rounded-full');
 
-        // Capitals by style: the text stays the words, so copying it and a screen reader get those.
         it("draws the channel name in capitals over the title, as the card's first line", () => {
             const { container } = render(<BlockKitMessage blocks={card} raw="" source={{ key: 'attendance' }} />);
             const badge = badgeOf(container);
@@ -252,7 +234,6 @@ describe('BlockKitMessage', () => {
             expect(badgeOf(container)).toBeNull();
         });
 
-        // The name is unchecked input: it is printed, never parsed as markup.
         it.each(['*bold* <https://x.dev|link>', '<img src=x onerror=alert(1)>'])('prints %j as text', key => {
             const { container } = render(<BlockKitMessage blocks={card} raw="" source={{ key }} />);
             const badge = badgeOf(container) as HTMLElement;
@@ -299,7 +280,6 @@ describe('BlockKitMessage', () => {
             expect(rootOf(container).getAttribute('style')).toBeNull();
         });
 
-        // A value a style would run is never written into one: only computed colours reach the page.
         it.each(['red; background: url(https://x.dev/t)', 'expression(alert(1))', '#ff0000;color:red'])(
             'writes no part of %j into the card',
             color => {
@@ -320,8 +300,6 @@ describe('BlockKitMessage', () => {
         });
     });
 
-    // The design draws the card twice, a step larger on desktop. Written-out sizes rather than the
-    // app's tokens, because the callers size the same token names differently.
     describe('scale', () => {
         const card: KnownBlock[] = [
             { type: 'header', text: { type: 'plain_text', text: 'Title' } },
@@ -364,17 +342,12 @@ describe('BlockKitMessage', () => {
         expect(screen.getByText('{"type":"actions"}')).toBeDefined();
     });
 
-    // A stack of JSON fragments is unreadable. If none of it is drawable, the
-    // original message is the better thing to show.
     it('falls back to the whole original message when nothing is drawable', () => {
         draw([{ type: 'unknown', raw: '{"type":"actions"}' }], 'the original text');
         expect(screen.queryByText('{"type":"actions"}')).toBeNull();
         expect(screen.getByText('the original text')).toBeDefined();
     });
 
-    // The lib knows Block Kit, not the app's message dialect, so the fallback body
-    // is drawn by whoever supplied it. desktop-web hands over `RichText` — this
-    // stands in for it — while the builder's preview takes the literal default above.
     it('draws the fallback body with the renderer the caller supplied', () => {
         render(
             <BlockKitMessage

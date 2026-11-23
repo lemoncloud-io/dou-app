@@ -2,15 +2,7 @@ import { toBlocks, type KnownBlock } from '@chatic/block-kit';
 
 import type { PreviewSource } from '../preview';
 
-/**
- * A card a sender linked here from its own `원문 보기`: `?template=<builder id>#card=<base64url JSON>`.
- *
- * The card is the `meta` the sender posts to the channel webhook — an attachment, not Block Kit — so
- * it is laid out the way the channel server lays it out: title as the header, body as a section,
- * fields as a two-column section (`*title*` over the value), footer as the context line. It rides in the fragment, which the browser never sends to this site's host.
- */
 export interface IncomingCard {
-    /** The sender's builder id, e.g. `lemoment.leave`. */
     templateId: string;
     blocks: KnownBlock[];
     source: PreviewSource;
@@ -18,7 +10,6 @@ export interface IncomingCard {
 
 const str = (value: unknown): string => (typeof value === 'string' ? value : '');
 
-/** `meta.fields` → section field texts; cells without a value are dropped. */
 const fieldTexts = (value: unknown): { type: 'mrkdwn'; text: string }[] =>
     (Array.isArray(value) ? value : []).flatMap(field => {
         const cell = (field ?? {}) as Record<string, unknown>;
@@ -34,7 +25,6 @@ const fromBase64Url = (value: string): string => {
     return new TextDecoder().decode(bytes);
 };
 
-/** Never throws: a link that does not carry a readable card is `null`, and the builder opens as usual. */
 export const readIncomingCard = (search: string, hash: string): IncomingCard | null => {
     const templateId = new URLSearchParams(search).get('template')?.trim();
     const encoded = new URLSearchParams(hash.replace(/^#/, '')).get('card');

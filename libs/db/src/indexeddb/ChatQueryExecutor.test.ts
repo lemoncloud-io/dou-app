@@ -14,14 +14,9 @@ const scopeOf = (cid: string, uid: string) => ({ getContext: () => ({ cid, uid }
 const chat = (id: string, chatNo: number, channelId = 'channel-main') =>
     ({ id, cid: 'model-cid', channelId, chatNo, content: `msg-${id}`, createdAt: chatNo, updatedAt: chatNo }) as any;
 
-/** chat_no 1..count — committed messages the server has numbered. */
 const committed = (count: number, channelId = 'channel-main') =>
     Array.from({ length: count }, (_, index) => chat(`c-${String(index + 1).padStart(3, '0')}`, index + 1, channelId));
 
-/**
- * chat_no 0 = an unsent row (optimistically sending, or failed). `ChatLocalDataSource` writes
- * this value, and `mappers.ts` demotes any server response without a chatNo down to it.
- */
 const unsent = (id: string, createdAt: number, channelId = 'channel-main') => ({
     ...chat(id, 0, channelId),
     createdAt,
@@ -30,17 +25,6 @@ const unsent = (id: string, createdAt: number, channelId = 'channel-main') => ({
 const hasUnsent = (rows: Array<{ chatNo?: number }>) => rows.some(row => (row.chatNo ?? 0) === 0);
 const idsOf = (rows: Array<{ id: string }>) => rows.map(row => row.id);
 
-/**
- * `chat_no: 0` sorts **lowest** in `CHAT_PAGINATION_INDEX`, but a read is `direction: 'prev'` +
- * limit (the newest N). So in a channel with `limit` or more server messages, an unsent row
- * gets pushed out of the page and is never rendered — a failed message gets no "send failed"
- * indicator and no retry button.
- *
- * `includeUnsent` reads those rows a second time from a separate index range (`[..,0] →
- * [..,1)`, upper bound exclusive) and merges them in. **The default is false, and behavior in
- * that case must be exactly the same as before this option existed** — `apps/web` (mobile)
- * goes through the same executor. The first describe below locks in that invariant.
- */
 describe('ChatQueryExecutor', () => {
     let db: IndexedDBDatabase;
 
@@ -81,7 +65,6 @@ describe('ChatQueryExecutor', () => {
             const page = await storage.loadAll({ channelId: 'channel-main', limit: 50, includeUnsent: true });
 
             expect(idsOf(page)).toContain('pending-1');
-            // The newest 50 committed messages come back as-is, plus the unsent one added in.
             expect(page).toHaveLength(51);
         });
 
@@ -111,8 +94,6 @@ describe('ChatQueryExecutor', () => {
         });
 
         it('cursorNo 페이지에서는 아무것도 더하지 않는다 — 그 범위는 이미 0까지 내려간다', async () => {
-            // A cursorNo page's range is [0, cursorNo), so it already includes unsent rows.
-            // Reading them again here would make the same message show up twice in the list. The flag must be harmless here.
             const storage = adapterFor('older-optin');
             const seed = [...committed(60), unsent('pending-1', 9_999)];
             await storage.saveAll(seed);

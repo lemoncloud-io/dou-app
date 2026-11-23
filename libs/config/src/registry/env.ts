@@ -1,18 +1,6 @@
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * Read-only build facts. `writableBy: []` on every entry — nothing writes these, the env adapter
- * supplies them.
- *
- * `env.stage` and `env.buildStage` are deliberately two different keys (ADR-0080 decision 5).
- * `env.stage` mirrors today's behaviour (an injected value wins over the baked one); `env.buildStage`
- * reads only what the bundler baked in and cannot be spoofed, so security-relevant `byStage` rules
- * elsewhere in the registry are judged against it, not this one.
- */
 export const envModule: ConfigRegistryModule = {
-    // `env.stage`/`env.buildStage`/`env.platform` are resolved directly off the adapter
-    // (`ConfigResolver`'s adapter-passthrough special case) — their `defaultValue`/`writableBy`
-    // below exist for shape/typing only and are never actually reached.
     'env.stage': {
         title: 'Runtime stage',
         description: 'The runtime stage, with a shell-injected value taking priority. Not used for security decisions.',

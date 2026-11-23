@@ -3,11 +3,6 @@ import { UNLOCK_ENTRY, entry, memoryStorage, moduleOf, envAdapter, ports } from 
 import { UNLOCK_KEY } from './resolve/ConfigResolver';
 import { storageKeyFor } from './utils/serialize';
 
-/**
- * The two remote rows only supply a value when an adapter is wired (`wired().server`) — the same
- * rule as the shell lane. Testing `applyRemotePayload` needs an adapter to receive the payload,
- * and since these tests inject the payload directly, `fetch` must never be called.
- */
 const remoteAdapter = { fetch: () => Promise.reject(new Error('직접 넣는 테스트에서는 안 불린다')) };
 
 const modules = () => [
@@ -129,9 +124,6 @@ describe('config.subscribe — resolve 결과가 바뀐 키만 알린다', () =>
         expect(listener).toHaveBeenCalledWith(['log.hold']);
     });
 
-    // `modules()` has no key with `server` — because of ADR-0079 decision 10, which says an
-    // endpoint must not be split by remote config. Testing the two remote rows needs a key
-    // declared as writable by the server.
     const serverWritableModules = () => [
         moduleOf({
             [UNLOCK_KEY]: UNLOCK_ENTRY,
@@ -142,7 +134,6 @@ describe('config.subscribe — resolve 결과가 바뀐 키만 알린다', () =>
     it('원격 payload도 resolve 결과가 움직인 키만 알린다 — 이미 지고 있는 행이면 조용하다', () => {
         const config = createConfig(serverWritableModules());
         config.init(ports({ remote: remoteAdapter }));
-        // local is winning, and a server default (non-enforced) comes down — the displayed value stays the same.
         config.set('feature.x', true, { lane: 'local' });
         const listener = jest.fn();
         config.subscribe(['feature.x'], listener);

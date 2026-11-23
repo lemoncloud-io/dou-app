@@ -4,56 +4,15 @@ import { SLACK_MARKS, decodeSlackEntities, markPattern } from './blockKit';
 import { CollapsibleCode } from './CollapsibleCode';
 import { MSG_BOLD_CLASS, MSG_MENTION_CLASS } from './messageClasses';
 
-/**
- * Inline code inside a card: a bordered chip in the text's own face, not the
- * composer's monospace span (`MSG_CODE_INLINE_CLASS`). In a webhook card an inline
- * code run is a value — a service name, a version, a status — which the design
- * draws as a tag; the monospace span is for code someone typed in a conversation.
- * `font-family: inherit` undoes the monospace that preflight gives every `<code>`, and
- * `box-decoration-clone` keeps the chip's edges on every line when a long one wraps.
- */
 const CODE_CHIP_CLASS = 'rounded-md border border-hairline bg-well px-1.5 [font-family:inherit] box-decoration-clone';
 
-/**
- * Slack's mrkdwn, which is not the dialect the composer writes. `*x*` is bold
- * here and italic in `RichText`; `~x~` strikes here and needs doubling there.
- * The two parsers therefore stay apart — the styles are shared, the grammar is
- * not.
- *
- * The mark alternatives come from `markPattern`, the same source the flattener
- * compiles, so "what counts as a mark" has one definition rather than two that
- * have to be kept in step. Each contributes two groups: the character in front
- * of the mark, which is put back as text, and the content between delimiters.
- */
 const INLINE = new RegExp(
-    [
-        '(<[^<>|]+\\|[^<>]*>)', // 1: <url|label>
-        '(<[@!][^<>|]+>)', // 2: <@U123>, <!here>
-        '(<[^<>|]+>)', // 3: <url>
-        ...SLACK_MARKS.map(markPattern), // 4,5 bold · 6,7 italic · 8,9 strike
-    ].join('|'),
+    ['(<[^<>|]+\\|[^<>]*>)', '(<[@!][^<>|]+>)', '(<[^<>|]+>)', ...SLACK_MARKS.map(markPattern)].join('|'),
     'gu'
 );
 
-/**
- * Where a press on a link goes, when the caller has somewhere better than the
- * anchor's own default.
- *
- * An anchor's default is right in a browser tab and in desktop's Electron shell,
- * which hands a `_blank` window to the OS. It is wrong in the mobile WebView:
- * with no window to open, it loads the target into the app's own WebView, which
- * replaces DoU with the linked page — no way back, and the session still
- * attached. So a caller that knows how to leave the app passes that here, and a
- * caller that does not leaves the default alone.
- */
 export const BlockKitLinkContext = createContext<((url: string) => void) | undefined>(undefined);
 
-/**
- * A card link's colour: the card's accent when `BlockKitMessage` set one (`--block-kit-link`, which
- * it computes per theme from the sender's colour), else the app's own `--link`. A CSS variable rather
- * than a class per colour, because the colour is only known at run time and Tailwind only emits the
- * classes it can read in the source.
- */
 export const BLOCK_KIT_LINK_COLOR_CLASS = 'text-[color:var(--block-kit-link,hsl(var(--link)))]';
 
 const BlockLink = ({ href, label }: { href: string; label: string }) => {
@@ -90,17 +49,12 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
         const [token, labelled, mention, bare, boldLead, bold, italicLead, italic, strikeLead, strike] = match;
         const lead = boldLead ?? italicLead ?? strikeLead ?? '';
         const key = `${keyBase}-${match.index}`;
-        // The captured lead character belongs to the run before the mark, not to
-        // the mark — decoding it as part of that run keeps a `&amp;` sitting right
-        // in front of a mark from being split down the middle.
         const before = text.slice(last, match.index + lead.length);
         if (before) nodes.push(decodeSlackEntities(before));
         if (labelled) {
             const split = labelled.indexOf('|');
             nodes.push(linkTo(labelled.slice(1, split), decodeSlackEntities(labelled.slice(split + 1, -1)), key));
         } else if (mention) {
-            // No directory to resolve `U123` against — Slack's own id is the best
-            // name we have, and it still reads as a mention.
             nodes.push(
                 <span key={key} className={MSG_MENTION_CLASS}>
                     {`@${mention.slice(2, -1)}`}
@@ -125,8 +79,6 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
     return nodes;
 };
 
-// Backtick spans split out first so marks inside them stay literal — odd split
-// indices are the captured spans, the same shape `RichText` uses.
 const renderCodeRuns = (text: string, keyBase: string): ReactNode[] =>
     text.split(/(`[^`\n]+`)/g).map((part, idx) =>
         idx % 2 === 1 ? (
@@ -142,9 +94,6 @@ export const renderMrkdwn = (text: string): ReactNode =>
     text.split(/(```[\s\S]*?```)/g).map((part, idx) => {
         if (idx % 2 === 1) {
             const inner = part.slice(3, -3).replace(/^\n/, '').replace(/\n$/, '');
-            // The fence is the one run long enough to be worth folding, and the one
-            // whose length says so on its own — `CollapsibleCode` draws it plainly
-            // until it is.
             return <CollapsibleCode key={idx} text={decodeSlackEntities(inner)} />;
         }
         return <Fragment key={idx}>{renderCodeRuns(part, String(idx))}</Fragment>;

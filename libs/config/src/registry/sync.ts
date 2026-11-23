@@ -1,9 +1,5 @@
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * Socket and sync cadence. `profile.*` and `resume.*` include `'server'` — easing polling when the
- * backend is under load is the most legitimate use of that lane (ADR-0079 §second sweep).
- */
 export const syncModule: ConfigRegistryModule = {
     'sync.profile.channelIntervalMs': {
         title: 'Channel member profile sync interval',

@@ -217,6 +217,17 @@ and its `origin` is the row that won (`serverEnforced` · `shell` · `local` · 
 the value. `isOverridden` is true for rows 1 to 4 only, so the boot-time state log
 (`overriddenSnapshots()`) shows a lane's choice and not a build value's.
 
+### Keys declared with a reason worth keeping
+
+- **`bridge.request.timeoutMs` is `restart`.** `WebBridgeClient` copies it into an instance field at construction, so a changed value does nothing until the client is rebuilt. Its own fallback (10 s) once disagreed with the provider's (15 s), so which was live depended on the call path; this key is the one place that settles it. The `log.upload.*` tuning keys are `restart` for the same reason: the upload scheduler captures them at construction.
+- **`auth.resendLimit` includes `server`.** An SMS cost spike is exactly the day it has to be tightened without a deploy.
+- **`cache.ttl.*` are declared but not yet read.** The caches still take their TTLs from the data lib's cache policy, and the two defaults here (30 minutes, for general caches and the sync cursor) mirror it. Changing the key changes nothing until a consumer is wired.
+- **`debug.overlayEnabled` has a per-stage default** that removes the tap-count friction in LOCAL and DEV while PROD stays as strict as before. It and `debug.entryCode` are `meta`, so the unlock check does not apply to them. `entryCode` comes from the build only; unset, it is `''`, which means no code and no dialog (fail closed).
+- **`feature.auth.emailLogin` is off outside developer stages.** It exists to switch between seeded test accounts, not as a product entry point.
+- **`feature.placeInvite` ships opt-in.** A place invite cannot be taken back once issued and the invitee appears in no member list, so it is not on everyone's home menu by default. `feature.chatInputLock` (the per-room composer lock) is opt-in for the same reason: nobody knows yet whether a per-room lock is wanted.
+- **`ui.language` uses `shell`** so the choice reaches the native app and survives a WebView storage wipe. `apps/web` resolves the language before `config.init()` runs, so it reads the boot envelope and the local mirror itself, in the resolver's order. `ui.phoneCountry` is `local` rather than `shell`: it is a convenience of this browser, and the device locale is a fine fallback.
+- **`ui.channelSort`, `pinnedChannels`, `homeSectionsCollapsed`, `recentSearches`, `photoGridColumns` and `photoSendGrouped` are `internal`** even though a person changes them, because they change through a picker, a gesture or a header rather than a settings screen, and a generic settings UI must not render a row for them.
+
 ### What not to do
 
 - **Do not put a product entitlement here.** Place and channel counts belong to the server's product catalogue. `feature.limits.enforced` is a bypass gate, not a limit value, and `limit.*` holds only guardrails with no tier meaning — image size, resend attempts, result caps.

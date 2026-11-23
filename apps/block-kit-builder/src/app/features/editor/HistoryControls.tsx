@@ -7,13 +7,6 @@ import { ICON_CONTROL } from './controlStyles';
 
 const BUTTON = cn(ICON_CONTROL, 'h-7 w-7');
 
-/**
- * Undo, redo and clear.
- *
- * They sit over the preview because that is what they act on — the reader thinks
- * in terms of the message, not the block list or the JSON, even though all three
- * change together.
- */
 export const HistoryControls = () => {
     const canUndo = useBuilderStore(state => state.past.length > 0);
     const canRedo = useBuilderStore(state => state.future.length > 0);
@@ -28,7 +21,6 @@ export const HistoryControls = () => {
             <button type="button" aria-label="Redo" className={BUTTON} disabled={!canRedo} onClick={redo}>
                 <Redo2 size={15} />
             </button>
-            {/* No confirmation: clear is a normal edit, so undo takes it back. */}
             <button
                 type="button"
                 aria-label="Clear all blocks"
