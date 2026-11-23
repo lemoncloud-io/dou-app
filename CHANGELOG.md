@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-23] - No version updates
+
+### Chores
+
+- (comments) remove comments from bridge-messages and desktop
+
 ## [2026-11-23] - root@0.173.1, @chatic/desktop-web@0.60.8
 
 ### Bug Fixes
