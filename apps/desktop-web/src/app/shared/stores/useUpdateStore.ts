@@ -2,7 +2,6 @@ import { create } from 'zustand';
 
 import type { OnUpdateStatusPayload } from '@chatic/bridge-messages';
 
-/** Statuses pushed over the bridge (no 'idle' — that's the store's local initial sentinel). */
 type WireStatus = OnUpdateStatusPayload['status'];
 
 export type UpdateStatus = 'idle' | WireStatus;
@@ -10,18 +9,12 @@ export type UpdateStatus = 'idle' | WireStatus;
 interface UpdateState {
     status: UpdateStatus;
     version?: string;
-    /** 0–100 while downloading. */
     percent: number;
-    /** User chose "Later" for the current status; cleared when the status or the offered version changes. */
     dismissed: boolean;
     set: (next: { status: WireStatus; version?: string; percent?: number }) => void;
     dismiss: () => void;
 }
 
-/**
- * Desktop auto-update UI state, fed by the shell's OnUpdateStatus bridge event
- * (see useAppUpdate). Transient — not persisted; a relaunch re-checks the feed.
- */
 export const useUpdateStore = create<UpdateState>(set => ({
     status: 'idle',
     version: undefined,
@@ -29,10 +22,6 @@ export const useUpdateStore = create<UpdateState>(set => ({
     dismissed: false,
     set: ({ status, version, percent }) =>
         set(state => {
-            // A status change re-surfaces the banner and resets progress; same-status
-            // ticks (download progress) keep the prior dismiss and percent. The shell re-checks
-            // often, so the same offer repeats and "Later" holds for it — only a newer version
-            // brings the banner back.
             const isStatusChange = status !== state.status;
             const isNewVersion = version !== undefined && version !== state.version;
             return {

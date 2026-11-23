@@ -2,13 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderHook } from '@testing-library/react';
 
-// Invited clouds are not in the relay catalog and their durable record is the local `invitecloud`
-// cache row — the joined-clouds store is a per-profile localStorage twin. Reading only that twin
-// hid every invited cloud joined on another profile, including the one the session was inside.
 let catalogClouds: Array<Record<string, unknown>> = [];
 let cachedClouds: Array<Record<string, unknown>> = [];
 let joinedClouds: Record<string, { id: string; name?: string; ownerUid?: string }> = {};
-// The relay uid of the account signed in now.
 let signedInUid: string | null = 'me';
 let activeCloudId = '';
 let catalogFailed = false;
@@ -18,7 +14,6 @@ vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             getAcceptorId: () => signedInUid,
-            // Real logic: it is the rule under test.
             isAcceptedBy: (cloud: { acceptedBy?: string[] }, id: string | null) =>
                 !!id && !!cloud.acceptedBy?.includes(id),
             useRuntimeRepositories: () => ({
@@ -36,9 +31,6 @@ vi.mock('@chatic/runtime', async () =>
     })
 );
 
-// The catalog hook lives in this folder, not in the runtime: ADR-0070 moved it
-// down so each app owns the read's cache policy. Mocking it on `@chatic/runtime`
-// left the real one running against a mock that has no `useSessionAuth`.
 vi.mock('./useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({
         clouds: catalogClouds,
@@ -98,7 +90,6 @@ describe('useClouds', () => {
         signedInUid = 'me';
     });
 
-    // `isCloudsError` had no reader: a failed catalog read dropped every owned cloud from the rail unannounced.
     it('reports a failed catalog read and hands over the retry', () => {
         catalogFailed = true;
 
@@ -182,7 +173,6 @@ describe('useClouds', () => {
     });
 
     it('names a cached invited cloud from the joined-clouds store', () => {
-        // The invite-accept flow writes id/cid/backend/wss to the cache but no name; the store has it.
         cachedClouds = [{ id: '1000001', cid: '1000001', cloudType: 'invited', acceptedBy: ['me'] }];
         joinedClouds = { '1000001': { id: '1000001', name: '넹미', ownerUid: 'me' } };
 
@@ -202,8 +192,6 @@ describe('useClouds', () => {
     });
 
     describe('another account on the same device', () => {
-        // Invited rows and the joined-clouds store are device-wide and survive a sign-out on purpose
-        // (the device's guest still holds the grants), so each record names who it belongs to.
         it("does not show an invited cloud another account's session cached", () => {
             signedInUid = 'account-b';
             cachedClouds = [
@@ -257,7 +245,6 @@ describe('useClouds', () => {
         });
     });
 
-    // The tile read "Home" in a Korean UI: the name was a literal, not a string of the UI.
     it('names the Home tile in the UI language', async () => {
         await i18n.changeLanguage('ko');
         const { result } = renderHook(() => useClouds());

@@ -30,8 +30,6 @@ describe('parsePushDeeplink', () => {
         });
     });
 
-    // A push for a thread reply must carry the root: the reply is hidden from the main feed
-    // (isFeedVisible), so a channel-only target lands on a screen the pushed message is not on.
     it('parses the 4-part form carrying the thread root', () => {
         expect(parsePushDeeplink('chatic-open:|site1|c1|1234')).toEqual({
             cloudId: undefined,
@@ -75,8 +73,6 @@ describe('parsePushDeeplink', () => {
         expect(parsePushDeeplink('/channels/1000002/room')).toEqual({ placeId: '', channelId: '1000002' });
     });
 
-    // A banner's deeplink is opaque until it comes back through the parser, so the two sides
-    // are only correct together — a 3-segment reply link would read as cross-cloud.
     it.each([
         { placeId: 'site 1', channelId: 'chan/1' },
         { placeId: 'site 1', channelId: 'chan/1', rootId: '1234' },

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { inboxKindFor, inboxKindOf, inboxPlaceScope, isInInboxScope, isMentionKind } from './inboxKinds';
 
 describe('inboxKindOf', () => {
-    // Items stored before the inbox took other sources carry no kind; every one of them was a mention.
     it('reads an item with no kind as a direct mention', () => {
         expect(inboxKindOf({})).toBe('direct');
     });
@@ -66,7 +65,6 @@ describe('isInInboxScope', () => {
         expect(isInInboxScope({ cloudId: 'C1', placeId: 'P2' }, 'C1', scope)).toBe(false);
     });
 
-    // Every cloud numbers its places from the same start, so the place id alone matches both.
     it("leaves out another cloud's item whose place has the same id", () => {
         expect(isInInboxScope({ cloudId: 'C2', placeId: 'P1' }, 'C1', scope)).toBe(false);
     });

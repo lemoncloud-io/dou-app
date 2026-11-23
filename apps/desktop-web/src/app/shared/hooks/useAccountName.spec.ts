@@ -24,7 +24,6 @@ describe('useAccountName', () => {
         expect(renderHook(() => useAccountName()).result.current).toBe('Kim');
     });
 
-    // A guest is auto-named with a UUID; that is an id, never something to show as a name.
     it('calls a guest by what they are, not by the UUID they were auto-named with', () => {
         profile.userName = GUEST_UUID;
         profile.isGuest = true;

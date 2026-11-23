@@ -3,31 +3,21 @@ import { persist } from 'zustand/middleware';
 
 import { isCloudDm, type DomainChannel } from '@chatic/runtime';
 
-// The file, not the barrel: the utils barrel reaches back into the stores.
 import { dmCounterpartId } from '../utils/dmDisplay';
 import { deviceStore, persistStorageOver } from '../../storage';
 
-/** One channel the user has seen, remembered so the switcher can offer it again. */
 export interface KnownChannel {
     channelId: string;
     placeId: string;
     name: string;
-    /** A cloud 1:1's other person; the switcher names the row after them, not the room. */
     peerId?: string;
-    /** My notes-to-self room, which is one room filed under every place. */
     self?: true;
-    /** When it was last listed, so a stale place drops out of the index first. */
     seenAt: number;
 }
 
-/** Ceiling per cloud. Enough for a wide workspace, small enough to stay cheap. */
 const KNOWN_LIMIT = 400;
 
 interface KnownChannelsState {
-    /**
-     * cloudId → `placeId:channelId` → what we know about it. Channel ids repeat
-     * across places, so the id alone would let one place's channel overwrite another's.
-     */
     byCloud: Record<string, Record<string, KnownChannel>>;
     record: (
         cloudId: string,
@@ -38,19 +28,6 @@ interface KnownChannelsState {
     forget: (cloudId: string) => void;
 }
 
-/**
- * An index of channels per cloud, built from the places the user actually opens.
- *
- * The quick switcher could only offer the open place's channels, because that is
- * the only list the app streams: a person with channels spread over several
- * places had to guess which place held the one they wanted, switch to it, and
- * then search. The switcher now reads this index for the rest of the cloud and
- * hands a pick to the same cross-place landing path that saved items use.
- *
- * Persisted, so the index survives a relaunch and the switcher is useful on the
- * first keystroke rather than after a tour of the rail. It holds names, never
- * message content.
- */
 export const useKnownChannelsStore = create<KnownChannelsState>()(
     persist(
         set => ({
@@ -65,9 +42,6 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                     for (const channel of channels) {
                         const channelId = channel.id;
                         if (!channelId) continue;
-                        // Callers pass a cloud 1:1 for its own place only. One whose members have
-                        // not arrived waits for a later record: filed without its person it would
-                        // read as a group row.
                         const isDm = isCloudDm(channel);
                         const peerId = isDm ? dmCounterpartId(channel, myUid, channel.$join?.userId) : undefined;
                         if (isDm && !peerId) continue;
@@ -86,8 +60,6 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                         };
                         changed = true;
                     }
-                    // A channel that left this place (deleted, or left) stays in the
-                    // index until it ages out; the pick path tolerates a miss.
                     if (!changed) return state;
                     const entries = Object.values(next);
                     const trimmed =
@@ -109,9 +81,6 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                     return { byCloud };
                 }),
         }),
-        // v1 keyed by channel id alone, and could hold cloud 1:1s filed under whichever place they
-        // were seen in; dropping it costs one relearn from the cloud list. v2 entries stay valid:
-        // a 1:1 now filed under its listing places only adds the optional `peerId`.
         {
             name: 'chatic-known-channels',
             storage: persistStorageOver(deviceStore),

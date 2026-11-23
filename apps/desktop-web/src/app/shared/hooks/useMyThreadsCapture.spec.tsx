@@ -20,12 +20,10 @@ vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             getGlobalSessionContext: () => ({ identity: { userId: ACCOUNT_UID } }),
-            // The inbox reads my names to tell a reply that is also a mention.
             getIdentityContext: () => ({ userId: ACCOUNT_UID }),
             getActiveSessionUser: () => null,
             useGlobalSession: () => ({ cloud: { cloudId } }),
         },
-        // Bound to the cloud each read names; the selected cloud's graph is never read.
         data: {
             getCloudRepositories: (cid: string) =>
                 cid === 'cloud-a'
@@ -165,8 +163,6 @@ describe('useMyThreadsCapture', () => {
         cacheRead.mockResolvedValue(rootBy('someone-else'));
 
         feedHandler?.(feed({}));
-        // Let the first lookup settle, so the second reply meets the remembered verdict, not the
-        // lookup still in flight.
         await new Promise(resolve => setTimeout(resolve, 0));
         feedHandler?.(feed({ id: 'ch-1:6', chatNo: 6 }));
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -277,7 +273,6 @@ describe('useMyThreadsCapture backfill', () => {
         expect(channelCacheReadList).toHaveBeenCalledTimes(1);
     });
 
-    // The inbox's Threads tab reads this to say an empty list is not the answer yet.
     it('marks the cloud as being scanned while the cache is read, and clears it once done', async () => {
         let release: (value: { list: unknown[] }) => void = () => undefined;
         channelCacheReadList.mockReturnValue(new Promise(resolve => (release = resolve)));

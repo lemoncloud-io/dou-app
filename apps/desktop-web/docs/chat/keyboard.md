@@ -38,6 +38,21 @@ snapshot reads as the sidebar previews it ("File", "Photo", "3 files"), the line
 for a message with no text ([saved.md](./saved.md)). A row still in flight or failed has no reactions, Reply or Save, so without text it
 has no toolbar; a deleted row never has one.
 
+## Result lists and radio groups
+
+- **An input that drives a result list** (the quick switcher, message search) uses `useListboxNav`: ↑/↓
+  move the active option and wrap, Enter picks it, and the input carries the combobox ARIA, with
+  `aria-activedescendant` naming the live option, so a screen reader hears the highlight move while the
+  input keeps focus. The two dialogs share a shell and a job, but only the switcher had arrows; search
+  could be walked only with Tab through every channel header. The highlight returns to the first option
+  whenever the `resetKey` (the query) changes, a shrinking list cannot leave it past the end, and keys
+  during IME composition are left to the IME's candidate list.
+- **A `role="radiogroup"` drawn as buttons** takes `radioGroupOptions`: one tab stop, landing on the
+  checked option, and the arrow keys (also Home and End) move and check, wrapping at the ends. Buttons
+  alone gave every option its own tab stop and no arrows. With nothing checked (a value outside the
+  list) the first option is the tab stop, so the group stays reachable. A modified arrow is someone's
+  shortcut and is not a move. Options must be listed in render order, since focus moves by DOM order.
+
 ## Hover-revealed controls
 
 A control that waits for hover (an image's save bar, the tray's "×") uses `hoverReveal(scope)` (`shared/utils/hoverReveal.ts`) under a `group/<scope>` parent:

@@ -85,7 +85,6 @@ describe('useRelayAccount', () => {
         });
 
         expect(gatewayUpdate).toHaveBeenCalledWith({ name: 'Ada II' });
-        // Photo was not sent, so the echo's photo is not patched in.
         expect(patchRelaySessionUser).toHaveBeenCalledWith({ name: 'Ada II' });
         expect(updated).toEqual({ name: 'Ada II', photo: 'p2' });
         expect(result.current.isMutating).toBe(false);

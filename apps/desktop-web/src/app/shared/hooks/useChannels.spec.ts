@@ -15,8 +15,6 @@ const observeList = vi.fn((_query: { sid: string }, onChange: (result: { list: R
     return () => undefined;
 });
 
-// The runtime hands back one repository bundle for the app's lifetime, so the mock is
-// identity-stable too — a fresh object per render would resubscribe on every state change.
 const repositories = { channel: { observeList } };
 
 vi.mock('@chatic/runtime', async () =>
@@ -44,7 +42,6 @@ describe('useChannels', () => {
         placesState = { placeIds: ['place-a', 'place-b'], isLoading: false };
     });
 
-    // A 1:1 lives in the place it was opened in, whichever places its peer shares with me.
     it('lists a cloud 1:1 in its own place only, wherever its peer is', async () => {
         cacheRows = [
             { id: 'group-a', name: 'general', cid: 'cloud-1', sid: 'place-a', memberIds: ['me', 'someone'] },
@@ -57,9 +54,7 @@ describe('useChannels', () => {
 
         await waitFor(() => expect(ids(inA.result.current.channels)).toEqual(['group-a', 'place-a@me@peer']));
         await waitFor(() => expect(ids(inB.result.current.channels)).toEqual(['group-b']));
-        // The whole cloud's filing, not only this place's, for callers that route to another place.
         expect(inB.result.current.filedPlaces.get('place-a@me@peer')).toEqual(['place-a']);
-        // The 1:1 with them is another place's room, so they are still offered here.
         expect(inB.result.current.memberPeers).toEqual([{ peerId: 'peer', channelId: 'group-b' }]);
     });
 
@@ -87,8 +82,6 @@ describe('useChannels', () => {
         await waitFor(() => expect(result.current.memberPeers).toEqual([{ peerId: 'new', channelId: 'group-b' }]));
     });
 
-    // Until my places load, my notes-to-self room cannot be placed, so the list must not read as
-    // final yet.
     it('stays loading until my places have loaded', async () => {
         placesState = { placeIds: [], isLoading: true };
         cacheRows = [
@@ -138,15 +131,12 @@ describe('useChannels', () => {
         });
         rerender({ placeId: 'place-b' });
 
-        // The first subscription's read resolves only now, carrying the previous scope's rows.
         act(() => listeners[0]({ list: [{ id: 'stale-dm', cid: 'cloud-1', sid: 'place-a', stereo: 'dm' }] }));
         act(() => listeners[1]({ list: [{ id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b' }] }));
 
         await waitFor(() => expect(ids(result.current.channels)).toEqual(['group-b']));
     });
 
-    // A place not selected yet (loading, or the site cleared mid cloud switch) lists nothing: a 1:1
-    // listed in that window would be auto-selected by the home screen before the place lands.
     it('lists nothing and does not subscribe without a place', () => {
         const { result } = renderHook(() => useChannels(undefined));
 
@@ -154,8 +144,6 @@ describe('useChannels', () => {
         expect(observeList).not.toHaveBeenCalled();
     });
 
-    // A subscription cloud with no place at all still owns its 1:1s: the ones opened while it had
-    // none (filed under no place), and the ones whose place is gone.
     it('lists only the cloud 1:1s for a cloud known to have no place', async () => {
         placesState = { placeIds: [], isLoading: false };
         cacheRows = [
@@ -170,9 +158,6 @@ describe('useChannels', () => {
         await waitFor(() => expect(ids(result.current.channels)).toEqual(['dm-1', 'me@peer']));
     });
 
-    // Home has no place for most accounts: nothing selects a site on the relay but an invite join.
-    // Listing only cloud 1:1s there listed nothing, and onboarding waited on the Self Channel
-    // forever.
     it('lists the Self Channel on Home, which has no place', async () => {
         placesState = { placeIds: [], isLoading: false };
         cacheRows = [{ id: 'U:me', cid: 'default', sid: 'relay-place', stereo: 'self', memberIds: ['me'] }];
@@ -189,7 +174,6 @@ describe('useChannels', () => {
             { id: 'U:me', cid: 'default', sid: 'relay-place', stereo: 'self' },
             { id: 'relay-dm', cid: 'default', sid: 'relay-place', stereo: 'dm' },
             { id: 'relay-group', name: 'lobby', cid: 'default', sid: 'relay-place' },
-            // A late row of the cloud just left must not land in Home.
             { id: 'cloud-dm', cid: 'cloud-1', sid: 'place-a', stereo: 'dm' },
             { id: 'cloud-group', name: 'general', cid: 'cloud-1', sid: 'place-a' },
         ];
@@ -199,8 +183,6 @@ describe('useChannels', () => {
         await waitFor(() => expect(ids(result.current.channels)).toEqual(['U:me', 'relay-dm', 'relay-group']));
     });
 
-    // The relay sends the Self Channel with no place, and the cache keeps it under the account. With
-    // a place selected (after an invite join) it has to stay listed, or the onboarding waits forever.
     it('lists the account-scoped Self Channel inside a place too', async () => {
         placesState = { placeIds: ['relay-place'], isLoading: false };
         cacheRows = [

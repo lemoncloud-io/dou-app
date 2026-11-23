@@ -21,7 +21,6 @@ import { useReadReceipts } from './useReadReceipts';
 const chat = (chatNo: number, extra: Partial<DomainChat> = {}) =>
     ({ id: `C1:${chatNo}`, chatNo, ...extra }) as DomainChat;
 
-/** Lets the 500 ms debounce run out. */
 const settle = () =>
     act(async () => {
         await vi.advanceTimersByTimeAsync(600);

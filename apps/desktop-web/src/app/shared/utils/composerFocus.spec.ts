@@ -35,7 +35,6 @@ describe('focusComposerIfDropped', () => {
         document.body.appendChild(opener);
 
         focusComposerIfDropped();
-        // The opener return runs after the caller's handler, in the same task.
         opener.focus();
         await flushMicrotasks();
 

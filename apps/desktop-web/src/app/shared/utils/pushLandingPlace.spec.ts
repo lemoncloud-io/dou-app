@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { pushLandingPlace } from './pushLandingPlace';
 
 describe('pushLandingPlace', () => {
-    // B wrote from P1; the room lives in P2.
     it("lands a 1:1 push on the room's cached place, not the place its sender was in", () => {
         expect(
             pushLandingPlace({ channelId: 'me@peer', sid: 'P1' }, { id: 'me@peer', sid: 'P2', stereo: 'dm' }, 'cloud-9')

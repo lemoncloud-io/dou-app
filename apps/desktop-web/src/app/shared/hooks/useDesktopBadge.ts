@@ -1,12 +1,6 @@
 import { runtime } from '@chatic/runtime';
 import { useEffect } from 'react';
 
-/**
- * Render a small unread-count badge to a PNG data URL. Windows has no dock badge,
- * so the shell paints this as a taskbar overlay icon — and Electron's nativeImage
- * can't rasterize SVG, so the renderer (which has a canvas) produces the PNG.
- * Returns undefined when count is 0 or canvas is unavailable.
- */
 const renderBadgePng = (count: number): string | undefined => {
     if (count <= 0 || typeof document === 'undefined') return undefined;
     const size = 16;
@@ -28,11 +22,6 @@ const renderBadgePng = (count: number): string | undefined => {
     return canvas.toDataURL('image/png');
 };
 
-/**
- * Mirror the unread total onto the OS dock/taskbar badge the desktop shell paints.
- * No-op unless the frame has a dock badge (the host's `appShell` port; not in a
- * plain browser) and on shells that don't support it (the request is best-effort).
- */
 export const useDesktopBadge = (count: number): void => {
     useEffect(() => {
         const dockBadge = runtime.appShell.dockBadge;

@@ -21,7 +21,6 @@ describe('channelsByPlace', () => {
         });
     });
 
-    // One person, two places: two rooms, each in its own place.
     it('files the 1:1s with one person in two places each under its own place', () => {
         const channels = [
             { id: 'place-a@me@p1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm' },

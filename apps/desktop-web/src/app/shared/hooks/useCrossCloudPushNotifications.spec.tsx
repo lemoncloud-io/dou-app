@@ -11,14 +11,11 @@ let pushHandler: ((payload: unknown) => void) | null = null;
 const present = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => vi.fn());
 const readRecords = vi.hoisted(() => vi.fn());
-// The channel cache the push is looked up in; a test fills it to give the channel a server notify mode.
 let cacheRecords: unknown[] = [];
-// The server the session is on; a test moves it into a cloud.
 let activeServer: { kind: 'relay' } | { kind: 'cloud'; cloudId: string } = { kind: 'relay' };
 
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 
-// The desktop shell's push port: the notifications it hands the page, and the OS banner it raises.
 vi.mock('@chatic/runtime', async () => {
     const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
     return fakeRuntimeModule({
@@ -92,22 +89,17 @@ describe('useCrossCloudPushNotifications', () => {
         expect(shown()).toBe(0);
     });
 
-    // The push carries the owner as the cloud's own user id; `data.uid` is the recipient in that
-    // same id space, so an owner equal to it is me.
     it('drops a push for my own message identified by my per-cloud user id', async () => {
         pushHandler?.(push({ ownerId: CLOUD_UID }));
         await new Promise(resolve => setTimeout(resolve, 20));
         expect(shown()).toBe(0);
     });
 
-    // Same rule as the feed: a webhook is never mine, whatever owner id it carries.
     it('presents a push for a webhook message even when its owner id is mine', async () => {
         pushHandler?.(push({ ownerId: CLOUD_UID, stereo: 'webhook' }));
         await waitFor(() => expect(shown()).toBe(1));
     });
 
-    // A 1:1 belongs to the place it was opened in, and its push names the place its sender wrote
-    // from. B wrote from P1; the room lives in P2.
     describe("a 1:1's push", () => {
         const dmPush = () => push({ channelId: 'P2@me@peer', cid: 'cloud-9', sid: 'P1' });
 
@@ -152,8 +144,6 @@ describe('useCrossCloudPushNotifications', () => {
         });
     });
 
-    // A push carries no mention record, so the quiet-hours breakthrough cannot tell that it names
-    // me: another cloud stays silent in quiet hours with the toggle on, even when the text has my name.
     describe('in quiet hours', () => {
         beforeEach(() => {
             vi.useFakeTimers({ toFake: ['Date'] });
@@ -176,9 +166,6 @@ describe('useCrossCloudPushNotifications', () => {
     });
 
     describe('for a channel set to mentions only', () => {
-        // The server sends a mentions-only member a push only when the message's record names
-        // them, so the push arriving is the answer. Checking the text again dropped it whenever
-        // the sender's list showed me under another name.
         it('presents a push the server already filtered, though the text does not have my name', async () => {
             cacheRecords = [
                 {
@@ -191,7 +178,6 @@ describe('useCrossCloudPushNotifications', () => {
             await waitFor(() => expect(shown()).toBe(1));
         });
 
-        // A 1:1 has no such level, so a mode this device still holds for one filters nothing.
         it('presents every push of a 1:1 that this device left on mentions only', async () => {
             cacheRecords = [
                 { type: 'channel', cid: 'cloud-9', data: { id: 'ch-1', stereo: 'dm', $join: { userId: CLOUD_UID } } },
@@ -201,8 +187,6 @@ describe('useCrossCloudPushNotifications', () => {
             await waitFor(() => expect(shown()).toBe(1));
         });
 
-        // No cached channel: the mode is this device's own setting, and the server may be sending
-        // everything. The text is all there is to go by.
         it("still reads the text when the mode is only this device's", async () => {
             useNotificationPrefsStore.setState({ channelNotify: { 'ch-1': 'mention' } });
             pushHandler?.(push({ content: 'hello there' }));
@@ -213,8 +197,6 @@ describe('useCrossCloudPushNotifications', () => {
             await waitFor(() => expect(shown()).toBe(1));
         });
     });
-    // A relay push names its source `'#'`, which is the Home tile (`'default'`) and not a cloud: read
-    // raw, a click switched to cloud `'#'` and failed with "cloud not found" — on the relay too.
     describe('for a relay push', () => {
         const relayPush = () => push({ cid: '#', sid: 'relay-site' });
         const focus = () => vi.spyOn(document, 'hasFocus').mockReturnValue(true);
@@ -245,21 +227,17 @@ describe('useCrossCloudPushNotifications', () => {
             });
         });
 
-        /** Lets the presenter finish its cache read before asserting it stayed quiet. */
         const settle = async () => {
             await waitFor(() => expect(readRecords).toHaveBeenCalled());
             await new Promise(resolve => setTimeout(resolve, 20));
         };
 
-        // The relay's own socket banners the message already, as an active cloud's does.
         it('does not banner a second time while the relay is open', async () => {
             pushHandler?.(relayPush());
             await settle();
             expect(shown()).toBe(0);
         });
 
-        // A cloud push with no `cid` that the channel cache happens to place on the relay is a guess,
-        // not the relay's stamp: shown, since a duplicate beats a missed one.
         it('banners a push only guessed to be from the open relay', async () => {
             cacheRecords = [{ type: 'channel', cid: 'default', data: { id: 'ch-1', $join: { userId: CLOUD_UID } } }];
             pushHandler?.(push({}));

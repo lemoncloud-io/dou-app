@@ -1,11 +1,3 @@
-/**
- * Shell colours: three picked colours (cloud rail, nav rail, channel list) become every token the
- * rails and the list draw with, in light and in dark mode. The presets are three colours each and go
- * through the same rule as a user's own pick, so one rule decides what every shell looks like and the
- * contrast spec measures that rule rather than a hand-kept list of values.
- */
-
-/** `#rrggbb`, as `<input type="color">` reads and writes it. */
 export interface ShellColors {
     cloudRail: string;
     navRail: string;
@@ -14,10 +6,8 @@ export interface ShellColors {
 
 export type ShellMode = 'light' | 'dark';
 
-/** Token name without the leading `--` → `H S% L%`. */
 export type ShellTokenSet = Record<string, string>;
 
-/** Root tokens, then the ones that hold only inside each shell element. */
 export interface ShellTokens {
     root: ShellTokenSet;
     cloud: ShellTokenSet;
@@ -68,7 +58,6 @@ const hexToHsl = (hex: string): Hsl => {
     return { h: (h * 60 + 360) % 360, s: s * 100, l: l * 100 };
 };
 
-/** WCAG relative luminance of an `H S% L%` value. */
 export const luminance = (hsl: string): number => {
     const { h, s, l } = parseHsl(hsl);
     const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
@@ -80,7 +69,6 @@ export const luminance = (hsl: string): number => {
     return 0.2126 * channel(0) + 0.7152 * channel(8) + 0.0722 * channel(4);
 };
 
-/** WCAG contrast ratio of two `H S% L%` values. */
 export const contrast = (a: string, b: string): number => {
     const [x, y] = [luminance(a), luminance(b)];
     return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
@@ -88,11 +76,6 @@ export const contrast = (a: string, b: string): number => {
 
 const clampL = (c: Hsl, l: number): Hsl => ({ ...c, l: Math.max(0, Math.min(100, l)) });
 
-/**
- * Walks the lightness one step at a time in `direction` until `ok` holds, or the end of the scale.
- * Every rule below can be met at one end of the scale; the contrast spec sweeps random colours to
- * hold that, since the walk itself returns the last colour silently if it never is.
- */
 const settle = (c: Hsl, direction: 1 | -1, ok: (c: Hsl) => boolean): Hsl => {
     let current = c;
     for (let i = 0; i <= 100 && !ok(current); i++) current = clampL(current, current.l + direction);
@@ -101,10 +84,6 @@ const settle = (c: Hsl, direction: 1 | -1, ok: (c: Hsl) => boolean): Hsl => {
 
 const passes = (fg: string, bg: Hsl, minimum: number): boolean => contrast(fg, formatHsl(bg)) >= minimum;
 
-/**
- * The page tokens the rules measure against. They repeat values from styles.css (`:root` and
- * `.dark`), and the contrast spec fails if the two ever disagree.
- */
 export const PAGE_TOKENS = {
     light: {
         'rail-foreground': '220 5% 24%',
@@ -128,34 +107,19 @@ const LIME = PAGE_TOKENS.light['rail-active'];
 const INK = PAGE_TOKENS.light['rail-active-foreground'];
 const DARK_RAIL_TEXT = PAGE_TOKENS.dark['rail-foreground'];
 const DARK_MUTED_TEXT = PAGE_TOKENS.dark['muted-foreground'];
-/** Secondary text on a dark rail under a light page. */
 const DARK_RAIL_MUTED_TEXT = '0 0% 72%';
 const NEAR_BLACK = '232 18% 9%';
-/** How far a hover or a sunk field stands off the ground it sits on: visible, never loud. */
 const STEP_RATIO = 1.1;
-/** Below this, the lime open tile and a coloured nav rail read as one shape. */
 export const OPEN_TILE_RATIO = 1.5;
 
-/**
- * The open destination's tile on the nav rail: the full lime, unless the rail is a colour of about
- * lime's lightness. Lime still stands out on a near-gray rail by its hue (Mist), but on a coloured
- * one (Lemon's lime, an amber, a turquoise) it would not, so the tile turns near-black.
- */
 const openTile = (rail: Hsl): ShellTokenSet =>
     contrast(LIME, formatHsl(rail)) < OPEN_TILE_RATIO && Math.round(rail.s) >= 20
         ? { 'rail-active': NEAR_BLACK, 'rail-active-foreground': WHITE }
         : { 'rail-active': LIME, 'rail-active-foreground': INK };
 
-/**
- * One rail in light mode. A dark rail takes white text and dark tiles; a light one keeps the page's
- * dark ink and a darker hover. Either way the colour's lightness moves until the text, the tiles and
- * the focus ring clear their ratios on it.
- */
 const lightRail = (picked: Hsl): { rail: Hsl; scope: ShellTokenSet } => {
     const dark = contrast(WHITE, formatHsl(picked)) >= contrast(LIGHT_RAIL_TEXT, formatHsl(picked));
     if (dark) {
-        // Tiles a little lighter than the rail, but never past 26%, where the gray labels on them
-        // would fall under AA: a mid-tone rail gets slightly darker tiles instead.
         const tile = (c: Hsl): Hsl => ({ h: c.h, s: Math.min(c.s, 12), l: Math.min(c.l + 8, 26) });
         const rail = settle(
             picked,
@@ -191,9 +155,7 @@ const lightRail = (picked: Hsl): { rail: Hsl; scope: ShellTokenSet } => {
     return { rail, scope: { 'rail-foreground': LIGHT_RAIL_TEXT, accent: formatHsl(hover(rail)) } };
 };
 
-/** The light list: a light ground whose hover, loading bars and search field sit one step darker. */
 const lightList = (picked: Hsl): ShellTokenSet & { sidebar: string } => {
-    // The step keeps the list's hue but not a loud saturation, which would read as a fill.
     const step = (c: Hsl): Hsl =>
         settle(
             { ...clampL(c, c.l - 3), s: Math.min(c.s, 45) },
@@ -222,10 +184,6 @@ const deriveLight = (colors: ShellColors): ShellTokens => {
     };
 };
 
-/**
- * Dark mode keeps each colour's hue and sets the lightness the dark shell uses (rail 7%, nav rail
- * and list 18%), with the saturation held down so a vivid pick reads as a tint, not a fill.
- */
 const deriveDark = (colors: ShellColors): ShellTokens => {
     const tint = (hex: string, l: number, maxS: number): Hsl => {
         const { h, s } = hexToHsl(hex);
@@ -250,7 +208,6 @@ const deriveDark = (colors: ShellColors): ShellTokens => {
             sidebar: formatHsl(list),
         },
         cloud: {},
-        // The open tile in dark mode is a lime tint drawn by NavRail itself, not `--rail-active`.
         nav: { accent: formatHsl(navHover(nav)) },
         sidebar: { accent: formatHsl(listHover(list)), muted: sunk, well: sunk },
     };
@@ -264,11 +221,6 @@ const block = (selector: string, tokens: ShellTokenSet): string => {
     return lines.length ? `${selector} {\n${lines.join('\n')}\n}` : '';
 };
 
-/**
- * The derived tokens as CSS. `scope` is empty for the app shell, or a preview card's selector.
- * Light rules sit under `:root:not(.dark)` and dark ones under `:root.dark`, so switching the mode
- * needs no rewrite. `dark: false` leaves dark mode to the stylesheet's own `.dark` shell.
- */
 export const shellPaletteCss = (colors: ShellColors, scope: string, { dark }: { dark: boolean }): string => {
     const modes: [ShellMode, string][] = [['light', ':root:not(.dark)']];
     if (dark) modes.push(['dark', ':root.dark']);

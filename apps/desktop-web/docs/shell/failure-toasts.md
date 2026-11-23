@@ -28,3 +28,22 @@ text inline, under the sentence.
 `classifyWireError` reads a text that leads with a status as the server's answer: its wording is
 never a connection failure, so `400 INVALID - grace-timeout …` reads as invalid, not network. Only
 the statuses that mean nothing answered in time — 408, 502, 503, 504 — read as network.
+
+Status codes match as whole numbers only, because the text carries ids such as `channels/U:1000404`.
+The order matters where one text carries two signals: an expired invite is also reported as invalid, and
+a wrong code arrives as `400 INVALID … (not-found)`, so the specific kinds are tested first and a bare
+400 last. Callers map the kind to a sentence of their own and keep the raw text for the log.
+
+## Reading a status from a rejected request
+
+`socketErrorStatus` returns the status a rejected socket request carries, or `undefined`. A numeric
+`errorCode` on the error comes first: the socket library drops the server's code when it rejects, and
+`@chatic/runtime`'s socket manager puts it back on every request made through it. That is the only source
+of a status for a refusal whose message does not lead with one (a parameter check is coded 400 with
+nothing in front). Otherwise the status is read from the message prefix (`403 FORBIDDEN - …`, and the
+client's own `503 …` / `408 …`), never from the wording after it. Use it where one status means one
+thing and the wording is not a contract: the phone sign-in's wrong code and expired code differ by
+status alone. The same convention is in `@chatic/runtime` and in `apps/web`'s `getSocketErrorCode`; a
+change to it belongs in all three.
+
+`serverErrorText` follows wrapped errors a bounded number of levels, so a cyclic `cause` cannot loop.

@@ -2,16 +2,10 @@ import { useTranslation } from 'react-i18next';
 
 import { Skeleton } from './Skeleton';
 
-/**
- * Full Slack-style shell placeholder for the home route only (picked by `RouteFallback`;
- * other signed-in routes get `PageSkeleton`). Mirrors DesktopLayout (rails · sidebar · main) so the
- * real UI fades in over the same skeleton instead of after a blank screen.
- */
 export const AppShellSkeleton = () => {
     const { t } = useTranslation();
     return (
         <div className="flex h-full bg-background" role="status" aria-label={t('common.loading')}>
-            {/* cloud and place rail */}
             <div data-shell-rail="cloud" className="flex w-rail shrink-0 flex-col items-center gap-3 bg-rail pt-6">
                 {Array.from({ length: 4 }).map((_, i) => (
                     <div
@@ -21,7 +15,6 @@ export const AppShellSkeleton = () => {
                 ))}
             </div>
 
-            {/* nav rail */}
             <div
                 data-shell-rail="nav"
                 className="flex w-rail shrink-0 flex-col items-center gap-4 bg-rail-elevated pt-6"
@@ -31,7 +24,6 @@ export const AppShellSkeleton = () => {
                 ))}
             </div>
 
-            {/* sidebar */}
             <div
                 data-shell-sidebar
                 className="flex w-60 shrink-0 flex-col gap-3 border-x border-border bg-sidebar px-4 pt-7 lg:w-[286px]"
@@ -45,7 +37,6 @@ export const AppShellSkeleton = () => {
                 </div>
             </div>
 
-            {/* main */}
             <div className="flex flex-1 flex-col">
                 <div className="flex h-14 items-center gap-2 border-b border-border px-4">
                     <Skeleton className="h-7 w-7 rounded-md" />

@@ -2,21 +2,8 @@ import { useEffect, useRef } from 'react';
 
 import { runtime } from '@chatic/runtime';
 
-// Rapid focus/visibility/online toggling shouldn't churn the socket — coalesce
-// wake kicks into one attempt per window.
 const RECOVER_THROTTLE_MS = 5_000;
 
-/**
- * Kick socket recovery the instant the app returns to the foreground or the network
- * comes back. After a short sleep the live WS silently dies, so we force-close it on wake:
- * reconnectSocket() closes it without the SDK reconnect controller's manualStop flag, so the
- * resulting `closed` transition triggers auto-reconnect + re-auth for instant recovery (the SDK
- * owns reconnect — there is no manual recover() to call). Only fires while the
- * socket is actually unverified; a genuinely expired token still fails re-auth and falls
- * through to useSocketWedgeReload's reload. Only where the page owns its window (the host's
- * `appShell` port: the desktop app's own window) — a plain browser tab is the person's, manages its
- * own lifecycle and must never be poked like this.
- */
 export const useSocketWakeRecovery = (): void => {
     const lastKickRef = useRef(0);
 
@@ -24,14 +11,12 @@ export const useSocketWakeRecovery = (): void => {
         if (!runtime.appShell.ownsWindow) return;
 
         const kick = () => {
-            // Ignore blur/hide edges — only recover when the app is actually in front.
             if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-            if (runtime.connection.getRuntimeSocketState().isVerified) return; // already healthy — nothing to do
+            if (runtime.connection.getRuntimeSocketState().isVerified) return;
 
             const now = Date.now();
             if (now - lastKickRef.current < RECOVER_THROTTLE_MS) return;
             lastKickRef.current = now;
-            // Force-close the zombie socket; the SDK reconnect controller then re-establishes + re-auths.
             void runtime.connection.reconnectSocket().catch(() => undefined);
         };
 

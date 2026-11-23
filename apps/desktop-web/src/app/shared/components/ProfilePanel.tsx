@@ -8,13 +8,6 @@ import { ResizablePanel } from './ResizablePanel';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
 import { ProfileCardContent } from './ProfileCard';
 
-/**
- * Slack-style right-side profile pane. Visibility is driven by
- * useProfilePanelStore.target; the host (HomePage) renders this only when set,
- * stacked on the pane it opened from, which shows again once this closes. Reuses the
- * popover's ProfileCardContent as its body so both surfaces resolve and render
- * one identity.
- */
 export const ProfilePanel = () => {
     const { t } = useTranslation();
     const target = useProfilePanelStore(s => s.target);
@@ -44,7 +37,6 @@ export const ProfilePanel = () => {
                 </Hint>
             </header>
             <div className="scrollbar-thin flex-1 overflow-y-auto">
-                {/* Remount per user so copy state / user subscription reset on target switch. */}
                 <ProfileCardContent key={target.userId} {...target} onClose={close} />
             </div>
         </ResizablePanel>

@@ -46,3 +46,11 @@ stores in `src/app/shared/`.
   notifications, unread counts and previews treat it.
 - [notifications.md](./notifications.md): the OS banner's title for a mention, what the title promises,
   and how a push from another cloud or the relay is shown and opened.
+- [live-data.md](./live-data.md): where the channel list, the feed and the background features get their
+  data, and the traps in observing a cache across cloud switches.
+- [unread-badges.md](./unread-badges.md): how a channel's unread count is derived, the read receipt, the
+  place and cloud totals, and what keeps them fresh.
+- [send-outbox.md](./send-outbox.md): sending, retry and discard addressed to a cloud, and the automatic
+  resend of failed messages.
+- [push-routing.md](./push-routing.md): which cloud and place a forwarded push belongs to, when it shows,
+  and the link a click opens.

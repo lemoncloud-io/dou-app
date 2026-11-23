@@ -8,25 +8,10 @@ import { runtime } from '@chatic/runtime';
 import { compareByChatNo } from '../utils/chatSort';
 
 const PAGE_SIZE = 50;
-// Each older page widens the observe window by this much. `observeList` returns
-// only the newest `limit` rows (chat_no-descending cursor paging), so revealing
-// older history means growing the window to re-include the freshly cached page.
 const LOAD_MORE_SIZE = 50;
-// The prime reports its first page written once the cache write resolves, but the list observer
-// re-reads after that — so an empty list is only trusted after this settle window, the same one the
-// sidebar gives its channel list.
 const EMPTY_SETTLE_MS = 600;
-// A socket wedged after a sleep/wake never verifies, so the prime never runs. Past this the feed
-// stops waiting and offers a retry instead of a skeleton that spins for good.
 const UNVERIFIED_CEILING_MS = 4000;
 
-/**
- * Session-scoped, in-memory memo of each channel's expanded observe window and
- * whether older history is exhausted. NOT a parallel store: it only records how
- * far the user paged so re-opening a channel restores the same scroll depth
- * (mirrors apps/web's growing-window paging) instead of resetting to one page.
- * The engine cache stays the source of truth; this is never persisted.
- */
 interface ChannelWindow {
     pageLimit: number;
     hasMore: boolean;
@@ -35,46 +20,15 @@ const channelMemo = new Map<string, ChannelWindow>();
 
 const sortByChatNo = (messages: DomainChat[]): DomainChat[] => [...messages].sort(compareByChatNo);
 
-/**
- * Message stream for a channel (mirrors apps/web useChats). Chat fetching is owned
- * by the sync layer — `runtime.sync.useChatSync` registers a 'chat' target and the SyncManager
- * seeds the first page (when the cache is cold) — plus the freshness bridge below;
- * `loadOlder` fetches the next older page by cursor and widens the window so the
- * cache re-emits with the older page included. Rows are sorted oldest→newest.
- *
- * `latestChatNo` is the channel record's newest message number (lastChatNoOf).
- * It is the feed's only RELIABLE freshness signal: the engine's chat sync cannot
- * deliver mid-session messages — the live sync frame arrives as `channel.sync`
- * (routed to the channel target only), the chat plan's periodic `run()` is a
- * no-op, and its `onConnected` catch-up never fires for a target registered
- * while already connected. The channel record, by contrast, is kept live by the
- * channel plan's poll — so when it runs ahead of the cache, fetch the newest page.
- *
- * `persist: false` keeps this instance from saving its window depth (see the first line of the hook).
- *
- * `isLoading` holds over an empty cache until the room's prime settles: a cold room reads empty
- * before its first page lands, and taking that at its word showed the "write the first message"
- * intro over a room that had messages. `loadFailed` is that first page failing (or never starting,
- * on a socket that does not verify), with `retryLoad` to try again.
- */
 export const useChats = (channelId: string | null, latestChatNo?: number, options: { persist?: boolean } = {}) => {
-    // A second consumer of the same channel (the thread panel) starts from the depth the room remembers
-    // but must not save its own: paging a thread's replies back would otherwise widen the room the next
-    // time it opens.
     const { persist = true } = options;
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
-    // Part of the cache observer's scope key ({cid, uid}); channel ids are per-cloud and
-    // collide across clouds, so the subscription below re-binds on a change of either.
     const { userId: myUid } = runtime.session.useSessionIdentity();
-    // One account in two clouds can show the same uid, and each cloud's Self Channel then has the same id,
-    // so uid and channel id alone may not name a room. The cloud is the third part.
     const { selectedCloudId } = runtime.session.useSessionSelection();
 
     const { prime, retryPrime } = runtime.sync.useChatSync(channelId ?? undefined);
     const { isVerified } = runtime.connection.useRuntimeSocketState();
 
-    // Memo/reset key, not just the channel id: the same id names different channels in
-    // different clouds (and uid alone does not tell the clouds apart).
     const scopeKey = channelId ? `${selectedCloudId ?? 'default'}:${myUid ?? ''}:${channelId}` : null;
     const initial = scopeKey ? channelMemo.get(scopeKey) : undefined;
     const [chats, setChats] = useState<DomainChat[]>([]);
@@ -82,39 +36,19 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
     const [pageLimit, setPageLimit] = useState(initial?.pageLimit ?? PAGE_SIZE);
     const [hasMore, setHasMore] = useState(initial?.hasMore ?? true);
     const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-    // The last older-page fetch failed. The next scroll retries it (hasMore stays
-    // set), but a failure the feed cannot see reads as a room that simply ends —
-    // the pane surfaces this with a retry row instead.
     const [loadOlderFailed, setLoadOlderFailed] = useState(false);
 
-    // Tracks the channel the hook is bound to, so an in-flight loadOlder() that
-    // resolves after a channel switch can bail instead of paging the wrong channel.
     const channelIdRef = useRef(channelId);
-    // Latest chats for loadOlder's cursor — keeps the callback identity stable (a
-    // `chats` dependency would rebuild it on every live append, re-attaching listeners).
     const chatsRef = useRef<DomainChat[]>(chats);
     chatsRef.current = chats;
-    // What keeps `loadOlder` from asking for the same page twice. Both are refs because the callers
-    // (a scroll handler firing on every frame at the top, the thread panel's pager) call again before any
-    // render could hand them new state. `pageLimitRef` is the window's current depth; `readBackLimitRef`
-    // is the depth the cache last delivered rows at: a landed page widens the window, and until the
-    // observer reads that back the oldest row is still the old cursor. `askingRef` names the scope a page is in
-    // flight for: a request still out for the channel the hook just left must not block the new one.
     const pageLimitRef = useRef(pageLimit);
     pageLimitRef.current = pageLimit;
-    // Read by `loadOlder` without making it a dependency, like the cursor rows above.
     const latestChatNoRef = useRef(latestChatNo);
     latestChatNoRef.current = latestChatNo;
     const readBackLimitRef = useRef(0);
     const askingRef = useRef<string | null>(null);
-    // The next cursor the server named for this scope: the lowest message number its last older page
-    // counted. Lower than the oldest row shown when the numbers in between were all deleted, and the only
-    // cursor there is when no row is shown at all.
     const floorRef = useRef<{ scope: string | null; no: number }>({ scope: null, no: 0 });
 
-    // Adjust state synchronously on channel switch (React's "derive state from
-    // props" pattern) so the new channel paints in the same render. Restore the
-    // saved window so a revisited channel shows its prior scroll depth.
     const [renderedScope, setRenderedScope] = useState(scopeKey);
     if (renderedScope !== scopeKey) {
         setRenderedScope(scopeKey);
@@ -131,26 +65,17 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         channelIdRef.current = channelId;
     }, [channelId]);
 
-    // Persist the channel's window so re-opening restores its scroll depth.
     useEffect(() => {
         if (scopeKey && persist) channelMemo.set(scopeKey, { pageLimit, hasMore });
     }, [scopeKey, pageLimit, hasMore, persist]);
 
-    // Widening pageLimit re-subscribes and re-reads cached older pages into view.
     useEffect(() => {
         if (!channelId) {
             setChats([]);
             setIsLoading(false);
             return;
         }
-        // Ignore a read that resolves after this subscription is torn down — the engine's
-        // unsubscribe does not cancel one already in flight, so the outgoing channel's (or
-        // cloud's) messages would land in the pane the incoming one just painted.
         let cancelled = false;
-        // `includeUnsent` — desktop opt-in. Without it, `chat_no: 0` rows (sending / failed) sort
-        // lowest in the pagination index and fall off a newest-N page, so in any channel holding
-        // `pageLimit` committed messages a failed message never renders: no "Not delivered", no
-        // retry button. `apps/web` does not pass the flag, so its read path is unchanged.
         const unsubscribe = chatRepository.observeList({ channelId, limit: pageLimit, includeUnsent: true }, result => {
             if (cancelled) return;
             readBackLimitRef.current = pageLimit;
@@ -163,13 +88,6 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         };
     }, [chatRepository, channelId, pageLimit, myUid, selectedCloudId]);
 
-    // Freshness bridge (see the hook doc): when the channel record's newest chatNo
-    // runs ahead of what the cache holds, pull the newest feed page. Guarded per
-    // (channel, chatNo) so an already-fetched target (e.g. a deleted or
-    // thread-only message the feed can't surface) isn't re-fetched every render. A fetch that
-    // FAILED gives its guard back, so the next run of this effect (a cache emission, a newer
-    // latestChatNo, a reopened room) tries the same target again; nothing here re-runs it by
-    // itself, so a persistent failure costs one request per such chance, not a loop.
     const freshnessRef = useRef<{ id: string | null; no: number }>({ id: null, no: 0 });
     useEffect(() => {
         if (!channelId || !latestChatNo) return;
@@ -182,8 +100,6 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         const target = { id: channelId, no: latestChatNo };
         freshnessRef.current = target;
         chatRepository.refreshList({ channelId, limit: PAGE_SIZE }).catch((error: unknown) => {
-            // Only the guard this fetch set: a newer target has already replaced it, and reopening
-            // that one would refetch a page that may have landed.
             if (freshnessRef.current === target) freshnessRef.current = { id: null, no: 0 };
             logger.warn('CHAT', '[useChats] freshness refresh failed; will retry on the next chance', {
                 channelId,
@@ -195,13 +111,10 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
 
     const messages = useMemo(() => sortByChatNo(chats), [chats]);
 
-    // How an empty room settled: trusted as empty, or given up on. Keyed by scope so the next room
-    // starts unsettled. A populated list never reads it.
     const [emptySettled, setEmptySettled] = useState<{ scope: string; as: 'empty' | 'failed' } | null>(null);
     const coldWait = !!scopeKey && !isLoading && chats.length === 0 && prime !== 'failed';
     const waitsOnSocket = prime === 'pending' && !isVerified;
     useEffect(() => {
-        // A verified socket's pending prime is a fetch in flight: it settles by itself, no timer.
         if (!coldWait || !scopeKey || (prime === 'pending' && !waitsOnSocket)) return;
         const as = prime === 'ready' ? 'empty' : 'failed';
         const timer = setTimeout(
@@ -223,22 +136,9 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         retryPrime();
     }, [retryPrime]);
 
-    // Resolves false only when the page fetch failed — everything else (nothing to load, a channel
-    // switch, a page that landed) is not an error. The thread panel pages by this, and a failure it
-    // cannot see would read as a thread that never finishes loading.
     const loadOlder = useCallback(async (): Promise<boolean> => {
         if (!channelId || isLoadingOlder || !hasMore) return true;
-        // The page is already on its way, or has landed and the window has not been read back yet: its
-        // rows are what the next cursor would be, so asking now would fetch the same page again.
         if (askingRef.current === scopeKey || readBackLimitRef.current < pageLimitRef.current) return true;
-        // Read the oldest cached row from the ref so the cursor reflects the live
-        // list without making `chats` a dependency. observeList is chat_no-descending,
-        // so the smallest chatNo is the page boundary to fetch before.
-        //
-        // Skip `chatNo: 0` — that sentinel means "not sent yet", not "oldest". Since the list now
-        // carries unsent rows (includeUnsent above), letting one win here would ask the server for
-        // everything before chat_no 0, which is nothing: `fetchedCount === 0` sets hasMore false
-        // and load-more dies permanently.
         let oldestNo = Infinity;
         for (const chat of chatsRef.current) {
             if (chat.chatNo != null && chat.chatNo > 0 && chat.chatNo < oldestNo) oldestNo = chat.chatNo;
@@ -246,8 +146,6 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         if (floorRef.current.scope === scopeKey && floorRef.current.no > 0) {
             oldestNo = Math.min(oldestNo, floorRef.current.no);
         }
-        // Nothing shown and no cursor named yet: count down from the channel's head. A room whose newest
-        // messages are all deleted is in this state, with history below them.
         if (!Number.isFinite(oldestNo) && latestChatNoRef.current) oldestNo = latestChatNoRef.current + 1;
         if (!Number.isFinite(oldestNo)) return true;
 
@@ -257,8 +155,6 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         setLoadOlderFailed(false);
         setIsLoadingOlder(true);
         try {
-            // One call runs until a page brings rows or the history ends: a caller that saw nothing
-            // land (the thread panel's pager, a reader parked at the top) would not ask again.
             let cursorNo = oldestNo;
             for (;;) {
                 const result = await chatRepository.refreshList({
@@ -266,10 +162,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
                     cursorNo,
                     limit: LOAD_MORE_SIZE,
                 });
-                // Channel switched while the request was in flight — drop the result.
                 if (reqChannel !== channelIdRef.current) return true;
-                // The server counts a page by message numbers and leaves deleted ones out, then names
-                // the lowest number it counted as the next cursor — 0 once it reached the start.
                 const next = result.cursorNo ?? 0;
                 if (next > 0) floorRef.current = { scope: reqScope, no: next };
                 if (result.fetchedCount > 0) {
@@ -277,8 +170,6 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
                     if (result.cursorNo === 0) setHasMore(false);
                     return true;
                 }
-                // An empty page with a cursor below it was all deleted messages: step over it. A cursor
-                // that does not move down would never end, so it ends the history too.
                 if (next <= 0 || next >= cursorNo) {
                     setHasMore(false);
                     return true;
@@ -286,8 +177,6 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
                 cursorNo = next;
             }
         } catch {
-            // Leave hasMore set so a later scroll retries. A failure that comes back
-            // after the pane moved on is not this room's to show.
             if (reqChannel === channelIdRef.current) setLoadOlderFailed(true);
             return false;
         } finally {
@@ -296,8 +185,6 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         }
     }, [chatRepository, channelId, scopeKey, isLoadingOlder, hasMore]);
 
-    // Nothing to page from — no sent row and no head number on the channel (a room nobody has written in
-    // yet) — reads as the start of the history, so the feed shows the room's intro instead of waiting.
     const canPage = !!latestChatNo || chats.some(chat => !!chat.chatNo && chat.chatNo > 0);
 
     return {

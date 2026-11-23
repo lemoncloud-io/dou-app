@@ -3,16 +3,10 @@ import { cn } from '@chatic/ui-kit';
 import type { PanelWidth } from '../hooks/usePanelWidth';
 
 interface PanelResizeHandleProps {
-    /** Accessible name — says which panel the separator resizes. */
     label: string;
     panel: PanelWidth;
 }
 
-/**
- * The drag strip on a resizable panel's chat-facing edge (arrow keys when focused).
- * The panel must be `relative` (or otherwise positioned) and must not scroll itself —
- * an absolutely placed strip inside a scroll container scrolls away with the content.
- */
 export const PanelResizeHandle = ({ label, panel }: PanelResizeHandleProps) => (
     <div
         role="separator"

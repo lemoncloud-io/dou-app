@@ -13,20 +13,13 @@ const sameProfiles = (
 };
 
 interface PlaceProfilesState {
-    /** placeId → uid → that member's Place Profile there. A place with no entry has not been read yet. */
     bySid: Record<string, Record<string, PlaceProfileEntry>>;
     setPlace: (placeId: string, profiles: Record<string, PlaceProfileEntry>) => void;
     dropPlaces: (keep: ReadonlySet<string>) => void;
 }
 
-/**
- * The Place Profiles of every place of the active cloud, mirrored by `usePlaceProfiles`.
- * `useSiteProfilesStore` holds only the place on screen; an OS banner, the inbox and my threads name
- * people from any place.
- */
 export const usePlaceProfilesStore = create<PlaceProfilesState>(set => ({
     bySid: {},
-    // An emission that changes no nick or photo keeps the old map, so a list reading it does not redraw.
     setPlace: (placeId, profiles) =>
         set(state =>
             sameProfiles(state.bySid[placeId], profiles) ? state : { bySid: { ...state.bySid, [placeId]: profiles } }

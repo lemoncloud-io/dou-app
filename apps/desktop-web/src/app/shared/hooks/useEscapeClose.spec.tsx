@@ -17,8 +17,6 @@ describe('useEscapeClose', () => {
         expect(close).toHaveBeenCalledTimes(1);
     });
 
-    // The inline message editor cancels an edit with Escape. The same press used to close
-    // the thread panel around it as well.
     it('leaves an Escape something inside the panel already handled', () => {
         const close = vi.fn();
         renderHook(() => useEscapeClose(close));

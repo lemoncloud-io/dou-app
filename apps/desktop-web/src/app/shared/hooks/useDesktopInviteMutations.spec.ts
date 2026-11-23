@@ -54,8 +54,6 @@ describe('useDesktopInviteMutations', () => {
         const { result } = renderHook(() => useDesktopInviteMutations());
 
         const errors: unknown[] = [];
-        // A rejecting act() callback poisons later renders, so the rejection is
-        // caught inside and asserted outside.
         await act(async () => {
             try {
                 await result.current.createInvite({ phone: '', name: 'Ada' });

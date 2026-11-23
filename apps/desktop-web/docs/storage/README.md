@@ -45,6 +45,37 @@ session's `plain` and follows it.
 or the i18n module created at import time still writes where `main.tsx` pointed them.
 Key names did not change when the app moved onto them, so nothing stored before was lost.
 
+## Why a store lives where it does
+
+- **In memory on purpose.** Composer drafts (kept across channel switches, not across a reload), the
+  local read cursor (the server's has caught up by the next load and is then authoritative), the update
+  banner state (a relaunch asks the feed again) and the Notifications panel's tab, filter and order
+  (the panel unmounts whenever the nav leaves it, and coming back finds the same view).
+- **The debug overlay's open flag is `tabStore`, the debug switch `deviceStore`.** The debug Sync page
+  hard-reloads to re-read IndexedDB, so the overlay has to survive a reload but start closed after a full
+  restart.
+- **The selected channel, the last channel per cloud and place, and the recent channels** persist, and
+  are account-scoped (cleared by `useAccountResetOnLogout`). A refresh reopens the last channel instead of
+  the first, and each place and cloud returns to where the person was. The selection hydrates
+  synchronously, before the home screen's auto-select runs; a channel that no longer exists self-heals
+  there. A removal clears the selection only if the removed channel is still the open one, since the
+  reply comes about a second after the confirm and the person may have opened another room.
+- **The quick switcher's channel index** (`useKnownChannelsStore`) holds names, never message content,
+  is capped per cloud, and is keyed by place and channel because ids repeat across places. A channel that
+  left a place stays until it ages out; the pick path tolerates a miss. A change of its shape bumps the
+  store version and drops the old data, which costs one relearn from the cloud list.
+- **The mentions inbox and my threads are device-local snapshots.** The server has no
+  mention or thread list, and the source row pages out of the chat cache, so each item keeps what its row
+  needs (the inbox keeps a short preview, not the body, because the whole persisted list is rewritten on
+  every mark) and is capped, the least recent dropped first. Inbox items stored before they named their cloud cannot say
+  which cloud's place ids they use, so the migration drops them rather than list one cloud's history in
+  another's.
+- **The cloud push badge flag persists**, since a push can land while the app is closed and replay on
+  boot.
+- **Reading preferences** hydrate synchronously, so `main.tsx` applies them before the first render and
+  the app never paints at the wrong size. A stored palette this build does not know, malformed custom
+  colours, or Custom with none saved read as Mist, so the shell and the picker agree.
+
 ## Adding state
 
 Pick `deviceStore` or `tabStore` — `plainStore` only for state that belongs with a sign-in — and

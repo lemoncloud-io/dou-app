@@ -13,7 +13,6 @@ const dm = (id: string, peerId: string | null, sid = 'busy'): DomainChannel =>
     ({ id, cid: 'cloud-1', sid, stereo: 'dm', memberIds: peerId ? [ME, peerId] : undefined }) as DomainChannel;
 
 describe('roomPlaces', () => {
-    // A 1:1 lives in the place it was opened in, whoever its peer shares other places with.
     it('files each 1:1 under its own place only', () => {
         const channels = [
             group('invite demo', 'busy', [ME, 'p1']),
@@ -34,7 +33,6 @@ describe('roomPlaces', () => {
         expect(listing.get('hi@me@p1')).toEqual(['hi']);
     });
 
-    // A room from before 1:1s were keyed by place may name none; no place lists it.
     it('leaves a 1:1 that names no place unfiled', () => {
         expect(roomPlaces([dm('me@p1', 'p1', '')], { placeIds: PLACES }).has('me@p1')).toBe(false);
     });
@@ -54,8 +52,6 @@ describe('roomPlaces', () => {
         expect(roomPlaces(channels, { placeIds: PLACES }).size).toBe(0);
     });
 
-    // The server keeps one notes-to-self room per person and returns it for every place, whichever
-    // place it was created in.
     it('lists my notes-to-self room in every place', () => {
         const channels = [
             { id: 'U:me', cid: 'cloud-1', sid: 'busy', stereo: 'self', memberIds: [ME] },
@@ -88,7 +84,6 @@ describe('listingPlaces', () => {
         expect(listingPlaces(self, new Map([['U:me', PLACES]]))).toEqual(PLACES);
     });
 
-    // Unfiled — before my places load — it keeps the place it is stamped with.
     it('falls back to its own place for a notes-to-self room that was not filed', () => {
         expect(listingPlaces(self, new Map())).toEqual(['busy']);
     });

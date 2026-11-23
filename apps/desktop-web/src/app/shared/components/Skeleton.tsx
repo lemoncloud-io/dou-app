@@ -7,10 +7,6 @@ interface SkeletonProps {
     style?: CSSProperties;
 }
 
-/**
- * Shimmer placeholder block. Reserves layout space while content loads (avoids
- * CLS) and pulses to signal activity. Honors prefers-reduced-motion.
- */
 export const Skeleton = ({ className, style }: SkeletonProps) => (
     <div
         style={style}

@@ -1,10 +1,5 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
-/**
- * Whether a media query matches, kept current as it changes (a mouse plugged into a
- * tablet, the OS switching on reduced motion). Reading `matchMedia` once at import
- * froze the answer for the life of the window.
- */
 export const useMediaQuery = (query: string): boolean => {
     const subscribe = useCallback(
         (onChange: () => void) => {

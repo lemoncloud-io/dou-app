@@ -1,13 +1,4 @@
-/**
- * Get version information for this app instance.
- *
- * - desktop-web version: from vite define (__APP_VERSION__)
- * - desktop version: from window.electronAPI if available (Electron context)
- */
-
 declare const __APP_VERSION__: string;
-
-// `window.electronAPI` is declared once, in ./electronApi.
 
 interface AppVersionInfo {
     desktopWebVersion: string;

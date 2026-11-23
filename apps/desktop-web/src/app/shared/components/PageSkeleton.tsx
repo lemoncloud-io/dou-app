@@ -2,12 +2,6 @@ import { useTranslation } from 'react-i18next';
 
 import { Skeleton } from './Skeleton';
 
-/**
- * Placeholder for the me-pages (Settings, Profile, Account and its sub-pages, place settings).
- * Mirrors `PageShell` — header bar, then a centred `max-w-2xl` body of cards — so the page
- * replaces it in place. These pages have no rails or sidebar; drawing the chat shell for them
- * promised a layout that never arrives.
- */
 export const PageSkeleton = () => {
     const { t } = useTranslation();
     return (

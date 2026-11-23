@@ -16,12 +16,8 @@ const channelMocks = {
 type PushListener = (payload: unknown) => void;
 type MessageHandler = (message: unknown) => void;
 
-// The desktop shell's notifications; every listener a hook subscribed is in its calls until the next
-// clearAllMocks, as the bridge's own handlers were.
 const notifications = vi.hoisted(() => ({ onReceive: vi.fn((_listener: PushListener) => () => undefined) }));
 
-// `onServerMessage` hears every frame on the active slot; the runtime keeps it attached across
-// reconnects, so the mock just keeps the latest listener.
 const connectionMocks = {
     onMessageHandler: null as MessageHandler | null,
     onServerMessage: vi.fn((handler: MessageHandler) => {
@@ -90,7 +86,6 @@ describe('useRefreshOnPush', () => {
         emitSocketFrame({ type: 'chat.sync', data: { channelId: 'ch-1', chatNo: 7 } });
         advanceDebounce();
 
-        // A socket frame names no place, so the row's own place resolves the tag.
         expect(channelMocks.refreshOneInCloud).toHaveBeenCalledTimes(1);
         expect(channelMocks.refreshOneInCloud).toHaveBeenCalledWith('ch-1', 'site-1');
         expect(channelMocks.refreshOne).not.toHaveBeenCalled();
@@ -129,7 +124,6 @@ describe('useRefreshOnPush', () => {
         for (let i = 1; i <= 11; i++) emitSocketFrame({ type: 'chat.sync', data: { channelId: `ch-${i}` } });
         advanceDebounce();
 
-        // No room is dropped: past the cap, one list pull covers every row instead of 11 gets.
         expect(channelMocks.refreshOneInCloud).not.toHaveBeenCalled();
         expect(channelMocks.refreshList).toHaveBeenCalledTimes(1);
         expect(channelMocks.refreshList).toHaveBeenCalledWith({ sid: 'site-1' });

@@ -29,6 +29,19 @@ Every panel opens at `PANEL_WIDTH` (360px), and each kind remembers its own drag
 storage key. They used to open at 320, 384 or 440 depending on the panel. `usePanelWidth` clamps a
 drag so the chat column keeps `MIN_CHAT_WIDTH` (420px), counting the rails and the other open panels.
 
+- **One budget for all panels.** The rails (the 80px cloud-and-place rail and the 80px nav rail) are
+  fixed, so they count. Clamping each panel against the window on its own let the sidebar take 480 and a
+  trailing panel 720 at once, which squeezed the conversation to nothing at any width, so every mounted
+  panel registers its committed width and a panel's room is what is left after the rails, the chat floor
+  and the other panels. At the narrowest docked widths a panel's own minimum can still overrun it; the
+  chat column's `min-width` is the backstop.
+- **A drag writes the width straight to the panel's style** and commits state once on release; a state
+  write per `pointermove` would re-render the whole subtree, the message list included.
+- **A window resize re-clamps the width the person chose, not the current width.** Clamping the current
+  width only ever narrowed the panel, so one small window left it at its minimum until a reload.
+- A column whose content changes under it (the sidebar, per nav destination) keeps a width per content:
+  a new storage key brings its own kept width or default before the frame paints.
+
 ## Docked or covering
 
 From `PANEL_DOCK_WIDTH` (1280px, Tailwind's `xl`) up, a panel docks beside the chat. Below it, a panel

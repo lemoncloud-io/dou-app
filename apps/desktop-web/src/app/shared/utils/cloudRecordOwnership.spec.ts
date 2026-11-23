@@ -5,7 +5,6 @@ import { CLOUD_RECORD_OWNER_KEY, reconcileCloudRecordOwners } from './cloudRecor
 
 type Row = { id: string; cid: string; cloudType?: string; acceptedBy?: string[] };
 
-// A stand-in cloud cache, so the tests read what is stored rather than which calls were made.
 const makeCloud = (initial: Row[]) => {
     const rows = new Map(initial.map(row => [row.id, row]));
     return {
@@ -37,7 +36,7 @@ describe('reconcileCloudRecordOwners', () => {
         it('stay hidden from a second account that signs in afterwards', async () => {
             const cloud = makeCloud([{ id: '1', cid: '1', cloudType: 'invited' }]);
             await reconcileCloudRecordOwners(cloud as never, 'account-a');
-            localStorage.removeItem(CLOUD_RECORD_OWNER_KEY); // a sign-out in between
+            localStorage.removeItem(CLOUD_RECORD_OWNER_KEY);
 
             await reconcileCloudRecordOwners(cloud as never, 'account-b');
 
