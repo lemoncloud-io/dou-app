@@ -175,19 +175,20 @@ describe('ratchet source counts', () => {
 
 describe('ratchet modes', () => {
     it('accepts off, observe and enforce for every kind', () => {
-        expect(readModes('{"source":"enforce","knip":"observe","jscpd":"off"}')).toEqual({
+        expect(readModes('{"source":"enforce","knip":"observe","jscpd":"off","testTypecheck":"enforce"}')).toEqual({
             source: 'enforce',
             knip: 'observe',
             jscpd: 'off',
+            testTypecheck: 'enforce',
         });
-        expect(() => readModes('{"source":"enforce","knip":"warn","jscpd":"off"}')).toThrow(
+        expect(() => readModes('{"source":"enforce","knip":"warn","jscpd":"off","testTypecheck":"off"}')).toThrow(
             'knip must be one of off, observe, enforce'
         );
         expect(() => readModes('{"source":"enforce","knip":"observe"}')).toThrow('jscpd must be one of');
     });
 
     it('starts the comment and escape hatch ratchet enforced and the tool ratchets observed', () => {
-        expect(readModes()).toEqual({ source: 'enforce', knip: 'observe', jscpd: 'observe' });
+        expect(readModes()).toEqual({ source: 'enforce', knip: 'observe', jscpd: 'observe', testTypecheck: 'enforce' });
     });
 });
 
@@ -196,7 +197,7 @@ describe('ratchet CLI arguments', () => {
         expect(parseArgs(['verify-baseline', '--base', 'origin/develop'])).toMatchObject({
             command: 'verify-baseline',
             base: 'origin/develop',
-            only: ['source', 'knip', 'jscpd'],
+            only: ['source', 'knip', 'jscpd', 'testTypecheck'],
         });
         expect(parseArgs(['check', '--only', 'source']).only).toEqual(['source']);
     });

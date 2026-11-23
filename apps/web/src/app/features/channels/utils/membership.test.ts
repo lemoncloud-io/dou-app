@@ -47,7 +47,8 @@ describe('isChannelMember — 이 방의 멤버인가', () => {
     it('로스터에 없어도 내 join 행이 활성이면 멤버다', () => {
         expect(isChannelMember({ memberIds: ['u1'] }, { joined: 1 }, 'me')).toBe(true);
         // A row that omits `joined` is read as active, the same way useChannelJoins reads it.
-        expect(isChannelMember({ memberIds: [] }, {}, 'me')).toBe(true);
+        const joinWithoutJoined = {} as unknown as NonNullable<Parameters<typeof isChannelMember>[1]>;
+        expect(isChannelMember({ memberIds: [] }, joinWithoutJoined, 'me')).toBe(true);
     });
 
     it('로스터에 없고 join 행도 비활성(0)이면 멤버가 아니다', () => {

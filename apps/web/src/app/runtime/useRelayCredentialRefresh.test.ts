@@ -11,13 +11,13 @@ import { renderHook } from '@testing-library/react';
  */
 let relayVerified = false;
 
-const mockGuard = jest.fn(() => ({ check: mockCheck }));
+const mockGuard = jest.fn((_options: Record<string, unknown>) => ({ check: mockCheck }));
 const mockCheck = jest.fn();
 
 jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
-            useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
+            useSessionStalenessGuard: (options: Record<string, unknown>) => mockGuard(options),
         },
         connection: {
             RELAY_SLOT: 'default',
@@ -42,7 +42,7 @@ const render = () => {
     mockGuard.mockClear();
     mockCheck.mockClear();
     renderHook(() => useRelayCredentialRefresh());
-    return mockGuard.mock.calls[0][0] as Record<string, unknown>;
+    return mockGuard.mock.calls[0][0];
 };
 
 beforeEach(() => {

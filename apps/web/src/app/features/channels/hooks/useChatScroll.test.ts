@@ -93,7 +93,7 @@ describe('useChatScroll', () => {
             jest.useFakeTimers({ doNotFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
             const textarea = document.createElement('textarea');
             const inputRef = { current: textarea };
-            const view = renderHook(props => useChatScroll(props), {
+            const view = renderHook((props: Parameters<typeof useChatScroll>[0]) => useChatScroll(props), {
                 initialProps: {
                     messages: [message('m1')],
                     hasMore: true,

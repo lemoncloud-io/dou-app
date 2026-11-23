@@ -8,7 +8,10 @@ import {
     type ImageVariant,
 } from './imageCache';
 
-const answer = (bytes: number, { ok = true, type = 'image/jpeg', status = ok ? 200 : 403 } = {}) =>
+const answer = (
+    bytes: number,
+    { ok = true, type = 'image/jpeg', status = ok ? 200 : 403 }: { ok?: boolean; type?: string; status?: number } = {}
+) =>
     ({
         ok,
         status,
@@ -39,15 +42,16 @@ const memoryStore = () => {
 const setup = (overrides: Partial<ImageCacheDeps> = {}) => {
     const { store, records } = memoryStore();
     let next = 0;
+    const defaultFetch = jest.fn(async (_url: string, _signal: AbortSignal) => answer(10));
     const deps = {
         store,
-        fetch: jest.fn(async () => answer(10)),
+        fetch: defaultFetch,
         createObjectURL: jest.fn(() => `blob:${++next}`),
         revokeObjectURL: jest.fn(),
         now: () => 1_000_000,
         ...overrides,
     } satisfies ImageCacheDeps;
-    return { cache: new ImageCache(deps), deps, store, records };
+    return { cache: new ImageCache(deps), deps, store, records, defaultFetch };
 };
 
 // Stored writes are fire-and-forget; let their promise chain settle.
@@ -198,7 +202,7 @@ describe('ImageCache', () => {
     it('trims the variant it wrote to, once for puts close together', async () => {
         jest.useFakeTimers();
         try {
-            const { cache, store } = setup({ budgets: { thumb: 100, org: 1000 } });
+            const { cache, store } = setup({ budgets: { thumb: 100, org: 1000, frame: 1000 } });
             await cache.load('a', 'thumb', 'u');
             await cache.load('b', 'thumb', 'u');
             // Let the fire-and-forget puts land before the timer is checked.
@@ -310,7 +314,7 @@ describe('ImageCache', () => {
         });
 
         it('forgets an invalidated entry everywhere, revoking it at the sweep', async () => {
-            const { cache, deps } = setup({ now: () => ++clock });
+            const { cache, deps, store } = setup({ now: () => ++clock });
             const listener = jest.fn();
             cache.subscribe(listener);
             await cache.load('k', 'thumb', 'u');
@@ -319,7 +323,7 @@ describe('ImageCache', () => {
 
             expect(cache.peek('k')).toBeUndefined();
             expect(listener).toHaveBeenCalledTimes(1);
-            expect(deps.store.delete).toHaveBeenCalledWith('k');
+            expect(store.delete).toHaveBeenCalledWith('k');
             expect(deps.revokeObjectURL).not.toHaveBeenCalled();
             await sweep();
             expect(deps.revokeObjectURL).toHaveBeenCalledWith('blob:1');
@@ -546,12 +550,12 @@ describe('ImageCache — load reports', () => {
     };
 
     it('reports a download it kept: the store missed, then the bucket answered', async () => {
-        const { cache, deps, store, reports, tick } = observed();
+        const { cache, defaultFetch, store, reports, tick } = observed();
         store.get.mockImplementation(async () => {
             tick(5);
             return undefined;
         });
-        deps.fetch.mockImplementation(async () => {
+        defaultFetch.mockImplementation(async () => {
             tick(120);
             return answer(4096);
         });
