@@ -2,7 +2,6 @@ import { logger } from '@chatic/logger';
 
 import { readCapabilityDeclaration, resolveCapability } from './capabilities';
 
-// No capability is defined yet; these rules are exercised with made-up keys.
 describe('readCapabilityDeclaration', () => {
     it.each([undefined, null])('reads %p as no declaration', raw => {
         expect(readCapabilityDeclaration(raw)).toEqual({ kind: 'absent' });

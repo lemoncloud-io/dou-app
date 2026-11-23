@@ -2,7 +2,6 @@ import type { IWebBridgeClient } from '@chatic/bridges';
 
 import { RUNTIME_CALL_TIMEOUT_MS, createBridgedRuntime, webMirrorPort } from './createBridgedRuntime';
 
-/** A bridge client that answers each runtime request and lets the test push events. */
 const fakeClient = () => {
     const handlers = new Map<string, (message: { data: unknown }) => void>();
     const request = jest.fn(async (message: { type: string; data: Record<string, unknown> }) => {

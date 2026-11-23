@@ -16,7 +16,6 @@ const PROD_ENV = {
     VITE_WS_ENDPOINT: 'wss://wss.example.com/cht-v1',
 };
 
-/** The server as the module composes it: the host and the build's own `VITE_ENV` decide the gate. */
 const serverOn = (hostname: string, values: Record<string, string | undefined>) =>
     readSubscriptionServer(values, readSubscriptionAccountEnabled(hostname, readProductionBuild(values['VITE_ENV'])));
 

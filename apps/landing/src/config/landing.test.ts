@@ -1,8 +1,3 @@
-/**
- * The declaration exists to start the account surface's runtime exactly as it started before it: every
- * port on one fixed adapter, config from the build's env reader, and the session on the site's own store
- * objects. Those are what the cases pin.
- */
 import { startRuntime } from '@chatic/runtime-web';
 import type { StartRuntimeOptions } from '@chatic/runtime-web';
 
@@ -22,7 +17,6 @@ type Read = NonNullable<StartRuntimeOptions['read']>;
 const ENV: Record<string, string> = { VITE_DOU_ENDPOINT: 'https://api.example.com/dou-d1' };
 const env = (name: string): string | undefined => ENV[name];
 
-/** Starts the declaration with every collaborator faked except the adapters themselves. */
 const start = async (read: Read = () => undefined) => {
     const config = { init: vi.fn(), isInitialized: vi.fn(() => false), snapshot: vi.fn(() => undefined) };
     const createRuntime = vi.fn((_ports: unknown) => ({}) as never);

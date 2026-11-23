@@ -7,23 +7,11 @@ import { ERROR_MESSAGES } from '@chatic/shared';
 
 import { ROUTES } from './paths';
 
-/**
- * What a route shows when it throws — a lazy chunk that failed to load is the likely case.
- *
- * Not the shared package's `RouterErrorFallback`, which the web app uses: that one is built from
- * the shared UI kit's buttons and expects the shadcn tokens (`primary`, `ring`, …) this site's
- * Tailwind config does not define.
- *
- * The copy follows the same rule as the shared screens: each line is looked up under
- * `error.screen.*` with the English text as its default, so a missing key still reads as a sentence
- * rather than a raw key on a screen that only shows when something already went wrong.
- */
 export const RouteErrorFallback = (): JSX.Element => {
     const error = useRouteError();
     const { t } = useTranslation();
     const copy = ERROR_MESSAGES.unknown;
 
-    // The error itself is only for whoever opens the console; the screen stays the same for all.
     useEffect(() => {
         console.error('[RouteErrorFallback]', error);
     }, [error]);
@@ -50,7 +38,6 @@ export const RouteErrorFallback = (): JSX.Element => {
                 >
                     {t('error.screen.unknown.primaryAction', { defaultValue: copy.primaryAction })}
                 </button>
-                {/* A full load, not a router link: the router that just failed is the one that would handle it. */}
                 <a href={ROUTES.root} className="w-full rounded-full px-5 py-3 text-subtitle hover:text-navy">
                     {t('error.screen.unknown.secondaryAction', { defaultValue: copy.secondaryAction })}
                 </a>

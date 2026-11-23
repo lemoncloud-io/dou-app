@@ -8,13 +8,6 @@ import type { RegistrationOutcome } from '../types';
 
 const OUTCOMES: RegistrationOutcome[] = ['registered', 'failed', 'closed'];
 
-/**
- * The stand-in for the payment provider's card window: a dialog asking how the window ends. Mounted at
- * the route root where something opens it (`PortSetup.standInWindow` — sandbox payments, whose mock
- * provider has no real window, and the tests' fake server): `startPaymentMethodRegistration` opens it
- * and waits for the reader to pick — the same promise a real provider's window resolves — so the
- * checkout and payment-method pages never know which it was. The suggested outcome is focused first.
- */
 export const MockPaymentWindow = ({ host }: { host: PaymentWindowHost }): JSX.Element | null => {
     const { t } = useTranslation();
     const [request, setRequest] = useState<PaymentWindowRequest | null>(null);
@@ -24,8 +17,6 @@ export const MockPaymentWindow = ({ host }: { host: PaymentWindowHost }): JSX.El
         host.setPaymentWindow(
             next =>
                 new Promise<RegistrationOutcome>(resolve => {
-                    // One window at a time: a request still open is closed, so its caller is not
-                    // left waiting on a promise nothing will settle.
                     resolver.current?.('closed');
                     resolver.current = resolve;
                     setRequest(next);

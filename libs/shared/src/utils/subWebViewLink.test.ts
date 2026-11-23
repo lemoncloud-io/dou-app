@@ -113,7 +113,6 @@ describe('the path an app before app ids hands over', () => {
         ['no url', '/sub-webview?x=1'],
         ['a url that is not https', `/sub-webview?url=${encodeURIComponent('javascript:alert(1)')}`],
         ['a broken escape', '/sub-webview?url=%E0'],
-        // The path can come through the app's custom scheme from any website.
         ['a site that is not a page', `/sub-webview?url=${encodeURIComponent('https://evil.example/')}`],
         ['userinfo before a page host', `/sub-webview?url=${encodeURIComponent('https://evil@quiz.apps.chatic.io/')}`],
     ])('is no page for %s', (_label, path) => {

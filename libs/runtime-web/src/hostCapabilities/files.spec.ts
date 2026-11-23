@@ -14,7 +14,6 @@ describe('resolveFilesMethod', () => {
     });
     afterEach(() => warn.mockRestore());
 
-    // The answer the page gave before the port: `isNative()` meant the app moves files.
     it.each([
         ['a phone app', phone(), 'shell'],
         ['a desktop shell, which has a bridge too', buildHostProfile({ ChaticMessageHandler: post }), 'shell'],

@@ -11,19 +11,11 @@ import { reasonOfSignInError } from './signInReason';
 
 import type { NoLinkedAccountState } from './NoLinkedAccountPage';
 
-/**
- * W-02 return — where the provider sends the reader back. Hands the callback query to the port once
- * and goes on by the answer: where a sign-in lands, the no-linked-account page, or back to sign in
- * with the reason it failed.
- */
 export const LoginCallbackPage = (): JSX.Element => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { search } = useLocation();
     const completeSignIn = useCompleteSignIn();
-    // The sign-in record is spent by the first exchange — a second one would report an expired
-    // sign-in — and StrictMode runs effects twice in development, so the exchange is started once
-    // per mount.
     const started = useRef(false);
 
     useEffect(() => {
@@ -41,7 +33,6 @@ export const LoginCallbackPage = (): JSX.Element => {
             })
             .catch(error => {
                 const query = new URLSearchParams({ reason: reasonOfSignInError(error) });
-                // A failed round trip still knows where it was going; trying again should go there too.
                 const next = safeNext(isPortError(error) ? error.detail?.next : undefined);
                 if (next) query.set('next', next);
                 navigate(`${ROUTES.subscription.login}?${query}`, { replace: true });
@@ -50,7 +41,6 @@ export const LoginCallbackPage = (): JSX.Element => {
 
     return (
         <AuthCard role="status" className="items-center gap-2 pt-10 text-center md:py-12">
-            {/* Larger than the inline spinner, in the brand green: this is the whole page while it lasts. */}
             <span
                 aria-hidden
                 className="mb-3 size-9 animate-spin rounded-full border-[3px] border-main-green border-t-transparent"

@@ -4,10 +4,6 @@ import { memoryStateStore } from './storage';
 
 import type { SubscriptionPort } from '../../lib/port';
 
-/**
- * A mock with no latency, a hand-driven wall clock and a URL the test sets. `advance` moves the wall
- * clock past an attempt's settle time; the mock's own today comes from the scenario or `?now=`.
- */
 const setup = (search: string) => {
     let url = search;
     let wall = 1_000_000;
@@ -69,7 +65,6 @@ describe('createMockPort — scenarios and the URL', () => {
         await port.cancelSubscription('sub-2');
         go('');
         go('?mock=active');
-        // Same scenario as the state already holds: a reload, not a reset.
         expect((await port.getSubscription('sub-2')).status).toBe('cancelScheduled');
         go('?mock=trial');
         expect((await port.listSubscriptions())[0].status).toBe('trial');
@@ -148,7 +143,6 @@ describe('createMockPort — fail flags', () => {
 
     it('ends the session on the next call with session-ended', async () => {
         const { port } = setup('?mock=active&fail=session-ended');
-        // Reading the session is how a page learns of it, so it is not the call that fails.
         expect(await port.getSession()).not.toBeNull();
         await expectCode(port.listSubscriptions(), 'unauthenticated');
         expect(await port.getSession()).toBeNull();
@@ -440,7 +434,6 @@ describe('createMockPort — billing email codes', () => {
             expect(isPortError(error, 'invalidCode') && error.detail).toEqual({ attemptsLeft: left });
         }
         await expectCode(port.verifyEmailCode(emailId, '000000'), 'tooManyAttempts');
-        // Even the right code is refused once the attempts are spent.
         await expectCode(port.verifyEmailCode(emailId, '123456'), 'tooManyAttempts');
     });
 
@@ -498,7 +491,6 @@ describe('createMockPort — billing email codes', () => {
         const { port } = setup('?mock=active');
         const { emailId } = await port.requestEmailCode('second@lemon.example');
         await port.verifyEmailCode(emailId, '123456');
-        // The verified primary (em-1) takes the place of the non-primary address: it stays primary.
         const { emails } = await port.replaceEmail(emailId, 'em-1');
         expect(emails.map(e => [e.id, e.primary])).toEqual([['em-1', true]]);
     });

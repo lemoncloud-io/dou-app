@@ -16,17 +16,8 @@ import type {
     RegistrationOutcome,
 } from '../../types';
 
-/**
- * The checkout pages' own decisions: which of a screen's scenes to draw, and where each button goes.
- * What a plan may be changed to is not decided here — that is `changeKindOf` — this only turns its
- * answer, and a payment attempt's, into a scene and a URL.
- */
-
-/** A `?plan=` value, if it names one of the plans the port offers. */
 export const planFromQuery = (plans: Plan[] | undefined, value: string | null): Plan | undefined =>
     value ? plans?.find(plan => plan.id === value) : undefined;
-
-// --- W-08 -----------------------------------------------------------------------------------------
 
 export { BILLING_COUNTRY_OPTIONS } from '../../lib/billingCountry';
 
@@ -38,26 +29,13 @@ export const NO_CONSENTS: Consents = { terms: false, privacy: false, autoRenew: 
 
 export const allConsented = (consents: Consents): boolean => CONSENTS.every(key => consents[key]);
 
-/** "Agree to all" ticks or clears every consent at once; each box can still be changed on its own after. */
 export const setAllConsents = (value: boolean): Consents => ({ terms: value, privacy: value, autoRenew: value });
 
-/**
- * The checkout continues only once a billing country is chosen and every consent is given; where the
- * country is billed in won, also once the payer is filled in and there is an address for the card
- * company. Elsewhere there is no payer to ask for — the card field asks for what it needs itself — and
- * where billing outside Korea is shut (`foreignBilling` false), no other country goes on at all.
- */
 export const canContinueCheckout = (input: {
-    /** Empty until the reader picks one: nothing is chosen for them. */
     country: string;
-    /**
-     * The address the card company is given: the verified billing email, the account's own, or the one
-     * typed in with the payer.
-     */
     email?: string;
     payer: PayerDraft;
     consents: Consents;
-    /** Whether billing outside Korea is open (`useForeignBilling`); true when omitted. */
     foreignBilling?: boolean;
 }): boolean =>
     isBillingCountry(input.country) &&
@@ -65,11 +43,6 @@ export const canContinueCheckout = (input: {
     (!payerRequiredIn(input.country) || (!!input.email && isPayerComplete(input.payer))) &&
     allConsented(input.consents);
 
-/**
- * Where a request for `/subscription/checkout?plan=` belongs. A first subscription stays here; a
- * reader who already has one is changing plan, which is W-14; a plan that cannot be picked at all
- * goes back to the plan list.
- */
 export const checkoutRouteFor = (
     current: Plan | undefined,
     target: Plan,
@@ -81,18 +54,9 @@ export const checkoutRouteFor = (
     return 'plans';
 };
 
-/**
- * What W-08 hands W-05 in the navigation state. Its presence is also the proof that the reader came
- * through W-08 — the consents are given there and nowhere else — so W-05 sends anyone without it back.
- */
 export interface CheckoutDetails {
     country: string;
-    /** The verified billing email the checkout used; absent while the billing-email screens are hidden. */
     emailId?: string;
-    /**
-     * Who pays, for the payment window and the server — where the country is billed in won, and absent
-     * elsewhere. It lives in this state and nowhere else.
-     */
     payer?: Payer;
 }
 
@@ -103,16 +67,10 @@ const isPayer = (value: unknown): value is Payer => {
     );
 };
 
-/**
- * The details W-08 handed on, if they are whole. `foreignBilling` false (billing outside Korea shut)
- * refuses a country outside Korea here too, so a state W-08 would not have produced cannot open a payment
- * window.
- */
 export const checkoutDetailsOf = (state: unknown, foreignBilling = true): CheckoutDetails | undefined => {
     const details = (state as { checkout?: Partial<CheckoutDetails> } | null)?.checkout;
     if (!details || typeof details.country !== 'string' || !isBillingCountry(details.country)) return undefined;
     if (!billableIn(details.country, foreignBilling)) return undefined;
-    // A country billed in won cannot go on without its payer.
     if (payerRequiredIn(details.country) && !isPayer(details.payer)) return undefined;
     return {
         country: details.country,
@@ -121,10 +79,6 @@ export const checkoutDetailsOf = (state: unknown, foreignBilling = true): Checko
     };
 };
 
-/**
- * Whether the state handed to a checkout page names a country outside Korea, read before any judgement:
- * only then does the page need to know whether dollars are open before it reads that state.
- */
 export const handedAbroad = (state: unknown): boolean => {
     const country = (state as { checkout?: { country?: unknown } } | null)?.checkout?.country;
     return typeof country === 'string' && country !== KOREA;
@@ -133,8 +87,6 @@ export const handedAbroad = (state: unknown): boolean => {
 export const withCheckoutDetails = (details: CheckoutDetails | undefined) =>
     details ? { state: { checkout: details } } : undefined;
 
-// --- URLs between the screens -----------------------------------------------------------------------
-
 const withQuery = (path: string, query: Record<string, string | undefined>): string => {
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => value !== undefined && params.set(key, value));
@@ -142,7 +94,6 @@ const withQuery = (path: string, query: Record<string, string | undefined>): str
     return search ? `${path}?${search}` : path;
 };
 
-/** W-24, the email step a first checkout passes before W-08. */
 export const checkoutEmailUrl = (planId: PlanId): string =>
     withQuery(ROUTES.subscription.checkoutEmail, { plan: planId });
 
@@ -153,32 +104,17 @@ export const checkoutPaymentUrl = (planId: PlanId): string =>
 
 export const changePlanUrl = (planId: PlanId): string => withQuery(ROUTES.subscription.change, { plan: planId });
 
-/**
- * W-09 for an attempt. `plan` is optional and only lets the screen name an amount while the attempt is
- * processing; a retry started from the payment methods page comes with the attempt alone.
- */
 export const statusUrl = (attemptId: string, planId?: string): string =>
     withQuery(ROUTES.subscription.checkoutStatus, { attempt: attemptId, plan: planId });
 
-/**
- * W-09 for a payment window that ended without a card. No attempt exists then — none is started until a
- * card is registered — so the screen is told the outcome instead.
- */
 export const registrationOutcomeUrl = (planId: PlanId, outcome: Exclude<RegistrationOutcome, 'registered'>): string =>
     withQuery(ROUTES.subscription.checkoutStatus, { plan: planId, outcome });
 
 export const completeUrl = (attemptId: string, planId?: string): string =>
     withQuery(ROUTES.subscription.checkoutComplete, { attempt: attemptId, plan: planId });
 
-/** W-06 after a downgrade is scheduled: a downgrade charges nothing, so it has no attempt to name. */
 export const DOWNGRADE_COMPLETE_URL = withQuery(ROUTES.subscription.checkoutComplete, { change: 'downgrade' });
 
-// --- W-09 -----------------------------------------------------------------------------------------
-
-/**
- * Which copy a W-09 scene uses. A first subscription with a trial charges nothing, so what is being
- * checked is the card (`card`); without a trial it is a payment (`payment`).
- */
 export type AttemptVariant = 'card' | 'payment' | 'upgrade' | 'retry';
 
 export const attemptVariantOf = (purpose: AttemptPurpose, withTrial: boolean | undefined): AttemptVariant => {
@@ -192,11 +128,8 @@ export type StatusScene =
     | { kind: 'processing'; variant: AttemptVariant }
     | { kind: 'failed'; variant: AttemptVariant; failure: NonNullable<PaymentAttempt['failure']> }
     | { kind: 'canceled'; variant: AttemptVariant }
-    /** A retry that went through — W-09 shows it itself; there is no W-06 for a retry. */
     | { kind: 'retried' }
-    /** A first subscription or an upgrade that went through: on to W-06. */
     | { kind: 'complete' }
-    /** A card added on its own: nothing for W-06 to show, so back to the payment methods. */
     | { kind: 'cardAdded' };
 
 export const statusSceneOf = (attempt: PaymentAttempt): StatusScene => {
@@ -210,17 +143,11 @@ export const statusSceneOf = (attempt: PaymentAttempt): StatusScene => {
             return { kind: 'canceled', variant };
         case 'succeeded':
             if (attempt.purpose === 'retry') return { kind: 'retried' };
-            // Only what W-06 can draw goes there; anything else would bounce straight back here.
             if (attempt.purpose === 'start' || attempt.purpose === 'upgrade') return { kind: 'complete' };
             return { kind: 'cardAdded' };
     }
 };
 
-/**
- * The scene for a payment window that closed or failed before any attempt existed. A failed window
- * is a card the provider would not register, so it reads as a card failure whether or not a trial
- * was coming.
- */
 export const registrationSceneOf = (
     outcome: string | null,
     withTrial: boolean | undefined
@@ -230,11 +157,6 @@ export const registrationSceneOf = (
     return undefined;
 };
 
-/**
- * Where "try again" goes: back to the screen the attempt was started from. A checkout reopens the
- * payment window (W-05), an upgrade its confirmation (W-14), a retry the payment methods (W-12). Without
- * the plan a checkout or an upgrade cannot be resumed, so it starts over from the plans or the list.
- */
 export const retryUrlOf = (variant: AttemptVariant, planId: PlanId | undefined): string => {
     switch (variant) {
         case 'card':
@@ -247,11 +169,8 @@ export const retryUrlOf = (variant: AttemptVariant, planId: PlanId | undefined):
     }
 };
 
-// --- W-06 -----------------------------------------------------------------------------------------
-
 export type CompleteScene = 'trialStarted' | 'firstPayment' | 'upgraded';
 
-/** W-06's scene for a settled attempt, or `undefined` when there is nothing to celebrate yet. */
 export const completeSceneOf = (attempt: PaymentAttempt): CompleteScene | undefined => {
     if (attempt.status !== 'succeeded') return undefined;
     if (attempt.purpose === 'upgrade') return 'upgraded';
@@ -259,10 +178,6 @@ export const completeSceneOf = (attempt: PaymentAttempt): CompleteScene | undefi
     return undefined;
 };
 
-/**
- * The charge an attempt made today, read back from the invoices: the newest paid invoice of that kind,
- * for that plan, issued today. `undefined` when there is none — a trial upgrade charges nothing.
- */
 export const chargedToday = (
     invoices: Invoice[] | undefined,
     kind: Invoice['kind'],
@@ -277,13 +192,6 @@ export const chargedToday = (
             invoice.issuedAt.slice(0, 10) === today
     );
 
-// --- Dates ------------------------------------------------------------------------------------------
-
-/**
- * The last day before `iso`. A trial "ending" on the 8th is charged on the 8th, so the reader's last
- * free day is the 7th; a downgrade applying on the 20th leaves the current plan through the 19th.
- */
 export const dayBefore = (iso: string): string => addDays(iso, -1);
 
-/** `11.20` — the short form the designs use inside a sentence or a range. */
 export const formatShortDate = (iso: string): string => formatDate(iso).slice(5);

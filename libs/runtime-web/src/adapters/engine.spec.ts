@@ -10,7 +10,6 @@ jest.mock('../createBridgedRuntime', () => ({
     createBridgedRuntime: (options: unknown) => mockCreateBridgedRuntime(options),
 }));
 
-// Imported after the mock, so the adapter builds the fake mirror.
 import { engineMirror } from './engine';
 
 const facts = { runtimeOffer: { contracts: [1] } } as unknown as WebHostFacts;
@@ -70,7 +69,6 @@ describe('engine.mirror', () => {
 });
 
 describe('engine.mirror through startRuntime', () => {
-    /** A declaration whose storage records whether it was built, and with which owner. */
     const declaration = (choice: SessionOwnerChoice, storageContexts: unknown[]) => {
         const fake = <P extends 'transport' | 'auth' | 'cache' | 'foreground'>(p: P) => ({
             default: { id: `${p}.fake` as `${P}.fake`, port: p, create: () => ({}) as RuntimePorts[P] },

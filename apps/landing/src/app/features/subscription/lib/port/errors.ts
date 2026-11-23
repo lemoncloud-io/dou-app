@@ -1,27 +1,3 @@
-/**
- * The one error a port method rejects with. A screen picks its copy from `code` and never reads the
- * message, which is for the console only.
- *
- * - `unauthenticated` — the session is gone. No screen handles this: the route root sends the visitor
- *   to sign in again and back to where they were.
- * - `notAllowed` — the session is fine, but the server will not sell to this account (it is a guest).
- *   Shown where it happened; the reader stays signed in.
- * - `notFound` — the id names nothing this account owns.
- * - `conflict` — the subscription's state does not allow the action (cancelling twice, deleting the
- *   default card, …).
- * - `limit` — a count ran out: billing emails, or card registration attempts.
- * - `invalidCode` — an email verification code that does not match.
- * - `network` — the request did not complete.
- * - `signInCanceled` / `signInExpired` — the sign-in round trip came back canceled, or too late
- *   (including a callback whose nonce does not match the attempt that started it). `detail.next` carries
- *   the return path the attempt started with, so trying again keeps it.
- * - `codeExpired` — the email verification code timed out; ask for a new one.
- * - `tooManyAttempts` — the code was entered wrong too often and no longer works; ask for a new one.
- * - `resendLimit` — no more codes for now; `detail.retryAt` is when asking works again.
- * - `disposableEmail` — a throwaway address, refused for billing mail.
- * - `invalid` — something the call needs was not given: a payer the payment provider requires with the
- *   card. Nothing was opened or sent.
- */
 export type SubscriptionPortErrorCode =
     | 'unauthenticated'
     | 'notAllowed'
@@ -38,13 +14,9 @@ export type SubscriptionPortErrorCode =
     | 'disposableEmail'
     | 'invalid';
 
-/** What some errors say beyond their code. */
 export interface SubscriptionPortErrorDetail {
-    /** `invalidCode` — wrong entries the code still allows. */
     attemptsLeft?: number;
-    /** `resendLimit`, or a `conflict` for asking too soon — when a new code may be asked for (ISO date-time). */
     retryAt?: string;
-    /** `signInCanceled` / `signInExpired` — the return path the sign-in started with. */
     next?: string;
 }
 

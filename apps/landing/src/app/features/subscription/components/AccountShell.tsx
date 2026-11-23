@@ -14,8 +14,6 @@ import { cn, formatDate } from '../utils';
 import { AccountMenu } from './AccountMenu';
 import { AccountTitleContext } from './PageHeader';
 
-// `screen` names the screens an entry belongs to (`lib/screens.tsx`); `needs`, the port method it is
-// left out without.
 const MENU = [
     { to: ROUTES.subscription.root, key: 'manage', end: true },
     { to: ROUTES.subscription.paymentMethods, key: 'paymentMethods', end: false, screen: 'cards' },
@@ -25,7 +23,6 @@ const MENU = [
 
 const itemClass = ({ isActive }: { isActive: boolean }) =>
     cn(
-        // Phone: a pill in the tab row. From `md`: a row of the sidebar's list.
         'shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-[13px] leading-[1.3] transition-colors',
         'md:rounded-lg md:px-3.5 md:py-2.5 md:text-sm md:leading-normal',
         isActive
@@ -33,16 +30,6 @@ const itemClass = ({ isActive }: { isActive: boolean }) =>
             : 'bg-line font-semibold text-mute hover:text-ink md:bg-transparent md:font-medium'
     );
 
-/**
- * The frame for managing a subscription already bought. From `md` a sidebar: the plan in force, the
- * management pages, cancelling, and the account menu at its foot. On a phone one bar and a row of tabs
- * — a back button and the page's title (which the page hands up through `PageHeader`), then the same
- * links as pills — with the account menu in the bar's empty right-hand slot. There is no usage or
- * credits entry — that is a later piece of work.
- *
- * It frames the routes nested under it; a page outside them that belongs in the same frame (the
- * scheduled-downgrade confirmation) passes itself as `children`.
- */
 export const AccountShell = ({ children }: { children?: ReactNode }): JSX.Element => {
     const { t } = useTranslation();
     const location = useLocation();
@@ -52,10 +39,7 @@ export const AccountShell = ({ children }: { children?: ReactNode }): JSX.Elemen
     const screens = useManagementScreens();
     const supports = useSupports();
     const [pageTitle, setPageTitle] = useState<string>();
-    // The same rule as the detail screen's buttons, so the sidebar never offers what the screen
-    // would refuse (a scheduled downgrade, for one, is cancelled from its own card first).
     const cancellable = !!subscription && sceneOf(subscription, today).actions.includes('cancel');
-    // The cancel page is the sidebar's own last entry, not part of "manage".
     const onCancel = location.pathname.endsWith('/cancel');
     const inManage = !onCancel && !MENU.slice(1).some(item => location.pathname.startsWith(item.to));
 
@@ -63,8 +47,6 @@ export const AccountShell = ({ children }: { children?: ReactNode }): JSX.Elemen
 
     return (
         <AccountTitleContext.Provider value={setPageTitle}>
-            {/* On a phone the page scrolls as one under the bar and tabs; from `md` the sidebar is a fixed
-                column with its own scrolling main beside it. */}
             <div className="flex h-full flex-col overflow-auto bg-background md:flex-row md:overflow-hidden">
                 <aside className="relative flex shrink-0 flex-col bg-background md:w-[286px] md:justify-between md:border-r md:border-line md:px-4 md:py-6">
                     <div className="flex h-[60px] items-center border-b border-surface p-2 md:hidden">
@@ -107,8 +89,6 @@ export const AccountShell = ({ children }: { children?: ReactNode }): JSX.Elemen
                                 </p>
                             )}
                         </div>
-                        {/* One nav for both widths: the cancel link is its last entry, and from `md` it drops to the
-                            sidebar's foot. */}
                         <nav className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-b border-line px-4 py-2 md:flex-1 md:flex-col md:gap-1 md:overflow-visible md:border-b-0 md:p-0">
                             {MENU.filter(
                                 item =>
@@ -119,8 +99,6 @@ export const AccountShell = ({ children }: { children?: ReactNode }): JSX.Elemen
                                     key={item.key}
                                     to={item.to}
                                     end={item.end}
-                                    // One subscription's page and the cancel page belong to "manage" too, as the
-                                    // list does — whatever is under the root that is not another entry's page.
                                     className={({ isActive }) =>
                                         itemClass({ isActive: item.key === 'manage' ? inManage : isActive })
                                     }

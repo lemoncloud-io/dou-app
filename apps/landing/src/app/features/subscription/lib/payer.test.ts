@@ -13,7 +13,6 @@ describe('payer', () => {
     it('holds a name to the card company limit of 30 bytes', () => {
         expect(isPayerName('김민지')).toBe(true);
         expect(isPayerName('   ')).toBe(false);
-        // Ten Korean syllables are 30 bytes in UTF-8; the eleventh is one too many.
         expect(isPayerName('가'.repeat(10))).toBe(true);
         expect(isPayerName('가'.repeat(11))).toBe(false);
         expect(isPayerName('a'.repeat(30))).toBe(true);

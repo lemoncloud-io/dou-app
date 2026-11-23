@@ -46,7 +46,6 @@ export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.
     const containerRef = useRef<HTMLDivElement>(null);
 
     const errorType = inferRouterErrorType(error);
-    // Called before the notFound early return below, so the hook order never depends on the error.
     const messages = useErrorScreenText(errorType === 'server' ? 'server' : 'unknown');
     const errorMessage = getErrorMessage(error, messages.unknownError);
     const errorStack = error instanceof Error ? error.stack : undefined;
@@ -87,21 +86,17 @@ export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.
             tabIndex={-1}
             className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background p-6 outline-none"
         >
-            {/* Logo */}
             <div className="mb-10 opacity-40">
                 <img src={Logo.logo} alt="DoU" className="h-16 w-16 object-contain" />
             </div>
 
-            {/* Icon */}
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-muted">{icon}</div>
 
-            {/* Title & Description */}
             <h2 className="mb-2 text-[18px] font-semibold leading-[1.5] text-foreground">{messages.title}</h2>
             <p className="mb-6 max-w-[280px] text-center text-[14px] leading-[1.571] text-muted-foreground">
                 {messages.description}
             </p>
 
-            {/* Error Detail (collapsible) */}
             <details className="mb-8 w-full max-w-[320px]">
                 <summary className="cursor-pointer text-center text-[12px] text-muted-foreground hover:text-foreground">
                     {messages.details}
@@ -113,7 +108,6 @@ export const RouterErrorFallback = ({ onError }: RouterErrorFallbackProps): JSX.
                 </div>
             </details>
 
-            {/* Actions */}
             <div className="flex w-full max-w-[280px] flex-col gap-3">
                 <Button
                     onClick={handleRetry}

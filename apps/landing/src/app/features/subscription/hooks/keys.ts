@@ -1,7 +1,3 @@
-/**
- * Query keys: `['subscription', <port method>, ...arguments]`. The shared first element is what lets a
- * sign-out drop every cached answer at once.
- */
 export const subscriptionKeys = {
     all: ['subscription'] as const,
     session: () => ['subscription', 'getSession'] as const,

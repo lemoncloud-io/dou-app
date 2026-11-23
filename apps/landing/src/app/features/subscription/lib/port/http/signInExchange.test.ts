@@ -44,8 +44,6 @@ describe('exchangeSignInCode', () => {
         expect(calls).toEqual(['guest:device-1', 'link:google:code-123456']);
     });
 
-    // A session left on the tab — expired, refused, or another account's — used to sign the exchange,
-    // and the gateway refused it with a 403 on every attempt. Each sign-in starts from the guest now.
     it('signs the guest in again on every sign-in, so no earlier session signs the exchange', async () => {
         const { session, calls } = signInSession();
         await exchangeSignInCode(session, () => 'device-1', 'google', 'code-111111');

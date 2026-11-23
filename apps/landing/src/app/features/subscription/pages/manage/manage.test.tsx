@@ -22,11 +22,6 @@ const Where = () => {
     return <output data-testid="where">{pathname + search}</output>;
 };
 
-/**
- * Renders the three management routes on a fresh mock in the given scenario, starting at `url`. The card
- * and billing-email screens are open unless `management` says otherwise — they are hidden by default in
- * the app (`lib/screens.tsx`), and the tests below say what each hides.
- */
 const renderAt = (
     url: string,
     search: string,
@@ -70,13 +65,10 @@ const renderAt = (
 
 const where = () => screen.getByTestId('where').textContent;
 
-/** What a tab on the server answers: only the methods it has a server for. */
 const onServer: PortSupports = method => (HTTP_METHODS as ReadonlyArray<string>).includes(method);
 const button = (name: string | RegExp) => screen.getByRole('button', { name });
 
 describe('W-10 subscription list', () => {
-    // Each row is drawn twice — a line of columns from `md`, a stacked block below — and CSS hides the
-    // one not in use, so a jsdom run (no CSS) finds both: these tests read the first, the wide one.
     const wide = (text: string | RegExp) => screen.getAllByText(text)[0];
 
     it('lists the subscription in force with its figures, and the ended one below', async () => {
@@ -218,7 +210,6 @@ describe('W-18 subscription detail', () => {
             await screen.findByText('Automatic payment scheduled');
             expect(screen.queryByText('Payment method')).toBeNull();
             expect(screen.queryByRole('button', { name: 'Payment methods' })).toBeNull();
-            // What stays: the plan change, cancelling and the billing history.
             expect(button('Change plan')).toBeTruthy();
             expect(button('Cancel subscription')).toBeTruthy();
         });

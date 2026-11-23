@@ -1,15 +1,9 @@
 import { planCatalogIn } from './catalog';
 import { SubscriptionPortError, type SubscriptionPort } from './port';
 
-/** Nothing but the plans exists here, so every other call answers as it would for a visitor. */
 const shut = (): Promise<never> =>
     Promise.reject(new SubscriptionPortError('unauthenticated', 'catalog only: nothing to sign in to'));
 
-/**
- * The port where the account surface is shut (`isSubscriptionAccountOpen`): a visitor who is never
- * signed in, looking at the published plans. It reads no URL, stores nothing and calls no server, so
- * the plans page can stand on the production host before there is a server to sign in to.
- */
 export const createCatalogPort = (): SubscriptionPort => ({
     getSession: () => Promise.resolve(null),
     listPlans: input => Promise.resolve(planCatalogIn(input?.currency ?? 'KRW')),

@@ -1,37 +1,12 @@
-/**
- * The shapes the subscription screens draw.
- *
- * These are defined by what the screens need rather than by the server's views. The HTTP port maps
- * what the server returns into these (`lib/port/http/wire.ts`); a field the
- * server cannot supply is a change to this file, not a workaround in a screen. The app's
- * `MembershipView` is not reused: web billing carries payment methods, invoices and billing emails
- * the app's model has no place for.
- *
- * Dates are ISO calendar dates (`2026-11-20`) unless a field says otherwise.
- */
-
-/** The server's product id without its leading `#`. The display name is copy: `DoU Cloud {sort}`. */
 export type PlanId = 'pro-tier-01' | 'pro-tier-02' | 'pro-tier-03' | 'pro-tier-04' | 'pro-tier-05';
 
-/** The currencies a plan is sold in. */
 export type Currency = 'KRW' | 'USD';
 
-/**
- * An amount with VAT included, in the currency's minor unit: won for `KRW` (which has none smaller),
- * cents for `USD`. The server's prices arrive this way and are carried as they are; only `formatMoney`
- * turns them into a currency's major unit for the reader.
- */
 export interface Money {
     amount: number;
     currency: Currency;
 }
 
-/**
- * Who registers and charges a card. Payments in won go through one provider and payments in US dollars
- * through another, and an account's cards, its default card and its subscription all belong to one of
- * them. Screens compare these and never print them: what the reader sees is the billing country and the
- * currency (`lib/billingCountry.ts`).
- */
 export type PaymentProvider = 'portone' | 'stripe';
 
 export interface Plan {
@@ -44,32 +19,20 @@ export interface Plan {
 
 export type SignInProvider = 'google' | 'apple';
 
-/** Who bills this account's subscription today. A store subscriber manages it in the store. */
 export type BillingSource = 'none' | 'web' | 'appStore' | 'googlePlay';
 
 export interface Account {
     id: string;
     provider: SignInProvider;
-    /** Apple may not share one. */
     email?: string;
-    /** A masked address to show when the full one is not available. */
     emailHint?: string;
     displayName?: string;
     billingSource: BillingSource;
     trialUsed: boolean;
-    /**
-     * Whether a first web subscription started now would begin with the free trial, as the server judges
-     * it for its own checkout. Absent from a server that does not say, where `trialUsed` is read instead.
-     */
     trialEligible?: boolean;
-    /** A store subscriber's plan and next charge, for the store notice. Absent for anyone else. */
     storeSubscription?: { planId: PlanId; nextBillingAt?: string };
 }
 
-/**
- * `pending` is a first payment whose result the payment provider has not reported yet: the plan is not
- * usable, and nothing can be changed, cancelled or removed until it settles as `active` or `expired`.
- */
 export type SubscriptionStatus =
     | 'pending'
     | 'trial'
@@ -84,48 +47,32 @@ export interface Subscription {
     planId: PlanId;
     status: SubscriptionStatus;
     startedAt: string;
-    /** Day of the month the subscription renews on. */
     billingDay: number;
     trialEndsAt?: string;
     nextBillingAt?: string;
     nextAmount?: Money;
-    /** `pastDue` and `restricted` — where the D-Day comes from. */
     failedAt?: string;
     restrictAt?: string;
-    /** Why the charge failed, in the payment provider's own words. */
     failureReason?: string;
-    /** When the failed charge is retried. */
     retryAt?: string[];
-    /** `cancelScheduled` and `expired`. */
     endsAt?: string;
     expiredAt?: string;
-    /** `expired` — subscribing again before this day keeps the clouds that were held. */
     restoreUntil?: string;
-    /** Why an ended subscription ended: cancelled, replaced by the next one, or a payment never recovered. */
     endedReason?: 'canceled' | 'replaced' | 'paymentFailed';
-    /** A scheduled downgrade. Not a status: the subscription stays `active` until it applies. */
     pendingChange?: { planId: PlanId; effectiveAt: string };
-    /** Subscribed again within the restore window after expiring. Also not a status. */
     restored?: boolean;
-    /** Who charges it — and so which of the account's cards it can be charged to. */
     provider: PaymentProvider;
     defaultPaymentMethodId?: string;
 }
 
 export interface PaymentMethod {
     id: string;
-    /** Who holds the card. A card can only pay a subscription of the same provider. */
     provider: PaymentProvider;
     brand: string;
     last4: string;
-    /**
-     * The expiry, and whether it is close. Not every provider reports a card's expiry, so these may be
-     * absent; a screen then draws no expiry and no expiry warning.
-     */
     expMonth?: number;
     expYear?: number;
     expiringSoon?: boolean;
-    /** The card its provider charges. Each provider has its own default, so an account can have two. */
     isDefault: boolean;
 }
 
@@ -156,19 +103,11 @@ export interface BillingInfo {
     emails: BillingEmail[];
 }
 
-/**
- * A verification code in flight for one billing address. The screen draws its countdowns from these
- * instants and its counters from these numbers; the rules behind them (how long a code lives, how often
- * it may be resent) belong to the server, not the screen. Instants are ISO date-times.
- */
 export interface EmailCodeTicket {
     emailId: string;
-    /** When the code stops working. */
     expiresAt: string;
-    /** The earliest a new code may be asked for. */
     resendAt: string;
     resendsLeft: number;
-    /** Wrong entries the current code still allows. */
     attemptsLeft: number;
 }
 
@@ -188,7 +127,6 @@ export interface ChangePreview {
     amountToday?: Money;
     effectiveAt: string;
     nextAmount: Money;
-    /** `trialUpgrade`: a trial may move down but not up — the server upgrades a paid period only. */
     blocked?: 'pastDue' | 'notAdjacent' | 'sameDayAsChange' | 'trialUpgrade';
 }
 
@@ -211,23 +149,12 @@ export type ChangePlanResult = PaymentAttempt | { scheduled: true; effectiveAt: 
 
 export type RegistrationOutcome = 'registered' | 'failed' | 'closed';
 
-/**
- * Who pays, as the won provider's card company requires it: a name, a phone number and an email with
- * every card, and again with every charge on it. Entered at checkout (W-08) or when a card is added,
- * only where the billing is in Korea, and never stored — the next card asks again. The dollar provider
- * asks for none of it.
- */
 export interface Payer {
     name: string;
     phone: string;
-    /** The verified billing address the receipts go to. */
     email: string;
 }
 
-/**
- * The card a registration produced, as the next call needs it. Opaque to the screens: a page only
- * carries it from `startPaymentMethodRegistration` to `startCheckout`, and only the port reads it.
- */
 export type CardToken = string & { readonly __cardToken: unique symbol };
 
 export type RegistrationResult = { outcome: 'registered'; card: CardToken } | { outcome: 'failed' | 'closed' };

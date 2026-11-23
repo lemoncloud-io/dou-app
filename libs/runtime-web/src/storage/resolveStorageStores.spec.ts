@@ -54,8 +54,6 @@ describe('resolveStorageStores', () => {
         expect(stores.vault).toBe(fakeVault);
     });
 
-    // Unreachable in practice — only a shell injects the flag or writes the mark — but the choice has
-    // always followed the flags for the vault and the shell test for plain state, and still does.
     it('keeps plain state in the tab when a vault flag is set outside a shell', () => {
         const stores = resolveStorageStores(
             { inShell: false, shellKeepsVault: true, lateVaultConfirmed: false },

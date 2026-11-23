@@ -10,7 +10,6 @@ interface PolicyPageLayoutProps {
     children: React.ReactNode;
     title: string;
     subtitle?: string;
-    /** Leave the three out for a policy that has no published version yet (no version picker). */
     versions?: readonly PolicyVersion[];
     currentVersion?: string;
     onVersionChange?: (version: string) => void;
@@ -29,7 +28,6 @@ export const PolicyPageLayout = ({
             className="w-full h-screen overflow-y-auto overflow-x-hidden scroll-smooth bg-white"
             style={{ WebkitOverflowScrolling: 'touch' }}
         >
-            {/* Logo Section */}
             <div className="w-full border-b border-[#eaeaec]">
                 <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-4 sm:py-5">
                     <Link to={ROUTES.root} className="inline-block hover:opacity-80 transition-opacity">
@@ -38,7 +36,6 @@ export const PolicyPageLayout = ({
                 </div>
             </div>
 
-            {/* Page Header */}
             <div className="w-full border-b border-gray-200">
                 <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8 sm:py-12">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
@@ -61,7 +58,6 @@ export const PolicyPageLayout = ({
                 </div>
             </div>
 
-            {/* Main Content */}
             <main className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-8 sm:py-12 md:py-16 pb-16 sm:pb-20 md:pb-24">
                 {children}
             </main>

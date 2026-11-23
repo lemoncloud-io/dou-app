@@ -13,7 +13,6 @@ jest.mock('@chatic/logger', () => ({
 
 const context: DataContextProvider = { getContext: () => ({ cid: 'c1', uid: 'u1' }), setContext: () => undefined };
 
-/** A store that answers each storage with a tag naming itself, so a test can see where a domain went. */
 const fakeStore = (name: string) => ({
     storage: jest.fn((type: CacheType) => ({ store: name, type }) as never),
     globalSearch: jest.fn(() => ({ search: name }) as unknown as IGlobalCacheSearchSource),
@@ -48,7 +47,6 @@ describe('routedCachePorts — route', () => {
         expect(compose('react-native-webview').ports.route('chat')).toBe('native');
     });
 
-    // The report lands after the ports are built; a route asked after it must hear it.
     it('reads the report at each decision', () => {
         let report: NativeCacheSupport | null = null;
         const { ports } = compose('react-native-webview', () => report);

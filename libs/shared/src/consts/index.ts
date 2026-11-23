@@ -1,12 +1,5 @@
 export * from './storeUrls';
 
-/**
- * UI messages per error type for ErrorFallback, RouterErrorFallback and NotFoundPage.
- *
- * These are the English defaults, not the copy a reader normally sees: the screens look each one up
- * under `error.screen.<type>.<field>` in the app's locale files and fall back to this text only when
- * the key or the whole bundle is missing (see `useErrorScreenText`).
- */
 export const ERROR_MESSAGES = {
     network: {
         title: 'Connection Error',

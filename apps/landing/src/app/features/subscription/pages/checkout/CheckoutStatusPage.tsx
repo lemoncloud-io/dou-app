@@ -35,15 +35,6 @@ import { LoadError, NoteBox, ResultActions, ResultCard, ResultHeader, primaryLin
 
 import type { Money, PaymentMethod, Plan, Subscription } from '../../types';
 
-/**
- * W-09 — a payment attempt (`?attempt=`) followed until it settles. The attempt's purpose picks the
- * copy: a first subscription (with or without a trial), an upgrade, or a retry of a failed renewal.
- * A first subscription or an upgrade that goes through moves on to W-06; a retry that goes through is
- * shown here. A failed or canceled one shows why and offers the way back to where it started.
- *
- * `?plan=` comes with attempts started on the checkout pages, and lets the screen name the amount.
- * `?outcome=` without an attempt is a payment window that ended before any attempt existed.
- */
 export const CheckoutStatusPage = (): JSX.Element => {
     const [params] = useSearchParams();
     const attemptId = params.get('attempt') ?? undefined;
@@ -54,7 +45,6 @@ export const CheckoutStatusPage = (): JSX.Element => {
     return <Navigate to={ROUTES.subscription.root} replace />;
 };
 
-/** The plan named by `?plan=`, if any. */
 const useQueryPlan = (): Plan | undefined => {
     const [params] = useSearchParams();
     const plans = usePlans();
@@ -80,12 +70,9 @@ const AttemptStatus = ({ attemptId }: { attemptId: string }): JSX.Element => {
     if (scene.kind === 'complete') {
         return <Navigate to={completeUrl(attempt.data.id, plan?.id)} replace state={location.state} />;
     }
-    // A card added on its own can only have been started from the card screens; with them hidden there is
-    // nothing of theirs to return to.
     if (scene.kind === 'cardAdded') {
         return <Navigate to={management ? ROUTES.subscription.paymentMethods : ROUTES.subscription.root} replace />;
     }
-    // The scene changes in place when the attempt settles; a live region lets a screen reader hear it.
     return (
         <div aria-live="polite">
             <StatusScreen scene={scene} plan={plan} subscriptionId={attempt.data.subscriptionId} />
@@ -93,10 +80,6 @@ const AttemptStatus = ({ attemptId }: { attemptId: string }): JSX.Element => {
     );
 };
 
-/**
- * The currency of the checkout this screen follows: its billing country's, which W-08 handed on in the
- * navigation state. A screen reached without it (a reload) names amounts in won.
- */
 const useCheckoutCurrency = () => {
     const details = checkoutDetailsOf(useLocation().state);
     return details && currencyOfCountry(details.country);
@@ -109,16 +92,10 @@ const RegistrationOutcome = ({ outcome }: { outcome: string }): JSX.Element => {
     const scene = registrationSceneOf(outcome, preview.data?.withTrial);
 
     if (!scene) return <Navigate to={ROUTES.subscription.root} replace />;
-    // The trial decides between the card and the payment copy; wait for it rather than flip once it lands.
     if (plans.isLoading || (plan && preview.isLoading)) return <PageLoader />;
     return <StatusScreen scene={scene} plan={plan} />;
 };
 
-/**
- * What the amount and the plan names in a scene's copy come from. Each is looked up only by the
- * variant that prints it, so a retry never asks for a checkout preview and a checkout never for a
- * subscription.
- */
 const useSceneFacts = (variant: AttemptVariant, plan: Plan | undefined, subscriptionId: string | undefined) => {
     const plans = usePlans();
     const checkout = usePreviewCheckout(variant === 'payment' ? plan?.id : undefined, useCheckoutCurrency());
@@ -129,7 +106,6 @@ const useSceneFacts = (variant: AttemptVariant, plan: Plan | undefined, subscrip
 
     let amount: Money | undefined;
     if (variant === 'payment') amount = checkout.data?.amountToday;
-    // A trial upgrade charges nothing, so there is no amount to name.
     if (variant === 'upgrade' && change.data?.amountToday?.amount) amount = change.data.amountToday;
     if (variant === 'retry') amount = subscriptionPlan?.monthly;
 
@@ -137,8 +113,6 @@ const useSceneFacts = (variant: AttemptVariant, plan: Plan | undefined, subscrip
         amount,
         subscription: subscription.data,
         subscriptionPlan,
-        // The card is the default of the provider the subscription is charged by; before there is a
-        // subscription to ask, whichever default there is.
         card: subscription.data
             ? methods.data && defaultCardOf(methods.data, subscription.data.provider)
             : methods.data?.find(method => method.isDefault),
@@ -271,12 +245,10 @@ const FailedScene = ({
     const key = (name: string) => `subscription.checkout.status.failed.${name}`;
     const keepPlan = subscriptionPlan ? t(`subscription.checkout.planEul.${subscriptionPlan.sort}`) : '';
 
-    // The reason names the next step, which differs between registering a card and charging one.
     const reason = t(key(`reason.${failure}`), {
         next: t(key(variant === 'card' ? 'reasonNext.register' : 'reasonNext.pay')),
     });
 
-    // The card screens are hidden, so what would have sent the reader to them goes with them.
     const manageCards = management ? (
         <Link
             to={ROUTES.subscription.paymentMethods}
