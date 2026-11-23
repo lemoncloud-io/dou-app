@@ -1,7 +1,6 @@
 import { ShellCore, type ShellTraffic } from './shellCore';
 import { ShellFailure } from './handlerTable';
 
-/** A transport that records what it dispatched; `answer` decides each delivery's outcome. */
 const recordingTransport = (answer: (raw: string) => boolean | Promise<boolean> = () => true) => {
     const sent: Array<{ type: string; [key: string]: unknown }> = [];
     return {

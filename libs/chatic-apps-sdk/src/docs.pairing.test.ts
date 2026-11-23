@@ -3,17 +3,8 @@ import { join } from 'node:path';
 
 import { POINTER_LINES, firstLine, shapeOf } from './docsPairing';
 
-/**
- * The author documents ship in English and in Korean (`.ko.md` beside each). The English file is the
- * canonical one; this keeps the two from drifting apart in shape: the same headings, the same code
- * blocks, and each pointing at the other on its first line. Whether the translation says the same
- * thing is a reviewer's to judge — a change to one file's content goes with the same change to the
- * other, in the same pull request.
- */
-
 const PACKAGE = join(__dirname, '..');
 
-/** Each English document, its Korean pair, and the name the English one ships under. */
 const PAIRS = [
     { english: 'README.md', korean: 'README.ko.md' },
     { english: 'docs/guide/README.md', korean: 'docs/guide/README.ko.md' },

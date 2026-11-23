@@ -51,8 +51,6 @@ describe('isSampledRun', () => {
         const runIds = Array.from({ length: 10_000 }, (_, i) => `run-${i}-${i * 7919}`);
         const sampled = runIds.filter(runId => isSampledRun(runId, 10)).length;
 
-        // A hash, not a generator: the tolerance is wide enough that this asserts
-        // "roughly a tenth" rather than pinning FNV's exact distribution.
         expect(sampled / runIds.length).toBeGreaterThan(0.07);
         expect(sampled / runIds.length).toBeLessThan(0.13);
     });

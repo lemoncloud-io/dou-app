@@ -10,7 +10,6 @@
 | Instruction size       | AGENTS.md lines + SKILL.md body lines                                                                                       | `node scripts/check-instructions-size.js --report`                                              |
 | Cache hit ratio        | cache read / (cache read + cache creation + uncached input), per session, median                                            | `references/cache-usage.mjs`                                                                    |
 | Tokens per session     | median cache read, cache creation and output tokens per session                                                             | `references/cache-usage.mjs`                                                                    |
-| Auto-merge revert rate | auto-merged PRs later reverted, / auto-merged PRs                                                                           | `gh pr list --label auto-merge`, revert commits naming the PR                                   |
 
 Count usage once per `message.id`; a streamed message appears on several lines. Exclude `subagents/`
 transcripts from per-session numbers and report them separately when asked.

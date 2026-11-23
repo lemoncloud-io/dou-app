@@ -10,11 +10,6 @@ import {
 
 import type { PerfTraceName, PerfTraceResult } from './types';
 
-/**
- * Every attribute and metric each existing trace records today, and so everything Firebase has been
- * receiving. Written out by hand on purpose: if the catalogue's Firebase list drifts from this, the
- * data Firebase receives has changed, and the comparison against the pipeline is off.
- */
 const FIREBASE_TODAY: Record<string, { attributes: string[]; metrics: string[] }> = {
     boot: {
         attributes: ['boot_type'],

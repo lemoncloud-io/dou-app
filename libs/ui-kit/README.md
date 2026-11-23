@@ -77,10 +77,11 @@ and desktop-web, the other app that raises toasts, no longer renders it.
 1. **Regenerable by default.** A file under `components/ui/` is the generator's output and stays
    that way unless there is a reason it cannot. 12 of the 22 modules have not been touched since
    `shadcn add` wrote them.
-2. **A local edit carries the reason in a comment.** The three overlay files that read `--app-width`
-   each explain, in place, why a `fixed` element portalled to `document.body` has to re-declare the
-   host's width cap. An unexplained edit is indistinguishable from upstream drift the next time
-   somebody regenerates.
+2. **A local edit carries its reason in this README.** The three overlay files that read `--app-width`
+   re-declare the host's width cap because a `fixed` element portalled to `document.body` escapes the
+   column the app shell centres its screens in. An unexplained edit is indistinguishable from upstream
+   drift the next time somebody regenerates, and source files take no new comments, so the reasons
+   live here, in the table below and in "Why a few overlay classes are written the way they are".
 3. **Behaviour here, appearance in the host.** Components take Radix behaviour and semantic
    Tailwind classes. They never hard-code a hex, and they never read app state.
 4. **No barrel over `components/ui/`.** Deep paths are the public API. Adding an `index.ts` that
@@ -239,6 +240,29 @@ table row: `alert-dialog` takes `buttonVariants` from `button` and its height ca
 
 The toast is the lopsided one. 79 files call `useToast()`; exactly two mount the `<Toaster />` that
 renders what they queue.
+
+## Why a few overlay classes are written the way they are
+
+- **`slide-up` durations are `data-[state=…]:duration-*` variants, not a plain `duration-*`.**
+  `animate-in` and `animate-out` each declare their own `animation-duration` and are variant-scoped, so
+  Tailwind emits them after every unprefixed utility: a plain `duration-500` loses the cascade and the
+  panel runs at the plugin's 150ms default, which is over before the eye resolves a full-viewport
+  translate, so only the fade registers. `sheet.tsx` was always written the variant way.
+- **`slide-up` holds opacity at 1 in both directions** (`fade-in-100`, `fade-out-100`). The base class
+  fades every variant, right for a card appearing in place and wrong for a panel that announces itself
+  by moving: a sheet that dissolves while it slides looks like two effects competing.
+- **The centred dialog's height cap exists because a centred card is placed by its middle.** One taller
+  than the window loses its title off the top and its buttons off the bottom with nothing to scroll; a
+  desktop window can be 480px tall. The cap keeps 1rem clear at each edge and scrolls the panel, and
+  uses `dvh` so a mobile browser's collapsing toolbar is not counted as room. A dialog that wants one
+  region to give way first lays itself out as a flex column and lets that region shrink.
+- **`useToastLift` keeps a registry instead of each bar writing `--toast-lift`.** Bars come and go out
+  of order (a dialog's CTA opens over the tab bar, the tab bar steps aside for the keyboard while the CTA
+  stays), and a bar that put back the value it found would restore a lift for a bar that is gone. The
+  tallest active lift wins, since that is the bar the toast has to clear. It is a layout effect so a
+  toast raised in the commit that shows the bar is already lifted.
+- **The toast's reduced-motion rule is stated per state.** A bare `motion-reduce:animate-none` is one
+  attribute selector short of the `data-[state=…]` animation rules and never wins.
 
 ## Regenerating a component
 

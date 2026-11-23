@@ -150,7 +150,9 @@ as the start's config set-up and its `storage.mobile-vault` adapter:
    tokens at the next launch — and the logout empties the vault before it ends anyway. The app has no
    web storage behind it, so the step's web copy and tab are empty. When the step leaves the vault with
    no session (`empty`, or `logout-finished`), `loadNativeSession` throws `NativeRuntimeNoSessionError`
-   and the start creates nothing: the page takes that launch. Only the page's boot can move a session out of the page's own
+   and the start creates nothing: the page takes that launch, and the address a session's end saved is
+   removed then — the page hears the same end on its own address, and nothing else would read the saved
+   one until a runtime launch days later. Only the page's boot can move a session out of the page's own
    `localStorage`, where an install updating from an app without a vault still has it, and on a
    signed-out install the page signs a guest in as the runtime would have. The next launch finds a
    session in the vault and is the runtime's. A vault that could not be read is not a missing session;

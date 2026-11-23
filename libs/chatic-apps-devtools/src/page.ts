@@ -153,7 +153,6 @@ export const openPage = (source: PageSource, options: OpenOptions = {}): OpenedP
         virtualConsole,
     });
     const { window } = dom;
-    // What a page cannot do in a window with no browser, made harmless rather than an error of its own.
     window.open = () => null;
     window.scrollTo = () => undefined;
     const onRejection = (reason: unknown) => errors.push(`Unhandled rejection: ${describe(reason)}`);
@@ -161,7 +160,6 @@ export const openPage = (source: PageSource, options: OpenOptions = {}): OpenedP
     try {
         options.beforeScripts?.(window);
     } catch (error) {
-        // Nothing of the page has run: leave nothing behind, and say why.
         process.off('unhandledRejection', onRejection);
         window.close();
         throw error;

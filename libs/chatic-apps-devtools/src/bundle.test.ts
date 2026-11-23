@@ -5,7 +5,6 @@ import { inflateRawSync } from 'node:zlib';
 
 import { bundle } from './bundle';
 
-/** The entries of a zip, read back from its central directory: name and contents. */
 const readZip = (archive: Buffer) => {
     const end = archive.length - 22;
     const count = archive.readUInt16LE(end + 10);

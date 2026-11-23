@@ -55,9 +55,9 @@ export const zip = (files: Array<{ name: string; data: Buffer }>): Buffer => {
         const crc = crc32(data);
         const local = Buffer.alloc(30);
         local.writeUInt32LE(0x04034b50, 0);
-        local.writeUInt16LE(20, 4); // version needed
-        local.writeUInt16LE(0x0800, 6); // names are UTF-8
-        local.writeUInt16LE(8, 8); // deflate
+        local.writeUInt16LE(20, 4);
+        local.writeUInt16LE(0x0800, 6);
+        local.writeUInt16LE(8, 8);
         local.writeUInt16LE(DOS_TIME, 10);
         local.writeUInt16LE(DOS_DATE, 12);
         local.writeUInt32LE(crc, 14);
@@ -67,7 +67,7 @@ export const zip = (files: Array<{ name: string; data: Buffer }>): Buffer => {
         locals.push(local, path, packed);
         const entry = Buffer.alloc(46);
         entry.writeUInt32LE(0x02014b50, 0);
-        entry.writeUInt16LE(20, 4); // version made by
+        entry.writeUInt16LE(20, 4);
         entry.writeUInt16LE(20, 6);
         entry.writeUInt16LE(0x0800, 8);
         entry.writeUInt16LE(8, 10);
@@ -97,7 +97,6 @@ export const bundle = (options: BundleOptions): BundleResult => {
     const distDir = resolve(root, options.dist ?? 'dist');
     const file = resolve(root, options.out ?? `${basename(root)}.zip`);
     if (!existsSync(distDir)) throw new Error(`No build at ${distDir}: build the page first.`);
-    // Inside the build folder, the next bundle would pack this one's zip too.
     if (!relative(distDir, file).startsWith('..')) {
         throw new Error(`${file} is inside the build folder; write the zip outside ${distDir}.`);
     }

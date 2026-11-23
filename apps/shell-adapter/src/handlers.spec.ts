@@ -4,7 +4,6 @@ import { launch } from './checkout';
 import handlers, { APP_SCHEME_OPEN_UNSUPPORTED, APPLE_SIGN_IN_UNSUPPORTED, STORE_NOT_IMITATED } from './handlers';
 import { mobileRoutes } from './routes';
 
-/** The shell's side of a call, with only what these handlers read. */
 const context = (platform: 'ios' | 'android' = 'ios') => {
     const lines: Array<{ source: string; type: string }> = [];
     const signIn = vi.fn(async () => ({ provider: 'google' as const, platform, idToken: 'id-token' }));
@@ -142,7 +141,6 @@ describe('the shell handlers', () => {
                 message: STORE_NOT_IMITATED,
             });
             await expect(call('Purchase', { id: 'p' }, shell)).rejects.toMatchObject({ code: 'NOT_FOUND' });
-            // The web's purchase waits for an event, not the reply, so the refusal is sent as one too.
             expect(shell.notify).toHaveBeenCalledWith('OnPurchaseError', {
                 error: { code: 'iap-not-available', message: STORE_NOT_IMITATED },
             });

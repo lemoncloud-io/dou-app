@@ -179,8 +179,6 @@ export const runtimeOver = (
     report: (error: unknown) => void
 ): ChaticAppsData & { reset(): void; dispose(): void } => {
     let hello: Promise<Hello> | null = null;
-    // Ends the hello in flight. With no timeout, a hello whose reply goes to a host that is gone — a
-    // page restored from the back-forward cache meets a new one — would otherwise never settle.
     let abandonHello: ((error: ChaticAppsError) => void) | null = null;
     let answered: Hello | null = null;
     let session: CloudSession | null = null;
@@ -204,7 +202,6 @@ export const runtimeOver = (
         cloudListeners.forEach(listener => safely(listener));
     };
 
-    // Every failure goes through here, so a call that meets the cloud change tells the listeners too.
     const failed = (error: unknown): never => {
         if (error instanceof ChaticAppsError && error.code === 'CLOUD_CHANGED') markCloudChanged();
         throw error;
@@ -250,8 +247,6 @@ export const runtimeOver = (
             const abandoned = new Promise<never>((_, reject) => {
                 abandonHello = reject;
             });
-            // No timeout: the app answers once the user has been asked whether this page may read the
-            // cloud, and a person reading that question takes as long as they take — as with `share`.
             const attempt: Promise<Hello> = Promise.race([
                 client.request<Hello>('RuntimeHello', { contracts: [...SDK_DATA_CONTRACTS] }, { timeoutMs: null }),
                 abandoned,
@@ -264,7 +259,6 @@ export const runtimeOver = (
                     return reply;
                 })
                 .catch(error => {
-                    // Not kept: the user may allow the page next time it asks.
                     if (hello === attempt) hello = null;
                     return failed(error);
                 });
@@ -283,7 +277,6 @@ export const runtimeOver = (
         }
     };
 
-    // One untyped body behind both of the interface's `call` signatures.
     const call = async (method: string, ...args: unknown[]): Promise<never> => {
         await allowedFor('calls', method);
         const reply = await client
@@ -320,9 +313,6 @@ export const runtimeOver = (
         };
     };
 
-    // A place profile is the row `<place id>@<user id>`, and the app answers only the place the view
-    // opened on: the place and, for the user's own, the user's id are read off the session, so neither
-    // needs a method of its own on the app's side.
     const placeOf = async (): Promise<string> => {
         await connect();
         const place = session?.committedSiteId;
@@ -378,7 +368,6 @@ export const runtimeOver = (
             cloudListeners.add(listener);
             return () => cloudListeners.delete(listener);
         },
-        // A page restored from the back-forward cache meets a new host: its streams are gone there.
         reset: () => {
             abandonHello?.(
                 new ChaticAppsError('DISCONNECTED', 'The page was restored before the app answered. Connect again.')

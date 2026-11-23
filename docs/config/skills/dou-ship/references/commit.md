@@ -14,6 +14,9 @@ else. English.
   every launch"). A commit carrying a decision may end with `(ADR-0NNN)`.
 - Lines of the body stay at 100 characters or fewer.
 - One concern per commit: when the type or the scope splits, the commit splits.
+- End with a `Verified-by:` trailer naming the methods that actually ran, from the verification report:
+  `Verified-by: gate, web-e2e, chaos`, or `Verified-by: none` (by convention with the reason in the body). The commit
+  hook checks only that the trailer is there.
 
 ```
 fix(runtime): end a server-revoked relay session on auth.switch

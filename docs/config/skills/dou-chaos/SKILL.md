@@ -3,8 +3,9 @@ name: dou-chaos
 description: >-
     Inject faults — socket drops, held or slow replies, server errors, offline, expired tokens, app background
     and resume — into a web-e2e scenario and check the app recovers. Use when session, transport, sync, outbox,
-    reconnect or retry code changed, when a bug only shows on a flaky network, or when asked "what happens if
-    the connection drops". Also the reproduction step for dou-failure-hunt findings.
+    reconnect or retry code changed, when a bug only shows on a flaky network, or when asked whether a change
+    holds up when the socket drops, reconnects or goes offline ("what happens if the connection drops", "is
+    this fine across a reconnect"). Open it before reading the code. Also reproduces dou-failure-hunt findings.
 ---
 
 # dou-chaos

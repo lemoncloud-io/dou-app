@@ -4,7 +4,8 @@ description: >-
     Inject large volumes (thousands of messages, hundreds of rooms, many images) into the web app and measure
     render time, long tasks, memory and request counts, before and after a change. Use when a list, cache,
     paging, virtualisation, image loading or any performance-motivated change is made, or when asked whether
-    something is faster, slower or scales.
+    something is faster, slower, "still fast with N rooms/messages" or scales. Measure; do not answer from the
+    diff alone.
 ---
 
 # dou-load

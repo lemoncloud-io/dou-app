@@ -104,7 +104,6 @@ export const createBridgeClient = (transport: Transport, defaultTimeoutMs = DEFA
             }
             return;
         }
-        // One listener that throws must not keep the push from the rest.
         pushListeners.get(message.type)?.forEach(listener => {
             try {
                 listener(message.data);
@@ -145,7 +144,6 @@ export const createBridgeClient = (transport: Transport, defaultTimeoutMs = DEFA
             closed = true;
             stop();
             if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility);
-            // Nothing would ever settle them: the replies can no longer arrive.
             for (const entry of pending.values()) {
                 if (entry.timer) clearTimeout(entry.timer);
                 entry.reject(new ChaticAppsError('DISCONNECTED', 'The connection to the app was closed.'));

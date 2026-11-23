@@ -11,6 +11,6 @@ model: sonnet
 Edit only the paths you are given. Never stage, commit, stash, switch branches or push.
 
 For comment removal follow `docs/config/skills/dou-cleanup/SKILL.md`: delete comments only, keep the allowed
-exceptions, and finish with `node docs/config/skills/dou-cleanup/references/ast-equality.mjs` showing every
-file `identical`. Report the files changed, the proof output, and any comment whose reasoning you moved into a
+exceptions, and finish with `node scripts/comment-only-diff/cli.js` exiting 0 (every file proven) once the main
+thread has committed your edits. Report the files changed, the proof output, and any comment whose reasoning you moved into a
 module doc.

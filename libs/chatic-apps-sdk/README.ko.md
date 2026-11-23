@@ -115,7 +115,9 @@ try {
 
 - **`share`**는 iOS에서 `'shared'` 또는 `'dismissed'`로 resolve된다. Android에서는 선택 창이 열리는 즉시, 사용자가
   그 뒤 무엇을 하든 `'shared'`로 resolve된다. 공백이 아닌 `message` 또는 `url`이 필요하고, `url`은 `http(s)`여야
-  한다. `title`, `message`, `url`은 각각 최대 100자, 4,000자, 2,048자다.
+  한다. `title`, `message`, `url`은 각각 최대 100자, 4,000자, 2,048자다. 브라우저에서는 사용자가 직접 취소한
+  경우에만 `'dismissed'`로 resolve되고, 그 밖의 Web Share 실패(사용자 제스처 없음, 거부된 페이로드)는 텍스트를
+  복사하는 쪽으로 넘어가 `'copied'`로 resolve된다.
 - **`link(params)`**는 링크에 실을 값을 객체로 받아, `link({ level: 3, seed: 7 })`에 대해
   `https://app.chatic.io/apps/<app id>?level=3&seed=7`을 준다. 탭하면 앱에서 페이지가 그 쿼리와 함께 **루트에서**
   열린다 — `location.search`에서 읽는다. 링크는 경로도 프래그먼트도 싣지 않는다. 앱이 설치되지 않은 곳에서는
@@ -127,7 +129,9 @@ try {
   로그아웃 후에도 남고 앱을 삭제하면 사라진다. 사용자가 다른 휴대폰으로 옮겨도 따라가지 않는다. 사이트당 모두
   합쳐 1,048,576자(키와 JSON으로 된 값)를 쓸 수 있고 — 넘으면 쓰기가 `QUOTA_EXCEEDED`로 실패하고 아무것도
   바뀌지 않는다 — 키는 1–200자(`__proto__` 제외), 한 번의 호출은 최대 64 KiB(`TOO_LARGE`)다. 값 하나는 한 번의
-  호출로 쓰이므로 값 하나는 64 KiB 미만이어야 한다. 그보다 큰 것은 여러 키로 나눈다.
+  호출로 쓰이므로 값 하나는 64 KiB 미만이어야 한다. 그보다 큰 것은 여러 키로 나눈다. 값은 JSON을 거쳐도 남아야
+  한다: `undefined`, 함수, 심볼은 아무 말 없이 버려져 아무것도 저장되지 않으므로 `set`이 `INVALID`로 거절한다(대신
+  키를 지운다).
 - **`permissions`**는 카메라와 마이크용이며, 페이지는 이를 브라우저 자체의 `getUserMedia`로 사용한다 — OS가
   처음에 DoU의 이름으로 사용자에게 묻기 때문에 사용자의 답은 이 페이지만이 아니라 모든 페이지에 적용된다.
   `query(kind)`는 아무것도 보여 주지 않고 `'granted'`, `'prompt'`(아직 묻지 않았거나, 거부되었지만 다시 물을 수
@@ -136,7 +140,10 @@ try {
   resolve된다. `openSettings()`는 OS 설정에서 DoU의 페이지를 열며, `'blocked'`에서 벗어나는 유일한 방법이다. 시작할 때가
   아니라 사용자가 기능을 쓰려 할 때 묻고, `request`에 타임아웃을 걸지 않는다: 사용자를 기다리기 때문이다.
   페이지는 이 모든 것을 건너뛰고 `getUserMedia`를 호출할 수도 있다. 그러면 캡처 도중에 권한 요청 창을 만난다.
-  브라우저에서는 같은 호출이 브라우저 자체의 권한을 읽고 요청하며, `openSettings()`는 `NOT_IN_APP`이다.
+  브라우저에서는 같은 호출이 브라우저 자체의 권한을 읽고 요청하며, `openSettings()`는 `NOT_IN_APP`이다. 이때
+  `query`는 브라우저가 알 수 없으면(Permissions API가 없거나 그 종류에 대해 없음) `'prompt'`로 읽히고, `request`는
+  기기가 사용 중이거나 페이지가 안전하지 않으면 `INTERNAL_ERROR`로 실패한다 — 사용자의 답이 아니므로, `'prompt'`로
+  읽으면 페이지가 끝없이 다시 묻게 된다.
 - **잡히지 않은 오류는 자동으로 보고된다.** `connect()`는 `error`와 `unhandledrejection`을 듣고 DoU의 로그로
   보낸다. `Error`는 메시지와 스택을, 문자열은 그 자체를, 그 밖의 것은 타입만 보낸다. 끄려면
   `connect({ reportErrors: false })`를 넘긴다.
@@ -451,6 +458,11 @@ const params = apps.context?.params as Partial<MiniAppLaunchParams> | undefined;
   `getUserKey()`로 보관한다.
 - **팝업 없음**: `window.open`과 `target="_blank"`는 같은 뷰에 로드되므로, `window.opener`로 응답하는 로그인은
   동작하지 않는다. 리다이렉트 로그인을 쓴다.
+- **뒤로/앞으로 캐시(back-forward cache)**: 여기서 복원된 페이지는 핸들러는 유지하지만 claim은 유지하지 못하고
+  새 호스트를 만난다. SDK가 다시 handshake하고, 컨텍스트를 지금 상태로 받아 오며(페이지가 떠나 있는 동안 테마가
+  바뀌었을 수 있다) `onBack`과 `onCloseRequest` claim을 다시 설정한다. 데이터 스트림은 `DISCONNECTED`로 끝나므로
+  다시 구독한다.
+- **claim이 없을 때 Android 뒤로 가기**는 뷰 자체의 히스토리로 가고, 남은 것이 없으면 뷰를 닫는다.
 - **다운로드**: 파일 다운로드는 iOS에서도 데스크톱에서도 처리되지 않는다. 대신 내용을 보여 준다.
 - **데스크톱에서는** (`platform: 'desktop'`) 페이지가 DoU 위의 바가 있는 창에서 열린다: 기본 요청(`finish`,
   `setTitle`, 오류 보고)만 되고, 카메라나 마이크는 없으며, `apps.chatic.io` 아래가 아닌 사이트는 항상 바에 자기

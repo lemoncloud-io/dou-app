@@ -44,8 +44,6 @@ const serialize = (value: unknown): string | null => {
 };
 
 export const storageOver = (backend: StorageBackend): ChaticAppsStorage => {
-    // The message to the app is JSON, which drops an `undefined`, a function or a symbol without a
-    // word: the write would succeed and store nothing. Refused here, as the browser and the mock do.
     const setMany = (entries: { [key: string]: unknown }) =>
         Object.values(entries ?? {}).every(value => serialize(value) !== null)
             ? backend.set(entries).then(() => undefined)
@@ -80,8 +78,6 @@ export interface StoreFile {
 
 type Outcome<T> = { ok: true; value: T } | { ok: false; code: 'INVALID' | 'QUOTA_EXCEEDED' };
 
-// `__proto__` is refused, as the app refuses it: as a property of the entries it would set their
-// prototype rather than hold the value.
 const validKey = (key: unknown): key is string =>
     typeof key === 'string' && key.length >= 1 && key.length <= KEY_LIMIT && key !== '__proto__';
 
