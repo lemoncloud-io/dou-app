@@ -7,48 +7,21 @@ import type { MediaPort } from './media';
 import type { PushPort } from './push';
 import type { SignInPort } from './signIn';
 
-/**
- * Who does a domain's work on this host: the shell — the app around the page — through its bridge, or
- * the browser, with what any browser engine offers the page. Every port from `media` on carries this
- * choice, and only the choice: the implementations take their types from the data layer and the
- * runtime, so they live in the app that uses them and read the port to know whether the shell's side
- * applies.
- *
- * `shell` is the word the workspace already uses for the native container, and `browser` names the
- * means every host has. "app" and "page" were avoided: they already name the projects under `apps/`,
- * mini apps, screens and pages of a feed.
- */
 export type ShellOrBrowser = 'shell' | 'browser';
 
-/** The phone platform the app said it runs on, where the shell does the work; `null` anywhere else. */
 export type HostOs = 'ios' | 'android' | null;
 
-/**
- * What the host does for a feature, one field per capability port.
- *
- * Every field is required. A host that cannot do something gets an implementation that says so —
- * never a missing field that a feature then fills with a browser's answer.
- */
 export interface HostPorts {
-    /** How this host sells a subscription: through an app store, by handing over to the website, or not at all. */
     checkout: CheckoutPort;
-    /** Who picks the photos, videos and documents a person attaches: the app, or the page's own input. */
     media: MediaPort;
-    /** Who moves a message's files — uploads, downloads, a video's first frame: the app, or the page's own requests. */
     files: FilesPort;
-    /** Who takes links out of the page: the OS browser, the clipboard, share intake, invites. */
     links: LinksPort;
-    /** Who runs the frame around the page: icon, badge, haptics, back, keyboard, theme and language, update. */
     appShell: AppShellPort;
-    /** Who signs a person in with a provider, links accounts and approves a second device's pairing. */
     signIn: SignInPort;
-    /** Where logs, telemetry, issue reports and boot metrics go. */
     diagnostics: DiagnosticsPort;
-    /** Who registers this device for notifications and receives them. */
     push: PushPort;
 }
 
-/** The ports' names, in `HostPorts`' order. */
 export const HOST_PORT_NAMES = [
     'checkout',
     'media',

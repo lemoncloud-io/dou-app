@@ -11,16 +11,10 @@ jest.mock('@chatic/logger', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-/**
- * The real chatic-sockets-lib client, built by the real SocketManager, over a fake WebSocket. Auth
- * and reconnect are off so nothing but the test touches the socket; the keep-alive is shortened so a
- * pong-timeout happens within the test.
- */
 const CONNECTING = 0;
 const OPEN = 1;
 const CLOSED = 3;
 let currentSocket: (SocketLike & { emit(type: string, event?: unknown): void }) | undefined;
-/** Per test: the reconnect controller is off unless a case turns it on; the keep-alive is short. */
 let reconnectOption: false | Record<string, unknown> = false;
 const SHORT_KEEP_ALIVE = { intervalMs: 20, timeoutMs: 10, maxMissedPongs: 1 };
 let keepAliveOption: false | Record<string, unknown> = SHORT_KEEP_ALIVE;
@@ -41,9 +35,6 @@ jest.mock('@lemoncloud/chatic-sockets-lib', () => {
 
 const makeSocket = () => {
     const listeners = new Map<string, Set<(event?: unknown) => void>>();
-    // Starts CONNECTING, as a real WebSocket does. One created already OPEN is taken as open the
-    // moment the transport subscribes, before the transport has stored its connect attempt, and that
-    // attempt is then never cleared — every later connect() returns it instead of opening a socket.
     let readyState = CONNECTING;
     const socket: SocketLike & { emit(type: string, event?: unknown): void } = {
         get readyState() {
@@ -68,7 +59,6 @@ const makeSocket = () => {
     return socket;
 };
 
-// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
 beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('classifySocketClose', () => {
@@ -98,13 +88,6 @@ describe('classifySocketClose', () => {
     });
 });
 
-/**
- * The close reason leans on three things chatic-sockets-lib does but does not publish: a `transport`
- * with an `on('close')` that carries the code and reason, a client that subscribes to it ahead of
- * everyone else and rejects its requests there, and a `closing` state that only a local close goes
- * through. This drives the real client so an SDK upgrade that changes any of them fails here, instead
- * of turning every 499 into `transport` without anyone noticing.
- */
 describe('close reasons against chatic-sockets-lib', () => {
     const connectedManager = async () => {
         currentSocket = makeSocket();
@@ -135,8 +118,6 @@ describe('close reasons against chatic-sockets-lib', () => {
         manager.destroy();
     });
 
-    // In the app every client has a reconnect controller, and `disconnect` goes through its `stop`
-    // and back: the reason has to survive that round trip.
     it('names a 499 from the wake probe after its reason, through the reconnect controller', async () => {
         reconnectOption = { minDelayMs: 60_000 };
         const { manager, client, samples } = await connectedManager();
@@ -192,14 +173,6 @@ describe('close reasons against chatic-sockets-lib', () => {
     });
 });
 
-/**
- * The connection rotation calls the reconnect controller's `restart()`. In chatic-sockets-lib 0.5.7
- * that closes the socket through the controller's own `stop()` and never connects again, so
- * SocketManager reopens it. This pins both halves against the real client: a restart is named
- * `service_restart`, the socket is still closed when `restart()` returns, and the slot comes back.
- * An SDK release that fixes the restart makes this fail — `restart()` then waits for an `open` this
- * test never sends — and that failure is the signal to retire `reopenAfterRestart`.
- */
 describe('a restart against chatic-sockets-lib', () => {
     afterEach(() => {
         currentSocket = undefined;
@@ -220,7 +193,6 @@ describe('a restart against chatic-sockets-lib', () => {
         manager.setRequestObserver(sample => samples.push(sample));
 
         const request = manager.request('chat.feed').catch(() => undefined);
-        // The next connection gets a socket of its own.
         const first = currentSocket;
         currentSocket = makeSocket();
         await client.reconnect?.restart();

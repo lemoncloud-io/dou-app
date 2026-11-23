@@ -24,29 +24,19 @@ import type {
     StartedRuntime,
 } from './types';
 
-/** The part of `@chatic/config`'s facade the start uses. */
 export type RuntimeConfigAccess = Pick<ConfigFacade, 'init' | 'isInitialized' | 'snapshot'>;
 
-/** What a test, or an unusual entry point, swaps out. Production leaves every field out. */
 export interface StartRuntimeOptions {
-    /** The config the toggles are read from and initialised in; `@chatic/config`'s `config` by default. */
     config?: RuntimeConfigAccess;
-    /** Reads a port's toggle; `config.snapshot` by default. */
     read?: PortChoiceReader;
-    /** Assembles the runtime from the built ports; runtime-core's `createRuntime` by default. */
     createRuntime?: (config: RuntimeConfig) => RuntimeEngine;
-    /** Hands the engine to the React surface; `initAppRuntime` by default. */
     initEngine?: (engine: RuntimeEngine) => void;
-    /** Publishes the host ports the declaration names; the process's `host.publish` by default. */
     publishHost?: (ports: HostPorts) => void;
-    /** Where each port's line goes; `logger.info` by default. */
     log?: (line: string, choice: PortChoiceSummary) => void;
 }
 
-/** The tag the port lines are logged under. */
 export const RUNTIME_PORT_LOG_TAG = 'app.runtime_port';
 
-/** One port's line: `port → adapter id (origin[, fell back: reason])`. */
 export const formatPortChoice = (choice: PortChoiceSummary): string => {
     const fellBack = choice.fellBack
         ? `, fell back: ${choice.fellBack.from} asked for '${choice.fellBack.requested}', ${choice.fellBack.because}`
@@ -67,11 +57,6 @@ const logToLogger =
             },
         });
 
-/**
- * Config is the app's to initialise, once. A declaration that carries config's ports asks for it to be
- * done here; one that does not expects the entry point to have done it. Either way it is never done
- * twice — a second `init` would drop the lanes already read.
- */
 const ensureConfig = <Facts, Owner>(
     declaration: RuntimeDeclaration<Facts, Owner>,
     config: RuntimeConfigAccess
@@ -95,23 +80,6 @@ const ensureConfig = <Facts, Owner>(
     }
 };
 
-/**
- * Starts the runtime an app declared, once, from its entry point and before render:
- *
- * 1. reads the host facts;
- * 2. makes sure config is initialised (the toggles live there);
- * 3. settles every runtime port (`resolvePorts`), every host port the declaration names
- *    (`resolveHostPorts`) and the engine (`resolveEngine`), and logs one line for each;
- * 4. builds the host ports and publishes them through the host holder, so they are readable before
- *    anything below runs — the order the entry points kept by publishing before the boot;
- * 5. runs the engine adapter, which builds the runtime ports (`storage` first, waiting for any adapter
- *    that loads) and the core engine over them — or, for an engine that mirrors one elsewhere, none of
- *    them;
- * 6. hands the engine, if one was built, to the React surface.
- *
- * The lines are logged before anything is built, so a port that fails to build is reported against the
- * adapter it was meant to be.
- */
 export const startRuntime = async <Facts, Owner = never>(
     declaration: RuntimeDeclaration<Facts, Owner>,
     options: StartRuntimeOptions = {}
@@ -159,8 +127,6 @@ export const startRuntime = async <Facts, Owner = never>(
             data: declaration.data,
         });
     };
-    // One set of ports per start, however often the engine asks: a second set would open a second
-    // session over the same stores.
     let coreEngine: Promise<RuntimeEngine> | null = null;
     const context: EngineContext<Facts> = {
         facts,

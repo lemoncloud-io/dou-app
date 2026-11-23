@@ -42,7 +42,6 @@ const declare = (overrides: Partial<Parameters<typeof defineRuntime<Facts>>[0]> 
         ...overrides,
     });
 
-/** A reader over fixed toggles: `{ 'port.cache': ['cache.web-storage', 'local'] }`. */
 const toggles =
     (values: Partial<Record<PortChoiceKey, [string, string]>>): PortChoiceReader =>
     key => {
@@ -191,7 +190,6 @@ describe('resolvePorts', () => {
 });
 
 describe('resolveHostPorts', () => {
-    // These ports are told apart by their choice alone; their members do not matter here.
     const mediaHost = defineHostAdapter<'media', Facts>({
         id: 'media.host',
         port: 'media',

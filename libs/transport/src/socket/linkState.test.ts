@@ -23,7 +23,6 @@ beforeEach(() => {
     setBrowserOnline(true);
 });
 
-// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
 beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('isLinkDown', () => {

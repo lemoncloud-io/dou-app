@@ -18,7 +18,6 @@ describe('settings', () => {
     afterEach(() => jest.restoreAllMocks());
 
     it('reads a value from the process config at call time', () => {
-        // Spied after the import: a function bound at import would miss it.
         const get = jest.spyOn(config, 'get').mockReturnValue(true);
 
         expect(getSetting<boolean>('ui.blur')).toBe(true);

@@ -5,8 +5,6 @@ import type { HostPorts } from './ports';
 
 const { HostFacade, host } = bindings;
 
-// The holder only stores and hands back what it was given, so a port's members do not matter here: each
-// port is its choice alone, cast to the whole port.
 const none = (): HostPorts => ({
     checkout: { kind: 'none' },
     media: { kind: 'browser' } as HostPorts['media'],
@@ -18,7 +16,6 @@ const none = (): HostPorts => ({
     push: { kind: 'browser', notifications: null, deviceToken: null, tokenRenewal: null, localBanner: null },
 });
 
-// The push members with something in them, so a test can tell a published member from a reset one.
 const shellPush = (): HostPorts['push'] => ({
     kind: 'shell',
     notifications: { onReceive: () => () => undefined },
@@ -141,8 +138,6 @@ describe('the port bindings runtime.<port> re-exports', () => {
     });
 
     it('stays printable before the publish', () => {
-        // A test runner or a logger probes these on whatever it prints; a throw there would hide the
-        // failure it was printing.
         const port = bindings.checkoutPort as unknown as Record<string, unknown>;
 
         expect(port.then).toBeUndefined();

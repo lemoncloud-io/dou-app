@@ -65,7 +65,8 @@ session: `credential()` and `identityToken()` read the relay token from `relaySt
 signed request is sent, and `region()` reads `env.region` from `@chatic/config` the same way. So the
 session's relay token is the only copy of the credential, a token the socket renewed is used by the
 very next request, and there is nothing to rebuild on boot, clear on logout or keep from drifting.
-A signed request made with no relay credential goes out unsigned, and `onUnsigned` logs a warning.
+A signed request made with no relay credential goes out unsigned, and `onUnsigned` logs it at `debug`, so a signed call made before sign-in does not fill the
+uploaded log.
 
 This replaced lemon-web-core, which kept its own copy of the credential (latterly in memory, earlier
 in web storage with an expiry clock of its own that disagreed with the credential's), needed a boot
