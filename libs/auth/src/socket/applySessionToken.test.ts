@@ -13,22 +13,15 @@ jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-// `session/relaySession` is the store boundary: applySessionToken commits through
-// loginRelayByToken, and the session delegate reads the committed registration back via
-// getServerAuthRegistration.
 const mockLoginRelayByToken = jest.fn();
 const mockGetServerAuthRegistration = jest.fn();
 const mockSignServerAuth = jest.fn();
-// Mocked at the CONCRETE module: the commit + Auth SDK bridge trio are runtime-internal and off the
-// session barrel now (ADR-0076 Decision 6).
 jest.mock('../session/relaySession', () => ({
     relaySession: {
         loginByToken: (...args: unknown[]) => mockLoginRelayByToken(...args),
         clearAndRedirect: jest.fn(),
     },
 }));
-// The seed/sign/writeback trio moved to the adapter (ADR-0076 Decision 5), so the delegate reaches them
-// there — mocking `services` alone would leave the real adapter loaded.
 jest.mock('../session/sessionAuthAdapter', () => ({
     sessionAuthAdapter: {
         getAuthRegistration: (...args: unknown[]) => mockGetServerAuthRegistration(...args),
@@ -46,7 +39,6 @@ const mockedCreate = createClientSocketV2 as jest.MockedFunction<typeof createCl
 const GUEST_IDENTITY = 'guest-identity-token';
 const MAIN_IDENTITY = 'main-identity-token';
 
-/** A `$token` shaped like the sockets-api fixture (verify-hash-alias-sample.json). */
 const mainUserToken = () => ({
     id: '1000031',
     userRole: 'user',
@@ -56,12 +48,6 @@ const mainUserToken = () => ({
 
 type AuthStateListener = (state: string) => void;
 
-/**
- * Fake relay socket mirroring the SDK subset applySessionToken exercises: an AuthController with
- * logout()/register()/ready() semantics (register resumes and re-handshakes asynchronously) and a
- * request() that plays the RELAY SERVER — it authorizes invite.create only for an authenticated
- * MAIN-user identity, rejecting the device user with the wire-shaped `403 FORBIDDEN - …` error.
- */
 const makeFakeRelaySocket = (order: string[]) => {
     const listeners = new Set<AuthStateListener>();
     const emit = (state: string) => listeners.forEach(listener => listener(state));
@@ -81,7 +67,6 @@ const makeFakeRelaySocket = (order: string[]) => {
             auth.token = token;
             auth.state = 'pending';
             emit('pending');
-            // The fake server acks auth.update on a microtask — same "resolves later" shape as the SDK.
             queueMicrotask(() => {
                 auth.state = 'authenticated';
                 emit('authenticated');
@@ -132,18 +117,15 @@ const makeFakeRelaySocket = (order: string[]) => {
     return { client, auth };
 };
 
-/** Boots a REAL SocketManager around the fake socket, verified as the device user. */
 const bootRelayManager = (client: ClientSocketV2) => {
     const manager = new SocketManager();
     mockedCreate.mockReturnValue(client);
     manager.ensure({ url: 'wss://relay.example.com', deviceId: 'device-1', wssType: 'relay', cid: 'default' });
-    // Mirror what bootstrapSocketConnection's onAuthState wiring does once the guest handshake ends.
     manager.setAuthenticated(RELAY_SLOT, true);
     mockedGetSocketManager.mockReturnValue(manager);
     return manager;
 };
 
-// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
 beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓에 반영', () => {
@@ -160,13 +142,10 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
         const manager = bootRelayManager(client);
         const relay = manager.getScopedClient(RELAY_SLOT);
 
-        // BEFORE: the device-user identity is rejected with the wire-shaped 403 (the status prefix
-        // is what apps/web getSocketErrorCode reads — never the message wording).
         await expect(relay.request('invite.create', { phone: '01012345678', name: '친구' })).rejects.toThrow(/^403/);
 
         await applySessionToken(mainUserToken());
 
-        // AFTER: the SAME connection (no reboot — connect() was never re-driven) now issues invites.
         await expect(relay.request('invite.create', { phone: '01012345678', name: '친구' })).resolves.toMatchObject({
             state: 'pending',
         });
@@ -221,8 +200,6 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
     it('타임아웃 안에 재인증이 확인되지 않으면 reject한다 (커밋은 유지 — 다음 핸드셰이크가 적용)', async () => {
         const order: string[] = [];
         const { client, auth } = makeFakeRelaySocket(order);
-        // A register that never gets the server ack: the handshake parks (e.g. socket dropped
-        // mid-flow) and only the deadline can settle the wait.
         auth.register.mockImplementation(({ token }: { token: string }) => {
             order.push('auth.register');
             auth.token = token;
@@ -235,9 +212,6 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
     });
 
     it('[로그아웃 회귀] 디바이스 식별 저장소를 건드리지 않는다 — 로그아웃 후 같은 디바이스 유저로 복귀하는 전제', async () => {
-        // The post-logout recovery (the guest keep-alive → loginRelayGuestByDevice) returns the
-        // SAME device user only because the persisted device id survives the promotion; web-core's
-        // loginRelayByToken test pins delegatorId the same way.
         localStorage.setItem('chatic-device-id', 'device-1');
         const { client } = makeFakeRelaySocket([]);
         bootRelayManager(client);
@@ -249,10 +223,6 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
     });
 
     it('재인증이 조용히 건너뛰어져 소켓이 옛 신원에 남으면 reject한다 — 성공으로 위장하지 않는다', async () => {
-        // reauthenticateActiveSocket bails out silently when the store has no registration to read
-        // back. The socket then keeps the device identity AND stays `authenticated`, so ready()
-        // resolves instantly — the post-condition is the only thing standing between that and a
-        // caller that thinks it may now issue invites.
         mockGetServerAuthRegistration.mockResolvedValue(null);
         const order: string[] = [];
         const { client, auth } = makeFakeRelaySocket(order);
@@ -262,7 +232,6 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
 
         expect(auth.register).not.toHaveBeenCalled();
         expect(auth.token).toBe(GUEST_IDENTITY);
-        // The would-be next call really would have failed, which is what the reject prevents.
         await expect(
             manager.getScopedClient(RELAY_SLOT).request('invite.create', { phone: '01012345678', name: '친구' })
         ).rejects.toThrow(/^403/);
@@ -271,12 +240,11 @@ describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓
     it('SDK가 이미 새 토큰을 들고 있으면(binder 선행) 재인증은 no-op으로 수렴하고 ready만 기다린다', async () => {
         const order: string[] = [];
         const { client, auth } = makeFakeRelaySocket(order);
-        auth.token = MAIN_IDENTITY; // SocketReauthBinder already re-registered this identity.
+        auth.token = MAIN_IDENTITY;
         bootRelayManager(client);
 
         await expect(applySessionToken(mainUserToken())).resolves.toBeUndefined();
 
-        // The token-equality guard in reauthenticateActiveSocket absorbed the double execution.
         expect(auth.logout).not.toHaveBeenCalled();
         expect(auth.register).not.toHaveBeenCalled();
     });

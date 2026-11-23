@@ -12,10 +12,6 @@ jest.mock('../session/relaySession', () => ({
 
 const mockedClear = relaySession.clearAndRedirect as jest.Mock;
 
-/**
- * The shape the SDK actually hands us: `AuthSwitchError` says only which PHASE failed, and the
- * server's sentence — the only place the word "revoked" appears — rides in `cause`.
- */
 const authSwitchError = (causeMessage: string): Error => {
     const error = new Error('auth.switch failed: server') as Error & { cause?: unknown };
     error.cause = new Error(causeMessage);
@@ -34,8 +30,6 @@ describe('isRevokedSessionError', () => {
     });
 
     it('does not fire on the other auth failures, which are all recoverable', () => {
-        // Terminal-looking but renewable: a refresh that lost the server error, a stale-authId
-        // signature reject, and a switch on a dropped socket.
         expect(isRevokedSessionError(new Error('auth.refresh failed: server'))).toBe(false);
         expect(
             isRevokedSessionError(authSwitchError('403 NOT ALLOWED - invalid sign @refreshAccessToken(old-id)'))

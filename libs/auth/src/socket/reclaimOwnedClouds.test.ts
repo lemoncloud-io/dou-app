@@ -1,6 +1,5 @@
 import type { reclaimOwnedClouds as ReclaimOwnedClouds } from './reclaimOwnedClouds';
 
-// Reloaded per case: the failure backoff is module state.
 let reclaimOwnedClouds: typeof ReclaimOwnedClouds;
 
 const mockRenewCloudSession = jest.fn();
@@ -10,7 +9,6 @@ const mockPeekCachedCloudTokens = jest.fn();
 const mockGetUidInCloud = jest.fn();
 const mockIsExchangeInFlight = jest.fn();
 const mockLastIssuedForOf = jest.fn();
-/** The reclaim records, as the store keeps them: cloud id → relay user. */
 let mockReclaimed: Record<string, string> = {};
 
 jest.mock('./renewCloudSession', () => ({
@@ -32,7 +30,6 @@ jest.mock('@chatic/session/store/stores', () => ({
 }));
 jest.mock('@chatic/data', () => ({ RELAY_CLOUD_ID: 'default' }));
 jest.mock('../session/cloudTokens', () => ({
-    // The invite-entry mark is the real one; what an exchange was asked as is the test's to say.
     isInviteLoginEntry: (token?: { delegationToken?: string } | null) => token?.delegationToken === '',
     isExchangeInFlight: (cloudId: string) => mockIsExchangeInFlight(cloudId),
     lastIssuedForOf: (cloudId: string) => mockLastIssuedForOf(cloudId),
@@ -42,9 +39,7 @@ jest.mock('@chatic/logger', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-/** What an invite login entry stores: the delegation half carries an empty JWT. */
 const inviteEntry = (cloudId: string) => ({ delegationToken: { cloudId, delegationToken: '' } });
-/** What a delegate-cloud issue stores. */
 const delegateIssue = (cloudId: string) => ({ delegationToken: { cloudId, delegationToken: 'signed.jwt' } });
 
 beforeEach(() => {
@@ -53,14 +48,12 @@ beforeEach(() => {
     ({ reclaimOwnedClouds } = jest.requireActual('./reclaimOwnedClouds'));
     jest.useRealTimers();
     mockIsExchangeInFlight.mockReturnValue(false);
-    // The renewal's exchange was asked as the relay user signed in now, unless a case says otherwise.
     mockLastIssuedForOf.mockReturnValue('account-1');
     mockGetCommittedCloudId.mockReturnValue(null);
     mockGetDelegationToken.mockReturnValue(null);
     mockPeekCachedCloudTokens.mockReturnValue(null);
     mockRenewCloudSession.mockResolvedValue(true);
     mockReclaimed = {};
-    // The relay user signed in now: the account that owns the clouds.
     mockGetUidInCloud.mockImplementation((cloudId: string) => (cloudId === 'default' ? 'account-1' : null));
 });
 
@@ -75,8 +68,6 @@ describe('reclaimOwnedClouds', () => {
     });
 
     it('reads the committed cloud off the session store, not the cache', async () => {
-        // The cache already holds a delegate-cloud issue, but the store — what the session and its
-        // socket derive from — still names the invitee.
         mockGetCommittedCloudId.mockReturnValue('owned-1');
         mockGetDelegationToken.mockReturnValue(inviteEntry('owned-1').delegationToken);
         mockPeekCachedCloudTokens.mockReturnValue(delegateIssue('owned-1'));
@@ -107,7 +98,6 @@ describe('reclaimOwnedClouds', () => {
 
 describe('reclaimOwnedClouds — owned clouds also cached as invited', () => {
     it("re-issues one held by a guest's ordinary issue, and records it for the relay user", async () => {
-        // The guest's invite entry was renewed through delegate-cloud before the sign-in: a signed JWT.
         mockPeekCachedCloudTokens.mockReturnValue(delegateIssue('owned-1'));
 
         await expect(reclaimOwnedClouds(['owned-1'], ['owned-1'])).resolves.toEqual(['owned-1']);
@@ -156,7 +146,7 @@ describe('reclaimOwnedClouds — owned clouds also cached as invited', () => {
     it('does not record it when the relay user changed while the renewal ran', async () => {
         mockPeekCachedCloudTokens.mockReturnValue(delegateIssue('owned-1'));
         mockRenewCloudSession.mockImplementation(async () => {
-            mockGetUidInCloud.mockReturnValue(null); // signed out meanwhile
+            mockGetUidInCloud.mockReturnValue(null);
             return true;
         });
 
@@ -174,7 +164,6 @@ describe('reclaimOwnedClouds — owned clouds also cached as invited', () => {
     });
 
     it('leaves alone an owned cloud with no invited row, even one held by a signed issue', async () => {
-        // The widened version of this repair re-issued every owned cloud; only the overlap is touched.
         mockPeekCachedCloudTokens.mockReturnValue(delegateIssue('owned-2'));
 
         await expect(reclaimOwnedClouds(['owned-2'], ['owned-1'])).resolves.toEqual([]);

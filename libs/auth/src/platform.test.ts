@@ -4,7 +4,6 @@ import { fakeAuthPorts } from './testing/platform';
 import type { IAuthPlatform } from './platform';
 import type * as PlatformModule from './platform';
 
-/** A holder of its own, so a case never inherits what another configured on the shared one. */
 const freshPlatform = (): IAuthPlatform => {
     let fresh: IAuthPlatform | undefined;
     jest.isolateModules(() => {

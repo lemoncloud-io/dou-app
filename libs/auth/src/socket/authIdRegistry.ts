@@ -4,10 +4,8 @@ import { kindOf } from '@chatic/transport';
 import type { SlotKey } from '@chatic/transport';
 import type { AuthRegistration } from '../session/sessionAuthAdapter';
 
-/** The sign callback shape `auth.register()` takes (the SDK's `AuthSignCallback`). */
 type SignCallback = (token: string, ctx?: { target?: string }) => Promise<{ signature: string; current: string }>;
 
-/** The one AuthController member this registry drives — structural, so tests pass a stub. */
 export interface AuthIdReseedTarget {
     register(opts: { token: string; authId: string; sign: SignCallback }): void;
 }
@@ -49,41 +47,20 @@ export interface AuthIdReseedTarget {
 class AuthIdRegistry {
     private readonly ids = new Map<SlotKey, string>();
 
-    /** Call right after every `auth.register()` — the mirror is only as good as its writers. */
     record(key: SlotKey, authId: string): void {
         this.ids.set(key, authId);
     }
 
-    /** What the controller is signing packets with, or null when this slot never registered here. */
     get(key: SlotKey): string | null {
         return this.ids.get(key) ?? null;
     }
 
-    /**
-     * Re-seeds the controller when `registration.authId` is no longer what we handed it. Returns true
-     * when a re-seed actually ran, so the caller can re-close its activation gate.
-     *
-     * A bare `register()` is deliberately the whole correction: on an ACTIVE controller it only swaps
-     * `_token`/`authId`/`sign` and sends nothing (the wire path sits behind the `!active` branch), so
-     * this costs no round trip and does not disturb a healthy connection. The heavy
-     * `logout() → register()` of `reauthenticateActiveSocket` would be wrong here — the identity did
-     * not change, only the id the packets quote, and revoking the live backend session to fix a field
-     * would log the user out over a bookkeeping mismatch.
-     *
-     * An unrecorded slot is NOT treated as drift: we cannot prove a divergence we never observed, and
-     * guessing would fire a needless register on every boot.
-     */
     resync(key: SlotKey, auth: AuthIdReseedTarget, registration: AuthRegistration, sign: SignCallback): boolean {
         const recorded = this.ids.get(key);
         if (recorded === undefined || recorded === registration.authId) {
             return false;
         }
 
-        // Loud, and with the signing material: this is the only place the drift is visible, and the
-        // question that follows it is always "which of the HMAC's three keys does the server disagree
-        // with?". Logging `registered`/`current` alone could not answer it — settling that once took a
-        // production DynamoDB read (2026-09-11), which is the whole reason `signing` rides along on
-        // `AuthRegistration`.
         logger.warn('SOCKET', '[authIdRegistry] registered authId drifted from the store — re-seeding', {
             data: {
                 kind: kindOf(key),
@@ -100,14 +77,9 @@ class AuthIdRegistry {
         return true;
     }
 
-    /** Drops the mirror. Tests only — a case must not inherit the previous one's registration. */
     reset(): void {
         this.ids.clear();
     }
 }
 
-/**
- * Stateless from the callers' side — one mirror per process, keyed by slot, exactly like the socket
- * slots it tracks.
- */
 export const authIdRegistry = new AuthIdRegistry();

@@ -14,8 +14,6 @@ jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-// Module-load stubs only: the relay policy under test takes every collaborator it actually consults
-// through `RelayExpiryDeps`, so these keep the import graph light without steering a case.
 jest.mock('../session/cloudSession', () => ({ cloudSession: { clearStores: jest.fn() } }));
 jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
 jest.mock('@chatic/session/store', () => ({ getCommittedCloudId: jest.fn() }));
@@ -27,17 +25,10 @@ jest.mock('@chatic/transport/socket/backgroundClouds', () => ({ backgroundClouds
 jest.mock('./authStatus', () => ({ getAuthStatus: jest.fn() }));
 jest.mock('./renewCloudSession', () => ({ renewCloudSession: jest.fn() }));
 jest.mock('./requestRelaySessionRefresh', () => ({ requestRelaySessionRefresh: jest.fn() }));
-// Every bound slot reads verified, so a case that still holds off proves the decision ignored them.
 jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({ getSlotKeys: () => ['relay', 'cloud-1'], isSlotVerified: () => true }),
 }));
 
-/**
- * Terminal relay expiry is the one path that can END a session on its own, and `expired` means two
- * different things (a wedged signature, or three timeouts on a bad link). These cases lock the
- * separation: only a persisting, online expiry costs the user their session.
- */
-// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
 beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('RelayCredentialRenewer — terminal expiry', () => {
@@ -85,8 +76,6 @@ describe('RelayCredentialRenewer — terminal expiry', () => {
     });
 
     it('holds off on the browser flag alone, even while another socket slot still reads verified', async () => {
-        // Right after a real drop a cloud socket can sit verified until its next frame fails; letting
-        // that overrule the flag here would spend the session on a dead link.
         Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
         const logout = jest.fn().mockResolvedValue(undefined);
         const wait = jest.fn().mockResolvedValue(undefined);
@@ -108,7 +97,6 @@ describe('RelayCredentialRenewer — terminal expiry', () => {
         await renewer.onTerminalExpiry();
 
         expect(logout).not.toHaveBeenCalled();
-        // The verdict is abandoned before the status is even consulted — an unattributable expiry.
         expect(readStatus).not.toHaveBeenCalled();
     });
 
@@ -120,15 +108,11 @@ describe('RelayCredentialRenewer — terminal expiry', () => {
             await renewer.onTerminalExpiry();
 
             expect(logout).not.toHaveBeenCalled();
-            // A positive heal ends it on the first window — no second wait.
             expect(wait).toHaveBeenCalledTimes(1);
         }
     );
 
     it('does NOT read `handshaking` as recovery — a re-seed manufactures it', async () => {
-        // `register()` resets the SDK failure budget and reports `pending` whenever the controller is
-        // inactive, which is exactly what a terminal `expired` leaves behind. Accepting that as
-        // recovery let a wedged session re-arm forever (4 more 403s per reconnect, no logout ever).
         const { renewer, logout, wait } = build({ status: 'handshaking' });
 
         await renewer.onTerminalExpiry();
@@ -139,7 +123,6 @@ describe('RelayCredentialRenewer — terminal expiry', () => {
 
     it('gives a still-handshaking slot the second window to finish', async () => {
         const { logout, wait, isOnline } = build();
-        // Slow but healthy: mid-handshake at 30s, authenticated by 60s.
         const readStatus = jest.fn().mockReturnValueOnce('handshaking').mockReturnValueOnce('verified');
         const renewer = new RelayCredentialRenewer({ isOnline, wait, readStatus, logout });
 
@@ -151,7 +134,6 @@ describe('RelayCredentialRenewer — terminal expiry', () => {
 
     it('logs out when a re-seed only bought the wedged session another burn', async () => {
         const { logout, wait, isOnline } = build();
-        // The observed production cycle: re-seeded (handshaking), budget burned again (expired).
         const readStatus = jest.fn().mockReturnValueOnce('handshaking').mockReturnValueOnce('expired');
         const renewer = new RelayCredentialRenewer({ isOnline, wait, readStatus, logout });
 
@@ -161,7 +143,6 @@ describe('RelayCredentialRenewer — terminal expiry', () => {
     });
 
     it('abandons the verdict when the link drops during the SECOND window', async () => {
-        // isOnline is asked at the start and once per window: online, online, then gone.
         const { renewer, logout, readStatus } = build({ status: 'expired', online: [true, true, false] });
 
         await renewer.onTerminalExpiry();
@@ -175,7 +156,6 @@ describe('RelayCredentialRenewer — terminal expiry', () => {
 
         await Promise.all([renewer.onTerminalExpiry(), renewer.onTerminalExpiry(), renewer.onTerminalExpiry()]);
 
-        // One decision, so one pair of windows — not three.
         expect(wait).toHaveBeenCalledTimes(2);
         expect(logout).toHaveBeenCalledTimes(1);
     });
@@ -200,7 +180,6 @@ describe('credentialRenewers.forSlot', () => {
         const first = credentialRenewers.forSlot(slotKeyOf('cloud-1'));
 
         expect(first.cid).toBe('cloud-1');
-        // Memoized: the single-flight behind `renew` is per cloud, so the instance has to be too.
         expect(credentialRenewers.forSlot(slotKeyOf('cloud-1'))).toBe(first);
         expect(credentialRenewers.forSlot(slotKeyOf('cloud-2'))).not.toBe(first);
         expect(credentialRenewers.forSlot(slotKeyOf('cloud-2')).cid).toBe('cloud-2');
@@ -216,7 +195,6 @@ describe('CloudCredentialRenewer — terminal expiry', () => {
         credentialRenewers.forSlot(slotKeyOf('cloud-1')).onTerminalExpiry();
 
         expect(cloudSession.clearStores).toHaveBeenCalledTimes(1);
-        // Only its own entry: the other clouds' background sessions sign from theirs.
         expect(cloudStore.dropCachedCloudTokens).toHaveBeenCalledTimes(1);
         expect(cloudStore.dropCachedCloudTokens).toHaveBeenCalledWith('cloud-1');
     });

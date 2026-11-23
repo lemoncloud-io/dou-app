@@ -10,8 +10,6 @@ jest.mock('@chatic/logger', () => ({
     ...jest.requireActual('@chatic/logger'),
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
-// The `socket_verify` observer has its own suite. Stubbed here, so the subscription counts below stay
-// about the bootstrap's own wiring.
 const stopObservingVerify = jest.fn();
 jest.mock('@chatic/transport/socket/socketVerifyTrace', () => ({
     observeSocketVerify: jest.fn(() => stopObservingVerify),
@@ -28,22 +26,13 @@ const CONFIG: SocketBindingConfig = {
 
 type AuthRegisterOptions = Parameters<AuthIdReseedTarget['register']>[0];
 
-/**
- * Fake AuthController capturing the subscribed listeners so tests can drive state transitions, plus
- * the impl-only `start`/`stop` activation gate the bootstrap toggles. Calls are appended to `order`
- * so tests can assert the seed→gate→fire sequence.
- */
 const makeAuth = (order: string[]) => {
     const authStateListeners: Array<(state: string) => void> = [];
     const tokenListeners: Array<(view: unknown) => void> = [];
     const unsubAuthState = jest.fn();
     const unsubToken = jest.fn();
     return {
-        // Mirrors AuthController.state; tests set it to drive the expired-resume throttle.
         state: '',
-        // Typed off the production contract rather than inferred: a zero-arg `jest.fn` makes
-        // `register.mock.calls[0][0]` an index into an empty tuple, so the registered `sign`
-        // callback cannot be read back out.
         register: jest.fn((_opts: AuthRegisterOptions) => order.push('register')),
         start: jest.fn(() => order.push('start')),
         stop: jest.fn(() => order.push('stop')),
@@ -62,11 +51,6 @@ const makeAuth = (order: string[]) => {
     };
 };
 
-/**
- * Fake ClientSocketV2 exposing the `onMessage`/`onState` subscriptions the bootstrap wires the gate
- * to. `device.save:ok` arrives via `onMessage` (it is a request reply, so the SDK does NOT route it
- * to `onType`), so the gate listens on `onMessage` and filters by `message.type`.
- */
 const makeClient = (auth: unknown, state = 'connected') => {
     const messageListeners: Array<(event: { message: { type: string } }) => void> = [];
     const stateListeners: Array<(event: { next: string }) => void> = [];
@@ -74,7 +58,6 @@ const makeClient = (auth: unknown, state = 'connected') => {
     const unsubState = jest.fn();
     return {
         auth,
-        // Read by the writeback's authId re-sync to decide whether the gate must be re-closed.
         state,
         onMessage: jest.fn((listener: (event: { message: { type: string } }) => void) => {
             messageListeners.push(listener);
@@ -112,7 +95,6 @@ const makeDelegate = (overrides: Partial<SocketSessionDelegate> = {}): jest.Mock
         ...overrides,
     }) as unknown as jest.Mocked<SocketSessionDelegate>;
 
-/** The writeback chain is commit → getAuthRegistration → resync; drain enough microtasks for all of it. */
 const flush = async (): Promise<void> => {
     for (let i = 0; i < 8; i++) {
         await Promise.resolve();
@@ -120,8 +102,6 @@ const flush = async (): Promise<void> => {
 };
 
 describe('bootstrapSocketConnection', () => {
-    // register() writes the module-level registry; without this a case inherits the previous one's
-    // registration and the drift check fires on an unrelated authId.
     beforeEach(() => authIdRegistry.reset());
 
     it('seeds the token and closes the gate before connect, without auto-firing auth.update', async () => {
@@ -132,8 +112,6 @@ describe('bootstrapSocketConnection', () => {
 
         await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
 
-        // register seeds the token, stop() deactivates so the SDK's connect handler cannot auto-send,
-        // and only then do we connect. No start() (no auth.update) until device.save:ok arrives.
         expect(order).toEqual(['register', 'stop', 'connect']);
         expect(auth.register).toHaveBeenCalledWith(
             expect.objectContaining({ token: 'tok', authId: 'aid', sign: expect.any(Function) })
@@ -152,7 +130,6 @@ describe('bootstrapSocketConnection', () => {
 
         client.emitMessage('device.save:ok');
         expect(auth.start).toHaveBeenCalledTimes(1);
-        // Full order: seed → gate closed → connect → device registered → gate opened (auth.update).
         expect(order).toEqual(['register', 'stop', 'connect', 'start']);
     });
 
@@ -180,9 +157,8 @@ describe('bootstrapSocketConnection', () => {
         client.emitMessage('device.save:ok');
         expect(auth.start).toHaveBeenCalledTimes(1);
 
-        // A drop re-closes the gate so the reconnect holds device.save → auth.update order.
         client.emitState('closed');
-        expect(auth.stop).toHaveBeenCalledTimes(2); // setup + this disconnect
+        expect(auth.stop).toHaveBeenCalledTimes(2);
 
         client.emitMessage('device.save:ok');
         expect(auth.start).toHaveBeenCalledTimes(2);
@@ -194,10 +170,10 @@ describe('bootstrapSocketConnection', () => {
         const manager = makeManager(client, []);
 
         await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
-        expect(auth.stop).toHaveBeenCalledTimes(1); // setup
+        expect(auth.stop).toHaveBeenCalledTimes(1);
 
         client.emitState('connected');
-        expect(auth.stop).toHaveBeenCalledTimes(1); // connected must NOT re-close the gate
+        expect(auth.stop).toHaveBeenCalledTimes(1);
 
         client.emitState('closing');
         client.emitState('idle');
@@ -256,9 +232,6 @@ describe('bootstrapSocketConnection', () => {
         expect(delegate.commitRefreshedToken).toHaveBeenCalledWith(RELAY, view);
     });
 
-    // The writeback is the step that re-mints the signing material, and it runs AFTER
-    // requestRelaySessionRefresh has already reported success (this emission is what resolves it). A
-    // rejection here used to be an unhandled promise: caller thinks fresh, every signed request 403s.
     it('writeback이 거부돼도 삼키지 않고 에러로 남긴다', async () => {
         const { logger } = jest.requireMock('@chatic/logger') as { logger: { error: jest.Mock } };
         const auth = makeAuth([]);
@@ -270,7 +243,6 @@ describe('bootstrapSocketConnection', () => {
         await bootstrapSocketConnection({ manager, config: CONFIG, delegate });
 
         auth.emitTokenRefresh({ Token: {} });
-        // The catch is attached to the returned promise, so let the rejection settle.
         await Promise.resolve();
         await Promise.resolve();
 
@@ -293,11 +265,6 @@ describe('bootstrapSocketConnection', () => {
         expect(delegate.commitRefreshedToken).toHaveBeenCalled();
     });
 
-    /**
-     * The `403 invalid sign` loop: a refresh whose view rotates `$auth.id` moves the STORE, while the
-     * controller keeps quoting the id it was registered with. Re-seeding right after the writeback is
-     * what stops every later refresh from being signed with a key the server does not expect.
-     */
     it('re-registers the controller when the writeback rotated the store authId', async () => {
         const auth = makeAuth([]);
         const client = makeClient(auth);
@@ -316,8 +283,7 @@ describe('bootstrapSocketConnection', () => {
             expect.objectContaining({ token: 'tok-2', authId: 'rotated-aid' })
         );
         expect(authIdRegistry.get(RELAY)).toBe('rotated-aid');
-        // The socket is connected, so the gate stays open — only the seed changed, no handshake.
-        expect(auth.stop).toHaveBeenCalledTimes(1); // the boot's own gate close, nothing more
+        expect(auth.stop).toHaveBeenCalledTimes(1);
     });
 
     it('leaves the controller alone when the writeback kept the same authId', async () => {
@@ -333,8 +299,6 @@ describe('bootstrapSocketConnection', () => {
         expect(auth.register).toHaveBeenCalledTimes(1);
     });
 
-    // A failed commit leaves the store on the PREVIOUS `$auth`, so re-seeding off it would pin the
-    // controller to stale material instead of correcting it.
     it('skips the authId re-sync when the writeback itself failed', async () => {
         const auth = makeAuth([]);
         const client = makeClient(auth);
@@ -367,8 +331,6 @@ describe('bootstrapSocketConnection', () => {
         auth.emitTokenRefresh({ Token: {} });
         await flush();
 
-        // Boot close + re-sync close: a re-activated controller must not auto-send auth.update ahead
-        // of the next connection's device.save:ok.
         expect(auth.stop).toHaveBeenCalledTimes(2);
     });
 
@@ -453,20 +415,17 @@ describe('bootstrapSocketConnection', () => {
 
             auth.state = 'expired';
             client.emitMessage('device.save:ok');
-            expect(auth.start).toHaveBeenCalledTimes(1); // first resume is immediate
+            expect(auth.start).toHaveBeenCalledTimes(1);
 
-            // Reconnect churn within the 30s cooldown: the gate stays closed (no auth.update spam).
             nowSpy.mockReturnValue(1_000_000 + 10_000);
             client.emitMessage('device.save:ok');
             client.emitMessage('device.save:ok');
             expect(auth.start).toHaveBeenCalledTimes(1);
 
-            // Past the cooldown the next resume runs (and the cooldown doubles behind it).
             nowSpy.mockReturnValue(1_000_000 + 31_000);
             client.emitMessage('device.save:ok');
             expect(auth.start).toHaveBeenCalledTimes(2);
 
-            // The doubled (60s) cooldown now applies: 31s later is still inside it.
             nowSpy.mockReturnValue(1_000_000 + 62_000);
             client.emitMessage('device.save:ok');
             expect(auth.start).toHaveBeenCalledTimes(2);
@@ -481,15 +440,14 @@ describe('bootstrapSocketConnection', () => {
             await bootstrapSocketConnection({ manager, config: CONFIG, delegate: makeDelegate() });
 
             auth.state = 'expired';
-            client.emitMessage('device.save:ok'); // consumes the immediate resume
+            client.emitMessage('device.save:ok');
             expect(auth.start).toHaveBeenCalledTimes(1);
 
-            // Recovery: the SDK re-authenticates → budget resets to "immediate".
             auth.state = 'authenticated';
             auth.emitAuthState('authenticated');
 
             auth.state = 'expired';
-            nowSpy.mockReturnValue(1_000_001); // 1ms later — would be inside the old cooldown
+            nowSpy.mockReturnValue(1_000_001);
             client.emitMessage('device.save:ok');
             expect(auth.start).toHaveBeenCalledTimes(2);
         });
@@ -506,7 +464,7 @@ describe('bootstrapSocketConnection', () => {
             client.emitMessage('device.save:ok');
             client.emitState('closed');
             client.emitMessage('device.save:ok');
-            expect(auth.start).toHaveBeenCalledTimes(2); // same-instant reconnects both start
+            expect(auth.start).toHaveBeenCalledTimes(2);
         });
     });
 

@@ -8,7 +8,6 @@ jest.mock('@chatic/logger', () => ({
 
 const HOUR = 60 * 60_000;
 
-/** A fake world: per-cloud cache entries with a remaining lifetime, bound slots, and a manual clock. */
 const world = () => {
     const remaining = new Map<string, number | null>();
     const bound = new Set<string>();
@@ -46,7 +45,6 @@ const world = () => {
         setOnline: (value: boolean) => {
             online = value;
         },
-        /** Moves the clock and fires the timers that came due. */
         advance: (ms: number) => {
             now += ms;
             for (const timer of timers.filter(t => t.at <= now)) {
@@ -145,7 +143,6 @@ describe('BackgroundCloudTokens', () => {
         await flush();
         expect(w.deps.issue).toHaveBeenCalledTimes(1);
 
-        // A re-sync inside the back-off does not retry.
         preparer.sync(['a']);
         expect(w.deps.issue).toHaveBeenCalledTimes(1);
 
@@ -153,7 +150,6 @@ describe('BackgroundCloudTokens', () => {
         await flush();
         expect(w.deps.issue).toHaveBeenCalledTimes(2);
 
-        // Second failure: 120s now, so 60s is not enough.
         w.advance(60_000);
         await flush();
         expect(w.deps.issue).toHaveBeenCalledTimes(2);
@@ -189,8 +185,6 @@ describe('BackgroundCloudTokens', () => {
     });
 
     it('backs off instead of looping when an issue lands but still leaves the cloud unusable', async () => {
-        // A server answer with no wss, or a credential already inside the margin: re-issuing at once
-        // would spin two HTTP calls per round forever.
         const w = world();
         (w.deps.issue as jest.Mock).mockImplementation(async (cid: string) => {
             w.remaining.set(cid, 1_000);
@@ -208,8 +202,6 @@ describe('BackgroundCloudTokens', () => {
     });
 
     it('waits before re-issuing a cloud whose socket session just expired', async () => {
-        // Its slot was torn down and its entry dropped; issuing at once would re-boot it into the
-        // same expiry, in a loop.
         const w = world();
         w.expired.add('a');
         const preparer = new BackgroundCloudTokens(w.deps);

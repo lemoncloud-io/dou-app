@@ -9,7 +9,6 @@ import { sessionAuthAdapter } from './sessionAuthAdapter';
 const mockGetDelegationToken = jest.fn();
 const mockSaveCloudToken = jest.fn();
 const mockGetCloudToken = jest.fn();
-/** The per-cloud read every cloud registration and signature goes through. */
 const mockGetCloudTokenOf = jest.fn();
 const mockPeekCachedCloudTokens = jest.fn();
 const mockSetCachedCloudTokens = jest.fn();
@@ -18,7 +17,6 @@ const mockGetSelectedSiteId = jest.fn();
 const mockGetIdentityToken = jest.fn();
 const mockRebuildSessionIdentity = jest.fn();
 
-/** The relay's key and one cloud's, as the socket layer passes them. */
 const RELAY = RELAY_CLOUD_ID;
 const CLOUD = 'cloud-1';
 
@@ -26,20 +24,12 @@ const mockRelaySaveRelayToken = jest.fn();
 const mockRelayGetRelayToken = jest.fn();
 const mockRelayGetIdentityToken = jest.fn();
 
-// Per-server bridge helper deps. mockGetActiveServerContext backs the "routing ignores active
-// context" assertions in the per-server suite.
 const mockGetActiveServerContext = jest.fn();
 const mockCalcSignature = jest.fn();
 
 const mockNotifySessionStateChanged = jest.fn();
 const mockLoggerWarn = jest.fn();
 
-// Before the migration this mock was split across four web-core modules — `./contexts` · `./core` ·
-// `./contextStore` · `./utils`. It's merged into one now that everything sits behind the
-// `@chatic/session/store` barrel.
-// `signServerAuth` signs through `../signing` directly instead of web-core's `calcSignature` shim.
-// The mock keeps the old assertion shape — (payload, current, userAgent) — so the kind-specific
-// authId contract stays pinned by the same two cases.
 jest.mock('../signing', () => ({
     LemonHmacSigner: class {
         sign(payload: unknown, context: { current: string; userAgent: string }) {
@@ -94,9 +84,6 @@ jest.mock('@chatic/session/store', () => ({
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: jest.fn(),
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
-    // The store announces KINDS now (ADR-0076 Decision 2). `mockNotifySessionStateChanged` stands for
-    // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
-    // runs straight through because the collapsing is covered by signal.test.ts.
     sessionSignal: {
         emit: (...args: unknown[]) => mockNotifySessionStateChanged(...args),
         batch: (fn: () => unknown) => fn(),
@@ -115,9 +102,6 @@ jest.mock('@chatic/logger', () => ({
     },
 }));
 
-// Per-server (kind-explicit) bridge helpers for the dual-socket path (multi-socket-design.md §7):
-// verify the explicit-kind routing directly (no active-server context).
-// The user agent the signature is computed over comes from the transport's device port: a jsdom page's.
 beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
@@ -127,7 +111,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     });
 
     it('getAuthRegistration seeds the authId per server (relay: $auth.id, a cloud: Token.authId)', async () => {
-        // relay branch: relay identity token + $auth.id (NOT getTokenSignature / Token.authId)
         mockRelayGetIdentityToken.mockReturnValue('relay-identity-token');
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'relay-auth-id' },
@@ -136,12 +119,9 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         await expect(sessionAuthAdapter.getAuthRegistration(RELAY)).resolves.toEqual({
             token: 'relay-identity-token',
             authId: 'relay-auth-id',
-            // Diagnostic-only companion — register() never reads it; the drift log does.
             signing: { accountId: 'relay-acct', identityId: 'relay-iid' },
         });
 
-        // cloud branch: authId from Token.authId (cloud tokens carry no $auth, so — unlike relay —
-        // Token.authId is the socket-auth key). $auth is present in the mock to prove it is NOT used.
         mockGetCloudTokenOf.mockReturnValue({
             $auth: { id: 'cloud-auth-id' },
             Token: {
@@ -156,12 +136,9 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             authId: 'http-id',
             signing: { accountId: 'cloud-acct', identityId: 'cloud-iid' },
         });
-        // Read for THAT cloud — the committed one's store token is not consulted directly.
         expect(mockGetCloudTokenOf).toHaveBeenCalledWith(CLOUD);
         expect(mockGetCloudToken).not.toHaveBeenCalled();
 
-        // the HTTP-path signature helper must NOT be consulted for socket registration
-        // getActiveServerContext must NOT be consulted — routing is purely the cloud id
         expect(mockGetActiveServerContext).not.toHaveBeenCalled();
     });
 
@@ -180,8 +157,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
 
         await sessionAuthAdapter.signAuth(CLOUD, 'uid@sid');
 
-        // cloud signs with Token.authId (not $auth.id — cloud tokens have no $auth); accountId/identityId
-        // also come from Token.
         expect(mockCalcSignature).toHaveBeenCalledWith(
             { authId: 'http-id', accountId: 'acct', identityId: 'ident' },
             expect.any(String),
@@ -197,8 +172,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         await expect(sessionAuthAdapter.signAuth(CLOUD)).rejects.toThrow('Missing cloud token fields');
     });
 
-    // The server checks the signature's user agent against the one the socket's handshake sent, so
-    // both have to come from the one port the platform's socket reads.
     it("signs over the transport device port's user agent, not the page's navigator", async () => {
         transportPlatform.configure(fakeTransportPorts({ device: () => ({ userAgent: 'UA-from-the-port' }) }));
         mockRelayGetRelayToken.mockReturnValue({
@@ -215,7 +188,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         expect(mockCalcSignature.mock.calls.map(call => call[2])).toEqual(['UA-from-the-port', 'UA-from-the-port']);
     });
 
-    // The only case in this file whose platform reports no user agent: the warning is once per process.
     it("signs over '' when the device port reports no user agent, and says so once", async () => {
         transportPlatform.configure(fakeTransportPorts({ device: () => ({}) }));
         mockRelayGetRelayToken.mockReturnValue({
@@ -246,12 +218,8 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             expect.any(String)
         );
         expect(result.signature).toBe('relay-sig');
-        // socket signature must not fall back to the HTTP-path (Token.authId) helper
     });
 
-    // The server (`_sign`/`validateSignature`) pulls all signing material from the auth model. The
-    // field the view exposes just follows that same source — the values happen to match today so
-    // it's harmless, but what's being pinned down is the source, not the value.
     it('sessionAuthAdapter.signAuth(relay)는 accountId 를 $auth 에서 읽는다', async () => {
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'relay-auth-id', accountId: 'from-auth' },
@@ -269,7 +237,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     });
 
     it('sessionAuthAdapter.signAuth(relay)는 $auth 에 accountId 가 없으면 Token 으로 폴백한다', async () => {
-        // There's no reason to make signing impossible just because the view doesn't carry that field.
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'relay-auth-id' },
             Token: { accountId: 'from-token', identityId: 'r-ident' },
@@ -285,8 +252,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
     });
 
-    // This track's incident happened because identityId silently diverged. A field you can see
-    // must make noise when it diverges.
     it('sessionAuthAdapter.signAuth(relay)는 $auth 와 Token 의 accountId 가 다르면 경고하고 $auth 를 쓴다', async () => {
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'relay-auth-id', accountId: 'from-auth' },
@@ -339,7 +304,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
 
         await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
-        // relay store write, no cloud store touched, and no dependence on the active context
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'u', Token: expect.objectContaining({ identityToken: 'fresh' }) })
         );
@@ -349,7 +313,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
 
     it('commitServerRefreshedToken(relay)는 refresh view가 identityToken을 생략하면 저장된 값을 보존한다', async () => {
         mockRelayGetRelayToken.mockReturnValue({ Token: { identityToken: 'kept', accountId: 'a' } } as UserTokenView);
-        // a socket refresh view carrying a fresh credential but NO identityToken
         const view = {
             id: 'u',
             Token: { credential: { AccessKeyId: 'k', SecretKey: 's' } },
@@ -367,7 +330,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
     });
 
-    // identityPoolId used to be dropped by the merge, which made refreshAuthToken's inheritance a no-op.
     it('commitServerRefreshedToken(relay)는 refresh view가 identityPoolId를 생략하면 저장된 값을 보존한다', async () => {
         mockRelayGetRelayToken.mockReturnValue({
             Token: { identityToken: 'kept', identityPoolId: 'pool-1' },
@@ -395,7 +357,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
     });
 
-    // `credential` is optional on the wire; the store write must happen either way.
     it('keeps the store write and warns when a relay refresh view carries no credential', async () => {
         mockRelayGetRelayToken.mockReturnValue({ Token: { identityToken: 'kept' } } as UserTokenView);
         const view = { id: 'u', Token: { identityToken: 'fresh' } } as unknown as UserTokenView;
@@ -412,10 +373,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
     });
 
-    // The other half of the case above. If the rebuild is skipped, lemon keeps signing with the
-    // previous credential, but if the merge drops the credential, only the store's copy loses it —
-    // then `credentialFreshness` answers "can't measure", and an expired-signature failure can't be
-    // told apart from a network failure. The two copies must point at the same thing.
     it('commitServerRefreshedToken(relay)는 view에 credential이 없으면 저장된 credential을 보존한다', async () => {
         const previous = { AccessKeyId: 'k', SecretKey: 's', Expiration: '2026-09-02T01:00:00.000Z' };
         mockRelayGetRelayToken.mockReturnValue({
@@ -430,9 +387,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
     });
 
-    // Dropping the sub-auth from a site-switch response is a silent decision that goes against the
-    // server's answer. Say it out loud, and log the signing material alongside it — because the next
-    // question is always "which of the three keys differs from the server's".
     it('commitServerRefreshedToken(relay)는 저장된 $auth 를 지키고 버린 사실을 재료와 함께 경고한다', async () => {
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'parent-auth' },
@@ -462,8 +416,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     });
 
     it('commitServerRefreshedToken(relay)는 $auth 가 그대로면 경고하지 않는다', async () => {
-        // An ordinary refresh returns the same $auth — preservation must not be noisy even in the
-        // no-op case.
         mockRelayGetRelayToken.mockReturnValue({
             $auth: { id: 'same-auth' },
             Token: { identityToken: 'kept' },
@@ -507,7 +459,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
 
         await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
-        // lemon throws on the missing SecretKey exactly as it does on a missing AccessKeyId.
         expect(mockRelaySaveRelayToken).toHaveBeenCalled();
     });
 
@@ -548,7 +499,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             expect(mockSetCloudIdentity).toHaveBeenCalledWith(CLOUD, { uid: 'uid-1' });
         });
 
-        // The core of "auth per cloud": a refresh on a socket that serves a cloud the user is not in.
         it('a NON-committed cloud: merges into its cache entry only — store, identity and signal untouched', async () => {
             mockGetDelegationToken.mockReturnValue({ ...delegationToken, cloudId: 'other-cloud' });
             const cachedDelegation = { ...delegationToken, cloudId: CLOUD };
@@ -562,7 +512,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             expect(mockPeekCachedCloudTokens).toHaveBeenCalledWith(CLOUD);
             expect(mockSetCachedCloudTokens).toHaveBeenCalledWith(CLOUD, {
                 delegationToken: cachedDelegation,
-                // A shallow merge over the cached view, so a slim refresh view keeps the profile fields.
                 cloudToken: expect.objectContaining({ name: 'kept', Token: { identityToken: 'new' } }),
             });
             expect(mockSetCloudIdentity).toHaveBeenCalledWith(CLOUD, { uid: 'uid-in-cloud-1' });

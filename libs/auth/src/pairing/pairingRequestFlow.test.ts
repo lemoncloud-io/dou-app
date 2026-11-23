@@ -26,11 +26,9 @@ const setup = () => {
         },
     };
     const flow = new PairingRequestFlow(deps);
-    /** Lets every pending promise settle. */
     const settle = async () => {
         for (let i = 0; i < 10; i++) await Promise.resolve();
     };
-    /** Moves the clock and runs the timers that came due, settling after each. */
     const advance = async (ms: number) => {
         const end = clock + ms;
         for (;;) {
@@ -69,7 +67,6 @@ describe('PairingRequestFlow', () => {
         await advance(5000);
         expect(deps.claim).toHaveBeenCalledTimes(1);
 
-        // The first claim is still out: no second one, however long it takes.
         await advance(20_000);
         expect(deps.claim).toHaveBeenCalledTimes(1);
 
@@ -228,7 +225,6 @@ describe('PairingRequestFlow', () => {
         expect(deps.claim).toHaveBeenCalledTimes(1);
     });
 
-    // React's strict mode mounts, unmounts and mounts again before the first request settles.
     it('a stop and start while the first request is out sends one request, not two', async () => {
         const { flow, deps, settle } = setup();
 
