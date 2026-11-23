@@ -1,5 +1,5 @@
 module.exports = {
-    testEnvironment: 'jsdom',
+    testEnvironment: '<rootDir>/../../tools/jest/jsdom-environment.js',
     setupFiles: ['<rootDir>/jest.setup.ts'],
     // `uuid` ships ESM-only; the session hooks in `@chatic/runtime`
     // pull it in via `useDynamicDeviceId`, so it must be transformed rather than required as CJS.
@@ -8,16 +8,9 @@ module.exports = {
         // Mirrors the `@chatic/ui-kit/*` alias so ui-kit subpath imports (e.g. components/ui/use-toast)
         // resolve to real files instead of the greedy `libs/$1/src/index.ts` fallback below.
         '^@chatic/ui-kit/(.*)$': '<rootDir>/../../libs/ui-kit/src/$1',
-        // `assets` needs BOTH corrections: it lives at the repo ROOT (not under libs/, so the greedy
-        // fallback below would resolve it to a non-existent `libs/assets/`), and the real module builds
-        // URLs with `import.meta.url`, which the CommonJS test transform cannot parse. Stub it — tests
-        // never assert on image bytes. Without this, every barrel reaching it (ui/layouts ->
-        // PrivateLayout -> @chatic/assets) fails to load, which is what pushed call sites onto
-        // barrel-bypassing direct paths.
+        // `assets` lives at the repo ROOT, so the greedy fallback below would resolve it to a
+        // non-existent `libs/assets/`. Stubbed: tests never assert on image bytes.
         '^@chatic/assets$': '<rootDir>/__mocks__/assetsMock.js',
-        // `buildEnv` reads `import.meta.env`, which the CommonJS test transform cannot parse. Any test that
-        // reaches it through a barrel (the push navigation hooks import it) would fail to load, so it is
-        // stubbed for every test; a test that needs a development build still `jest.mock`s it itself.
         '/utils/buildEnv$': '<rootDir>/__mocks__/buildEnvMock.js',
         // Subpath entries MUST come first. The generic `^@chatic/(.*)$` rule below captures
         // `config/react` into $1 and resolves to `libs/config/react/src/index.ts`, which does not
@@ -39,6 +32,7 @@ module.exports = {
             'ts-jest',
             {
                 tsconfig: '<rootDir>/tsconfig.spec.json',
+                astTransformers: { before: ['<rootDir>/../../tools/jest/import-meta-transformer.js'] },
             },
         ],
     },

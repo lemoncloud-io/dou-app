@@ -3,10 +3,8 @@ module.exports = {
     // those do not exist keeps them honest. It is not a full check — Node itself has `fetch` and
     // `navigator` — which is the compiler's job (`tsconfig.lib.json` has neither DOM nor Node types).
     // A test whose fixtures play a page (an address, web storage, a hidden document) says so with a
-    // `@jest-environment jsdom` docblock of its own.
+    // docblock naming `tools/jest/jsdom-environment.js`.
     testEnvironment: 'node',
-    // jsdom (the docblock above) has no TextEncoder, which the socket lib touches at import time.
-    setupFiles: ['<rootDir>/jest.setup.ts'],
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud)/)'],
     moduleNameMapper: {
         // Before the generic rule, which would read `config/react` as a lib named `config/react`.
@@ -25,6 +23,7 @@ module.exports = {
             'ts-jest',
             {
                 tsconfig: '<rootDir>/tsconfig.spec.json',
+                astTransformers: { before: ['<rootDir>/../../tools/jest/import-meta-transformer.js'] },
             },
         ],
     },

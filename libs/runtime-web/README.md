@@ -355,6 +355,5 @@ way the host sells, in its order, for the checkout adapters a toggle may switch 
   database in its constructor). To get a fresh capability snapshot, use `jest.resetModules` with
   `jest.requireMock`: a dynamic `import()` of a library marks it lazy-loaded and turns every static
   import of it into a module-boundary lint error.
-- **The jest environment needs two things for the socket lib and `uuid`**: a `TextEncoder`/`TextDecoder`
-  polyfill (jsdom has none, and the socket lib touches it at import time), and a transform for `uuid`,
-  which ships ESM only.
+- **The socket lib and `uuid` need two things under jest**: `TextEncoder`/`TextDecoder`, which the shared
+  jsdom environment in `tools/jest/` provides (ADR-0371), and a transform for `uuid`, which ships ESM only.

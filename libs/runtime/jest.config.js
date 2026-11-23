@@ -1,6 +1,5 @@
 module.exports = {
-    testEnvironment: 'jsdom',
-    setupFiles: ['<rootDir>/jest.setup.ts'],
+    testEnvironment: '<rootDir>/../../tools/jest/jsdom-environment.js',
     // `uuid` ships ESM-only; the migrated `useDynamicDeviceId` pulls it in, so it must be transformed
     // rather than passed through as CommonJS.
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
@@ -8,8 +7,7 @@ module.exports = {
         // Mirrors the `@chatic/ui-kit/*` path alias so subpath imports resolve to real files instead
         // of the greedy `libs/$1/src/index.ts` fallback below.
         '^@chatic/ui-kit/(.*)$': '<rootDir>/../ui-kit/src/$1',
-        // `@chatic/assets` lives at the repo ROOT (not libs/) and resolves image URLs with
-        // `import.meta.url` — the greedy fallback would miss it and the transform cannot parse it.
+        // `@chatic/assets` lives at the repo ROOT (not libs/), so the greedy fallback would miss it.
         '^@chatic/assets$': '<rootDir>/__mocks__/assetsMock.js',
         // Before the generic rule: it would capture `config/react` and resolve a path that does not
         // exist (`libs/config/react/src`). Same rule as libs/shared/jest.config.js.
@@ -33,6 +31,7 @@ module.exports = {
             'ts-jest',
             {
                 tsconfig: '<rootDir>/tsconfig.spec.json',
+                astTransformers: { before: ['<rootDir>/../../tools/jest/import-meta-transformer.js'] },
             },
         ],
     },

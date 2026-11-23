@@ -125,9 +125,6 @@ Source comments in this app are English. So are these documents.
   host's ports before anything renders, and hands the engine to `initAppRuntime` before any session
   read. Each boundary carries a comment saying what breaks if a line moves across it. Read those
   before inserting anything.
-- **`app/utils/index.ts` deliberately excludes the modules that read `import.meta.env`.** Import
-  those by concrete path (`app/utils/webVitals`), or the barrel becomes unloadable under the test
-  transform.
 - **A test that imports a barrel pulls the whole barrel.** Import the concrete module in a spec when
   the barrel drags in something the test environment cannot load.
 
@@ -229,21 +226,11 @@ a different shape.
 
 ### Barrels and the test transform
 
-Three `app/` barrels do not load under Jest: `app/hooks`, `app/ui/components`, `app/ui/layouts`.
-(`app/bridge` loads: tests such as `config/shellKvAdapter.test.ts` import it.) Each pulls in a
-module (elsewhere in the tree) that reads `import.meta.env`, which
-`tsconfig.spec.json`'s `commonjs` target cannot compile. `app/utils/index.ts` sidesteps this by
-deliberately excluding `webVitals`/`buildEnv`/`phoneNumber` from its own barrel — that is the pattern
-to copy for a new cross-cutting file that itself reads `import.meta.env`.
-
-A spec that needs something from one of the four broken barrels imports the concrete path instead,
-with a comment naming what it avoided. Before adding another such comment, check whether the cause
-already has a fix — the `@chatic/assets` alias is mapped to a stub in `jest.config.js` for exactly
-this reason, so a barrel that only touched that package no longer needs to route around it. So is
-`app/utils/buildEnv` (answering as a production build), since push navigation in `app/bridge`
-reaches it; a test that needs a development build mocks the module itself, which wins over the stub. A stale
-bypass comment for an already-fixed cause is worse than the bypass: it hides that the barrel now
-works.
+Every `app/` barrel loads under Jest: the shared ts-jest transformer in `tools/jest/` compiles
+`import.meta` (ADR-0371), with `env` answering as a production build. `jest.config.js` still maps
+`app/utils/buildEnv` to a stub with the same answer; a test that needs a development build mocks that
+module itself. Code that routes around a barrel only to keep `import.meta` out of a test is no longer
+needed, and a comment that says it is is wrong.
 
 ### Detecting a placement violation
 

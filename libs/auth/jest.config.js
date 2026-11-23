@@ -1,7 +1,5 @@
 module.exports = {
-    testEnvironment: 'jsdom',
-    // `@chatic/data` pulls the socket lib in, which touches TextEncoder at import time.
-    setupFiles: ['<rootDir>/jest.setup.ts'],
+    testEnvironment: '<rootDir>/../../tools/jest/jsdom-environment.js',
     // `uuid` ships ESM-only and is reached through the libs below, so it is transformed too.
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     // The `@chatic/session` stores read `storage` from the `@chatic/shared` barrel, which carries
@@ -25,6 +23,7 @@ module.exports = {
             'ts-jest',
             {
                 tsconfig: '<rootDir>/tsconfig.spec.json',
+                astTransformers: { before: ['<rootDir>/../../tools/jest/import-meta-transformer.js'] },
             },
         ],
     },

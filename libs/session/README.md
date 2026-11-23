@@ -354,7 +354,7 @@ switch — tagged for one site, sent under another's session.
 - Each store takes its storage in the constructor, so a test builds one over a fake `StorageLike` rather than mocking a module. That is what `writeSignals.test.ts` and `contextStore.test.ts` do.
 - `sessionSignal` is a process singleton. A test that asserts fan-out counts must unsubscribe, because listeners survive between cases.
 - `msUntilExpiration` lives in `store/expiry.ts`, not with the use cases in @chatic/runtime, because the store needs it too and cannot import anything above it. Its `null` means "unmeasurable", which is explicitly **not** stale.
-- Jest needs `TextEncoder`/`TextDecoder` polyfilled before any module loads (`jest.setup.ts`): `@chatic/data` pulls the socket lib in, and jsdom does not provide them.
+- `@chatic/data` pulls the socket lib in, which reads `TextEncoder`/`TextDecoder` at import time; the shared jsdom environment in `tools/jest/` provides them (ADR-0371).
 - The identity context is seeded lazily. A test that asserts the initial state must read it once before asserting no signal fired.
 - `relayStore.getBackend()` throws until `configureSessionStore()` has run, so any test touching relay endpoints has to call it (or inject resolvers) first.
 

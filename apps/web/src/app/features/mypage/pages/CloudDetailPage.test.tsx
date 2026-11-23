@@ -157,8 +157,9 @@ describe('CloudDetailPage — releasing', () => {
 
     it('ends the cloud session when the released cloud was the active one', async () => {
         selectedCloudId = 'CL2';
+        const leaveForLogin = jest.fn();
 
-        render(<CloudDetailPage />);
+        render(<CloudDetailPage leaveForLogin={leaveForLogin} />);
         fireEvent.click(screen.getByText(`${K}.delete`));
         // The confirm names the consequence before the irreversible step.
         expect(screen.getByText(/deleteSelectedCloudWarning/)).toBeInTheDocument();
@@ -166,6 +167,7 @@ describe('CloudDetailPage — releasing', () => {
 
         await waitFor(() => expect(logoutCloudSession).toHaveBeenCalledTimes(1));
         expect(logger.info).toHaveBeenCalledWith('CLOUD', 'cloud released', { cloudId: 'CL2', wasActive: true });
+        expect(leaveForLogin).toHaveBeenCalledTimes(1);
         // The reload replaces the list; nothing navigates there first.
         expect(navigate).not.toHaveBeenCalled();
     });

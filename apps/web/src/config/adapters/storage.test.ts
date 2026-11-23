@@ -93,11 +93,9 @@ describe('storage.resolved — a vault unreadable at launch', () => {
         async outcome => {
             mockPrepare.mockResolvedValue(outcome);
             const listen = jest.spyOn(document, 'addEventListener');
-            // jsdom's `location.reload` cannot be replaced, and reports itself as not implemented; the
-            // watch letting go of the page's visibility is what shows it reached the reload, its last step.
             const unlisten = jest.spyOn(document, 'removeEventListener');
-            const jsdomNotice = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-            await storageResolved(vaultStores('unavailable')).create({ facts, sessionOwner: 'web' });
+            const reload = jest.fn();
+            await storageResolved(vaultStores('unavailable'), reload).create({ facts, sessionOwner: 'web' });
             const onVisible = listen.mock.calls.find(
                 ([type]) => type === 'visibilitychange'
             )?.[1] as () => Promise<void>;
@@ -106,6 +104,7 @@ describe('storage.resolved — a vault unreadable at launch', () => {
             mockRead.mockResolvedValueOnce({ status: 'unavailable' });
             await onVisible();
             expect(unlisten).not.toHaveBeenCalledWith('visibilitychange', onVisible);
+            expect(reload).not.toHaveBeenCalled();
 
             setVisibility('hidden');
             await onVisible();
@@ -115,9 +114,9 @@ describe('storage.resolved — a vault unreadable at launch', () => {
             mockRead.mockResolvedValueOnce({ status: 'available' });
             await onVisible();
             expect(unlisten).toHaveBeenCalledWith('visibilitychange', onVisible);
+            expect(reload).toHaveBeenCalledTimes(1);
             listen.mockRestore();
             unlisten.mockRestore();
-            jsdomNotice.mockRestore();
         }
     );
 
