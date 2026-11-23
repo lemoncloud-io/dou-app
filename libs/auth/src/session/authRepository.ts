@@ -1,23 +1,7 @@
 import type { IAuthRepository } from '@chatic/data';
 
-/**
- * Where `session/` gets its `AuthRepository`.
- *
- * **Why it is handed in.** The repository graph is assembled in `data/`, which sits above this layer:
- * it builds its socket data sources from the socket manager and its scope from the session, and the
- * auth use cases sit beside those, not under them. Importing `data/runtime` from here was an upward
- * edge, so `createRuntime()` hands the accessor down instead and this file imports nothing at runtime.
- *
- * The accessor is a function, resolved on every call: the graph is built lazily on first access, so a
- * captured instance could pin a graph that does not exist yet.
- *
- * Unwired is a loud failure, not a quiet one. There is no "safe" answer for a login with no
- * repository, and the message names the call that was skipped.
- */
 export interface IAuthRepositorySource {
-    /** Installs the accessor. Passing null unwires it (test teardown). */
     provide(get: (() => IAuthRepository) | null): void;
-    /** The repository, through the accessor installed at boot. Throws when nothing was installed. */
     get(): IAuthRepository;
 }
 

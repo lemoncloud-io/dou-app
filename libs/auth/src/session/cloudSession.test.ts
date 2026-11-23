@@ -21,8 +21,6 @@ const mockGetIdentityToken = jest.fn();
 const mockGetBackend = jest.fn();
 const mockGetWss = jest.fn();
 
-// Per-server bridge helper deps. mockGetActiveServerContext backs the "routing ignores active
-// context" assertions in the per-server suite.
 const mockGetActiveServerContext = jest.fn();
 
 const mockSetSelectedSiteId = jest.fn();
@@ -31,12 +29,8 @@ const mockRebuildSessionIdentity = jest.fn();
 
 const mockGetCloudSessionSnapshot = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
-/** Counts `sessionSignal.batch` — one logical use-case must be one batch (ADR-0076 decision 2). */
 const mockBatch = jest.fn();
 
-// `data` is this class's only HTTP path — this is the mock seam for every session-material call.
-// The argument shape is validated exactly as the repository contract has it (an object). The
-// `auth/api.ts` adapter that used to rename it is gone, so this mock is now the real boundary.
 jest.mock('./authRepository', () => ({
     authRepositorySource: {
         get: () => ({
@@ -51,10 +45,6 @@ jest.mock('./authRepository', () => ({
     },
 }));
 
-// Before the migration, this mock was split across four web-core modules — `./contexts`,
-// `./core`, `./contextStore`, `./utils` — and has now been merged into one; they all sit behind
-// the `@chatic/session/store` barrel now.
-
 jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: {
         saveDelegationToken: (...args: unknown[]) => mockSaveDelegationToken(...args),
@@ -66,7 +56,6 @@ jest.mock('@chatic/session/store/stores', () => ({
         recordCloudUse: (...args: unknown[]) => mockRecordCloudUse(...args),
         setCachedCloudTokens: (...args: unknown[]) => mockSetCachedCloudTokens(...args),
         setCloudIdentity: jest.fn(),
-        // Nothing recorded: these switches are first entries as far as the identity guard is concerned.
         getCloudIdentity: jest.fn(() => null),
         saveSelectedCloudId: (...args: unknown[]) => mockSaveSelectedCloudId(...args),
         getSelectedCloudId: (...args: unknown[]) => mockGetSelectedCloudId(...args),
@@ -92,7 +81,6 @@ jest.mock('@chatic/session/store/stores', () => ({
 }));
 
 jest.mock('@chatic/session/store', () => ({
-    // The exchange notes which relay user it was asked as; nothing here reads it back.
     getUidInCloud: () => null,
     getCloudSessionSnapshot: (...args: unknown[]) => mockGetCloudSessionSnapshot(...args),
     getActiveServerContext: (...args: unknown[]) => mockGetActiveServerContext(...args),
@@ -102,9 +90,6 @@ jest.mock('@chatic/session/store', () => ({
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: (...args: unknown[]) => mockClearRelaySession(...args),
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
-    // The store announces KINDS now (ADR-0076 decision 2). `mockNotifySessionStateChanged` stands for
-    // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
-    // runs straight through because the collapsing is covered by signal.test.ts.
     sessionSignal: {
         emit: (...args: unknown[]) => mockNotifySessionStateChanged(...args),
         batch: (fn: () => unknown) => {
@@ -128,9 +113,6 @@ jest.mock('@chatic/logger', () => ({
 
 describe('session/auth/cloudSession', () => {
     beforeEach(() => {
-        // resetAllMocks (not clearAllMocks): also wipes mockResolvedValue/mockRejectedValue
-        // implementations so a per-test rejection cannot leak into the next test. The defaults
-        // below are re-established afterward.
         jest.resetAllMocks();
         localStorage.clear();
 
@@ -173,7 +155,6 @@ describe('session/auth/cloudSession', () => {
         });
         expect(mockSaveDelegationToken).toHaveBeenCalled();
         expect(mockSaveCloudToken).toHaveBeenCalled();
-        // Freshly-issued tokens are cached by cloudId for a fast re-switch.
         expect(mockSetCachedCloudTokens).toHaveBeenCalledWith('cloud-new', {
             delegationToken: {
                 backend: 'https://cloud.example.com',
@@ -183,17 +164,9 @@ describe('session/auth/cloudSession', () => {
             cloudToken: userToken,
         });
         expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
-        // Cloud token saved above; identity is rebuilt (uid re-derives from the active cloud token).
         expect(mockRebuildSessionIdentity).toHaveBeenCalled();
-        // The selected cloud id is written by `cloudStore.saveSelectedCloudId` — twice on this path
-        // (the optimistic pre-apply, then the post-exchange commit). A third write through a
-        // `setSelectedCloudId` store wrapper used to sit here and cost one more fan-out (ADR-0076
-        // A4); that wrapper is gone, so the type system now keeps this to two.
         expect(mockSaveSelectedCloudId).toHaveBeenCalledTimes(2);
         expect(mockSaveSelectedCloudId).toHaveBeenCalledWith('cloud-new');
-        // The commit is ONE batch — this is the measurement ADR-0076 decision 2 exists for. Before it the
-        // success path fired the session signal eight times and seven inconsistent intermediate
-        // states were observable.
         expect(mockBatch).toHaveBeenCalledTimes(1);
         expect(result).toEqual({
             cloudId: 'cloud-1',
@@ -219,7 +192,6 @@ describe('session/auth/cloudSession', () => {
 
         await cloudSession.switchTo('cloud-new');
 
-        // Cache hit → no HTTP round trips; the committed tokens come straight from the cache.
         expect(mockIssueCloudDelegationToken).not.toHaveBeenCalled();
         expect(mockIssueCloudToken).not.toHaveBeenCalled();
         expect(mockSaveDelegationToken).toHaveBeenCalledWith(cachedDelegation);
@@ -237,7 +209,6 @@ describe('session/auth/cloudSession', () => {
         await cloudSession.switchTo('cloud-new');
 
         expect(mockRecordCloudUse).toHaveBeenCalledWith('cloud-new');
-        // Between the batch opening and the identity rebuild that closes the commit.
         const [recorded] = mockRecordCloudUse.mock.invocationCallOrder;
         expect(recorded).toBeGreaterThan(mockBatch.mock.invocationCallOrder[0]);
         expect(recorded).toBeLessThan(mockRebuildSessionIdentity.mock.invocationCallOrder[0]);
@@ -253,8 +224,6 @@ describe('session/auth/cloudSession', () => {
     });
 
     it('with a live slot, commits the cached tokens that socket registered with — even inside the margin', async () => {
-        // A background slot for the target is up and signing with this entry. The margin-checked read
-        // would refuse it (and re-issue); the switch must commit it as it is instead.
         mockGetSelectedCloudId.mockReturnValue('cloud-old');
         const live = {
             delegationToken: { wss: 'wss://cloud.example.com', delegationToken: 'live-delegation' },
@@ -307,8 +276,6 @@ describe('session/auth/cloudSession', () => {
     });
 
     it('drops the selected site when issued tokens re-enter the cloud already selected', async () => {
-        // The invite login's token is signed for the cloud's default site, so a kept selection would
-        // name a place the session is no longer on and the next switch into it would no-op.
         mockGetSelectedCloudId.mockReturnValue('cloud-1');
         mockGetSelectedSiteId.mockReturnValue('site-invited');
 
@@ -360,7 +327,6 @@ describe('session/auth/cloudSession', () => {
 
     it('pre-applies the target cid before the token exchange (optimistic)', async () => {
         mockGetSelectedCloudId.mockReturnValue('cloud-old');
-        // Capture the optimistic cid that is already committed by the time the exchange runs.
         let cidAtExchange: string | undefined;
         mockIssueCloudDelegationToken.mockImplementation(async () => {
             cidAtExchange = mockSaveSelectedCloudId.mock.calls.at(-1)?.[0] as string | undefined;
@@ -390,14 +356,11 @@ describe('session/auth/cloudSession', () => {
         await expect(cloudSession.switchTo('cloud-new')).rejects.toThrow('exchange failed');
 
         const cidCalls = mockSaveSelectedCloudId.mock.calls.map(c => c[0]);
-        expect(cidCalls).toEqual(['cloud-new', 'cloud-old']); // optimistic then rollback
-        expect(mockSaveSelectedSiteId).toHaveBeenCalledWith('site-old'); // previous sid restored
+        expect(cidCalls).toEqual(['cloud-new', 'cloud-old']);
+        expect(mockSaveSelectedSiteId).toHaveBeenCalledWith('site-old');
     });
 
     describe('applySelectedSite (optimistic sid primitive for the @chatic/runtime socket switch)', () => {
-        // It no longer announces anything itself: `setSelectedSiteId` routes to the relay or cloud
-        // store by active cloud and BOTH emit `selection` (ADR-0076 decision 2). A broadcast here was a
-        // second fan-out for one write.
         it('applies the selected site through the store, without a second announcement', () => {
             cloudSession.applySelectedSite('site-new');
 
@@ -416,14 +379,9 @@ describe('session/auth/cloudSession', () => {
     it('fully clears the cloud stores (returns to default), leaving relay intact', () => {
         cloudSession.clearStores();
 
-        // Clears the whole cloud session (delegation + cloud token + selected cloud/site) so
-        // cloud.isActive → false and uid/activeServer fall back to relay.
         expect(mockClearSession).toHaveBeenCalledTimes(1);
         expect(mockRebuildSessionIdentity).toHaveBeenCalledTimes(1);
-        // ONE batch: leaving the cloud is one observable change. The kinds themselves come from the
-        // store writes inside (`clearSession` announces `cloud:token` + `selection`).
         expect(mockBatch).toHaveBeenCalledTimes(1);
-        // Relay session is untouched during cloud logout.
         expect(mockClearRelaySession).not.toHaveBeenCalled();
     });
 });

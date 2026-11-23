@@ -12,7 +12,7 @@ export const MOBILE_ALIASES = {
     'react-native-config': path.join(import.meta.dirname, 'src/stubs/reactNativeConfig.ts'),
 };
 
-export const SHARED_FOR_DEEPLINKS = path.join(ROOT, 'libs/shared/src/utils/index.ts');
+const SHARED_FOR_DEEPLINKS = path.join(ROOT, 'libs/shared/src/utils/index.ts');
 const VIRTUAL_SHARED = '\0shell-adapter:shared-for-deeplinks';
 
 export const sharedInviteLinkForDeeplinks = (): Plugin => ({

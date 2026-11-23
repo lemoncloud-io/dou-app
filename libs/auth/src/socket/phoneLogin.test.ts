@@ -95,7 +95,6 @@ describe('retryPhoneLogin', () => {
         expect(mockConfirmPhoneCode).toHaveBeenCalledTimes(1);
         expect(mockApplySessionToken).toHaveBeenCalledTimes(2);
         expect(mockApplySessionToken).toHaveBeenLastCalledWith(TOKEN);
-        // Finished: nothing is left waiting.
         await expect(retryPhoneLogin()).rejects.toMatchObject({ code: PHONE_LOGIN_NOTHING_PENDING });
     });
 

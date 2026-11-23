@@ -3,7 +3,6 @@ import { sessionStores } from '@chatic/session/store/ports';
 import { PairedCloudStore, pairedClouds } from './pairedClouds';
 
 const map = new Map<string, string>();
-// One map behind both session ports — these tests are about the list, not which port holds it.
 const store = {
     get: (key: string) => map.get(key) ?? null,
     set: (key: string, value: string) => void map.set(key, value),

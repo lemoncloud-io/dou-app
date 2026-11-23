@@ -15,7 +15,6 @@ import {
     type PairedCloudSessionsDeps,
 } from './pairedCloudSessions';
 
-// The wired instance pulls the socket runtime in; nothing here reaches it.
 jest.mock('@chatic/logger', () => ({
     ...jest.requireActual('@chatic/logger'),
     logger: { info: jest.fn(), warn: jest.fn() },
@@ -37,7 +36,6 @@ const refusal = (reason: string, status = 403) =>
     Object.assign(new Error(`Request failed with status code ${status}`), { response: { status, data: reason } });
 const revoked = () => refusal('403 NOT ALLOWED - pairing revoked @doPostDelegateCloud(users/0)');
 
-/** A lifecycle over an in-memory list, recording every call in order. */
 const harness = (initial: string[] = []) => {
     const ids = [...initial];
     const calls: string[] = [];
@@ -132,8 +130,6 @@ describe('PairedCloudSessions.prepareEntry', () => {
 
         await sessions.prepareEntry('1000004');
 
-        // The drop sits between the settle and the re-issue: an exchange refuses to move a cloud off its
-        // recorded uid, and the approver's uid replacing the tab's own is what entering is for.
         expect(calls).toEqual([
             'settle:1000004',
             'drop:1000004',
@@ -142,7 +138,6 @@ describe('PairedCloudSessions.prepareEntry', () => {
             'align:1000004',
             'add:1000004',
         ]);
-        // The caller switches its own way.
         expect(switchCloud).not.toHaveBeenCalled();
     });
 
@@ -201,7 +196,6 @@ describe('PairedCloudSessions.checkAll', () => {
 
 describe('the wired instance', () => {
     const map = new Map<string, string>();
-    // One map behind both session ports — these tests are about the list, not which port holds it.
     const store = {
         get: (key: string) => map.get(key) ?? null,
         set: (key: string, value: string) => void map.set(key, value),
@@ -304,8 +298,6 @@ describe('the wired instance', () => {
         await expect(checkPairedClouds()).resolves.toEqual([]);
         expect(reissueCloudTokens).not.toHaveBeenCalled();
         expect(pairedClouds.list()).toEqual([]);
-        // Ended, not just cleared: the approver's uid goes too, or the account's own entry would be
-        // refused as a change of user.
         expect(cloudStore.getCloudIdentities()).not.toHaveProperty('1000002');
     });
 

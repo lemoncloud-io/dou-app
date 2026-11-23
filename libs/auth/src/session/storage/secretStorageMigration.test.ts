@@ -13,14 +13,12 @@ const RELAY = 'chatic-relay-token';
 const CLOUD = 'chatic-cloud-token';
 const MARKER = 'chatic-secret-logout-pending';
 
-/** A shell whose vault starts as `vault` and answers reads as `read` says, recording every call in order. */
 const shell = (
     opts: {
         read?: NativeReadResult['status'];
         vault?: Record<string, string>;
         saveOk?: boolean;
         clearOk?: boolean;
-        /** A shell that never answers a write. */
         saveHangs?: boolean;
     } = {}
 ) => {
@@ -115,8 +113,6 @@ describe('secretStorageMigration', () => {
     });
 
     it('lets a web copy no page ever moved replace the session in the vault, then deletes the copy', async () => {
-        // The phone app's runtime signed in as a guest on an empty vault while the person's session
-        // was still in localStorage, never moved because no page had booted on the vault.
         const { store, vault } = shell({ vault: { [RELAY]: 'runtime-guest', [CLOUD]: 'runtime-cloud' } });
         const web = webWith({ [RELAY]: 'account' });
 
@@ -317,7 +313,6 @@ describe('secretStorageMigration and the device guest id', () => {
     const GUEST = 'chatic-delegator-id';
     const boot = (store: NativeSecureStore, web: MemoryStore, afterLogout = false, tab = new MemoryStore()) =>
         secretStorageMigration.prepare({ vault: store, plain: web, web, tab, afterLogout });
-    /** The copy is not awaited by the boot; this waits for the store's queue, which it joined. */
     const settled = (store: NativeSecureStore) => store.flush().catch(() => undefined);
 
     it('copies it into a vault that holds the session but not the id, and keeps the plain copy', async () => {

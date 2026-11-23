@@ -41,6 +41,20 @@ libs/auth/src/
 `Coalescer` and `Throttle` sit here because the guards they generalise were auth's; @chatic/runtime's
 hooks that share them depend on this package anyway.
 
+They are two primitives because they answer different questions:
+
+- **`Coalescer`** shares one in-flight attempt among concurrent askers, who all get the same answer.
+  With `memoMs` a just-settled answer also serves the next caller for that long. That is a burst
+  absorber, not a cache: past a few seconds it would answer for a state it can no longer vouch for.
+  A rejection is never memoized, because it means the attempt produced no answer, so the next caller
+  gets a fresh attempt. `forgetResult()` drops the memo and leaves an attempt in flight shared.
+- **`Throttle`** is a synchronous "may I fire now?" with a minimum gap, optionally doubling up to a
+  ceiling until `reset()`. The first call always grants, so a cold start is not delayed. A refusal means
+  "skip this trigger", not "here is a value", which is why it is not a mode of `Coalescer`: the
+  terminal-expiry resume gate lives inside a message handler and answers synchronously.
+- The numbers belong to the callers, which hold the policy (the resume gate's 30 s to 5 min growth, the
+  relay refresh's 3 s memo); these classes hold the mechanism.
+
 ## Rules
 
 1. **The use cases are the only writers of the session.** `@chatic/session`'s barrel sells the raw
@@ -91,12 +105,13 @@ hooks that share them depend on this package anyway.
 
 ## Documents
 
-| Doc                                                | Covers                                                                                                                                       |
-| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| [docs/session/](./docs/session/README.md)          | The use cases: relay and cloud sessions, the token exchange and its cache, teardown                                                          |
-| [docs/pairing/](./docs/pairing/README.md)          | Device pairing: the request flow, paired clouds and their checks, the secondary-device rule                                                  |
-| [docs/socket/](./docs/socket/README.md)            | Staying authenticated on every socket: who owns what, the status truth table, booting, re-auth, renewal, background tokens, ending a session |
-| [docs/socket/signing.md](./docs/socket/signing.md) | The per-server `authId` / signature / writeback contract, and the HMAC formula                                                               |
+| Doc                                                        | Covers                                                                                                                                       |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/session/](./docs/session/README.md)                  | The use cases: relay and cloud sessions, the token exchange and its cache, teardown                                                          |
+| [docs/pairing/](./docs/pairing/README.md)                  | Device pairing: the request flow, paired clouds and their checks, the secondary-device rule                                                  |
+| [docs/socket/](./docs/socket/README.md)                    | Staying authenticated on every socket: who owns what, the status truth table, booting, re-auth, renewal, background tokens, ending a session |
+| [docs/socket/signing.md](./docs/socket/signing.md)         | The per-server `authId` / signature / writeback contract, and the HMAC formula                                                               |
+| [docs/socket/live-socket.md](./docs/socket/live-socket.md) | Why a socket that is already connected is changed the way it is: identity swap, refresh writeback, cloud renewal and exit, wake order        |
 
 ## Testing
 

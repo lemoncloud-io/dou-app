@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-11-23] - root@0.173.1, @chatic/desktop-web@0.60.8
+
+### Bug Fixes
+
+- (desktop-web) save documents' "download all" as one zip
+
+## [2026-11-23] - No version updates
+
+### Chores
+
+- (comments) remove comments from libs/auth
+
+## [2026-11-23] - No version updates
+
+### Chores
+
+- (comments) remove comments from apps/landing
+
 ## [2026-11-23] - No version updates
 
 ### Chores

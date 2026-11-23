@@ -5,17 +5,6 @@ import type { AuthSignResult, IAuthSigner, SignatureContext, SignaturePayload } 
 
 const hmac = (message: string, key: string): string => encBase64.stringify(hmacSHA256(message, key));
 
-/**
- * lemon HMAC — `hmac(hmac(hmac(data, authId), accountId), identityId)`, where
- * `data = [current, accountId, identityId, '', userAgent].join('&')`.
- *
- * The 4th slot is always `''`. That is a property of the formula and not a caller convention, so
- * the payload has no field for it.
- *
- * Pure: no network, no storage, no globals. `current` and `userAgent` are required inputs rather
- * than defaults, because a default would have to read `new Date()` or `navigator`, and the formula
- * runs under Node and React Native as well as a browser.
- */
 export class LemonHmacSigner implements IAuthSigner {
     sign(payload: SignaturePayload, context: SignatureContext): AuthSignResult {
         const data = [context.current, payload.accountId, payload.identityId, '', context.userAgent].join('&');

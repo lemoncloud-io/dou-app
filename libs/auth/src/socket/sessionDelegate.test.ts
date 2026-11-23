@@ -9,9 +9,6 @@ jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-// The delegate's job here is ROUTING, so the renewers are stubbed: what each server does about a
-// terminal expiry (relay's confirmation window, a cloud's store-or-cache teardown) is the renewers'
-// own contract and is locked in `renewers.test.ts`.
 const mockRelayExpiry = jest.fn().mockResolvedValue(undefined);
 const mockCloudExpiry = jest.fn();
 jest.mock('./renewers', () => {

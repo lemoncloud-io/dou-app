@@ -5,7 +5,7 @@ describe('Throttle — 고정 간격', () => {
         let now = 0;
         const t = new Throttle({ intervalMs: 60_000, now: () => now });
 
-        expect(t.tryAcquire()).toBe(true); // cold start must not wait
+        expect(t.tryAcquire()).toBe(true);
         expect(t.tryAcquire()).toBe(false);
 
         now = 59_999;
@@ -30,23 +30,22 @@ describe('Throttle — 지수 백오프', () => {
         let now = 0;
         const t = new Throttle({ intervalMs: 30_000, maxIntervalMs: 300_000, now: () => now });
 
-        expect(t.tryAcquire()).toBe(true); // hold 30s
+        expect(t.tryAcquire()).toBe(true);
         now = 30_000;
-        expect(t.tryAcquire()).toBe(true); // hold 60s
+        expect(t.tryAcquire()).toBe(true);
         now = 60_000;
-        expect(t.tryAcquire()).toBe(false); // 30s has passed, but the hold is now 60s
+        expect(t.tryAcquire()).toBe(false);
         now = 90_000;
-        expect(t.tryAcquire()).toBe(true); // hold 120s
+        expect(t.tryAcquire()).toBe(true);
 
-        // push it up to the ceiling
         now = 210_000;
-        expect(t.tryAcquire()).toBe(true); // hold 240s
+        expect(t.tryAcquire()).toBe(true);
         now = 450_000;
-        expect(t.tryAcquire()).toBe(true); // hold 300s (ceiling)
+        expect(t.tryAcquire()).toBe(true);
         now = 750_000;
         expect(t.tryAcquire()).toBe(true);
         now = 1_050_000;
-        expect(t.tryAcquire()).toBe(true); // doesn't exceed 300s
+        expect(t.tryAcquire()).toBe(true);
     });
 
     it('reset 은 홀드를 풀고 첫 간격을 복구한다 — 성공 뒤 예산 복구', () => {
@@ -54,11 +53,11 @@ describe('Throttle — 지수 백오프', () => {
         const t = new Throttle({ intervalMs: 30_000, maxIntervalMs: 300_000, now: () => now });
         t.tryAcquire();
         now = 30_000;
-        t.tryAcquire(); // interval grew to 60s
+        t.tryAcquire();
 
         t.reset();
-        expect(t.tryAcquire()).toBe(true); // hold released
+        expect(t.tryAcquire()).toBe(true);
         now = 60_000;
-        expect(t.tryAcquire()).toBe(true); // interval back to 30s
+        expect(t.tryAcquire()).toBe(true);
     });
 });

@@ -31,7 +31,6 @@ const mockGetCloudIdentity = jest.fn();
 const mockRebuildSessionIdentity = jest.fn();
 const mockGetUidInCloud = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
-/** Counts `sessionSignal.batch` — a re-issue must be one observable change. */
 const mockBatch = jest.fn();
 
 jest.mock('./authRepository', () => ({
@@ -62,9 +61,6 @@ jest.mock('@chatic/session/store/stores', () => ({
 jest.mock('@chatic/session/store', () => ({
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
     getUidInCloud: (...args: unknown[]) => mockGetUidInCloud(...args),
-    // The store announces KINDS now (ADR-0076 decision 2). `mockNotifySessionStateChanged` stands for
-    // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
-    // runs straight through because the collapsing is covered by signal.test.ts.
     sessionSignal: {
         emit: (...args: unknown[]) => mockNotifySessionStateChanged(...args),
         batch: (fn: () => unknown) => {
@@ -100,8 +96,6 @@ beforeEach(() => {
 
 describe('issueCloudTokens', () => {
     it('joins an exchange already in flight for the same cloud instead of starting a second one', async () => {
-        // A switch and the background preparer can ask for one cloud at once; two exchanges would
-        // leave the cache and whatever the loser committed or registered disagreeing.
         let finish: (value: unknown) => void = () => undefined;
         mockDelegateCloud.mockReturnValue(new Promise(resolve => (finish = resolve)));
 
@@ -234,7 +228,6 @@ describe('reissueCloudTokens', () => {
         await reissueCloudTokens('cloud-1');
 
         expect(mockSaveDelegationToken).toHaveBeenCalledWith(delegation());
-        // A re-issue must not drop the profile fields the stored view carries.
         expect(mockSaveCloudToken).toHaveBeenCalledWith({
             Token: { identityToken: 'fresh-identity' },
             name: 'kept-name',
@@ -242,7 +235,6 @@ describe('reissueCloudTokens', () => {
     });
 
     it("replaces, not merges, a committed invite entry, and drops the invitee's selected place", async () => {
-        // The store holds an invitee entered with the invite login's answer; the re-issue names the owner.
         mockGetDelegationToken.mockReturnValue({ ...delegation(), delegationToken: '' });
         mockGetCloudToken.mockReturnValue({
             Token: { identityToken: 'invitee-identity' },
@@ -252,14 +244,12 @@ describe('reissueCloudTokens', () => {
         await reissueCloudTokens('cloud-1');
 
         expect(mockSaveDelegationToken).toHaveBeenCalledWith(delegation());
-        // Nothing of the invitee survives, `$user` and its role included.
         expect(mockSaveCloudToken).toHaveBeenCalledWith({ Token: { identityToken: 'fresh-identity' } });
         expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
         expect(mockSaveSelectedCloudId).not.toHaveBeenCalled();
     });
 
     it("replaces a committed token that names another user — a guest's issue renewed before the sign-in", async () => {
-        // An ordinary signed delegation, so nothing marks it as an invite entry: only the uid differs.
         mockGetDelegationToken.mockReturnValue(delegation());
         mockGetCloudToken.mockReturnValue({
             uid: 'guest-uid',
@@ -322,8 +312,6 @@ describe('reissueCloudTokens', () => {
         await reissueCloudTokens('cloud-1');
 
         expect(mockRebuildSessionIdentity).toHaveBeenCalled();
-        // A re-issue is not a cloud CHANGE, so observers must never see a window where only the
-        // delegation token has moved.
         expect(mockBatch).toHaveBeenCalledTimes(1);
     });
 
@@ -345,7 +333,6 @@ describe('reissueCloudTokens', () => {
     });
 
     it('decides "committed" at write time — a switch away during the exchange keeps the store untouched', async () => {
-        // Committed when the renewal starts, not any more by the time the exchange answers.
         mockGetDelegationToken.mockReturnValue(delegation('cloud-1'));
         mockDelegateCloud.mockImplementation(async () => {
             mockGetDelegationToken.mockReturnValue(delegation('cloud-2'));
@@ -368,7 +355,6 @@ describe('reissueCloudTokens', () => {
 });
 
 describe('identity guard', () => {
-    // The account is recorded as `invitee-uid` in cloud-1 — the user its invite login made there.
     beforeEach(() => {
         mockGetCloudIdentity.mockImplementation((cloudId: string) =>
             cloudId === 'cloud-1' ? { uid: 'invitee-uid' } : null
@@ -549,7 +535,6 @@ describe('isInviteLoginEntry', () => {
 
     it('does not take a delegate-cloud issue, or nothing at all, for one', () => {
         expect(isInviteLoginEntry({ cloudId: 'cloud-1', delegationToken: 'signed.jwt', expiredAt: 0 })).toBe(false);
-        // A view with the field missing is not an invite entry: only the assembled empty string is.
         expect(isInviteLoginEntry({ cloudId: 'cloud-1' } as unknown as CloudDelegationTokenView)).toBe(false);
         expect(isInviteLoginEntry(null)).toBe(false);
         expect(isInviteLoginEntry(undefined)).toBe(false);
@@ -566,7 +551,6 @@ describe('exchange attribution', () => {
 
         const issuing = issueCloudTokens('attributed-1', { allowCache: false });
         expect(isExchangeInFlight('attributed-1')).toBe(true);
-        // The sign-in lands while the exchange is on the wire.
         mockGetUidInCloud.mockReturnValue('account-1');
         answer();
         await issuing;

@@ -100,30 +100,86 @@ guest that accepted and then signed in, both get back the guest their own sessio
 their uid stays the same. A flip takes a relay session linked to a guest other than the one whose
 invite login made the invitee.
 
-`relaySession.clearAndRedirect()` performs no server-side logout; notifying the sockets is
+### How a login lands
+
+- **Every login commits through one step.** A full relay token view is saved (when it carries a
+  `Token`) and the session is marked authenticated. `loginByToken` is the same step for a view that is
+  already issued, as in the socket login, where there is no HTTP call; `socket/applySessionToken` calls
+  it first so the store leads and the socket follows.
+- **The login answer must carry `$auth.id`.** The relay socket registers with it, and the profile
+  endpoint cannot supply it. `loginByOAuthCode` logs a warning when the answer lacks it, because
+  otherwise the failure only shows up later as a socket auth error with the cause long gone.
+- **The device guest's id (`delegatorId`) has one writer.** `loginGuestByDevice` sets it to the guest's
+  own uid, and a relay logout (`clearRelaySession`) clears it. No other login, a token refresh or a
+  cloud switch touches it. Invites are accepted under that id, and a guest promoted to a social or
+  phone login must keep it, or the guest recovery after a logout would stop returning the same device
+  user.
+- **Booting never refreshes.** `initialize()` only asks whether a relay token is stored. A returning
+  user whose credential has expired therefore boots into the signed-in UI, offline as well, and the
+  credential is renewed afterwards: by the relay socket's refresh writeback once it re-verifies, or by
+  an explicit `requestRelaySessionRefresh`. There is one refresh route, and it goes through the
+  socket ([docs/socket/](../socket/README.md)).
+
+### Entering a cloud
+
+`cloudSession.switchTo(cloudId, { hasLiveSlot, issuedTokens })` makes a cloud the committed one:
+
+- **The selection moves first, the tokens commit last.** When the cloud changes, the selected cloud id
+  is written and the selected place dropped before the exchange, so observers keyed on the cloud swap
+  to the target's cache at once. The tokens of the cloud being left stay valid until the new ones land.
+  A failed exchange puts the previous cloud id and place back.
+- **Which tokens it commits, in order:** the invite login's `issuedTokens`; else, with `hasLiveSlot`,
+  the cache entry the live background slot registered with, as it is (a socket signs with whatever the
+  committed store holds, so a token it never registered would not sign); else the exchange with the
+  cache allowed. Issued tokens are also written into the per-cloud cache and their uid recorded.
+- **The commit is one batch** (delegation token, cloud token, selected cloud id, recent-cloud order,
+  rebuilt identity), so no observer sees a state where the selection moved but the tokens had not. In
+  the same cloud the new view is merged over the stored one, since a re-issue does not always carry
+  every field (profile fields in particular); issued tokens replace it, because they may name another
+  user.
+- **Issued tokens into the cloud already selected also drop the selected place.** They are signed for
+  the place the server chose (an invite login names the cloud's default), and the socket registers
+  there. Keeping the old selection would make a later switch into that place a no-op as "already
+  there", while every place-scoped call lands on the default one.
+- **`clearStores()` leaves the cloud, not the account.** It clears the delegation, the cloud token and
+  the selection, so the session falls back to the relay. The per-cloud token cache and the identity
+  map stay, because the other clouds keep background socket sessions signing from that cache. Only the
+  account teardown below clears them.
+
+`relaySession.clearAndRedirect()` performs no server-side logout, because the backend has no
+session-revoke endpoint; notifying the sockets is
 [`logoutSession`](../socket/README.md)'s job, in `socket/`. It ends the account on this device, in
 this order, and only then leaves the page:
 
-1. **The session.** Both relay and cloud stores, the per-cloud token cache, the cloud identity map, the
-   recent-cloud order, the reclaim records and the paired clouds — in both of the session's ports.
-2. **The app keys a sign-out takes**, by prefix, from the plain port's store — `localStorage` in a shell,
+1. **Logout callbacks.** Each callback registered with `registerLogoutCallback` runs once, in a
+   `try`, and the registry is emptied. A native shell that must sign out of an OAuth provider's SDK
+   registers there, since the provider is not session state.
+2. **The session**, as one observable change so that nothing re-renders through a half-torn-down
+   session on the way out. Both relay and cloud stores, the per-cloud token cache, the cloud identity
+   map, the recent-cloud order, the reclaim records and the paired clouds — in both of the session's
+   ports — and the local `net.relay.backend` / `net.relay.wss` overrides a deep link set, so a later
+   boot resolves the build's own endpoint again. Leaving one cloud keeps the cache and the identity
+   map; ending the account is the one place that clears them.
+3. **The app keys a sign-out takes**, by prefix, from the plain port's store — `localStorage` in a shell,
    `sessionStorage` in a browser. The prefixes are not this package's: the domains that write those
    keys declare them, and the app's runtime declaration hands them over (`signedOutKeyPrefixes`), whose
    `createRuntime` registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
    (`@chatic/web.log.`) and the telemetry policy (`@chatic/web.telemetry.policy`) — the logs carry the
    account that just left. An app that declares none has nothing swept.
-3. **The device vault**, where the shell keeps one: emptied, and the shell's confirmation awaited. The
+4. **The device vault**, where the shell keeps one: emptied, and the shell's confirmation awaited. The
    next document reads the vault before anything else, and a vault still holding the tokens would sign
    the person straight back in. When the shell does not confirm, `chatic-secret-logout-pending` goes
    into the plain store and the next boot empties the vault before reading it.
-4. **Home, with `logout=1`.** `authPlatform.ports().leaveToHome(params)` — in a page,
+5. **Home, with `logout=1`.** `authPlatform.ports().leaveToHome(params)` — in a page,
    `location.replace('/?logout=1')`, plus the sign-in parameters of the address it was opened with
    (`code`, `provider`, `_backend`, `_wss`) when `preserveUrl` is set.
+   It lands on `/` directly, with no sign-in page in between and no history rewinding. Sign-out and
+   clean-up are two page lifetimes, and the `logout=1` flag is what crosses between them.
 
 The HTTP transport has nothing of its own to clear: it signs every request from the session's relay
-token, which step 1 removed.
+token, which step 2 removed.
 
-`logoutStorageSweeper.sweep()` reads that flag (through `authPlatform.ports().currentSearch()`) on the next document and runs step 2 once more, for a
+`logoutStorageSweeper.sweep()` reads that flag (through `authPlatform.ports().currentSearch()`) on the next document and runs step 3 once more, for a
 log batch written between the clear and the navigation. It used to wipe the whole `@` namespace of the
 session's storage instead, keeping the language key and the config lane; that took lemon-web-core's
 bundle, which nothing writes any more, and whatever else later moved in under `@`.

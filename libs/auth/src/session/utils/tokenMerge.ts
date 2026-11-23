@@ -1,17 +1,5 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-/**
- * How an Auth-SDK-refreshed token view is merged into the stored one, per server (ADR-0076 Decision 5).
- *
- * These were 45 lines of justification inside `commitServerRefreshedToken`, and that comment was the
- * ONLY thing holding the three relay preservation rules in place — no test named any of them. They
- * are pure functions of (stored, fresh), so extracting them makes each invariant a case.
- *
- * Functions, not a class: pure helpers follow the repo's own shape for this (`calcSignature` ·
- * `msUntilExpiration` · `deriveConnectivity`), and there is no state to hold.
- */
-
-/** `$auth` is not on `UserTokenView`; the relay view carries it and only `.id` is ever read. */
 type WithAuth = { $auth?: { id?: string } };
 
 /**
@@ -69,8 +57,6 @@ export const mergeRefreshedRelayToken = (
     ({
         ...stored,
         ...view,
-        // Keyed on `.id`, not on `$auth` being present: a stored `$auth` without an id is not
-        // something to hold on to (nothing can register or sign with it), so the view still wins there.
         $auth: (stored as (UserTokenView & WithAuth) | null)?.$auth?.id
             ? (stored as UserTokenView & WithAuth).$auth
             : (view as UserTokenView & WithAuth).$auth,
@@ -82,13 +68,5 @@ export const mergeRefreshedRelayToken = (
         },
     }) as UserTokenView;
 
-/**
- * cloud: a shallow merge over the stored view, or the view itself when there is nothing stored.
- *
- * No per-field preservation, and that asymmetry is the point (signing.md §3): nothing signs with the
- * cloud credential — the one request that did was the cloud HTTP refresh, deleted by ADR-0070 — so
- * the cloud token owes only the SOCKET signature, which reads the store live per packet. Persisting
- * is the whole job. The shallow merge exists for the same profile-field reason as relay's.
- */
 export const mergeRefreshedCloudToken = (stored: UserTokenView | null, view: UserTokenView): UserTokenView =>
     stored ? ({ ...stored, ...view } as UserTokenView) : view;

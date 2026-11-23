@@ -17,23 +17,17 @@ const stored = (over: Record<string, unknown> = {}) =>
         ...over,
     }) as unknown as UserTokenView;
 
-/** A slim socket refresh view — what the SDK actually emits. */
 const slim = (token: Record<string, unknown> = {}) => ({ Token: { accountId: 'acct', ...token } }) as unknown as Relay;
 
 describe('mergeRefreshedRelayToken — 보존 불변식 3개', () => {
     it('identityToken: 뷰가 안 실어 보내면 저장된 것을 유지한다', () => {
-        // relay-signed HTTP sends it as x-lemon-identity, and the next register reads it back.
         expect(mergeRefreshedRelayToken(stored(), slim()).Token?.identityToken).toBe('idt-old');
-        // When it IS carried, the new value wins.
         expect(mergeRefreshedRelayToken(stored(), slim({ identityToken: 'idt-new' })).Token?.identityToken).toBe(
             'idt-new'
         );
     });
 
     it('identityPoolId: 뷰가 안 실어 보내면 저장된 것을 유지한다', () => {
-        // This merge feeds both stores — on the lemon side, saveOAuthToken overwrites this field with
-        // '', so if it dropped here, the pool id would vanish from every copy after the first socket
-        // refresh.
         expect(mergeRefreshedRelayToken(stored(), slim()).Token?.identityPoolId).toBe('pool-1');
         expect(mergeRefreshedRelayToken(stored(), slim({ identityPoolId: 'pool-2' })).Token?.identityPoolId).toBe(
             'pool-2'
@@ -41,9 +35,6 @@ describe('mergeRefreshedRelayToken — 보존 불변식 3개', () => {
     });
 
     it('credential: 뷰가 안 실어 보내면 저장된 것을 유지한다 — 스토어가 서명자와 어긋나지 않게', () => {
-        // If the view has no credential, the caller leaves the lemon cache as the previous one. If
-        // this field dropped, the store would lose track of "what's currently signing", and the
-        // credential clock would answer "can't measure".
         expect(mergeRefreshedRelayToken(stored(), slim()).Token?.credential).toEqual({
             AccessKeyId: 'AKIA-old',
             SecretKey: 's-old',
@@ -53,7 +44,6 @@ describe('mergeRefreshedRelayToken — 보존 불변식 3개', () => {
     });
 
     it('프로필 필드: 슬림한 refresh 가 name/photo/email 을 지우지 않는다', () => {
-        // The relay token also doubles as the source for account profile display (getRelaySessionUser).
         const merged = mergeRefreshedRelayToken(stored(), slim()) as unknown as Record<string, unknown>;
         expect(merged.name).toBe('Neo');
         expect(merged.photo).toBe('me.png');
@@ -72,9 +62,6 @@ describe('mergeRefreshedRelayToken — $auth 는 보존하고 채택하지 않�
     const withAuth = (merged: UserTokenView) => (merged as UserTokenView & { $auth?: { id?: string } }).$auth;
 
     it('사이트 전환이 돌려준 하위 auth 를 채택하지 않는다', () => {
-        // On a refresh carrying a target, the server sends a sub-auth with no identityId as $auth.
-        // Signing with that id makes the server compute identityId='' and produce a permanent
-        // 403 invalid sign.
         const merged = mergeRefreshedRelayToken(
             authed('parent-auth'),
             slim({ identityToken: 'idt-new' }) as Relay & { $auth: { id: string } }
@@ -97,7 +84,6 @@ describe('mergeRefreshedRelayToken — $auth 는 보존하고 채택하지 않�
     });
 
     it('저장된 $auth 에 id 가 없으면 붙들지 않고 뷰의 것을 받는다', () => {
-        // An $auth without an id can't sign or register anything — there's nothing worth preserving.
         const merged = mergeRefreshedRelayToken(stored({ $auth: {} }), {
             ...slim(),
             $auth: { id: 'usable-auth' },
@@ -125,8 +111,6 @@ describe('mergeRefreshedCloudToken — 얕은 병합만', () => {
             Token: { identityToken: 'cloud-new' },
         } as unknown as UserTokenView) as unknown as Record<string, unknown>;
         expect(merged.name).toBe('Neo');
-        // There's no per-field preservation — Token is replaced wholesale. Nothing signs with the
-        // cloud credential (signing.md §3), so there's nothing to keep.
         expect((merged.Token as Record<string, unknown>).identityPoolId).toBeUndefined();
     });
 
