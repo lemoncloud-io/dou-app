@@ -13,7 +13,6 @@ const joinEmitters = new Map<string, Emit>();
 let native = true;
 
 vi.mock('@chatic/runtime', async () => {
-    // One object for every render: the hook's effect depends on the repositories' identity.
     const repositories = {
         channel: {
             observeList: (_query: unknown, onChange: Emit) => {
@@ -34,7 +33,6 @@ vi.mock('@chatic/runtime', async () => {
         connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
         session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
         get push() {
-            // The desktop shell lets the page raise OS banners; a browser does not.
             return { ...browserPush(), localBanner: native ? { present: vi.fn() } : null };
         },
     });
@@ -52,7 +50,6 @@ import { useDesktopNotifications } from './useDesktopNotifications';
 
 const levelOf = (channelId: string) => useNotificationPrefsStore.getState().channelNotify[channelId];
 
-// Another device changes the level; it reaches this one as a write to the join cache.
 describe('useDesktopNotifications join mirror', () => {
     const start = (joinUserId: string | null = CLOUD_UID) => {
         renderHook(() => useDesktopNotifications());
@@ -69,7 +66,6 @@ describe('useDesktopNotifications join mirror', () => {
 
     const emitJoins = (list: unknown[]) => act(() => joinEmitters.get('ch-1')?.({ list }));
 
-    // Until the channel says who I am in its cloud, my account id is what there is to go by.
     it('takes the level of my join under my account id while my id in the cloud is unknown', () => {
         start(null);
         emitJoins([{ channelId: 'ch-1', userId: ACCOUNT_UID, notify: 'none' }]);
@@ -77,7 +73,6 @@ describe('useDesktopNotifications join mirror', () => {
         expect(levelOf('ch-1')).toBe('none');
     });
 
-    // Outside the relay my join in a channel is under the id that cloud gave me, not my account id.
     it("takes the level of my join when the join is under my id in the channel's cloud", () => {
         start();
         emitJoins([{ channelId: 'ch-1', userId: CLOUD_UID, notify: 'mention' }]);
@@ -92,7 +87,6 @@ describe('useDesktopNotifications join mirror', () => {
         expect(levelOf('ch-1')).toBeUndefined();
     });
 
-    // The level is the app's own state, not the shell's: the channel list reads it in a browser too.
     it('takes the level outside the desktop shell too', () => {
         native = false;
         start();
@@ -101,7 +95,6 @@ describe('useDesktopNotifications join mirror', () => {
         expect(levelOf('ch-1')).toBe('none');
     });
 
-    // Should a cloud hand someone else the id that is my account's, the join under my id there is mine.
     it("goes by my id in the channel's cloud over a join under my account id", () => {
         start();
         emitJoins([

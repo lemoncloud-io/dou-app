@@ -72,6 +72,26 @@ log as `[INVITE] [SendInvite] failed` with `raw` — View › Toggle Developer T
 packaged builds too. The dialog stays open on a failure, and the error toast rises over its dim
 (`docs/shell/layering.md`).
 
+### Invite links
+
+- **Every link this client issues lives one day** (`expiresDays: 1`), the same lifetime the web app
+  gives its invites. It is defaulted in `useDesktopInviteMutations`, not at the call sites, so a new invite
+  and a re-invite cannot drift apart. The invite repository is gated to the Default Cloud, so callers
+  gate entry there rather than the hook guessing.
+- **A place invite answers differently.** `user.invite` puts the link in `Location`, where
+  `invite.create` answers with `deeplink`. The hook copies it into `deeplink`, so callers treat both
+  kinds alike; without it every place invite was reported as having no link.
+- **Cancelling needs the full code**, `invt:<id>:<code>`. The sender never persists a code (it is a
+  credential): `invite.list` rows carry `id` and `code` because the inviter owns them, and the full code
+  is assembled right before the call and never logged or stored. A cache-first row has no `code` yet, so
+  the code is taken from the current list first, the server is asked once more on a miss, and a second
+  miss is a failure rather than a retry loop.
+- **The waiting dialog's countdown** rounds up, so zero means the link has expired (400 ms left reads
+  one second). It turns urgent at ten minutes or less, compared in milliseconds, not floored minutes,
+  which would also trigger at 10:59. Each tick lands just after the instant the displayed value next
+  changes (every minute while days remain, every second after), so a late timer cannot freeze and then
+  jump, and it stops at expiry.
+
 ## Channel ID
 
 A service that posts notifications into a channel (a webhook) is pointed at the channel by its id.

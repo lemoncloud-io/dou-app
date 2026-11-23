@@ -8,12 +8,6 @@ import { SettingsNavRow, SettingsRowGroup } from './SettingsRow';
 
 const MODES = notifyModesFor(false);
 
-/**
- * A notification level for many channels at once — a place, or a whole cloud. The same three
- * levels a channel offers, drawn as the channel panel draws them; `mode` is null when the channels
- * it covers differ and nobody chose a level for them, so no option is checked. The exceptions row
- * names how many channels are set differently and leads to where they are changed one by one.
- */
 export const NotifyLevelSection = ({
     title,
     hint,

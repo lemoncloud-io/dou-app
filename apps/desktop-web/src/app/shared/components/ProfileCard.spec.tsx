@@ -26,7 +26,6 @@ vi.mock('../hooks', () => ({
 
 import { ProfileCardContent } from './ProfileCard';
 
-// Initialises i18next so the card copy resolves.
 import '../../../i18n';
 
 describe('ProfileCardContent "Message"', () => {
@@ -93,7 +92,6 @@ describe('ProfileCardContent shared channels', () => {
         user = null;
     });
 
-    // It read "2 channels" with no subject: whose channels, counted how?
     it('counts the channels I share with the person', () => {
         user = { channelIds: ['c1', 'c2'] };
         render(<ProfileCardContent userId="u-1" fallbackName="Aiden" />);

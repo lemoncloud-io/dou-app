@@ -5,9 +5,6 @@ import { usePendingOpenStore } from './usePendingOpenStore';
 describe('usePendingOpenStore', () => {
     beforeEach(() => usePendingOpenStore.getState().clear());
 
-    // A notification click on a thread reply has to reach HomePage's pendingThreadRef; the
-    // target is the only thing that crosses from the listener to the page, so it must carry
-    // the root. Without it the click can only select the channel, where the reply is hidden.
     it('carries the thread root of the notification target', () => {
         usePendingOpenStore.getState().request({ placeId: 'site1', channelId: 'c1', rootId: '1234' });
         expect(usePendingOpenStore.getState().target).toMatchObject({

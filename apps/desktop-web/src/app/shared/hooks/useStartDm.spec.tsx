@@ -40,10 +40,6 @@ const renderHook = <T,>(hook: () => T) =>
             createElement(QueryClientProvider, { client: queryClient }, children),
     });
 
-/**
- * A switch in flight, the way the runtime's switch mutations register one. `settle` can run code
- * inside the mutation before it finishes — where the runtime rolls a failed place switch back.
- */
 const startSwitch = (mutationKey: string[]) => {
     let settle: () => void = () => undefined;
     const done = new Promise<void>(resolve => (settle = resolve));
@@ -82,7 +78,6 @@ describe('useStartDm', () => {
     });
 
     it('pulls the channel delta right away for a room the call just created', async () => {
-        // A new room comes back without a place, so it is not cached until a channel sync.
         startDm.mockResolvedValue({ id: 'dm-1', stereo: 'dm' });
         const { result } = renderHook(() => useStartDm());
 
@@ -133,7 +128,6 @@ describe('useStartDm', () => {
 
         expect(startDm).toHaveBeenCalledWith({ peerId: 'u-1' });
         expect(room).toEqual({ id: 'dm-1', stereo: 'dm' });
-        // A room that names no place opens with none, which is "stay where you are".
         expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: '', channelId: 'dm-1' });
     });
 
@@ -149,8 +143,6 @@ describe('useStartDm', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // The server files the room under the place the session is on when it answers. Sent mid-switch
-    // the call would reach a session still on the place being left.
     it('waits for a running place switch before it asks the server', async () => {
         selectedSiteId = 'site-2';
         const placeSwitch = startPlaceSwitch();
@@ -178,8 +170,6 @@ describe('useStartDm', () => {
         expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: 'site-2' });
     });
 
-    // A failed switch rolls the place back, and a second one may follow: the place the person asked
-    // from is gone, so nothing is opened anywhere.
     it('sends nothing when the place moved again while it waited', async () => {
         selectedSiteId = 'site-2';
         const placeSwitch = startPlaceSwitch();
@@ -203,8 +193,6 @@ describe('useStartDm', () => {
         expect(result.current.isStarting).toBe(false);
     });
 
-    // The runtime rolls a failed switch back inside its own mutation, so the wait can end before any
-    // render has seen the rollback.
     it('sends nothing when the switch it waited for rolled the place back', async () => {
         selectedSiteId = 'site-2';
         const placeSwitch = startPlaceSwitch();
@@ -266,8 +254,6 @@ describe('useStartDm', () => {
         expect(startDm).not.toHaveBeenCalled();
     });
 
-    // The place is fixed by the server; if it is not the one asked from, the room is opened where it
-    // lives rather than left unlisted in this place.
     it("lands on the room's place, and says so, when it is not the place it was asked from", async () => {
         startDm.mockResolvedValue({ id: 'site-9@me@u-1', stereo: 'dm', sid: 'site-9' });
         const { result } = renderHook(() => useStartDm());
@@ -357,7 +343,6 @@ describe('useStartDm', () => {
             room = await pending;
         });
 
-        // The room belongs to the cloud that was left; opening its id here could land on another room.
         expect(room).toBeNull();
         expect(usePendingOpenStore.getState().target).toBeNull();
         expect(toast).not.toHaveBeenCalled();
@@ -372,7 +357,6 @@ describe('useStartDm', () => {
 
     describe('openSelf', () => {
         it('opens my notes-to-self room through get-self, never start-dm', async () => {
-            // start-dm answers 400 for my own id; the self room has its own get-or-create call.
             getSelfChannel.mockResolvedValue({ id: 'U:me', stereo: 'self', sid: 'site-1' });
             const { result } = renderHook(() => useStartDm());
 

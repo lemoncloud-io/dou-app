@@ -4,7 +4,6 @@ import { act, renderHook } from '@testing-library/react';
 
 type Row = { id: string; channelId: string; chatNo: number };
 
-// What the cache holds and where the room's prime stands; each test sets both.
 const state = vi.hoisted(() => ({
     rows: [] as Row[],
     prime: 'pending' as 'pending' | 'ready' | 'failed',
@@ -12,8 +11,6 @@ const state = vi.hoisted(() => ({
     cloudId: 'cloud-a',
     retryPrime: vi.fn(),
     emit: (_rows: Row[]) => undefined,
-    // Hold the next subscription's first emission, as the cache does between a page landing and the
-    // widened window being read back; `flushEmission` delivers it.
     deferEmission: false,
     flushEmission: () => undefined,
 }));
@@ -44,7 +41,6 @@ vi.mock('@chatic/runtime', async () =>
 import { useChats } from './useChats';
 
 afterEach(() => {
-    // A test that fails between holding an emission and releasing it must not leave the next one deferred.
     state.deferEmission = false;
 });
 
@@ -60,7 +56,6 @@ describe('useChats on a room with nothing cached', () => {
         vi.useRealTimers();
     });
 
-    // The cache reads empty before the first page lands; that is not an empty room.
     it('keeps loading while the first page is on its way', () => {
         const { result } = renderHook(() => useChats('C1'));
 
@@ -97,7 +92,6 @@ describe('useChats on a room with nothing cached', () => {
         expect(state.retryPrime).toHaveBeenCalledTimes(1);
     });
 
-    // A wedged socket never verifies, so the prime never runs: the skeleton must not spin for good.
     it('gives up on a socket that never verifies', () => {
         state.isVerified = false;
         const { result } = renderHook(() => useChats('C1'));
@@ -121,8 +115,6 @@ describe('useChats on a room with nothing cached', () => {
     });
 });
 
-// The channel record runs ahead of the cache, so the feed's newest page is fetched. The guard that
-// stops a settled target being re-fetched every render must not outlive a fetch that failed.
 describe('useChats freshness bridge', () => {
     beforeEach(() => {
         state.rows = [{ id: 'C1:1', channelId: 'C1', chatNo: 1 }];
@@ -132,7 +124,6 @@ describe('useChats freshness bridge', () => {
         warn.mockClear();
     });
 
-    // `chats` is an effect dependency, so a cache emission is the next chance the effect gets.
     const nextChance = () => act(async () => state.emit([...state.rows]));
 
     it('fetches the newest page once for a target and not again after it succeeded', async () => {
@@ -158,7 +149,6 @@ describe('useChats freshness bridge', () => {
         await nextChance();
         expect(refreshList).toHaveBeenCalledTimes(2);
 
-        // That retry succeeded, so the target is settled again.
         await nextChance();
         expect(refreshList).toHaveBeenCalledTimes(2);
     });
@@ -185,15 +175,11 @@ describe('useChats freshness bridge', () => {
         await act(async () => failOld(new Error('late')));
         await nextChance();
 
-        // The newer target (6) was fetched and succeeded; the stale failure must not reopen it.
         expect(refreshList).toHaveBeenCalledTimes(2);
     });
 });
 
-// The thread panel pages the feed by this result, so a failed page has to be told apart from a page
-// that simply had nothing more.
 describe('useChats loadOlder', () => {
-    // A room's paging depth is remembered for the session, so each test pages a room of its own.
     beforeEach(() => {
         state.rows = [{ id: 'C1:60', channelId: 'C1', chatNo: 60 }];
         state.prime = 'ready';
@@ -226,8 +212,6 @@ describe('useChats loadOlder', () => {
         expect(result.current.hasMore).toBe(false);
     });
 
-    // The scroll handler fires again and again at the top, and `isLoadingOlder` is state the handler read
-    // before the first call's render: two calls in a tick both saw it false and both asked for the page.
     it('asks for a page once when it is called twice in the same tick', async () => {
         refreshList.mockResolvedValue({ fetchedCount: 50 });
         const { result } = renderHook(() => useChats('C-tick'));
@@ -239,8 +223,6 @@ describe('useChats loadOlder', () => {
         expect(refreshList).toHaveBeenCalledTimes(1);
     });
 
-    // A landed page widens the window, and the cache reads the older rows back a moment later. In that
-    // gap the oldest row is still the old cursor, so asking again would fetch the page just fetched.
     it('does not ask for the same page again before the widened window has been read back', async () => {
         refreshList.mockResolvedValue({ fetchedCount: 50 });
         const { result } = renderHook(() => useChats('C-gap'));
@@ -262,8 +244,6 @@ describe('useChats loadOlder', () => {
         expect(refreshList).toHaveBeenCalledTimes(2);
     });
 
-    // The hook is not remounted when the channel changes, so a page still out for the channel just left
-    // must not stand in the way of the one now on screen.
     it("asks for the new channel's page while the old channel's page is still in flight", async () => {
         let landOldPage: (value: { fetchedCount: number }) => void = () => undefined;
         refreshList.mockImplementationOnce(() => new Promise(resolve => (landOldPage = resolve)));
@@ -312,14 +292,9 @@ describe('useChats loadOlder', () => {
         expect(ok).toBe(false);
         expect(result.current.hasMore).toBe(true);
         expect(result.current.isLoadingOlder).toBe(false);
-        // The pane's retry row reads this, not the boolean: a failure nothing
-        // shows reads as a room that simply ends.
         expect(result.current.loadOlderFailed).toBe(true);
     });
 
-    // The server counts a page by message numbers and leaves the deleted ones out, so a stretch of
-    // deleted messages comes back as an empty page that still names the next cursor. Only a cursor of
-    // 0 is the start of history.
     it('pages on past a page of nothing but deleted messages', async () => {
         refreshList
             .mockResolvedValueOnce({ fetchedCount: 0, cursorNo: 10 })
@@ -332,7 +307,6 @@ describe('useChats loadOlder', () => {
 
         expect(refreshList).toHaveBeenNthCalledWith(1, { channelId: 'C-deleted', cursorNo: 60, limit: 50 });
         expect(refreshList).toHaveBeenNthCalledWith(2, { channelId: 'C-deleted', cursorNo: 10, limit: 50 });
-        // The second page ran down to the start: nothing older is left to ask for.
         expect(result.current.hasMore).toBe(false);
     });
 
@@ -345,8 +319,6 @@ describe('useChats loadOlder', () => {
         });
         expect(result.current.loadOlderFailed).toBe(true);
 
-        // The widened window has not been read back yet, so force the read-back
-        // the cache would deliver before asking for the next page.
         state.rows = [
             { id: 'C-fail-then-ok:10', channelId: 'C-fail-then-ok', chatNo: 10 },
             { id: 'C-fail-then-ok:60', channelId: 'C-fail-then-ok', chatNo: 60 },
@@ -359,8 +331,6 @@ describe('useChats loadOlder', () => {
     });
 });
 
-// A room whose newest page is all deleted messages shows nothing, so the page below has to be asked for
-// from the channel's head number; and the server's next cursor can sit below the oldest row shown.
 describe('useChats paging with nothing shown', () => {
     beforeEach(() => {
         state.rows = [];
@@ -369,7 +339,6 @@ describe('useChats paging with nothing shown', () => {
     });
 
     it('counts down from the channel head when no row is shown', async () => {
-        // 121 down to 71 was all deleted. (The head also asks for the newest page, with no cursor.)
         refreshList.mockImplementation(async (query: { cursorNo?: number }) =>
             query.cursorNo === 121 ? { fetchedCount: 0, cursorNo: 71 } : { fetchedCount: 3, cursorNo: 20 }
         );
@@ -385,7 +354,6 @@ describe('useChats paging with nothing shown', () => {
     });
 
     it('walks every page of deleted messages in one call, so a caller that saw nothing land is not stranded', async () => {
-        // 300 deleted messages: six empty pages, then rows.
         refreshList.mockImplementation(async (query: { cursorNo?: number }) => {
             const cursor = query.cursorNo ?? 0;
             return cursor > 50 ? { fetchedCount: 0, cursorNo: cursor - 50 } : { fetchedCount: 2, cursorNo: 0 };
@@ -433,7 +401,6 @@ describe('useChats paging with nothing shown', () => {
     });
 
     it('starts the next page from the cursor the server named, not the oldest row shown', async () => {
-        // 30 to 49 were deleted: the server counted down to 30, and the oldest row it returned is 50.
         refreshList.mockResolvedValue({ fetchedCount: 2, cursorNo: 30 });
         state.rows = [{ id: 'C-floor:80', channelId: 'C-floor', chatNo: 80 }];
         const { result } = renderHook(() => useChats('C-floor'));
@@ -454,8 +421,6 @@ describe('useChats paging with nothing shown', () => {
     });
 });
 
-// A second consumer of a room (the thread panel) pages its own replies back. What it saved would widen
-// the room the next time it opens, so it must not save.
 describe('useChats window depth', () => {
     beforeEach(() => {
         state.rows = [{ id: 'C1:60', channelId: 'C1', chatNo: 60 }];
@@ -492,11 +457,6 @@ describe('useChats window depth', () => {
         expect(lastLimit()).toBe(50);
     });
 
-    // One account in two clouds can show the same uid, and each cloud's Self Channel then has the same id,
-    // so the remembered window cannot be keyed by uid and channel alone: a short channel in one cloud that
-    // ran out of history would tell the same-named channel of another cloud there is nothing older.
-    // The cache observer is bound to the cloud when it subscribes, so the hook has to subscribe again when
-    // the cloud changes under an unchanged uid and channel id, or it would wait on a feed nobody fills.
     it('subscribes again when the cloud changes under the same channel id', () => {
         const { rerender } = renderHook(() => useChats('C-resub'));
         const before = observeList.mock.calls.length;

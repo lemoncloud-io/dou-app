@@ -26,8 +26,6 @@ describe('Hint', () => {
         expect(screen.getByRole('tooltip').textContent).toBe('Search messages');
     });
 
-    // A closing dialog hands focus back to its opener after its own content is gone, so the
-    // focus comes from nothing. The hint opened on that and sat over the control just used.
     it('stays shut when focus is handed back from nowhere', () => {
         renderHint();
         fireEvent.focus(screen.getByText('search'), { relatedTarget: null });

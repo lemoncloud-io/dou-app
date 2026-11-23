@@ -94,6 +94,10 @@ too, from its 1:1 section's ＋ and a member's profile, with the same switch wai
 - **A cloud switched away from mid-call opens nothing.** The returned room belongs to the cloud that
   was left, and its id could land on another room here.
 - **Failure** is logged and shown as a toast; the picker stays open for a retry.
+- **A 1:1 is never made through `channel.create`.** `useDesktopChannelMutations` makes group channels
+  only. As of the socket v2 contract, `channel.create` drops `userIds`, so a 1:1 started that way reaches the
+  backend owner-only and its derived channel id can collide with an existing channel and overwrite its
+  `memberIds`. A 1:1 is opened by naming the peer (`channel.startDm`).
 - **The picker's pool** is the place's member list (`place.list-user`), minus me — the same pool as
   "Add members", described in [channel-settings.md § Add members](./channel-settings.md#add-members).
   It includes people I share no channel with, and people with no channel at all. A 1:1 started with one of them is listed here, because it is opened

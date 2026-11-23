@@ -21,8 +21,6 @@ const Panel = ({
     );
 };
 
-// jsdom has no PointerEvent, and fireEvent.pointerDown drops clientX on a plain Event —
-// a MouseEvent typed `pointerdown` carries the coordinates React's handler reads.
 const pointer = (target: EventTarget, type: string, clientX = 0) =>
     act(() => {
         target.dispatchEvent(new MouseEvent(type, { clientX, bubbles: true }));
@@ -62,7 +60,6 @@ describe('usePanelWidth', () => {
         expect(width()).toBe(316);
     });
 
-    // The sidebar column holds a different list per nav destination, and each keeps its own width.
     it('takes the width kept under a new key when the key changes, and its default when none is kept', () => {
         localStorage.setItem('home.width', '250');
         const { rerender } = render(<Panel storageKey="home.width" />);
@@ -79,7 +76,6 @@ describe('usePanelWidth', () => {
         expect(width()).toBe(250);
     });
 
-    // One narrow window used to leave the panel at its minimum until a reload.
     it('narrows with a small window and returns to the chosen width when it grows', () => {
         const initial = window.innerWidth;
         const setWindowWidth = (value: number) =>

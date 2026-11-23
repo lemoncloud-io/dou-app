@@ -9,12 +9,9 @@ import { AppToaster } from './AppToaster';
 
 const wait = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
-// Error toasts used to vanish after 5s, one at a time, with no close button: a failure that
-// fired while the person looked elsewhere left no trace, and a second one replaced the first.
 describe('AppToaster', () => {
     beforeEach(() => vi.useFakeTimers());
     afterEach(() => {
-        // The toast store is module-level: close everything and let the removal delay pass.
         const { result } = renderHook(() => useToast());
         act(() => result.current.dismiss());
         wait(2_000);
@@ -33,8 +30,6 @@ describe('AppToaster', () => {
         expect(screen.queryByText('Could not add members.')).toBeNull();
     });
 
-    // Under the dialog dim an error from that dialog could not be read, so it rises above it.
-    // Radix marks an open modal by disabling pointer events on the body.
     describe('over an open dialog', () => {
         const viewport = () => document.querySelector('ol') as HTMLElement;
         afterEach(() => {
@@ -52,7 +47,6 @@ describe('AppToaster', () => {
             expect(viewport().className).toContain('z-alert');
         });
 
-        // "Saved · Show in Finder" from the image viewer: its button is no use under the dim.
         it('lifts a toast with an action raised in the dialog', () => {
             render(<AppToaster />);
             document.body.style.pointerEvents = 'none';
@@ -67,7 +61,6 @@ describe('AppToaster', () => {
             expect(viewport().className).toContain('z-alert');
         });
 
-        // Radix gives a toast older than the modal no pointer events, so lifted it could not be closed.
         it('leaves an error from before the dialog under it', () => {
             render(<AppToaster />);
             act(() => void toast({ variant: 'destructive', title: 'Could not send' }));
@@ -104,7 +97,6 @@ describe('AppToaster region', () => {
         await i18n.changeLanguage('ko');
         render(<AppToaster />);
 
-        // Radix names the region "Notifications (F8)" unless it is given a label.
         expect(screen.getByRole('region', { name: '알림 (F8)' })).toBeTruthy();
     });
 });
@@ -115,8 +107,6 @@ describe('AppToaster layer', () => {
 
         const viewport = within(screen.getByRole('region')).getByRole('list');
 
-        // The kit's z-[100] sits over an open dialog (z-50). Both classes surviving would leave the
-        // stylesheet order to pick, so the kit's has to be gone, not just outnumbered.
         expect(viewport.classList).toContain('z-toast');
         expect(viewport.classList).not.toContain('z-[100]');
     });

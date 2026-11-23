@@ -8,12 +8,6 @@ import { channelLabel, dmCounterpartId, isDmChannel } from '../utils';
 import { useAuthorNames } from './useAuthorNames';
 import { useSiteProfileMap } from './useSiteProfiles';
 
-/**
- * `channelLabel` bound to the session: the DM counterparts of `channels` are
- * resolved from the user cache, so a DM reads as its person wherever it shows.
- * Pass every channel the caller may label; a DM outside the list falls back to
- * the room's own name.
- */
 export const useChannelLabels = (channels: readonly DomainChannel[]): ((channel: DomainChannel) => string) => {
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;

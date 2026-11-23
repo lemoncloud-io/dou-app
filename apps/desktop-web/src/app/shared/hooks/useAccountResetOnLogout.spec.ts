@@ -4,17 +4,13 @@ import { renderHook, waitFor } from '@testing-library/react';
 
 import { useAccountResetOnLogout } from './useAccountResetOnLogout';
 
-// Only need to observe cacheClear on the 7 repos — the runtime data layer is stubbed.
 const repos = Object.fromEntries(
     ['channel', 'chat', 'cloud', 'join', 'profile', 'place', 'user'].map(name => [
         name,
         { cacheClear: vi.fn().mockResolvedValue(undefined) },
     ])
 );
-// The account's role, from the relay token — what decides whether invited clouds stay.
 const relayUser = vi.hoisted(() => ({ current: null as { userRole: string } | null }));
-// Verify via the settings' clear, not the registry: this is the one method that sweeps both the
-// lane entry (in-memory) and the persisted `@chatic/config.ui.*` key in one go.
 const clearConfigKey = vi.fn().mockReturnValue({ ok: true });
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
@@ -95,7 +91,6 @@ describe('useAccountResetOnLogout', () => {
         let rows: Array<Record<string, unknown>> = [];
         const cloudRepo = repos.cloud as Record<string, ReturnType<typeof vi.fn>>;
 
-        // A stand-in cloud cache, so the test reads what is left rather than which calls were made.
         beforeEach(() => {
             rows = [invited, owned];
             cloudRepo.cacheClear.mockImplementation(async () => {
@@ -111,10 +106,6 @@ describe('useAccountResetOnLogout', () => {
             );
         });
 
-        // The rail can list invited clouds from nowhere but these two records, and no logout takes the
-        // grants with it: a signed-in account falls back to the device's guest, and a guest that logs
-        // out is registered back into by the same device id. Wiping them emptied the list until a push
-        // re-cached one cloud.
         it.each([
             ['a social account', { userRole: 'user' }],
             ['a guest', { userRole: 'guest' }],
@@ -129,7 +120,6 @@ describe('useAccountResetOnLogout', () => {
         });
     });
 
-    // The cloud cache is swept row by row instead (the invited-clouds cases above).
     it('clears every other data cache on logout', async () => {
         const { result } = renderHook(() => useAccountResetOnLogout());
 

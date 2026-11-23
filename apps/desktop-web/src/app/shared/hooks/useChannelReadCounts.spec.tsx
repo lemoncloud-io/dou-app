@@ -75,7 +75,6 @@ describe('useChannelReadCounts', () => {
 
     it('leaves a member who joined after the message out of both lists', () => {
         const { result } = renderHook(() => useChannelReadCounts(GROUP));
-        // Joining writes the latest number into chatNo too, so without joinedNo Bob would read as seen.
         emitJoins([join('me', 9), join('ada', 4), join('bob', 9, { joinedNo: 6 })]);
 
         expect(result.current.readCountOf(6, 'me')).toEqual({ readIds: [], unreadIds: ['ada'] });

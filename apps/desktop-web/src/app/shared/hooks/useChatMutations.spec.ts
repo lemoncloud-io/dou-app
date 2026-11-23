@@ -14,7 +14,6 @@ const outboxRemove = vi.fn();
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
-            // The app graph, which follows the selection. Send, retry and discard must not go through it.
             useRuntimeRepositories: () => ({ chat: { sendChat: vi.fn(), cacheDelete: vi.fn() } }),
             getCloudRepositories: (cid: string) => getCloudRepositories(cid),
             sendChatInCloud: (cid: string, payload: unknown) => sendChatInCloud(cid, payload),
@@ -76,7 +75,6 @@ describe('useChatMutations', () => {
             contentType: 'text',
             parentId: undefined,
         });
-        // The stale row is gone before the resend puts its new optimistic row in.
         expect(cloudCacheDelete.mock.invocationCallOrder[0]).toBeLessThan(sendChatInCloud.mock.invocationCallOrder[0]);
     });
 
@@ -90,8 +88,6 @@ describe('useChatMutations', () => {
     });
 
     it('does not resend when the stale row could not be deleted', async () => {
-        // Sending anyway would leave two rows for one message, and a second failure a duplicate
-        // "Not delivered" bubble; the failed row keeps its retry button instead.
         cloudCacheDelete.mockRejectedValue(new Error('store closed'));
         const { result } = renderHook(() => useChatMutations());
 

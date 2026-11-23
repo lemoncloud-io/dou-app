@@ -6,19 +6,6 @@ import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 const GROUP = 'overflow-hidden rounded-xl border border-border bg-card divide-y divide-border';
 
-/**
- * One hairline-grouped row for the settings and account surfaces. Three shapes
- * share the row metrics so ~14 equal-weight "title + hint + open" cards read
- * as one list instead:
- *
- * - `SettingsNavRow`: a whole-row hit target with a chevron, for entries that
- *   lead somewhere (clouds, policies, the Account hub).
- * - `SettingsSwitchRow`: a label bound to its switch by `htmlFor`, for toggles.
- *   The label text alone used to do nothing — neither announced with the
- *   switch nor clickable.
- * - `SettingsActionRow`: a label with an arbitrary action (a destructive
- *   button, a version line), for rows that are neither navigation nor a switch.
- */
 export const SettingsRowGroup = ({ children }: { children: ReactNode }) => <div className={GROUP}>{children}</div>;
 
 export const SettingsNavRow = ({ label, hint, onClick }: { label: string; hint?: ReactNode; onClick: () => void }) => (
@@ -47,13 +34,11 @@ export const SettingsSwitchRow = ({
 }: {
     label: string;
     hint?: ReactNode;
-    /** Override the hint node id when a caller references it (error swaps). */
     hintId?: string;
     describedBy?: string;
     checked: boolean;
     onCheckedChange: (on: boolean) => void;
     disabled?: boolean;
-    /** Extra content under the label (inputs, errors, sub-switches). */
     children?: ReactNode;
 }) => {
     const autoHintId = useId();

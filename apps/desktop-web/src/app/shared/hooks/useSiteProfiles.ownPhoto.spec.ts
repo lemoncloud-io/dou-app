@@ -5,8 +5,6 @@ import { renderHook, waitFor } from '@testing-library/react';
 type Row = { uid: string; sid: string; nick?: string; thumbnail?: string };
 type Listener = (result: { list: Row[] }) => void;
 
-// My place profile exists on the server only: a fresh sign-in has an empty profile cache, and the row
-// reaches it through `getMyProfile` (profile.get-mine) — the way the profile page gets it.
 const cache = vi.hoisted(() => ({
     rows: [] as Row[],
     listeners: new Set<(result: { list: Row[] }) => void>(),
@@ -21,7 +19,6 @@ vi.mock('@chatic/runtime', async () => {
         emit();
         return row;
     });
-    // One object, like the runtime's: a fresh one per render would re-run every effect keyed on it.
     const repositories = {
         profile: {
             observeList: (_query: unknown, callback: Listener) => {
@@ -42,8 +39,6 @@ vi.mock('@chatic/runtime', async () => {
 import { useDisplayProfile, useSiteProfiles } from './useSiteProfiles';
 
 describe('my avatar right after sign-in', () => {
-    // Symptom: the rail's avatar is empty until the profile page is opened once. The account's own
-    // photo is a placeholder here; the photo I set for this place only shows up once my row is read.
     it('shows my place photo on the home screen without visiting the profile page', async () => {
         const { result } = renderHook(() => {
             useSiteProfiles();

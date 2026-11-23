@@ -4,32 +4,12 @@ import { runtime } from '@chatic/runtime';
 
 import { useCloudSessionCatalog } from './useCloudCatalog';
 
-/**
- * Rebuilds the active invited cloud's local record, so the rail keeps it after you leave.
- *
- * An invited cloud has no server-side list — its only durable record is the `invitecloud` cache
- * row the invite-accept flow writes. A profile that never ran that flow (the Electron shell beside
- * a browser session, a reinstall) has no row, so the cloud shows up only while the session is
- * inside it and vanishes on a switch or a reload. Both engine
- * helpers already exist for the native app: `runtime.data.recoverInvitedCloudIfMissing` re-derives the cloud's
- * endpoints from a fresh delegation token, and `runtime.data.syncInvitedCloudName` fetches the authoritative
- * name from the relay — the row is written without one, which is why a recovered tile would otherwise
- * read as its id.
- *
- * Skipped for clouds in the relay catalog: those are owned, the catalog is their record, and
- * writing an invited row for one would mislabel it. Runs once per cloud, after both the cloud's socket
- * and the relay's verify (the session has to be inside the cloud, and the name is read from the
- * relay), and is best-effort — a revoked grant just leaves the rail as
- * it was.
- */
 export const useInvitedCloudRecovery = (): void => {
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const recoveredRef = useRef<string | null>(null);
-    // Depend on the answer, not the catalog array: it gets a new identity on every poll, and the
-    // ref would then be absorbing re-runs it was never meant to guard.
     const isOwned = ownedClouds.some(c => c.id === selectedCloudId);
 
     useEffect(() => {
@@ -37,9 +17,6 @@ export const useInvitedCloudRecovery = (): void => {
         if (recoveredRef.current === selectedCloudId) return;
         recoveredRef.current = selectedCloudId;
 
-        // Best-effort for real: both helpers swallow their own network failures, but the cache
-        // reads and writes around those are outside their try blocks, so a rejection here would
-        // otherwise surface as an unhandled rejection rather than leaving the rail as it was.
         void (async () => {
             await runtime.data.recoverInvitedCloudIfMissing(selectedCloudId);
             await runtime.data.syncInvitedCloudName(selectedCloudId);

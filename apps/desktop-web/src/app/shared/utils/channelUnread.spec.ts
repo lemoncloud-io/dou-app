@@ -5,11 +5,6 @@ import { channelReadNo, computeChannelUnread } from './channelUnread';
 
 const MY_UID = 'U-me';
 
-/**
- * The fields these tests set. `$join` and `lastChat$` are re-declared as the shapes the
- * derivation actually reads, so a typo in `metaNo`/`joinedNo` fails to compile instead of
- * silently changing what the case asserts.
- */
 type ChannelFields = Omit<Partial<DomainChannel>, '$join' | 'lastChat$'> & {
     $join?: { chatNo?: number; joinedNo?: number; metaNo?: number; userId?: string };
     lastChat$?: { stereo?: string; subType?: string; ownerId?: string };
@@ -23,8 +18,6 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID)).toBe(3);
     });
 
-    // The bug this file was written for: a reaction is a system chat that takes a `chatNo`
-    // slot, so the raw head-minus-cursor delta showed a badge on a channel with nothing to read.
     it('does not count a reaction — it advances chatNo and metaNo together', () => {
         const before = channel({ chatNo: 10, metaNo: 2, $join: { chatNo: 10, metaNo: 2 } });
         expect(computeChannelUnread(before, MY_UID)).toBe(0);
@@ -53,9 +46,6 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID, 12)).toBe(0);
     });
 
-    // The local cursor is why reading a channel clears the badge before the receipt round-trips.
-    // A message arriving right after that read must count as one, not as the whole backlog the
-    // lagging server cursor still implies.
     it('caps the count at what this device has not read, while the server cursor lags', () => {
         const ch = channel({ chatNo: 51, metaNo: 0, $join: { chatNo: 30, metaNo: 0 } });
         expect(computeChannelUnread(ch, MY_UID, 50)).toBe(1);
@@ -66,8 +56,6 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID, 50)).toBe(1);
     });
 
-    // The join cache row and the channel's inline `$join` are separate records: the same cursor
-    // can arrive with the metaNo snapshot on one and without it on the other.
     it('keeps the metaNo snapshot when two boundaries sit at the same chatNo', () => {
         const ch = channel({ chatNo: 12, metaNo: 4, $join: { chatNo: 10, metaNo: 2 } });
         expect(computeChannelUnread(ch, MY_UID, undefined, { chatNo: 10 })).toBe(0);
@@ -83,8 +71,6 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID)).toBe(0);
     });
 
-    // Outside the relay a persisted message is owned by my per-channel cloud user id, which is not
-    // my account id — the channel's `$join.userId` carries it.
     it('clears when my own latest message is owned by my cloud user id', () => {
         const ch = channel({
             chatNo: 12,
@@ -95,7 +81,6 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID)).toBe(0);
     });
 
-    // A webhook is never mine, so my id on it must not clear the badge the feed still counts.
     it('does not clear when the latest message is a webhook carrying my id', () => {
         const ch = channel({
             chatNo: 12,
@@ -116,8 +101,6 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID)).toBe(9);
     });
 
-    // A channel with no `$join` (not joined, or not yet synced) has no cloud id to match, so only
-    // the account id counts — the behavior before the cloud id was read.
     it('does not treat a cloud-owned latest message as mine without a $join', () => {
         const ch = channel({
             chatNo: 12,
@@ -128,8 +111,6 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID)).toBe(4);
     });
 
-    // My reaction is the head too, but reacting is not reading — the messages below it are
-    // still unread.
     it('does not clear when my own reaction is the latest', () => {
         const ch = channel({
             chatNo: 12,
@@ -150,8 +131,6 @@ describe('computeChannelUnread', () => {
         expect(computeChannelUnread(ch, MY_UID)).toBe(4);
     });
 
-    // A cached row can arrive without `chatNo`; capping against a head we don't know would
-    // swallow the fallback badge, and a stale badge beats a missing one.
     it('keeps the server count when the cached row carries no head', () => {
         const ch = channel({ unreadCount: 4 });
         expect(computeChannelUnread(ch, MY_UID, 50)).toBe(4);

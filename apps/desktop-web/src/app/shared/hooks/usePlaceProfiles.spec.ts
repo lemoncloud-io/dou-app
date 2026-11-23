@@ -8,7 +8,6 @@ type Query = { sid?: string } | undefined;
 const state = vi.hoisted(() => ({
     places: [] as Array<{ id: string }>,
     rows: [] as Row[],
-    // When set, the cache answers only on `flush()`, as a read still in flight would.
     deferred: false,
     pending: [] as Array<() => void>,
     flush() {
@@ -16,7 +15,6 @@ const state = vi.hoisted(() => ({
     },
 }));
 
-// Answers the way the profile cache does: no `sid` in the query means every site's rows.
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
@@ -69,7 +67,6 @@ describe('usePlaceProfiles', () => {
         expect(usePlaceProfilesStore.getState().bySid.S1).toEqual({});
     });
 
-    // A list reads the map: an emission that changes nothing must not hand it a new one to redraw for.
     it('keeps the same map when an emission changes no nick or photo', () => {
         const { setPlace } = usePlaceProfilesStore.getState();
         setPlace('S1', { u1: { nick: 'Alice' } });
@@ -80,7 +77,6 @@ describe('usePlaceProfiles', () => {
         expect(usePlaceProfilesStore.getState().bySid).not.toBe(before);
     });
 
-    // Unsubscribing does not stop a read already in flight; its answer must not land after a switch.
     it('ignores an answer that arrives after the places changed', () => {
         state.places = [{ id: 'S1' }];
         state.deferred = true;

@@ -25,16 +25,6 @@ import {
     useSelectedChannelStore,
 } from '../stores';
 
-/**
- * Deeplink for the OS banner click. When the source cloud resolves, encode the open target so
- * the click switches cloud → place → channel (buildOpenDeeplink + parsePushDeeplink + HomePage).
- * The place is the room's (`pushLandingPlace`): a 1:1 push names the place its sender was in.
- * Otherwise fall back to the server's own `channel?channelId=` link — best-effort, opens in the
- * current cloud only.
- *
- * No thread root: the server's push payload carries no `parentId`, so a cross-cloud push for a
- * reply can only open the channel until it does.
- */
 const buildCrossCloudDeeplink = (
     cloudId: string | null,
     data: Record<string, string>,
@@ -46,37 +36,23 @@ const buildCrossCloudDeeplink = (
     return data.link || (data.channelId ? `channel?channelId=${data.channelId}` : undefined);
 };
 
-/** Headline for a push/toast: the channel (`#name`) when known, else the app name. */
 const headline = (channelName: string | undefined, fallback: string): string =>
     channelName ? `#${channelName}` : fallback;
 
-/** Present one forwarded FCM push as a toast (focused) or an OS banner (unfocused). */
 const presentPush = async (
     notification: { title?: string; body?: string; data?: Record<string, string> } | undefined
 ): Promise<void> => {
     const title = notification?.title;
-    // Silent/data-only pushes and click-routing events (pushDeeplink) carry no
-    // content — badges consume them elsewhere; never surface a banner or toast.
     if (!title && !notification?.body) return;
     const data = notification?.data ?? {};
-    // The shell's body is the first loc arg, which for an attachment push is a bare count ("3") or
-    // nothing at all; name the attachment here, where the copy lives.
     const body = pushBody(data, notification?.body) ?? notification?.body;
-    // Global do-not-disturb (snooze / quiet hours) silences banner and toast alike.
     const prefs = useNotificationPrefsStore.getState();
     if (isDndActive(prefs)) return;
 
-    // My own message. The push names its author by the owner id of the cloud it came from, and
-    // `data.uid` is the recipient — me — in that same id space, so either that or my account id
-    // marks it as mine.
     const myUid = runtime.session.getGlobalSessionContext().identity.userId;
     const viewer = { uid: myUid, name: '', cloudUid: data.uid ?? null };
     if (data.ownerId && isOwnChat({ ownerId: String(data.ownerId), stereo: data.stereo }, viewer)) return;
-    // One cache scan serves both the source-cloud resolution and the notify-mode lookup.
     const records = data.channelId || data.uid ? await readCacheRecords<PushChannelData>() : [];
-    // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space
-    // the session/rail use), or `'#'` for the relay itself, which reads as the Home tile's
-    // `RELAY_CLOUD_ID`. Fall back to the channel-cache reverse-lookup when it's absent.
     const sourceCloudId =
         pushCloudIdOf(data.cid) ||
         resolvePushCloudIdFrom(records, {
@@ -86,20 +62,8 @@ const presentPush = async (
             uid: data.uid,
         });
 
-    // Per-channel notify mode — same policy the same-cloud path honors: muted
-    // channels stay silent, mention-only channels drop non-@me messages. Read from
-    // `data.content` rather than the localized `body`, flattened the way the
-    // same-cloud path flattens it: a mention lives in a Block Kit message's text,
-    // not in the JSON carrying it, and the raw payload would also match on field
-    // names. `body` remains the last resort when the push carries no content.
-    // The room's own place for a 1:1, the push's otherwise — read off the same cached row.
     let landingPlaceId = data.sid ?? '';
     if (data.channelId) {
-        // Same policy the same-cloud path honors — including the server's
-        // join.notify leg. The push payload carries no channel record, so read
-        // the notify mode off the engine cache, confined to the source cloud —
-        // channel ids collide across clouds (best-effort: an unvisited or
-        // unattributable channel degrades to local-pref/mute resolution).
         const cachedChannel = findPushChannel(records, {
             channelId: String(data.channelId),
             cloudId: sourceCloudId,
@@ -113,12 +77,6 @@ const presentPush = async (
         const joinNotify = cachedChannel?.$join?.notify as 'all' | 'mention' | 'none' | undefined;
         const mode = channelNotifyMode(prefs, String(data.channelId), joinNotify, isNotifyDm(cachedChannel));
         if (mode === 'none') return;
-        // A channel the server has as mentions-only: in a group channel it sends this member a
-        // push only when the message's mention record names them (a 1:1 it does not filter, and
-        // it sends everything when it cannot read the member's setting), so the push arriving is
-        // the answer, and the text (which may call me by another name) is not asked again. When
-        // the mode is only this device's own setting the server may be sending everything, and
-        // the text is all there is to go by.
         if (mode === 'mention' && joinNotify !== 'mention') {
             const text = messagePlainText(String(data.content ?? body ?? ''));
             if (!isMentioned(text, resolveMyMentionNames())) return;
@@ -127,28 +85,15 @@ const presentPush = async (
 
     const activeServer = runtime.session.getGlobalSessionContext().activeServer;
     const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
-    // The relay's own live socket banners its messages too, so a push it stamped `'#'` is the same
-    // message. Only the stamp counts: a cache guess that lands on the relay is no proof.
     const isFromOpenRelay = activeServer.kind === 'relay' && pushCloudIdOf(data.cid) === RELAY_CLOUD_ID;
-    // The Default Cloud pins its one place, so a relay push names none to switch to: whatever
-    // place the push carries would send the open off to one the relay does not list.
     const openPlaceId = sourceCloudId === RELAY_CLOUD_ID ? '' : landingPlaceId;
 
     const focused = typeof document !== 'undefined' && document.hasFocus();
     if (!focused) {
-        // The OS-notification master switch gates banners only; toasts are in-app.
         if (!prefs.desktopEnabled) return;
-        // Same-cloud messages already banner via the live-WS path (useDesktopNotifications);
-        // suppress the FCM duplicate ONLY when this push provably belongs to the active
-        // cloud. Unresolved source (null) → show: a duplicate beats a missed cross-cloud one.
         if (sourceCloudId && activeCloudId && String(sourceCloudId) === String(activeCloudId)) return;
         if (isFromOpenRelay) return;
-        // Fire-and-forget: the port drops a banner the app could not show (an older shell, a
-        // transient bridge error) rather than throw, so a missed banner never breaks the renderer.
         runtime.push.localBanner?.present({
-            // Cross-cloud pushes show channel + message only: the sender name
-            // baked by the backend is unreliable and the sender's per-place nick
-            // can't be resolved across clouds (id-space partitioning), so omit it.
             title: headline(data.channelName, 'DoU'),
             body: body ?? '',
             channelId: data.channelId,
@@ -158,13 +103,9 @@ const presentPush = async (
     }
 
     const activeChannelId = useSelectedChannelStore.getState().selectedChannelId;
-    if (data.channelId && String(data.channelId) === String(activeChannelId)) return; // already open
+    if (data.channelId && String(data.channelId) === String(activeChannelId)) return;
 
-    // Clicking the toast opens the message like the OS-banner click: set the
-    // pending-open target (NotificationOpenListener routes home, HomePage switches
-    // cloud/place → channel). The resolved source cloud is a no-op when already active.
     const channelId = data.channelId;
-    // A message from elsewhere is news, not a success: no check mark.
     toast({
         variant: 'info',
         title: headline(data.channelName, 'DoU'),
@@ -181,16 +122,6 @@ const presentPush = async (
     });
 };
 
-/**
- * Cross-cloud push presenter. The shell raises no banner for FCM pushes itself; it
- * forwards every push through the push port's `notifications` and this hook owns the whole
- * decision (DND, global switch, own-message, focus) — exactly as
- * useDesktopNotifications owns it for same-cloud live-WS messages — so DND lives in
- * one place, ships with the web (no shell reinstall), and focus is judged from a
- * single source (document.hasFocus()). Focused → toast (macOS drops focused-app OS
- * banners); unfocused → OS banner through the port's `localBanner`. No-op in a
- * plain browser, whose push port has neither.
- */
 export const useCrossCloudPushNotifications = (): void => {
     useEffect(() => {
         return runtime.push.notifications?.onReceive(payload => {

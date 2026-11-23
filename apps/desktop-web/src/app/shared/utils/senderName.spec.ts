@@ -24,7 +24,6 @@ describe('senderNameIn', () => {
         expect(senderNameIn({ ownerId: 'u2', owner$: { id: 'u2', name: uuid } }, profiles)).toBe('');
     });
 
-    // A webhook's owner id can collide with a person's; it must not borrow their nick.
     it('names a webhook by its post, never by a profile', () => {
         const chat = { ownerId: 'u1', owner$: { id: 'u1', name: 'CI bot' }, stereo: 'webhook' as const };
         expect(senderNameIn(chat, profiles)).toBe('CI bot');
@@ -34,7 +33,6 @@ describe('senderNameIn', () => {
 describe('senderNameIn for a message of mine', () => {
     const reader = { uid: 'acct-1', name: '', cloudUid: 'cloud-1' };
 
-    // An optimistic message carries my account id; my profile row was synced under my cloud id.
     it('finds my nick under my cloud id for a message carrying my account id', () => {
         const chat = { ownerId: 'acct-1', owner$: { id: 'acct-1', name: 'Bob' } };
         expect(senderNameIn(chat, { 'cloud-1': { nick: 'Alice' } }, reader)).toBe('Alice');

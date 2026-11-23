@@ -7,52 +7,26 @@ import { usePanelWidth } from '../hooks/usePanelWidth';
 import { focusComposerIfDropped } from '../utils/composerFocus';
 import { PanelResizeHandle } from './PanelResizeHandle';
 
-/** Below this window width a trailing panel lays over the chat instead of docking (Tailwind `xl`). */
 export const PANEL_DOCK_WIDTH = 1280;
 
-/** Every trailing panel opens at this width; each one's own drag is remembered separately. */
 export const PANEL_WIDTH = 360;
 
 interface PanelShell {
-    /** The window is too narrow to dock a panel, so it covers the chat. */
     overlays: boolean;
-    /** The open panel hands the shell its close, for the scrim beside it. */
     setClose: (close: (() => void) | null) => void;
 }
 
-/** Provided by the desktop shell, which owns the chat pane a covering panel sits over. */
 export const PanelShellContext = createContext<PanelShell>({ overlays: false, setClose: () => undefined });
 
 interface ResizablePanelProps {
-    /** localStorage key the width persists under — one per panel kind. */
     storageKey: string;
-    /** Accessible name of the drag handle ("Resize thread panel"). */
     resizeLabel: string;
-    /** Accessible name of the panel landmark itself ("Mentions"). */
     label?: string;
-    /** Surface tone (`bg-background` / `bg-elevated`) — the shell supplies the rest. */
     className?: string;
-    /**
-     * Dismiss this panel. Supplying it buys the whole panel contract: Escape
-     * closes (yielding to any dialog or menu open over it), and focus returns to
-     * whatever opened the panel once it goes away. Panels that leave it out keep
-     * neither, which is how the thread panel ended up with no keyboard exit.
-     */
     onClose?: () => void;
     children: ReactNode;
 }
 
-/**
- * The trailing-panel shell (thread, saved, activity, profile, settings, debug): a
- * drag-resizable `aside` pinned right, overlaying the chat below `xl` and docking
- * beside it from `xl` up. It clips rather than scrolls so the resize handle stays put —
- * children own their own scroll region.
- *
- * Overlaying, it behaves as the modal layer it looks like: the shell dims and disables
- * the chat behind it (a click there closes the panel), and focus moves into the panel.
- * The covered chat used to stay live under it, in the tab order and clickable, with
- * about 218px of it left showing at 1024px.
- */
 export const ResizablePanel = ({
     storageKey,
     resizeLabel,
@@ -70,17 +44,6 @@ export const ResizablePanel = ({
         return () => setClose(null);
     }, [onClose, setClose]);
 
-    // The element that had focus when the panel opened, usually the control that
-    // opened it, restored on unmount so closing does not drop focus on <body>. Read
-    // during the first render: every effect below and in the panel's content (the
-    // thread's reply box, the settings member list) may move focus first, and an
-    // effect-time read recorded the panel itself, which is gone by the time it closes.
-    // An opener that has left the page hands focus to the room's message box instead: a panel
-    // shown again under a closed profile recorded the profile's close button, and the popover
-    // that opened the profile went with the panel under it.
-    // Only focus the panel took with it is given back. Focus already on a live element outside —
-    // the panel that replaced this one put it there — is where the reader is, and taking it back
-    // stranded them.
     const [opener] = useState(() =>
         typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)
     );
@@ -94,7 +57,6 @@ export const ResizablePanel = ({
         [opener]
     );
 
-    // A panel whose own content already took focus (the thread's reply box) keeps it.
     useEffect(() => {
         const panel = resize.panelRef.current;
         if (overlays && panel && !panel.contains(document.activeElement)) panel.focus({ preventScroll: true });

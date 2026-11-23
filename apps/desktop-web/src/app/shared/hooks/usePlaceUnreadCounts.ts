@@ -11,30 +11,9 @@ import { isChannelReadLive } from './liveReadRegistry';
 
 const REFETCH_DEBOUNCE_MS = 300;
 
-// Focused + visible: the read-receipt driver only advances cursors live then.
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
 
-/**
- * Per-place unread counts for the active cloud, keyed by place id, and their total. A 1:1 counts
- * in its own place, like a group channel; my notes-to-self room in every place, and once in the
- * total (`placeUnreadCounts`). A muted channel counts in neither.
- *
- * Fetches every channel of the active cloud into a flat in-memory list (`channel.fetchList`,
- * `hasSite: false`, with detail) and derives unread client-side — the pre-v2 desktop approach. It
- * deliberately does NOT read the engine cache: the cache keys channels by `cid:uid:id` with no sid,
- * and channel ids collide across places, so the cache can only hold one place's channels at a time.
- * A flat array sidesteps that — it can hold every place's channels at once.
- *
- * Client derivation also avoids the server `channel.unreads` summary's quirk of counting the
- * sender's own not-yet-read-acked messages as unread (the server doesn't advance the sender's read
- * cursor on send): `computeChannelUnread` returns 0 when the latest message is mine, so the place
- * you just posted in never shows a phantom badge.
- *
- * Refetched on the signals that change unread: socket verify / cloud switch, an inbound push or
- * socket chat frame. The local read cursor re-derives instantly (no refetch) so a badge clears the
- * moment you read.
- */
 export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total: number } => {
     const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
@@ -42,20 +21,16 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
     const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const readCursors = useReadCursorStore(s => s.cursors);
-    // Subscribed, so muting or unmuting a channel moves the dots without waiting for a refetch.
     const channelNotify = useNotificationPrefsStore(s => s.channelNotify);
     const mutedChannels = useNotificationPrefsStore(s => s.mutedChannels);
-    // Subscribed, so a captured mention moves the dock the moment it lands.
     const mentionItems = useMentionsStore(s => s.items);
     const { placeIds, isLoading: placesLoading } = usePlaces();
 
-    // The list carries the cloud it was fetched for, so nothing is filed under the cloud switched to.
     const [fetched, setFetched] = useState<{ cloudId: string | null; list: DomainChannel[] }>({
         cloudId: null,
         list: [],
     });
     const channels = fetched.list;
-    // Drops a late response from a superseded fetch (cloud switch / newer trigger).
     const seqRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -74,30 +49,20 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
         timerRef.current = setTimeout(() => void fetchCounts(), REFETCH_DEBOUNCE_MS);
     }, [fetchCounts]);
 
-    // Reset on cloud change so the previous cloud's badges don't linger mid-switch.
     useEffect(() => {
         setFetched({ cloudId, list: [] });
         ++seqRef.current;
     }, [cloudId]);
 
-    // Fetch on verify / cloud switch (isVerified dips then rises on a switch, after the socket
-    // re-auths to the new cloud — so the list is for the right cloud).
     useEffect(() => {
         if (isVerified) void fetchCounts();
     }, [isVerified, cloudId, fetchCounts]);
 
-    // Refetch on inbound activity — an FCM push or a raw socket chat frame both mean a channel's
-    // unread may have changed. The frame listener stays attached across reconnects and slot changes.
-    // A browser's push port has no `notifications`, so there only the frames count.
     useEffect(() => {
         const offPush = runtime.push.notifications?.onReceive(() => schedule());
         const offMessage = runtime.connection.onServerMessage(message => {
             const type = (message as { type?: string })?.type ?? '';
             if (!type.startsWith('chat')) return;
-            // The channel on screen reads live while the window is focused: its cursor
-            // advances on arrival (useReadReceipts), so its badge contribution stays 0
-            // without re-pulling the whole cloud directory. Everything else still
-            // refetches — background channels, a blurred window, an unnamed frame.
             const channelId = chatFrameChannelIdOf(message);
             if (channelId && isWindowActive() && isChannelReadLive(channelId)) return;
             schedule();
@@ -110,9 +75,6 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
     }, [schedule]);
 
     const filedPlaces = useMemo(() => roomPlaces(channels, { placeIds }), [channels, placeIds]);
-    // The same list is the whole cloud's channel directory, so it also seeds the quick switcher's
-    // index: without it, Cmd+K only knew places opened by hand. My notes-to-self room is filed under
-    // every place, so this runs again when my places arrive; re-filing an unchanged list writes nothing.
     useEffect(() => {
         const listCloudId = fetched.cloudId;
         if (!listCloudId || listCloudId !== cloudId) return;
@@ -130,7 +92,6 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
                 readCursors,
                 notifyPrefs: { channelNotify, mutedChannels },
                 mentions: mentionItems,
-                // The sidebar's `cloudDms` listing: only once the places are known to be none.
                 listsUnplacedDms: !placesLoading && placeIds.length === 0,
             }),
         [channels, myUid, filedPlaces, readCursors, channelNotify, mutedChannels, mentionItems, placesLoading, placeIds]

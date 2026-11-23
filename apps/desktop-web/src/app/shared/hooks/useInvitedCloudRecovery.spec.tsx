@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderHook } from '@testing-library/react';
 
-// An invited cloud's only durable record is its local cache row. Without one it stays on the rail
-// just while the session is inside it and disappears on the next switch or reload, so the row has
-// to be rebuilt from the live session.
 const recoverInvitedCloudIfMissing = vi.fn(() => Promise.resolve());
 const syncInvitedCloudName = vi.fn(() => Promise.resolve());
 const cloudRepository = { id: 'cloud-repo' };
@@ -32,8 +29,6 @@ vi.mock('@chatic/runtime', async () =>
     })
 );
 
-// See the note in useClouds.spec.tsx: ADR-0070 moved this hook out of the runtime
-// and into this folder.
 vi.mock('./useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds: ownedClouds }),
 }));

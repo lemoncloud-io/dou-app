@@ -34,8 +34,6 @@ describe('useAuthorNames', () => {
         expect(result.current.get('u1')).toBe('Ada');
     });
 
-    // The sidebar and the quick switcher both resolve DM names. The second caller used to
-    // skip the update because the first had already written the name, and kept the raw id.
     it('gives every caller the name, even one that heard it second', () => {
         const ids = ['u2'];
         const first = renderHook(() => useAuthorNames(ids));

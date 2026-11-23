@@ -14,39 +14,16 @@ import {
 import { TOAST_DURATION_MS } from '@chatic/ui-kit/components/ui/toaster';
 import { setToastLimit, useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
-// The icon alone carries the tone. The kit's 3px accent bar is dropped: under a 16px radius
-// it clipped into a curved sliver down the left edge instead of reading as a bar.
 const ICONS = {
     default: <CheckCircle2 className="mt-px size-[18px] shrink-0 text-main-accent" aria-hidden />,
     destructive: <AlertCircle className="mt-px size-[18px] shrink-0 text-destructive" aria-hidden />,
     info: <Info className="mt-px size-[18px] shrink-0 text-toast-muted" aria-hidden />,
 };
 
-/**
- * The desktop shell's toaster. It reuses the kit's toast primitives and store but not its
- * layout, which `apps/web` keeps: on desktop a toast is a compact capsule sized to its
- * text, where the kit's is a fixed 448px slab — most toasts here are one short line.
- *
- * The toast floats 12px from the top of the app area, over the middle of the 56px pane
- * header, which is empty: the title sits at the left and the actions at the right. Mount
- * it inside the element that starts right under the banners, so the viewport is positioned
- * against that element and a connection or update banner pushes toasts down with the
- * header instead of covering them.
- *
- * An error toast has no timer, so it carries the close button, and up to three toasts show at
- * once so a second toast does not evict an error unread. Both are desktop choices: the kit store
- * is shared with the mobile web app, which keeps its one timed toast.
- */
 export const AppToaster = () => {
     const { t } = useTranslation();
     useEffect(() => setToastLimit(3), []);
     const { toasts } = useToast();
-    // An error raised while a modal dialog is open is that dialog's failure, so it has to clear the
-    // dim. So does a toast with an action raised then — "Saved · Show in Finder" from the image
-    // viewer's save — whose button cannot be pressed under the dim. Radix disables pointer events on
-    // the body while a modal is open, which is the signal read here, once per toast. One from before
-    // the dialog stays under it: Radix gives an older toast no pointer events while the modal is open,
-    // so lifted it would cover the dialog's title with a button that cannot be pressed.
     const seenIds = useRef(new Set<string>());
     const [liftedIds, setLiftedIds] = useState<ReadonlySet<string>>(() => new Set());
     useEffect(() => {
@@ -79,8 +56,6 @@ export const AppToaster = () => {
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         {title && <ToastTitle className="text-callout tracking-normal">{title}</ToastTitle>}
                         {description && (
-                            // Alone, the description is the whole message, so it takes the
-                            // title's weight of colour; under a title it stays secondary.
                             <ToastDescription
                                 className={cn(
                                     variant === 'destructive' ? 'line-clamp-4' : 'line-clamp-2',
@@ -102,17 +77,6 @@ export const AppToaster = () => {
                     )}
                 </Toast>
             ))}
-            {/* The gap lives in `top`, not in padding: the kit's `pt-safe-top` outranks any
-                `pt-*` passed here, and on desktop it resolves to 0.
-                `z-toast` puts the toasts under the modal layer (dialogs, menus and popovers are
-                z-50) instead of the kit's z-[100] over it. A dialog is the thing the user is
-                working in: a "channel created" toast from the previous step sat on top of the
-                next dialog's title. No position avoids that in a short window, where a dialog
-                fills the height, so the toast goes under the dim instead of beside it. It is
-                still announced by its live region. An error or a toast with an action raised
-                while the dialog is open is the exception: it belongs to that dialog, so while one
-                shows the viewport rises to `z-alert`, over the dim. */}
-            {/* Radix names the region in English unless told; `{hotkey}` is its own placeholder. */}
             <ToastViewport
                 className={cn('absolute top-3', lifts ? 'z-alert' : 'z-toast')}
                 label={t('common.toastRegion')}

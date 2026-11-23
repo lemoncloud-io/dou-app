@@ -20,8 +20,6 @@ const BannerButton = ({
         onClick={onClick}
         className={cn(
             'rounded px-2 py-0.5 text-caption font-semibold transition-colors',
-            // Tailwind 3 has no opacity for `current`, so `bg-current/20` generated nothing and the
-            // solid button had no fill. Solid buttons only sit on the primary banner.
             variant === 'solid'
                 ? 'bg-primary-foreground/15 hover:bg-primary-foreground/25'
                 : 'underline-offset-2 hover:underline'
@@ -31,12 +29,6 @@ const BannerButton = ({
     </button>
 );
 
-/**
- * Desktop auto-update banner (ask-first UX). Top-of-shell bar that walks the user
- * through available → download → restart. Hidden when idle or dismissed. Always
- * mounted (returns null) so the OnUpdateStatus subscription in useAppUpdate stays
- * live regardless of route. No-op in a plain browser (no shell events arrive).
- */
 export const UpdateBanner = () => {
     const { t } = useTranslation();
     const { startDownload, restart } = useAppUpdate();
@@ -53,12 +45,9 @@ export const UpdateBanner = () => {
     return (
         <div
             role="status"
-            // Percent ticks many times a second — don't let a polite live region read each one.
             aria-live={status === 'downloading' ? 'off' : 'polite'}
             className={cn(
                 'flex items-center justify-center gap-3 px-3 py-1.5 text-caption font-medium',
-                // The amber text token is made for the /15 tint (as ConnectionBanner uses it); on the
-                // solid amber it was nearly unreadable.
                 isError ? 'bg-warning/15 text-warning-foreground' : 'bg-primary text-primary-foreground'
             )}
         >

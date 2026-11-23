@@ -17,32 +17,13 @@ export interface RelayAccountUpdate {
     photo?: string;
 }
 
-/**
- * Whether the person on this device is a guest, judged from the relay token — the account's, not the
- * active session's. Inside a cloud the active session is that cloud's user, whose role says nothing
- * about the account, so `useRuntimeProfile().isGuest` cannot answer this. No relay user counts as a
- * guest, as on the account hub. Read at call time, so a click reads the token as it stands then.
- */
 export const isRelayGuest = (): boolean => {
     const account = runtime.session.getRelaySessionUser() as RelayAccount | null;
     return !account || account.userRole === 'guest';
 };
 
-/**
- * The ACCOUNT profile (relay token), not the active session's. Screens asking
- * "who is this account" read this; screens asking "what may I do in this
- * cloud" keep using `useRuntimeProfile`.
- *
- * Reads the relay token (no network) and refreshes it once per relay
- * verification; a missed refresh leaves the token value standing. Updates go
- * through the relay-pinned gateway and patch the token from the server echo
- * (falling back to the sent values when the echo comes back thin).
- */
 export const useRelayAccount = () => {
     const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);
-    // Re-read per session signal: the session store drops its cached context
-    // on every notify and rebuilds a new object, so this identity change is
-    // the refresh trigger.
     const session = runtime.session.useGlobalSession();
     const account = useMemo(() => (runtime.session.getRelaySessionUser() as RelayAccount | null) ?? null, [session]);
     const [isMutating, setIsMutating] = useState(false);
@@ -50,17 +31,10 @@ export const useRelayAccount = () => {
     useEffect(() => {
         if (!isRelayVerified) return;
         let cancelled = false;
-        // The call sits inside try/catch: the relay account's read fails
-        // when the relay slot is unbound, and whether that arrives as a throw
-        // or a rejection, the catch below takes it. The token
-        // value is already on screen, so skipping IS the recovery.
         void (async () => {
             try {
                 const response = await runtime.session.fetchAccountProfile();
                 if (cancelled) return;
-                // `user.profile` answers with a wrapper ($user + $site); tolerate
-                // a flat user view the same way. `$site` is deliberately ignored
-                // — this hook is the ACCOUNT profile.
                 const view = ((response as unknown as { $user?: Record<string, unknown> } | undefined)?.$user ??
                     response ??
                     {}) as Record<string, unknown>;
@@ -68,7 +42,6 @@ export const useRelayAccount = () => {
                 if (typeof view.name === 'string') patch.name = view.name;
                 if (typeof view.photo === 'string') patch.photo = view.photo;
                 if (typeof view.email === 'string') patch.email = view.email;
-                // The profile is where the view-shaped linked sign-in slot comes from.
                 if (view.link$ && typeof view.link$ === 'object') patch.link$ = view.link$;
                 if (Object.keys(patch).length) runtime.session.patchRelaySessionUser(patch);
             } catch {

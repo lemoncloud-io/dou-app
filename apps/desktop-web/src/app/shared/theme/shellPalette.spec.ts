@@ -14,7 +14,6 @@ import {
     shellPaletteCss,
 } from './shellPalette';
 
-/** The page under the shell, then each shell element with the derived tokens laid over it. */
 const surfacesOf = (colors: ShellColors, mode: ShellMode): Record<'cloud' | 'nav' | 'list', Tokens> => {
     const derived = derivePaletteTokens(colors, mode);
     const page = { ...(mode === 'dark' ? darkPage : lightPage), ...derived.root };
@@ -25,7 +24,6 @@ const surfacesOf = (colors: ShellColors, mode: ShellMode): Record<'cloud' | 'nav
     };
 };
 
-/** Deterministic colours, so a failing sweep names the same inputs on every run. */
 const randomColors = (count: number): ShellColors[] => {
     let seed = 0x5eed;
     const next = () => {
@@ -50,7 +48,6 @@ describe.each(['light', 'dark'] as const)('derivePaletteTokens (%s)', mode => {
         const surfaces = surfacesOf(colors, mode);
 
         it.each([
-            // Rail text, the inactive cloud tile, the open destination's label, the focus ring.
             ['cloud', 'rail-foreground', 'rail', 4.5],
             ['cloud', 'rail-foreground', 'background', 4.5],
             ['cloud', 'focus-ring', 'rail', 3],
@@ -58,7 +55,6 @@ describe.each(['light', 'dark'] as const)('derivePaletteTokens (%s)', mode => {
             ['nav', 'foreground', 'rail-elevated', 4.5],
             ['nav', 'rail-foreground', 'accent', 4.5],
             ['nav', 'focus-ring', 'rail-elevated', 3],
-            // The list: titles, secondary lines, the hover, the search field.
             ['list', 'sidebar-foreground', 'sidebar', 4.5],
             ['list', 'muted-foreground', 'sidebar', 4.5],
             ['list', 'muted-foreground', 'accent', 4.5],

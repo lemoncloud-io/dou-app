@@ -11,7 +11,6 @@ describe('isNotifiableChat', () => {
         expect(isNotifiableChat({})).toBe(true);
     });
 
-    // Join/leave rows carry no readable body, so a banner for one shows an empty message.
     it('silences server-generated system events', () => {
         expect(isNotifiableChat({ stereo: 'system' })).toBe(false);
     });

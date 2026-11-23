@@ -1,11 +1,3 @@
-/**
- * Read every record from the engine's IndexedDB cache (read-only). The repository
- * layer is scoped to the ACTIVE cloud's partition and exposes no cross-partition
- * query, so cross-cloud push resolvers (channel → cloud, sender → nick) scan the
- * raw store directly. Each record carries its `type` discriminator, `cid`
- * partition, and the domain payload under `data`. Returns [] when IndexedDB is
- * unavailable so callers degrade gracefully.
- */
 const DB_NAME = 'ChaticWebCacheDB';
 const STORE_NAME = 'cache_store';
 
@@ -33,6 +25,6 @@ export const readCacheRecords = async <TData = Record<string, unknown>>(): Promi
             db.close();
         }
     } catch {
-        return []; // cache unavailable → caller degrades
+        return [];
     }
 };
