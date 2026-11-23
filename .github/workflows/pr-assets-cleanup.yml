@@ -1,0 +1,46 @@
+name: pr assets cleanup
+
+# Deletes the orphan branch `pr-assets/pr-<n>` once its pull request closes, merged or not. The
+# branch holds the screenshots verify.yml's `e2e-results` job and dou-ship's `pr-assets.mjs` push for
+# that pull request; nothing links them after it closes.
+#
+# `pull_request_target` for a token that can delete the branch; nothing from the pull request's
+# branch runs. The script comes from the base branch, and a base without it has nothing to clean.
+
+on:
+    pull_request_target:
+        types: [closed]
+
+permissions: {}
+
+concurrency:
+    group: pr-assets-${{ github.event.pull_request.number }}
+
+jobs:
+    cleanup:
+        name: delete pr-assets/pr-${{ github.event.pull_request.number }}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+                  sparse-checkout: apps/web-e2e/scripts
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Delete the branch
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  REPO: ${{ github.repository }}
+                  PR: ${{ github.event.pull_request.number }}
+              run: |
+                  script=apps/web-e2e/scripts/pr-verification.mjs
+                  if [ ! -f "$script" ]; then
+                      echo "The base branch has no $script; nothing to clean."
+                      exit 0
+                  fi
+                  node "$script" cleanup --pr "$PR" --remote-url "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git"
