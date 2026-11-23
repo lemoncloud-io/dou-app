@@ -3,14 +3,6 @@ import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 
-/**
- * Data source specific to the sender's relay 1:1 invite card (ADR-0052) domain.
- *
- * Uses the same standard (cid, uid, id, data) blob schema as other domains. Filtering out
- * credential fields (code, deeplink) is not this class's responsibility — it belongs to the web
- * layer's allowlist mapper (`toCacheInviteView`); by the time data arrives here, those fields are
- * already gone.
- */
 export class InviteDataSource implements ICacheDataSource<CacheInviteView, InviteQueryOptions> {
     constructor(
         private readonly database: ISqliteDatabase,
@@ -38,10 +30,6 @@ export class InviteDataSource implements ICacheDataSource<CacheInviteView, Invit
         return fetchManyByIds<CacheInviteView>(this.database, this.tableName, ids, cid, uid);
     }
 
-    /**
-     * Fetches the full invite list for a specific cloud/user scope.
-     * Invite has no extra filter beyond cid/uid, so the query arg is unused.
-     */
     public async fetchAll(cid?: string, _query?: InviteQueryOptions, uid?: string): Promise<CacheInviteView[]> {
         const conditions: string[] = [];
         const params: string[] = [];

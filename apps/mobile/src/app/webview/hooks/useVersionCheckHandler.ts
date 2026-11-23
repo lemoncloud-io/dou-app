@@ -8,10 +8,6 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 import type { OnUpdateDeviceInfoPayload, Platform as AppPlatform } from '@chatic/bridge-messages';
 import { toEnvStage } from '../../utils';
 
-/**
- * Sends version check result to WebView via OnUpdateDeviceInfo bridge message.
- * Covers the case where the version check completes after WebView has loaded.
- */
 export const useVersionCheckHandler = (bridge: IAppBridgeHost) => {
     useEffect(() => {
         if (!bridge) return;

@@ -1,10 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/**
- * Whether a scroll box has content hidden above or below its viewport. The rails
- * scroll with no scrollbar, so at a short window (or 200% zoom) whole tiles sat
- * out of sight with nothing hinting they existed.
- */
 export const useScrollOverflow = <T extends HTMLElement>() => {
     const ref = useRef<T | null>(null);
     const [overflow, setOverflow] = useState({ above: false, below: false });
@@ -24,7 +19,6 @@ export const useScrollOverflow = <T extends HTMLElement>() => {
         el.addEventListener('scroll', measure, { passive: true });
         const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
         observer?.observe(el);
-        // Tiles arriving later change the content height without resizing the box.
         const mutations = new MutationObserver(measure);
         mutations.observe(el, { childList: true });
         return () => {

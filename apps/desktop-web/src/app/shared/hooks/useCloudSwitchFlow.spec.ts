@@ -50,7 +50,6 @@ beforeEach(() => {
 });
 
 describe('switchCauseKey', () => {
-    // A failed switch said only "Couldn't switch cloud", whatever went wrong.
     it.each([
         [new Error('Failed to fetch'), 'cloud.switchCause.network'],
         [new Error('403 NOT ALLOWED - cloud access'), 'cloud.switchCause.denied'],
@@ -90,7 +89,6 @@ describe('useCloudSwitchFlow invited-cloud recovery', () => {
         expect(session.switchCloud).toHaveBeenCalledWith('B');
     });
 
-    // A relay push names the relay `'#'`; switching to it is leaving the cloud, never a delegation.
     it('reads the relay push sentinel as the relay and leaves the cloud for it', async () => {
         await switchTo('#');
 
@@ -129,8 +127,6 @@ describe('useCloudSwitchFlow invited-cloud recovery', () => {
 });
 
 describe('useCloudSwitchFlow retry', () => {
-    // Retry ran the switch as it was when it failed, so reaching the cloud another way
-    // first and then pressing Try again switched a second time and dropped the channel.
     it('does nothing once the reader is already on that cloud', async () => {
         session.switchCloud.mockRejectedValueOnce(new Error('Failed to fetch'));
         const { result, rerender } = renderHook(() => useCloudSwitchFlow());
@@ -152,7 +148,6 @@ describe('useCloudSwitchFlow failure toast', () => {
         return session.toast.mock.calls.at(-1)?.[0] as { description: ReactNode; action?: unknown };
     };
 
-    // A refused cloud refuses again, so Try again was a button that could never work.
     it('offers no Try again for a refused cloud and points at the mobile app', async () => {
         const { description, action } = await failWith(new Error('403 NOT ALLOWED - cloud access'));
         expect(action).toBeUndefined();
@@ -172,8 +167,6 @@ describe('useCloudSwitchFlow failure toast', () => {
         expect(screen.getByText(i18next.t('cloud.switchCause.network'), { exact: false })).toBeTruthy();
     });
 
-    // The cause is the app's reading of the failure; the server's own words go under it, so a
-    // refusal can be reported as it was given.
     it("shows the server's own words under the cause", async () => {
         const { description } = await failWith(new Error('403 NOT ALLOWED - cloud access'));
         render(description as ReactElement);

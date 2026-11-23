@@ -9,11 +9,9 @@ import { useRoomFiles, useRoomMediaCounts, withNewestPage, withOlderPage } from 
 const mockListRoomMedia = jest.fn();
 const mockCountRoomMedia = jest.fn();
 const mockRefreshList = jest.fn();
-// Every live subscription's callback, so a test can make the cache "change" again.
 const mockObservers: Array<() => void> = [];
 const mockObserveList = jest.fn((_input: unknown, callback: () => void) => {
     mockObservers.push(callback);
-    // The repository answers once at subscribe, as the real one does with the cached window.
     callback();
     return () => {
         const at = mockObservers.indexOf(callback);
@@ -23,9 +21,7 @@ const mockObserveList = jest.fn((_input: unknown, callback: () => void) => {
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
-            // One graph object, as the runtime hands out: a new one per render would resubscribe forever.
             useRuntimeRepositories: (() => {
-                // Built on first use: the mocks it holds are initialised after this factory runs.
                 let graph: unknown;
                 return () =>
                     (graph ??= {
@@ -43,7 +39,6 @@ jest.mock('@chatic/runtime', () =>
 
 type Kind = RoomMediaItem['kind'];
 
-/** A cached message holding one attachment of `kind` in slot 0. */
 const item = (kind: Kind, chatNo: number): RoomMediaItem => ({
     kind,
     idx: 0,
@@ -70,10 +65,6 @@ const item = (kind: Kind, chatNo: number): RoomMediaItem => ({
     } as unknown as DomainChat,
 });
 
-/**
- * Pages by kind and cursor: `pages['image:top']` answers the first read, `pages['image:5']` a read
- * below message 5. A read nothing was set up for answers an empty, finished page.
- */
 let pages: Record<string, { items: RoomMediaItem[]; nextCursorNo: number | null }>;
 const answer = (input: { kind: Kind; cursorNo?: number }) =>
     Promise.resolve(pages[`${input.kind}:${input.cursorNo ?? 'top'}`] ?? { items: [], nextCursorNo: null });
@@ -108,7 +99,6 @@ describe('useRoomFiles', () => {
         expect(callsFor('video')[0]).toEqual({ channelId: 'ch-1', kind: 'video', limit: 60 });
     });
 
-    // An index row whose message no longer has that slot is dropped, not drawn as a blank tile.
     it('keeps a page whose items have no attachment left on their row', async () => {
         const orphan = item('image', 4);
         orphan.chat = { ...orphan.chat, upload$$: [] } as DomainChat;
@@ -135,7 +125,6 @@ describe('useRoomFiles', () => {
         pages['image:8'] = { items: [item('image', 3)], nextCursorNo: null };
         pages['video:7'] = { items: [item('video', 2)], nextCursorNo: null };
         const { result } = renderFiles();
-        // Before the first read nothing is known to be finished either, so wait for the rows themselves.
         await waitFor(() => expect(result.current.entries.length).toBeGreaterThan(0));
         expect(result.current.hasMorePages).toBe(true);
 
@@ -155,8 +144,6 @@ describe('useRoomFiles', () => {
         expect(result.current.canFindOlder).toBe(true);
         expect(mockRefreshList).not.toHaveBeenCalled();
 
-        // What the older page brought into the index, below where each kind stopped — message 5 again
-        // as well, since a read below 5 in a real cache would not, but the merge must not double it.
         pages['image:5'] = { items: [item('image', 5), item('image', 3)], nextCursorNo: null };
         pages['video:7'] = { items: [item('video', 2)], nextCursorNo: null };
         await act(() => result.current.findOlder());
@@ -183,11 +170,9 @@ describe('useRoomFiles', () => {
         const { result } = renderFiles('audio');
 
         await waitFor(() => expect(mockRefreshList).toHaveBeenCalledTimes(1));
-        // Nothing was seen, so the server is asked from its newest.
         expect(mockRefreshList).toHaveBeenCalledWith({ channelId: 'ch-1', limit: 50 });
         await waitFor(() => expect(result.current.searching).toBe(false));
 
-        // The tab is still empty afterwards; it does not keep asking.
         act(() => mockObservers.forEach(callback => callback()));
         await waitFor(() => expect(callsFor('audio').length).toBeGreaterThanOrEqual(3));
         expect(mockRefreshList).toHaveBeenCalledTimes(1);

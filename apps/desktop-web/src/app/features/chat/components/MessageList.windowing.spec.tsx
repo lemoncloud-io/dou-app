@@ -46,7 +46,6 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     </QueryClientProvider>
 );
 
-// Authors alternate, so every message is its own block: one row per message.
 const message = (chatNo: number): DomainChat =>
     ({
         id: `C1:${chatNo}`,
@@ -59,12 +58,6 @@ const message = (chatNo: number): DomainChat =>
 
 const FEED = Array.from({ length: 200 }, (_, i) => message(i + 1));
 
-/**
- * Windowing engages only once layout exists (the mount effect reads the real
- * container). jsdom ships no layout, so these tests stand it in: a 600px
- * viewport over a 30000px feed. Without the mocks everything mounts whole —
- * the contract every older feed test relies on.
- */
 describe('MessageList windowing', { timeout: 30_000 }, () => {
     afterEach(() => {
         cleanup();
@@ -113,8 +106,6 @@ describe('MessageList windowing', { timeout: 30_000 }, () => {
         const bottom = spacerHeight(container, 'bottom');
         expect(bottom).toBeTruthy();
         expect(parseFloat(bottom ?? '')).toBeGreaterThan(0);
-        // The feed is a flex column: a spacer that may shrink collapses to 0 px in a real
-        // layout (jsdom has none to show it), and the scrollbar loses the unmounted rows.
         expect(container.querySelector('[data-feed-spacer="bottom"]')?.classList.contains('shrink-0')).toBe(true);
     });
 
@@ -140,7 +131,6 @@ describe('MessageList windowing', { timeout: 30_000 }, () => {
         const { container, rerender } = renderFeed();
         const scroller = scrollerOf(container);
 
-        // Park at the bottom first, so the target (near the top) is unmounted.
         scroller.scrollTop = 29000;
         fireEvent.scroll(scroller);
         await waitFor(() => expect(container.querySelector('[data-chat-no="5"]')).toBeNull());
@@ -156,7 +146,6 @@ describe('MessageList windowing', { timeout: 30_000 }, () => {
             />
         );
 
-        // The target mounts on an estimated scroll, then the next retry lands on it.
         await waitFor(() => expect(onJumpConsumed).toHaveBeenCalled());
         expect(container.querySelector('[data-chat-no="5"]')?.outerHTML).toMatch(/bg-primary\/10/);
     });

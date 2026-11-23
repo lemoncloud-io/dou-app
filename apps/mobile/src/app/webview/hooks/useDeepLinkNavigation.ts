@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { deeplinkService, logger, notificationService, subWebViewService } from '../../services';
-// A leaf module: deeplinkUtils reaches react-native-config, which a unit test cannot load.
 import { isChannelRoomPath } from '../../services/deeplinks/isChannelRoomPath';
 import type { NativeRouteState, PushNavigationData } from '../../services/deeplinks/deeplinkUtils';
-// Imported from the leaf module, not the navigation barrel: the barrel re-exports RootNavigator,
-// which pulls the whole navigator graph (and @react-navigation's ESM) into anything that only needs
-// the ref. That is the coupling navigationRef.ts was split out to avoid.
 import { navigationRef } from '../../features/core/navigation/navigationRef';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { HandedOverPerfTrace } from '@chatic/bridge-messages';
@@ -18,28 +14,9 @@ export interface UseDeepLinkNavigationResult {
     handleDismissError: () => void;
 }
 
-// A cold-start native link can arrive before the navigator mounts: retry for ~2s rather than
-// drop it. Web routes need nothing like this — the bridge buffers OnNavigate until WebAppReady.
 const NATIVE_ROUTE_RETRY_MS = 250;
 const MAX_NATIVE_ROUTE_ATTEMPTS = 8;
 
-/**
- * Single owner of inbound navigation into the WebView. Captures OS deep links / invite links (via
- * the deeplink service) and notification taps, resolves each to a routing decision, and converges
- * them onto one OnNavigate bridge event (web routes) or navigationRef (native routes). Push delivery
- * (useFcmHandler) is left with foreground receipt only.
- *
- * The bridge buffers OnNavigate until WebAppReady, so cold-start links/taps are delivered as soon as
- * the web handshake lands — no startup delay is needed. Hiding home while a cold-start link applies is
- * not this hook's job any more: the web holds its boot cover (and so the launch splash) until the
- * replayed navigation has rendered.
- *
- * A JS context the app restarted itself (`appRestart`) skips the cold-start lookups: the OS still
- * reports the link or tap that launched the process, and the previous context already took it.
- *
- * @param bridge
- * @param options.skipColdStart this context was started over by the app, not launched by the OS
- */
 export const useDeepLinkNavigation = (
     bridge: IAppBridgeHost | undefined,
     { skipColdStart = false }: { skipColdStart?: boolean } = {}
@@ -55,23 +32,15 @@ export const useDeepLinkNavigation = (
     useEffect(() => {
         if (!bridge) return;
 
-        // Guards against dispatching a captured cold-start intent after the hook unmounts.
         let disposed = false;
-        // A cold start is launched by ONE intent, but both lookups can answer: a push tap carries
-        // the same link the OS deep link lookup reports. The first navigation wins; the second is
-        // a duplicate that would push the room twice.
         let coldStartNavigated = false;
-        // A queued native route's retry timer, so unmount cancels it.
         let nativeRetryTimer: ReturnType<typeof setTimeout> | undefined;
 
-        // A link or a tapped push takes the user somewhere the sub WebView would cover, so it closes
-        // first; the web hears why before it hears where to go.
         const closeSubWebView = () => {
             const view = subWebViewService.current();
             if (view) subWebViewService.close(view.viewId, 'system');
         };
 
-        // Emit a WEBVIEW_URL-relative path to the web. Shared by every inbound navigation source.
         const emitNavigate = (path: string, perfTrace?: HandedOverPerfTrace) => {
             closeSubWebView();
             logger.info('DEEPLINK', `[useDeepLinkNavigation] OnNavigate → ${path}`);
@@ -82,29 +51,17 @@ export const useDeepLinkNavigation = (
             });
         };
 
-        // Opens the room-open trace as soon as the tap reaches JS, so it covers what the user waits
-        // through from there — the WebView handshake, the router gate, a switch — and not only what
-        // the web can see. On a cold start that is after this runtime and the WebView have come up;
-        // the launch before it is the `boot` trace's. The web adopts the trace by id and stops it
-        // when the room draws. Only a room navigation starts one: nothing else would ever stop it.
         const handOverRoomOpenTrace = (
             path: string,
             entry: HandedOverPerfTrace['entry'],
             coldStart: boolean
         ): HandedOverPerfTrace | undefined => {
             if (!isChannelRoomPath(path)) return undefined;
-            // Both room traces start here, together: `chat_room_sync` measures the same wait to the
-            // point the room shows its synced, latest messages rather than whatever was cached.
             const trace = startPerfTrace('chat_room_open');
             const sync = startPerfTrace('chat_room_sync');
             return { id: trace.id, syncId: sync.id, startedAt: Date.now(), entry, coldStart };
         };
 
-        // Apply a native (target=native) route imperatively. Web routes never reach here. Note the
-        // Debug/Modal screens are not currently registered in the navigator, so this mirrors the prior
-        // (linking-driven) behavior for those routes rather than introducing new navigation.
-        // A cold-start link can arrive before the navigator mounts: retry briefly rather than drop
-        // it, the way the bridge buffers OnNavigate until WebAppReady for web routes.
         const applyNativeRoute = (state: NativeRouteState, attempt = 0) => {
             if (disposed) return;
             if (!navigationRef.isReady()) {
@@ -123,7 +80,6 @@ export const useDeepLinkNavigation = (
             }
         };
 
-        // Resolve an OS deep link / invite link and route it. `isColdStart` is reported on the trace.
         const dispatchDeepLink = (url: string, isColdStart: boolean) => {
             const resolution = deeplinkService.resolveInbound(url);
             if (resolution.kind === 'invalid') {
@@ -132,7 +88,6 @@ export const useDeepLinkNavigation = (
                 setDeepLinkErrorReason(resolution.error);
                 return;
             }
-            // An invalid link consumes nothing: the tap lookup may still hold the real intent.
             if (isColdStart) {
                 if (coldStartNavigated) {
                     logger.info('DEEPLINK', '[useDeepLinkNavigation] Duplicate cold-start navigation dropped');
@@ -147,20 +102,14 @@ export const useDeepLinkNavigation = (
             emitNavigate(resolution.path, handOverRoomOpenTrace(resolution.path, 'deeplink', isColdStart));
         };
 
-        // Notification tap → relative path (cid/sid merged). A null path just foregrounds the app.
         const dispatchPushTap = (data: PushNavigationData | undefined, isColdStart: boolean, messageId?: string) => {
             const path = deeplinkService.resolvePushTap(data);
-            // The tap is the middle link of the push chain (ADR-0099): a cold start puts the receipt
-            // and the room entry under different app runs, so `messageId` is what joins them. Logged
-            // whether or not the path resolved — a tap that led nowhere is the interesting case.
             logger.info('PUSH_EVENT', 'push tapped', {
                 messageId,
                 coldStart: isColdStart,
                 resolved: !!path,
             });
             if (!path) {
-                // A tap that resolves to nothing is otherwise invisible in field diagnostics; log the
-                // payload shape (keys only, no content) so a schema mismatch can be spotted from logs.
                 logger.warn(
                     'DEEPLINK',
                     `[useDeepLinkNavigation] Push tap resolved to no path (coldStart=${isColdStart}, keys=${
@@ -169,7 +118,6 @@ export const useDeepLinkNavigation = (
                 );
                 return;
             }
-            // A tap that resolves to nothing consumes nothing: the link lookup may still deliver.
             if (isColdStart) {
                 if (coldStartNavigated) {
                     logger.info('DEEPLINK', '[useDeepLinkNavigation] Duplicate cold-start navigation dropped');
@@ -180,10 +128,7 @@ export const useDeepLinkNavigation = (
             emitNavigate(path, handOverRoomOpenTrace(path, 'push_tap', isColdStart));
         };
 
-        // --- Cold start capture (app launched by a deep link or a notification tap) ---
         if (!skipColdStart) {
-            // Either native lookup rejects on some OEM builds / a torn-down bridge; a rejection is
-            // "no intent from this source", never a reason to break the other source.
             deeplinkService
                 .getInitialUrl()
                 .then(url => {
@@ -208,7 +153,6 @@ export const useDeepLinkNavigation = (
                 });
         }
 
-        // --- Warm capture (deep link / tap arriving while the app is already running) ---
         const unsubscribeDeepLink = deeplinkService.subscribe(url => {
             dispatchDeepLink(url, false);
         });

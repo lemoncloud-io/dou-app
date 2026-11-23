@@ -13,26 +13,14 @@ import {
 } from '../utils/roomFiles';
 import { isRuntimeNotAvailable } from '../utils/runtimeNotAvailable';
 
-/** Entries read per kind per page. */
 const PAGE_SIZE = 60;
-/** Messages asked of the server per "find older files" — the room's own older-page size. */
 const HISTORY_PAGE_SIZE = 50;
 
 interface KindPage {
     items: RoomFileEntry[];
-    /** The next page's cursor; `null` when this device's cache has nothing further down, `undefined` before the first read. */
     next: number | null | undefined;
 }
 
-/**
- * The chat repository of the graph the room itself reads (`useChats`): its cache partition is the one
- * the room's rows — and their media index entries — were written to. A cloud-scoped graph resolves its
- * own scope, which for a guest relay session has no uid and reads an empty partition.
- */
-/**
- * The newest page over what was loaded: it replaces what it covers, and what was read below it stays,
- * with the cursor where those rows stopped.
- */
 export const withNewestPage = (had: KindPage | undefined, page: KindPage): KindPage => {
     const floor = page.items.length ? page.items[page.items.length - 1]!.chatNo : Number.POSITIVE_INFINITY;
     const below = had?.items.filter(entry => entry.chatNo < floor) ?? [];
@@ -40,7 +28,6 @@ export const withNewestPage = (had: KindPage | undefined, page: KindPage): KindP
     return { items: [...page.items, ...below], next: had?.next ?? page.next };
 };
 
-/** An older page after what was loaded, without repeating an entry. */
 export const withOlderPage = (had: KindPage | undefined, page: KindPage): KindPage => {
     const items = had?.items ?? [];
     const seen = new Set(items.map(entry => entry.key));
@@ -49,11 +36,6 @@ export const withOlderPage = (had: KindPage | undefined, page: KindPage): KindPa
 
 const useRoomChats = () => runtime.data.useRuntimeRepositories().chat;
 
-/**
- * A room's media counts by kind, from this device's cache — the room settings' entry point and the tab
- * numbers. `unavailable` when the installed app cannot answer yet (`isRuntimeNotAvailable`): the entry
- * point is then not drawn at all.
- */
 export const useRoomMediaCounts = (cid: string | undefined, channelId: string | undefined) => {
     const chats = useRoomChats();
     const [counts, setCounts] = useState<RoomMediaCounts | null>(null);
@@ -72,7 +54,6 @@ export const useRoomMediaCounts = (cid: string | undefined, channelId: string | 
         void reload();
     }, [reload]);
 
-    // New messages and edits reach the cache through the room's stream; a count follows them.
     useEffect(() => {
         if (!cid || !channelId) return undefined;
         let first = true;
@@ -88,14 +69,6 @@ export const useRoomMediaCounts = (cid: string | undefined, channelId: string | 
     return { counts, unavailable, reload };
 };
 
-/**
- * The room file list's data for one tab: the media index's pages for the tab's kinds, merged newest
- * first, without what is hidden on this device; more pages as the list is scrolled; and, when this
- * device's cache has nothing older, the room's ordinary older-page load to widen it ("find older
- * files") — whose rows the index picks up on their write — until the server says there is no more.
- *
- * The tab is read again whenever the room's newest window changes in the cache.
- */
 export const useRoomFiles = ({
     cid,
     uid,
@@ -110,13 +83,11 @@ export const useRoomFiles = ({
     const kinds = TAB_KINDS[tab];
     const chats = useRoomChats();
     const [pages, setPages] = useState<Partial<Record<ChatMediaKind, KindPage>>>({});
-    // The pages as they are now, for reads started from a callback created on an earlier render.
     const pagesRef = useRef(pages);
     pagesRef.current = pages;
     const [loading, setLoading] = useState(false);
     const [unavailable, setUnavailable] = useState(false);
     const [searching, setSearching] = useState(false);
-    // The server's cursor for the next older page, `0` once it said there is no more.
     const [historyCursor, setHistoryCursor] = useState<number | undefined>(undefined);
     const autoSearched = useRef(new Set<RoomFilesTab>());
     const generation = useRef(0);
@@ -139,15 +110,12 @@ export const useRoomFiles = ({
         [chats, cid, channelId]
     );
 
-    /** Reads the tab's kinds from the newest again. */
     const reload = useCallback(async () => {
         const run = ++generation.current;
         setLoading(true);
         try {
             const fresh = await Promise.all(kinds.map(kind => readPage(kind, undefined)));
             if (run !== generation.current) return;
-            // The newest page replaces what it covers and keeps what was read below it: a re-read on every
-            // change of the room must not throw away the pages already scrolled through.
             setPages(previous => {
                 const next = { ...previous };
                 kinds.forEach((kind, at) => {
@@ -163,7 +131,6 @@ export const useRoomFiles = ({
         }
     }, [kinds, readPage]);
 
-    /** The next page of every kind of the tab that has one. */
     const loadMore = useCallback(async () => {
         const now = pagesRef.current;
         const due = kinds.filter(kind => {
@@ -190,7 +157,6 @@ export const useRoomFiles = ({
     const exhausted = kinds.every(kind => pages[kind]?.next === null);
     const serverDone = historyCursor === 0;
 
-    /** Widens the cache with one older page from the server, then reads on from where each kind stopped. */
     const findOlder = useCallback(async () => {
         if (!cid || !channelId || searching || serverDone) return;
         setSearching(true);
@@ -206,7 +172,6 @@ export const useRoomFiles = ({
                 limit: HISTORY_PAGE_SIZE,
             } as Parameters<typeof chats.refreshList>[0]);
             setHistoryCursor(result.cursorNo ?? 0);
-            // Read on from where each kind stops now — the room's own re-read may have run meanwhile.
             const more = await Promise.all(
                 kinds.map(kind => {
                     const had = pagesRef.current[kind]?.items;
@@ -228,7 +193,6 @@ export const useRoomFiles = ({
         }
     }, [chats, cid, channelId, historyCursor, kinds, readPage, searching, serverDone]);
 
-    // Each new tab starts from the newest; every change in the room's newest window reads it again.
     useEffect(() => {
         if (!cid || !channelId) return undefined;
         return chats.observeList({ channelId, limit: 1 }, () => void reload());
@@ -239,7 +203,6 @@ export const useRoomFiles = ({
         return hidden.size ? merged.filter(entry => !hidden.has(entry.key)) : merged;
     }, [hidden, kinds, pages]);
 
-    // A tab that opens empty while older messages may hold its files looks once on its own.
     useEffect(() => {
         if (!exhausted || entries.length > 0 || serverDone || searching || autoSearched.current.has(tab)) return;
         autoSearched.current.add(tab);

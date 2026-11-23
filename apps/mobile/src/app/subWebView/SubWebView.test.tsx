@@ -72,13 +72,11 @@ jest.mock('../stores', () => ({
 jest.mock('../utils/device', () => ({ getAppLanguage: () => 'en' }));
 jest.mock('react-native-config', () => ({ __esModule: true, default: { VITE_ENV: 'PROD' } }));
 jest.mock('../bridge', () => ({ HapticBridge: { trigger: jest.fn(() => true) } }));
-// The storage file is native; an in-memory one stands in, opened for the origin asked.
 jest.mock('../services/subWebView/subWebViewStorageFile', () => {
     const { SubWebViewStorage } = jest.requireActual('../services/subWebView/subWebViewStorage');
     const { memoryStorageFile } = jest.requireActual('../services/subWebView/memoryStorageFile');
     return { openSubWebViewStorage: jest.fn(() => new SubWebViewStorage(memoryStorageFile())) };
 });
-// The runtime gate reads the session owner from a native file; each test says what it settles.
 let mockRuntimeAccess: unknown = null;
 const mockOpenRuntime = jest.fn((_input: unknown) => mockRuntimeAccess);
 jest.mock('./subWebViewRuntimeAccess', () => ({ openSubWebViewRuntime: (input: unknown) => mockOpenRuntime(input) }));
@@ -95,14 +93,10 @@ const mockCreateRuntimeBridge = jest.fn((_deps: unknown) => ({
 jest.mock('./subWebViewRuntimeBridge', () => ({
     createAppSubWebViewRuntimeBridge: (deps: unknown) => mockCreateRuntimeBridge(deps),
 }));
-// The barrel reaches web-only modules the CommonJS transform cannot parse; the link module is all
-// this view uses.
 jest.mock('@chatic/shared', () => jest.requireActual('../../../../../libs/shared/src/utils/subWebViewLink'));
 
 const URL_ = 'https://foo.apps.chatic.io/a';
 
-// Every permission, so the tests below reach every request; one stable Set, since a new one rebuilds
-// the host.
 const ALL_PERMISSIONS = new Set(['clipboard', 'share', 'openUrl', 'userKey'] as const);
 const NO_RUNTIME = new Set<never>();
 
@@ -124,12 +118,10 @@ const pageMessage = (url: string, type: string, data: unknown) => ({
     nativeEvent: { url, data: JsonProtocol.encode({ type, refId: `r-${type}`, version: BRIDGE_VERSION, data } as any) },
 });
 
-/** Lets the host's async handling reach `postMessage`. */
 const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 0)));
 
 const sentTypes = () => mockPostMessage.mock.calls.map(([raw]) => JSON.parse(raw).type);
 
-// React Native defines `__DEV__`; this suite mocks React Native, so it sets the global itself.
 const runtime = globalThis as { __DEV__?: boolean };
 
 describe('SubWebView', () => {
@@ -209,7 +201,6 @@ describe('SubWebView', () => {
         });
     });
 
-    // None of the main WebView's identity or channel: its own context script, its own user agent.
     it('injects only its own context, under the platform user agent', () => {
         renderView();
 
@@ -218,7 +209,6 @@ describe('SubWebView', () => {
         expect(script).toContain('\\"orderId\\":7');
         expect(script).toContain('\\"locale\\":\\"ko\\"');
         expect(script).not.toMatch(/CHATIC_APP_|ChaticMessageHandler/);
-        // The same script again at load end, for Android, where the first run can trail the page.
         expect(mockWebViewProps.injectedJavaScript).toBe(script);
         expect(mockWebViewProps.applicationNameForUserAgent).toBeUndefined();
         expect(mockWebViewProps.userAgent).toBeUndefined();
@@ -227,7 +217,6 @@ describe('SubWebView', () => {
     describe('safe-area insets', () => {
         const INSETS = { top: 47, bottom: 34, left: 0, right: 0 };
 
-        // A padded view lies inside the safe area: there is nothing for the page to keep clear of.
         it('tells a page nothing of the insets when the screen pads the view', () => {
             renderView();
 
@@ -245,7 +234,6 @@ describe('SubWebView', () => {
             expect(mockWebViewProps.injectedJavaScript).toBe(script);
         });
 
-        // A rotation moves the notch to a side while the page is up; it must not wait for a reload.
         it('pushes the insets to the page again when they change', () => {
             const view = renderView({ display: 'immersive', insets: INSETS });
             mockInjectJavaScript.mockClear();
@@ -306,7 +294,6 @@ describe('SubWebView', () => {
             const script = mockWebViewProps.injectedJavaScriptBeforeContentLoaded as string;
             expect(script).toContain('"--chatic-safe-area-inset-left", "0px"');
             expect(script).toContain('"--chatic-safe-area-inset-right", "0px"');
-            // The global carries the same values as the handshake.
             expect(script).toContain('\\"safeArea\\":{\\"top\\":47,\\"right\\":0,\\"bottom\\":34,\\"left\\":0}');
         });
 
@@ -321,7 +308,6 @@ describe('SubWebView', () => {
             }
         );
 
-        // A rotation moves the insets several times on its way; the page hears once, where they rest.
         it('pushes a safe-area change once the insets settle, with the whole context', async () => {
             const view = renderView({ display: 'immersive', insets: INSETS });
             await handshakeContext();
@@ -339,14 +325,12 @@ describe('SubWebView', () => {
                     { locale: 'ko', theme: 'light', safeArea: { top: 0, right: 47, bottom: 21, left: 47 } },
                 ]);
 
-                // Insets that come back the same are no change.
                 rotateTo(view, { top: 0, bottom: 21, left: 47, right: 47 });
                 act(() => jest.advanceTimersByTime(SUB_WEBVIEW_SAFE_AREA_SETTLE_MS * 2));
                 expect(contextPushes()).toHaveLength(1);
             } finally {
                 jest.useRealTimers();
             }
-            // A page that asks again after the rotation reads where the insets came to rest.
             expect((await handshakeContext()).safeArea).toEqual({ top: 0, right: 47, bottom: 21, left: 47 });
         });
 
@@ -364,7 +348,6 @@ describe('SubWebView', () => {
             expect(contextPushes()).toEqual([]);
         });
 
-        // WebKit reports the safe area to `env()` only while the scroll view leaves the content alone.
         it('keeps the scroll view from insetting the content itself', () => {
             renderView();
 
@@ -372,8 +355,6 @@ describe('SubWebView', () => {
         });
     });
 
-    // react-native-webview checks this list before `onShouldStartLoadWithRequest` and hands anything
-    // that fails it to the OS — a narrower list would send `chatic://` back into the app unchecked.
     it('lets every navigation reach its own check', () => {
         renderView();
 
@@ -402,7 +383,6 @@ describe('SubWebView', () => {
         expect(sentTypes()).toEqual(['OnWebAppReady']);
     });
 
-    // A page the view navigated to — another allowlisted one too — and a frame elsewhere get nothing.
     it.each(['https://bar.apps.chatic.io/', 'https://evil.example/'])('drops a message from %s', async url => {
         renderView();
 
@@ -422,7 +402,6 @@ describe('SubWebView', () => {
         expect(onTitleRequest).toHaveBeenCalledWith('Orders');
     });
 
-    // The previous load's host can still be handed a request after the next load started.
     it("ignores a title the previous load's host answers after a new page started", async () => {
         const onTitleRequest = jest.fn();
         renderView({ onTitleRequest });
@@ -453,7 +432,6 @@ describe('SubWebView', () => {
         expect(sentTypes()).toContain('OnOpenShareSheet');
     });
 
-    // Keyed on the origin the view was opened on, whatever page of it asks; the id itself stays here.
     it('answers the page a key for its opened origin, never the device id', async () => {
         renderView();
 
@@ -471,7 +449,6 @@ describe('SubWebView', () => {
         expect(raw).not.toContain(MOCK_DEVICE_ID);
     });
 
-    // A request the page's manifest did not permit is not registered at all.
     it('answers only what the manifest permits beyond the base set', async () => {
         renderView({ permissions: new Set(['share']) });
 
@@ -489,7 +466,6 @@ describe('SubWebView', () => {
         );
     });
 
-    // Whatever page of the origin asks, and only once it asks: a page that never stores opens no file.
     it('opens the storage of the opened origin, on the first request that needs it', async () => {
         const { openSubWebViewStorage } = jest.requireMock('../services/subWebView/subWebViewStorageFile');
         openSubWebViewStorage.mockClear();
@@ -524,7 +500,6 @@ describe('SubWebView', () => {
         expect(sentTypes()).toEqual(['OnReportSubWebViewError']);
     });
 
-    // A reloaded page gets a fresh host: nothing is pushed to it before its own handshake.
     it('holds a push for a new page until that page shakes hands', async () => {
         const view = renderView();
         mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
@@ -572,7 +547,6 @@ describe('SubWebView', () => {
             }
         );
 
-        // WebKit ends a background page's process for the system's memory, whatever the page did.
         it('reloads an iOS page once when its process ended in the background, then closes', () => {
             renderView();
             mockAppState = 'background';
@@ -648,7 +622,6 @@ describe('SubWebView', () => {
         expect(mockOpenURL).toHaveBeenCalledTimes(1);
     });
 
-    // The handshake carries the context, so a page need not race the global on Android.
     it('reports the context in the handshake reply', async () => {
         renderView();
 
@@ -670,7 +643,6 @@ describe('SubWebView', () => {
         });
     });
 
-    // The link names the app the web opened the page as, which need not be the page's label.
     it('builds the share link from the app id the web opened the page as', async () => {
         renderView({ appId: 'quiz' });
 
@@ -837,7 +809,6 @@ describe('SubWebView device features', () => {
         expect(mockWebViewProps.allowsInlineMediaPlayback).toBe(true);
     });
 
-    // OS asks once, under DoU's name; WebKit's own prompt for the same page would be a second question.
     it('answers a capture from its own host without WebKit asking, and from another host with a no', () => {
         renderView();
 

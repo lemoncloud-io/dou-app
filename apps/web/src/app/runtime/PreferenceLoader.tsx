@@ -7,26 +7,17 @@ import { toLanguagePreference } from '../../i18n/languagePreference';
 import { parseThemeBridgeValue } from '../stores/preferenceParsers';
 
 interface ManagedKey {
-    /** The registry key `config` resolves this preference under. */
     configKey: string;
-    /** The legacy `PreferenceKey` an app from before the boot-injection bag stored this under. */
     nativeKey: PreferenceKey;
-    /** Bridge value -> the value to write into `configKey`, or null to skip (unusable). */
     decode: (value: unknown) => unknown;
 }
 
-// Only these three ever had a native-bridge-backed answer worth fetching. `ui.language` is left out
-// on purpose: an older shell's language store holds the device default or the language in effect at
-// the time — a guess and a pick in one value — so reading it back could pin a guess. Every other
-// `ui.*`/`debug.*` key is either `local`-only (nothing for native to answer) or has no legacy bridge
-// counterpart at all.
 const MANAGED_KEYS: readonly ManagedKey[] = [
     {
         configKey: 'ui.blurLastMessage',
         nativeKey: 'blurLastMessage',
         decode: value => value === true || value === 'true',
     },
-    // isFirstRun's polarity is the inverse of onboardingCompleted's.
     {
         configKey: 'ui.onboardingCompleted',
         nativeKey: 'isFirstRun',
@@ -35,28 +26,12 @@ const MANAGED_KEYS: readonly ManagedKey[] = [
     { configKey: 'ui.theme', nativeKey: 'theme', decode: parseThemeBridgeValue },
 ];
 
-/**
- * Bridge fallback read: fills `@chatic/config`'s shell lane for any managed key the boot-injection
- * bag did not already answer — a value set while an app from before `CHATIC_APP_CONFIG_BAG` was
- * installed, which the app keeps only in its legacy preference store and never moves into the bag.
- *
- * Runs only where the frame keeps a preference store (the host's `appShell` port), and only for
- * keys `config.init()` resolved to nothing but the floor (`defaultValue`/a stage rule) — a value
- * already supplied by the shell (the common case, once the app updates) or by a prior local mirror
- * never triggers a bridge round-trip. Written back through
- * `runtime.settings.set(..., { lane: 'shell' })`, the same lane the boot injection itself would have used, so
- * this is exactly a slower version of what the injection already does — including feeding the same
- * local-storage mirror (`ConfigFacade`'s own `persist: 'shell'` fallback), so the NEXT boot resolves
- * synchronously without needing this fetch again.
- *
- * Renders nothing; mounted once under AppRuntime.
- */
 export const PreferenceLoader = (): null => {
     useEffect(() => {
         const store = runtime.appShell.preferences;
         if (!store) return;
         MANAGED_KEYS.forEach(({ configKey, nativeKey, decode }) => {
-            if (runtime.settings.snapshot(configKey)?.isOverridden) return; // shell or local already answered
+            if (runtime.settings.snapshot(configKey)?.isOverridden) return;
             store.read(nativeKey).then(value => {
                 if (value == null) return;
                 const decoded = decode(value);
@@ -65,15 +40,10 @@ export const PreferenceLoader = (): null => {
         });
     }, []);
 
-    // The other direction, for one key: the web's language choice is resent to the shell once per
-    // boot where the frame keeps a preference store (the host's `appShell` port). A choice made while an older
-    // shell was installed sits in the config bag, but that shell kept its own copy in a format the
-    // current shell discards — and the Settings sheet only sends on change, so without this the shell
-    // would stay on the device language for good.
     useEffect(() => {
         if (!runtime.appShell.preferences) return;
         const snapshot = runtime.settings.snapshot('ui.language');
-        if (!snapshot?.isOverridden) return; // nothing chosen — the shell already follows the device
+        if (!snapshot?.isOverridden) return;
         void syncLanguageChoiceToShell(toLanguagePreference(snapshot.value));
     }, []);
 

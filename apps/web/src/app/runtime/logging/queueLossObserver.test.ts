@@ -11,7 +11,6 @@ jest.mock('./logQueueView', () => ({ getLogQueueView: jest.fn() }));
 const warn = logger.warn as jest.Mock;
 const getView = getLogQueueView as jest.Mock;
 
-/** A view answering a fixed cumulative eviction count. */
 const viewWith = (droppedCount: number) => ({
     snapshot: () => [],
     clear: () => undefined,
@@ -34,7 +33,6 @@ describe('queueLossObserver — 미전송 큐 유실 관측', () => {
         expect(warn.mock.calls[0][2]).toEqual({ observation: 'queue-loss', dropped: 7, droppedTotal: 7 });
     });
 
-    // It's a cumulative value, so reporting it as-is again would repeat the same loss on every observation.
     it('두 번째 관측은 증가분만 남긴다', () => {
         getView.mockReturnValue(viewWith(7));
         queueLossObserver.observe();
@@ -65,7 +63,6 @@ describe('queueLossObserver — 미전송 큐 유실 관측', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // There's no uploader during boot or teardown — no queue, so nothing lost either.
     it('업로더가 없으면 무해하게 지나간다', () => {
         getView.mockReturnValue(undefined);
 
@@ -73,7 +70,6 @@ describe('queueLossObserver — 미전송 큐 유실 관측', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // A new uploader's queue starts at 0 — a negative delta must never be reported.
     it('카운터가 줄어들면 새 기준선으로 삼고 남기지 않는다', () => {
         getView.mockReturnValue(viewWith(10));
         queueLossObserver.observe();

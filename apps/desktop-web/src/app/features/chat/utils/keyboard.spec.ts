@@ -17,7 +17,6 @@ describe('shouldCaptureTyping', () => {
         expect(shouldCaptureTyping(press('h'))).toBe(true);
     });
 
-    // Shortcuts, navigation and the shortcut sheet's own key keep their meaning.
     it('leaves modified keys, non-character keys and "?" alone', () => {
         expect(shouldCaptureTyping(press('k', { metaKey: true }))).toBe(false);
         expect(shouldCaptureTyping(press('ArrowDown'))).toBe(false);
@@ -30,7 +29,6 @@ describe('shouldCaptureTyping', () => {
         expect(shouldCaptureTyping(press('h', {}, input))).toBe(false);
     });
 
-    // A letter typed on a focused channel row used to pull focus into the composer.
     it('leaves keys aimed at a focused control alone', () => {
         const button = document.createElement('button');
         const option = document.createElement('div');
@@ -48,7 +46,6 @@ describe('shouldCaptureTyping', () => {
         expect(shouldCaptureTyping(press('h'))).toBe(false);
     });
 
-    // Shift+1 is the rail's place key; taking it as text would be the first character of a message.
     it('leaves Shift+digit to the rail chords', () => {
         expect(shouldCaptureTyping(press('!', { code: 'Digit1', shiftKey: true }))).toBe(false);
         expect(shouldCaptureTyping(press('@', { code: 'Digit2', shiftKey: true }))).toBe(false);
@@ -79,8 +76,6 @@ describe('isOverlayOpen', () => {
         expect(isOverlayOpen()).toBe(false);
     });
 
-    // The compact sidebar drawer is a `role="dialog"` that stays mounted while it is shut, so an
-    // open-state check is the only thing that keeps it from swallowing every key on the page.
     it('does not count a dialog that carries no open state at all', () => {
         const drawer = document.createElement('div');
         drawer.setAttribute('role', 'dialog');
@@ -90,7 +85,6 @@ describe('isOverlayOpen', () => {
 });
 
 describe('digitOfKey', () => {
-    // With Shift held the row reports "!" as `key`, so the code is what names the digit.
     it('names the digit from the physical key, whatever Shift did to the character', () => {
         expect(digitOfKey(press('1', { code: 'Digit1' }))).toBe(1);
         expect(digitOfKey(press('!', { code: 'Digit1', shiftKey: true }))).toBe(1);

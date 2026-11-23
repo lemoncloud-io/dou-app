@@ -18,11 +18,6 @@ const FRAME_CODES: readonly string[] = ['INVALID', 'UNREADABLE'];
 
 const SOURCES: readonly string[] = ['media', 'document'];
 
-/**
- * A native rejection keeps its code when it is one the message defines; anything else becomes the
- * message's catch-all. That includes `NOT_FOUND`: the web takes it to mean "this app has no picker"
- * and opens its own file input for the rest of the page's life, so one failed pick must never send it.
- */
 export const toError = <C extends string>(
     e: unknown,
     known: readonly string[],
@@ -39,19 +34,11 @@ export const toError = <C extends string>(
 const isPositiveNumber = (value: unknown): value is number =>
     typeof value === 'number' && Number.isFinite(value) && value > 0;
 
-/** The three ceilings, copied so nothing else the web put in the object reaches native code. */
 const readMaxBytes = (value: unknown): AttachmentMaxBytes | null => {
     const { image, video, file } = (value ?? {}) as Partial<Record<keyof AttachmentMaxBytes, unknown>>;
     return isPositiveNumber(image) && isPositiveNumber(video) && isPositiveNumber(file) ? { image, video, file } : null;
 };
 
-/**
- * Relays `PickAttachments`, `PrepareVideo` and `ReadAttachment` to the native AttachmentPicker module.
- *
- * Neither call has a timeout here. A pick answers when the person closes the picker and every copy is
- * written; a conversion can take minutes. The web gives each request its own wait, and an answer
- * that arrives after it gave up is dropped there.
- */
 export const createAttachmentPickerHandlers = (picker: IAttachmentPickerBridge, logger: ILogService) => {
     const handlePickAttachments = async (
         message: WebMessageData<'PickAttachments'>
@@ -76,7 +63,6 @@ export const createAttachmentPickerHandlers = (picker: IAttachmentPickerBridge, 
 
         try {
             const data = await picker.pick(source as AttachmentPickSource, selectionLimit, limits);
-            // Counts only: a picked file's name can say more about a person than a log should hold.
             logger.info(
                 'DEVICE',
                 `PickAttachments ${source}: ${data.items.length} picked, ${data.refused.length} refused`
@@ -104,9 +90,7 @@ export const createAttachmentPickerHandlers = (picker: IAttachmentPickerBridge, 
             const data = await picker.prepareVideo(uri);
             return { type: 'OnPrepareVideo' as const, success: true, data };
         } catch (e) {
-            // A conversion that failed for a reason native did not name is a failed conversion.
             const error = toError<PrepareVideoErrorCode>(e, PREPARE_CODES, 'SYSTEM');
-            // The code only: the message can hold a local path.
             logger.warn('DEVICE', `PrepareVideo failed: ${error.code}`);
             return { type: 'OnPrepareVideo' as const, success: false, error };
         }
@@ -128,16 +112,11 @@ export const createAttachmentPickerHandlers = (picker: IAttachmentPickerBridge, 
             return { type: 'OnReadAttachment' as const, success: true, data };
         } catch (e) {
             const error = toError<ReadAttachmentErrorCode>(e, READ_CODES, 'INTERNAL');
-            // The code only: the message can hold a local path.
             logger.warn('DEVICE', `ReadAttachment failed: ${error.code}`);
             return { type: 'OnReadAttachment' as const, success: false, error };
         }
     };
 
-    /**
-     * Relays `ReadVideoFrame`. Only an `https:` address reaches native code: the frame is read from the
-     * network, and a `file:` or other local address here would make it a reader of the app's own files.
-     */
     const handleReadVideoFrame = async (
         message: WebMessageData<'ReadVideoFrame'>
     ): Promise<WebMessageHandlerResponse<'ReadVideoFrame'>> => {
@@ -157,7 +136,6 @@ export const createAttachmentPickerHandlers = (picker: IAttachmentPickerBridge, 
             return { type: 'OnReadVideoFrame' as const, success: true, data };
         } catch (e) {
             const error = toError<ReadVideoFrameErrorCode>(e, FRAME_CODES, 'UNREADABLE');
-            // The code only: the address is signed, and a log is no place for a working signature.
             logger.warn('DEVICE', `ReadVideoFrame failed: ${error.code}`);
             return { type: 'OnReadVideoFrame' as const, success: false, error };
         }

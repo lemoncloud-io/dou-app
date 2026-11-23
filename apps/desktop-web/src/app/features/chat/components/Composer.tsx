@@ -42,36 +42,15 @@ import {
 } from './editor';
 
 export interface ComposerProps {
-    /**
-     * The text as markdown (may be empty) and the tray's files (may be none) — never both empty.
-     * `mention` is who was picked from the @ list and is still in the text; absent when no one was.
-     */
     onSend: (content: string, files: File[], mention?: ChatMentionBody) => void;
-    /** Channel the draft belongs to — preserves unsent text across switches. */
     channelId: string;
-    /** Overrides the default "Message" placeholder (e.g. "Message #general"). */
     placeholder?: string;
-    /** Roster for @-autocomplete; omit to disable (e.g. while members load). */
     mentionables?: Mentionable[];
-    /** Image tray. Omit all three to hide the "+" and ignore pasted files. */
     attachments?: ComposerAttachment[];
     onAddFiles?: (files: File[]) => void;
     onRemoveAttachment?: (id: string) => void;
-    /**
-     * Take printable keys typed while nothing else holds focus (Slack's type-to-compose).
-     * One composer per window should claim this — the channel's, not the thread's.
-     */
     capturesTyping?: boolean;
-    /**
-     * Take focus on mount or when this turns true: the thread panel's reply box, since opening a
-     * thread is to reply; and the room's box after a channel was deleted or left, since focus went
-     * with the removed room.
-     */
     autoFocus?: boolean;
-    /**
-     * Tighter padding and gaps, for the thread panel. At its 360px default the room's spacing
-     * left the reply box about 160px, and the placeholder wrapped onto a second line.
-     */
     compact?: boolean;
 }
 
@@ -91,13 +70,9 @@ const ComposerInner = ({
     const [editor] = useLexicalComposerContext();
     const setDraft = useComposerDraftStore(s => s.setDraft);
     const clearDraft = useComposerDraftStore(s => s.clearDraft);
-    // Derived from the draft the change handler just wrote — no second copy of
-    // the fact; re-renders only on the empty↔non-empty flip.
     const hasText = useComposerDraftStore(s => (s.drafts[channelId] ?? '').trim().length > 0);
     const placeholderText = placeholder ?? t('chat.composer.placeholder');
 
-    // Drafts persist as the wire string — what send would deliver. Empty documents
-    // drop the entry instead of accumulating '' keys.
     const handleChange = useCallback(
         (state: EditorState) => {
             state.read(() => {
@@ -109,7 +84,6 @@ const ComposerInner = ({
     );
 
     const submit = useCallback(() => {
-        // Read together, and before the document is cleared below: the picks live on its chips.
         const { markdown, mention } = editor.getEditorState().read(() => {
             const text = $exportMessage();
             return { markdown: text, mention: text ? $collectMention() : undefined };
@@ -118,27 +92,19 @@ const ComposerInner = ({
         const files = attachments.map(attachment => attachment.file);
         if (mention) onSend(markdown, files, mention);
         else onSend(markdown, files);
-        // Clearing the document fires handleChange, which drops the draft.
         editor.update(
             () => {
                 const root = $getRoot();
                 root.clear();
                 root.append($createParagraphNode());
                 root.selectEnd();
-                // Drop carried-over bold/italic so the next message starts plain.
                 const selection = $getSelection();
                 if ($isRangeSelection(selection)) selection.setFormat(0);
             },
-            // Re-focus AFTER the cleared document commits to the DOM — calling
-            // focus() synchronously (before the reconcile) leaves the caret
-            // inactive. defaultSelection keeps the caret at the end so the user
-            // can keep typing without re-clicking the input.
             { onUpdate: () => editor.focus(undefined, { defaultSelection: 'rootEnd' }) }
         );
     }, [editor, onSend, attachments]);
 
-    // Focusing during keydown hands the same keystroke to the editor, so the first letter
-    // lands in the message instead of being lost.
     const unpicked = useUnpickedMention(editor, mentionables);
     useEffect(() => {
         if (!capturesTyping) return;
@@ -149,16 +115,8 @@ const ComposerInner = ({
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [capturesTyping, editor]);
 
-    // The node itself rather than editor.focus(), which places a selection and leaves DOM
-    // focus to follow it.
     const focusInput = useCallback(() => editor.getRootElement()?.focus({ preventScroll: true }), [editor]);
 
-    // A panel that opened took no focus, so a keyboard user stayed in the feed behind it with
-    // no way in short of tabbing through every message. Per thread (channelId carries the root),
-    // and never out of a field the reader is typing in, nor out of a menu or dialog they have
-    // open: a thread can open seconds after the click that asked for it, once its channel has
-    // loaded, and the request a channel removal leaves lands when the server answers, by which
-    // time the reader may have opened the next room's menu — which focus leaving would close.
     useEffect(() => {
         if (!autoFocus) return;
         const active = document.activeElement;
@@ -167,8 +125,6 @@ const ComposerInner = ({
             (active.isContentEditable ||
                 active instanceof HTMLInputElement ||
                 active instanceof HTMLTextAreaElement ||
-                // Open ones only: a dialog fading out still holds focus for its exit animation, and
-                // the image viewer's Reply closes it as it opens the thread whose box should take it.
                 !!active.closest(
                     '[role="menu"][data-state="open"], [role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
                 ));
@@ -185,14 +141,7 @@ const ComposerInner = ({
     return (
         <div
             className={cn('bg-background pt-2', compact ? 'px-3 pb-3' : 'px-6 pb-5')}
-            // Pasted files join the tray; pasted text still goes to the editor untouched.
-            // A copy from Excel or Word carries the text and a picture of it together, and
-            // taking the files used to drop the text: it goes in as plain text alongside.
-            // Only for a rich copy (HTML or RTF on the clipboard): a file copied in Finder
-            // or Explorer carries its own name as plain text, which is not a message.
             onPasteCapture={event => {
-                // React bubbles a portal's events here too: a paste inside the tray's preview
-                // dialog would add files behind it.
                 if (!onAddFiles || !event.currentTarget.contains(event.target as Node)) return;
                 const files = Array.from(event.clipboardData.files);
                 if (files.length === 0) return;
@@ -213,13 +162,9 @@ const ComposerInner = ({
             <div
                 className={cn(
                     'relative flex flex-col overflow-hidden rounded-2xl border border-control-border bg-background transition-colors ease-tactile',
-                    // Figma "#before sending image": the box turns lime while you are in it. The
-                    // edge and the ring add up to 2px; at 1.5px the change was hard to see.
                     'focus-within:border-focus-border focus-within:shadow-[0_0_0_1px_hsl(var(--focus-border))]'
                 )}
             >
-                {/* Slack's three rows: formats above the text, the message's own actions
-                    (attach, emoji, send) along the bottom where the eye ends up after typing. */}
                 <div className={cn('pt-2', compact ? 'px-2' : 'px-4')}>
                     <ComposerToolbar />
                 </div>
@@ -229,14 +174,11 @@ const ComposerInner = ({
                             contentEditable={
                                 <ContentEditable
                                     aria-label={placeholderText}
-                                    // Lets the empty-channel intro hand focus to the composer.
                                     data-composer-input=""
                                     className="max-h-40 min-h-[34px] overflow-y-auto whitespace-pre-wrap break-words bg-transparent py-1.5 text-body text-foreground outline-none"
                                 />
                             }
                             placeholder={
-                                // One line, cut short if it has to be: a wrapped placeholder
-                                // makes an empty box look like it already holds two lines.
                                 <div className="pointer-events-none absolute inset-x-0 top-1.5 truncate text-body text-placeholder">
                                     {placeholderText}
                                 </div>
@@ -244,7 +186,6 @@ const ComposerInner = ({
                             ErrorBoundary={LexicalErrorBoundary}
                         />
                     </div>
-                    {/* Typed @name without picking sends plain text no one hears — say so while it matters. */}
                     {unpicked && (
                         <p role="status" className="px-5 pb-1 text-caption text-muted-foreground">
                             {t('chat.mention.unpickedHint', { name: unpicked.name })}
@@ -261,8 +202,6 @@ const ComposerInner = ({
                 <div className={cn('flex items-center gap-2 pb-2', compact ? 'px-2' : 'px-4')}>
                     {onAddFiles && <AttachButton onFiles={onAddFiles} />}
                     <ComposerEmojiButton onEmoji={insertEmoji} />
-                    {/* The newline key is the one thing people get wrong in a chat box; say it
-                        while it matters (there is text) and stay out of the way otherwise. */}
                     <div className="ml-auto flex min-w-0 items-center gap-3">
                         {hasText && (
                             <span className="hidden truncate text-micro text-muted-foreground animate-fade-in sm:block">
@@ -288,21 +227,12 @@ const ComposerInner = ({
     );
 };
 
-/**
- * WYSIWYG message composer (Lexical). Formats apply live — Slack-style, no
- * visible markers — and serialize to the same markdown-lite dialect RichText
- * renders, so the wire format is unchanged. Typing markdown (e.g. **bold**)
- * also live-converts via the shortcut plugin.
- */
 export const Composer = (props: ComposerProps) => (
     <LexicalComposer
         initialConfig={{
             namespace: 'chatic-composer',
             theme: COMPOSER_THEME,
             nodes: COMPOSER_NODES,
-            // Always editable — sending never makes the input non-editable, so the
-            // caret stays put (Slack-style continuous focus). Sends aren't gated on
-            // each other either: the optimistic insert gives instant feedback.
             editable: true,
             onError: (error: Error) => console.error('[composer]', error),
         }}

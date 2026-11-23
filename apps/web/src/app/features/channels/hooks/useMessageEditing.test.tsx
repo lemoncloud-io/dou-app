@@ -40,9 +40,6 @@ beforeEach(() => {
 });
 
 describe('useMessageEditing — 편집', () => {
-    // The single biggest hazard here. The bubble draws truncated at 200 characters, and seeding the
-    // editor with that cut string would drop everything past it the moment a one-character change was
-    // saved. The contract is that the editor receives the message's BODY value.
     it('200자를 넘는 메시지를 고쳐도 뒷부분이 남는다', async () => {
         const long = `${'가'.repeat(260)}END`;
         const { result } = renderHook(() => useMessageEditing());
@@ -50,7 +47,6 @@ describe('useMessageEditing — 편집', () => {
         act(() => result.current.startEdit(message({ content: long })));
 
         const state = result.current.composer;
-        // Carries the full body, not the cut value.
         expect(state?.draft).toBe(long);
         expect(state?.draft).toHaveLength(263);
 
@@ -60,7 +56,6 @@ describe('useMessageEditing — 편집', () => {
         });
 
         await waitFor(() => expect(editMessage).toHaveBeenCalledWith('ch-1:4', `${long}!`));
-        // What was saved holds the whole original, rather than starting and ending at the 200-character cut.
         expect(editMessage.mock.calls[0][1]).toContain('END');
     });
 
@@ -76,7 +71,6 @@ describe('useMessageEditing — 편집', () => {
         await waitFor(() => expect(result.current.isEditing).toBe(false));
     });
 
-    // What §4 protects: on failure what was typed is still there and can be saved again.
     it('저장에 실패하면 편집 상태와 친 내용이 남고 다시 저장할 수 있다', async () => {
         editMessage.mockRejectedValueOnce(new Error('offline'));
         const { result } = renderHook(() => useMessageEditing());
@@ -121,7 +115,6 @@ describe('useMessageEditing — 편집', () => {
         const { result } = renderHook(() => useMessageEditing());
         act(() => result.current.startEdit(message()));
 
-        // Untouched closes without asking.
         act(() => result.current.requestCloseEdit());
         expect(result.current.isEditing).toBe(false);
 
@@ -133,7 +126,6 @@ describe('useMessageEditing — 편집', () => {
         expect(result.current.isEditing).toBe(true);
     });
 
-    // The edit is typed in the composer, so the row only needs to know whether it is the target.
     it('marks only the message being edited as the target', () => {
         const { result } = renderHook(() => useMessageEditing());
         expect(result.current.isEditTarget(message())).toBe(false);
@@ -144,7 +136,6 @@ describe('useMessageEditing — 편집', () => {
         expect(result.current.isEditTarget(message({ id: 'ch-1:9' }))).toBe(false);
     });
 
-    // The composer quotes the message being edited, so the quote is the server's body, not the draft.
     it('hands the composer the original body alongside the draft', () => {
         const { result } = renderHook(() => useMessageEditing());
         expect(result.current.composer).toBeUndefined();
@@ -155,7 +146,6 @@ describe('useMessageEditing — 편집', () => {
         expect(result.current.composer).toMatchObject({ targetId: 'ch-1:4', original: 'before', draft: 'after' });
     });
 
-    // The quote reads like every other quote of a message, not like its markup; the draft stays raw.
     it('quotes the body flattened, while the draft keeps it as written', () => {
         const { result } = renderHook(() => useMessageEditing());
 
@@ -166,7 +156,6 @@ describe('useMessageEditing — 편집', () => {
         expect(result.current.composer?.draft).toBe('line one\n**line two**');
     });
 
-    // Going room to room keeps this page mounted; an edit left open would save into the room just left.
     it('drops the edit when the surface moves to another conversation', () => {
         const { result, rerender } = renderHook(({ scope }) => useMessageEditing(scope), {
             initialProps: { scope: 'ch-1' },
@@ -196,7 +185,6 @@ describe('useMessageEditing — 서버 삭제', () => {
         await waitFor(() => expect(result.current.deleteTarget).toBeNull());
     });
 
-    // Nothing was optimistic, so there is nothing to undo — only something to say.
     it('삭제에 실패하면 안내만 띄운다', async () => {
         deleteServerMessage.mockRejectedValueOnce(new Error('offline'));
         const { result } = renderHook(() => useMessageEditing());

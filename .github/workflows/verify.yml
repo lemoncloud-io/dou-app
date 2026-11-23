@@ -309,16 +309,33 @@ jobs:
     #
     # Skipped when `web-e2e` is not affected — the web app, the libs it builds from and the e2e
     # project itself are what move it — and the mobile injection script it loads is unchanged.
+    #
+    # The `visual` entry runs the `@visual` scenarios of both platforms against their Linux
+    # baselines. It is a signal, not a gate: a visual change is often the point of a pull request,
+    # so its job stays green and the verdict goes out as the commit status
+    # `web-e2e/visual-regression` (apps/web-e2e/README.md § Visual regression). Every entry uploads
+    # its evidence folder, whatever the result, for the `e2e-results` job below.
     e2e:
         needs: base
         name: web e2e · ${{ matrix.project }}
         runs-on: ubuntu-latest
         container:
             image: mcr.microsoft.com/playwright:v1.64.0-noble
+        permissions:
+            contents: read
+            statuses: write
         strategy:
             fail-fast: false
             matrix:
-                project: [webkit-ios, chromium-android]
+                include:
+                    - project: webkit-ios
+                      target: e2e
+                    - project: chromium-android
+                      target: e2e
+                      coverage: true
+                    - project: visual
+                      target: e2e-visual
+                      visual: true
         # A container job runs `run:` steps with `sh` unless told otherwise, and the steps below use
         # bash (`<<<`).
         defaults:
@@ -399,11 +416,62 @@ jobs:
                   fi
 
             - name: E2E
-              if: ${{ steps.affected.outputs.run == 'true' }}
+              if: ${{ steps.affected.outputs.run == 'true' && !matrix.visual }}
               env:
                   PROJECT: ${{ matrix.project }}
               # After `--`, so nx hands it to Playwright instead of reading it as an nx project.
               run: npx nx run web-e2e:e2e -- --project="$PROJECT"
+
+            # Fails when feature-map.json has drifted from the feature folders or the specs; a feature
+            # with no scenario is only listed. Once per run, so on one entry.
+            - name: Feature coverage
+              if: ${{ !cancelled() && steps.affected.outputs.run == 'true' && matrix.coverage }}
+              run: npx nx run web-e2e:feature-coverage
+
+            - name: Visual regression
+              id: visual
+              if: ${{ steps.affected.outputs.run == 'true' && matrix.visual }}
+              continue-on-error: true
+              run: npx nx run web-e2e:e2e-visual
+
+            # `visual-result.json` says `pass`, `fail` (a screen differs or has no baseline) or
+            # `error` (scenarios failed before comparing). No file means the run broke before the
+            # reporter wrote one, which is an error too. A fork's token cannot write a status.
+            - name: Visual regression status
+              if: >-
+                  ${{ !cancelled() && steps.affected.outputs.run == 'true' && matrix.visual
+                  && github.event_name == 'pull_request'
+                  && github.event.pull_request.head.repo.full_name == github.repository }}
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REPO: ${{ github.repository }}
+                  SHA: ${{ github.event.pull_request.head.sha }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  result=dist/.playwright/apps/web-e2e/visual-result.json
+                  status=$(node -p "try { require('./$result').status } catch { 'missing' }")
+                  case "$status" in
+                      pass) state=success; text="All screens match their baselines" ;;
+                      fail) state=failure; text="A screen differs from its baseline or has none" ;;
+                      *) state=error; text="The visual run broke before comparing ($status)" ;;
+                  esac
+                  echo "visual regression: $status → $state"
+                  node -e '
+                      const [repo, sha, state, description, target_url] = process.argv.slice(1);
+                      fetch(`https://api.github.com/repos/${repo}/statuses/${sha}`, {
+                          method: "POST",
+                          headers: { authorization: `Bearer ${process.env.GH_TOKEN}`, accept: "application/vnd.github+json" },
+                          body: JSON.stringify({ state, description, target_url, context: "web-e2e/visual-regression" }),
+                      }).then(async response => { if (!response.ok) { console.error(response.status, await response.text()); process.exit(1); } });
+                  ' "$REPO" "$SHA" "$state" "$text" "$RUN_URL"
+
+            - name: Upload the evidence
+              if: ${{ !cancelled() && steps.affected.outputs.run == 'true' }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: web-e2e-evidence-${{ matrix.project }}
+                  path: dist/.playwright/apps/web-e2e/evidence
+                  retention-days: 14
 
             - name: Upload the report
               if: ${{ failure() && steps.affected.outputs.run == 'true' }}
@@ -412,3 +480,55 @@ jobs:
                   name: web-e2e-report-${{ matrix.project }}
                   path: dist/.playwright/apps/web-e2e
                   retention-days: 14
+
+    # Puts the e2e runs into the pull request: the key screenshots onto the orphan branch
+    # `pr-assets/pr-<n>` and one "Verification results" comment (apps/web-e2e/README.md
+    # § Verification results in the pull request). Nothing to publish when no e2e entry ran. A fork's
+    # token cannot write, so a fork is skipped; `.github/workflows/pr-assets-cleanup.yml` deletes the
+    # branch when the pull request closes.
+    e2e-results:
+        needs: e2e
+        if: >-
+            ${{ !cancelled() && github.event_name == 'pull_request'
+            && github.event.pull_request.head.repo.full_name == github.repository }}
+        name: web e2e · results in the pull request
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+                  sparse-checkout: apps/web-e2e/scripts
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Download the evidence
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: web-e2e-evidence-*
+                  path: ${{ runner.temp }}/evidence
+
+            # The script pushes from a scratch repository of its own, so the token goes in the remote
+            # URL; the runner masks it in the log.
+            - name: Publish
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+                  REPO: ${{ github.repository }}
+                  PR: ${{ github.event.pull_request.number }}
+                  RUN: ${{ github.run_id }}
+                  EVIDENCE: ${{ runner.temp }}/evidence
+              run: |
+                  args=()
+                  for dir in "$EVIDENCE"/*/; do
+                      [ -f "$dir/summary.json" ] && args+=(--evidence "$dir")
+                  done
+                  if [ ${#args[@]} -eq 0 ]; then
+                      echo "No e2e evidence in this run (web-e2e not affected); nothing to publish."
+                      exit 0
+                  fi
+                  node apps/web-e2e/scripts/pr-verification.mjs publish --pr "$PR" --run "$RUN" --repo "$REPO" \
+                      --remote-url "https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git" "${args[@]}"

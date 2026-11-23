@@ -56,7 +56,6 @@ const renderPanel = (onSelect = vi.fn(), { currentPlaceId = 'P1', placeScope = n
         { wrapper }
     );
 
-/** Watches the panel's 3-second wait among the timers the kit's own components set. */
 const lingerTimer = () => {
     const handles: unknown[] = [];
     const set = globalThis.setTimeout;
@@ -107,7 +106,6 @@ describe('NotificationsPanel tabs', () => {
         expect(within(screen.getByRole('tab', { name: /Threads/ })).getByText('1')).toBeTruthy();
     });
 
-    // A bare number after the label read as "All3"; the count says what it counts.
     it('names what a tab badge counts', () => {
         seed(item('mention', { kind: 'direct' }));
         renderPanel();
@@ -160,7 +158,6 @@ describe('NotificationsPanel filter and sort', () => {
 
 describe('NotificationsPanel cards', () => {
     it('says what happened and where', () => {
-        // A channel of another place: not loaded, so named by what was kept with the item.
         seed(item('reply', { kind: 'reply', parentId: '3', channelId: 'C9', channelName: 'design' }));
         renderPanel();
 
@@ -273,7 +270,6 @@ describe('NotificationsPanel place scope', () => {
         expect(listed()).toEqual([expect.stringContaining('placeless body')]);
     });
 
-    // Every cloud numbers its places from the same start: P1 here is also P1 in the next cloud.
     it("lists only the active cloud's items, not another cloud's place of the same id", () => {
         seed(
             item('here'),
@@ -292,7 +288,6 @@ describe('NotificationsPanel place scope', () => {
         expect(screen.getByText('No new notifications')).toBeTruthy();
     });
 
-    // The Default Cloud's scope spans its places while its UI place is the 'default' sentinel.
     it("names a scoped item outside the UI place by the name kept with it, not that place's same-id channel", () => {
         seed(item('away', { placeId: 'P2', channelName: 'roadmap' }));
         renderPanel(vi.fn(), { currentPlaceId: 'default', placeScope: new Set(['P1', 'P2']) });

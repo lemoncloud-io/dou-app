@@ -8,7 +8,6 @@ import { useRailShortcuts } from './useRailShortcuts';
 import type { RailCloud } from '../../../shared';
 import { useComposerFocusStore } from '../../../shared';
 
-// The stored order rides the shared `ui.railOrder` hooks; stub the config store out of the render.
 const railOrder = vi.hoisted(() => ({ clouds: [] as string[], places: [] as string[], cloudId: '' }));
 vi.mock('@chatic/shared', async () => ({
     ...(await vi.importActual<typeof ChaticShared>('@chatic/shared')),
@@ -19,7 +18,6 @@ vi.mock('@chatic/shared', async () => ({
     },
 }));
 
-// The lapsed-cloud toast is the row's own behaviour, tested with the row; here it only has to not throw.
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 
@@ -87,7 +85,6 @@ describe('useRailShortcuts', () => {
         expect(onSelectCloud).toHaveBeenLastCalledWith('b');
     });
 
-    // The room that opens must not take the caret: the next chord would type into the box instead.
     it('asks the room it opens not to take the caret', () => {
         const { onSelectPlace } = renderShortcuts();
         useComposerFocusStore.getState().clearSkip();
@@ -114,7 +111,6 @@ describe('useRailShortcuts', () => {
         expect(onSelectCloud).not.toHaveBeenCalled();
     });
 
-    // The session names no cloud on Home, and Mod+0 there must not clear the jump origin either.
     it('treats Home as the open cloud when the session names none', () => {
         const { onSelectCloud } = renderShortcuts({ activeCloudId: null, isDefaultMode: true });
         press('0', { metaKey: true });

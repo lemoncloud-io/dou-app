@@ -22,7 +22,6 @@ const syncChannelsMock = jest.fn();
 const getSyncedAtMock = jest.fn();
 const setSyncedAtMock = jest.fn();
 
-/** Latest observeList subscriber, so a test can push a cache emission at will. */
 let emitRows: ((rows: DomainChannel[]) => void) | null = null;
 let dispose: jest.Mock;
 
@@ -65,7 +64,6 @@ afterEach(() => {
     jest.useRealTimers();
 });
 
-/** Let the pending microtasks (cache read, sync pull) settle without advancing the clock. */
 const flush = async () => {
     for (let i = 0; i < 6; i += 1) await Promise.resolve();
 };
@@ -96,8 +94,6 @@ describe('useAwaitInviteChannel', () => {
         await expect(pending).resolves.toBeNull();
     });
 
-    // A relay 1:1 carries the place of whichever session first opened it, so its field is no reason
-    // to pass it over.
     it('resolves with a new relay 1:1 that carries another place', async () => {
         const { result } = renderHook(() => useAwaitInviteChannel());
 
@@ -139,7 +135,6 @@ describe('useAwaitInviteChannel', () => {
         const pending = result.current.awaitChannel({ timeoutMs: 10_000, pollMs: 3_000 });
         await flush();
 
-        // The first pull fires immediately rather than waiting out a tick.
         expect(syncChannelsMock).toHaveBeenCalledWith(100);
         expect(setSyncedAtMock).toHaveBeenCalledWith('channel-sync:default', 200);
 
@@ -150,7 +145,6 @@ describe('useAwaitInviteChannel', () => {
         jest.advanceTimersByTime(10_000);
         await pending;
 
-        // No further pulls once settled.
         const settledCalls = syncChannelsMock.mock.calls.length;
         jest.advanceTimersByTime(9_000);
         await flush();
@@ -191,8 +185,6 @@ describe('useAwaitInviteChannel', () => {
         expect(observeListMock).not.toHaveBeenCalled();
     });
 
-    // Cloud-wide, like the list home slices: the cache wakes only the observers of the place a write
-    // files the row under, and a relay 1:1 may be filed under another place or none.
     it('observes the cloud-wide list home slices, not the active place', async () => {
         const { result } = renderHook(() => useAwaitInviteChannel());
 

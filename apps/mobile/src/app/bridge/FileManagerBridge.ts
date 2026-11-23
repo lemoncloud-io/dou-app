@@ -1,8 +1,5 @@
 import { NativeModules } from 'react-native';
 
-// The shared logging core, not the app's `services` barrel: `services` already imports from this
-// `bridge` directory (NotificationService → BadgeSyncBridge), so importing it back would close a
-// cycle. Both names resolve to the same process-wide singleton anyway.
 import { logger } from '@chatic/logger';
 
 const { FileManager } = NativeModules;
@@ -13,21 +10,15 @@ if (!FileManager) {
 
 export interface IFileManagerBridge {
     DocumentDirectoryPath: string;
-    /**
-     * The folder `writeTempFile` writes into — one of the two an upload may read from. Empty in an app
-     * built before it was exported.
-     */
     TransferTempPath: string;
     exists(path: string): Promise<boolean>;
     readFile(path: string): Promise<string>;
     unlink(path: string): Promise<boolean>;
     downloadFile(url: string, toPath: string): Promise<string>;
     createDummyFile(path: string, sizeInBytes: number): Promise<string>;
-    /** Writes base64 bytes to a file in the shell's temporary directory and resolves its `file://` URI. */
     writeTempFile(base64: string, fileName?: string): Promise<string>;
 }
 
-/** Origin only — a download or transfer URL's query string can hold a signed credential. */
 export const safeHost = (url: string): string => {
     try {
         return new URL(url).host;
@@ -45,13 +36,6 @@ export const FileManagerBridge: IFileManagerBridge = {
         return FileManager.exists(path);
     },
 
-    /**
-     * The terminal file operations log their failures: a read, delete, download or temp write that
-     * fails on a device is otherwise invisible to whoever diagnoses it later. `exists` deliberately
-     * does not: it is a probe whose negative answer is information rather than a fault.
-     *
-     * Paths are recorded; they are app-private locations, not user content.
-     */
     readFile: async (path: string): Promise<string> => {
         if (!FileManager) throw new Error('FileManager native module is not available');
         try {
@@ -67,7 +51,6 @@ export const FileManagerBridge: IFileManagerBridge = {
         try {
             return await FileManager.unlink(path);
         } catch (error) {
-            // A file that cannot be deleted accumulates — repeated failures are a storage leak.
             logger.error('FILE', 'Failed to delete file', { error, data: { path } });
             throw error;
         }
@@ -78,7 +61,6 @@ export const FileManagerBridge: IFileManagerBridge = {
         try {
             return await FileManager.downloadFile(url, toPath);
         } catch (error) {
-            // The URL can carry a signed query, so only its origin and path are recorded.
             logger.error('FILE', 'Failed to download file', {
                 error,
                 data: { host: safeHost(url), toPath },
@@ -97,7 +79,6 @@ export const FileManagerBridge: IFileManagerBridge = {
         try {
             return await FileManager.writeTempFile(base64, fileName ?? null);
         } catch (error) {
-            // A failed write means the bytes never reach a transfer, so the upload silently has nothing to send.
             logger.error('FILE', 'Failed to write temp file', { error, data: { fileName, length: base64.length } });
             throw error;
         }

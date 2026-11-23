@@ -23,10 +23,8 @@ import { useUpdatePlace, toastFailure } from '../../../shared';
 import { useEditPlaceDialogStore } from '../stores';
 import { PLACE_DESC_MAX, PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, placeFailure, type PlaceFailure } from '../utils';
 
-/** The two `image` ones are about the photo just picked, before anything was sent. */
 type Failure = PlaceFailure | 'imageTooLarge' | 'imageFailed';
 
-// Only the failures a second try can fix say "try again"; a refusal says what it is.
 const FAILURE_KEY: Record<Failure, string> = {
     denied: 'place.edit.failed.denied',
     network: 'errors.network',
@@ -38,15 +36,9 @@ const FAILURE_KEY: Record<Failure, string> = {
 const IMAGE_MAX_MB = PLACE_IMAGE_MAX_BYTES / (1024 * 1024);
 
 interface EditPlaceDialogProps {
-    /** The places on the rail. The dialog edits the one the store names, and closes if it leaves. */
     places: readonly DomainPlace[];
 }
 
-/**
- * Change the name or photo of a place that already exists. Only what was changed is sent, and the
- * save stays off until something was. The form is separate from the one that makes a place: that
- * one carries a second step, entering the place, and this one ends when the save lands.
- */
 export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
     const { t } = useTranslation();
     const placeId = useEditPlaceDialogStore(s => s.placeId);
@@ -56,27 +48,19 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
     const isOpen = !!place;
 
     const [name, setName] = useState('');
-    // The photo as the form shows it: the place's own URL until one is picked, `undefined` once removed.
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
     const [desc, setDesc] = useState('');
     const fileRef = useRef<HTMLInputElement>(null);
-    // A photo is being read. The save waits for it, or it would go out without the photo shown next.
     const [encoding, setEncoding] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [failure, setFailure] = useState<Failure | null>(null);
 
-    // Counts the times the dialog has opened or closed. A request remembers the count it started
-    // under and stops when it reads another, so an answer for a form that is gone does nothing.
     const session = useRef(0);
 
-    // The store names a place the rail no longer has: it was deleted, or the cloud changed under
-    // the dialog. Clear the name so a place with that id cannot reopen the form later.
     useEffect(() => {
         if (placeId && !place) close();
     }, [placeId, place, close]);
 
-    // Start from the place as it is, each time the dialog opens on one. Keyed on the id alone: the
-    // row itself changes while a save is in flight, and that must not wipe what is being typed.
     useEffect(() => {
         session.current += 1;
         setName(place?.name ?? '');
@@ -88,23 +72,18 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
     }, [place?.id]);
 
     const trimmed = name.trim();
-    // Against the trimmed stored name: one saved with spaces around it is not a change to send back.
     const nameChanged = !!place && trimmed !== (place.name ?? '').trim();
     const photoChanged = !!place && thumbnail !== (place.thumbnail || undefined);
-    // An emptied description clears the stored one — the empty string goes out, not the absence.
     const descChanged = !!place && desc.trim() !== (place.desc ?? '').trim();
     const canSave = !!trimmed && (nameChanged || photoChanged || descChanged) && !submitting && !encoding;
 
     const handleOpenChange = (next: boolean) => {
-        // Escape, the X and the backdrop are ignored while the save runs, as in the create dialog:
-        // closing then would drop a failure message with nobody to read it.
         if (next || submitting) return;
         close();
     };
 
     const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        // Cleared so that picking the same file again, after a failure or a remove, still fires.
         e.target.value = '';
         if (!file) return;
         setFailure(null);
@@ -120,7 +99,6 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
             if (session.current === startedIn) setThumbnail(avatar);
         } catch (error) {
             logger.warn('PLACE', '[EditPlace] image failed', { error });
-            // The photo shown before is kept: this one simply was not taken.
             if (session.current === startedIn) setFailure('imageFailed');
         } finally {
             if (session.current === startedIn) setEncoding(false);
@@ -137,13 +115,10 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
             await updatePlace({
                 id: place.id,
                 ...(nameChanged && { name: trimmed }),
-                // An empty string for a removed photo, the value the web app sends for the same edit.
                 ...(photoChanged && { thumbnail: thumbnail ?? '' }),
-                // An emptied description clears the stored one.
                 ...(descChanged && { desc: desc.trim() }),
             });
         } catch (error) {
-            // Classified before the check: that is where the failure is logged.
             const reason = placeFailure(error, 'EditPlace');
             if (session.current !== startedIn) return;
             setFailure(reason);

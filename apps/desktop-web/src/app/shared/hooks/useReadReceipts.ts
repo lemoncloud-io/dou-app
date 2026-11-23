@@ -8,10 +8,6 @@ import { registerLiveRead } from './liveReadRegistry';
 
 const DEBOUNCE_MS = 500;
 
-// Exclude optimistic/pending messages: they carry a sentinel chatNo
-// (Number.MAX_SAFE_INTEGER, so they sort to the bottom) which must never be sent
-// as the read cursor — the server rejects it (chat.read:error). Only persisted
-// messages advance the read position.
 const maxChatNoOf = (messages: DomainChat[]): number =>
     messages.reduce(
         (max, m) =>
@@ -22,41 +18,20 @@ const maxChatNoOf = (messages: DomainChat[]): number =>
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
 
-/**
- * Read-receipt driver. When a channel is open AND the window is focused/visible,
- * reports the highest loaded chatNo through the channel's own cloud's `join.readChat`
- * (debounced). The repository moves the join cursor at once and hands the server half to the
- * outbox, which resends it until it lands, so this hook no longer retries anything itself.
- *
- * - Only fires when the max chatNo increases past what we last sent (per channel).
- * - Resets the "last sent" baseline on channel switch.
- * - Re-checks on visibility/focus changes so re-focusing flushes a pending read.
- *
- * Mount this in the ChatPane with the current channel + its loaded messages.
- * No UI; returns nothing.
- */
 export const useReadReceipts = (channelId: string | null, messages: DomainChat[], cid: string): void => {
     const lastSentRef = useRef(0);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    // Keep the latest messages in a ref so the listener/flush effect does not have
-    // to depend on `messages` (a fresh array every tail update) — otherwise the
-    // visibility/focus listeners + debounce timer churn on every incoming message.
     const messagesRef = useRef(messages);
     messagesRef.current = messages;
     const scheduleRef = useRef<(() => void) | null>(null);
 
-    // Reset baseline when the channel changes — a fresh channel starts unsent.
     useEffect(() => {
         lastSentRef.current = 0;
     }, [channelId]);
 
-    // Listener + debounce live only as long as the channel/repo — not per message.
     useEffect(() => {
-        // No cloud until the channel row is here; the read waits for it rather than guess one.
         if (!channelId || !cid) return;
 
-        // This pane advances the channel's cursor live (see the tail effect below),
-        // so badge hooks can skip re-pulling it while the reader is on it.
         const unregisterLiveRead = registerLiveRead(channelId);
 
         const clearTimer = () => {
@@ -71,10 +46,7 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
             const chatNo = maxChatNoOf(messagesRef.current);
             if (chatNo <= lastSentRef.current) return;
             lastSentRef.current = chatNo;
-            // Optimistically record our read position so the unread badge clears
-            // immediately, without waiting for the server join:update round-trip.
             useReadCursorStore.getState().markRead(channelId, chatNo);
-            // Only a read the server refused for good rejects; asking again would be refused too.
             runtime.data
                 .getCloudRepositories(cid)
                 .join.readChat({ channelId, chatNo })
@@ -105,9 +77,6 @@ export const useReadReceipts = (channelId: string | null, messages: DomainChat[]
         };
     }, [channelId, cid]);
 
-    // On each tail update: mark read locally the instant a message arrives (while
-    // focused) so the badge never flashes during the debounce, then (re)arm the
-    // network flush — without tearing down the listeners above.
     useEffect(() => {
         if (!channelId) return;
         if (isWindowActive()) {

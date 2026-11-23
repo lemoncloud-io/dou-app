@@ -26,18 +26,9 @@ import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 const MINUTE = 60_000;
 
 interface NotificationSnoozeButtonProps {
-    /**
-     * `row` is a labelled sidebar row; `icon` a bare bell for a panel header, its state read out as
-     * its name and shown as a tooltip-free muted bell.
-     */
     variant?: 'row' | 'icon';
 }
 
-/**
- * Snooze notifications (global do-not-disturb). Self-contained: reads/writes the notification-prefs
- * store directly, no prop drilling. The control reads the current state (off / snoozed until /
- * quiet hours) with a muted bell.
- */
 export const NotificationSnoozeButton = ({ variant = 'row' }: NotificationSnoozeButtonProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -47,12 +38,8 @@ export const NotificationSnoozeButton = ({ variant = 'row' }: NotificationSnooze
     const setSnooze = useNotificationPrefsStore(s => s.setSnooze);
 
     const active = isDndActive({ snoozeUntil, quietHours });
-    // Set is not live: an expired value reads as a snooze until something else
-    // writes. The truth is whether it is still in the future.
     const snoozed = snoozeUntil != null && isSnoozed(snoozeUntil);
     const snoozeFor = (minutes: number) => setSnooze(Date.now() + minutes * MINUTE);
-    // Four exclusive states, read top-down: off → snoozed (with time) → quiet hours
-    // with the breakthrough on → quiet hours.
     const labelKey = !active
         ? 'snooze.title'
         : snoozed
@@ -61,9 +48,6 @@ export const NotificationSnoozeButton = ({ variant = 'row' }: NotificationSnooze
             ? 'snooze.activeQuietMention'
             : 'snooze.activeQuiet';
 
-    // Wake on the next boundary — a snooze end or a quiet-hours edge — so the
-    // label turns over without another store write. One shot: each render names
-    // the next one.
     const boundary = nextDndBoundary({ snoozeUntil, quietHours });
     const [, setTick] = useState(0);
     useEffect(() => {
@@ -71,8 +55,6 @@ export const NotificationSnoozeButton = ({ variant = 'row' }: NotificationSnooze
         const timer = setTimeout(() => setTick(tick => tick + 1), Math.max(boundary - Date.now(), 0));
         return () => clearTimeout(timer);
     }, [boundary]);
-    // An expired value left in the store reads as a snooze to anything checking
-    // for set-ness; clear it once it passes.
     useEffect(() => {
         if (snoozeUntil != null && !isSnoozed(snoozeUntil)) setSnooze(null);
     }, [snoozeUntil, boundary, setSnooze]);

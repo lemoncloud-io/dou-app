@@ -2,7 +2,6 @@ import { renderHook } from '@testing-library/react';
 
 const useRelayInvitesMock = jest.fn();
 let mockInvites: Array<Record<string, unknown>> = [];
-/** This device's issue log, keyed by invite id — the only source of a full phone number. */
 let mockSentLog: Record<string, { phone: string; name: string }> = {};
 
 jest.mock('../../../hooks', () => ({
@@ -16,8 +15,6 @@ jest.mock('../../../hooks', () => ({
     }),
 }));
 
-// The countdown has its own tests (useInviteCountdown.test.ts). Here only the wiring is checked
-// — that `isExpired` is passed through to the derived function.
 let mockIsExpired = false;
 jest.mock('../../invite/hooks/useInviteCountdown', () => ({
     useInviteCountdown: (expiredAt?: number) =>
@@ -29,7 +26,6 @@ import { useDmInviteState } from './useDmInviteState';
 const CHANNEL = 'ch-1';
 const PEER = 'peer-1';
 
-/** A join row for the peer. `joinedNo` is what marks a departure apart from a pending invite. */
 const peerJoin = (over: Record<string, unknown> = {}) => ({ userId: PEER, joined: 0, joinedNo: 42, ...over }) as never;
 
 const render = (over: Partial<Parameters<typeof useDmInviteState>[0]> = {}) =>
@@ -52,7 +48,6 @@ describe('useDmInviteState', () => {
         expect(useRelayInvitesMock).toHaveBeenCalledWith(undefined, { enabled: false, pollIntervalMs: undefined });
     });
 
-    // This hook lives in ChannelRoomPage, which every stereo shares — opening a group room must not trigger an invite.list call.
     it('dm이 아니면 present이고 초대를 조회하지 않는다', () => {
         const { result } = render({ hasInviteFlow: false });
 
@@ -83,8 +78,6 @@ describe('useDmInviteState', () => {
         expect(result.current.state).toEqual({ kind: 'pending', expiredAt: 222 });
     });
 
-    // invite.list is sorted newest-first, so the first match is the current state — a freshly
-    // issued pending invite comes before the accepted row that founded this room.
     it('최신순 목록의 첫 매치를 쓴다', () => {
         mockInvites = [
             { id: 'fresh', channelId: CHANNEL, state: 'pending', expiredAt: 333 },
@@ -96,8 +89,6 @@ describe('useDmInviteState', () => {
         expect(result.current.state).toEqual({ kind: 'pending', expiredAt: 333 });
     });
 
-    // A local dismiss (ADR-0052) marks "the user already handled this". If that row kept
-    // representing the room, the rejected wording would stay permanently.
     it('로컬에서 걷어낸 초대는 없는 것으로 본다', () => {
         mockInvites = [{ id: 'dismissed', channelId: CHANNEL, state: 'rejected', dismissedAt: 1 }];
 
@@ -130,7 +121,6 @@ describe('useDmInviteState — 재초대 프리필', () => {
         mockIsExpired = false;
     });
 
-    // The server doesn't return the raw number (only last4) — this device's issue history is the only source.
     it('발급 이력에 있으면 이름과 번호를 돌려준다', () => {
         mockInvites = [{ id: 'inv-1', channelId: CHANNEL, state: 'rejected' }];
         mockSentLog = { 'inv-1': { phone: '+821012345678', name: '레몬' } };
@@ -140,7 +130,6 @@ describe('useDmInviteState — 재초대 프리필', () => {
         expect(result.current.resolveReinvitePrefill()).toEqual({ name: '레몬', phone: '+821012345678' });
     });
 
-    // A room with no live invite is the common case — even then, the number is recovered from the accepted invite that founded this room.
     it('진행 중인 초대가 없어도 이 방을 만든 초대에서 번호를 찾는다', () => {
         mockInvites = [{ id: 'founding', channelId: CHANNEL, state: 'accepted' }];
         mockSentLog = { founding: { phone: '+821011112222', name: '토끼' } };
@@ -160,7 +149,6 @@ describe('useDmInviteState — 재초대 프리필', () => {
         expect(result.current.resolveReinvitePrefill()).toEqual({});
     });
 
-    // The case where I was the invitee, or I switched devices. Don't block it — send back an empty form instead.
     it('이 기기에 이력이 없으면 빈 프리필이다', () => {
         mockInvites = [{ id: 'inv-1', channelId: CHANNEL, state: 'expired' }];
 
@@ -169,9 +157,6 @@ describe('useDmInviteState — 재초대 프리필', () => {
         expect(result.current.resolveReinvitePrefill()).toEqual({});
     });
 
-    // The prefill is only read the moment the CTA is pressed (a function, not a value) — so the
-    // gate "don't fetch it if the peer is present" belongs to the CTA side. The only guard left
-    // here is not knowing the channel.
     it('채널을 모르면 빈 프리필이다', () => {
         mockInvites = [{ id: 'inv-1', channelId: CHANNEL, state: 'expired' }];
         mockSentLog = { 'inv-1': { phone: '+821012345678', name: '레몬' } };
@@ -182,11 +167,6 @@ describe('useDmInviteState — 재초대 프리필', () => {
     });
 });
 
-/**
- * The shape a real departure takes (measured 2026-09-18): the server removes the peer from
- * `channel.memberIds` and stops returning their join row, so `peerId` is undefined and `joins` is
- * empty. Reading the join row alone left the room `present` with a live composer — the reported bug.
- */
 describe('useDmInviteState — 로스터에서 상대가 사라진 경우', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -207,8 +187,6 @@ describe('useDmInviteState — 로스터에서 상대가 사라진 경우', () =
         expect(result.current.state.kind).toBe('present');
     });
 
-    // Reading an unhydrated roster as a departure would lock the composer for a beat every
-    // time a healthy room opens cold.
     it('로스터가 비어 있으면(미로딩) present를 유지한다', () => {
         const { result } = render({ peerId: undefined, joins: [], channel: roster([]), userId: 'me' });
         expect(result.current.state.kind).toBe('present');
@@ -226,9 +204,6 @@ describe('useDmInviteState — 로스터에서 상대가 사라진 경우', () =
     });
 });
 
-// A cloud 1:1 is a `dm` with no invite behind it. The caller resolves that (`hasDmInviteFlow`) and
-// hands the answer down, so what is fixed here is that a false answer stands the whole read down —
-// including the roster reading, which would otherwise report a departure the room cannot act on.
 describe('useDmInviteState — a room with no invite flow', () => {
     it('stays present even when the peer left, and asks for no invites', () => {
         const { result } = render({ hasInviteFlow: false, joins: [peerJoin()] });

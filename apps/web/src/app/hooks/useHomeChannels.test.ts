@@ -9,7 +9,6 @@ import { useHomeChannels } from './useHomeChannels';
 
 const channel = (id: string, sid: string): DomainChannel => ({ id, sid }) as unknown as DomainChannel;
 
-/** The shared observation this hook slices — no repositories involved (see ActiveCloudDataProvider). */
 const wrapper =
     (channels: DomainChannel[], isLoaded = true) =>
     ({ children }: { children: ReactNode }) =>
@@ -36,7 +35,6 @@ describe('useHomeChannels — 공유 관측의 사이트별 슬라이스', () =>
         expect(result.current.isLoading).toBe(false);
     });
 
-    // A cloud 1:1 lives in the place it was opened in, so it is sliced with that place's groups.
     it("lists a cloud 1:1 with its own place's rooms and no other place's", () => {
         const dm = (id: string, sid: string) => ({ id, sid, stereo: 'dm', cid: '1000001' }) as unknown as DomainChannel;
         const rows = [channel('g1', 's1'), dm('s1@me@peer', 's1'), dm('s2@me@peer', 's2')];
@@ -48,8 +46,6 @@ describe('useHomeChannels — 공유 관측의 사이트별 슬라이스', () =>
         expect(inS2.result.current.channels.map(c => c.id)).toEqual(['s2@me@peer']);
     });
 
-    // The relay keys a 1:1 by its pair and hands the same room back on a re-invite, still carrying the
-    // place of whichever session first opened it. It is the relay's room all the same.
     it("lists a relay 1:1 in the relay's place whatever place it carries", () => {
         const dm = (id: string, sid: string) => ({ id, sid, stereo: 'dm', cid: 'default' }) as unknown as DomainChannel;
         const rows = [channel('g1', '0000'), dm('me@peer', '0000'), dm('me@old', 'S:other'), dm('me@none', '')];
@@ -59,8 +55,6 @@ describe('useHomeChannels — 공유 관측의 사이트별 슬라이스', () =>
         expect(result.current.channels.map(c => c.id)).toEqual(['g1', 'me@peer', 'me@old', 'me@none']);
     });
 
-    // The cloud-wide read is not isolated by sid (on the relay the sid scope is ignored entirely) —
-    // that's why the filter is still here. Filtering in JS instead of opening a second observer.
     it('sid가 없으면 빈 목록이다', () => {
         const { result } = renderHook(() => useHomeChannels(null), {
             wrapper: wrapper([channel('c1', 's1')]),
@@ -92,8 +86,6 @@ describe('useHomeChannels — 공유 관측의 사이트별 슬라이스', () =>
         expect(result.current.channels).toBe(first);
     });
 
-    // A site with no channels and a site whose first response hasn't landed yet can't be told apart
-    // from the array alone — the shared observation's isLoaded is what makes that distinction.
     it('isLoading은 공유 관측의 첫 응답 여부를 따른다', () => {
         const { result } = renderHook(() => useHomeChannels('s1'), { wrapper: wrapper([], false) });
 

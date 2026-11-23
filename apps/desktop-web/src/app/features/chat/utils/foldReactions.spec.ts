@@ -9,7 +9,6 @@ const ME = 'me';
 const ME_CLOUD = 'me-cloud';
 const VIEWER: MessageViewer = { uid: ME, name: 'Me', cloudUid: ME_CLOUD };
 
-/** A reaction event as the server publishes it: its own chat, actor on `ownerId`. */
 const reaction = (
     chatNo: number,
     userId: string,
@@ -43,8 +42,6 @@ describe('foldReactions', () => {
         expect(tallies.get('C1:1')?.[0]).toMatchObject({ mine: true });
     });
 
-    // The server does not toggle; it records what it was told. An `off` is the absence
-    // of that person from the tally, not a decrement.
     it('lets a later off remove the person again', () => {
         const tallies = foldReactions([reaction(2, 'ada', '👍'), reaction(3, 'ada', '👍', 'off')], VIEWER);
 
@@ -59,8 +56,6 @@ describe('foldReactions', () => {
         ]);
     });
 
-    // Pickers differ on the trailing variation selector; the server folds it away, so
-    // the client has to agree or an "off" would never cancel the matching "on".
     it('treats an emoji with and without its variation selector as one', () => {
         const tallies = foldReactions([reaction(2, 'ada', '❤️'), reaction(3, 'ada', '❤', 'off')], VIEWER);
 
@@ -86,11 +81,6 @@ describe('foldReactions', () => {
         expect(tallies.get('C1:9')).toHaveLength(1);
     });
 
-    // The chip lookup is `reactions.get(message.id)`, so the fold has to key by exactly
-    // the target message's `id`. Both sides are server-assigned (`ChatModel.id :=
-    // <channelId>:<chatNo>`, and `reaction$.chatId` points at one), and `toDomainChat`
-    // passes `id` through untouched — this pins the client's half of that assumption,
-    // which nothing else in the suite would notice breaking.
     it('keys the tally by the target message id the UI looks up', () => {
         const target = message(1);
         const tallies = foldReactions([target, reaction(2, 'ada', '👍', 'on', target.id ?? '')], VIEWER);
@@ -98,8 +88,6 @@ describe('foldReactions', () => {
         expect(tallies.get(target.id ?? '')).toHaveLength(1);
     });
 
-    // The picker asks "am I already reacting with this?" through this helper rather than
-    // comparing display strings, which differ by variation selector across pickers.
     it('answers hasMyReaction on the normalised form, not the display string', () => {
         const tallies = foldReactions([reaction(2, ME, '❤️')], VIEWER).get('C1:1');
 
@@ -120,8 +108,6 @@ describe('foldReactions', () => {
         expect(foldReactions([message(1), noTarget], VIEWER).size).toBe(0);
     });
 
-    // An optimistic event has no chatNo yet; it must still beat the persisted rows it
-    // was just added on top of, or the button would flip back until the echo arrives.
     it('lets an in-flight event outrank the persisted ones', () => {
         const pending = { ...reaction(0, ME, '👍', 'off'), chatNo: 0 } as DomainChat;
         const tallies = foldReactions([reaction(2, ME, '👍'), pending], VIEWER);
@@ -129,7 +115,6 @@ describe('foldReactions', () => {
         expect(tallies.get('C1:1')).toBeUndefined();
     });
 
-    // A persisted event carries my per-channel cloud id, which the account uid never matches.
     it('marks a reaction mine when its owner is my cloud id', () => {
         const tallies = foldReactions([reaction(2, ME_CLOUD, '👍')], VIEWER).get('C1:1');
 
@@ -147,8 +132,6 @@ describe('foldReactions', () => {
         expect(foldReactions([reaction(2, 'ada', '👍')], noCloud).get('C1:1')?.[0]?.mine).toBe(false);
     });
 
-    // My optimistic event carries the account id and the persisted one the cloud id; they are
-    // one person, so the newer of the two decides and I am counted once.
     it('lets my in-flight off cancel my persisted on across the two ids', () => {
         const pending = reaction(0, ME, '👍', 'off');
 

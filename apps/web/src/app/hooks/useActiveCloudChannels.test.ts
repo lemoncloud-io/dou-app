@@ -25,9 +25,6 @@ const observeListMock = jest.fn();
 
 const channel = (id: string, sid: string): DomainChannel => ({ id, sid }) as unknown as DomainChannel;
 
-// Wire observeList to immediately emit the given rows and return a disposer spy. Each row is stamped
-// with the cid of the scope it was observed under, as a cache row of that partition carries, unless
-// the case gives it one of its own.
 const emit = (rows: DomainChannel[]) => {
     const dispose = jest.fn();
     observeListMock.mockImplementation((_query, cb, scope?: { cid?: string }) => {
@@ -45,7 +42,6 @@ const setUid = (userId: string | null = 'u1') =>
 
 beforeEach(() => {
     jest.clearAllMocks();
-    // No cloud has been answered by the server yet — the cold state every test starts from.
     useChannelSyncMarkStore.setState({ synced: {} });
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ channel: { observeList: observeListMock } });
     setSelection('cloud-A');
@@ -54,8 +50,6 @@ beforeEach(() => {
 
 describe('useActiveCloudChannelsSource — 클라우드 전체 채널 구독', () => {
     it("never hands out the previous cloud's rows, not even in the render where the selection moves", () => {
-        // Each rendered row registers its channel's sync target under the selected cloud, whose
-        // socket — with a background session per cloud — is already up for the stale ids.
         emit([channel('a1', 's1')]);
         const seen: Array<{ ids: string[]; isLoaded: boolean }> = [];
         const { rerender } = renderHook(() => {
@@ -81,7 +75,6 @@ describe('useActiveCloudChannelsSource — 클라우드 전체 채널 구독', (
 
         const { result } = renderHook(() => useActiveCloudChannelsSource());
 
-        // The {cid, uid} override pins the observer scope independent of the provider commit lag.
         expect(observeListMock).toHaveBeenCalledWith({ sid: '' }, expect.any(Function), { cid: 'cloud-A', uid: 'u1' });
         expect(result.current.channels.map(c => c.id)).toEqual(['c1', 'c2']);
     });
@@ -93,8 +86,6 @@ describe('useActiveCloudChannelsSource — 클라우드 전체 채널 구독', (
         const { result, rerender } = renderHook(() => useActiveCloudChannelsSource());
         expect(result.current.channels.map(c => c.id)).toEqual(['c1']);
 
-        // Same {cid, uid} scope across a site switch → no re-subscribe, no clear. The observer keeps
-        // matching cloud-wide writes without re-keying on the active sid.
         setSelection('cloud-A', 's2');
         rerender();
 
@@ -119,8 +110,6 @@ describe('useActiveCloudChannelsSource — 클라우드 전체 채널 구독', (
     });
 
     it('cid가 그대로여도 uid 변경 시 재구독한다 (클라우드 전환 커밋의 uid 반영)', () => {
-        // The cloud-switch commit flips uid while selectedCloudId is already the target cloud, so
-        // uid must drive re-subscription — otherwise the post-commit fetch reemit is missed.
         const disposeOldUid = emit([channel('stale', 's1')]);
         setSelection('cloud-A');
         setUid('old-uid');
@@ -138,9 +127,6 @@ describe('useActiveCloudChannelsSource — 클라우드 전체 채널 구독', (
     });
 });
 
-// Channels of a site that became unreachable (a place gone from the rail) stay in the cache. That
-// channel shows up in neither the home list nor a place dot, yet it's still counted in total, so an
-// unreadable unread stayed on the app badge forever.
 describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () => {
     const placeObserveList = jest.fn();
 
@@ -175,8 +161,6 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
         expect(result.current.channels.map(c => c.id)).toEqual(['c1', 'c2']);
     });
 
-    // Reading a not-yet-arrived place list as "no places" would flash the badge to 0 on every cloud
-    // switch. Don't filter while it's still unknown.
     it('place 목록이 아직 없으면 거르지 않는다', () => {
         placeObserveList.mockImplementation(() => jest.fn());
         emit([channel('c1', 'site-1'), channel('c2', 'site-gone')]);
@@ -186,7 +170,6 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
         expect(result.current.channels.map(c => c.id)).toEqual(['c1', 'c2']);
     });
 
-    // A row with no sid attached yet is not an orphan — it's a row still syncing.
     it('sid가 없는 채널은 남긴다', () => {
         emitPlaces(['site-1']);
         emit([channel('c1', 'site-1'), { id: 'c2' } as DomainChannel]);
@@ -196,7 +179,6 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
         expect(result.current.channels.map(c => c.id)).toEqual(['c1', 'c2']);
     });
 
-    // The cache files a notes-to-self room that names no place under the account; no rail lists it.
     it('keeps the notes-to-self room filed under the account', () => {
         emitPlaces(['site-1']);
         emit([channel('self', ACCOUNT_CHANNEL_SID)]);
@@ -206,7 +188,6 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
         expect(result.current.channels.map(c => c.id)).toEqual(['self']);
     });
 
-    // A relay 1:1's place field is whatever session first opened it, not where it lives.
     it('keeps a relay 1:1 that carries a place the reader cannot reach, and drops a group that does', () => {
         setSelection('default');
         emitPlaces(['0000']);
@@ -221,8 +202,6 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
     });
 });
 
-// A cloud this device has never opened answers from the cache instantly, with nothing — which is not
-// an answer about the cloud. Reading it as loaded flashed "no rooms" over a cloud still being fetched.
 describe('useActiveCloudChannelsSource — cold cloud loading gate', () => {
     it('is not loaded while the cache answers empty and no delta has landed', () => {
         emit([]);
@@ -239,8 +218,6 @@ describe('useActiveCloudChannelsSource — cold cloud loading gate', () => {
         const { result } = renderHook(() => useActiveCloudChannelsSource());
         expect(result.current.isLoaded).toBe(false);
 
-        // A place that really has no rooms settles here, within one round trip — that is the common
-        // case (every place starts empty), which is why this does not wait out the window.
         act(() => useChannelSyncMarkStore.getState().markSynced('cloud-A', 'u1'));
 
         expect(result.current.isLoaded).toBe(true);
@@ -256,7 +233,6 @@ describe('useActiveCloudChannelsSource — cold cloud loading gate', () => {
     });
 
     it('gives up waiting once the window elapses, so the section is never stuck', () => {
-        // No delta will ever answer on a device that cannot reach the server; the wait still ends.
         jest.useFakeTimers();
         emit([]);
 
@@ -280,7 +256,6 @@ describe('useActiveCloudChannelsSource — cold cloud loading gate', () => {
     });
 });
 
-// The thin hook only reads the result of the shared observation (ActiveCloudDataProvider) — it does not create its own subscription.
 describe('useActiveCloudChannels — 공유 관측 읽기', () => {
     const wrapper =
         (value: { channels: DomainChannel[] }) =>
@@ -297,7 +272,6 @@ describe('useActiveCloudChannels — 공유 관측 읽기', () => {
     });
 
     it('프로바이더가 없으면 조용히 비어 있지 않고 던진다', () => {
-        // A silent fallback would bring back the duplicate subscriptions this context was meant to remove; a silent empty value would leave the badge permanently at 0.
         expect(() => renderHook(() => useActiveCloudChannels())).toThrow(/ActiveCloudDataProvider is missing/);
     });
 });

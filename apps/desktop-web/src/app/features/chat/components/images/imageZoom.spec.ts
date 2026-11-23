@@ -62,7 +62,6 @@ describe('wheelZoom', () => {
 
 describe('clampZoom', () => {
     it('keeps an image zoomed past the page from being pulled off its edge', () => {
-        // At 2x the photo is 800 wide, so it can move 200 either way; 600 tall, still inside the page.
         expect(clampZoom({ scale: 2, x: 500, y: 90 }, photo, page)).toEqual({ scale: 2, x: 200, y: 0 });
         expect(clampZoom({ scale: 2, x: -500, y: 0 }, photo, page).x).toBe(-200);
     });
@@ -139,7 +138,6 @@ describe('turnedContent', () => {
 
     it('lets a turned landscape be dragged by its visual height', () => {
         const zoom = clampZoom({ scale: 2, x: 0, y: 9999 }, turnedContent(photo, 1), page);
-        // 400 tall turned, doubled = 800: exactly the page, so no room to pan vertically.
         expect(zoom.y).toBe(0);
     });
 });

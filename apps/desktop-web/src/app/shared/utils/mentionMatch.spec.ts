@@ -23,7 +23,6 @@ describe('isMentioned', () => {
         expect(isMentioned(`${word} standup in 5`, ['Ada'])).toBe(true);
     });
 
-    // `@all` starts many ordinary words and addresses; only the word on its own calls everyone.
     it('does not read a word or an address that merely starts with a group token', () => {
         expect(isMentioned('ping @Allison', ['Ada'])).toBe(false);
         expect(isMentioned('mail bob@allbirds.com', ['Ada'])).toBe(false);
@@ -46,9 +45,6 @@ describe('isMentioned', () => {
     });
 });
 
-// The sender's composer records who it picked, and the server tells exactly those members. The
-// record is the answer whenever a message has one; the text is a guess kept for messages that have
-// none (an older client, a webhook).
 describe('mentionsMe', () => {
     const ME = ['acct-1', 'cloud-user-9'];
 
@@ -60,7 +56,6 @@ describe('mentionsMe', () => {
         expect(mentionsMe({ mention$: { userIds: ['u-other'] } }, ME, 'hi @Me', ['Me'])).toBe(false);
     });
 
-    // A read gives `true`, a live `chat.sync` the model's `1`.
     it.each([true, 1] as const)('counts a record that calls everyone (%j)', all => {
         expect(mentionsMe({ mention$: { all } }, ME, 'standup', ['Me'])).toBe(true);
     });
@@ -78,8 +73,6 @@ describe('mentionsMe', () => {
     });
 });
 
-// One decision point for "was I called, and how": the banner title and the
-// mention-only filter must agree, so they share this answer.
 describe('mentionKind', () => {
     const ME = ['acct-1', 'cloud-user-9'];
 
@@ -91,15 +84,12 @@ describe('mentionKind', () => {
         expect(mentionKind({ mention$: { all: true } }, ME, 'standup', ['Me'])).toBe('everyone');
     });
 
-    // A read gives `true`, a live `chat.sync` the model's `1`.
     it.each([true, 1] as const)('reads a numeric everyone record (%j)', all => {
         expect(mentionKind({ mention$: { all } }, ME, 'standup', ['Me'])).toBe('everyone');
     });
 
     it('prefers a direct naming over everyone in the same record', () => {
-        expect(mentionKind({ mention$: { userIds: ['cloud-user-9'], all: true } }, ME, 'hi', ['Me'])).toBe(
-            'direct'
-        );
+        expect(mentionKind({ mention$: { userIds: ['cloud-user-9'], all: true } }, ME, 'hi', ['Me'])).toBe('direct');
     });
 
     it('returns null for a record that names someone else, though the text has my name', () => {
@@ -127,8 +117,6 @@ describe('mentionKind', () => {
     });
 });
 
-// The quiet-hours breakthrough's only condition: a record naming me, never the
-// text and never an everyone flag.
 describe('isNamedByRecord', () => {
     const ME = ['acct-1', 'cloud-user-9'];
 

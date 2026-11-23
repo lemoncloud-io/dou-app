@@ -2,17 +2,6 @@ import { readdirSync, readFileSync } from 'fs';
 import { join, relative } from 'path';
 import * as ts from 'typescript';
 
-/*
- * Test support for the app → web event contract. Imported by tests only; nothing in the app reaches
- * it, so it never enters the bundle. `apps/desktop/src/main/appEventContract.ts` is its twin — keep
- * the two in step.
- *
- * Why a compiler and not `satisfies`: jest transpiles each file on its own (`isolatedModules`), so a
- * type annotation in a test is never checked, and CI does not type check this project. Handing what
- * the shell actually pushed to the TypeScript compiler, as a literal assigned to the vocabulary's
- * own type, is the one check that reads `@chatic/bridge-messages` itself rather than a copy of it.
- */
-
 const WORKSPACE = join(__dirname, '../../../../../..');
 const PROBE = join(WORKSPACE, '__app_event_probe__.ts');
 const VOCABULARY = join(WORKSPACE, 'libs/bridge-messages/src');
@@ -29,7 +18,6 @@ const OPTIONS: ts.CompilerOptions = {
     paths: { '@chatic/bridge-messages': [join(WORKSPACE, 'libs/bridge-messages/src/index.ts')] },
 };
 
-// The vocabulary and its imports parse once per test file; only the probe changes between checks.
 const parsed = new Map<string, ts.SourceFile>();
 let previous: ts.Program | undefined;
 let vocabularyChecked = false;
@@ -50,8 +38,6 @@ const compile = (source: string) => {
     };
     host.fileExists = file => file === PROBE || exists(file);
     previous = ts.createProgram({ rootNames: [PROBE], options: OPTIONS, host, oldProgram: previous });
-    // A type the vocabulary cannot resolve (a missing react-native-iap, say) degrades to `any`, and
-    // every payload built on it would then pass. The error lands in the vocabulary, not the probe.
     if (!vocabularyChecked) {
         const broken = previous
             .getSourceFiles()
@@ -65,11 +51,8 @@ const compile = (source: string) => {
     return { checker: previous.getTypeChecker(), probe, diagnostics };
 };
 
-/** The string literals of a type alias declared in a probe. Throws if the probe did not compile. */
 const literalsOf = (source: string): string[] => {
     const { checker, probe, diagnostics } = compile(source);
-    // A probe that fails to resolve the vocabulary reads as an empty union, and every check built on
-    // it would then pass on nothing.
     if (diagnostics.length > 0) throw new Error(`Vocabulary probe failed: ${diagnostics.map(message).join('; ')}`);
     const alias = probe.statements.find(ts.isTypeAliasDeclaration) as ts.TypeAliasDeclaration;
     const type = checker.getTypeAtLocation(alias.name);
@@ -77,35 +60,16 @@ const literalsOf = (source: string): string[] => {
     return members.filter(member => member.isStringLiteral()).map(member => (member as ts.StringLiteralType).value);
 };
 
-/** Every message type `AppMessageDataMap` declares — replies and pushes alike. */
 export const appMessageTypes = (): string[] =>
     literalsOf(`import type { AppMessageDataMap } from '@chatic/bridge-messages';
 export type Probe = keyof AppMessageDataMap;`);
 
-/**
- * The message types no request is answered with — what a shell can only ever send on its own
- * initiative. A reply type a shell also pushes unprompted is not in this list; the shell's
- * inventory catches it from the call site instead.
- */
 export const appInitiatedTypes = (): string[] =>
     literalsOf(`import type { AppMessageDataMap, WEB_MESSAGE_RESPONSE_TYPE } from '@chatic/bridge-messages';
 export type Probe = Exclude<keyof AppMessageDataMap, (typeof WEB_MESSAGE_RESPONSE_TYPE)[keyof typeof WEB_MESSAGE_RESPONSE_TYPE]>;`);
 
-// The message as the web receives it: the bridge sends JSON, so a string enum member (react-native-iap's
-// `ErrorCode`) arrives as its plain string value. `any` passes through untouched.
-//
-// The depth stops at ten: a payload may be declared as plain JSON (`RuntimeWireValue`), a type that
-// refers to itself, and unbounded the mapping would expand it forever. Below ten levels it is the
-// declared type itself, which a JSON value satisfies as it is.
 const WIRE = `type Wire<T, D extends 0[] = []> = 0 extends 1 & T ? T : D['length'] extends 10 ? T : T extends string ? \`\${T}\` : T extends object ? { [K in keyof T]: Wire<T[K], [...D, 0]> } : T;`;
 
-/**
- * What the compiler says about each message, read as `AppMessageData<its type>` after JSON — the
- * envelope (`type`, `success`, `data`) and the payload together, with excess-property checks. Empty
- * when every message conforms. A renamed type, a dropped required field and an extra field all land
- * here — and so does an empty list, so a test whose trigger stopped pushing cannot pass on nothing.
- * A payload declared as `{}` (`OnBackPressed`) has no fields to check, only its envelope.
- */
 export const pushedEventErrors = (messages: readonly unknown[]): string[] => {
     if (messages.length === 0) return ['nothing was pushed'];
     const errors: string[] = [];
@@ -117,7 +81,6 @@ export const pushedEventErrors = (messages: readonly unknown[]): string[] => {
         }
         return `export const m${index}: Wire<AppMessageData<${JSON.stringify(type)}>> = ${JSON.stringify(pushed)};`;
     });
-    // Two header lines, then one line per message.
     const { probe, diagnostics } = compile(
         [`import type { AppMessageData } from '@chatic/bridge-messages';`, WIRE, ...lines].join('\n')
     );
@@ -129,7 +92,6 @@ export const pushedEventErrors = (messages: readonly unknown[]): string[] => {
     return errors;
 };
 
-/** The first argument of every call a `pushEvent` mock received. */
 export const pushedEvents = (pushEvent: { mock: { calls: unknown[][] } }): unknown[] =>
     pushEvent.mock.calls.map(([pushed]) => pushed);
 
@@ -138,11 +100,6 @@ const sourceFiles = (dir: string): string[] =>
         entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : [join(dir, entry.name)]
     );
 
-/**
- * Every `.pushEvent({ type: '…' })` call under `root`, outside tests, as `type → files` (relative to
- * `root`, sorted). A call whose `type` is not a string literal is filed under `<non-literal>`, so it
- * cannot slip past an inventory that matches on names.
- */
 export const pushEventSites = (root: string): Record<string, string[]> => {
     const sites: Record<string, Set<string>> = {};
     const record = (type: string, file: string) => (sites[type] ??= new Set()).add(relative(root, file));
@@ -158,7 +115,6 @@ export const pushEventSites = (root: string): Record<string, string[]> => {
                 node.expression.name.text === 'pushEvent'
             ) {
                 let [argument] = node.arguments;
-                // Through `as`, `satisfies` and parentheses to the literal underneath.
                 while (
                     argument &&
                     (ts.isAsExpression(argument) ||

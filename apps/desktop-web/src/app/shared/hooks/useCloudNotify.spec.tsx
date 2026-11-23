@@ -11,8 +11,6 @@ const observeList = vi.hoisted(() => vi.fn());
 
 const cache = vi.hoisted(() => ({ rows: [] as DomainChannel[] }));
 
-// The engine hands out one repositories object for the session; a fresh one per render would
-// resubscribe the channel observer on every render.
 const repositories = vi.hoisted(() => ({
     channel: {
         observeList: (query: unknown, cb: (result: { list: DomainChannel[] }) => void) => {
@@ -76,12 +74,10 @@ describe('useCloudNotify', () => {
 
         await act(async () => result.current.setMode('none'));
 
-        // The server takes join writes only for the place the session is in (p1).
         const written = updateJoin.mock.calls.map(([payload]) => (payload as { channelId: string }).channelId);
         expect(written).toEqual(['A1', 'A2']);
         const { placeNotify } = useNotificationPrefsStore.getState();
         expect(placeNotify['c1:p1']).toEqual({ mode: 'none', known: ['A1', 'A2'] });
-        // Written when the session enters them, empty places included.
         expect(placeNotify['c1:p2']).toEqual({ mode: 'none', known: [] });
         expect(placeNotify['c1:p3']).toEqual({ mode: 'none', known: [] });
         expect(result.current.mode).toBe('none');

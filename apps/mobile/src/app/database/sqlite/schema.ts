@@ -2,12 +2,6 @@ import { TABLES } from './tables';
 
 export const MIGRATIONS: Record<number, string[]> = {
     0: [
-        /**
-         * Channel
-         * - key
-         *  - id : channel id
-         *  - cid : cloud id
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.CHANNELS} (
         cid TEXT NOT NULL,
         uid TEXT NOT NULL,
@@ -19,12 +13,6 @@ export const MIGRATIONS: Record<number, string[]> = {
     );`,
         `CREATE INDEX IF NOT EXISTS idx_channel_cid_uid_sid ON ${TABLES.CHANNELS} (cid, uid, sid);`,
 
-        /**
-         * Chat (channel_id and created_at are extracted into separate columns to optimize search and sorting)
-         * - key
-         *  - id : chat id
-         *  - cid : cloud id
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.CHATS} (
         cid TEXT NOT NULL,
         uid TEXT NOT NULL,
@@ -38,12 +26,6 @@ export const MIGRATIONS: Record<number, string[]> = {
     );`,
         `CREATE INDEX IF NOT EXISTS idx_chat_cid_uid_channel ON ${TABLES.CHATS} (cid, uid, channel_id);`,
         `CREATE INDEX IF NOT EXISTS idx_chat_cid_uid_chat_no ON ${TABLES.CHATS} (cid, uid, chat_no);`,
-        /**
-         * User
-         * - key
-         *  - id : user id
-         *  - cid: cloud id
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.USERS} (
         cid TEXT NOT NULL,
         uid TEXT NOT NULL,
@@ -52,12 +34,6 @@ export const MIGRATIONS: Record<number, string[]> = {
         PRIMARY KEY (cid, uid, id)
     );`,
 
-        /**
-         * Join
-         * - key
-         *  - id: join id
-         *  - cid: cloud id
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.JOINS} (
         cid TEXT NOT NULL,
         uid TEXT NOT NULL,
@@ -69,12 +45,6 @@ export const MIGRATIONS: Record<number, string[]> = {
     );`,
         `CREATE INDEX IF NOT EXISTS idx_join_cid_uid_channel ON ${TABLES.JOINS} (cid, uid, channel_id);`,
 
-        /**
-         * Site
-         *  - key
-         *   - id: site id
-         *   - cid: cloud id
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.SITES} (
         cid TEXT NOT NULL,
         uid TEXT NOT NULL,
@@ -83,23 +53,11 @@ export const MIGRATIONS: Record<number, string[]> = {
         PRIMARY KEY (cid, uid, id)
     );`,
 
-        /**
-         * InviteCloud
-         * - Stores invited cloud info without a cid
-         * - key
-         * - id: site id
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.INVITE_CLOUDS} (
         id TEXT NOT NULL PRIMARY KEY,
         data TEXT NOT NULL
     );`,
 
-        /**
-         * Meta Table
-         * - key: a unique identifier that serializes the query options
-         * - uid: identifier used to separate user scopes
-         * - data: JSON in the shape { ids: string[], uid?: string }
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.METAS} (
         type TEXT NOT NULL,
         cid TEXT NOT NULL,
@@ -226,11 +184,6 @@ export const MIGRATIONS: Record<number, string[]> = {
         );`,
     ],
     7: [
-        /**
-         * Upload tasks of the retired chunked-upload module, dropped again in migration 11. The name is
-         * a literal because it is no longer in TABLES: a migration is history and has to replay as it
-         * was written on a fresh install, so it must not depend on the current table list.
-         */
         `CREATE TABLE IF NOT EXISTS upload_tasks (
             upload_id TEXT PRIMARY KEY,
             status TEXT NOT NULL,
@@ -251,12 +204,6 @@ export const MIGRATIONS: Record<number, string[]> = {
         `CREATE INDEX IF NOT EXISTS idx_upload_tasks_status_updated ON upload_tasks (status, updated_at DESC);`,
     ],
     8: [
-        /**
-         * Profile — site-scoped display profiles.
-         * The web layer keys each row by `${sid}@${uid}` and filters by `sid`
-         * in memory after loadAll, so native only needs the shared (cid, uid, id)
-         * partition used by every other domain; no dedicated `sid` column here.
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.PROFILES} (
         cid TEXT NOT NULL,
         uid TEXT NOT NULL,
@@ -266,12 +213,6 @@ export const MIGRATIONS: Record<number, string[]> = {
     );`,
     ],
     9: [
-        /**
-         * Meta — sync cursors (e.g. 'channel-sync' -> syncedAt), cid/uid/id scoped.
-         * The original `metas` table (a query->ids index) was dropped in migration 5;
-         * this recreates it with the standard domain schema so native can persist the
-         * web sync-cursor `meta` cache. `id` holds the cursor kind.
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.METAS} (
         cid TEXT NOT NULL,
         uid TEXT NOT NULL,
@@ -281,11 +222,6 @@ export const MIGRATIONS: Record<number, string[]> = {
     );`,
     ],
     10: [
-        /**
-         * Invite — sender's own relay 1:1 invite cards (ADR-0052). Standard (cid, uid, id, data)
-         * blob schema like every other domain; the web strips the credential fields (code,
-         * deeplink) before this ever receives a row, so no column here needs to know about that.
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.INVITES} (
         cid TEXT NOT NULL,
         uid TEXT NOT NULL,
@@ -294,26 +230,8 @@ export const MIGRATIONS: Record<number, string[]> = {
         PRIMARY KEY (cid, uid, id)
     );`,
     ],
-    11: [
-        /**
-         * Retire the chunked-upload module's task table. Its rows held each upload's full request —
-         * endpoint URL and headers — which the file-transfer module must never persist, and none of
-         * them can be resumed by the new module anyway (a presigned PUT has no resume). Nothing reads
-         * the table any more, so the drop loses nothing.
-         */
-        `DROP INDEX IF EXISTS idx_upload_tasks_status_updated;`,
-        `DROP TABLE IF EXISTS upload_tasks;`,
-    ],
+    11: [`DROP INDEX IF EXISTS idx_upload_tasks_status_updated;`, `DROP TABLE IF EXISTS upload_tasks;`],
     12: [
-        /**
-         * Chat media — a room's attachments and links, one row per entry of a message (`ChatMediaEntry`).
-         * The web decides every entry and sends it on the chat row it belongs to (`mediaEntries`); this
-         * table only stores and indexes them, rewritten in the same batch as that row. `channel_id` and
-         * `chat_no` are copied from the row so a room's entries of one kind read off one index.
-         *
-         * The index ends in `idx` so a page ordered `chat_no DESC, idx ASC` needs no sort step, and the
-         * per-kind count reads the index alone.
-         */
         `CREATE TABLE IF NOT EXISTS ${TABLES.CHAT_MEDIA} (
         cid TEXT NOT NULL,
         uid TEXT NOT NULL,
@@ -326,11 +244,6 @@ export const MIGRATIONS: Record<number, string[]> = {
         PRIMARY KEY (cid, uid, chat_id, idx)
     );`,
         `CREATE INDEX IF NOT EXISTS idx_chat_media_cid_uid_channel_kind_chatno ON ${TABLES.CHAT_MEDIA} (cid, uid, channel_id, kind, chat_no DESC, idx);`,
-        /**
-         * A room's newest-first chat index. Migration 2 made it, and migration 4 lost it when it rebuilt
-         * `chats` — so no device has had it since, and a room's page read sorted in a temporary B-tree.
-         * Indexing a room's cached messages and the plain-row media path both page a room this way.
-         */
         `CREATE INDEX IF NOT EXISTS idx_chats_cid_uid_channel_chatno ON ${TABLES.CHATS} (cid, uid, channel_id, chat_no DESC);`,
     ],
 };

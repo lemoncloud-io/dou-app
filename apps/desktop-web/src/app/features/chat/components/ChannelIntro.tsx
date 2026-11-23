@@ -9,33 +9,21 @@ import { avatarStyle, focusComposer } from '../../../shared';
 
 interface ChannelIntroProps {
     kind: 'channel' | 'dm' | 'self';
-    /** What the header calls it: the channel name, the other person, or "You". */
     name: string;
     description?: string;
-    /** DM only: the other person's picture and color seed. */
     avatar?: string;
     colorSeed?: string;
     isFavorite: boolean;
-    /** No messages yet — only then does the intro offer to write the first one. */
     isEmpty?: boolean;
     onToggleFavorite: () => void;
-    /** Channels only — a DM has no settings of its own. */
     onOpenSettings?: () => void;
-    /** Invite people — offered while the channel is still empty. */
     onAddMembers?: () => void;
 }
 
-/** Shape shared by the actions under the intro. */
 const INTRO_ACTION =
     'focus-ring tactile flex items-center gap-1.5 rounded-lg border border-hairline bg-background px-3 py-1.5 text-caption font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
-/** The one filled action, and only on an empty channel: writing is what it is for. */
 const INTRO_PRIMARY = 'border-transparent bg-primary text-primary-foreground hover:bg-primary/90';
 
-/**
- * The top of a conversation once its whole history is loaded (Slack's "This is the very
- * beginning of #…"). It answers "where am I and is there more above?" — a feed that simply
- * stops at its oldest message leaves both open — and it is the empty channel's first screen.
- */
 export const ChannelIntro = ({
     kind,
     name,
@@ -62,8 +50,6 @@ export const ChannelIntro = ({
                     </AvatarFallback>
                 </Avatar>
             ) : (
-                // Neutral like the self note's tile: the channel glyph is an identity mark, and
-                // lime is kept for what the user can act on or has selected.
                 <span
                     aria-hidden
                     className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted text-label"
@@ -83,10 +69,6 @@ export const ChannelIntro = ({
                 )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-                {/* The empty channel's first screen had no path to the one thing it is
-                    for. This hands focus to the composer below. Once the channel has
-                    messages the intro stays as a header, but the filled CTA goes: it
-                    outranked the conversation and said something untrue about it. */}
                 {isEmpty && (
                     <button type="button" onClick={focusComposer} className={cn(INTRO_ACTION, INTRO_PRIMARY)}>
                         <PenLine size={15} aria-hidden />
@@ -97,8 +79,6 @@ export const ChannelIntro = ({
                     <Star size={15} aria-hidden className={cn(isFavorite && 'fill-favorite text-favorite')} />
                     {t(isFavorite ? 'chat.header.unfavorite' : 'chat.header.favorite')}
                 </button>
-                {/* A new channel holds only its creator; inviting people is the other
-                    thing its first screen is for. */}
                 {isEmpty && onAddMembers && (
                     <button type="button" onClick={onAddMembers} className={INTRO_ACTION}>
                         <UserPlus size={15} aria-hidden />

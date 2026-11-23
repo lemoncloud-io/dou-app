@@ -27,8 +27,6 @@ describe('useReactions — 리액션 토글', () => {
         expect(setReaction).toHaveBeenCalledWith({ chatId: 'C1:1', emoji: '👍', action: 'on' });
     });
 
-    // The server does not toggle — the client reads `mine` off the folded tally and
-    // sends the opposite as a target state.
     it('이미 내 리액션이면 off를 보낸다', () => {
         const { result } = renderHook(() => useReactions());
         act(() => result.current.toggleReaction('C1:1', '👍', true));

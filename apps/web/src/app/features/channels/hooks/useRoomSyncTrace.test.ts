@@ -25,7 +25,6 @@ const render = (initial: UseRoomSyncTraceParams) =>
 const syncStops = () =>
     backend.stop.mock.calls.map(([result]) => result).filter(result => result.name === 'chat_room_sync');
 
-/** A tap into the room, claimed by its page — what `roomOpenTrace.begin` + the open hook leave. */
 const tapAndClaim = (channelId = 'ch_1'): PerfTrace => {
     roomOpenTrace.begin(channelId, 'list');
     const sync = getActivePerfTrace('chat_room_sync', channelId);
@@ -34,7 +33,6 @@ const tapAndClaim = (channelId = 'ch_1'): PerfTrace => {
     return sync;
 };
 
-/** The sync writing the latest page, as the sync hooks mark it. */
 const feedDone = (trace: PerfTrace, latestNo: number) => {
     trace.putMetric('latest_no', latestNo);
     trace.mark('feed_done');
@@ -69,7 +67,6 @@ describe('useRoomSyncTrace', () => {
     });
 
     it('does not adopt a sync trace whose open trace this mount did not claim', () => {
-        // Begun for a room already on screen, or for a navigation that never arrived.
         roomOpenTrace.begin('ch_1', 'list');
         const stale = getActivePerfTrace('chat_room_sync', 'ch_1');
 
@@ -84,7 +81,6 @@ describe('useRoomSyncTrace', () => {
         tapAndClaim();
         const { rerender } = render({ channelId: 'ch_1', rawChats: [] });
 
-        // The cache's own emission — the room drew, but not yet synced.
         rerender({ channelId: 'ch_1', rawChats: chats(3) });
 
         expect(syncStops()).toHaveLength(0);
@@ -110,7 +106,6 @@ describe('useRoomSyncTrace', () => {
         const { rerender } = render({ channelId: 'ch_1', rawChats: chats(3) });
 
         feedDone(trace, 5);
-        // A new window for another reason (a join cursor arriving), still without row 5.
         rerender({ channelId: 'ch_1', rawChats: chats(3).slice(1) });
         expect(syncStops()).toHaveLength(0);
 

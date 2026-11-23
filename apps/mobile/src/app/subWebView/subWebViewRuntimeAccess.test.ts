@@ -31,7 +31,6 @@ describe('openSubWebViewRuntime', () => {
     });
 
     it("opens the runtime on Home too, bound to Home and the relay's place", () => {
-        // Home as the session reports it: no cloud, the relay serving, no committed place.
         mockEngine.mockReturnValue({
             session: {
                 snapshot: () => ({

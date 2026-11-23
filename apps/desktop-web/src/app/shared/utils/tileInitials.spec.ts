@@ -15,7 +15,6 @@ describe('distinctInitials', () => {
         expect(distinctInitials(['레몬', '레드', ''])).toEqual(['레몬', '레드', '#']);
     });
 
-    // Both used to read "Te": the first two letters were all the widening looked at.
     it('tells apart names that differ only by a trailing number', () => {
         expect(distinctInitials(['test-lemon2', 'test-lemon'])).toEqual(['T2', 'Te']);
         expect(distinctInitials(['Room 1', 'Room 2', 'Lobby'])).toEqual(['R1', 'R2', 'L']);
@@ -40,7 +39,6 @@ describe('cloudTiles', () => {
         ]);
     });
 
-    // Two untitled clouds used to read "Un" and "Un", from the fallback label's own letters.
     it('numbers untitled clouds when there are several', () => {
         const tiles = cloudTiles(
             [{ id: '1', name: '#cloud/1001494/3' }, { id: '2', name: 'Studio' }, { id: '3' }],

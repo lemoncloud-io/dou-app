@@ -23,8 +23,6 @@ describe('systemMessageText', () => {
         });
     });
 
-    // The contract package gains subtypes ahead of this build ('reaction' is already
-    // in the server source). An unrecognised one must not print its key.
     it('falls back to the raw content for a subtype this build does not know', () => {
         const result = systemMessageText(
             systemChat({ subType: 'reaction' as DomainChat['subType'], content: 'Ada reacted' }),

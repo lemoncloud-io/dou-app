@@ -60,8 +60,6 @@ describe('RichText fenced code', () => {
 });
 
 describe('RichText inline code', () => {
-    // Monospace on a near-page tint alone read as plain text; the chip needs an edge and its own
-    // colour to stand apart from the sentence around it.
     it('sets an inline code span off with a border and its own text colour', () => {
         const code = renderText('run `npm ci` first').querySelector('code');
         expect(code?.textContent).toBe('npm ci');
@@ -90,7 +88,6 @@ describe('RichText marks', () => {
     const marked = (container: HTMLElement, selector: string) =>
         Array.from(container.querySelectorAll(selector)).map(node => node.textContent);
 
-    // The composer's B and I buttons together: the message has to read the way it was typed.
     it('shows a message sent bold and italic as both, with no asterisks left over', () => {
         const editor = createEditor({
             namespace: 'rich-text-spec',
@@ -152,7 +149,6 @@ describe('RichText quotes', () => {
         expect(quotes[0]?.textContent).toBe('one\ntwo');
     });
 
-    // The editor only reads `> ` as a quote, so the reader must not either: `>_<` is a face.
     it('leaves an emoticon that starts with > as text', () => {
         const container = renderText('좋아요\n>_< 고마워');
         expect(container.querySelector('span.block')).toBeNull();
@@ -161,7 +157,6 @@ describe('RichText quotes', () => {
 });
 
 describe('RichText mentions', () => {
-    // Both pill classes open with `rounded`, so tell them apart by their fill.
     const ordinary = (container: HTMLElement) => textsOf(container, 'bg-primary/10');
     const self = (container: HTMLElement) => textsOf(container, 'bg-warning/30');
     const pills = (container: HTMLElement) => [...ordinary(container), ...self(container)];

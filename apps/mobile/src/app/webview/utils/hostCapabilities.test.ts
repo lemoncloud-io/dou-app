@@ -1,6 +1,5 @@
 import { hostCapabilities } from './hostCapabilities';
 
-// Every key past checkout: this app does each one itself.
 const APP_DOES_IT = {
     media: 'shell',
     files: 'shell',

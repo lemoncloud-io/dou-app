@@ -14,8 +14,6 @@ describe('emojiNameKey', () => {
 });
 
 describe('emoji name tables', () => {
-    // A curated emoji with no name gets no hover hint. After adding to the curation, regenerate
-    // the tables with `yarn generate:emoji-names`.
     it.each([
         ['ko', ko],
         ['en', en],

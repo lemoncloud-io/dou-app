@@ -5,10 +5,6 @@ import { syncFileTransfers } from './transferSync';
 
 type Listener = (message: { data: OnFileTransferStatePayload }) => void;
 
-/**
- * A shell that answers each request type from a table and lets the test push transfer states.
- * An answer that is an Error is thrown, the way the bridge rejects.
- */
 const createShell = (answers: Record<string, unknown | ((data: any) => unknown)> = {}) => {
     const listeners: Listener[] = [];
     const requests: Array<{ type: string; data: any }> = [];
@@ -44,7 +40,6 @@ const file = new File(['abc'], 'a.jpg', { type: 'image/jpeg' });
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
-/** Waits until the sender has asked the shell for `type` — reading the file takes several turns. */
 const untilRequested = async (requests: Array<{ type: string }>, type: string) => {
     for (let i = 0; i < 200 && !requests.some(request => request.type === type); i++) await flush();
     if (!requests.some(request => request.type === type)) throw new Error(`${type} was never requested`);

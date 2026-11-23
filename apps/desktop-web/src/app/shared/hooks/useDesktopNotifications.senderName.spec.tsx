@@ -21,7 +21,6 @@ vi.mock('@chatic/runtime', async () => {
         },
         connection: { useRuntimeSocketState: () => ({ isVerified: false }) },
         session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
-        // Inside the desktop shell: the page can raise an OS banner.
         push: { ...browserPush(), localBanner: { present } },
     });
 });
@@ -65,8 +64,6 @@ beforeEach(() => {
     renderHook(() => useDesktopNotifications());
 });
 
-// The banner names a sender the way the feed does: their Place Profile nick wins over the message's
-// `owner$.name`, a snapshot the server took when the row was written that can carry another name.
 describe('banner sender name', () => {
     const banner = (): { title?: string; body?: string } =>
         (present.mock.calls[0]?.[0] as { title?: string; body?: string } | undefined) ?? {};

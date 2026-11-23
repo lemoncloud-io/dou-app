@@ -1,9 +1,5 @@
 import { getAppVersionInfo } from '../utils/getAppVersion';
 
-/**
- * Displays version information for both desktop and desktop-web.
- * Shows as a compact badge with full info on hover.
- */
 export const VersionInfo = ({ className = '' }: { className?: string }) => {
     const info = getAppVersionInfo();
 

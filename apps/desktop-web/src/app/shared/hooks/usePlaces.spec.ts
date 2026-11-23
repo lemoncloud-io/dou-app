@@ -19,7 +19,6 @@ vi.mock('@chatic/runtime', async () =>
 
 import { usePlaces } from './usePlaces';
 
-/** Emits `rows` from the cache, each stamped with the cloud they belong to. */
 const emit = (rows: Array<{ id: string; cid: string }>) =>
     mockObserveList.mockImplementation((_query: unknown, cb: (r: { list: unknown[] }) => void) => {
         cb({ list: rows });
@@ -33,8 +32,6 @@ describe('usePlaces', () => {
     });
 
     it("never hands out the previous cloud's rows, not even in the render where the cloud moves", () => {
-        // The new cloud's socket is already up with a background session per cloud, so a place
-        // auto-selected from a stale list would reach it at once.
         emit([{ id: 'a1', cid: 'cloud-A' }]);
         const seen: string[][] = [];
         const { rerender } = renderHook(() => {

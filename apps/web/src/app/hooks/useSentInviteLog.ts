@@ -4,23 +4,15 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { deviceStore } from '../storage';
 
-/** One remembered issuance: which invite id went to which recipient name. */
 interface SentInviteEntry {
     inviteId: string;
     name: string;
 }
 
-/** Keyed by the recipient's number in E.164 (`+821012345678`). */
 type SentInviteLogMap = Record<string, SentInviteEntry>;
 
-/**
- * `.v2` because `.v1` was keyed by local Korean digits, which collide across countries once invites
- * can go anywhere. There is no `persist` middleware here and no `migrate` hook, so bumping the key
- * was the migration: entries are a local convenience cache and simply lapsed.
- */
 const STORAGE_KEY = 'dou.relayInvite.sentLog.v2';
 
-/** A corrupt/tampered value degrades to an empty log rather than throwing. */
 const readStoredLog = (): SentInviteLogMap => {
     try {
         const raw = deviceStore.get(STORAGE_KEY);
@@ -41,7 +33,6 @@ const readStoredLog = (): SentInviteLogMap => {
     }
 };
 
-/** The device store: outlives the tab, and a full or blocked storage costs the entry, not the send. */
 const persistLog = (log: SentInviteLogMap): void => {
     deviceStore.set(STORAGE_KEY, JSON.stringify(log));
 };
@@ -51,11 +42,9 @@ interface SentInviteLogState {
     record: (invite: MyInviteView, input: { phone: string; name: string }) => void;
 }
 
-/** Exported only so tests can reset in-memory state between cases; product code uses the hook. */
 export const useSentInviteLogStore = create<SentInviteLogState>((set, get) => ({
     log: readStoredLog(),
     record: (invite, input) => {
-        // No id means no invite actually happened — nothing to remember.
         if (!invite.id) return;
         const next = { ...get().log, [input.phone]: { inviteId: invite.id, name: input.name } };
         set({ log: next });
@@ -63,33 +52,12 @@ export const useSentInviteLogStore = create<SentInviteLogState>((set, get) => ({
     },
 }));
 
-/**
- * Local memory of relay invites this device has issued, keyed by the recipient's E.164 number.
- *
- * Exists because the server view never carries the phone number in full — `MyInviteView` only
- * exposes a masked `last4` (ADR-0089) — so detecting "you already invited this number" and
- * labeling the waiting screen both need a client-side record of what was actually typed.
- * Persisted to localStorage rather than repositories: this is a small phone->invite lookup
- * with no offline/sync requirement, not a synced domain collection.
- *
- * Callers must key `record`/`findByPhone` with the same phone representation: E.164, via
- * `toE164`. Local forms would collide once invites can go to any country — `09012345678` is a
- * Japanese number and a Korean-shaped string at once — and the key is also what `findByInviteId`
- * hands back, so it has to carry the country too (ADR-0044 §6).
- */
 export const useSentInviteLog = () => {
     const log = useSentInviteLogStore(state => state.log);
     const record = useSentInviteLogStore(state => state.record);
 
     const findByPhone = (phone: string): SentInviteEntry | undefined => log[phone];
 
-    /**
-     * Reverse lookup for the waiting screen's "초대 다시 하기" (reissue): it only has the
-     * invite id (the route param — never the code, never the phone), so it needs the phone back
-     * to call `createInvite` again. Added after the roadmap's original two-method contract (see
-     * relay-dm-invite-parallel-roadmap.md Track B interface contract) — additive only, no
-     * existing call site changes shape.
-     */
     const findByInviteId = (inviteId: string): (SentInviteEntry & { phone: string }) | undefined => {
         const match = Object.entries(log).find(([, entry]) => entry.inviteId === inviteId);
         return match ? { phone: match[0], inviteId: match[1].inviteId, name: match[1].name } : undefined;

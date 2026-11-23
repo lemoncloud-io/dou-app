@@ -7,38 +7,20 @@ import { cn } from '@chatic/ui-kit';
 import { useSidebarSectionsStore } from '../stores';
 import { SortableList, type SortableItem } from './SortableList';
 
-/** A section row. Its `key` is `<section prefix>:<channel id>`. */
 export interface SectionItem extends SortableItem {
-    /** Stays visible while the section is folded: the open channel, or one with unread. */
     keepWhenCollapsed: boolean;
 }
 
 interface SortableSectionProps {
-    /** Persisted fold key (`useSidebarSectionsStore`). */
     id: string;
     title: string;
-    /** Trailing control in the header row (the Channels "+"). */
     action?: ReactNode;
     items: SectionItem[];
-    /** Line drawn under the heading while the section has no rows (hidden while folded). */
     emptyLabel?: string;
-    /** Rows are not draggable while the section is folded or the list is filtered —
-     *  a reordered subset would write a partial order. */
     dragDisabled?: boolean;
-    /** Called with the reordered item keys after a drag. Never on a plain click. */
     onReorder?: (orderedKeys: string[]) => void;
 }
 
-/**
- * Collapsible, drag-reorderable sidebar section (Figma: 16px semibold title · trailing chevron ·
- * optional action at the far end). An empty section says so in one line rather than leaving a
- * bare heading. One `DndContext` per section, so a cross-section drop is impossible by
- * construction (decided: cross-section drop would imply favorite semantics).
- *
- * Folding hides the quiet rows, not the ones asking for attention: like Slack, the open
- * channel and anything unread stay listed, so folding a busy section never hides that
- * something arrived. The fold is remembered across launches.
- */
 export const SortableSection = ({
     id,
     title,

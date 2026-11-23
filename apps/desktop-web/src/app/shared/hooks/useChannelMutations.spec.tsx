@@ -30,7 +30,6 @@ const renderHook = <T,>(hook: () => T) =>
             createElement(QueryClientProvider, { client: queryClient }, children),
     });
 
-/** A switch in flight, registered the way the runtime's switch mutations register one. */
 const startSwitch = (mutationKey: string[]) => {
     let settle: () => void = () => undefined;
     const done = new Promise<void>(resolve => (settle = resolve));
@@ -52,9 +51,6 @@ const startSwitch = (mutationKey: string[]) => {
     };
 };
 
-// The create names no place, so the server files the channel under the place the session is in. A
-// switch shows the new place before the session has moved there: a create sent then went into the
-// place being left, and the list it was made from never showed it.
 describe('useDesktopChannelMutations createChannel', () => {
     beforeEach(() => {
         queryClient = new QueryClient();

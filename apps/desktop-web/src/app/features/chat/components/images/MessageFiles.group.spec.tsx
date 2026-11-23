@@ -40,7 +40,6 @@ const voice = (id: string, name: string) => ({
     orgUrl: `https://s/${id}`,
 });
 
-// jsdom implements no playback; a voice card's player is paused when it unmounts.
 vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
 
 const savedNames = () => vi.mocked(downloadImages).mock.calls.flatMap(([files]) => files.map(file => file.name));
@@ -115,8 +114,6 @@ describe('a message with several files', () => {
         fireEvent.click(toggle);
         expect(toggle.getAttribute('aria-expanded')).toBe('false');
         expect(screen.queryByRole('list')).toBeNull();
-        // jsdom applies no stylesheet: a display utility on the folded list would beat `[hidden]` and
-        // keep it on screen, so the folded list must carry none.
         const folded = document.getElementById(toggle.getAttribute('aria-controls') ?? '') as HTMLElement;
         expect(folded.hidden).toBe(true);
         expect(folded.classList.contains('flex')).toBe(false);

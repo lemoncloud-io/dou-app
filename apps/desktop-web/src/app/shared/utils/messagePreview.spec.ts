@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-// Initialises i18next, so the photo labels read as the reader sees them.
 import '../../../i18n';
 
 import { messagePreview, outgoingMessagePreview } from './messagePreview';
@@ -10,15 +9,12 @@ describe('messagePreview', () => {
         expect(messagePreview({ content: '**hi** there', uploadIds: ['u1'] })).toBe('hi there');
     });
 
-    // A deleted message is quoted as deleted: a server that records deletes empties the body (a blank
-    // line), and an older one keeps it (the words the author took back).
     it('reads as deleted for a deleted message, with or without its body', () => {
         expect(messagePreview({ content: '', hidden: true })).toBe('Message deleted');
         expect(messagePreview({ content: 'kept', hidden: true })).toBe('Message deleted');
         expect(messagePreview({ content: '', uploadIds: ['u1'], hidden: true })).toBe('Message deleted');
     });
 
-    // An image message has no text; its OS banner read "Raine:" with nothing after it.
     it('names a single photo', () => {
         expect(messagePreview({ content: '', uploadIds: ['u1'] })).toBe('Photo');
     });
@@ -53,13 +49,11 @@ describe('messagePreview', () => {
         expect(messagePreview({ content: '', upload$$: pending })).toBe('2 voice files');
     });
 
-    // A server that stores audio under `file` still says what the file is in its type and name.
     it('names a voice file stored as a document', () => {
         const upload$$ = [{ id: 'a', stereo: 'file', name: 'memo.m4a', contentType: 'audio/mp4' }] as never;
         expect(messagePreview({ content: '', upload$$ })).toBe('Voice file');
     });
 
-    // The feed draws an upload it cannot tell is audio as a plain file card, so the line does not say voice.
     it('does not call an upload voice from its stored kind alone', () => {
         expect(messagePreview({ content: '', upload$$: [{ id: 'a', stereo: 'audio' }] as never })).toBe('Attachment');
     });

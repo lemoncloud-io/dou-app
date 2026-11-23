@@ -4,11 +4,6 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 import type { AppBackgroundStatus, WebMessageData } from '@chatic/bridge-messages';
 import { logger } from '../../services';
 
-/**
- * Hook responsible for detecting the app's state (Foreground/Background) and pushing it to the
- * WebView as `OnBackgroundStatusChanged`. It also handles dismissing the background-resume screen
- * overlay (DismissResumeOverlay).
- */
 export const useAppStateHandler = (bridge: IAppBridgeHost | null, onDismissOverlay?: () => void) => {
     const { appState, isForeground, isBackground } = useAppState();
 

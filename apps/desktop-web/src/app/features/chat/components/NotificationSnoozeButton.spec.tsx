@@ -19,7 +19,6 @@ const QUIET = { start: '22:00', end: '07:00' };
 describe('NotificationSnoozeButton', () => {
     beforeEach(() => {
         cleanup();
-        // Inside the quiet-hours window below.
         vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
         vi.setSystemTime(new Date(2026, 9, 14, 23, 0));
         useNotificationPrefsStore.setState({ snoozeUntil: null, quietHours: null, mentionBreaksQuietHours: false });
@@ -49,7 +48,6 @@ describe('NotificationSnoozeButton', () => {
         expect(label()).toBe(i18next.t('snooze.activeQuietMention'));
     });
 
-    // A snooze is never broken through, so its label wins over the breakthrough's.
     it('names the snooze end over the breakthrough while snoozed', () => {
         useNotificationPrefsStore.setState({
             snoozeUntil: new Date(2026, 9, 15, 0, 30).getTime(),
@@ -61,7 +59,6 @@ describe('NotificationSnoozeButton', () => {
         expect(label()).not.toBe(i18next.t('snooze.activeQuiet'));
     });
 
-    // An expired snooze is over: with quiet hours on, the quiet label shows — never a past time.
     it('never shows a past snooze time once quiet hours carry the silence', () => {
         useNotificationPrefsStore.setState({
             snoozeUntil: new Date(2026, 9, 14, 22, 0).getTime(),
@@ -72,8 +69,6 @@ describe('NotificationSnoozeButton', () => {
     });
 
     const openMenu = async () => {
-        // Radix opens the menu on Enter with the trigger focused; a bare click
-        // never reaches it in jsdom. Real timers: the portal mounts async.
         vi.useRealTimers();
         const trigger = screen.getByRole('button');
         trigger.focus();

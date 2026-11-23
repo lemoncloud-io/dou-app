@@ -29,7 +29,6 @@ describe('placeMemberPeers', () => {
         expect(peersIn(channels, 'place-a')).toEqual([{ peerId: 'p2', channelId: 'g1' }]);
     });
 
-    // A 1:1 belongs to the place it was opened in; the one in another place is a different room.
     it('still offers someone whose only 1:1 with me is in another place', () => {
         const channels = [group('g1', 'place-a', [ME, 'p1']), dm('place-b@me@p1', 'p1', 'place-b')];
 

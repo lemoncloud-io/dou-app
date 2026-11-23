@@ -6,8 +6,6 @@ const IOS_ID = '6E1C3B0A-9D2F-4C8E-B7A1-2F5D8E3C4B6A';
 const ANDROID_ID = '9f2c4e6a8b1d3f57';
 
 describe('deriveSubWebViewUserKey', () => {
-    // A page's server keeps data under these, so a change to the derivation — the label, the
-    // separator, the encoding, a library upgrade — must fail here before it orphans that data.
     it.each([
         [IOS_ID, 'https://foo.apps.chatic.io', '94625916a1487ec3cc48ac5765ee34f37cd31f5b7db20403d0fefc184344508f'],
         [

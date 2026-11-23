@@ -32,9 +32,7 @@ import { useSmoothProgress, useVoicePlayback } from './voicePlayback';
 import { useWaveform } from './voiceWaveform';
 import { Hint } from '../../../../shared';
 
-/** How far the arrow keys and the skip buttons move. */
 const SKIP_SECONDS = 15;
-/** A hint over an icon button waits this long, so a pointer passing over the row opens none. */
 const HINT_DELAY = 500;
 const BAR_COUNT = 48;
 
@@ -45,14 +43,10 @@ export interface VoiceDetailDialogProps {
     author: ImageAuthor;
     onClose: () => void;
     onSave: () => void;
-    /** Closes the dialog and takes the feed to the message the file came with. */
     onShowInChat?: () => void;
     onReply?: () => void;
-    /** Copies a link to the message the file came with; the dialog stays open. */
     onCopyLink?: () => void;
-    /** Closes the dialog and opens the channel picker to send the file again elsewhere. */
     onForward?: () => void;
-    /** Asks to delete the message the file came with. Absent where the reader cannot delete it. */
     onDelete?: () => void;
 }
 
@@ -61,17 +55,6 @@ const HEADER_BUTTON =
 const ROUND_BUTTON =
     'focus-ring tactile flex h-10 w-10 items-center justify-center rounded-full text-foreground transition-colors ease-tactile hover:bg-foreground/[0.08]';
 
-/**
- * A voice file at full size (Figma "음성 파일 · 데스크탑 ⑦⑧"): who sent it and when, a bar pattern that
- * fills as it plays, the seek bar with the time played and the time left, the speed, fifteen seconds
- * back and forward, and play. It drives the same player as the card in the feed, so it opens where the
- * card is and the card follows what is done here.
- *
- * Space plays and pauses, ←/→ move fifteen seconds and Esc closes, wherever focus is inside — a focused
- * button does not also take the Space as a click. The bars are the file's own waveform, fetched and
- * decoded once it opens; until then, and for a file the browser cannot decode, a pattern drawn from the
- * name stands in, so the dialog never waits on the decode to play.
- */
 export const VoiceDetailDialog = ({
     src,
     name,
@@ -86,7 +69,6 @@ export const VoiceDetailDialog = ({
     onDelete,
 }: VoiceDetailDialogProps) => {
     const { t } = useTranslation();
-    // Every action that leaves the dialog — to the feed, a thread, a confirm — closes it first.
     const thenClose = (action: () => void) => () => {
         onClose();
         action();
@@ -101,7 +83,6 @@ export const VoiceDetailDialog = ({
     const max = duration || 1;
     const position = duration ? Math.min(time, duration) : 0;
     const played = duration ? position / duration : 0;
-    // The waveform's fill and the seek bar read `--seek-progress` from here, moved every frame while it plays.
     const progressRef = useSmoothProgress<HTMLDivElement>(src, playing, played);
     const remaining = duration === undefined ? undefined : `-${formatPlaybackTime(duration - position)}`;
     const meta = [
@@ -113,13 +94,11 @@ export const VoiceDetailDialog = ({
         .join(' · ');
 
     const onKeyDown = (event: KeyboardEvent) => {
-        // The menu has its own keys while it is open.
         if ((event.target as HTMLElement).closest('[role="menu"]')) return;
         if (event.key === ' ') voice.toggle();
         else if (event.key === 'ArrowRight') voice.skip(SKIP_SECONDS);
         else if (event.key === 'ArrowLeft') voice.skip(-SKIP_SECONDS);
         else return;
-        // Space would also click a focused button, and the arrows would also move the seek bar a step.
         event.preventDefault();
     };
 
@@ -131,9 +110,6 @@ export const VoiceDetailDialog = ({
                 variant="bare"
                 hideClose
                 overlayClassName="bg-overlay/50"
-                // Focus lands on the dialog itself, not a control: every control here carries a hint, and
-                // focus moved from the button that opened the dialog opens it, which then takes the first
-                // Esc for itself. The keys work from here; Tab reaches the controls.
                 onOpenAutoFocus={event => {
                     event.preventDefault();
                     contentRef.current?.focus();
@@ -232,8 +208,6 @@ export const VoiceDetailDialog = ({
                 </header>
 
                 <div ref={progressRef} className="flex flex-col items-center gap-6 px-8 pb-6 pt-10">
-                    {/* Drawn twice, the played copy clipped to the progress: the fill moves through a bar
-                        rather than turning whole bars over one at a time. */}
                     <div aria-hidden className="relative h-[88px]">
                         <WaveBars bars={bars} className="bg-foreground/20" />
                         <div className="absolute inset-0 [clip-path:inset(0_calc(100%-var(--seek-progress,0%))_0_0)]">
@@ -312,7 +286,6 @@ export const VoiceDetailDialog = ({
                         >
                             <RotateCw size={20} aria-hidden />
                         </button>
-                        {/* Balances the speed button, so play sits in the middle. */}
                         <span aria-hidden className="h-10 min-w-10" />
                     </div>
                     <p className="text-micro text-description">
@@ -324,7 +297,6 @@ export const VoiceDetailDialog = ({
     );
 };
 
-/** Header hints open below their button: above, they would leave the dialog's top edge. */
 const HeaderHint = ({ label, children }: { label: string; children: ReactElement }) => (
     <Hint label={label} side="bottom" delayDuration={HINT_DELAY}>
         {children}
@@ -339,10 +311,6 @@ const WaveBars = ({ bars, className }: { bars: number[]; className: string }) =>
     </div>
 );
 
-/**
- * A fixed pattern of bar heights (percent) for a name: the same file always draws the same bars, and
- * two files side by side do not look alike. A small string hash seeds a sine mix, tapered at both ends.
- */
 const barHeights = (seed: string): number[] => {
     let hash = 0;
     for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) | 0;

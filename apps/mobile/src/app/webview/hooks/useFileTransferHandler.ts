@@ -11,8 +11,6 @@ export const useFileTransferHandler = (bridge: IAppBridgeHost) => {
         [bridge, logger]
     );
 
-    // State events reach the WebView only while the router is mounted; anything missed meanwhile
-    // stays in the native registry and is read back with ListFileTransfers.
     useEffect(() => handlers.relayStateEvents(), [handlers]);
 
     return handlers;

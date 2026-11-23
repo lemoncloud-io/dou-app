@@ -8,7 +8,6 @@ vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
             getRelaySessionUser: () => state.relayUser,
-            // The user of the cloud the session is in. The rule must not read it.
             getActiveSessionUser: () => ({ userRole: 'admin', email: 'developer@lemoncloud.io' }),
         },
     })
@@ -54,12 +53,10 @@ describe('readPlaceManageAccess', () => {
         vi.stubEnv('VITE_ENV', buildStage);
         state.relayUser = { userRole: 'user', email: 'developer@lemoncloud.io' };
         expect(readPlaceManageAccess()).toBe(true);
-        // The shape the development server's token has: the address under `loginId`, no `email`.
         state.relayUser = { userRole: 'user', loginId: 'app@lemoncloud.io' };
         expect(readPlaceManageAccess()).toBe(true);
     });
 
-    // An unset or misspelt stage is the case that matters: it must not read as a development build.
     it.each(['PROD', '', 'STAGING'])('ignores the email list when the build stage is %j', buildStage => {
         vi.stubEnv('VITE_ENV', buildStage);
         state.relayUser = { userRole: 'user', email: 'developer@lemoncloud.io' };

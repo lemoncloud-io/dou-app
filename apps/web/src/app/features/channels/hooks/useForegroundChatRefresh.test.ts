@@ -20,7 +20,6 @@ jest.mock('@chatic/runtime', () =>
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-// Capture the foreground handler so tests can fire the signal directly.
 jest.mock('../../../bridge', () => ({ useAppForeground: jest.fn() }));
 
 import { runtime } from '@chatic/runtime';
@@ -49,7 +48,6 @@ const setCachedChats = (chatNos: number[]) =>
 const setSelectedCloud = (cid: string) =>
     (runtime.session.getGlobalSessionContext as jest.Mock).mockReturnValue({ cloud: { cloudId: cid } });
 
-// The latest registered foreground handler (useAppForeground keeps handlers fresh via ref).
 const fireForeground = async () => {
     const handler = mockUseAppForeground.mock.calls.at(-1)?.[0];
     await act(async () => {
@@ -126,7 +124,7 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
         await act(async () => {
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
-        expect(fetchRoomFeed).not.toHaveBeenCalled(); // entry is gated, so it doesn't run here
+        expect(fetchRoomFeed).not.toHaveBeenCalled();
 
         await fireForeground();
 
@@ -141,7 +139,6 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
             renderHook(() => useForegroundChatRefresh('ch-1'));
         });
 
-        // Reaching here without an unhandled rejection is the assertion.
         expect(fetchRoomFeed).toHaveBeenCalledTimes(1);
     });
 
@@ -158,7 +155,6 @@ describe('useForegroundChatRefresh — 포그라운드/진입 시 채팅 갭 보
 
     it('does not push a baseline or fetch when the selection left the cloud during the cache read', async () => {
         cacheReadList.mockImplementation(async () => {
-            // The switch lands while the read is in flight.
             setSelectedCloud('cloud-b');
             return { list: [{ chatNo: 7 }] };
         });
@@ -188,7 +184,6 @@ describe('useForegroundChatRefresh — chat_room_sync phases', () => {
         return trace;
     };
 
-    // The fetch phases and the trace's failure ending are fetchRoomFeed's (the runtime's), tested there.
     it('marks verified when the entry effect runs', async () => {
         setCachedChats([3, 7]);
         const trace = beginSync();

@@ -2,11 +2,6 @@ import type { DomainChannel } from '@chatic/runtime';
 
 import { listingPlaces } from './roomPlaces';
 
-/**
- * A cloud's channels grouped by the places that list them: a group channel and a cloud 1:1 under
- * their own place, my notes-to-self room under each place `filedPlaces` gives it. The quick
- * switcher's index is filed this way, so it offers a room only where the sidebar lists it.
- */
 export const channelsByPlace = (
     channels: readonly DomainChannel[],
     filedPlaces: ReadonlyMap<string, readonly string[]>

@@ -10,11 +10,6 @@ const MINSU: MentionCandidate = { id: 'u2', label: 'Minsu' };
 const RAIN: MentionCandidate = { id: 'u3', label: '레인' };
 const CANDIDATES = [EVERYONE, MINSU, RAIN];
 
-/**
- * A real textarea standing in for the composer's field. The page's field is controlled, so its value
- * is written from the hook's text on every render, before the layout effects place the caret — the
- * order React commits a controlled field in.
- */
 const setup = ({ enabled = true, scope = 'room-1' } = {}) => {
     const field = document.createElement('textarea');
     document.body.appendChild(field);
@@ -35,14 +30,12 @@ const setup = ({ enabled = true, scope = 'room-1' } = {}) => {
         },
         { initialProps: { scope } }
     );
-    /** Types `value` with the caret left at its end, as a keystroke does. */
     const type = (value: string) =>
         act(() => {
             field.value = value;
             field.setSelectionRange(value.length, value.length);
             hook.result.current.onChange(value);
         });
-    /** Moves the caret without typing — a tap in the text. */
     const tapAt = (caret: number) =>
         act(() => {
             field.setSelectionRange(caret, caret);
@@ -75,7 +68,6 @@ describe('useMentionComposer', () => {
             expect(ids()).toEqual([]);
         });
 
-        // A 1:1 or a self chat has no list at all, even for a bare @.
         it('lists nothing when switched off', () => {
             const { result, type, ids } = setup({ enabled: false });
 
@@ -84,7 +76,6 @@ describe('useMentionComposer', () => {
             expect(result.current.content).toBe('@');
         });
 
-        // A tap moves the caret without a change; the list goes where the caret went.
         it('follows the caret into an @ word and out of it', () => {
             const { type, tapAt, ids } = setup();
 
@@ -121,7 +112,6 @@ describe('useMentionComposer', () => {
             expect(field.selectionStart).toBe(10);
         });
 
-        // With the caret inside `@Mi|nsu`, the rest of the word must not be left behind.
         it('replaces the whole @ word the caret is in', () => {
             const { result, type, tapAt } = setup();
 
@@ -132,7 +122,6 @@ describe('useMentionComposer', () => {
             expect(result.current.content).toBe('@Minsu ');
         });
 
-        // The list was opened on an earlier `@`; the caret has since gone somewhere with no `@` at all.
         it('writes nothing when the caret is no longer in an @ word', () => {
             const { result, field, type, ids } = setup();
 
@@ -162,14 +151,12 @@ describe('useMentionComposer', () => {
             const text = result.current.content.trim();
 
             expect(result.current.mentionFor(text)).toEqual({ userIds: ['u2'], all: true });
-            // Reading is not sending: a press that sent nothing leaves the picks in place.
             expect(result.current.mentionFor(text)).toEqual({ userIds: ['u2'], all: true });
 
             act(() => result.current.clearPicks());
             expect(result.current.mentionFor(text)).toBeUndefined();
         });
 
-        // A caption whose photos were all refused comes back to the field; its names mean the same people.
         it('puts the cleared picks back for a text that came back unsent', () => {
             const { result, type } = setup();
 
@@ -181,7 +168,6 @@ describe('useMentionComposer', () => {
             expect(result.current.mentionFor('@Minsu hello')).toEqual({ userIds: ['u2'] });
         });
 
-        // A chat app's mention goes in one keystroke; half a name would call nobody.
         it('deletes the whole picked name on a backspace at its end, and forgets the pick', () => {
             const { result, field, type } = setup();
 
@@ -215,7 +201,6 @@ describe('useMentionComposer', () => {
             expect(result.current.mentionFor('@Minsu typed again by hand')).toBeUndefined();
         });
 
-        // A draft stays with its conversation; who its names meant does not follow the user elsewhere.
         it('forgets its picks when the conversation changes', () => {
             const { result, type, rerender } = setup();
 

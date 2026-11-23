@@ -4,11 +4,6 @@ import { runtime, isPendingUploadSlot } from '@chatic/runtime';
 
 import type { AudioTrack } from '../stores/roomAudioStore';
 
-/**
- * Reads a track's message again and returns the signed address the server now gives its upload — for
- * a file that failed to play because its address expired. `undefined` when the read fails or the slot
- * has no address.
- */
 export const useFreshAudioAddress = () =>
     useCallback(async (track: AudioTrack): Promise<string | undefined> => {
         try {

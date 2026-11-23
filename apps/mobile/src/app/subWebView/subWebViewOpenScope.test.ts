@@ -3,15 +3,8 @@ import type { RefObject } from 'react';
 import type { WebView } from 'react-native-webview';
 import { JsonProtocol } from '@chatic/bridges';
 
-// The boundary keeps sub WebView code from reaching the main WebView at run time. This is a test of
-// the main WebView's handshake filed with the sub WebView tests; nothing here ships, so nothing couples.
 // eslint-disable-next-line no-restricted-imports -- a test file, no runtime import (see above)
 import { useAppBridgeHost } from '../webview/hooks/useBaseBridge';
-
-/**
- * The main WebView's handshake is what the web reads before it offers an owner's own link: the web
- * ships before the shell, so it shows the control only where the shell says it opens any https site.
- */
 
 jest.mock('../services/cache/cacheDomainVersions', () => ({
     resolveCacheDomainVersions: jest.fn(async () => ({})),

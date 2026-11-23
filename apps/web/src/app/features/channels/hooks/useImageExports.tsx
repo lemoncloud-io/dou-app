@@ -24,53 +24,26 @@ import {
     type MediaExportToast,
 } from '../lib/imageExport';
 
-/** One photo or video the viewer can save or share. */
 export interface ExportableMedia {
-    /** The upload's id — what a refreshed message is searched for, and what keys the busy state. */
     uploadId: string;
-    /** Its signed original address. Only `https:` can be fetched by the shell. */
     url: string | undefined;
-    /** The name it was sent under, as a hint for the file the shell writes. */
     name?: string;
     kind: ExportMediaKind;
-    /** The viewer could not draw it. Its buttons are off and "save all" leaves it out. */
     broken?: boolean;
-    /**
-     * The message it came from, when it is not the hook's own — the room's file list mixes messages —
-     * so an expired address is signed again through the right one.
-     */
     chatId?: string;
 }
 
 export interface MediaExportBusy {
     action: MediaExportAction;
-    /** `0`..`1` once the download's length is known. */
     progress: number | null;
-    /** Set while a "save all" runs: the item being saved (1-based) of how many. */
     step?: { current: number; total: number };
 }
 
-/** A local preview (`blob:`) or a `data:` address lives only in the page; the shell cannot fetch it. */
 export const isExportableUrl = (url: string | undefined): url is string => !!url && url.startsWith('https:');
 
-/** Sent and drawn: the item can be saved or shared right now. */
 const isReady = (item: ExportableMedia): item is ExportableMedia & { url: string } =>
     isExportableUrl(item.url) && !item.broken;
 
-/**
- * Save and share for the photos and videos of one message, kept per upload so the state survives
- * swiping between pages. Catching up after the page was away is not done here but once for the page
- * (`useShellDownloadCatchUp`). A single save keeps going after the viewer closes and reports when
- * done; a share is cancelled on close — and when the row itself goes away — so its sheet never
- * appears over whatever the user went to next; a "save all" finishes the item it is on and stops.
- *
- * Photos and videos alike follow the handshake inside the app. Where the page moves files (the host's
- * `files` port has no app transfer module) the page fetches the original itself and hands it to the
- * browser — a download for save, the Web Share sheet for share, offered only where the browser shares
- * files (`canShare`).
- * "Save all" stays an app feature (`canSaveAll`): a browser asks before letting a page start several
- * downloads, and a run of them reads as a pile of prompts.
- */
 export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string }) => {
     const { t } = useTranslation();
     const shellExports = useCanExportImages();
@@ -81,12 +54,9 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
     const [busy, setBusy] = useState<ReadonlyMap<string, MediaExportBusy>>(() => new Map());
     const shares = useRef(new Set<AbortController>());
     const runs = useRef(new Set<AbortController>());
-    // Busy state reaches the buttons a render later; two taps inside one frame must not start two.
     const running = useRef(new Set<string>());
-    // Bytes a browser share fetched and could not hand over in time, by upload: the next press shares them.
     const held = useRef(new Map<string, Blob>());
 
-    /** Sets the busy state of several uploads in one render. */
     const mark = useCallback((uploadIds: readonly string[], value: MediaExportBusy | null) => {
         setBusy(previous => {
             const next = new Map(previous);
@@ -98,20 +68,17 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         });
     }, []);
 
-    /** Reads the message again for the item's fresh address. */
     const freshUrlOf = useCallback(
         async (item: ExportableMedia): Promise<string | undefined> => {
             const from = item.chatId ?? chatId;
             if (!from) return undefined;
             const chat: DomainChat = await runtime.data.getCloudRepositories(cid).chat.getChat({ id: from });
             const slot = chat.upload$$?.find(entry => !isPendingUploadSlot(entry) && entry.id === item.uploadId);
-            // The same address the viewer opens: the original, or the thumbnail when there is none.
             return slot && !isPendingUploadSlot(slot) ? (slot.orgUrl ?? slot.thumbUrl ?? undefined) : undefined;
         },
         [cid, chatId]
     );
 
-    /** The shell and the data layer, for one item. */
     const depsFor = useCallback(
         (item: ExportableMedia): MediaExportDeps => {
             const downloads = getShellDownloads();
@@ -127,7 +94,6 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         [freshUrlOf]
     );
 
-    /** The page's own fetch, save and share, for one item in a browser tab. */
     const browserDepsFor = useCallback(
         (item: ExportableMedia): BrowserMediaDeps => ({
             fetch: (url, options) => fetchInBrowser(url, options),
@@ -159,7 +125,6 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         [t]
     );
 
-    /** Speaks for a browser save or share. A download and a share sheet are their own feedback. */
     const showBrowser = useCallback(
         (outcome: BrowserMediaOutcome, kind: ExportableMedia['kind']) => {
             if (outcome.kind === 'needs-gesture') toast({ title: t('chat.attach.browserShare.again') });
@@ -175,7 +140,6 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
 
     const runInBrowser = useCallback(
         async (action: MediaExportAction, item: ExportableMedia & { url: string }, signal: AbortSignal) => {
-            // Bytes a share could not hand over in time serve a save as well as the next share.
             const kept = held.current.get(item.uploadId);
             held.current.delete(item.uploadId);
             const outcome = await exportMediaInBrowser(
@@ -238,18 +202,8 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         [canShare, depsFor, inBrowser, mark, runInBrowser, show, showBrowser]
     );
 
-    /**
-     * What a "save all" over these items would save now, in their order: sent and not broken. Its
-     * length is the count the save sheet offers.
-     */
     const savable = useCallback((items: readonly ExportableMedia[]) => items.filter(isReady), []);
 
-    /**
-     * Saves every savable item of the message, one after another, and reports once at the end. An
-     * item already being saved or shared is left to that operation. Every item of the run is busy
-     * meanwhile, so neither button can start a second operation on any of them; the progress runs
-     * across the whole set, with the position of the item being saved.
-     */
     const runAll = useCallback(
         async (items: readonly ExportableMedia[]) => {
             const queue = items.filter(
@@ -258,9 +212,6 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
             );
             if (queue.length === 0) return;
             if (inBrowser) {
-                // The room's file list saves a selection: each in turn, as the viewer's button does,
-                // and one toast when any of them could not be saved. Leaving the list finishes the item
-                // under way — a save carries on — and starts no more, as the app's save all does.
                 const controller = new AbortController();
                 runs.current.add(controller);
                 let failed = 0;
@@ -300,10 +251,6 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         [depsFor, inBrowser, mark, runInBrowser, show, showBrowser]
     );
 
-    /**
-     * The viewer closed: stop any share still downloading, and let a "save all" finish the item it is
-     * on and go no further. A single save carries on.
-     */
     const stopOnClose = useCallback(() => {
         for (const controller of shares.current) controller.abort();
         shares.current.clear();
@@ -311,7 +258,6 @@ export const useImageExports = ({ cid, chatId }: { cid: string; chatId?: string 
         held.current.clear();
     }, []);
 
-    // The row can go without the viewer closing first — a push tap or a deep link leaves the room.
     useEffect(() => stopOnClose, [stopOnClose]);
 
     return {

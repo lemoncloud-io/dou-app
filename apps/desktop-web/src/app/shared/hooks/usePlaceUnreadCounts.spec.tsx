@@ -14,12 +14,8 @@ const channelMocks = {
 type MessageHandler = (message: unknown) => void;
 type PushListener = (payload: unknown) => void;
 
-// The desktop shell's notifications; every listener a hook subscribed is in its calls until the next
-// clearAllMocks, as the bridge's own handlers were.
 const notifications = vi.hoisted(() => ({ onReceive: vi.fn((_listener: PushListener) => () => undefined) }));
 
-// `onServerMessage` hears every frame on the active slot; the runtime keeps it attached across
-// reconnects, so the mock just keeps the latest listener.
 const connectionMocks = {
     onMessageHandler: null as MessageHandler | null,
     onServerMessage: vi.fn((handler: MessageHandler) => {
@@ -44,14 +40,11 @@ vi.mock('@chatic/runtime', async () => {
     });
 });
 
-// One array for every render, as the real hook gives: a fresh one would rebuild the counts on each
-// render and hide a missing dependency.
 vi.mock('./usePlaces', () => {
     const placeIds: string[] = [];
     return { usePlaces: () => ({ placeIds }) };
 });
 
-// The live-read registry is module state; the hook under test only reads it.
 const liveIds = vi.hoisted(() => new Set<string>());
 vi.mock('./liveReadRegistry', () => ({
     isChannelReadLive: (channelId: string) => liveIds.has(channelId),
@@ -81,7 +74,6 @@ const advanceDebounce = async () => {
     });
 };
 
-// jsdom reports no focus; the skip under test needs a focused, visible window.
 const focusWindow = () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
@@ -102,7 +94,6 @@ describe('usePlaceUnreadCounts live-read skip', () => {
 
     const renderCounts = () => {
         const hook = renderHook(() => usePlaceUnreadCounts());
-        // Mount fires the verify-edge fetch; each case starts past it.
         channelMocks.fetchList.mockClear();
         return hook;
     };
@@ -263,8 +254,6 @@ describe('usePlaceUnreadCounts mentions', () => {
         expect(channelMocks.fetchList).not.toHaveBeenCalled();
     });
 
-    // The channel list is a debounced fetch: a mention captured first counts once the
-    // list arrives with its unread, not before.
     it('counts the mention once the channel list arrives after it', async () => {
         channelMocks.fetchList.mockResolvedValue({ list: [] });
         const { result } = renderHook(() => usePlaceUnreadCounts());

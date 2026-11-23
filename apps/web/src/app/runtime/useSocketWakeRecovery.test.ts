@@ -11,8 +11,6 @@ jest.mock('@chatic/runtime', () => ({
     },
 }));
 
-// Capture the foreground handler instead of simulating the bridge/visibility sources — those merge
-// rules are useAppVisibility/useAppForeground's own tested contract.
 const foregroundHandlers: Array<() => void> = [];
 jest.mock('../bridge', () => ({
     useAppForeground: (handler: () => void) => {

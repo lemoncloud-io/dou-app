@@ -5,11 +5,9 @@ import { act, renderHook } from '@testing-library/react';
 import type * as UtilsModule from '../utils';
 
 let pushHandler: ((payload: unknown) => void) | null = null;
-// The server the session is on; a test moves it into a cloud.
 let activeServer: { kind: 'relay' } | { kind: 'cloud'; cloudId: string } = { kind: 'relay' };
 let isVerified = false;
 
-// The desktop shell's push port, handing the page its notifications.
 vi.mock('@chatic/runtime', async () => {
     const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
     return fakeRuntimeModule({
@@ -59,7 +57,6 @@ describe('useCrossCloudPushBadge', () => {
         expect(badged()).toEqual({ 'cloud-2': true });
     });
 
-    // The Home tile is keyed `'default'`; a relay push's `'#'` dotted no tile at all.
     it("dots the Home tile for a relay push's '#' while a cloud is open", () => {
         activeServer = { kind: 'cloud', cloudId: 'cloud-9' };
         renderHook(() => useCrossCloudPushBadge());

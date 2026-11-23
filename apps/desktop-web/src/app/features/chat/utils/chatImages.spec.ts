@@ -16,7 +16,6 @@ import {
 const file = (name: string, type = 'image/png', size = 10) => ({ name, type, size, lastModified: 1 });
 const image = (i: number): ChatImage => ({ id: `i${i}`, name: `${i}.png`, url: `blob:${i}` });
 
-/** The refusals counted by reason, as these cases were first written against. */
 const validate = (...args: Parameters<typeof validateAttachments>) => {
     const result = validateAttachments(...args);
     const rejected: Partial<Record<string, number>> = {};
@@ -60,7 +59,6 @@ describe('validateAttachments', () => {
         expect(result.rejected).toEqual({});
     });
 
-    // macOS types a voice memo `audio/x-m4a`; each goes as a document the receiver saves.
     it('takes audio files as documents, in each format the server keeps', () => {
         const result = validate(
             [],
@@ -75,14 +73,12 @@ describe('validateAttachments', () => {
         expect(result.rejected).toEqual({});
     });
 
-    // The server keeps no AAC or WebM audio, so those are refused before an upload can fail.
     it('refuses audio in a format the server does not keep', () => {
         const result = validate([], [file('clip.aac', 'audio/aac'), file('voice.webm', 'audio/webm')]);
         expect(result.accepted).toEqual([]);
         expect(result.rejected).toEqual({ unsupported: 2 });
     });
 
-    // Chromium on Windows types a `.zip` as `application/x-zip-compressed`.
     it('takes a ZIP archive, however the system typed it', () => {
         const result = validate(
             [],
@@ -92,7 +88,6 @@ describe('validateAttachments', () => {
         expect(result.rejected).toEqual({});
     });
 
-    // The server refuses these with a 413 after the whole transfer; the tray says so before it starts.
     it('refuses a file over its kind’s limit', () => {
         const MiB = 1024 * 1024;
         const result = validate(
@@ -117,7 +112,6 @@ describe('validateAttachments', () => {
         expect(result.rejected).toEqual({ 'too-large': 1 });
     });
 
-    // The server refuses a name over 255 UTF-8 bytes with a 400; a retry can only fail the same way.
     describe('a name over the server’s byte limit', () => {
         it('refuses a long Hangul name that fits in characters', () => {
             const name = `${'가'.repeat(84)}.png`;
@@ -144,7 +138,6 @@ describe('validateAttachments', () => {
             expect(result.rejected).toEqual({ 'name-too-long': 3 });
         });
 
-        // The name that goes up carries the extension a document without one is given.
         it('measures the name as it is sent, with an added extension', () => {
             const pdf = (name: string) => file(name, 'application/pdf');
             expect(validate([], [pdf('a'.repeat(251))]).rejected).toEqual({});
@@ -164,7 +157,6 @@ describe('validateAttachments', () => {
         });
     });
 
-    // A re-pick of a file already in the tray, and the same file twice in one drop.
     it('refuses duplicates against the tray and within the batch', () => {
         const a = file('a.png');
         expect(validate([attachmentKey(a)], [a]).rejected).toEqual({ duplicate: 1 });
@@ -193,7 +185,6 @@ describe('validateAttachments', () => {
         expect(result.rejected).toEqual({ limit: 2 });
     });
 
-    // Only the first refusal used to be reported, so a mixed drop hid the rest of what it left out.
     it('counts every refusal by reason', () => {
         const existing = Array.from({ length: MAX_ATTACHMENTS - 2 }, (_, i) => `k${i}`);
         const result = validate(existing, [
@@ -238,10 +229,8 @@ describe('toChatImages and toChatFiles', () => {
         { id: 'up-3', status: 'stored', stereo: 'video', name: 'clip.mp4', orgUrl: 'https://s/o3' },
     ] as NonNullable<DomainChat['upload$$']>;
 
-    // A PDF drawn by <img> is a broken tile; only images go to the grid and the viewer.
     it('gives the grid only the images, and the rest to the file list', () => {
         expect(toChatImages('row-1', mixed).map(image => image.id)).toEqual(['up-1']);
-        // Numbered among the images, so a photo after a document is still "image-1".
         expect(toChatImages('row-1', [mixed[1], mixed[0]]).map(image => image.name)).toEqual(['image-1']);
         expect(toChatFiles('row-1', mixed)).toEqual([
             {
@@ -334,7 +323,6 @@ describe('toChatImages', () => {
         ).toEqual([{ id: 'up-1', name: 'image-1', url: 'https://s/o', thumbUrl: 'https://s/t' }]);
     });
 
-    // An upload sent before the server kept names has none; its place in the message stands in.
     it('names a stored image by the name it was sent under, when the server kept one', () => {
         expect(
             toChatImages('row-1', [

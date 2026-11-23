@@ -14,15 +14,11 @@ const viewOf = (entries: LogEntry[]) => ({
     snapshot: () => entries,
     clear: jest.fn(),
     flush: jest.fn(() => Promise.resolve()),
-    // Part of the contract but not exercised here — the eviction counter is read by
-    // `queueLossObserver`, which has its own suite.
     droppedCount: () => 0,
 });
 
 describe('logQueueView', () => {
     it('등록 전에는 없다 — 빈 배열이 아니라 undefined여야 한다', () => {
-        // A monitor that gets `[]` cannot tell "no uploader running" from "no
-        // logs yet", and would render the first as the second.
         expect(getLogQueueView()).toBeUndefined();
     });
 
@@ -48,9 +44,6 @@ describe('logQueueView', () => {
     });
 
     it('늦게 도착한 해제가 새 등록을 지우지 않는다', () => {
-        // Two uploaders overlap when a reload re-runs boot before the previous
-        // teardown lands. An unguarded unregister would leave the live uploader's
-        // queue invisible for the rest of the session.
         const unregisterOld = registerLogQueueView(viewOf([entry('old')]));
         registerLogQueueView(viewOf([entry('new')]));
 
@@ -63,8 +56,6 @@ describe('logQueueView', () => {
         ).toEqual(['new']);
     });
 
-    // ADR-0080 decision 14. main.tsx doesn't hold on to the uploader handle, so this registration is
-    // the only path that reaches flush — the same reason snapshot lives here.
     it('flush를 등록해 디버그 화면이 예정 밖 전송을 할 수 있게 한다', async () => {
         const view = viewOf([entry('a')]);
         registerLogQueueView(view);

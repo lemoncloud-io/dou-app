@@ -28,7 +28,6 @@ const CHANNELS = [
     { id: 'C2', cid: 'cloud-a' },
 ] as DomainChannel[];
 
-// Every registration made, and whether it has been disposed since.
 let registrations: { type: string; id: string; cid?: string; disposed: boolean }[] = [];
 const liveJoins = () =>
     registrations.filter(entry => entry.type === 'join' && !entry.disposed).map(entry => [entry.id, entry.cid]);

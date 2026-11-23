@@ -11,8 +11,6 @@ const invite = (id: string): MyInviteView => ({ id }) as MyInviteView;
 describe('useSentInviteLog', () => {
     beforeEach(() => {
         localStorage.clear();
-        // The store is a module-level singleton — reset its in-memory state too, so a record()
-        // from one test can't leak into the next (mirrors usePreferenceStore.test.ts's resetStore).
         useSentInviteLogStore.setState({ log: {} });
     });
 

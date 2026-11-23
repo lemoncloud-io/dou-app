@@ -35,36 +35,15 @@ import { useFreshAddress, useImageAddressRefresh, useRunWithFreshAddress } from 
 import { toastFailure } from '../../../../shared';
 
 interface MessageFilesProps {
-    /** The message the files belong to — they are read from its `upload$$`. */
     message: Pick<DomainChat, 'id' | 'upload$$' | 'chatNo' | 'channelId' | 'parentId'>;
-    /** The message's sender and time, for the viewer's header. */
     author: ImageAuthor;
-    /** "Delete file" is offered on your own messages only. */
     canDelete?: boolean;
-    /**
-     * Deletes the whole message. A sent upload has no delete of its own on the server, so "Delete file"
-     * on a voice file removes the message it came with, as it does for an image.
-     */
     onDeleteMessage?: () => void;
-    /** Opens this message's thread. Absent inside the thread panel. */
     onReply?: () => void;
-    /**
-     * Takes the channel's feed to this message. Offered only where the feed can land it — the channel's
-     * own feed — not in a thread, the threads page or Saved.
-     */
     onShowInChat?: () => void;
-    /** Stops the message's send while its files upload. Absent where it cannot be stopped. */
     onCancelUpload?: () => void;
 }
 
-/**
- * A message's videos and documents, under its images. A video plays in place; a document is a card
- * with its name, size and a save button; a PDF or text file also opens in the viewer, and a voice file
- * plays in its card. Neither is drawn as an image tile: a PDF in an `<img>` is a broken picture.
- *
- * Two or more are headed "n attachments ▾ | Download all" (Figma "음성 파일 · 데스크탑 ③"): the count folds
- * the list away, and the download saves every file there is something to load for in one zip.
- */
 export const MessageFiles = ({
     message,
     author,
@@ -142,8 +121,6 @@ export const MessageFiles = ({
                     </button>
                 </div>
             )}
-            {/* `flex` only while open: a utility's display beats the `[hidden]` reset, so the two together
-                never fold. */}
             <ul id={listId} hidden={isFolded} className={cn('mt-2 max-w-[368px] flex-col gap-2', !isFolded && 'flex')}>
                 {files.map(file => (
                     <li key={file.id}>
@@ -189,12 +166,7 @@ const FileItem = ({
     author: ImageAuthor;
     messageId: string | undefined;
     onReply?: () => void;
-    /** Asks this row's confirm, then deletes. */
     onDelete?: () => void;
-    /**
-     * Deletes the message without asking. The detail dialog takes this one and its host asks: the
-     * dialog outlives the row, and the row's confirm goes with the row.
-     */
     deleteMessage?: () => void;
     onShowInChat?: () => void;
     onCancelUpload?: () => void;
@@ -202,7 +174,6 @@ const FileItem = ({
 }) => {
     const { t } = useTranslation();
     const name = file.name ?? t(file.kind === 'video' ? 'chat.attach.previewVideo' : 'chat.attach.previewFile');
-    // Saved as "file", not the reader's label; the save adds the extension the bytes have.
     const saveName = file.name ?? 'file';
     const KindIcon = file.kind === 'video' ? Film : FileText;
     const canSave = !!file.url;
@@ -214,8 +185,6 @@ const FileItem = ({
     const refreshAddress = useImageAddressRefresh();
     const freshAddress = useFreshAddress();
     const runWithFreshAddress = useRunWithFreshAddress();
-    // The address the file was drawn from no longer loads: the message is read again, and the file comes
-    // back from the cache with a fresh one (a different address, so the player and viewer start over).
     const onLoadError = useCallback((src: string) => void refreshAddress(messageId, src), [messageId, refreshAddress]);
     const forward = file.url
         ? () =>
@@ -268,7 +237,6 @@ const FileItem = ({
     return (
         <div className="flex flex-col gap-2">
             {file.kind === 'video' && canSave && (
-                // The original is signed for inline viewing, and Chromium plays an H.264 MP4 itself.
                 <video
                     src={file.url}
                     controls

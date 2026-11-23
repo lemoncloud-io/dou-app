@@ -13,12 +13,6 @@ const Kbd = ({ children }: { children: ReactNode }) => (
     </kbd>
 );
 
-/**
- * Press "?" (or Mod+/) anywhere outside a text field to toggle a cheat sheet of
- * the app's keyboard shortcuts; Settings opens it too. Mounted once at
- * the router, so it works on /settings and /profile — it used to live on the
- * home route only, where the key did nothing anywhere else.
- */
 export const ShortcutsDialog = () => {
     const { t } = useTranslation();
     const open = useShortcutsDialogStore(s => s.isOpen);

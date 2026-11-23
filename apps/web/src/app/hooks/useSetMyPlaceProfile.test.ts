@@ -45,7 +45,6 @@ describe('useSetMyPlaceProfile', () => {
     it('ignores a site id passed by a caller and still writes to the active place', async () => {
         const { result } = renderHook(() => useSetMyPlaceProfile());
 
-        // The signature no longer takes one; a stale caller passing it must not steer the write.
         await (result.current as (value: { nick: string }, siteId: string) => Promise<void>)(
             { nick: 'Raine' },
             'other-site'

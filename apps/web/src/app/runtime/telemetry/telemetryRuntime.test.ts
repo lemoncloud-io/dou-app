@@ -12,7 +12,6 @@ import {
 import type { LogEntry } from '@chatic/bridges';
 
 jest.mock('../perf', () => ({ setPerfTelemetryRecorder: jest.fn() }));
-// A browser tab: the page sends its own diagnostics, so the session's entry point is `browser`.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         diagnostics: require('@chatic/runtime/testing').browserDiagnostics(),
@@ -184,13 +183,11 @@ describe('onUsageSessionStart', () => {
         const tagsWhenCalled: string[][] = [];
         const remove = onUsageSessionStart(() => tagsWhenCalled.push(entries.map(e => e.tag)));
 
-        // Back after a minute: the same session.
         setVisibility('hidden');
         clock += 60_000;
         setVisibility('visible');
         expect(tagsWhenCalled).toHaveLength(0);
 
-        // Back after an hour: a new session, whose start is already recorded when the listener runs.
         setVisibility('hidden');
         clock += 60 * 60_000;
         setVisibility('visible');

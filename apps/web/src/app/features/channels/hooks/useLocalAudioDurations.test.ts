@@ -2,7 +2,6 @@ import { act, renderHook } from '@testing-library/react';
 
 import { useLocalAudioDurations } from './useLocalAudioDurations';
 
-/** A stand-in `Audio` the test can make report a length or fail. */
 class FakeAudio {
     static made: FakeAudio[] = [];
     preload = '';
@@ -56,7 +55,6 @@ describe('useLocalAudioDurations', () => {
         };
         const items = [file, shellFile];
         const { result } = renderHook(() => useLocalAudioDurations(items));
-        // The shell's file is not readable by the page: no element is made for it.
         expect(FakeAudio.made).toHaveLength(1);
         act(() => FakeAudio.made[0]?.onerror?.());
         expect(result.current.size).toBe(0);

@@ -9,11 +9,6 @@ import { TARGET_VERSION } from '../../database/sqlite/schema';
 import { TABLES } from '../../database/sqlite/tables';
 import { ChatDataSource } from './ChatDataSource';
 
-/**
- * The room media index contract on the shell's real SQLite — the same table `libs/db` runs against
- * IndexedDB (`chatMediaIndex.contract.test.ts` there). Each case gets a fresh database migrated to the
- * current version, so the SQL under test is the SQL a device runs.
- */
 const freshStore = (): { store: ChatMediaContractStore; close: () => void } => {
     const db = openMemorySqlite();
     migrate(db, 0, TARGET_VERSION);

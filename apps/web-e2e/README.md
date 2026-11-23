@@ -37,15 +37,15 @@ yarn web:e2e:headed attachment-picker --project=webkit-ios
 Every scenario is tagged by what it is for, and each kind has a target of its own. CI steps and agent
 skills call these targets by name, so a rename moves them in the same change:
 
-| Command                                | Runs                                                                     | Where                  |
-| -------------------------------------- | ------------------------------------------------------------------------ | ---------------------- |
-| `npx nx run web-e2e:e2e`               | everything but `@visual` and `@load` — the flows and the chaos scenarios | CI, locally            |
-| `npx nx run web-e2e:e2e-chaos`         | `@chaos` only ("Chaos" below)                                            | locally                |
-| `npx nx run web-e2e:e2e-load`          | `@load` only, three times over, one worker ("Load")                      | locally                |
-| `npx nx run web-e2e:e2e-visual`        | `@visual` only, against the Linux baselines ("Visual regression")        | Linux only (see below) |
-| `npx nx run web-e2e:e2e-visual:docker` | the same from a Mac, with the browsers in Playwright's Linux image       | locally, needs docker  |
-| `npx nx run web-e2e:e2e-visual:update` | renders the baselines again, the same way                                | locally, needs docker  |
-| `npx nx run web-e2e:feature-coverage`  | checks `feature-map.json` and lists the features with no scenario        | locally                |
+| Command                                | Runs                                                                     | Where                 |
+| -------------------------------------- | ------------------------------------------------------------------------ | --------------------- |
+| `npx nx run web-e2e:e2e`               | everything but `@visual` and `@load` — the flows and the chaos scenarios | CI, locally           |
+| `npx nx run web-e2e:e2e-chaos`         | `@chaos` only ("Chaos" below)                                            | locally               |
+| `npx nx run web-e2e:e2e-load`          | `@load` only, three times over, one worker ("Load")                      | locally               |
+| `npx nx run web-e2e:e2e-visual`        | `@visual` only, against the Linux baselines ("Visual regression")        | CI, Linux only        |
+| `npx nx run web-e2e:e2e-visual:docker` | the same from a Mac, with the browsers in Playwright's Linux image       | locally, needs docker |
+| `npx nx run web-e2e:e2e-visual:update` | renders the baselines again, the same way                                | locally, needs docker |
+| `npx nx run web-e2e:feature-coverage`  | checks `feature-map.json` and lists the features with no scenario        | CI, locally           |
 
 Each run ends by printing the path of its evidence report ("Evidence report"). A target passes
 Playwright's own arguments through after `--`: `npx nx run web-e2e:e2e-chaos -- --project=webkit-ios`.
@@ -343,11 +343,11 @@ devices' 3× scale, where a ratio such as 0.1% is about 3,000 pixels and let a c
 
 `compared` counts scenarios: the cloud scenario holds two screens, and compares the second even when
 the first differs. Under GitHub Actions each failure is also an `::error title=visual-regression::`
-annotation. A CI job that runs `e2e-visual` is to post the result as the commit status
-**`web-e2e/visual-regression`** (`success` or `failure`) on the pull request's head; that job is not in
-`.github/workflows/verify.yml` yet, so for now visual regression runs where someone runs it. It is not
-meant to be a required check — a visual change is often the point of a pull request — and a change to a
-baseline (`*-snapshots/**`) is for a person to look at.
+annotation. The `web e2e · visual` job in `.github/workflows/verify.yml` runs `e2e-visual` and posts the
+result as the commit status **`web-e2e/visual-regression`** on the pull request's head: `success` for
+`pass`, `failure` for `fail`, `error` for `error` or a run that wrote no result. The job itself stays
+green, and the status is not meant to be a required check — a visual change is often the point of a
+pull request — and a change to a baseline (`*-snapshots/**`) is for a person to look at.
 
 ## Feature map
 
@@ -397,11 +397,11 @@ The images come from fake-data runs only, which is all this suite has: the repos
 a pushed image stays in git history after the branch is deleted. `npx nx run web-e2e:test` runs the
 script's own tests (`node --test`), one of which pushes to and deletes from a local bare repository.
 
-The CI wiring is not in `.github/workflows/verify.yml` yet. It is: upload each e2e job's
-`dist/.playwright/apps/web-e2e/evidence` as an artifact whatever the result; a job after both (and
-after the visual job) that downloads them and runs `publish` with one `--evidence` per artifact; and
-a workflow on `pull_request: closed` that runs `cleanup`. A pull request from a fork has no token
-that can write, so both skip it.
+In CI, every `web e2e` job in `.github/workflows/verify.yml` uploads its evidence folder as the artifact
+`web-e2e-evidence-<entry>` whatever the result, and the `web e2e · results in the pull request` job runs
+`publish` with one `--evidence` per artifact once they are all done. `.github/workflows/pr-assets-cleanup.yml`
+runs `cleanup` when the pull request closes. A pull request from a fork has no token that can write, so
+`publish` and the visual status skip it.
 
 ## The scenarios
 

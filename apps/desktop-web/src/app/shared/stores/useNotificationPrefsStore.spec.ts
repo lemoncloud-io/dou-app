@@ -1,14 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-    channelNotifyMode,
-    notifyModesFor,
-    useNotificationPrefsStore,
-} from './useNotificationPrefsStore';
+import { channelNotifyMode, notifyModesFor, useNotificationPrefsStore } from './useNotificationPrefsStore';
 
-// The join.notify fallback is the seam the settings panel, the row menu and
-// both notifiers share — a regression here flips server-side 'mention'
-// channels back to 'all' everywhere at once.
 describe('channelNotifyMode', () => {
     const state = (channelNotify: Record<string, 'all' | 'mention' | 'none'>, muted: string[] = []) => ({
         channelNotify,
@@ -32,8 +25,6 @@ describe('channelNotifyMode', () => {
         expect(channelNotifyMode(state({}, ['C1']), 'C1', 'mention')).toBe('mention');
     });
 
-    // The server sends a 1:1 set to mentions only everything (it filters group channels alone), so
-    // showing it as mentions only would name a level that does not exist there.
     describe('in a 1:1', () => {
         it('reads a server value of mentions only as all', () => {
             expect(channelNotifyMode(state({}), 'C1', 'mention', true)).toBe('all');
@@ -72,13 +63,17 @@ describe('mentionBreaksQuietHours', () => {
         expect(useNotificationPrefsStore.getState().mentionBreaksQuietHours).toBe(false);
     });
 
-    // A state saved before the toggle existed carries no such key; the
-    // persist merge must leave the default (off) in place.
     it('reads a stored state from before the toggle as off', async () => {
         localStorage.setItem(
             'chatic-notification-prefs',
             JSON.stringify({
-                state: { desktopEnabled: true, mutedChannels: {}, channelNotify: {}, snoozeUntil: null, quietHours: null },
+                state: {
+                    desktopEnabled: true,
+                    mutedChannels: {},
+                    channelNotify: {},
+                    snoozeUntil: null,
+                    quietHours: null,
+                },
                 version: 0,
             })
         );

@@ -9,16 +9,10 @@ export class ChannelDataSource implements ICacheDataSource<CacheChannelView, Cha
         private readonly tableName: string
     ) {}
 
-    /**
-     * Safely extracts the sid from a channel object.
-     */
     private extractSid(item: any): string {
         return item?.sid ? String(item.sid) : 'default';
     }
 
-    /**
-     * Safely extracts the channel name (name) from a channel object.
-     */
     private extractName(item: any): string {
         return item?.name ? String(item.name) : '';
     }

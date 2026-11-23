@@ -21,10 +21,6 @@ type Viewer = { uid: string | null; name: string; cloudUid: string | null };
 const chatAuthorId = (chat: Pick<DomainChat, 'owner$' | 'ownerId'>): string | undefined =>
     chat.owner$?.id ?? chat.ownerId;
 
-/**
- * The reader in a channel. Outside the relay a persisted message's owner is my per-channel cloud
- * user id, not my account id, so "mine" is both ids — the same rule the message list uses.
- */
 const viewerIn = (channel: ChannelChatFeed['channel']): Viewer => ({
     uid: runtime.session.getGlobalSessionContext().identity.userId,
     name: '',
@@ -34,11 +30,9 @@ const viewerIn = (channel: ChannelChatFeed['channel']): Viewer => ({
 const isMine = (chat: Pick<DomainChat, 'owner$' | 'ownerId' | 'stereo'>, viewer: Viewer): boolean =>
     isOwnChat({ ownerId: chatAuthorId(chat), stereo: chat.stereo }, viewer);
 
-/** Already read in the channel — on this device or, through the synced cursor, another. */
 const isRead = (channelId: string, chatNo: number | undefined): boolean =>
     (chatNo ?? 0) <= (useReadCursorStore.getState().cursors[channelId] ?? 0);
 
-/** The kind a person's message gets as it arrives: a 1:1 message, else a mention of me, else none. */
 const arrivalKind = ({ channel, chat }: ChannelChatFeed, content: string): InboxKind | null => {
     const viewer = viewerIn(channel);
     return inboxKindFor({
@@ -48,18 +42,12 @@ const arrivalKind = ({ channel, chat }: ChannelChatFeed, content: string): Inbox
     });
 };
 
-/**
- * Where the item happened, kept with it: the list names the channel long after its place's channels
- * have left memory. A 1:1 is named by its person instead, so it keeps no room name.
- */
 const whereOf = (channel: ChannelChatFeed['channel']): { inDm?: true; channelName?: string } =>
     isNotifyDm(channel) ? { inDm: true } : { channelName: bareChannelName(channel.name) || undefined };
 
-/** The cloud a channel belongs to; a relay row may leave its `cid` empty. */
 const cloudOf = (channel: ChannelChatFeed['channel']): string => channel.cid || RELAY_CLOUD_ID;
 
 const addMessage = ({ placeId, channel, chat }: ChannelChatFeed, kind: InboxKind, content: string): void => {
-    // An id is the dedupe key of the inbox; a row without one cannot be stored.
     if (!chat.id || !channel.id) return;
     const authorId = chatAuthorId(chat);
     const cloudId = cloudOf(channel);
@@ -73,24 +61,13 @@ const addMessage = ({ placeId, channel, chat }: ChannelChatFeed, kind: InboxKind
         content: truncateMentionPreview(content),
         ownerName: chatSenderName(chat, placeId),
         ownerId: authorId,
-        // owner$ carries no avatar; key the fallback color off the author id.
         colorSeed: authorId,
         placeId,
-        // Thread reply → server-normalised root chatNo string; opens the thread panel. Absent on top-level messages.
         parentId: chat.parentId,
-        // Dated by when it was sent, not when this device saw it.
         createdAt: chat.createdAt ?? Date.now(),
     });
 };
 
-/**
- * A reaction to a message of mine. The reaction event carries its target as `reaction$.chatId` and
- * nothing of the message itself, so the target is read from this device's cache — never fetched: a
- * target this device has not cached is left out rather than costing a server call per reaction.
- *
- * The item is keyed by target, emoji and person, since the event's own id changes with every
- * toggle; a reaction taken back (`action: 'off'`) adds nothing.
- */
 const captureReaction = async ({ placeId, channel, chat }: ChannelChatFeed): Promise<void> => {
     const reaction = chat.reaction$;
     const authorId = chatAuthorId(chat);
@@ -118,15 +95,8 @@ const captureReaction = async ({ placeId, channel, chat }: ChannelChatFeed): Pro
     });
 };
 
-/**
- * A reply someone else wrote in a thread of mine. `useMyThreadsCapture` decides that — it already
- * reads the thread's root — and hands each such reply here. A reply that is also a 1:1 message or
- * names me went in under that kind when it arrived, so it is not filed again.
- */
 export const captureInboxReply = (feed: ChannelChatFeed): void => {
     const { channel, chat } = feed;
-    // Called from the Threads capture, after it has recorded the thread: a failure here is the
-    // inbox's alone, so it is caught and named as such rather than read as a thread failure.
     try {
         if (!channel.id || !isNotifiableChat(chat) || isMine(chat, viewerIn(channel))) return;
         if (isRead(channel.id, chat.chatNo)) return;
@@ -140,26 +110,11 @@ export const captureInboxReply = (feed: ChannelChatFeed): void => {
     }
 };
 
-/**
- * Capture what the reader should hear about into the device-local inbox: messages that mention
- * them, new 1:1 messages and reactions to their messages here, and replies in their threads through
- * `captureInboxReply`. Ordinary channel messages stay out. Browser-safe (no native gate), and
- * independent of notification mute and DND — a muted channel still records them (Slack parity).
- *
- * The shared feed (useChannelChatFeeds) hands over a channel's latest message whenever its
- * watermark advances: chat content streams only for the open room, so a background channel is seen
- * by its newest message and a burst collapses to the last one. Each message is classified once,
- * strongest reason first (`inboxKindFor`), and stored under its cloud and id (`inboxItemId`), so one
- * message is one item.
- * Guards mirror the OS-notification hook so a resync can't spam the inbox: skip my own messages
- * and anything at or below the read cursor.
- */
 export const useInboxCapture = (): void => {
     useChannelChatFeeds((feed: ChannelChatFeed) => {
         const { channel, chat } = feed;
         if (chat.subType === 'reaction') {
             captureReaction(feed).catch(error => {
-                // Left out, like a target the cache does not hold; the next reaction asks again.
                 logger.warn('CHAT', '[InboxCapture] reaction target unreadable', {
                     error,
                     data: { channelId: channel.id, chatId: chat.reaction$?.chatId },
@@ -167,15 +122,10 @@ export const useInboxCapture = (): void => {
             });
             return;
         }
-        // Flattened first: a Block Kit payload hides its text inside JSON, and a mention has to be read
-        // from what the message says.
         const content = messagePlainText(chat.content);
-        // The inbox only ever holds things people wrote: no join or leave events, whatever their text.
         if (!isNotifiableChat(chat) || !channel.id) return;
         if (isMine(chat, viewerIn(channel)) || isRead(channel.id, chat.chatNo)) return;
         const kind = arrivalKind(feed, content);
-        // A photo or file sent on its own has no text; its stored line is the attachment label. A deleted
-        // message is quoted as deleted, not by the body an older server still keeps on it.
         const preview = chat.hidden ? messagePreview(chat) : content || messagePreview(chat);
         if (kind && preview) addMessage(feed, kind, preview);
     });

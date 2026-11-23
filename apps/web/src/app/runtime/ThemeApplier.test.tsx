@@ -13,11 +13,6 @@ const mockUseConfigValue = runtime.settings.useConfigValue as jest.MockedFunctio
     typeof runtime.settings.useConfigValue
 >;
 
-// ---------------------------------------------------------------------------
-// matchMedia mock — jsdom does not implement it. setOsPrefersDark() simulates
-// a live OS scheme toggle firing the 'change' listeners.
-// ---------------------------------------------------------------------------
-
 const listeners = new Set<() => void>();
 let osPrefersDark = false;
 
@@ -105,8 +100,6 @@ describe('ThemeApplier — 시스템 UI 색상 동기화', () => {
         const { rerender } = render(<ThemeApplier />);
         expect(themeColor()).toBe('#ffffff');
 
-        // The pre-paint script only runs at boot, so without this the status-bar tint
-        // stayed stale until the next reload.
         mockUseConfigValue.mockReturnValue('dark');
         rerender(<ThemeApplier />);
 
@@ -123,8 +116,6 @@ describe('ThemeApplier — 시스템 UI 색상 동기화', () => {
     });
 
     it('id가 아니라 name으로 meta를 찾는다', () => {
-        // Coupling to id="theme-color-meta" meant dropping that attribute from index.html would
-        // silently disable theme-color sync.
         document.getElementById('theme-color-meta')?.removeAttribute('id');
         mockUseConfigValue.mockReturnValue('dark');
 

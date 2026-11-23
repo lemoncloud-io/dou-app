@@ -3,7 +3,6 @@ import { renderHook } from '@testing-library/react';
 import { pushedEventErrors, pushedEvents } from './appEventContract';
 import { useSubscriptionIapHandler } from './useSubscriptionIapHandler';
 
-// The store's callbacks, as the hook hands them to useSubscriptionIap.
 let mockCallbacks: { onPurchaseSuccess?: (purchase: unknown) => void; onPurchaseError?: (error: unknown) => void } = {};
 
 jest.mock('react-native-iap', () => ({ ErrorCode: { AlreadyOwned: 'already-owned' } }));
@@ -15,7 +14,6 @@ jest.mock('../../hooks', () => ({
 }));
 jest.mock('../../services', () => ({ logger: { warn: jest.fn(), error: jest.fn() } }));
 
-// A store purchase, in the shape react-native-iap reports one.
 const purchase = {
     id: 'txn_1',
     productId: 'dou.plus.monthly',
@@ -38,7 +36,6 @@ describe('useSubscriptionIapHandler', () => {
     });
 
     describe('app → web event contract', () => {
-        // The purchase outcome arrives after Purchase has already been answered, so it is pushed.
         it("pushes 'OnPurchaseSuccess' with the store's purchase", () => {
             renderHook(() => useSubscriptionIapHandler(bridge as any));
 

@@ -2,12 +2,6 @@ import { useCallback } from 'react';
 import { useServices } from '../../hooks';
 import type { WebMessageData } from '@chatic/bridge-messages';
 
-/**
- * Bridge handlers for the deferred report queue (ADR-0097): the web pulls
- * queued native detections (`FetchPendingReports`), relays them through the
- * signed web reporter, then acknowledges (`AckPendingReports`) so a report is
- * never relayed twice.
- */
 export const usePendingReportHandler = () => {
     const { pendingReportQueueService, logService: logger } = useServices();
 

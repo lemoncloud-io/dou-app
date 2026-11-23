@@ -4,20 +4,12 @@ import { Link2 } from 'lucide-react';
 
 import { cn } from '@chatic/ui-kit';
 
-/**
- * What the chip renders — a view model, not the wire contract. The shell sends
- * more (see `OnFetchUrlMetadataPayload` in libs/bridge-messages); anything not
- * listed here is dropped on arrival.
- */
 export interface UrlMetadata {
     url: string;
     title: string;
     siteName?: string;
 }
 
-// Module-level caches: previews are immutable per URL within a session, and a
-// failed unfurl is cached too (null) so scrolling never re-asks the shell.
-// Bounded: oldest entry evicted past the cap (long sessions with many links).
 const METADATA_CACHE_MAX = 500;
 const metadataCache = new Map<string, UrlMetadata | null>();
 const inFlight = new Map<string, Promise<UrlMetadata | null>>();
@@ -39,7 +31,6 @@ const requestMetadata = (url: string, reader: LinkPreviewReader): Promise<UrlMet
         .fetch(url)
         .then(data => {
             if (!data?.success || !data.title) return null;
-            // `data.imageUrl` is deliberately not carried over — see the component.
             return { url: data.url, title: data.title, siteName: data.siteName };
         })
         .catch(() => null)
@@ -56,29 +47,10 @@ interface LinkPreviewCardProps {
     url: string;
 }
 
-/**
- * Compact unfurl chip under a message link. Desktop shell only — the renderer
- * can't read cross-origin pages, so the main process fetches and parses og:
- * tags (`runtime.links.linkPreview`). Renders nothing in a plain browser or when
- * the page yields no usable metadata. Block-level <span>s because the host paragraph
- * is a <p>.
- *
- * The chip shows only the source name and the title. Dropping the `og:image`
- * thumbnail is deliberate and load-bearing: rendering it would make every
- * reader's browser fetch that URL directly, handing the third-party host each
- * reader's IP, user-agent, and the moment they scrolled the message into view.
- * `unfurl.ts` in the shell never forwards image bytes for the same reason, so
- * the only way to keep that property on this side is to never request the image.
- *
- * `requestMetadata` therefore drops `imageUrl` on arrival rather than carrying
- * it unused: a URL the component does not hold cannot be rendered by accident.
- * `LinkPreviewCard.spec.tsx` pins the behaviour from the outside as well.
- */
 export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
     const [meta, setMeta] = useState<UrlMetadata | null>(() => metadataCache.get(url) ?? null);
 
     useEffect(() => {
-        // Only the app reads a link's preview: a browser has no reader.
         const reader = runtime.links.linkPreview;
         if (!reader) return;
         let active = true;
@@ -92,12 +64,6 @@ export const LinkPreviewCard = ({ url }: LinkPreviewCardProps) => {
 
     if (!runtime.links.linkPreview) return null;
 
-    // The chip used to pop in at full height the moment the shell answered, pushing
-    // the text below it down under a reader who was mid-sentence. It now opens from
-    // zero height instead: the shift still happens, but as a visible motion rather
-    // than a jump (and instantly under reduced motion, via the global override).
-    // Reserving the height up front is worse — most links yield no metadata, so the
-    // reserved space would collapse again.
     return (
         <span
             className={cn(

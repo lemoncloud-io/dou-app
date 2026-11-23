@@ -6,7 +6,6 @@ import { act, renderHook as renderBareHook } from '@testing-library/react';
 
 import type { DomainChannel } from '@chatic/runtime';
 
-// The channel-write hook it uses reads the app's switch mutations, so it needs the query client.
 const renderHook = <T,>(hook: () => T) =>
     renderBareHook(hook, {
         wrapper: ({ children }: { children: ReactNode }) =>
@@ -67,7 +66,6 @@ describe('useChannelNotifyChange', () => {
             result.current.onNotifyChange('mention');
         });
 
-        // This device still follows the new mode; only the other devices drift.
         expect(useNotificationPrefsStore.getState().channelNotify).toEqual({ C1: 'mention' });
         expect(toast).toHaveBeenCalledTimes(1);
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));

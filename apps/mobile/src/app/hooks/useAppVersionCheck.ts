@@ -5,10 +5,6 @@ import { getEffectiveLanguage, t } from '../utils';
 import { versionService } from '../services';
 import { STORE_URLS } from '@chatic/shared';
 
-/**
- * Module-level cache for version check result.
- * Accessible from outside the hook (e.g., AppWebView injection script).
- */
 export interface VersionCheckResult {
     hasUpdate: boolean;
     latestVersion: string;
@@ -22,10 +18,6 @@ const noop = () => {};
 
 export const getVersionCheckResult = (): VersionCheckResult | null => versionCheckResult;
 
-/**
- * Subscribe to version check completion. If already checked, fires immediately.
- * @returns unsubscribe function
- */
 export const onVersionCheckComplete = (listener: (result: VersionCheckResult) => void): (() => void) => {
     if (versionCheckResult) {
         listener(versionCheckResult);
@@ -35,16 +27,6 @@ export const onVersionCheckComplete = (listener: (result: VersionCheckResult) =>
     return () => listeners.delete(listener);
 };
 
-/**
- * Hook to check for app updates and show native alert.
- *
- * The actual live-version lookup and comparison lives in `versionService`
- * (iOS only for now — Android safe-falls back to "no update" until a backend
- * live-version endpoint exists). This hook only caches the result for the
- * module-level singleton consumers below and drives the native alert.
- *
- * @param checkOnMount - Whether to check for updates on mount (default: true)
- */
 export const useAppVersionCheck = (checkOnMount = true) => {
     const [hasUpdate, setHasUpdate] = useState(false);
     const hasCheckedRef = useRef(false);
@@ -72,7 +54,6 @@ export const useAppVersionCheck = (checkOnMount = true) => {
         );
     }, []);
 
-    // Check for updates on mount, once.
     useEffect(() => {
         if (!checkOnMount || hasCheckedRef.current) {
             return;

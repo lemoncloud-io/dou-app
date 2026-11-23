@@ -35,7 +35,6 @@ jest.mock('../bridge/FileManagerBridge', () => ({
 }));
 
 const StaticServerMock = StaticServer as unknown as jest.Mock;
-// The factory returns the same { start, stop } object on every call, so create it once to grab the handle
 const serverHandle = StaticServerMock() as { start: jest.Mock; stop: jest.Mock };
 
 const mockUnzip = unzip as jest.Mock;
@@ -51,7 +50,6 @@ const ORIGIN = `http://${CUSTOM_ZIP_HOST}:${CUSTOM_ZIP_PORT}`;
 describe('customZipService', () => {
     beforeEach(async () => {
         serverHandle.stop.mockResolvedValue(undefined);
-        // Reset the server singleton left over from the previous test
         await stopCustomZipServer();
         jest.clearAllMocks();
         serverHandle.start.mockResolvedValue(ORIGIN);

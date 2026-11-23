@@ -15,11 +15,8 @@ import type { Mentionable } from '../MentionAutocomplete';
 import { $isMentionNode } from './MentionNode';
 import { findMentionAtCaret } from './mentionAtCaret';
 
-// A typed @-word outside a chip. The token class is the composer's own —
-// whatever the list would have matched on.
 const TYPED_MENTION = new RegExp(`@(${MENTION_TOKEN_SOURCE}+)`, 'gu');
 
-// A chip's text is a pick, so chips are skipped: only plain text is scanned.
 const collectPlainTexts = (node: LexicalNode, out: string[]): void => {
     if ($isMentionNode(node)) return;
     if ($isTextNode(node)) {
@@ -31,12 +28,6 @@ const collectPlainTexts = (node: LexicalNode, out: string[]): void => {
     }
 };
 
-/**
- * The roster member an @-word in the draft names without a pick — typed
- * `@name` sends plain text no teammate hears, so the composer warns while it
- * matters. Quiet while the caret is still inside an @-token (the typeahead
- * owns it then) and once the word is picked (chips are not plain text).
- */
 export const useUnpickedMention = (editor: LexicalEditor, mentionables: Mentionable[]): Mentionable | null => {
     const [match, setMatch] = useState<Mentionable | null>(null);
     const rosterRef = useRef(mentionables);
@@ -55,7 +46,6 @@ export const useUnpickedMention = (editor: LexicalEditor, mentionables: Mentiona
                         TYPED_MENTION.lastIndex = 0;
                         let token: RegExpExecArray | null;
                         while ((token = TYPED_MENTION.exec(text)) !== null) {
-                            // Inside a word it names nothing — the reader stays plain too.
                             if (!isMentionBoundary(text, token.index)) continue;
                             const lower = token[1].toLowerCase();
                             const hit = roster.find(m =>

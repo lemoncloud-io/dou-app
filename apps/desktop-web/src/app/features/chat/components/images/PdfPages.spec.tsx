@@ -7,7 +7,6 @@ import { PdfPages } from './PdfPages';
 
 import '../../../../../i18n';
 
-// jsdom has no IntersectionObserver; this one lets a test say which pages are in view.
 type Callback = (entries: Pick<IntersectionObserverEntry, 'target' | 'isIntersecting' | 'intersectionRatio'>[]) => void;
 const observers: { callback: Callback; targets: Element[]; options?: IntersectionObserverInit }[] = [];
 class FakeObserver {
@@ -56,7 +55,6 @@ describe('PdfPages', () => {
         expect(screen.getByRole('button', { name: 'Page 3' })).toBeTruthy();
     });
 
-    // A 300-page file drawn whole at DPR 2 holds gigabytes of canvas.
     it('draws only the pages near the view', async () => {
         const pdf = doc(50);
         render(<PdfPages doc={pdf} name="a.pdf" />);
@@ -68,7 +66,6 @@ describe('PdfPages', () => {
         expect(drawn).not.toContain(40);
     });
 
-    // "Near" is measured against the scroll area the pages sit in, or the draw-ahead margin does nothing.
     it('measures nearness against the page column and the rail, not the window', () => {
         render(<PdfPages doc={doc(2)} name="a.pdf" />);
         const roots = observers.map(({ options }) => options?.root);
@@ -77,7 +74,6 @@ describe('PdfPages', () => {
         expect(roots).not.toContain(undefined);
     });
 
-    // pdf.js refuses a second drawing on a canvas still being drawn.
     it('stops drawing a page that leaves the view', async () => {
         const cancel = vi.fn();
         const pdf = { ...doc(3), renderPage: vi.fn(() => ({ done: new Promise<number>(() => undefined), cancel })) };

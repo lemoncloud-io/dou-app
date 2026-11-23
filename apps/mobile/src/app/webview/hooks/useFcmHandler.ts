@@ -6,23 +6,10 @@ import { acquirePushToken } from '../../services/notification/pushToken';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/bridge-messages';
 
-/**
- * Hook that integrates FCM foreground push and badge/token bridge requests inside the WebView.
- * Handles FetchFcmToken, DeleteFcmToken, FetchBadgeCount, SetBadgeCount, and FetchPushMarks requests
- * from the Web, and forwards foreground push receipts to the web as OnReceiveNotification (via
- * PushEventManager).
- *
- * Notification-tap navigation is intentionally NOT handled here — it lives in useDeepLinkNavigation
- * so taps and deep links converge on a single OnNavigate owner. Push keeps foreground receipt only.
- *
- * @param bridge
- */
 export const useFcmHandler = (bridge: IAppBridgeHost) => {
     const fetchFcmToken = useCallback(async (_message: WebMessageData<'FetchFcmToken'>) => {
         try {
             const token = await acquirePushToken(notificationService, Platform.OS);
-            // Existence, never the value: an FCM/APNs token is a credential (catalog rule 8),
-            // and `debug` entries still reach the server on non-release builds.
             logger.info('NOTIFICATION', 'push token acquired', { platform: Platform.OS });
             return { type: 'OnFetchFcmToken' as const, success: true, data: { token } };
         } catch (e: any) {
@@ -72,15 +59,6 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         }
     }, []);
 
-    /**
-     * Answers the shared badge counter — the only value on Android that knows the real badge, since
-     * `FetchBadgeCount` is served by notifee whose badge API is iOS-only and answers a constant 0
-     * there. A separate message rather than a changed meaning for the old one, because the web ships
-     * ahead of the app: an older shell answers `NOT_FOUND` and the web learns "unknown" from that
-     * (ADR-0099).
-     *
-     * `base: null` means unknown, never zero — see BadgeSyncBridge.getBase.
-     */
     const handleFetchBadgeBase = useCallback(async (_message: WebMessageData<'FetchBadgeBase'>) => {
         try {
             const base = await BadgeSyncBridge.getBase();
@@ -116,7 +94,6 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
     useEffect(() => {
         if (!bridge) return;
 
-        // Bridge subscriber for OnReceiveNotification events via PushEventManager
         const unsubscribeReceive = pushEventManager.onReceiveNotification(remoteMessage => {
             bridge.pushEvent<'OnReceiveNotification'>({
                 type: 'OnReceiveNotification',
@@ -125,40 +102,23 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
                     notification: {
                         title: remoteMessage.notification?.title,
                         body: remoteMessage.notification?.body,
-                        // `messageId` folded into the payload so the web can correlate this receipt
-                        // with the tap and the room it opens (ADR-0099). The Android native path
-                        // already injects it; on iOS it arrives as a top-level field the web never
-                        // saw, so without this merge the chain has no key on that platform.
                         data: { messageId: remoteMessage.messageId, ...remoteMessage.data },
                     },
                 },
             });
         });
 
-        // Foreground notification reception from OS -> emit to our PushEventManager
         const unsubscribeOnMessage = notificationService.onMessage(async remoteMessage => {
             pushEventManager.emitReceiveNotification(remoteMessage);
         });
 
-        // Android native foreground push listener
         const foregroundPushSubscription = DeviceEventEmitter.addListener('onForegroundPushReceived', event => {
-            // Ids only — the event carries the push's title and body, which are message content
-            // (catalog rule 8) and this entry reaches the server on release builds.
-            //
-            // Kept even though the Kotlin service logs the same arrival and the web logs what it did
-            // with it: those are three different hops (OS → RN → web), and a push that vanishes
-            // between them is only locatable if each hop says it saw it. Foreground receipts are
-            // bounded by messages arriving while the app is open, so the volume is not the
-            // per-frame kind the catalog forbids.
             logger.info('PUSH_EVENT', 'foreground push relayed to web', {
                 messageId: event.messageId,
                 channelId: event.channelId,
                 type: event.type,
             });
             try {
-                // The FCM payload verbatim (`event.data`), then the fields nested in its `payload`
-                // JSON on top — the nested copy is the authoritative one for `channelId`/`ownerId`,
-                // which is what the web suppresses its in-app banner on.
                 const customData = event.payload ? JSON.parse(event.payload) : {};
                 const remoteMessage = {
                     messageId: event.messageId,
@@ -175,14 +135,9 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
                         type: event.type,
                         link: event.clickAction,
                         clickAction: event.clickAction,
-                        // The OS NOTIFICATION channel ("dou_chat"), never the chat channel. Writing
-                        // it to `channelId` (as this used to) hid the real chat id from the web, so
-                        // its "am I already reading this room?" check could never match.
                         channel_id: event.channelId,
                         notificationChannelId: event.channelId,
                         timestamp: event.timestamp,
-                        // Kept raw so the web can merge it itself — that merge is what keeps the
-                        // suppression working on app builds older than this one.
                         payload: event.payload,
                     },
                 };
@@ -192,9 +147,6 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
             }
         });
 
-        // Notification-tap navigation (onNotificationOpenedApp / getInitialNotification) is owned by
-        // useDeepLinkNavigation. This hook only forwards foreground receipts as OnReceiveNotification.
-
         return () => {
             unsubscribeReceive();
             unsubscribeOnMessage();
@@ -202,14 +154,6 @@ export const useFcmHandler = (bridge: IAppBridgeHost) => {
         };
     }, [bridge]);
 
-    /**
-     * Drops the FCM token so the next `FetchFcmToken` mints a fresh one.
-     *
-     * Exists for the web debug panel's push screen (ADR-0080 Decision 11): testing the re-registration
-     * path needs the token gone, and `FetchFcmToken` only reads. `deleteToken` logs and swallows its
-     * own failures, so a caller cannot distinguish "deleted" from "was already absent" — both are
-     * the state the caller asked for, so this reports success either way.
-     */
     const handleDeleteFcmToken = useCallback(async (_message: WebMessageData<'DeleteFcmToken'>) => {
         await notificationService.deleteToken();
         logger.debug('NOTIFICATION', 'FCM token deleted on web request');

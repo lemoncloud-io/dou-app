@@ -696,6 +696,13 @@ the top, or a gap filled — goes through the same anchor hold as an arrival whe
 history. Rows added at the top move nothing, but a gap filled below a reader who jumped into old
 history pushes them up in WebKit, just as an arrival does.
 
+The view is read again (`captureView`: the offset, whether the reader is away from the bottom, and
+the row at the list's centre) only after a commit that changes the list, never on every render. The
+room re-renders on each keystroke in the composer, and a hit test plus a forced layout per keystroke
+buys nothing, since scroll events keep the reading current in between. The centre can land in the
+12px gap between two rows, so a miss is probed again a little below and above it
+(`ANCHOR_PROBE_OFFSETS_PX`).
+
 ## Jump pills
 
 One floating pill sits centred above the composer when there is somewhere to jump
@@ -721,6 +728,10 @@ light-lime box 8px in from either edge, its light bubble turned to the page grou
 outline (Figma 6002:40741). The box is a pseudo-element behind the row and the outline an inset
 ring, so nothing in the row moves when it comes and goes; the bubble reads the row's
 `data-highlight` attribute for it. Taking the highlight off removes only the classes it added.
+
+A target the surface never got to — the reader left while it was still loading — is dropped when the
+surface unmounts. Left in the store, it fired the next time the same room or thread opened and
+flashed a message nobody had asked for that time.
 
 ## What not to do
 

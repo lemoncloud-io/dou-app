@@ -9,11 +9,6 @@ type PendingState = Record<PendingKey, boolean>;
 
 const INITIAL_PENDING: PendingState = { invite: false, 'invite-batch': false };
 
-/**
- * User invite operations backed by the engine's user repository. `requestInvite`
- * creates a single invite (the caller shares the returned Location link);
- * `requestInviteBatch` hands a phone/name list to the server for SMS dispatch.
- */
 export const useUserMutations = () => {
     const { user: userRepository } = runtime.data.useRuntimeRepositories();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);

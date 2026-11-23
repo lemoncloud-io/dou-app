@@ -33,7 +33,6 @@ describe('waveformPeaks', () => {
         expect(peaks[0]).toBeLessThan(peaks[1]);
     });
 
-    // A silent slice still draws a stub, so the bar row keeps its shape.
     it('keeps a floor under silence, and a silent file is all floor', () => {
         const [quiet] = waveformPeaks([samples(0, 0, 1, 1)], 2);
         expect(quiet).toBeGreaterThan(0);
@@ -120,7 +119,6 @@ describe('useWaveform', () => {
         expect(result.current).toBe(pattern);
     });
 
-    // A decode's memory follows the length, so nothing is fetched until the length is known and short.
     it('waits for the length, and does not decode a long file', async () => {
         const fetchBytes = vi.fn(async () => new ArrayBuffer(4));
         const deps = { fetchBytes, decode: vi.fn() };
@@ -134,7 +132,6 @@ describe('useWaveform', () => {
 });
 
 describe('fetchWaveformBytes', () => {
-    // The declared size is the sender's word; the cap holds on what arrives.
     it('asks for one byte past the cap, and refuses a file that fills it', async () => {
         const fetched = vi.mocked(fetchFileBytes);
         fetched.mockResolvedValueOnce({ size: WAVEFORM_MAX_BYTES + 1 } as Blob);

@@ -102,6 +102,31 @@ While older replies are still out, the "N replies" divider says "N replies loade
 because the number is what the window holds, not the thread's size. It goes back to "N replies" once
 the window reaches the root.
 
+## Reply ids and what counts as a reply
+
+The backend models a thread with nothing but `parentId`; the client derives everything else from the
+messages it holds (`utils/buildThread.ts`), so counts are best effort and bounded by what is loaded.
+
+- **Sending takes the root's full id** (`<channelId>:<chatNo>`) and the server answers 404 to a bare
+  number, so the panel and the Threads page cards send `root.id`, to the channel's own cloud.
+- **Stored and broadcast replies carry `parentId` as the root's `chatNo` string** (`"1"`); the full id
+  survives only in `parent$.id`. An optimistic reply carries the full id as sent until the persisted
+  copy replaces it. Matching therefore accepts both encodings, which keeps one thread one entry (and the
+  footer count exact) through the optimistic-to-persisted swap. The open-thread store and the footer key
+  threads by the `chatNo` string.
+- Threads are flat: the server folds a reply to a reply onto the root.
+- **A deleted reply still counts**, because the panel still shows it as a tombstone and the footer's job
+  is to say how many rows are behind it. A "2 replies" footer above three rows would be wrong the other
+  way. Reaction events are never counted, since they arrive as replies to the message they are on and
+  would turn every reacted-to message into a thread. A reply that has been deleted does not count as new,
+  though: it is not something to go and read.
+- A reply's author is listed in the footer's avatar stack in first-seen order, at most three. A reply
+  with no `ownerId` is counted but not listed, and an optimistic one has no `owner$`, so its thumbnail is
+  filled in once the persisted copy lands.
+- The server windows reads by my join, so a root from before it can never arrive and is not asked for.
+- A thread belongs to the channel it was opened in: the root id alone is a bare `chatNo`, and ids repeat
+  across channels. A thread open in another channel says nothing about this one's roots.
+
 ## New replies in the feed
 
 A reply takes a number in the channel's message sequence, so it raises the channel's unread count

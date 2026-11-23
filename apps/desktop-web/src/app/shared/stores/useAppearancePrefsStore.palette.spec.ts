@@ -77,7 +77,6 @@ describe('useAppearancePrefsStore shell palette', () => {
             { palette: 'custom', customPalette: { cloudRail: 'red', navRail: '#000000', list: '#FFFFFF' } },
         ],
     ])('reads %s as Mist', async (_case, state) => {
-        // Start from a palette with dark rules, so falling back to Mist has something to undo.
         useAppearancePrefsStore.getState().setPalette('forest');
         localStorage.setItem(
             STORAGE_KEY,

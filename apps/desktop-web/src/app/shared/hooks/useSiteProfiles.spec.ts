@@ -7,7 +7,6 @@ type Query = { sid?: string } | undefined;
 
 const state = vi.hoisted(() => ({ siteId: 'S1' as string | undefined, rows: [] as Row[] }));
 
-// Answers the way the profile cache does: no `sid` in the query means every site's rows.
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
@@ -36,9 +35,6 @@ afterEach(() => {
 });
 
 describe('useSiteProfiles', () => {
-    // The profile cache holds a row per place I have been in. A row from another place used to be
-    // folded into the map by uid, so whichever came last decided my name here — a nickname set
-    // on this place was hidden behind the other place's older row.
     it("keeps another place's row for the same person out of this place's map", () => {
         state.rows = [
             { uid: 'me', sid: 'S1', nick: 'Captain' },

@@ -29,6 +29,19 @@ Every panel opens at `PANEL_WIDTH` (360px), and each kind remembers its own drag
 storage key. They used to open at 320, 384 or 440 depending on the panel. `usePanelWidth` clamps a
 drag so the chat column keeps `MIN_CHAT_WIDTH` (420px), counting the rails and the other open panels.
 
+- **One budget for all panels.** The rails (the 80px cloud-and-place rail and the 80px nav rail) are
+  fixed, so they count. Clamping each panel against the window on its own let the sidebar take 480 and a
+  trailing panel 720 at once, which squeezed the conversation to nothing at any width, so every mounted
+  panel registers its committed width and a panel's room is what is left after the rails, the chat floor
+  and the other panels. At the narrowest docked widths a panel's own minimum can still overrun it; the
+  chat column's `min-width` is the backstop.
+- **A drag writes the width straight to the panel's style** and commits state once on release; a state
+  write per `pointermove` would re-render the whole subtree, the message list included.
+- **A window resize re-clamps the width the person chose, not the current width.** Clamping the current
+  width only ever narrowed the panel, so one small window left it at its minimum until a reload.
+- A column whose content changes under it (the sidebar, per nav destination) keeps a width per content:
+  a new storage key brings its own kept width or default before the frame paints.
+
 ## Docked or covering
 
 From `PANEL_DOCK_WIDTH` (1280px, Tailwind's `xl`) up, a panel docks beside the chat. Below it, a panel
@@ -76,6 +89,43 @@ Escape, or by picking a channel. It is hidden rather than removed while shut, be
 dialogs (rename, delete, sign out) that must outlive it. Docked, the two rails are 160px, which at 320px leaves the conversation too narrow for its own
 header and composer. The desktop window cannot be made this narrow, so in the app this is what a
 window zoomed far in gets.
+
+How the drawer behaves in detail:
+
+- **Mounted or hidden.** The compact drawer is hidden while shut, as above. The narrower drawer that
+  sits beside the rails is unmounted while shut instead: the column's own `flex` utility outranks the
+  `hidden` attribute, so a hidden one stayed on screen over the conversation and swallowed its clicks.
+  Nothing needs it mounted, because the channel list streams from the cache and repaints at once when the
+  drawer opens. The Home list's other duties (the next-unread order, ⌘K) live in the nav sidebar, which
+  stays mounted ([sidebar.md](../chat/sidebar.md)).
+- **Opens beside the rails, not over them**, so switching cloud or place, which is what someone reaching
+  for the channel list often wants next, stays one click away.
+- **Only the chat header shows the toggle**, and only while the sidebar is a drawer (`ShellSidebarContext`).
+  The header lives inside `<main>` and cannot read the layout's width decision any other way, and an
+  always-visible toggle would add a control to the docked layout that does nothing.
+- **No drag handle.** A drawer is a fixed-width overlay; the handle belongs to the docked column, where
+  there is a neighbour to trade width with.
+- **Conversation floor.** Docked, `<main>` has a `min-width` of `MIN_CHAT_WIDTH`, because the sidebar and
+  a docked trailing panel clamp independently and only a floor on the conversation itself keeps it from
+  being squeezed out between them. In drawer mode the floor is dropped: it would be the one thing left
+  that could force a horizontal scrollbar. Without the drawer, three fixed columns plus the floor pushed
+  the header actions and half the message column off-screen at a narrow window or at 200% zoom.
+- **Focus travels with it.** Opening records the focused element; closing returns focus to it, but only
+  after the drawer is gone. The opener sits in the chat, which is `inert` until then, so focusing it in
+  the same tick did nothing and focus fell to `<body>`. The drawer takes focus when it opens, Escape
+  closes it, and selecting a channel closes it so it does not cover the conversation just opened.
+  Widening the window docks the sidebar again and clears the open flag, so the drawer does not reopen the
+  next time the window narrows.
+
+## Skip links
+
+Three controls are the first tab stops on the page, visible only while focused: to the message box, to
+the messages, and to the sidebar. One conversation is dozens of tab stops (every message is one), so
+without them the composer sat behind all of them. The sidebar link focuses the list's first row, or the
+first shown control of whatever the open destination draws (the Home list stays mounted, hidden, under
+the other destinations, so its rows are passed over then); when the sidebar is a drawer it opens the
+drawer. They are not rendered while the drawer is open: they sit outside its dialog, so Tab would leave
+the drawer for them, and their targets are in the inert chat, so pressing them did nothing.
 
 ## Opening a panel on a section
 

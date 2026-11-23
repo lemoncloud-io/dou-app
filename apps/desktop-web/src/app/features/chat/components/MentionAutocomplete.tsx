@@ -8,20 +8,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 
 import { avatarStyle } from '../../../shared';
 
-/** The everyone row's key. Not a member id: picking it sends `mention.all`, not this. */
 export const EVERYONE_MENTION_ID = '@everyone';
 
-/** One pickable mention target (roster member, display-resolved by the host). */
 export interface Mentionable {
     id: string;
-    /** What is written after the "@": a member's name, or the everyone row's word. */
     name: string;
     thumbnail?: string;
-    /** The member's other name (global profile vs place nick) — shown when display names collide. */
     subName?: string;
-    /** The row that calls the whole channel. Its `name` is the word, its title comes from the locale. */
     everyone?: true;
-    /** Other words the row answers to in the list's filter, besides `name`. */
     keywords?: string[];
 }
 
@@ -29,21 +23,16 @@ interface MentionAutocompleteProps {
     items: Mentionable[];
     activeIndex: number;
     onSelect: (index: number) => void;
-    /** Links the editor's combobox to this list. */
     listId: string;
-    /** The caret sits too near the top: unfold below it instead of above. */
     below?: boolean;
 }
 
-/** Floating roster list by the caret while an @-token is being typed. */
 export const MentionAutocomplete = ({ items, activeIndex, onSelect, listId, below }: MentionAutocompleteProps) => {
     const { t } = useTranslation();
-    // Keep the keyboard-active row visible while the list scrolls.
     const activeRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
         activeRef.current?.scrollIntoView({ block: 'nearest' });
     }, [activeIndex]);
-    // Same display name twice is two people: only a second line tells them apart.
     const nameCounts = useMemo(() => {
         const counts = new Map<string, number>();
         for (const item of items) counts.set(item.name, (counts.get(item.name) ?? 0) + 1);
@@ -70,7 +59,6 @@ export const MentionAutocomplete = ({ items, activeIndex, onSelect, listId, belo
                             role="option"
                             id={`${listId}-option-${i}`}
                             aria-selected={selected}
-                            // mousedown (not click) so the editor keeps focus through the pick.
                             onMouseDown={e => {
                                 e.preventDefault();
                                 onSelect(i);

@@ -74,7 +74,6 @@ describe('roomOpenTrace', () => {
             expect.objectContaining({
                 id: 'native-1',
                 attributes: { entry: 'push_tap', start: 'cold' },
-                // Measured from the tap, not from the hand-over.
                 metrics: { handler: 2_000 },
             })
         );
@@ -194,7 +193,6 @@ describe('roomOpenTrace', () => {
     it('keeps a newer room waiting when an older, still-loading room unmounts after it began', () => {
         const older = roomOpenTrace.begin('ch_1', 'list');
         roomOpenTrace.claim('ch_1');
-        // A banner tap for another room begins its trace before room 1's page unmounts.
         const newer = roomOpenTrace.begin('ch_2', 'push_banner');
         roomOpenTrace.release('ch_1', older);
 

@@ -1,32 +1,23 @@
 import type { QuietHours } from '../stores';
 import { parseHourMinute } from './formatDate';
 
-/**
- * Is `now` inside the quiet-hours window? Handles a window that crosses
- * midnight (start > end) — e.g. 22:00–07:00 is quiet late at night AND early
- * morning. Equal start/end is treated as no window (never quiet).
- */
 export const isWithinQuietHours = (q: QuietHours | null | undefined, now: Date): boolean => {
     if (!q) return false;
     const start = parseHourMinute(q.start);
     const end = parseHourMinute(q.end);
     if (start === null || end === null || start === end) return false;
     const current = now.getHours() * 60 + now.getMinutes();
-    // Same-day window vs. midnight-crossing window.
     return start < end ? current >= start && current < end : current >= start || current < end;
 };
 
-/** Active "do not disturb": a live snooze, or inside the quiet-hours window. */
 export const isDndActive = (
     state: { snoozeUntil: number | null; quietHours: QuietHours | null },
     now: number = Date.now()
 ): boolean => isSnoozed(state.snoozeUntil, now) || isWithinQuietHours(state.quietHours, new Date(now));
 
-/** A snooze set and still in the future — the one half of `isDndActive` the banner splits off. */
 export const isSnoozed = (snoozeUntil: number | null | undefined, now: number = Date.now()): boolean =>
     snoozeUntil != null && snoozeUntil > now;
 
-/** Epoch ms for the next local `hour:00` — today if still ahead, else tomorrow. */
 export const nextSnoozeUntilTomorrow = (now: number, hour = 8): number => {
     const target = new Date(now);
     target.setHours(hour, 0, 0, 0);
@@ -34,12 +25,6 @@ export const nextSnoozeUntilTomorrow = (now: number, hour = 8): number => {
     return target.getTime();
 };
 
-/**
- * When the mute state next changes: a live snooze's end, or the next
- * quiet-hours edge (today's and tomorrow's starts and ends). Null when nothing
- * mutes. The sidebar label waits on this so an expiry or a window edge shows
- * without another store write.
- */
 export const nextDndBoundary = (
     state: { snoozeUntil: number | null; quietHours: QuietHours | null },
     now: number = Date.now()

@@ -50,8 +50,6 @@ const mountEditor = (mentionables: Mentionable[] = []): LexicalEditor => {
     return captured;
 };
 
-// A chip followed by `after`, with the caret `caret` characters into that text — the state a
-// pick leaves behind is `after = ' '`, `caret = 1`.
 const placeAfterMention = (editor: LexicalEditor, after: string, caret: number) =>
     act(() =>
         editor.update(
@@ -80,8 +78,6 @@ const pressSpace = (editor: LexicalEditor) => {
 describe('MentionsPlugin space after a picked mention', () => {
     afterEach(cleanup);
 
-    // A pick inserts "@Ada " and the caret after it; the space typed next out of habit
-    // doubled it to "@Ada  hello".
     it('drops a space typed right after the one a pick inserted', () => {
         const editor = mountEditor();
         placeAfterMention(editor, ' ', 1);
@@ -116,8 +112,6 @@ describe('MentionsPlugin space after a picked mention', () => {
 });
 
 describe('MentionsPlugin pick', () => {
-    // jsdom lays nothing out: it has no Range rect (the list is anchored at the caret's) and no
-    // scrollIntoView (the list keeps its active row in view).
     const rangeRect = Range.prototype.getBoundingClientRect;
     const scrollIntoView = Element.prototype.scrollIntoView;
     beforeAll(() => {
@@ -130,7 +124,6 @@ describe('MentionsPlugin pick', () => {
     });
     afterEach(cleanup);
 
-    // The list shows a name, and names repeat and change; the id is what the server is told.
     it("puts the picked member's id on the chip", async () => {
         const editor = mountEditor([
             { id: 'u-ada', name: 'Ada' },
@@ -196,8 +189,6 @@ describe('MentionsPlugin pick', () => {
         expect(options.map(option => option.textContent)).toEqual([expect.stringContaining('Everyone'), 'AAlice']);
     });
 
-    // Enter picks the first row. "@al" is someone typing Alice; with the everyone row first, that
-    // Enter wrote "@all" and called the whole channel instead.
     it('lists a member the typed letters match before the everyone row', async () => {
         const editor = mountEditor([EVERYONE, { id: 'u-alice', name: 'Alice' }, { id: 'u-bo', name: 'Bo' }]);
         await typeAt(editor, '@al');
@@ -207,8 +198,6 @@ describe('MentionsPlugin pick', () => {
         expect(options.map(option => option.textContent)).toEqual(['AAlice', expect.stringContaining('Everyone')]);
     });
 
-    // "on" is inside "Everyone" and "l" is inside "all": letters from the middle of the row's own
-    // words are someone's name being typed, not a search for this row.
     it.each(['@on', '@ll'])('does not offer the everyone row for %s', async typed => {
         const editor = mountEditor([EVERYONE, { id: 'u-bo', name: 'Bolla Jon' }]);
         await typeAt(editor, typed);
@@ -218,7 +207,6 @@ describe('MentionsPlugin pick', () => {
         expect(options.map(option => option.textContent)).toEqual(['BBolla Jon']);
     });
 
-    // The row is titled "Everyone" while the word it writes is "all"; either finds it.
     it.each(['@Every', '@al'])('finds the everyone row by %s', async typed => {
         const editor = mountEditor([EVERYONE, { id: 'u-bo', name: 'Bo' }]);
         await typeAt(editor, typed);
@@ -257,10 +245,8 @@ describe('MentionsPlugin default row, semantics and dismissal', () => {
             )
         );
 
-    const selected = (options: HTMLElement[]) =>
-        options.map(option => option.getAttribute('aria-selected'));
+    const selected = (options: HTMLElement[]) => options.map(option => option.getAttribute('aria-selected'));
 
-    // A bare @ is someone about to name a person; Enter calling the whole channel is the costlier mistake.
     it('highlights the first person, not everyone, on a bare @', async () => {
         const editor = mountEditor([EVERYONE, { id: 'u-alice', name: 'Alice' }]);
         await typeAt(editor, '@');
@@ -291,9 +277,7 @@ describe('MentionsPlugin default row, semantics and dismissal', () => {
         expect(box.getAttribute('aria-expanded')).toBe('true');
         const listbox = screen.getByRole('listbox', { name: 'Mention suggestions' });
         expect(box.getAttribute('aria-controls')).toBe(listbox.id);
-        expect(box.getAttribute('aria-activedescendant')).toBe(
-            screen.getAllByRole('option')[1].id
-        );
+        expect(box.getAttribute('aria-activedescendant')).toBe(screen.getAllByRole('option')[1].id);
         expect(screen.getByText('2 mention suggestions')).toBeTruthy();
     });
 

@@ -1,4 +1,3 @@
-// `jest.mock` is hoisted above this import, so the bridge reads the mocked module.
 import { AUDIO_RECORDER_ENDED_EVENT, AudioRecorderBridge } from './AudioRecorderBridge';
 
 const mockStart = jest.fn();

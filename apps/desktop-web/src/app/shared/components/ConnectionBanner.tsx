@@ -4,29 +4,14 @@ import { useIsMutating } from '@tanstack/react-query';
 import { cn } from '@chatic/ui-kit';
 import { runtime } from '@chatic/runtime';
 
-/**
- * App-shell connection status bar. The engine's connectivity derivation composes
- * `navigator.onLine` with the socket transport state — surface it everywhere so a
- * dropped/reconnecting socket is visible regardless of route or open channel.
- * Hidden while healthy (connected + verified). `quiet` also hides "Reconnecting…" for a
- * screen where the person is not using the socket yet (the invite page registers the device
- * guest, whose socket is still coming up); a lost network is still reported.
- */
 export const ConnectionBanner = ({ quiet = false }: { quiet?: boolean }) => {
     const { t } = useTranslation();
     const status = runtime.connection.useConnectivity();
-    // A cloud/place switch intentionally tears the socket down and re-verifies; surfacing
-    // "Reconnecting…" during a deliberate switch reads as a failure, so stay quiet while one
-    // is in flight (detected via the switch mutations, the same signal useBackgroundSync uses).
     const isSwitching =
         useIsMutating({ mutationKey: runtime.session.SWITCH_SITE_MUTATION_KEY }) +
             useIsMutating({ mutationKey: runtime.session.SWITCH_CLOUD_MUTATION_KEY }) >
         0;
 
-    // 'offline' is claimed only when the browser reports no network and no socket is verified to
-    // contradict it. A down socket on a working network reads as 'reconnecting' — see
-    // deriveConnectivity. 'online' covers both a healthy socket and the pre-connect idle boot, so
-    // the banner stays quiet for it.
     const offline = status === 'offline';
     if (isSwitching || status === 'online' || (quiet && !offline)) return null;
 

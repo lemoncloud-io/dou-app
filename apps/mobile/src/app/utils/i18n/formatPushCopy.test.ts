@@ -1,7 +1,6 @@
 import { formatPushCopy } from './formatPushCopy';
 
 describe('formatPushCopy', () => {
-    // What the server sends for each attachment case, and what the banner should then say.
     const ATTACHMENT_CASES = [
         { key: 'push_chat_image_body', args: undefined, ko: '사진을 보냈습니다', en: 'Sent a photo' },
         { key: 'push_chat_images_body', args: ['3'], ko: '사진 3장을 보냈습니다', en: 'Sent 3 photos' },
@@ -17,9 +16,6 @@ describe('formatPushCopy', () => {
         expect(formatPushCopy(key, args, 'en')).toBe(en);
     });
 
-    // The room shape rides on the body key: a 1:1 reply, a group message and a group reply each get
-    // their own key per body kind, and the group ones carry the sender as the first arg. Built with the
-    // assembler as it is — the shape changes the copy, not the code.
     const ROOM_SHAPE_CASES = [
         { key: 'push_chat_thread_message_body', args: ['hi'], ko: '[스레드] hi', en: '[Thread] hi' },
         {
@@ -162,8 +158,6 @@ describe('formatPushCopy', () => {
         expect(formatPushCopy(key, args, 'en')).toBe(en);
     });
 
-    // A group key whose args stop short of its placeholders is the same hole as a text key with no
-    // args: the fallback, not a sender name with nothing after it.
     it('falls back when a group shape gets fewer args than it names', () => {
         expect(formatPushCopy('push_chat_group_message_body', ['Sunny'], 'ko')).toBe('새 메시지');
         expect(formatPushCopy('push_chat_group_thread_images_body', ['Sunny'], 'en')).toBe('New message');
@@ -185,7 +179,6 @@ describe('formatPushCopy', () => {
         expect(formatPushCopy('push_chat_message_body', ['hello'], 'ko')).toBe('hello');
     });
 
-    // Today's payload for an attachment-only message: the text key, and no args at all.
     it('turns a body whose placeholder got no arg into the fallback copy', () => {
         expect(formatPushCopy('push_chat_message_body', undefined, 'ko')).toBe('새 메시지');
         expect(formatPushCopy('push_chat_message_body', [], 'en')).toBe('New message');
@@ -205,7 +198,6 @@ describe('formatPushCopy', () => {
         expect(formatPushCopy('push_chat_message_body', ['see {1}'], 'en')).toBe('see {1}');
     });
 
-    // The rollout signal: a payload that outran this build must stay visible, not be papered over.
     it('returns a key this build does not know as the key itself', () => {
         expect(formatPushCopy('push_chat_sticker_body', ['1'], 'ko')).toBe('push_chat_sticker_body');
     });

@@ -26,7 +26,6 @@ const row = (channelId: string, lastNo: number, chatNo?: number, activityNo?: nu
             : ({ id: `m-${activityNo ?? chatNo}`, channelId, chatNo: activityNo ?? chatNo } as never),
 });
 
-/** The last subscription's callback — emit() replays an observation result arriving. */
 let emitRows: (rows: DomainLastChat[]) => void = () => undefined;
 
 beforeEach(() => {
@@ -50,7 +49,6 @@ describe('useLastChats — 홈 목록의 결합 프리뷰 관측 (ADR-0057)', ()
         emitRows([row('ch-a', 3, 3), row('ch-b', 0)]);
 
         expect(result.current.get('ch-a')).toEqual(expect.objectContaining({ chatNo: 3 }));
-        // A channel with no row to preview is left out of the map — consumers read undefined as "no preview".
         expect(result.current.get('ch-b')).toBeUndefined();
     });
 
@@ -73,9 +71,6 @@ describe('useLastChats — 홈 목록의 결합 프리뷰 관측 (ADR-0057)', ()
         expect(observeLastList).toHaveBeenCalledTimes(1);
     });
 
-    // Loading recent messages is managed separately, outside this screen (native background
-    // loading). If this hook held a fetch, list rendering would go back to being coupled to the
-    // network — this catches that regression.
     it('순수 관측이다 — head가 앞서 있어도 네트워크(refreshList)를 만들지 않는다', () => {
         renderHook(() => useLastChats([channel('ch-a', 7)]));
 
@@ -102,7 +97,6 @@ describe('useLastChats — 재입장 이력 숨기기 (ADR-0067)', () => {
 
         emitRows([row('ch-a', 3, 3), row('ch-b', 9, 9)]);
 
-        // ch-a's last cached row predates leaving — it becomes a channel with no preview.
         expect(result.current.get('ch-a')).toBeUndefined();
         expect(result.current.get('ch-b')).toEqual(expect.objectContaining({ chatNo: 9 }));
     });
@@ -116,8 +110,6 @@ describe('useLastChats — 재입장 이력 숨기기 (ADR-0067)', () => {
     });
 
     it('새 join 맵 아이덴티티가 구독을 다시 열지 않는다', () => {
-        // A read cursor moving rebuilds this map on the caller's side every time; re-subscribing
-        // there would tear down the whole list's observation on each keystroke of activity.
         const { rerender } = renderHook(({ joins }) => useLastChats([channel('ch-a')], joins), {
             initialProps: { joins: new Map([join('ch-a', 1)]) },
         });

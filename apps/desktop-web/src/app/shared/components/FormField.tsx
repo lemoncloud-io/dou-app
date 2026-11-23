@@ -2,14 +2,6 @@ import { Children, cloneElement, isValidElement, type ReactElement, type ReactNo
 
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
-/**
- * One labelled form control with its error, wired the way the invite dialog
- * does: the field carries `aria-invalid` and points at the error node, so the
- * failure is announced with the field instead of floating beside it.
- *
- * The error node itself is a separate `FormError`, so one failure can be
- * shared by two fields (the report dialog's title and body send together).
- */
 export const FormField = ({
     label,
     htmlFor,
@@ -19,15 +11,11 @@ export const FormField = ({
 }: {
     label: string;
     htmlFor: string;
-    /** The `FormError` node id this field points at while invalid. */
     errorId?: string;
     invalid?: boolean;
-    /** Exactly one control (Input, Textarea). */
     children: ReactNode;
 }) => {
     const child = Children.only(children);
-    // A control's own description survives: the error is appended to it, so a
-    // hint the field already named is not dropped by the failure.
     const wired =
         invalid && isValidElement(child)
             ? cloneElement(child as ReactElement<Record<string, unknown>>, {

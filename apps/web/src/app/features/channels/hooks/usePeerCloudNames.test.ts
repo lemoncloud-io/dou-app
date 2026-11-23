@@ -17,7 +17,6 @@ const observeItem = jest.fn();
 const cacheRead = jest.fn();
 const syncChannelUsers = jest.fn();
 
-// The user cache, as observeItem and cacheRead see it. `emit` replays a write to every observer.
 let cache: Map<string, Partial<DomainUser>>;
 let observers: Map<string, (user: DomainUser | null) => void>;
 const emit = (id: string, user: Partial<DomainUser>) => {
@@ -32,7 +31,6 @@ const row = (channelId: string, peerId: string, profileNick?: string, cid = 'clo
     profileNick,
 });
 
-// The selection as render sees it and as the live session context reports it — one value, as in the app.
 const setSelectedCloud = (cid: string) => {
     (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: cid });
     (runtime.session.getGlobalSessionContext as jest.Mock).mockReturnValue({ cloud: { cloudId: cid } });
@@ -49,7 +47,6 @@ beforeEach(() => {
     });
     cacheRead.mockImplementation(async (id: string) => cache.get(id) ?? null);
     syncChannelUsers.mockResolvedValue(0);
-    // ONE repository for every cloud, as the app hands it out: its identity never changes on a switch.
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
         user: { observeItem, cacheRead, syncChannelUsers },
     });
@@ -69,7 +66,6 @@ describe('usePeerCloudNames', () => {
         expect(syncChannelUsers).not.toHaveBeenCalled();
     });
 
-    // Nothing on a list fills the cache, so without this a never-opened 1:1 stayed unnamed.
     it("loads the room's members once for a peer the cache does not hold, and shows the result", async () => {
         syncChannelUsers.mockImplementation(async ({ channelId }: { channelId: string }) => {
             if (channelId === 'c1') emit('peer', { id: 'peer', name: '임마' });
@@ -96,8 +92,6 @@ describe('usePeerCloudNames', () => {
         expect(syncChannelUsers).not.toHaveBeenCalled();
     });
 
-    // The place profiles land just after the first render, so the first run sees every row unnamed.
-    // The re-run that follows must neither load the row that got a nick nor lose the one still unnamed.
     it('skips a row whose place nick arrived during its cache read, and still loads the others', async () => {
         const finish = new Map<string, (user: null) => void>();
         cacheRead.mockImplementation((id: string) => new Promise(resolve => finish.set(id, resolve)));
@@ -117,7 +111,6 @@ describe('usePeerCloudNames', () => {
         expect(syncChannelUsers).toHaveBeenCalledWith({ channelId: 'c2', since: 0 });
     });
 
-    // A placeholder-named record would come back the same, so a reload buys nothing.
     it('does not reload a room whose peer has a record, even one with no usable name', async () => {
         cache.set('peer', { id: 'peer', name: 'User_0101' });
 
@@ -167,7 +160,6 @@ describe('usePeerCloudNames', () => {
 
     it('keeps the names of peers still listed when a row is added', () => {
         cache.set('peer', { id: 'peer', name: '임마' });
-        // An asynchronous cache: nothing is emitted during the subscribe call.
         observeItem.mockImplementation((id: string, cb: (user: DomainUser | null) => void) => {
             observers.set(id, cb);
             return () => observers.delete(id);
@@ -185,7 +177,6 @@ describe('usePeerCloudNames', () => {
 });
 
 describe('usePeerCloudNames across a switch', () => {
-    // The repository is the same object across clouds, so only the selection can tell them apart.
     it("never shows the previous cloud's names once the cloud changes, even for the same peer ids", () => {
         cache.set('peer', { id: 'peer', name: '임마' });
         const { result, rerender } = renderHook(({ rows }) => usePeerCloudNames(rows), {
@@ -193,13 +184,11 @@ describe('usePeerCloudNames across a switch', () => {
         });
         expect(result.current.get('peer')).toBe('임마');
 
-        // The next cloud's cache has not answered yet.
         observeItem.mockImplementation(() => () => undefined);
         setSelectedCloud('cloud-b');
         rerender({ rows: [row('c1', 'peer', undefined, 'cloud-b')] });
 
         expect(result.current.has('peer')).toBe(false);
-        // Re-subscribed for the new cloud rather than kept on the old partition.
         expect(observeItem).toHaveBeenCalledTimes(2);
     });
 
@@ -225,7 +214,6 @@ describe('usePeerCloudNames across a switch', () => {
         expect(syncChannelUsers).not.toHaveBeenCalled();
     });
 
-    // Sent after the switch, the old cloud's room id would go out in the new cloud's session.
     it('does not send a load when the cloud changed while the cache was being read', async () => {
         let finishRead: (user: null) => void = () => undefined;
         cacheRead.mockImplementation(() => new Promise(resolve => (finishRead = resolve)));

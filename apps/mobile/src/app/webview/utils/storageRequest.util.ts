@@ -1,6 +1,5 @@
 import type { StorageMedium } from '@chatic/bridge-messages';
 
-/** The media this shell keeps; also what `CHATIC_APP_STORAGE_MEDIA` lists. */
 export const STORAGE_MEDIA: readonly StorageMedium[] = ['nativeSecure'];
 
 export const isKeptMedium = (medium: unknown): medium is StorageMedium =>

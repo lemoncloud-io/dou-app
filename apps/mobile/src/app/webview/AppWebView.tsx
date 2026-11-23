@@ -28,12 +28,7 @@ import { runtimeHold } from '../services/runtime/runtimeHold';
 import type * as RuntimeOfferModule from '../services/runtime/runtimeOffer';
 
 interface AppWebViewProps extends WebViewProps {
-    /** Mobile bridge host instance (handles native feature routing and event dispatch) */
     bridge: IAppBridgeHost;
-    /**
-     * The content process keeps dying, or a reload after a crash never came up. The host replaces
-     * the WebView with a retry view; a retry remounts it.
-     */
     onCrashRecoveryFailed: (reason: CrashRecoveryGiveUpReason) => void;
 }
 
@@ -43,10 +38,6 @@ const buildNumber = DeviceInfo.getBuildNumber();
 const platformName = Platform.OS === 'ios' ? 'iOS' : 'Android';
 const userAgentSuffix = `(${APP_USER_AGENT_PREFIX}; ${appName}/${appVersion}; ${platformName}; Build:${buildNumber})`;
 
-// Synchronous DeviceInfo bridge calls are read once at module load rather than on every render:
-// their values are stable per install/device and sit on the injection-script critical path (the
-// script is built before the WebView is created). getUniqueIdSync / getApplicationName / getDeviceId
-// each cross the native bridge, so caching them removes those round-trips from the boot path.
 const CACHED_DEVICE_INFO: CachedDeviceInfo = {
     platform: Platform.OS.toLowerCase(),
     applicationName: DeviceInfo.getApplicationName(),
@@ -55,16 +46,9 @@ const CACHED_DEVICE_INFO: CachedDeviceInfo = {
     buildNumber,
     deviceId: DeviceInfo.getUniqueIdSync(),
     osVersion: DeviceInfo.getSystemVersion(),
-    // Issued by the logging layer at app start; injected so the WebView stamps
-    // its entries with the same run identity as the native side.
     runId: NATIVE_RUN_ID,
 };
 
-/**
- * The offer to own the session — on a launch the app's runtime owns, and only then. The owner is settled
- * per launch, so the module is loaded once, and only on such a launch; the offer itself follows whether
- * the runtime already holds the session (`held`), which the next page load has to hear.
- */
 let offerModuleOfLaunch: typeof RuntimeOfferModule | null | undefined;
 const readRuntimeOffer = (held: boolean): RuntimeOffer | null => {
     if (offerModuleOfLaunch === undefined) {
@@ -81,8 +65,6 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     const { isDark, backgroundColor } = useResolvedTheme();
     const insets = useSafeAreaInsets();
-    // The shell pads the WebView by the side insets and tells the web 0 for them (see
-    // `toWebViewInsets`). Memoised so the injection effect below reruns only when the insets do.
     const { padding, web: webInsets } = useMemo(() => toWebViewInsets(insets), [insets]);
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
@@ -94,8 +76,6 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     useVersionCheckHandler(bridge);
 
-    // WebView process crash: record it, reload under the crash-reload cover, and stop reloading once
-    // that is not working — see `useWebViewCrashRecovery`.
     const reloadWebView = useCallback(() => webViewRef.current?.reload(), []);
     const handleTermination = useWebViewCrashRecovery({
         reload: reloadWebView,
@@ -103,13 +83,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         onGiveUp: onCrashRecoveryFailed,
     });
 
-    // iOS: the content process was terminated by the OS (or crashed)
     const handleContentProcessDidTerminate = useCallback(
         () => handleTermination('iOS WebView content process terminated'),
         [handleTermination]
     );
 
-    // Android: render process crashed/killed — handled the same way as the iOS path
     const handleRenderProcessGone = useCallback(
         (event: { nativeEvent: { didCrash?: boolean } }) =>
             handleTermination(
@@ -122,11 +100,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const versionCheck = getVersionCheckResult();
     const debugModeEnabled = useDebugSettingsStore(state => state.debugModeEnabled);
     const logUploadHold = useDebugSettingsStore(state => state.logUploadHold);
-    // Seeds the web's pre-paint script. Only `injectedJavaScriptBeforeContentLoaded` matters for
-    // that, which applies to the next load — a live theme change needs no push, since the web
-    // initiated it and already knows.
     const theme = useThemeStore(state => state.theme);
-    // A change applies to the next page load, like the theme: the injected script is rebuilt with it.
     const runtimeHeld = useSyncExternalStore(runtimeHold.subscribe, runtimeHold.read);
     const syncInjectionScript = getSyncInjectionScript({
         insets: webInsets,
@@ -134,25 +108,13 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         debugModeEnabled,
         logUploadHold,
         theme,
-        // Read once per script build, not memoized: this mirrors CACHED_DEVICE_INFO's own boot-time
-        // snapshot semantics — a shell-lane write goes through `SaveConfigValue` while this WebView
-        // instance is alive, and the web's own optimistic store update is what that screen sees
-        // immediately. This bag only needs to be current for the NEXT cold start.
         configBag: configKvService.getAll(),
-        // Listed in the boot script, which is also the post-load script, so the web finds it before
-        // its first StorageGet.
         storageMedia: STORAGE_MEDIA,
         runtimeOffer: readRuntimeOffer(runtimeHeld),
-        // What this build can do, for the web to choose its host ports from before its first render.
         capabilities: hostCapabilities(Platform.OS),
         deviceInfo: buildDeviceInfoParams(CACHED_DEVICE_INFO, {
             stage: toEnvStage(Config.VITE_ENV),
-            // Same flag that gates the console subscription in `provider.ts`.
-            // Tying them together is the point: the web relays `debug` if and
-            // only if something over here will print it.
             consoleEnabled: __DEV__,
-            // The device's language, never the choice: the web resolves its own `system` from this,
-            // and already knows the choice from its settings.
             appLanguage: getAppLanguage(),
             firebaseInstallId,
             latestVersion: versionCheck?.latestVersion ?? '',
@@ -165,10 +127,6 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         webViewRef.current.injectJavaScript(getSafeAreaScript(webInsets, keyboardHeight));
     }, [webInsets, keyboardHeight]);
 
-    // Pushed live rather than only at load: the point of holding is to reproduce
-    // a bug while it is on, and a reload would discard the very session being
-    // reproduced. Sending on mount too is harmless — the boot script already set
-    // the same value.
     useEffect(() => {
         webViewRef.current?.injectJavaScript(getLogUploadHoldScript(logUploadHold));
     }, [logUploadHold]);
@@ -183,7 +141,6 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     );
 
     return (
-        // The padding strip shows the container, so it takes the theme background colour.
         <View style={[styles.webViewContainer, padding, { backgroundColor }]}>
             <WebView
                 ref={setRefs}
@@ -200,20 +157,10 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 forceDarkOn={false}
                 originWhitelist={['*']}
                 allowFileAccess={true}
-                // The page is always served over http(s) — the release web, a debug override, or the
-                // custom-zip server on localhost — never from a file URL, so file-URL pages get no
-                // extra reach (reading other files, or any origin).
                 allowFileAccessFromFileURLs={false}
                 allowUniversalAccessFromFileURLs={false}
                 webviewDebuggingEnabled={__DEV__}
-                // Android only. An https page loads nothing over http (localhost aside, which Chromium
-                // trusts): an http script could be swapped in transit and would run with this page's
-                // storage and bridge. Nothing the app shows needs http — link previews already drop
-                // http images — and this stays shut even if the cleartext allowlist ever grows.
                 mixedContentMode="never"
-                // The chat's media viewer plays a video in place. Without this iOS hands every
-                // `play()` to the OS full-screen player, even for a `<video playsinline>`. Playback
-                // still needs a tap: `mediaPlaybackRequiresUserAction` keeps its default.
                 allowsInlineMediaPlayback={true}
                 cacheEnabled={true}
                 cacheMode="LOAD_DEFAULT"

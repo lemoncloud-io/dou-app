@@ -1,4 +1,3 @@
-// `jest.mock` is hoisted above this import, so the bridge reads the mocked module.
 import { AttachmentPickerBridge } from './AttachmentPickerBridge';
 
 const mockPick = jest.fn();

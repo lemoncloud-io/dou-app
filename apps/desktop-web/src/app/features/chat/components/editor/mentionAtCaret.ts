@@ -2,23 +2,14 @@ import { $isTextNode, type RangeSelection, type TextNode } from 'lexical';
 
 import { MENTION_TOKEN_SOURCE } from '../../../../shared';
 
-// Word-start "@" + token chars up to the caret (same class RichText renders).
 const MENTION_MATCH = new RegExp(`(^|[\\s([{])(@(${MENTION_TOKEN_SOURCE}*))$`, 'u');
 
 export interface MentionAtCaret {
-    /** The text typed after "@". */
     query: string;
-    /** Text node + offset where the "@" starts (for replacement). */
     startKey: string;
     startOffset: number;
 }
 
-// Single source of truth for "is the caret inside an @-mention, and where does it
-// start". Walks back across adjacent simple-text nodes (a mention chip — type
-// 'mention', not simple — stops the walk) so detection and replacement always agree,
-// and maps the match back to a precise (node, offset) point so replacement never
-// relies on character counting (codepoint/grapheme-safe). Returns null when the caret
-// is not in an "@query".
 export const findMentionAtCaret = (selection: RangeSelection): MentionAtCaret | null => {
     if (!selection.isCollapsed() || selection.anchor.type !== 'text') return null;
     const anchorNode = selection.anchor.getNode();
@@ -37,7 +28,6 @@ export const findMentionAtCaret = (selection: RangeSelection): MentionAtCaret | 
     const match = MENTION_MATCH.exec(text);
     if (!match) return null;
 
-    // match.index + lead char → absolute offset of "@"; map it back onto a node.
     let offset = match.index + match[1].length;
     for (const node of nodes) {
         const len = lengthOf(node);

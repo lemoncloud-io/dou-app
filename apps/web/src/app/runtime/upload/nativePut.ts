@@ -11,19 +11,10 @@ import {
 
 export type TransferBridge = Pick<IWebBridgeClient, 'request' | 'onEvent'>;
 
-/**
- * The bytes cross the bridge once as base64 before the shell streams them from disk. The default
- * request timeout is sized for small commands; a 20MB photo is ~27MB of base64.
- */
 const WRITE_TEMP_FILE_TIMEOUT_MS = 120_000;
 
 const isTerminal = (state: OnFileTransferStatePayload['state']) => state !== 'running';
 
-/**
- * The shell answers, it never judges: a response of any status arrives as `responded`, and only
- * transfers that got no response at all are `failed`. `cancelled` can only come from the OS here —
- * nothing in this app cancels.
- */
 export const toPutResult = (state: OnFileTransferStatePayload): PutResult => {
     if (state.state === 'responded') {
         return {
@@ -48,13 +39,9 @@ const readBase64 = (file: File) =>
     });
 
 export interface NativeTransfers {
-    /** PUTs a page file: an image through the shell's transfer module, a video or document through `fallback`. */
     put: PutPort;
-    /** PUTs a file the shell keeps, from where it lies. */
     putShellFile: ShellFilePutPort;
-    /** Settles a waiting `put` from a terminal state learned some other way. Returns whether one was waiting. */
     settle(state: OnFileTransferStatePayload): boolean;
-    /** Transfer ids this page is still waiting on, counting only those the shell accepted. */
     waiting(): string[];
     acknowledge(transferIds: string[]): Promise<void>;
     dispose(): void;
@@ -62,19 +49,11 @@ export interface NativeTransfers {
 
 export interface NativeTransfersOptions {
     bridge: TransferBridge;
-    /** The page's own PUT, alive only while the app is in front: what a page video or document goes by. */
     fallback: PutPort;
     newTransferId?: () => string;
     log?: (message: string, data?: Record<string, unknown>) => void;
 }
 
-/**
- * PUTs through the native shell so the bytes keep moving with the app in the background.
- *
- * Each PUT is: write the bytes to a temp file → start a transfer → wait for its one terminal state →
- * acknowledge it, so the shell can drop the record it keeps for a page that might have missed the
- * event.
- */
 export const createNativeTransfers = ({
     bridge,
     fallback,
@@ -82,15 +61,8 @@ export const createNativeTransfers = ({
     log = () => undefined,
 }: NativeTransfersOptions): NativeTransfers => {
     const waiters = new Map<string, (result: PutResult) => void>();
-    // Who is told a transfer's bytes as the shell reports them (`running`, at most every 200 ms).
-    // Dropped with its waiter, so nothing is counted after the transfer settles.
     const progressOf = new Map<string, PutProgress>();
-    // Accepted by the shell. A waiter is registered before its start request, so until the reply it
-    // is legitimately absent from the shell's list and must not be taken for a lost transfer.
     const accepted = new Set<string>();
-    // One temp-file write at a time. The PUTs run in parallel, but each write holds the whole file as
-    // base64 in page memory (and again in the bridge message), and three 20MB photos at once is
-    // enough to take a WebView down.
     let writing: Promise<unknown> = Promise.resolve();
     const oneWriteAtATime = <T>(work: () => Promise<T>): Promise<T> => {
         const next = writing.then(work, work);
@@ -103,7 +75,6 @@ export const createNativeTransfers = ({
         try {
             await bridge.request({ type: 'AckFileTransfers', data: { transferIds } });
         } catch (error) {
-            // Not fatal: an unacknowledged result is only held until the shell's cap evicts it.
             log('native transfer: ack failed', { count: transferIds.length, code: (error as { code?: string })?.code });
         }
     };
@@ -129,7 +100,6 @@ export const createNativeTransfers = ({
         if (settle(state)) void acknowledge([state.transferId]);
     });
 
-    /** Starts the transfer of a local file the shell can read and waits for its one terminal state. */
     const startTransfer = async (
         target: UploadPutTarget,
         file: { uri: string; contentType: string; contentLength: number },
@@ -137,7 +107,6 @@ export const createNativeTransfers = ({
         onProgress: PutProgress | undefined
     ): Promise<PutResult> => {
         const transferId = newTransferId();
-        // Registered before the start request: the first state can arrive before its reply does.
         const result = new Promise<PutResult>(resolve => waiters.set(transferId, resolve));
         if (onProgress) progressOf.set(transferId, onProgress);
         try {
@@ -149,8 +118,6 @@ export const createNativeTransfers = ({
                     url: target.url,
                     method: 'PUT',
                     headers: target.headers,
-                    // The shell requires the length for an upload, rejects the start without it, and
-                    // checks it against the file.
                     file,
                 },
             });
@@ -159,17 +126,12 @@ export const createNativeTransfers = ({
             waiters.delete(transferId);
             progressOf.delete(transferId);
             log('native transfer: start refused', { label, code: codeOf(error) });
-            // iOS refuses a source file that is gone at the start; Android fails it once it reads it.
-            // Either way it is the same lost file, which a retry cannot send.
             return { kind: 'no-response', reason: codeOf(error) === 'SOURCE' ? 'source' : 'system' };
         }
         return result;
     };
 
     const put: PutPort = async (target, file, label, onProgress) => {
-        // Only an image crosses the bridge. A page video or document would have to go over whole, as
-        // base64 in one message, and a WebView does not survive that for a 300MB file. The page PUT
-        // streams the picked file from disk instead — at the cost of stopping with the page.
         if (chatAttachmentFormat(file)?.kind !== 'image') return fallback(target, file, label, onProgress);
 
         const written = await oneWriteAtATime(async (): Promise<{ uri: string } | PutResult> => {
@@ -187,7 +149,6 @@ export const createNativeTransfers = ({
                 return reply.data?.uri ? { uri: reply.data.uri } : { kind: 'no-response', reason: 'system' };
             } catch (error) {
                 log('native transfer: temp file failed', { label, code: codeOf(error) });
-                // The shell answers a failed write with SOURCE: a local-file problem, not a system one.
                 return { kind: 'no-response', reason: codeOf(error) === 'SOURCE' ? 'source' : 'system' };
             }
         });
@@ -211,7 +172,6 @@ export const createNativeTransfers = ({
         acknowledge,
         dispose: () => {
             unsubscribe();
-            // Nothing may be left hanging on a transfer nobody will report any more.
             for (const resolve of waiters.values()) resolve({ kind: 'no-response', reason: 'system' });
             waiters.clear();
             accepted.clear();

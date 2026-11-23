@@ -7,10 +7,6 @@ import { isOpenableUrl } from '../utils/urlTrust';
 import type { OpenCameraPayload, WebMessageData } from '@chatic/bridge-messages';
 import type { Asset, CameraOptions } from 'react-native-image-picker';
 
-/**
- * The capture options the web may set — exactly the fields of `OpenCameraPayload`. Anything else on the
- * message (`saveToPhotos`, `durationLimit`, …) is the picker's to decide, not the page's.
- */
 const CAMERA_OPTION_FIELDS: Record<keyof OpenCameraPayload, true> = {
     mediaType: true,
     quality: true,
@@ -19,15 +15,8 @@ const CAMERA_OPTION_FIELDS: Record<keyof OpenCameraPayload, true> = {
     includeBase64: true,
     cameraType: true,
 };
-// A record rather than a list, so a field added to `OpenCameraPayload` fails to compile here instead of
-// being dropped without a word.
 const CAMERA_OPTION_KEYS = Object.keys(CAMERA_OPTION_FIELDS) as Array<keyof OpenCameraPayload>;
 
-/**
- * The message's capture options, or `undefined` when it sets none — so a bare request opens the camera
- * exactly as it did before options were read. Undefined fields are dropped rather than spread, or they
- * would overwrite the service's own defaults.
- */
 const toCameraOptions = (payload: OpenCameraPayload | undefined): CameraOptions | undefined => {
     const options: Partial<OpenCameraPayload> = {};
     for (const key of CAMERA_OPTION_KEYS) {
@@ -35,7 +24,6 @@ const toCameraOptions = (payload: OpenCameraPayload | undefined): CameraOptions 
         if (value !== undefined) Object.assign(options, { [key]: value });
     }
     if (Object.keys(options).length === 0) return undefined;
-    // `CameraOptions` requires a media type; the service defaults to a photo, and so does this.
     return { ...options, mediaType: options.mediaType ?? 'photo' };
 };
 
@@ -44,8 +32,6 @@ export const useDeviceHandler = () => {
 
     const handleOpenSettings = useCallback(
         async (_message: WebMessageData<'OpenSettings'>) => {
-            // A "go to Settings" button that silently does nothing strands a reader
-            // whose permission is BLOCKED, since Settings is the only way back.
             const opened = await deviceService.openSettings();
             if (!opened) {
                 return {
@@ -105,8 +91,6 @@ export const useDeviceHandler = () => {
                         return { uri: doc.uri, name: doc.name, type: doc.type, size: doc.size, base64 };
                     })
                 );
-                // A failed read used to ride along as success with base64 undefined —
-                // the upload then had nothing to send and no message to show.
                 if (data.includeBase64) {
                     const unread = documents.find(doc => doc.base64 === undefined);
                     if (unread) return readError(unread.name);
@@ -127,8 +111,6 @@ export const useDeviceHandler = () => {
     const handleOpenCamera = useCallback(
         async (message: WebMessageData<'OpenCamera'>) => {
             try {
-                // Options used to be dropped here, so `includeBase64` never reached the picker and the page got
-                // only a `uri` it cannot read. Reading a QR code from a photo needs the base64.
                 const assets: Asset[] = await deviceService.openCamera(toCameraOptions(message.data));
                 return {
                     type: 'OnOpenCamera' as const,
@@ -195,8 +177,6 @@ export const useDeviceHandler = () => {
                 return {
                     type: 'OnGetContacts' as const,
                     success: true,
-                    // Every field is defaulted in `toContactInfo` — iOS omits a key outright where
-                    // Android sends an empty value, and `ContactInfo` promises the web a value.
                     data: { contacts: contacts.map(toContactInfo), permission },
                 };
             } catch (e: any) {
@@ -240,7 +220,6 @@ export const useDeviceHandler = () => {
     const handleCreateDummyFile = useCallback(
         async (message: WebMessageData<'CreateDummyFile'>) => {
             const { sizeInBytes, fileName } = message.data;
-            // An upload reads only the shell's own upload folders, so a dummy file is written into one.
             const folder = FileManagerBridge.TransferTempPath || FileManagerBridge.DocumentDirectoryPath;
             const path = `${folder}/${fileName}`;
             try {

@@ -28,7 +28,6 @@ import {
 import { useJoinDialogStore } from '../../auth';
 import { PairingLogoutDialog } from '../../pairing/components/PairingLogoutDialog';
 import { isDevicePairingEnabled } from '../../pairing/utils/devicePairing';
-// The store file, not the settings barrel: the barrel carries the Settings page into this chunk.
 import { useAppearanceDialogStore } from '../../settings/stores/useAppearanceDialogStore';
 import {
     isRelayGuest,
@@ -38,10 +37,6 @@ import {
     useDisplayProfile,
 } from '../../../shared';
 
-/**
- * The signed-in user's avatar and menu, pinned to the bottom of the nav rail: profile, account,
- * joining with an invite, the appearance popup, settings, the debug overlay when it is on, and logging out.
- */
 export const AccountMenu = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -52,24 +47,16 @@ export const AccountMenu = () => {
     const accountName = useAccountName();
     const logout = runtime.session.useSessionLogout();
     const { resetAccount } = useAccountResetOnLogout();
-    // A guest account lives on this device and nothing can sign back into it, so
-    // logging out of one is a delete. A main account can always come back.
     const { isGuest } = runtime.session.useRuntimeProfile();
     const [confirmingLogout, setConfirmingLogout] = useState(false);
     const debugEnabled = useDebugModeStore(s => s.enabled);
     const openDebugPanel = useDebugModeStore(s => s.setOverlayOpen);
 
     const signOut = () => void resetAccount().finally(() => logout());
-    // An approving app first ends the web sign-ins it approved, with a confirm when there are any.
     const pairingLogout = runtime.session.usePairingAwareLogout(signOut);
     const runLogout = () => (isDevicePairingEnabled() ? void pairingLogout.start() : signOut());
-    // Joining exchanges the code under the guest id the device registered (`delegatorId`). A
-    // sign-in on desktop links that guest rather than replacing it, so a signed-in account keeps the
-    // id and the server follows it back to the guest for the invited cloud. Only an account with no
-    // such id has nothing to join under — the exchange refuses it after the code.
     const canJoinWithInvite = isRelayGuest() || !!delegatorId;
 
-    // Self Display Profile: show my Place nick/photo here when set for this place.
     const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(userId ?? '', accountName, photo);
     const userInitial = selfName.charAt(0).toUpperCase();
 
@@ -80,19 +67,15 @@ export const AccountMenu = () => {
                     aria-label={selfName ? t('rail.menu.accountMenu', { name: selfName }) : t('rail.menu.profile')}
                     className="group relative shrink-0 transition-transform duration-150 ease-tactile tactile focus-ring rounded-full"
                 >
-                    {/* Figma "1-person Profile": the navy disc and green presence dot are
-                        fixed in both themes — see --profile-disc / --presence-online. */}
                     <Avatar className="h-12 w-12 rounded-full">
                         {userPhoto && <AvatarImage src={userPhoto} alt={selfName} className="rounded-full" />}
                         <AvatarFallback className="rounded-full bg-profile-disc text-heading font-semibold text-profile-disc-foreground">
                             {userInitial || <User size={17} aria-hidden />}
                         </AvatarFallback>
                     </Avatar>
-                    {/* presence dot — signals "you, signed in" so the slot reads intentional, not empty */}
                     <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-rail-elevated bg-presence-online" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="right" align="end" sideOffset={6}>
-                    {/* Who acts here: the account name and its kind. */}
                     <DropdownMenuLabel className="flex flex-col gap-0.5">
                         <span className="truncate text-callout font-medium text-foreground">
                             {selfName || t('rail.menu.profile')}
@@ -112,7 +95,6 @@ export const AccountMenu = () => {
                         {t('rail.menu.appearance')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
-                    {/* A tool, not an account action: its own group, away from Log out. */}
                     {(import.meta.env.DEV || debugEnabled) && (
                         <>
                             <DropdownMenuSeparator />
@@ -128,8 +110,6 @@ export const AccountMenu = () => {
                 </DropdownMenuContent>
             </DropdownMenu>
             <PairingLogoutDialog logout={pairingLogout} />
-            {/* A guest logout is a delete: the safe way out (connect the account)
-                comes first, and the destructive choice is named for what it is. */}
             <AlertDialog open={confirmingLogout} onOpenChange={setConfirmingLogout}>
                 <AlertDialogContent className="sm:max-w-sm">
                     <AlertDialogTitle>{t('rail.menu.logoutGuest.title')}</AlertDialogTitle>

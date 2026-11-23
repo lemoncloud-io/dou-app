@@ -5,14 +5,12 @@ import { FEED_GAP_PX } from './feedWindow';
 
 interface DateSeparatorProps {
     timestamp: number;
-    /** Feed-window measurement key (see MessageList); rendered as data-row-key on the pill. */
     rowKey?: string;
 }
 
 const isSameDay = (a: Date, b: Date): boolean =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-/** Fixed pill height; the rule behind it is positioned from the same number. */
 const PILL_HEIGHT_PX = 22;
 
 export const DateSeparator = ({ timestamp, rowKey }: DateSeparatorProps) => {
@@ -30,13 +28,8 @@ export const DateSeparator = ({ timestamp, rowKey }: DateSeparatorProps) => {
         return formatLongDate(timestamp);
     };
 
-    // A sticky box is bounded by its parent, so MessageList mounts each day as its own block and
-    // the stuck pill leaves with its day. The rule is a separate, non-sticky line pulled up behind
-    // the pill, so it scrolls away with the day instead of striking through the messages under it.
     return (
         <>
-            {/* -top-5 cancels the feed's own top padding (py-5), so a stuck pill sits 8px
-                under the header instead of floating over the first line of text. */}
             <div data-row-key={rowKey} className="pointer-events-none sticky -top-5 z-raised flex justify-center pt-2">
                 <span
                     style={{ height: PILL_HEIGHT_PX }}
@@ -45,9 +38,6 @@ export const DateSeparator = ({ timestamp, rowKey }: DateSeparatorProps) => {
                     {formatLabel()}
                 </span>
             </div>
-            {/* Pulled up to the pill's vertical centre: past the pill's own half, and past the feed's
-                row gap that sits between the two siblings. Both come from constants, so a type or
-                gap change can no longer strike the rule through the messages below. */}
             <div
                 aria-hidden
                 style={{ marginTop: -(PILL_HEIGHT_PX / 2 + 1 + FEED_GAP_PX) }}

@@ -55,7 +55,6 @@ describe('useDownloadNotices', () => {
         expect(screen.queryByText('Saved a.png')).toBeNull();
     });
 
-    // The notice closes a few seconds after it opened, however often it was updated since.
     it('starts a new notice once the last one is about to close', () => {
         const now = vi.spyOn(Date, 'now').mockReturnValue(1_000);
         try {

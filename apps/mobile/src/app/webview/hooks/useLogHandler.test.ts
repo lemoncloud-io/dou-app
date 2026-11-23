@@ -10,12 +10,6 @@ const sendLog = (data: Partial<WebMessageData<'SendLog'>['data']>): WebMessageDa
         data: { message: 'msg', ...data },
     }) as WebMessageData<'SendLog'>;
 
-/**
- * The relayed entry is observed through the hub — the merged ring buffer is
- * gone, so publication to the hub IS the delivery: it is what feeds the app's
- * other subscribers (the Crashlytics breadcrumb sink and, in dev, the console
- * mirror). A subscriber must be installed before the handler runs.
- */
 const collect = () => {
     const entries: LogEntry[] = [];
     const unsubscribe = logHub.subscribe(entry => entries.push(entry));
@@ -32,10 +26,6 @@ describe('useLogHandler', () => {
         );
 
         unsubscribe();
-        // Returns no response — the host reads this as "no response" and skips sending a downstream
-        // message. The web sends this up without a refId, so that response would be discarded
-        // anyway, but every discarded response used to spin the UI thread once, burning a bridge
-        // round trip for every single log.
         expect(res).toBeUndefined();
         const [entry] = entries;
         expect(entry).toMatchObject({
@@ -79,9 +69,6 @@ describe('useLogHandler', () => {
     });
 
     it('웹이 실어 보낸 id와 발생 시점 컨텍스트를 보존한다', async () => {
-        // In the hybrid setup, this entry is also sitting in the web's upload queue, and the app
-        // queue receives the same entry. The id must survive so the server overwrites the same
-        // document instead of leaving a duplicate.
         const { result } = renderHook(() => useLogHandler());
         const { entries, unsubscribe } = collect();
 

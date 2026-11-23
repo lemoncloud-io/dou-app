@@ -29,7 +29,6 @@ describe('syncStreakReporter — 배경 동기화 실패 스트릭', () => {
         expect(error).not.toHaveBeenCalled();
     });
 
-    // Two in a row is still within the common transient-failure range — it only escalates at the threshold.
     it('임계(3연속)에 닿을 때 error 한 건을 남긴다', () => {
         syncStreakReporter.fail('channel-delta', boom);
         syncStreakReporter.fail('channel-delta', boom);
@@ -43,7 +42,6 @@ describe('syncStreakReporter — 배경 동기화 실패 스트릭', () => {
         });
     });
 
-    // Repeating the same fact every cycle would produce thousands of entries a day and bury the fact itself.
     it('임계를 넘긴 뒤로는 침묵한다', () => {
         for (let i = 0; i < 10; i += 1) syncStreakReporter.fail('channel-delta', boom);
 
@@ -85,7 +83,6 @@ describe('syncStreakReporter — 배경 동기화 실패 스트릭', () => {
         expect(warn.mock.calls[0][2]).toMatchObject({ data: { streak: 1 } });
     });
 
-    // There really are states where one path dies while the rest stay alive — counting them together would erase that distinction.
     it('경로별로 따로 센다', () => {
         syncStreakReporter.fail('channel-delta', boom);
         syncStreakReporter.fail('channel-delta', boom);

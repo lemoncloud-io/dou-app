@@ -10,7 +10,6 @@ import '../../../../../i18n';
 import { usePlaceProfilesStore } from '../../../../shared/stores/usePlaceProfilesStore';
 import { ChannelListPanel } from './ChannelListPanel';
 
-/** A fresh repository per test: the freshness queue is kept per repository, as the app keeps one per runtime. */
 const current = vi.hoisted(() => ({ repo: { observeLastList: vi.fn(), refreshList: vi.fn() } }));
 let repo = current.repo;
 
@@ -42,7 +41,6 @@ const chat = (channelId: string, chatNo: number, content: string, at: number, ow
         owner$: { name: owner },
     }) as DomainChat;
 
-/** Hands the list's one observation its answer, as the cache would. */
 let emit: (rows: DomainLastChat[]) => void = () => undefined;
 
 const renderPanel = (channels: DomainChannel[], over: Partial<Parameters<typeof ChannelListPanel>[0]> = {}) => {
@@ -99,7 +97,6 @@ describe('ChannelListPanel', () => {
         expect(rows()).toHaveLength(2);
     });
 
-    // The message's `owner$.name` is a snapshot that can carry another name; the feed shows the nick.
     it("names the last message's sender by their nick in the place, as the feed does", () => {
         usePlaceProfilesStore.setState({ bySid: { 'place-1': { 'u-alice': { nick: 'Alice' } } } });
         renderPanel([channel('general', { sid: 'place-1' })]);
@@ -227,7 +224,6 @@ describe('ChannelListPanel', () => {
         renderPanel([], { isLoading: true });
 
         expect(screen.queryByText('No channels yet')).toBeNull();
-        // Only the header's +: the empty state's own button waits until the place is known to be empty.
         expect(screen.getAllByRole('button', { name: 'Create channel' })).toHaveLength(1);
     });
 
@@ -247,13 +243,9 @@ describe('ChannelListPanel', () => {
         expect(onCreateChannel).toHaveBeenCalled();
     });
 
-    // A room's last activity can be a thread reply, which the room's feed leaves to the thread
-    // panel: opening only the room would show nothing of the line the row printed.
     it('marks a previewed thread reply, and opens its thread when the row is picked', () => {
         const { onSelect } = renderPanel([channel('general')]);
         const reply = { ...chat('general', 9, 'new domain API mounting', NOW - MIN, 'Aiden'), parentId: '7' };
-        // The shared reading keeps `chat` on the last top-level message; the desktop list prints the
-        // newer `activity`, which is the reply.
         act(() =>
             emit([
                 {

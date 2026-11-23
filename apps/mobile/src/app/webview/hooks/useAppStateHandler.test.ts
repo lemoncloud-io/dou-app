@@ -18,7 +18,6 @@ jest.mock('react-native', () => ({
     },
 }));
 
-// The real useAppState over the mocked AppState above: the hooks barrel reaches native modules.
 jest.mock('../../hooks', () => jest.requireActual('../../hooks/useAppState'));
 jest.mock('../../services', () => ({ logger: { info: jest.fn() } }));
 
@@ -60,8 +59,6 @@ describe('useAppStateHandler', () => {
             expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
         });
 
-        // React Native reports `unknown` before it has read the state; the web would read it as a
-        // status outside AppBackgroundStatus.
         it('pushes nothing while the state is unknown', () => {
             mockCurrentState = 'unknown';
 

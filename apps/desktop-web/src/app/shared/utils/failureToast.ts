@@ -5,12 +5,6 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { serverErrorText } from './errors';
 
-/**
- * A failure toast: the sentence the person can act on as the title, any explanation of the app's
- * own under it, and then the server's own words. The raw text used to reach only the console,
- * which left a refusal such as `400 INVALID - grace-timeout by invite[910024]` unreadable to
- * anyone reporting it.
- */
 export const toastFailure = (
     title: string,
     error: unknown,

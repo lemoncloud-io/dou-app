@@ -23,25 +23,16 @@ import { originOf } from '../utils/url';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
 import { deriveSubWebViewUserKey } from './subWebViewUserKey';
 
-/**
- * The requests this table answers: the subset minus the two the host answers itself and the runtime
- * requests, which `subWebViewRuntimeBridge` answers where the app's runtime runs.
- */
 export type SubBridgeRequestType = Exclude<
     SubWebViewRequestType,
     'WebAppReady' | 'Ping' | SubWebViewRuntimeRequestType
 >;
 
-/**
- * One handler per request a sub WebView page may send. Typed by the subset, so a request outside it
- * cannot be added here without failing to compile.
- */
 export type SubBridgeHandlers = {
     [K in SubBridgeRequestType]: (message: WebMessageData<K>) => Promise<WebMessageHandlerResponse<K>>;
 };
 
 export interface SubBridgeDeps {
-    /** The view this page is in; the page can only ever finish this one. */
     viewId: string;
     service: Pick<ISubWebViewService, 'close'>;
     clipboard: IClipboardService;
@@ -49,31 +40,16 @@ export interface SubBridgeDeps {
     openExternal: (url: string) => Promise<void>;
     setTitle: (title: string) => void;
     openShareSheet: (data: Pick<OpenShareSheetPayload, 'title' | 'message' | 'url'>) => Promise<ShareAction>;
-    /** The origin the view was opened on, from the shell's own record; `null` when it has none. */
     origin: string | null;
-    /** The device id the main WebView is given too; read only when a page asks for its key. */
     getDeviceId: () => string | null | undefined;
-    /** Whether the page takes Android back for itself; reset by the view on each page load. */
     setBackClaim: (claimed: boolean) => void;
-    /** Whether the user's close is asked of the page first; reset by the view on each page load. */
     setCloseGuard: (enabled: boolean) => void;
-    /** Writes a page's error report to the app's logs, under the opened origin. */
     logPageError: (report: { origin: string | null; message: string; stack?: string }) => void;
-    /**
-     * The opened origin's storage, opened on the first request that needs it; `null` when the view
-     * has no origin to keep it under, or its file cannot be opened.
-     */
     openStorage: () => Pick<SubWebViewStorage, 'get' | 'set' | 'remove' | 'clear' | 'info'> | null;
-    /** The OS permissions behind the camera and the microphone. */
     permissions: Pick<IPermissionService, 'status' | 'request'>;
-    /** Opens DoU's own page in the OS settings; `false` when the OS would not. */
     openSettings: () => Promise<boolean>;
 }
 
-/**
- * The request each manifest permission unlocks. Every other request in the subset is the base set: it
- * reaches nothing outside the view, so every page has it.
- */
 export const PERMISSION_REQUESTS: Readonly<Record<SubWebViewPermission, SubBridgeRequestType>> = {
     clipboard: 'CopyToClipboard',
     share: 'OpenShareSheet',
@@ -81,10 +57,6 @@ export const PERMISSION_REQUESTS: Readonly<Record<SubWebViewPermission, SubBridg
     userKey: 'GetSubWebViewUserKey',
 };
 
-/**
- * The handlers a page with `permissions` gets: the base set, and each permitted request. One left out
- * is not registered, so the handshake does not list it and the host answers it `NOT_FOUND`.
- */
 export const permittedSubBridgeHandlers = (
     handlers: SubBridgeHandlers,
     permissions: ReadonlySet<SubWebViewPermission>
@@ -103,23 +75,16 @@ const OS_PERMISSION = { camera: 'CAMERA', microphone: 'MICROPHONE' } as const;
 
 const isDeviceKind = (kind: unknown): kind is SubWebViewDeviceKind => kind === 'camera' || kind === 'microphone';
 
-/** What react-native-device-info answers when it has no id to give. */
 const NO_DEVICE_ID = 'unknown';
 
-/** Caps on what a page may put in the share sheet; far above what a share needs. */
 const SHARE_TITLE_LIMIT = 100;
 const SHARE_MESSAGE_LIMIT = 4000;
 const SHARE_URL_LIMIT = 2048;
 
-/** What an error report keeps, and how many a page load may send. */
 const ERROR_MESSAGE_LIMIT = 1000;
 const ERROR_STACK_LIMIT = 4000;
 const ERROR_REPORTS_PER_LOAD = 20;
 
-/**
- * A field the page may leave out — absent or `null`, which JSON serializers emit for a missing value —
- * or a string within `limit`; `null` when it is neither.
- */
 const optionalText = (value: unknown, limit: number): string | undefined | null => {
     if (value == null) return undefined;
     return typeof value === 'string' && value.length <= limit ? value : null;
@@ -134,7 +99,6 @@ const fail = <T extends string>(type: T, code: string, message: string) => ({
     error: { code, message },
 });
 
-/** A storage call's reply: its value, or its code, with a message for a developer. */
 const storageReply = <T extends string, V>(type: T, result: StorageResult<V> | null) => {
     if (!result) return fail(type, 'UNAVAILABLE', 'This view has no storage.');
     if (result.ok) return { type, success: true as const, data: result.value };
@@ -147,16 +111,8 @@ const storageReply = <T extends string, V>(type: T, result: StorageResult<V> | n
     );
 };
 
-/**
- * The page-facing handlers. Written for this host rather than borrowed from the main WebView's, which
- * the boundary forbids and which assume the main web is asking — the main `OpenURL` opens the app's
- * own schemes, which a page must not.
- */
 export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers => {
-    // The handlers are built once per page load, so this counts that load's reports.
     let errorReports = 0;
-    // A request in flight per kind: a page that asks twice (a double tap) gets the one answer instead of
-    // putting the OS prompt up twice.
     const asking = new Map<SubWebViewDeviceKind, Promise<'GRANTED' | 'DENIED' | 'BLOCKED'>>();
     return {
         FinishSubWebView: async message => {
@@ -204,9 +160,6 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             return { type: 'OnTriggerHaptic', success: true, data: {} };
         },
 
-        // Only what the sub WebView would itself hand to the OS — web, mail, phone, SMS and the stores.
-        // Never the app's own schemes or links, and never the hub or a reviewed page, which open in a
-        // sub WebView of their own rather than in the OS browser.
         OpenURL: async message => {
             const url = message.data?.url;
             const trust = subWebViewTrustOf(url);
@@ -226,8 +179,6 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             }
         },
 
-        // Text and a web link only. The link is not opened, so the app's own links may be shared like any
-        // other text, but a `file:` URL would hand the OS a file from the app's container on iOS.
         OpenShareSheet: async message => {
             const title = optionalText(message.data?.title, SHARE_TITLE_LIMIT);
             const text = optionalText(message.data?.message, SHARE_MESSAGE_LIMIT);
@@ -258,9 +209,6 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             }
         },
 
-        // The main web's message: while true, Android back is the page's. A page's claim is only ever
-        // about itself — `includesHistory`, which lets the main web answer for its history too, is not
-        // read here; the view's own history and its close come after the claim either way.
         SetCanGoBack: async message => {
             const canGoBack = message.data?.canGoBack;
             if (typeof canGoBack !== 'boolean') {
@@ -279,8 +227,6 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             return { type: 'OnSetSubWebViewCloseGuard', success: true, data: {} };
         },
 
-        // Keyed on the shell's record of the origin, never on anything in the message, so a page can only
-        // ever get its own origin's key. With no id, an error rather than a key every such device shares.
         GetSubWebViewUserKey: async () => {
             const deviceId = deps.getDeviceId();
             if (!deps.origin || !deviceId || deviceId === NO_DEVICE_ID) {
@@ -293,7 +239,6 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             };
         },
 
-        // Cut to size rather than refused: a report is most wanted when the page is least able to fix it.
         ReportSubWebViewError: async message => {
             const text = message.data?.message;
             if (typeof text !== 'string' || !text.trim()) {
@@ -312,7 +257,6 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             return { type: 'OnReportSubWebViewError', success: true, data: { recorded: true } };
         },
 
-        // Always the opened origin's storage, chosen by the view: nothing in a request names it.
         GetSubWebViewStorage: async message =>
             storageReply('OnGetSubWebViewStorage', deps.openStorage()?.get(message.data?.keys) ?? null),
         SetSubWebViewStorage: async message =>
@@ -324,8 +268,6 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
         GetSubWebViewStorageInfo: async () =>
             storageReply('OnGetSubWebViewStorageInfo', deps.openStorage()?.info() ?? null),
 
-        // Where DoU stands with the OS, read without asking. A denied permission that may still be asked
-        // for reads `prompt`: to a page, "asking would show the OS prompt" is what matters.
         GetSubWebViewPermission: async message => {
             const kind = message.data?.kind;
             if (!isDeviceKind(kind)) return fail('OnGetSubWebViewPermission', 'INVALID', DEVICE_KIND_TEXT);
@@ -338,8 +280,6 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             };
         },
 
-        // The OS prompt, under DoU's name: the page asks when the user reaches for the feature, so the
-        // prompt does not arrive in the middle of a capture.
         RequestSubWebViewPermission: async message => {
             const kind = message.data?.kind;
             if (!isDeviceKind(kind)) return fail('OnRequestSubWebViewPermission', 'INVALID', DEVICE_KIND_TEXT);
@@ -359,7 +299,6 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             };
         },
 
-        // DoU's own page in the OS settings, where a blocked permission can be turned back on.
         OpenSettings: async () => {
             if (!(await deps.openSettings())) {
                 return fail('OnOpenSettings', 'SETTINGS_ERROR', 'Could not open the system settings.');

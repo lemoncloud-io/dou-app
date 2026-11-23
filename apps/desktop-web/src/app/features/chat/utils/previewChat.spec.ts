@@ -16,8 +16,6 @@ describe('isPreviewableChat', () => {
         expect(isPreviewableChat(chat({ hidden: true }))).toBe(true);
     });
 
-    // It never reached the channel, and it keeps chatNo 0 indefinitely — ranked as
-    // newest it would hold the preview and freeze the row's time.
     it('skips a failed send', () => {
         expect(isPreviewableChat(chat({ chatNo: 0, isFailed: true }))).toBe(false);
     });
@@ -26,8 +24,6 @@ describe('isPreviewableChat', () => {
         expect(isPreviewableChat(chat({ parentId: 'C1:1' }))).toBe(false);
     });
 
-    // Reaction events reach the client as ordinary chats. They are chips under the
-    // message they point at, and as a preview line they would read as an empty message.
     it('skips a reaction event', () => {
         expect(isPreviewableChat(chat({ stereo: 'system', subType: 'reaction' }))).toBe(false);
     });
@@ -47,8 +43,6 @@ describe('pickPreviewChat', () => {
         expect(picked?.content).toBe('newest');
     });
 
-    // A pending send carries chatNo 0 and would lose every numeric comparison, so your
-    // own message would be missing from the sidebar until the server answered.
     it('prefers a pending send over every persisted row', () => {
         const picked = pickPreviewChat([
             chat({ id: 'C1:9', chatNo: 9, content: 'persisted' }),

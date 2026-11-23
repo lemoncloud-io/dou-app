@@ -5,7 +5,6 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import { ReactionBar } from './ReactionBar';
 
-// The `emoji` namespace names 👍 only, so 💯 stands in for a reaction from outside the curation.
 const EMOJI_NAMES: Record<string, string> = { '👍': 'thumbs up' };
 vi.mock('react-i18next', () => ({
     useTranslation: (ns?: string) => ({
@@ -31,8 +30,6 @@ const hoverHint = (emoji: string) => {
     return screen.getByRole('tooltip').textContent;
 };
 
-// The app-wide provider delay (DesktopRuntime). A native `title` ignores it and waits
-// on the browser's own timer, which restarts on every mouse move.
 const APP_DELAY_MS = 300;
 
 describe('ReactionBar', () => {

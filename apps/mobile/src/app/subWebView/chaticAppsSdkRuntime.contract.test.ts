@@ -1,7 +1,6 @@
 /**
  * @jest-environment node
  */
-// Node, not jsdom: the runtime's socket client needs `TextEncoder`, which jsdom leaves out.
 import * as path from 'path';
 
 import * as ts from 'typescript';
@@ -51,19 +50,11 @@ import { createSubBridgeHost } from './createSubBridgeHost';
 import { createSubWebViewRuntimeBridge, type sessionForPage } from './subWebViewRuntimeBridge';
 import type { SubWebViewReadBudget } from './subWebViewReadBudget';
 
-// The runtime package reads these at import; nothing here reaches them.
 jest.mock('react-native', () => ({
     AppState: { currentState: 'active', addEventListener: jest.fn() },
     Platform: { OS: 'ios' },
 }));
 jest.mock('@react-native-community/netinfo', () => ({ addEventListener: jest.fn(), fetch: jest.fn() }));
-
-/**
- * The library pages are built with, reading the app's runtime through this app's real page host, the
- * sub WebView's runtime bridge and the runtime's own bridge host, in one process — only the engine
- * behind them is a stand-in. What the library sends is what the whitelist passes and the runtime
- * answers; a change on either side that breaks a page's read fails here.
- */
 
 const setup = ({
     granted = ['channel'] as SubWebViewRuntimePermission[],
@@ -163,7 +154,6 @@ const setup = ({
         reactions: { take: () => ({ ok: true }) },
     });
     host = createSubBridgeHost(
-        // Asynchronous, as the WebView is.
         message => queueMicrotask(() => toPage?.(message)),
         runtime.handlers,
         () => ({
@@ -253,7 +243,6 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
         await expect(apps.data.call('profile.cacheRead', 's2@u2')).rejects.toEqual(
             expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' })
         );
-        // A user row is the cloud's: by its id it is not open at all.
         await expect(apps.data.call<unknown>('user.cacheRead' as never, 'u2')).rejects.toEqual(
             expect.objectContaining({ code: 'RUNTIME_NOT_ALLOWED' })
         );
@@ -332,16 +321,6 @@ describe('chatic-apps-sdk reading the runtime through the page host', () => {
     });
 });
 
-// ---------------------------------------------------------------------------------------------------
-// The library's typed runtime against the app's own types.
-//
-// The library declares the rows, arguments and session by hand (it cannot import the app's private
-// types), so the checks below hold each declaration to the app's: the methods the whitelist opens, each
-// method's arguments and answer, and every row field by field — its name, whether it is optional, and its
-// type. They are compile-time checks, and this suite's transform does not type check, nor does CI run
-// this app's typecheck; so the last test compiles this file and fails on any error in it.
-// ---------------------------------------------------------------------------------------------------
-
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 type IsAny<T> = 0 extends 1 & T ? true : false;
 type Primitive = string | number | boolean | bigint | symbol | null | undefined;
@@ -349,15 +328,8 @@ type IsUnion<T, U = T> = T extends unknown ? ([U] extends [T] ? false : true) : 
 type RequiredKeys<T> = { [K in keyof T]-?: object extends Pick<T, K> ? never : K }[keyof T];
 type AllTrue<T> = false extends T[keyof T] ? false : true;
 type Depth = [unknown, unknown, unknown, unknown];
-/** A tuple's length, or `number` for an array. */
 type SameLength<T> = T extends readonly unknown[] ? T['length'] : never;
 
-/**
- * `S` (the library's) declares exactly what `A` (the app's) is: the same fields, the same optional ones,
- * each of the same type, down to `Depth` levels of embedded views. A field typed `any` on the app's side
- * (`meta`) is the server's own and only has to be there. A union of objects (a message's files, its
- * blocks) is held to assignability both ways here and checked member by member below.
- */
 type Same<S, A, D extends unknown[] = []> =
     IsAny<A> extends true
         ? unknown extends S
@@ -374,8 +346,7 @@ type SameValue<S, A, D extends unknown[]> = [S] extends [Primitive]
       ? true
       : [S] extends [readonly (infer SE)[]]
         ? [A] extends [readonly (infer AE)[]]
-            ? // A tuple (a number range, an event's arguments) is held to its length as well.
-              Equal<SameLength<S>, SameLength<A>> extends true
+            ? Equal<SameLength<S>, SameLength<A>> extends true
                 ? Same<SE, AE, [...D, unknown]>
                 : false
             : false
@@ -404,16 +375,11 @@ type AppMethod<N extends string> = N extends `${infer R}.${infer M}`
         : never
     : never;
 
-/** A call: the library's arguments are ones the app's method takes, and its answer is the app's. */
 type CallMatches<N extends DataCallName> =
     DataCalls[N]['args'] extends Parameters<AppMethod<N>>
         ? Same<DataCalls[N]['result'], Awaited<ReturnType<AppMethod<N>>>>
         : false;
 
-/**
- * A stream: the app's method takes its callback right after the library's arguments (where `subscribe`
- * puts the listener), and the callback hears what the library says each event carries.
- */
 type StreamMatches<N extends DataStreamName> = Parameters<AppMethod<N>>[DataStreams[N]['args']['length']] extends (
     ...event: infer AppEvent
 ) => void
@@ -463,7 +429,6 @@ type UploadOf<T> = Exclude<NonNullable<T>[number & keyof NonNullable<T>], { loca
 type PendingOf<T> = Extract<NonNullable<T>[number & keyof NonNullable<T>], { localStatus: unknown }>;
 type BlockOf<K extends CloudChatBlock['type']> = Extract<NonNullable<CacheChatView['blocks$']>[number], { type: K }>;
 
-// The rows, named one by one (the methods above reach them too), the message's union members, and the session.
 const rowsMatch: true[] = [
     true satisfies Same<CloudChannel, CacheChannelView>,
     true satisfies Same<CloudJoin, CacheJoinView>,
@@ -481,8 +446,6 @@ const rowsMatch: true[] = [
     true satisfies Same<CloudSession, ReturnType<typeof sessionForPage>>,
 ];
 
-// Keyed by every method the library types, with the permission it says opens it: compared below with
-// what the whitelist opens, permission by permission.
 const LIBRARY_CALLS: { [N in DataCallName]: DataCalls[N]['permission'] } = {
     'channel.cacheRead': 'channel',
     'channel.cacheReadList': 'channel',
@@ -517,9 +480,6 @@ const LIBRARY_STREAMS: { [N in DataStreamName]: DataStreams[N]['permission'] } =
     'profile.observeItem': 'user',
 };
 
-// Keyed by every runtime permission, so one the app adds fails to compile until it is listed here.
-// `false` marks one the app opens before the library types it; turn it to `true` once the library's
-// typed methods cover it, and this test holds the two equal again. Every one is typed today.
 const TYPED_BY_THE_LIBRARY = {
     session: true,
     cloud: true,
@@ -591,7 +551,6 @@ describe("chatic-apps-sdk's typed runtime against the app's", () => {
             { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => undefined }
         );
         if (!config) throw new Error(`cannot read ${configPath}`);
-        // Not as a project: only this file is checked, with whatever it imports.
         const program = ts.createProgram([__filename], {
             ...config.options,
             composite: false,

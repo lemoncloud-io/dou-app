@@ -2,14 +2,6 @@ import type { CacheMetaView, MetaQueryOptions } from '@chatic/bridge-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
-/**
- * Data source specific to the Meta domain, such as sync cursors
- *
- * The web layer only reads/writes single rows (`getSyncedAt`/`setSyncedAt` →
- * load/save), where `id` is the cursor kind (e.g. 'channel-sync') scoped by
- * (cid, uid). The full CRUD surface is still implemented for parity with the
- * other domains and to service bulk clears from the bridge.
- */
 export class MetaDataSource implements ICacheDataSource<CacheMetaView, MetaQueryOptions> {
     constructor(
         private readonly database: ISqliteDatabase,
@@ -37,10 +29,6 @@ export class MetaDataSource implements ICacheDataSource<CacheMetaView, MetaQuery
         return fetchManyByIds<CacheMetaView>(this.database, this.tableName, ids, cid, uid);
     }
 
-    /**
-     * Fetches the full meta list for a specific cloud/user scope.
-     * Meta has no extra filter beyond cid/uid, so the query arg is unused.
-     */
     public async fetchAll(cid?: string, _query?: MetaQueryOptions, uid?: string): Promise<CacheMetaView[]> {
         const conditions: string[] = [];
         const params: string[] = [];

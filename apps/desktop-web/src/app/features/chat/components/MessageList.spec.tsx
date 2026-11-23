@@ -8,9 +8,6 @@ import { $getRoot, $getSelection, $isRangeSelection, type LexicalEditor } from '
 import type { DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
-// The row's action controls reach for the chat repository and the active place at
-// module scope; neither is available outside the app shell. Nothing here asserts on
-// them — this file is about whether the list renders at all.
 const updateChat = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
@@ -26,15 +23,12 @@ vi.mock('@chatic/runtime', async () =>
     })
 );
 
-// The feed reports a failed jump through a toast; the spy is how a test sees it.
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     ...(await importOriginal<object>()),
     toast,
 }));
 
-// Initialises i18next as a side effect, so `t` resolves to real copy instead of
-// echoing the key back. Assertions can then name what the reader sees.
 import '../../../../i18n';
 
 import { MessageList } from './MessageList';
@@ -51,18 +45,12 @@ import {
     WEBHOOK_SOURCE_DEPLOYMENT,
 } from '@chatic/block-kit';
 
-// jsdom implements no layout, so it ships no scrollIntoView. The list calls it from a
-// layout effect to land on the newest message.
 Element.prototype.scrollIntoView = vi.fn();
-// Nor does it lay out ranges: the editor scrolls a focused selection into view through one.
 Range.prototype.getBoundingClientRect = () => new DOMRect();
 Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
 
 const VIEWER = { uid: 'me', name: 'Me', cloudUid: 'me-cloud' };
 
-// Mirrors the app's provider tree (`DesktopRuntime`). The tooltip provider is not
-// optional scaffolding: Radix throws "`Tooltip` must be used within `TooltipProvider`"
-// without it, so leaving it out here would make this suite disagree with the app.
 const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={new QueryClient()}>
         <TooltipProvider>{children}</TooltipProvider>
@@ -79,7 +67,6 @@ const message = (chatNo: number, ownerId: string, content: string): DomainChat =
         createdAt: 1_700_000_000_000 + chatNo,
     }) as DomainChat;
 
-// A reply that is only a file: no text, so nothing in the row but the attachment.
 const fileOnlyReply = (chatNo: number, ownerId: string): DomainChat =>
     ({
         ...message(chatNo, ownerId, ''),
@@ -108,15 +95,7 @@ const fileOnlyReply = (chatNo: number, ownerId: string): DomainChat =>
  * So the assertions are deliberately shallow. The point is that these two paths
  * execute at all, which is exactly what was missing.
  */
-/**
- * Open a row's overflow menu and click one of its items. Save, Copy, Edit and
- * Delete live there now — eight icons in the hover strip was a target nobody
- * could aim at. Radix opens a dropdown on pointerdown, not click.
- */
 const clickRowMenuItem = (name: RegExp | string) => {
-    // Enter on the trigger, not a click: Radix opens a dropdown from pointerdown,
-    // and jsdom has no PointerEvent, so the keyboard path is the reliable one here
-    // (and it is the path a keyboard user takes anyway).
     fireEvent.keyDown(screen.getByLabelText('More actions'), { key: 'Enter' });
     fireEvent.click(screen.getByRole('menuitem', { name }));
 };
@@ -129,9 +108,6 @@ describe('MessageList', () => {
                 {
                     count: 2,
                     lastReplyAt: 1_700_000_100_000,
-                    // One reply of mine and one from somebody else: the footer resolves my
-                    // own avatar through the viewer and theirs through the roster, which is
-                    // the branch that crashed.
                     repliers: [{ id: 'me-cloud' }, { id: 'ada' }],
                 } as ThreadMeta,
             ],
@@ -152,9 +128,6 @@ describe('MessageList', () => {
         expect(screen.getByText('parent')).toBeDefined();
     });
 
-    // A deleted message keeps its row and its author line; only the content is replaced.
-    // The toolbar goes with the content — `content` survives the server's soft delete,
-    // so Copy would otherwise hand back the text the row says is gone.
     it('renders a deleted message as a tombstone, with no actions on it', () => {
         const deleted = { ...message(1, 'ada', 'was here'), hidden: true } as DomainChat;
 
@@ -168,9 +141,6 @@ describe('MessageList', () => {
         expect(screen.queryByLabelText('More actions')).toBeNull();
     });
 
-    // The feed and the thread panel share one renderer, so a block message has to be
-    // drawn by whatever `MessageRow` decides — not by a second code path per surface.
-    // `ThreadPanel.spec` asserts the same thing through the panel.
     it('draws a Block Kit message instead of its payload', () => {
         const payload = JSON.stringify({
             blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*403* denied by policy' } }],
@@ -190,14 +160,10 @@ describe('MessageList', () => {
         expect(screen.queryByText(payload)).toBeNull();
     });
 
-    // `blocks$` (server field) outranks the `content` JSON fallback above. Fixture is the
-    // shared webhook sample (resolveChatBlocks.spec.ts uses the same two constants).
     it('draws blocks$ ahead of content — header, sections and context all reach the DOM', () => {
         const withBlocksField = {
             ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
             blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
-            // Pins buildMessageRows' `stereo === 'system'` branch: a webhook chat is a
-            // user bubble, not a system notice.
             stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
         } as DomainChat;
 
@@ -211,11 +177,7 @@ describe('MessageList', () => {
             { wrapper }
         );
 
-        // header 1 + section 2 + context 1 — the shape the plan's Success Criteria names.
-        // Asserting only the ends would pass while the middle silently went missing.
         expect(screen.getByRole('heading', { name: /error-report/ })).toBeDefined();
-        // Anchored: the third block is the raw error JSON, which quotes the same
-        // sentence inside it. An unanchored match would find both and prove neither.
         expect(
             screen.getByText(/^TypeError: Cannot read properties of undefined \(reading 'channelId'\)$/)
         ).toBeDefined();
@@ -223,9 +185,6 @@ describe('MessageList', () => {
         expect(screen.getByText(/hello-alarm/)).toBeDefined();
     });
 
-    // The server writes the sender's report link as the card's last context element; the card
-    // draws it as its own "View source" line at the foot of the card instead, once — a second copy
-    // in the context line would offer the same link twice. The title itself stays plain text.
     it("draws a webhook card's report link as its last line and drops the source element", () => {
         const webhook = {
             ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
@@ -245,8 +204,6 @@ describe('MessageList', () => {
         expect(screen.queryByText('원문 보기')).toBeNull();
     });
 
-    // `source$` is the server's record of the sender's channel, report and colour: the card reads its
-    // badge and its link from there.
     it("badges a webhook card with its sender's channel and links it to source$.url", () => {
         const webhook = {
             ...message(1, 'ada', WEBHOOK_SEND_DEPLOYMENT.content),
@@ -266,7 +223,6 @@ describe('MessageList', () => {
         expect(screen.getAllByRole('link', { name: 'View source' })).toHaveLength(1);
     });
 
-    // A person's message never reads source$: it is not a card, so nothing of it is drawn.
     it("ignores source$ on a person's message", () => {
         const pasted = {
             ...message(1, 'ada', 'just text'),
@@ -282,9 +238,6 @@ describe('MessageList', () => {
         expect(screen.queryByRole('link')).toBeNull();
     });
 
-    // A card frames what the blocks draw. A payload where nothing draws falls back to the
-    // message's own text, and a frame around that would make a plain message look like an
-    // integration's card.
     it('frames a drawable block message as a card, and leaves an undrawable one as text', () => {
         const drawable = JSON.stringify({ blocks: [{ type: 'section', text: { type: 'mrkdwn', text: 'drawn' } }] });
         const undrawable = JSON.stringify({ blocks: [{ type: 'actions', elements: [] }] });
@@ -307,11 +260,6 @@ describe('MessageList', () => {
         expect(cardOf(screen.getByText(undrawable))).toBeNull();
     });
 
-    // `content` on a `blocks$` message is already the server's plain-text summary
-    // (SPEC §6-5). Folding `blocks$` through `blocksToPlainText` here instead would
-    // pull this fixture's context line ("hello-alarm") and section-3 raw error JSON
-    // into what Save keeps — neither is in `content`, so their absence proves which one
-    // it reads. A webhook message is never mine, so Save is the action that reaches it.
     it('saves the server summary, not the folded blocks, for a blocks$ message', () => {
         useSavedItemsStore.setState({ items: {} });
         const withBlocksField = {
@@ -328,12 +276,9 @@ describe('MessageList', () => {
         const saved = useSavedItemsStore.getState().items['C1:1'];
         expect(saved).toMatchObject({ content: WEBHOOK_SEND_ERROR_REPORT.content });
         expect(saved?.content).not.toMatch(/hello-alarm|"service":/);
-        // The store is module state; the file-only cases further down expect nothing saved.
         useSavedItemsStore.setState({ items: {} });
     });
 
-    // Only an integration's post is a card. A person who pastes a Block Kit payload wrote that
-    // text, and a card from the composer would look exactly like an alert.
     it("draws a person's Block Kit payload as the text they sent, not as a card", () => {
         const payload = JSON.stringify({
             blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*403* denied' } }],
@@ -349,14 +294,11 @@ describe('MessageList', () => {
             { wrapper }
         );
 
-        // The composer's own dialect reads the payload (it makes `*403*` italic), so the row is
-        // matched by what it still says rather than by one text node.
         const row = screen.getByText((_, node) => node?.tagName === 'P' && !!node.textContent?.includes('{"blocks":['));
         expect(row.textContent).toContain('"type":"section"');
         expect(screen.queryByText('403', { selector: 'strong' })).toBeNull();
     });
 
-    // A payload we cannot read must not take the pane down or blank the row.
     it('falls back to the raw text when the payload is broken', () => {
         render(
             <MessageList
@@ -371,12 +313,6 @@ describe('MessageList', () => {
         expect(screen.getByText('{"blocks": [')).toBeDefined();
     });
 
-    // In the thread panel the column is about 270px and the toolbar about 210px, so a toolbar
-    // over the author line hid the author's name. There it hangs under the header on a block's
-    // first message; the rest keep their place above their own message. jsdom lays nothing out,
-    // so this pins the placement class; the overlap itself needs a browser.
-    // A thread passes no `onOpenThread` (no thread inside a thread), and a file sent on its own has
-    // no text. The row still has to offer Delete to the person who sent it.
     it('offers Delete on my file-only reply in a thread', () => {
         render(
             <MessageList messages={[fileOnlyReply(1, 'me')]} isLoading={false} viewer={VIEWER} names={new Map()} />,
@@ -387,8 +323,6 @@ describe('MessageList', () => {
         expect(screen.getByRole('alertdialog')).toBeDefined();
     });
 
-    // Reacting is only reachable from the toolbar, so a file-only reply from somebody else, which
-    // has no text and nothing of mine to edit or delete, still needs the toolbar for its reactions.
     it("offers reactions on somebody else's file-only reply in a thread", () => {
         render(
             <MessageList
@@ -403,9 +337,6 @@ describe('MessageList', () => {
         expect(screen.getByLabelText('Add reaction')).toBeDefined();
     });
 
-    // A file sent on its own is as worth coming back to as a text, so its menu holds Save for
-    // later. Only that: there is no text to copy or edit, and somebody else's file is not mine
-    // to delete. The thread panel passes no `onOpenThread`; the main feed does.
     it.each([
         ['in a thread', undefined],
         ['in the main feed', vi.fn()],
@@ -447,9 +378,6 @@ describe('MessageList', () => {
         expect(items).not.toContain('Copy');
     });
 
-    // The saved card leads with the snapshot's text, so a file saved as its empty `content` would
-    // have no line of its own. It reads the way the sidebar previews it, and keeps what it carried
-    // for the Saved page's Files filter.
     it('saves a file-only message under what it carries, not its empty text', () => {
         useSavedItemsStore.setState({ items: {} });
         render(
@@ -492,7 +420,6 @@ describe('MessageList', () => {
             updateChat.mockResolvedValue({ id: 'C1:1', content: 'see you at noon!' });
         });
 
-        // A thread panel renders the same list with no thread callbacks, so this is its surface too.
         const renderMine = () =>
             render(
                 <MessageList
@@ -505,11 +432,6 @@ describe('MessageList', () => {
             );
         const editorBody = () =>
             screen.getByRole('textbox', { name: 'Edit message' }) as HTMLElement & { __lexicalEditor?: LexicalEditor };
-        // The editor loads its document in a microtask; typing before that would land in an empty box.
-        // It also arrives as a lazy chunk, so wait for the textbox rather than a single flush. Only the
-        // first open in the file suspends: it waits for the chunk, and never less than the 300 ms React
-        // holds a Suspense fallback on screen. A cold chunk on a busy CI runner has taken over a second,
-        // past waitFor's default timeout. Later opens find the lazy component resolved.
         const openEditor = async () => {
             clickRowMenuItem('Edit message');
             await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Edit message' })).not.toBeNull(), {
@@ -585,8 +507,6 @@ describe('MessageList', () => {
         });
     });
 
-    // The toolbar is drawn from what the row can do, so a row the server has not accepted has
-    // nothing to draw: every reaction needs an id to address. An empty pill would hover over it.
     it.each([
         ['pending', { isPending: true }],
         ['failed', { isFailed: true }],
@@ -616,13 +536,9 @@ describe('MessageList', () => {
                 />,
                 { wrapper }
             );
-            // Over the header is -top-10; a toolbar hung lower sits on the first line of text, where a
-            // reader dragging to select it runs under the toolbar.
             const tops = [...container.querySelectorAll('[data-row-actions]')].map(node =>
                 node.className.includes('-top-10') ? 'over-header' : 'lower'
             );
-            // The column is the container the narrow rule measures, so a 360px thread panel folds the
-            // quick reactions away and the toolbar stays short enough to leave the author name visible.
             const column = container.querySelector('[role="log"]');
             const quick = [...container.querySelectorAll('button[aria-label^="React with"]')];
             const result = {
@@ -656,9 +572,6 @@ describe('MessageList', () => {
         );
 
         expect(screen.getByText('reacted to')).toBeDefined();
-        // Named, not matched on the glyph: the toolbar's quick-reaction buttons carry
-        // the same emoji, so a bare text query finds two things and cannot say which
-        // one is the tally.
         expect(screen.getByLabelText('👍 · Me, Ada')).toBeDefined();
     });
 
@@ -692,7 +605,6 @@ describe('MessageList', () => {
             );
 
             expect(screen.queryByText('Not delivered')).toBeNull();
-            // Drawn, and drawn as a send in flight: its tile says it is uploading.
             expect(screen.getByRole('button', { name: 'Uploading image-1' }).getAttribute('aria-busy')).toBe('true');
         });
 
@@ -767,9 +679,7 @@ describe('MessageList', () => {
                         { wrapper }
                     );
 
-                    // Still sending: the deadline is a second out.
                     expect(screen.queryByText('Not delivered')).toBeNull();
-                    // One shot, not a poll — nothing ticks while it waits.
                     expect(setIntervalSpy).not.toHaveBeenCalled();
 
                     act(() => {
@@ -816,7 +726,6 @@ describe('MessageList jumps', () => {
         expect(row?.outerHTML).toMatch(/bg-primary\/10/);
     });
 
-    // A return trip puts the reader back where they were reading: top of the view, no flash.
     it('puts a restored message at the top of the view without flashing it', () => {
         const { container } = renderJump({ chatNo: 2, nonce: 1, restore: true });
         const row = container.querySelector('[data-chat-no="2"]');
@@ -824,8 +733,6 @@ describe('MessageList jumps', () => {
         expect(row?.outerHTML).not.toMatch(/bg-primary\/10/);
     });
 
-    // The pin state used to wait for the scroll frame after a landing. A page arriving in
-    // between still read "at the bottom", followed the tail, and carried the reader away.
     it('stops following the tail once a jump lands above it', () => {
         const heights = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(2000);
         const client = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(500);
@@ -851,8 +758,6 @@ describe('MessageList jumps', () => {
         }
     });
 
-    // The way back to "the latest" or to an anchor that is gone ends at the bottom. Paging
-    // back for it and saying "not found" left the reader deeper in history than before.
     it.each([
         ['to the latest', null],
         ['to an anchor that is gone', 99],
@@ -886,8 +791,6 @@ describe('MessageList jumps', () => {
 describe('MessageList failed send', () => {
     afterEach(cleanup);
 
-    // The failure line was plain text a screen reader passed over, and its button said
-    // only "Delete" beside a message that has other delete actions.
     it('announces the failure and names what Delete removes', () => {
         const failed = { ...message(1, 'me', 'lost'), id: undefined, isFailed: true } as DomainChat;
         render(
@@ -909,8 +812,6 @@ describe('MessageList failed send', () => {
 describe('MessageList older page failed', () => {
     afterEach(cleanup);
 
-    // A failed older page is retried by the next scroll, but nothing showed it — the
-    // history read as simply ended. The row says so and retries on demand.
     it('says older messages did not load and retries through onLoadOlder', () => {
         const onLoadOlder = vi.fn();
         render(
@@ -927,7 +828,6 @@ describe('MessageList older page failed', () => {
         );
 
         expect(screen.getByRole('status').textContent).toContain("Couldn't load older messages.");
-        // Mounting with no layout fires the auto-fill load once; the retry is the next call.
         onLoadOlder.mockClear();
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(onLoadOlder).toHaveBeenCalledTimes(1);
@@ -954,8 +854,6 @@ describe('MessageList older page failed', () => {
 describe('MessageList first page failed', () => {
     afterEach(cleanup);
 
-    // An empty list after a failed load is not an empty room: the intro would invite a first
-    // message into a room that has history.
     it('says the messages did not load and retries, instead of the intro', () => {
         const onRetryLoad = vi.fn();
         render(
@@ -977,8 +875,6 @@ describe('MessageList first page failed', () => {
     });
 });
 
-// A newest page of deleted messages, or of replies whose roots were deleted, leaves the feed with
-// nothing to show and nothing to scroll: no scroll would ever ask for the history below it.
 describe('MessageList with nothing shown and older history', () => {
     afterEach(cleanup);
 
@@ -1022,7 +918,6 @@ describe('MessageList with nothing shown and older history', () => {
         const onLoadOlder = vi.fn();
         renderEmpty({ onLoadOlder, loadOlderFailed: true });
 
-        // A failed page is not asked for again until the reader retries it.
         expect(onLoadOlder).not.toHaveBeenCalled();
         expect(screen.getByRole('alert').textContent).toContain('Could not load messages.');
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
@@ -1055,7 +950,6 @@ describe('MessageList webhook sender', () => {
             ...(owner ? { owner$: owner } : {}),
         }) as unknown as DomainChat;
 
-    // The card carries its own type badge now, so the name has no "App" mark beside it.
     it('renders the sender name as plain text with no app badge, not a profile trigger', () => {
         render(
             <MessageList
@@ -1069,11 +963,9 @@ describe('MessageList webhook sender', () => {
         expect(screen.queryByText('App')).toBeNull();
         expect(screen.getByText('Alarm Bot')).toBeDefined();
         expect(screen.queryByRole('button', { name: 'Alarm Bot' })).toBeNull();
-        // The avatar is no popover trigger either: its only possible name is the initial.
         expect(screen.queryByRole('button', { name: 'A' })).toBeNull();
     });
 
-    // owner$ is not confirmed to arrive for webhook messages, so the no-owner$ case is pinned too.
     it('labels the sender "Webhook" when the server sent no owner$', () => {
         render(<MessageList messages={[webhookCard(1, 'hook')]} isLoading={false} viewer={VIEWER} />, { wrapper });
 
@@ -1108,7 +1000,6 @@ describe('a channel badged only for thread replies', () => {
         new Map<string, ThreadMeta>([
             ['1', { count: 2, lastReplyAt: 1_700_000_100_000, repliers: [{ id: 'ada' }], newCount }],
         ]);
-    // Which elements the list scrolled into view on its first fill.
     const scrolledTo = () =>
         vi.mocked(Element.prototype.scrollIntoView).mock.contexts.map(el => (el as HTMLElement).dataset.chatNo);
 
@@ -1135,8 +1026,6 @@ describe('a channel badged only for thread replies', () => {
         expect(screen.getByRole('button', { name: 'Open thread · 2 replies · 1 new reply' })).toBeDefined();
     });
 
-    // The feed has nothing new of its own, so without this it would open at the bottom and the
-    // badge that brought the reader here would clear over nothing.
     it('lands on the root with new replies', () => {
         renderFeed(2, 1);
 

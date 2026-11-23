@@ -43,8 +43,6 @@ describe('windowForViewport', () => {
     });
 
     it('windows a long list to the viewport plus overscan', () => {
-        // 200 rows of 100px; lo = 5000-800, hi = 5000+500+800. Row 42 is the first
-        // with its bottom past lo; row 62 the last with its top above hi.
         const win = windowForViewport({ ...flat(200), scrollTop: 5000, viewportHeight: 500 });
         expect(win).toEqual({ start: 42, end: 63 });
     });

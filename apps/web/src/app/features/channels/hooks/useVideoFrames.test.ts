@@ -8,7 +8,6 @@ import { getVideoFrames, setVideoFramesForTest, useVideoFrames } from './useVide
 
 const readVideoFrame = jest.fn();
 let appMovesFiles = true;
-// Who reads a frame, as the host's `files` port says: the app's transfer module, or the page.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
@@ -19,7 +18,6 @@ jest.mock('@chatic/runtime', () => {
     });
 });
 
-// The real frame maker's constructor, recorded: what the page hands it is what is under test below.
 const madeWith: Array<{ fromApp: () => boolean; readShellFrame: (url: string) => Promise<Blob> }> = [];
 jest.mock('../lib/videoFrames', () => ({
     VideoFrames: class {
@@ -110,7 +108,6 @@ describe('useVideoFrames', () => {
         act(() => cache.invalidate('c/v1/frame'));
     });
 
-    // Someone else's eviction is not a reason to send this row's queued requests to the back.
     it('keeps its requests when another entry leaves the cache', async () => {
         renderHook(() => useVideoFrames([v1], true));
         await cache.put('c/other/thumb', 'thumb', new Blob(['x'], { type: 'image/jpeg' }));

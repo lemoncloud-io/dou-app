@@ -11,15 +11,6 @@ import { createSessionOwnerSwitch, isSessionOwnerSwitchAllowed } from '../../ser
 import { useDebugSettingsStore } from '../../stores/debugSettingsStore';
 import { createDefaultSessionOwnerHandler, createSessionOwnerHandlers } from './sessionOwnerHandlers';
 
-/**
- * Answers the debug overlay's session owner switch (`FetchSessionOwner`, `SetSessionOwner`): always in
- * a build for any stage but production, and in a production build only while the app's debug mode is
- * on. Debug mode gates changing the owner, not keeping it: a production install moved onto the app's
- * runtime stays there until someone unlocks debug mode again and moves it back, or the app is removed.
- *
- * Also answers the page's default owner (`SetDefaultSessionOwner`) on every build, with no gate: the page
- * sends what its web build names on each boot, for installs nobody switched.
- */
 export const useSessionOwnerHandler = (bridge: IAppBridgeHost): void => {
     useEffect(() => {
         const { handleFetchSessionOwner, handleSetSessionOwner } = createSessionOwnerHandlers({

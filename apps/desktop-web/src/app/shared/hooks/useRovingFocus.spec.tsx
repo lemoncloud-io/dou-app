@@ -29,7 +29,6 @@ const stops = () =>
 describe('useRovingFocus', () => {
     afterEach(cleanup);
 
-    // Every message was its own tab stop: the composer was stop 161 of 163.
     it('keeps one message in the tab order, the newest until one is chosen', () => {
         render(<Feed count={3} />);
         expect(stops()).toEqual([screen.getByRole('article', { name: 'm2' })]);
@@ -63,7 +62,6 @@ describe('useRovingFocus', () => {
         expect(document.activeElement).toBe(screen.getByRole('button', { name: 'react 1' }));
     });
 
-    // The rows left the tab order but every button in them stayed in it.
     it('keeps only the current message and its block in the tab order', () => {
         render(<Feed count={3} />);
         const tabbable = () =>

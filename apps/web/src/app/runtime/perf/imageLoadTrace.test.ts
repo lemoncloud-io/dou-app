@@ -49,7 +49,6 @@ const setup = (options: { hidden?: boolean; held?: () => boolean } = {}) => {
         stop,
         setLoadObserver,
         setRefreshObserver,
-        /** Begins a load and returns its end, so a test can act between the two. */
         beginLoad: () => {
             const end = onLoad?.();
             return (report: ImageLoadReport = load()) => end?.(report);
@@ -99,7 +98,6 @@ describe('observeImageLoads', () => {
         });
     });
 
-    // Visible at both ends, hidden in between: the time is the WebView's suspension, not the image's.
     it('drops a load or re-read the page was hidden during, though it ended visible', () => {
         const { record, beginLoad, beginRefresh, hide } = setup();
         const endLoad = beginLoad();
@@ -141,7 +139,6 @@ describe('observeImageLoads', () => {
         expect(record).toHaveBeenCalledTimes(IMAGE_LOAD_SAMPLES_PER_MINUTE + 1);
     });
 
-    // A room's burst of thumbnails must leave room for the original of the photo opened after it.
     it('keeps part of the minute for the other variant', () => {
         const { record, emitLoad } = setup();
 

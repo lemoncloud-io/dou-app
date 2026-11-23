@@ -3,27 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { CornerUpLeft, X } from 'lucide-react';
 
 interface JumpReturnBarProps {
-    /**
-     * Name of the channel the reader left, already display-formatted. Absent when
-     * the jump stayed in this channel: the way back is to a place in it.
-     */
     originName?: string;
     onReturn: () => void;
     onDismiss: () => void;
 }
 
-/**
- * The second half of a jump.
- *
- * Search, saved items, mentions and notification clicks all move the reader to
- * another channel, and none of them used to leave a way back: the reading
- * position they left was simply gone. This bar holds that position until they
- * either take it or dismiss it.
- *
- * It sits above the feed rather than floating over it, because it is a statement
- * about where the reader is, not a transient toast — it stays for as long as the
- * detour does.
- */
 export const JumpReturnBar = ({ originName, onReturn, onDismiss }: JumpReturnBarProps) => {
     const { t } = useTranslation();
     return (

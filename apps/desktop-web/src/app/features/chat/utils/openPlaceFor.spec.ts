@@ -9,7 +9,6 @@ const filedPlaces = new Map([
 ]);
 
 describe('openPlaceFor', () => {
-    // A notification names the place its sender was in, which need not be the room's.
     it('opens a 1:1 in its own place, whatever place the request named or I am in', () => {
         expect(
             openPlaceFor({ placeId: 'place-a', channelId: 'place-b@me@p1' }, { placeId: 'place-c', filedPlaces })
@@ -19,14 +18,12 @@ describe('openPlaceFor', () => {
         );
     });
 
-    // A room from before 1:1s were keyed by place has a pair key; its row says where it lives.
     it('opens a pair-key 1:1 in the place its cached row names', () => {
         expect(openPlaceFor({ placeId: 'place-a', channelId: 'me@p2' }, { placeId: 'place-a', filedPlaces })).toBe(
             'place-c'
         );
     });
 
-    // A room just started is not cached yet; its place-keyed id names where the server filed it.
     it('opens an uncached 1:1 in the place its id names', () => {
         expect(
             openPlaceFor(
@@ -43,8 +40,6 @@ describe('openPlaceFor', () => {
         expect(openPlaceFor({ placeId: '', channelId: 'me@new' }, { placeId: 'place-a', filedPlaces })).toBe('');
     });
 
-    // The Self Channel is listed in every place, but each place holds its own messages: an item saved
-    // in place B has to be opened from place B.
     describe('for a place-bound room', () => {
         it('goes to the named place even though this place lists the room too', () => {
             expect(

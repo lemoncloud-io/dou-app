@@ -2,7 +2,6 @@ import { buildSubWebViewInsetScript } from './subWebViewInsetScript';
 
 type Root = { style: { setProperty: jest.Mock } };
 
-/** Runs the script against a stand-in `document`, as the WebView would; returns it to change later. */
 const runWith = (root: Root | null, script: string, observers: Array<() => void> = []) => {
     const document: { documentElement: Root | null } = { documentElement: root };
     class MutationObserver {
@@ -33,8 +32,6 @@ describe('buildSubWebViewInsetScript', () => {
         ]);
     });
 
-    // Android can run the boot script before the document has a root element; the run at load end
-    // comes after the page has painted.
     it('waits for the root element when the document has none yet, and sets the properties once', () => {
         const observers: Array<() => void> = [];
         const document = runWith(
