@@ -60,7 +60,7 @@ jest.mock('./nativeUploadSource', () => ({
     }),
 }));
 
-const mockUpload = jest.fn(async () => 'ok' as const);
+const mockUpload = jest.fn(async (_entries: LogEntry[]) => 'ok' as const);
 jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
@@ -90,7 +90,7 @@ afterEach(() => {
     jest.restoreAllMocks();
 });
 
-const sentBatches = () => mockUpload.mock.calls.map(([entries]) => entries as unknown as LogEntry[]);
+const sentBatches = () => mockUpload.mock.calls.map(([entries]) => entries);
 
 describe('startLogUploader — 웹 단독', () => {
     it('충전 없이 웹 큐에서 바로 보낸다', async () => {

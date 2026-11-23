@@ -6,7 +6,7 @@ const changeLanguage = jest.fn();
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { changeLanguage } }) }));
 
 let stored: unknown;
-const setConfig = jest.fn((_key: string, value: unknown) => {
+const setConfig = jest.fn((_key: string, value: unknown, _options?: unknown) => {
     stored = value;
 });
 jest.mock('@chatic/runtime', () =>

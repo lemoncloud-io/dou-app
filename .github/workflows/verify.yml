@@ -113,8 +113,9 @@ jobs:
             # empty base. `--no-renames` matches how Nx lists changed files, so a root config moved
             # under `apps/` still shows its old path here.
             #
-            # `changed=` on a line of its own, so a failing `git diff` fails this step instead of
-            # reading as "nothing changed".
+            # The rule lives in `scripts/gate.js scope`, which `yarn gate` uses too, so a local run
+            # and CI pick the same projects. `scope=` on a line of its own, so a failing script fails
+            # this step instead of reading as "nothing changed".
             - name: Which projects to check
               id: scope
               env:
@@ -124,37 +125,42 @@ jobs:
                       echo "nx=run-many" >> "$GITHUB_OUTPUT"
                       exit 0
                   fi
-                  changed=$(git diff --name-only --no-renames "$BASE"...HEAD)
-                  if grep -vE '^(apps|libs)/|\.md$' <<<"$changed" | grep -q .; then
-                      echo "nx=run-many" >> "$GITHUB_OUTPUT"
-                  else
-                      echo "nx=affected --base=$BASE --head=HEAD" >> "$GITHUB_OUTPUT"
-                  fi
+                  scope=$(node scripts/gate.js scope --base "$BASE")
+                  echo "nx=$scope" >> "$GITHUB_OUTPUT"
 
+            # Every check below runs even when an earlier one failed (`!cancelled()`), so one red step
+            # never hides the others' results; each waits only for the scope.
+            #
             # Documents are the one artifact no other step reads. Cheap, needs no build, and green
             # across every tracked markdown file, so it runs first and fails fast.
             - name: Doc links
+              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
               run: yarn check:doc-links
 
             # AGENTS.md's English policy, for the one surface nothing else in this file can see.
             - name: Doc language
+              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
               run: yarn check:doc-korean
 
             # Same policy, for code comments — the repo-wide translation sweep that unblocked this
             # gate is done, so it now runs alongside the doc-language check above.
             - name: Code comment language
+              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
               run: yarn check:code-korean
 
             # AGENTS.md's public-surface rule, for internal document paths left in comments and docs.
             - name: Internal paths
+              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
               run: yarn check:internal-paths
 
             # The repository scripts' own tests (scripts/__tests__), which no Nx project runs.
             - name: Script tests
+              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
               run: npx jest --config scripts/jest.config.js
 
             # Green across every project, so no exclusions here.
             - name: Lint
+              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
               env:
                   NX_SCOPE: ${{ steps.scope.outputs.nx }}
               # Unquoted on purpose, so the scope splits into words.
@@ -165,6 +171,7 @@ jobs:
             # depends on them. That is why a project can be clean on its own and still have to sit
             # on this list until whatever it pulls goes green — which is how `web` came off it.
             - name: Typecheck
+              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
               env:
                   NX_SCOPE: ${{ steps.scope.outputs.nx }}
               run: >
@@ -178,6 +185,7 @@ jobs:
             # `run-many` skipped them silently. They are covered by the line below now, and so is
             # `@chatic/bridges`, whose `yarn test` could not resolve jest for the same reason.
             - name: Test
+              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
               env:
                   NX_SCOPE: ${{ steps.scope.outputs.nx }}
               run: npx nx $NX_SCOPE -t test
@@ -237,6 +245,22 @@ jobs:
                   JUDGE: ${{ steps.judge.outputs.dir }}
                   RATCHET_ROOT: ${{ github.workspace }}
               run: node "$JUDGE/scripts/ratchet.js" check --only jscpd ${BASE:+--reference "$BASE"}
+
+            # Test files no `tsc -b` of their project reaches, per project (a spec tsconfig that
+            # shares the app's build info is skipped as "up to date"). A judge from before this
+            # check existed does not know it, so this tree judges itself until the base carries it.
+            - name: Ratchet · test files outside every typecheck
+              if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
+              env:
+                  BASE: ${{ needs.base.outputs.sha }}
+                  JUDGE: ${{ steps.judge.outputs.dir }}
+                  RATCHET_ROOT: ${{ github.workspace }}
+              run: |
+                  if ! grep -q '"testTypecheck"' "$JUDGE/scripts/ratchet/modes.json"; then
+                      echo "::notice title=ratchet::the compare base has no test typecheck ratchet yet; this tree judges itself"
+                      JUDGE="$GITHUB_WORKSPACE"
+                  fi
+                  node "$JUDGE/scripts/ratchet.js" check --only testTypecheck ${BASE:+--reference "$BASE"}
 
             # Left out of the gate, with the reason. Measured 2026-09-14 (dated per row where a row was re-measured).
             #

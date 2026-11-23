@@ -108,7 +108,7 @@ describe('BottomNavigation', () => {
     it('offers chat, notifications and MY, in that order, while the mini app tab toggle is off', () => {
         const { container, unmount } = renderNav();
 
-        expect([...container.querySelectorAll('[data-key]')].map(tab => tab.getAttribute('data-key'))).toEqual([
+        expect(Array.from(container.querySelectorAll('[data-key]')).map(tab => tab.getAttribute('data-key'))).toEqual([
             '/',
             '/notifications',
             '/mypage',
@@ -120,7 +120,7 @@ describe('BottomNavigation', () => {
         mockMiniAppTab = true;
         const { container, unmount } = renderNav();
 
-        expect([...container.querySelectorAll('[data-key]')].map(tab => tab.getAttribute('data-key'))).toEqual([
+        expect(Array.from(container.querySelectorAll('[data-key]')).map(tab => tab.getAttribute('data-key'))).toEqual([
             '/',
             '/miniapps',
             '/notifications',

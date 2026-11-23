@@ -45,7 +45,7 @@ class FakeCloudServer {
         this.invites.set(code, { cloudId, channelId, memberUid });
     }
 
-    loginInvite(code: string, delegatorId: string | null): { id: string; Token: { identityToken: string } } {
+    loginInvite(code: string, delegatorId: string | null): { id: string; Token: { identityToken?: string } } {
         const invite = this.invites.get(code);
         if (!invite) throw new Error('400 INVALID - no such invite');
         if (!delegatorId) throw new Error('No delegatorId for invite flow');

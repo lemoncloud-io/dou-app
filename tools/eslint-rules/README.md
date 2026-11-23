@@ -63,13 +63,20 @@ detect — more than half the file rewritten — starts from zero). A baseline i
 `verify-baseline` rejects any count that rose and any new entry, except an entry that follows a renamed
 file at the same count or lower.
 
-The same mechanism holds two more baselines, kept beside the script:
+The same mechanism holds three more baselines, kept beside the script:
 
 - `scripts/ratchet/knip-ratchet-baseline.json` — unused files, exports, types and duplicate exports
   reported by `knip`, one key per issue. Any issue not listed is above the baseline.
 - `scripts/ratchet/jscpd-ratchet-baseline.json` — each file's duplicated lines as `jscpd` measures them.
 
-Both count across files: removing a copy in one file lowers the other file's count, and while a file is
+- `scripts/ratchet/test-typecheck-ratchet-baseline.json` — the projects that have test files (`*.spec.ts(x)`,
+  `*.test.ts(x)`) no `tsc -b` of the project's `tsconfig.json` reaches: not included by any referenced
+  config, included only by one that shares an earlier config's build info (tsc skips it as up to date), or
+  in a project `verify.yml` excludes from typecheck. It is a flag per project (`1`), not a file count, so
+  writing a new test in a project that is not covered yet is not penalised; a project that is covered can
+  never lose that. `apps/web` was the case that shared build info until this check arrived.
+
+knip and jscpd count across files: removing a copy in one file lowers the other file's count, and while a file is
 unused knip does not report its exports, which all appear once something imports it. So for these two a
 count below the baseline is only reported, never a failure — two changes that are each green could
 otherwise turn `develop` red together.
@@ -87,9 +94,10 @@ step stays green, so false positives can be counted before the check is trusted.
 
 The source counts (comments, escape hatches, `useEffect`) start in `enforce`: the baseline is generated
 from the tree it judges by the same code that judges it, and the ESLint rule and the script were checked to
-agree on every tracked file, so they have no false positive by construction. knip and jscpd start in
-`observe`: they run each project's config files, and whether CI's Linux runner, without the local env
-files, sees exactly what a laptop sees is something to watch, not assume.
+agree on every tracked file, so they have no false positive by construction. The test typecheck count
+starts in `enforce` for the same reason. knip and jscpd start in `observe`: they run each project's config
+files, and whether CI's Linux runner, without the local env files, sees exactly what a laptop sees is
+something to watch, not assume.
 
 ### Who judges a change
 
@@ -98,7 +106,8 @@ compare base into a separate worktree and run **its** `scripts/ratchet.js`, coun
 `modes.json` against this tree (`RATCHET_ROOT`), and `check --reference <base>` holds every count to the
 lower of this tree's baseline and the base's (followed through renames). A change that edits the rule, the
 script, the modes or a baseline upward is judged by the version it is trying to replace; once it merges,
-it judges the changes after it. Such a change gets a human review — it changes the rules — and is never
+it judges the changes after it. `yarn gate` runs this tree's judge, so a change that loosens
+`modes.json` passes locally and still fails CI. Such a change gets a human review — it changes the rules — and is never
 merged automatically. The ESLint rule reads this tree's files, so it gives the early warning while editing;
 the CI step is the one that decides.
 
