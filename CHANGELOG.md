@@ -4,6 +4,12 @@
 
 ### Chores
 
+- (comments) remove comments from web hooks and runtime
+
+## [2026-11-23] - No version updates
+
+### Chores
+
 - (comments) remove comments from web channels hooks and stores
 
 ## [2026-11-23] - No version updates
