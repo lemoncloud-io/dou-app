@@ -5,23 +5,6 @@ import type { DomainCloud } from '@chatic/runtime';
 
 import type { InviteContext } from './types';
 
-/**
- * The cloud invite acceptance, wired as the app wires it: the accept pipeline (`useInviteAccept` and
- * its three entry steps), the invited-cloud list (`useInvitedClouds` → `useJoinedCloudIds`) and the
- * pending-room store are all the real modules. What is faked is everything past the app's edge — the
- * server, the device's shared cloud cache and the session — and the fake server follows the rules
- * measured against production on 2026-10-01, because those rules are what made acceptance fail:
- *
- * - `login-invite` binds the invite's member to the device guest it names (`delegatorId`) and answers
- *   with that member's own cloud token.
- * - `delegate-cloud` answers for the relay user as it is now — the guest, or the account it signed in
- *   to — and mints an EMPTY user, a member of nothing, for one it has never seen in that cloud.
- *
- * So an entry re-issued through `delegate-cloud` lands on the invitee only when the relay user is the
- * guest the invite bound and has not been in the cloud before. A signed-in device, or a guest whose
- * background socket delegated first, lands on a user with no rooms, and every room answers 403.
- */
-
 interface Invite {
     cloudId: string;
     channelId: string;
@@ -33,13 +16,10 @@ class FakeCloudServer {
     private readonly members = new Map<string, Set<string>>();
     private readonly invites = new Map<string, Invite>();
     private nextUid = 2000;
-    /** Relay-signed calls that fail with no HTTP answer, as on a cold start with a stale credential. */
     networkFailuresLeft = 0;
-    /** An invite login whose answer carries no identity token, so the entry falls back to a re-issue. */
     answersWithoutToken = false;
 
     issueInvite(code: string, cloudId: string, channelId: string): void {
-        // The server creates the invitee's user and its room membership when the invite is issued.
         const memberUid = this.mintUid();
         this.membersOf(channelId).add(memberUid);
         this.invites.set(code, { cloudId, channelId, memberUid });
@@ -55,7 +35,6 @@ class FakeCloudServer {
         return { id: invite.memberUid, Token: { identityToken: `idt:${invite.memberUid}` } };
     }
 
-    /** `signer` is the relay user the call is signed as — the guest, or the account it signed in to. */
     delegate(cloudId: string, signer: string): string {
         if (this.networkFailuresLeft > 0) {
             this.networkFailuresLeft -= 1;
@@ -88,11 +67,8 @@ class FakeCloudServer {
     }
 }
 
-/** One device: a cloud cache every guest on it shares, and the session of whoever uses it now. */
 class FakeDevice {
-    /** The device guest — `delegatorId`, written at the first launch and kept after a sign-in. */
     guest = 'guest-1';
-    /** Who the relay session is now: the guest, until it signs in to an account. */
     relayUser = 'guest-1';
     selectedCloudId: string | null = null;
     committedUid: string | undefined;
@@ -113,7 +89,6 @@ class FakeDevice {
         },
     };
 
-    /** A new guest on the same device — a new web tab, say. The cache stays; the session does not. */
     startGuest(guest: string): void {
         this.guest = guest;
         this.relayUser = guest;
@@ -121,7 +96,6 @@ class FakeDevice {
         this.committedUid = undefined;
     }
 
-    /** The guest signs in: the relay session becomes the account, `delegatorId` stays the guest. */
     signIn(account: string): void {
         this.relayUser = account;
     }
@@ -134,7 +108,6 @@ class FakeDevice {
 
 let mockServer = new FakeCloudServer();
 let mockDevice = new FakeDevice();
-// The answers the runtime keeps for the screen's handles — the screen never holds one.
 const mockInviteAnswers = new Map<string, ReturnType<FakeCloudServer['loginInvite']>>();
 const mockEnterStack = jest.fn();
 
@@ -146,7 +119,6 @@ jest.mock('@chatic/runtime', () =>
         },
         session: {
             useSessionIdentity: () => ({ delegatorId: mockDevice.guest }),
-            // The runtime keeps an invite login's answer and hands the screen a handle to enter with.
             useInviteFlow: () => ({
                 runInviteFlow: async ({ code }: { code: string }) => {
                     const handle = `invite-login-${mockInviteAnswers.size + 1}`;
@@ -157,8 +129,6 @@ jest.mock('@chatic/runtime', () =>
             }),
             forgetInviteLogin: (handle: string) => mockInviteAnswers.delete(handle),
             useSwitchCloudSession: () => ({
-                // The runtime's two entries: with an invite login's handle, the answer it was given for is
-                // committed as it is; without one, the cloud is re-issued through `delegate-cloud`.
                 switchCloud: async (cloudId: string, options?: { inviteLogin?: { handle: string } }) => {
                     const handle = options?.inviteLogin?.handle;
                     const answer = handle ? mockInviteAnswers.get(handle) : undefined;
@@ -175,8 +145,6 @@ jest.mock('@chatic/runtime', () =>
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
-// Edges the scenario does not cross: owned clouds come from the relay catalog, the place switch has
-// its own suites, and navigation is only observed.
 jest.mock('../../../hooks/useCloudCatalog', () => ({ useCloudSessionCatalog: () => ({ clouds: [] }) }));
 jest.mock('../../../runtime/useSiteSwitch', () => ({
     useSiteSwitch: () => ({ switchSite: async () => undefined, isSwitching: false }),
@@ -201,10 +169,6 @@ const inviteContext = (code: string, channelId: string): InviteContext =>
         },
     }) as InviteContext;
 
-/**
- * What the runtime's background sockets do with the app's cloud list: delegate into every cloud in
- * it. Mirrors `BackgroundCloudsRunner`, which hands `useJoinedCloudIds(owned, invited)` to the runtime.
- */
 const useBackgroundDelegation = (): readonly string[] => {
     const { invitedClouds } = useInvitedClouds();
     const joined = useJoinedCloudIds([], invitedClouds);
@@ -243,11 +207,9 @@ describe('cloud invite acceptance (integration)', () => {
     });
 
     it('does not delegate a new guest into a cloud another guest on the device accepted', async () => {
-        // The first guest on this device accepts an invite into the cloud.
         mockServer.issueInvite('invt:1:a', CLOUD, 'room-1');
         await acceptInvite(inviteContext('invt:1:a', 'room-1'));
 
-        // A second guest starts on the same device, with an invite of its own still unopened.
         mockDevice.startGuest('guest-2');
         mockServer.issueInvite('invt:2:b', CLOUD, 'room-1');
         const background = renderHook(() => useBackgroundDelegation());
@@ -255,12 +217,10 @@ describe('cloud invite acceptance (integration)', () => {
         expect(background.result.current).not.toContain(CLOUD);
         expect(mockServer.hasUserFor(CLOUD, 'guest-2')).toBe(false);
 
-        // Accepting binds the invite member to this guest, so it can read the room it was invited to.
         const result = await acceptInvite(inviteContext('invt:2:b', 'room-1'));
         expect(result.current.errorKey).toBeNull();
         expect(mockServer.canRead('room-1', mockDevice.committedUid)).toBe(true);
 
-        // Once it has accepted, the cloud is this guest's too, and background sockets may keep it.
         background.rerender();
         expect(background.result.current).toContain(CLOUD);
     });
@@ -276,8 +236,6 @@ describe('cloud invite acceptance (integration)', () => {
     });
 
     it('lands the invite member even when a background socket delegated into the cloud first', async () => {
-        // A row written before acceptors were recorded is listed for every guest, so the background
-        // sockets delegate into its cloud before Accept — minting an empty user for this guest.
         await mockDevice.cloudRepository.cacheWrite({ id: CLOUD, cid: CLOUD, cloudType: 'invited' });
         renderHook(() => useBackgroundDelegation());
         expect(mockServer.hasUserFor(CLOUD, 'guest-1')).toBe(true);

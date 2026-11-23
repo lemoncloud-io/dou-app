@@ -10,7 +10,6 @@ const mockGet = runtime.settings.get as jest.Mock;
 describe('buildAppDeeplink', () => {
     beforeEach(() => mockGet.mockReset());
 
-    // A hardcoded 'chatic' would open the prod app from a dev build — this actually matters on a device with both channels installed.
     it('상대경로에는 이 빌드의 스킴을 붙인다', () => {
         mockGet.mockReturnValue('chatic-dev');
 
@@ -30,7 +29,6 @@ describe('buildAppDeeplink', () => {
         expect(buildAppDeeplink('///home')).toBe('chatic://home');
     });
 
-    // Also under test: that another channel's scheme doesn't get caught by this build — hence it passes through untouched.
     it('이미 스킴이 붙은 입력은 건드리지 않는다', () => {
         mockGet.mockReturnValue('chatic-dev');
 
@@ -43,7 +41,6 @@ describe('buildAppDeeplink', () => {
         expect(mockGet).not.toHaveBeenCalled();
     });
 
-    // The PROD scheme is the default when the registry isn't wired up yet or the key is empty (matches the registry's defaultValue).
     it('스킴을 못 읽으면 chatic으로 떨어진다', () => {
         mockGet.mockReturnValue(undefined);
 

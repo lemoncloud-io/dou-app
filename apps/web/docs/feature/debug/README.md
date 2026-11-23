@@ -79,6 +79,12 @@ the whole point — without it a build with no code configured would let `'' ===
 not a timing-safe comparison, deliberately: the threat is an accidental arrival, and the code is
 inlined in the bundle anyway.
 
+The dialog is a plain text field submitted by the confirm button or Enter, not a fixed-length digit
+pad: a pad that submits when its length fills ties the dialog to a code of exactly that length. The
+input is trimmed on submit, because a soft keyboard can append a trailing space that would fail the
+exact match, and is never otherwise transformed. It is emptied on every close and after a wrong
+attempt, so the next try is a fresh code rather than an edit of the rejected one.
+
 ### The entry code comes from the build and from nowhere else
 
 `debug.entryCode` declares `envDefaultKey: 'VITE_DEBUG_CODE'` and `writableBy: []`. No lane can
@@ -211,7 +217,7 @@ one scope — the selected cloud, or another cloud the cache knows — with the 
 and sort, and edit, delete, add and clear. Every read and write goes through the repositories, the
 path the app takes, so the screens observing a row redraw when it changes (checked: an edit and a
 delete on a message showed in the open room at once) and it works whichever store holds the domain.
-Two consequences follow from that path:
+Two consequences follow from that path, and a few notes on how the screen is built:
 
 - `chat` and `join` list one channel per call, so the screen walks the cached channels — `chat` capped
   at a number of newest rows per channel the screen lets you set. A channel whose read fails is
@@ -219,6 +225,19 @@ Two consequences follow from that path:
 - A write is merged into the cached row: a field deleted in the editor keeps its old value, and
   `null` is how to clear one. A new message newer than the room's covered feed range lands in the
   cache but appears in an open room only after the next read covers it (a reload, a sync).
+
+- The per-channel reads run **one channel at a time**: on the phone each read is a bridge round trip,
+  and a burst of them would queue behind the app's own reads. `user` lists every cached user with no
+  channel and filters by membership when one is picked.
+- Rows are tagged with the domain and cloud they were read for. Picking another domain or cloud must
+  not leave the previous rows on screen, because their buttons already act on the new pick; an
+  editor or an armed button meant for the old pick is dropped too. The search applies on blur or
+  Enter, since every keystroke would otherwise re-read every channel, and only the first 300 rows are
+  drawn (the Storage key list has the same cap) because rendering thousands makes the panel crawl:
+  the search finds the rest.
+- A new row's template carries only an id and the fields it needs to be visible; the repository
+  stamps `cid` and `uid` from the scope it is bound to. A row id must be a non-empty string, since
+  every repository keys its rows by it.
 
 `meta` (the sync cursors) has no repository on the page and is not listed.
 
@@ -265,6 +284,119 @@ What each clear does, and why it stops where it does:
 The screen is not `requiresShell`: in a browser the web half is all there is, and still worth
 reading. A failed summary request shows its error in the native half, and its clear stays off.
 
+## How the screens behave
+
+The panel is opened when something looks wrong, so its screens are written not to make it look
+better than it is. Rules every screen follows:
+
+- **A control claims only what it learned.** `useDebugOperation` has two entry points. `run` is for
+  commands the app answers: the line under the buttons shows the response (cut at 400 characters) or
+  the failure message. `fire` is for fire-and-forget posts (`openURL`, `setBadgeCount`,
+  `openSettings`, `openShareSheet`): nothing comes back, so the line says "sent (no confirmation)"
+  instead of implying the app acted. An older app build that rejects an unknown command shows as a
+  failure, not smoothed into success.
+- **"Copied" is earned.** `copyTextWithResult` resolves with what the host's copy actually did (the
+  bridge reply or the Clipboard API); an absent `navigator.clipboard` (a non-secure context, an old
+  WebView) is a failure, not a silent no-op. `CopyButton` takes a getter rather than a string because
+  screens poll, so the copied snapshot is the one on screen at the click. A copy button inside a
+  clickable row does not toggle the row, and a row with nothing to copy shows no icon and ignores
+  taps, rather than reporting an error nobody can act on.
+- **Explanations work without hover.** `HintRow` shows the value's meaning in the native `title`
+  tooltip on desktop, and its label is also a button that reveals the same text inline. On a device
+  there is no hover, and a Radix tooltip would not help, because it closes on `pointerdown`.
+- **Live readings are polled, not subscribed.** Route, Boot, Perf, Cache Metrics, the shell-presence
+  check and the socket-slot list read module state or a telemetry snapshot that has no listener, so
+  they re-read once a second while the screen is open. An answer that lands after a newer read began,
+  or after unmount, is dropped, and a failed read keeps the last list.
+- **Nothing published says so.** The Unread screen shows a "not published" notice, not zeros, when
+  the runtime has not committed its providers yet (a boot hang, a gated session).
+
+What the individual screens do:
+
+- **Config** lists every setting the device is running with: title, current value, default, which
+  row won (`origin`) and whether this device may write it. Overridden keys come first, because "why
+  does this device behave differently" is what brings people here. Editing writes the `local` lane
+  only, and a refused write says why. `meta` keys and `debug.entryCode` are left out: the lock
+  switch does not belong inside the screen the lock guards, and the entry code is a credential on
+  a screen whose list is copyable. The list is re-read on demand (refresh, or after a write) so it
+  never reorders under the reader; the dotted key stays searchable and in the JSON copy.
+- **Log Buffer** is a viewer over the log upload queue. On the phone it reads the queue through the
+  bridge without consuming it; in a browser it reads the running uploader's queue directly. Entries
+  show newest first, and the search box takes plain words (all must match), `-word` to exclude,
+  `tag:NET` to restrict to a tag and `"quoted phrase"`; anything that does not parse is plain text. The
+  search reaches the entry's `data` and `error`, since the message is usually the generic half and
+  the id or status code is in the payload. Tag chips list only the tags present in the buffer.
+  **Hold server send** pauses sending so the queue can be read; it is a debugging lever, not an
+  opt-out, and the screen says so. **Discard** throws away what was waiting to be sent for good,
+  and **Send now** reports that the attempt finished, not that the server accepted the batch. An empty
+  list is expected while sending is on, since the uploader drains what it ships.
+- **Route** shows the history stack and the visited trail side by side, because they disagree by
+  design (`/a → /b → back → /c` leaves a trail of `a, b, c` and a stack of `a, c`). A misbehaving
+  back button is a stack question; "how did the user get here" is a trail question. The "can go
+  back" row asks the same function the back button asks, not the snapshot, because a `pushState`
+  that bypassed the router kills the live index while the tracker still shows its last one.
+- **Unread** shows the aggregates the home surface and the app badge use, plus the other clouds'
+  cached counts. It lists the numbers each channel's count is derived from (head and read
+  position) for channels that carry a badge or whose read position has no `metaNo` snapshot, the
+  one case whose count runs low until the room is read again.
+- **State** lists every socket slot, not only the active one, because a background cloud holds its
+  own connection and a reconnect storm there never reaches the active socket's state. Its copy is JSON
+  built at click time, since the shape matters more than the layout when it is pasted into an issue.
+- **Bridge** answers the question the other native screens cannot: which injection channels exist
+  (`RN WebView`, `Chatic handler`, `webkit handler`) and which protocol version this web speaks,
+  then sends any command by hand as a request or a post. Ping is the round-trip check. The failure
+  code and message are shown as they came, which is what tells an old app build from a missing
+  channel.
+- **Deeplink** hands the app a deeplink through `openURL`, so the OS resolves the scheme back to the
+  app and the same routing runs as for a real invite link or push tap. `buildAppDeeplink` prefixes a
+  relative input with `net.deeplink.scheme` (`chatic` on PROD, `chatic-dev` on DEV) and leaves an
+  absolute `scheme://` input unchanged, so the cross-check presets can prove that the other channel's
+  scheme does not capture this build. The log records what was sent; whether the app routed it is
+  visible in the app.
+- **Invite link conversion** turns a share link into the redirect URL the web reads, through the same
+  `buildInviteEntryParams` the `/s` route uses, so the tool cannot drift from the app. Only the
+  absolute base is added, and it is editable to retarget any environment.
+- **Custom Zip** points the app's WebView at a custom web build. The app, not this screen, refuses it
+  on a PROD build (the guard is native, on the baked build stage, so a compromised web bundle cannot
+  unlock it); the screen disables Apply when the app reports it is not allowed. Turning it off is
+  never refused.
+- **Session Owner** switches who holds the session on the phone, the page or the app's own runtime.
+  The app decides whether it is offered: a production build answers only while its debug mode is on.
+  A change is recorded by the app and applied by restarting its JS, which reloads this page, so a
+  successful switch is the last thing the screen shows. If nothing reloads within five seconds the
+  screen reads the owners again rather than stay stuck.
+- **IAP** shows the store's answer verbatim, so a mismatch between what Apple or Google returns and
+  what the plan catalog expects is visible. Buying is a post: the result arrives later as
+  `OnPurchaseSuccess` or `OnPurchaseError`, which the screen subscribes to, and it never says
+  "purchased" from the call alone.
+- **OAuth** exercises the native sign-in sheet, a different path from the web's own relay hand-off.
+  Apple sign-in is iOS-only, so a failure on Android is the expected answer, and the screen prints
+  what came back, including a relay code in the virtual shell.
+- **Upload Test** drives the native file transfer against the local S3 stand-in
+  (`node scripts/upload-test-server.js`). The scenario is part of the URL, so each run only changes
+  where the transfer points. The test server is reached at the host the page was loaded from (the
+  device's LAN address on a real phone), and random ids use `getRandomValues`, because
+  `crypto.randomUUID` needs a secure context and a device loads the dev server over plain http.
+- **Boot** measures the current web session live (navigation timing, milestones, paint vitals,
+  and whether the core `/assets/` bundles came from cache: a transfer size of zero with a decoded
+  body, or zero with a duration under 30 ms, since some WebViews zero the size for cross-origin
+  entries). **Boot Records** is different: the native side's persisted history, one merged record per
+  boot, which exists only after a boot finished. The web snapshot is sent to the shell once per page
+  load, about three seconds after the router unblocks, so late chunk and font entries are in it.
+- **Perf** shows what `MetricsCollector` aggregates web-side. Throughput and latency count live chat
+  deltas only: the first list seen for a channel seeds a baseline and is treated as history. Long
+  tasks come from the Long Tasks API, started at boot so early jank is captured, and the screen
+  reports it as unsupported where the engine lacks it (WKWebView has no `longtask` entry type). The
+  heap reading exists only on Chrome-family WebViews.
+- **Cache Metrics** sorts by cumulative time (count × average), not by average: a call that is slow
+  once and one that is fast but called constantly need different fixes, and only the cumulative view
+  shows which is eating the time.
+- **Email Login** signs in without navigating, so the overlay stays open and the metrics collected
+  so far survive; the sign-up and password-reset links do leave the page.
+- **Sub WebView** opens a sub web view by hand and shows the whole round trip, including the
+  `OnSubWebViewClosed` event with its reason and `result`, which the Bridge screen would not show.
+  Every close is logged, not only the views this screen opened.
+
 ## Usage
 
 The panel opens itself. The calls from outside this feature are:
@@ -310,6 +442,10 @@ Nothing else. The registry, the menu, the tab strip and the size rules all deriv
 - **Do not add a second catalog for "screens worth a tab".** The strip carries all of them in menu
   order. A hand-picked subset means a second rule about which screens deserve a chip, and the menu
   is one tap away regardless.
+- **Do not wrap a scrolling screen in a flex child without `min-h-0 flex-1`.** The panel body
+  (`overlay/DebugPanel.tsx`) is `min-h-0 flex-1 overflow-y-auto`. A flex child defaults to
+  `min-height: auto` and refuses to shrink below its content, so without it `overflow-y-auto` never
+  activates, the child outgrows the panel and the rest is clipped: content that cannot be reached.
 - **Do not let a screen consume a React context from the app tree.** Mirror it through
   `sharedObservationStore` instead; the host is out of tree on purpose.
 

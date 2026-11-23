@@ -39,7 +39,6 @@ describe('retryAfterRelayReconnect', () => {
         expect(task).toHaveBeenCalledTimes(2);
         expect(waitForRelay).toHaveBeenCalledTimes(1);
         expect(onRetry).toHaveBeenCalledWith(lost);
-        // The retry waits for the relay: it never goes out before the wait has resolved.
         expect(waitForRelay.mock.invocationCallOrder[0]).toBeLessThan(task.mock.invocationCallOrder[1]);
     });
 

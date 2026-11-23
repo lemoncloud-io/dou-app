@@ -1,17 +1,5 @@
 import { useState } from 'react';
 
-/**
- * `Row` plus an explanation of what the value MEANS.
- *
- * Two ways in, because the panel has two audiences. On a desktop browser the native `title`
- * tooltip appears on hover, which costs nothing and needs no library. On a real device — where
- * this panel actually lives — there is no hover at all, and a Radix tooltip would not help: it
- * closes on `pointerdown` by design, so a tap never shows it. Hence the label is also a button
- * that reveals the same text inline.
- *
- * The dotted underline is the affordance. It is the only signal a touch user gets, so every row
- * with a hint carries it.
- */
 export const HintRow = ({ label, value, hint }: { label: string; value: React.ReactNode; hint: string }) => {
     const [isOpen, setIsOpen] = useState(false);
 

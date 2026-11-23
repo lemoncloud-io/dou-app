@@ -8,36 +8,10 @@ import { useConfigScreenStrings } from '../../i18n/screens/ConfigScreen';
 
 type ConfigScreenStrings = ReturnType<typeof useConfigScreenStrings>;
 
-/**
- * Every setting this device is actually running with, and — for the keys this device may write —
- * the control that changes it. The screen half of ADR-0079 decision 16, which shipped its logging half
- * without a viewer (see `libs/runtime-core/src/config/configStateLog.ts`).
- *
- * `snapshotAll()` already carries what a row needs: title, description, current value, default,
- * which row won (`origin`), and who may write it here and now (`canWrite`). Editing writes the
- * LOCAL lane only — the panel is this device's operator, not the shell and not the server — and
- * `runtime.settings.set` reports refusals as a reason, so a control that does nothing says why (types.ts:
- * "a debug panel should show the reason, not crash").
- *
- * Two exclusions, both from the ADRs rather than taste:
- *
- * - **`meta: true` keys** — `system.*`, `debug.overlayEnabled`, `debug.entryCode`. A generic panel
- *   rendering the lock switch inside the screen the lock guards is the recursion ADR-0080 decision 6
- *   removed by marking them.
- * - **`debug.entryCode`** would be excluded by `meta` anyway; it is named here because ADR-0079
- *   decision 16 excludes it for a second, independent reason — it is a credential, and this view is
- *   copyable.
- *
- * Overridden keys are listed first because they are the answer to "why is this device behaving
- * differently", which is the question that brings someone here.
- */
 const isHidden = (snapshot: ConfigSnapshot) => snapshot.entry.meta === true || snapshot.key === 'debug.entryCode';
 
 const show = (value: unknown) => (typeof value === 'object' ? JSON.stringify(value) : String(value));
 
-// `reasonOf` reads the table it's given rather than a module-level one, since the hook that
-// resolves the current language can only run inside a component (ConfigScreen and ConfigRow each
-// call it, then pass their own `t` through here).
 const reasonOf = (result: SetResult, t: ConfigScreenStrings): string | null =>
     result.ok ? null : t.rejection[result.reason];
 
@@ -46,9 +20,6 @@ export const ConfigScreen = () => {
     const [query, setQuery] = useState('');
     const [tick, setTick] = useState(0);
 
-    // Re-read on demand rather than subscribing: a settings list that reorders itself while being
-    // read is harder to use than one with a refresh button, and `configStateLog` already records
-    // every change for anyone who needs the timeline. Writes bump the same counter.
     const snapshots = useMemo(() => {
         void tick;
         return runtime.settings.snapshotAll().filter(snapshot => !isHidden(snapshot));
@@ -67,8 +38,6 @@ export const ConfigScreen = () => {
     const overridden = filtered.filter(s => s.isOverridden);
     const rest = filtered.filter(s => !s.isOverridden);
 
-    // A getter, not a value: `CopyButton` serializes at click time, so a refresh between renders
-    // cannot hand the tester a stale snapshot.
     const copyAll = useCallback(
         () =>
             JSON.stringify(
@@ -120,10 +89,6 @@ export const ConfigScreen = () => {
     );
 };
 
-/**
- * One key. Collapsed it reads like the old list row; expanded it offers the control for its type.
- * Expanding one key at a time keeps 80+ rows scannable — a screen of inline editors is not.
- */
 const ConfigRow = ({
     snapshot,
     onChanged,
@@ -178,11 +143,6 @@ const ConfigRow = ({
 
     return (
         <div className="border-b border-border/60 py-1.5 last:border-b-0">
-            {/*
-             * The dotted key is an implementation detail: the registry already carries a human name
-             * and one sentence saying what the key changes, and reading 80 dotted paths is slower
-             * than reading 80 titles. The key stays searchable and stays in the JSON copy.
-             */}
             <button
                 type="button"
                 onClick={() => setIsOpen(open => !open)}

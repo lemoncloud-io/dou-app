@@ -4,14 +4,6 @@ import { Check, Copy, TriangleAlert } from 'lucide-react';
 
 import { useCopyFeedback } from '../hooks/useCopyFeedback';
 
-/**
- * A label/value line whose whole area copies the value.
- *
- * The shape the device-info and push screens already used — a wide row is an easier target than a
- * small icon on a phone — with the trailing icon now carrying the outcome instead of staying a
- * static `Copy` glyph forever. Rows with nothing to copy render no icon and do not respond, rather
- * than reporting a failure the tester cannot act on.
- */
 export const CopyRow = ({
     label,
     value,

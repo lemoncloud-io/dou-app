@@ -34,21 +34,16 @@ import { readLaunchSessionOwner } from '../../../../runtime/launchSessionOwner';
 
 type PageRepositories = runtime.data.PageRepositories;
 
-/** Rendering thousands of message rows makes the panel crawl; the search finds the rest. */
 const RENDER_CAP = 300;
 
-/** The fields worth seeing in a collapsed row, in order, when a row has them. */
 const SUMMARY_FIELDS = ['channelId', 'chatNo', 'name', 'nick', 'content', 'sid', 'userId', 'state'] as const;
 
 export interface DBBrowserProps {
-    /** Test seam: the selected cloud's graph. `useRuntimeRepositories()` otherwise. */
     repos?: PageRepositories;
-    /** Test seam: another cloud's graph. `runtime.data.getCloudRepositories` otherwise. */
     cloudRepos?: (cid: string) => PageRepositories;
     routes?: readonly ActiveCacheRoute[] | null;
     choices?: ActivePortChoices;
     sessionOwner?: 'web' | 'native';
-    /** Test seam: what the session is bound to, for the header. */
     scope?: { cloud: string | null; uid: string | null };
 }
 
@@ -57,7 +52,6 @@ const readScope = (): { cloud: string | null; uid: string | null } => {
         const { cloud, identity } = runtime.session.getGlobalSessionContext();
         return { cloud: cloud.isActive ? cloud.cloudId : null, uid: identity.userId };
     } catch {
-        // Before the runtime booted there is no session to read; the header says so with dashes.
         return { cloud: null, uid: null };
     }
 };
@@ -67,15 +61,6 @@ const summaryOf = (row: CacheRow): string =>
         .map(field => `${field}: ${String(row[field]).slice(0, 60)}`)
         .join(' · ');
 
-/**
- * The cache rows this run reads, domain by domain, from the store each one is routed to — with a search
- * over every field and edit, delete and add through the repositories.
- *
- * The header says where the rows are: the cache adapter `startRuntime` settled on, and per domain the
- * store the data assembly put it in (IndexedDB, the app's SQLite, the tab's sessionStorage), as the
- * assembly reported it. On a launch whose session the app holds, the page built no cache of its own
- * and the header says that instead; the rows below still read, from the app's runtime.
- */
 export const DBBrowser = ({
     repos: reposProp,
     cloudRepos = runtime.data.getCloudRepositories,
@@ -95,12 +80,9 @@ export const DBBrowser = ({
     const [cloudId, setCloudId] = useState<string>('');
     const [channelId, setChannelId] = useState<string>('');
     const [perChannel, setPerChannel] = useState(DEFAULT_PER_CHANNEL_LIMIT);
-    // Applied on blur or Enter: every keystroke would otherwise re-read every channel.
     const [perChannelDraft, setPerChannelDraft] = useState(String(DEFAULT_PER_CHANNEL_LIMIT));
     const [cloudIds, setCloudIds] = useState<string[]>([]);
     const [channelIds, setChannelIds] = useState<string[]>([]);
-    // Tagged with the domain and cloud it was read for: rows from the previous pick must not stay on
-    // screen while the next read runs, because their buttons already act on the new domain and cloud.
     const [result, setResult] = useState<(LoadResult & { view: string }) | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
@@ -124,7 +106,10 @@ export const DBBrowser = ({
         setLoading(true);
         setLoadError(null);
         try {
-            const next = await loadDomainRows(repos, domain, { channelId: channelId || undefined, perChannelLimit: perChannel });
+            const next = await loadDomainRows(repos, domain, {
+                channelId: channelId || undefined,
+                perChannelLimit: perChannel,
+            });
             if (seq === loadSeq.current) setResult({ ...next, view });
         } catch (e) {
             if (seq === loadSeq.current) {
@@ -140,7 +125,6 @@ export const DBBrowser = ({
         void load();
     }, [load]);
 
-    // The pickers' options: the clouds the cache knows and the channels of the scope being browsed.
     useEffect(() => {
         let live = true;
         void loadDomainRows(reposProp ?? selectedRepos, CACHE_DOMAINS.find(d => d.key === 'cloud')!)
@@ -163,8 +147,6 @@ export const DBBrowser = ({
     const current = result?.view === view ? result : null;
     const rows = useMemo(() => current?.rows ?? [], [current]);
     const fields = useMemo(() => fieldNamesOf(rows), [rows]);
-    // A field picked for other rows filters on nothing these rows have; dropped rather than left to
-    // empty the list while its picker shows no choice.
     const effectiveFilter = useMemo(
         () => ({
             ...filter,
@@ -175,7 +157,6 @@ export const DBBrowser = ({
     );
     const shown = useMemo(() => applyFilter(rows, effectiveFilter), [rows, effectiveFilter]);
 
-    /** What a pick of another domain or cloud leaves behind: an editor or an armed button meant for the old one. */
     const resetPick = () => {
         setEditorText(null);
         setArmed(null);
@@ -183,7 +164,6 @@ export const DBBrowser = ({
         setExpanded(null);
     };
 
-    /** Runs a write, reports it, and reads the domain again so the list is what the store now holds. */
     const write = async (done: string, action: () => Promise<void>) => {
         setArmed(null);
         try {
@@ -308,7 +288,10 @@ export const DBBrowser = ({
                             value={perChannelDraft}
                             onChange={e => setPerChannelDraft(e.target.value)}
                             onBlur={() => {
-                                const next = Math.max(1, Math.floor(Number(perChannelDraft)) || DEFAULT_PER_CHANNEL_LIMIT);
+                                const next = Math.max(
+                                    1,
+                                    Math.floor(Number(perChannelDraft)) || DEFAULT_PER_CHANNEL_LIMIT
+                                );
                                 setPerChannel(next);
                                 setPerChannelDraft(String(next));
                             }}
@@ -321,7 +304,13 @@ export const DBBrowser = ({
                 )}
             </div>
 
-            <FilterBar filter={effectiveFilter} onChange={setFilter} shown={shown.length} total={rows.length} fields={fields} />
+            <FilterBar
+                filter={effectiveFilter}
+                onChange={setFilter}
+                shown={shown.length}
+                total={rows.length}
+                fields={fields}
+            />
 
             <div className="flex flex-wrap gap-2">
                 <button
@@ -381,7 +370,10 @@ export const DBBrowser = ({
             )}
 
             {message && (
-                <p className={`break-all text-xs ${message.error ? 'text-destructive' : 'text-muted-foreground'}`} role="status">
+                <p
+                    className={`break-all text-xs ${message.error ? 'text-destructive' : 'text-muted-foreground'}`}
+                    role="status"
+                >
                     {message.text}
                 </p>
             )}
@@ -413,7 +405,9 @@ export const DBBrowser = ({
                                         className="min-w-0 flex-1 text-left"
                                     >
                                         <span className="break-all font-mono">{row.id}</span>
-                                        {summary && <span className="block truncate text-muted-foreground">{summary}</span>}
+                                        {summary && (
+                                            <span className="block truncate text-muted-foreground">{summary}</span>
+                                        )}
                                     </button>
                                     <CopyButton value={() => JSON.stringify(row, null, 2)} />
                                     <button
@@ -427,7 +421,11 @@ export const DBBrowser = ({
                                         type="button"
                                         aria-live="polite"
                                         onClick={() =>
-                                            arm(`delete:${key}`, () => void write(t.deleted, () => deleteDomainRow(repos, domain, row.id)))
+                                            arm(
+                                                `delete:${key}`,
+                                                () =>
+                                                    void write(t.deleted, () => deleteDomainRow(repos, domain, row.id))
+                                            )
                                         }
                                         className="shrink-0 text-destructive"
                                     >

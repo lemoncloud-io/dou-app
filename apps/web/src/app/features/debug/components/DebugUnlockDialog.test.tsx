@@ -32,8 +32,6 @@ describe('DebugUnlockDialog — 입력 필드 방식의 코드 확인', () => {
         expect(onSubmit).toHaveBeenCalledWith('secret1');
     });
 
-    // The old 6-digit pad auto-submitted the instant its length filled. That behavior was removed so the
-    // dialog isn't tied to a fixed digit count, so filling 6 characters alone must do nothing.
     it('길이가 찼다고 저절로 제출하지 않는다', () => {
         const { onSubmit } = setup();
 
@@ -51,7 +49,6 @@ describe('DebugUnlockDialog — 입력 필드 방식의 코드 확인', () => {
         expect(onSubmit).toHaveBeenCalledWith('secret1');
     });
 
-    // If a single trailing space a mobile keyboard appends breaks an exact match, the cause is hard to find.
     it('앞뒤 공백은 잘라서 제출한다', () => {
         const { onSubmit } = setup();
 
@@ -70,7 +67,6 @@ describe('DebugUnlockDialog — 입력 필드 방식의 코드 확인', () => {
         expect(onSubmit).not.toHaveBeenCalled();
     });
 
-    // Don't let a wrong code be edited in place — make the user enter it fresh (preserves existing behavior).
     it('틀린 시도 뒤에는 입력을 비운다', () => {
         const { rerender, onSubmit } = setup();
 

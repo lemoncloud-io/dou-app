@@ -53,8 +53,6 @@ describe('InviteExpiryCard', () => {
     });
 
     it('stays on a red zero clock once expired, where isImminent has already flipped back to false', () => {
-        // Guards the pairing with isExpired — on its own, isImminent would let a dead link render in
-        // words and in the calm colour.
         render(<InviteExpiryCard countdown={countdown({ isExpired: true, isImminent: false })} />);
         expect(screen.getByText('00 : 00 : 00 남음').className).toContain('text-destructive');
     });

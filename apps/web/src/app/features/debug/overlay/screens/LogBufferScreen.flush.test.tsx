@@ -27,8 +27,6 @@ jest.mock('../../../../bridge', () => ({
         clearLogUploadQueue: () => Promise.resolve({ data: { success: true } }),
     },
 }));
-// `../../lib` is not mocked — it's a collection of pure functions, and mocking it by guessing its
-// surface drifts from the real name (`filterLogs`), as it did this time.
 
 describe('LogBufferScreen — 지금 보내기 (ADR-0080 결정 14)', () => {
     let restoreLanguage: () => void;
@@ -51,7 +49,6 @@ describe('LogBufferScreen — 지금 보내기 (ADR-0080 결정 14)', () => {
         expect(await screen.findByText(/Sent/)).toBeInTheDocument();
     });
 
-    // Silently passing through when there's no uploader would read as "sent" to whoever clicked it.
     it('업로더가 돌지 않으면 그 사실을 말한다 — 보낸 척하지 않는다', async () => {
         current = undefined;
         render(<LogBufferScreen />);

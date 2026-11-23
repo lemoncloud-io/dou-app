@@ -5,16 +5,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { RelayInviteAccept } from './RelayInviteAccept';
 import type { RelayInviteFlow } from '../hooks';
 
-// Mutable per-test flow state (must be `mock`-prefixed to be usable inside jest.mock factories).
 let mockFlow: RelayInviteFlow;
 
 jest.mock('../hooks', () => ({ useRelayInviteFlow: () => mockFlow }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-// The phone-verification step reaches for the runtime; stub it out so this suite stays about the
-// phase switch. Mocked at the concrete module the component lazy-imports (it is code-split to keep
-// number metadata off the invitee's cold path — see the component). `mode` is surfaced so the
-// guest-vs-main-user branch (ADR-0042 §3 — a `login` send 400s for an already-open session) is
-// checkable.
 jest.mock('../../../auth/components/PhoneVerifyScreen', () => ({
     PhoneVerifyScreen: ({
         inviteCode,
@@ -30,9 +24,6 @@ jest.mock('../../../auth/components/PhoneVerifyScreen', () => ({
         </button>
     ),
 }));
-// Same reason as PhoneVerifyScreen: the real dialog imports @chatic/runtime, whose config barrel
-// jest cannot parse. The stub also exposes whether `exit` was passed — omitting it is what makes X
-// leave without a confirmation modal (ADR-0041 decision 2).
 jest.mock('../../../../ui/components/PlaceProfileCreateDialog', () => ({
     PlaceProfileCreateDialog: ({
         placeName,
@@ -96,7 +87,6 @@ describe('RelayInviteAccept', () => {
     it('수락 화면에 초대자와 1:1 대화 라벨을 렌더한다', () => {
         render(<RelayInviteAccept code={CODE} />);
 
-        // The heading and the 1:1 card both name the inviter, by the same nickname.
         expect(screen.getAllByText('Sunny')).toHaveLength(2);
         expect(screen.getByText('inviteAccept.target.oneToOne')).toBeInTheDocument();
         expect(screen.queryByText('inviteAccept.target.group')).not.toBeInTheDocument();
@@ -138,17 +128,11 @@ describe('RelayInviteAccept', () => {
         mockFlow = flow({ phase: 'verifying' });
         render(<RelayInviteAccept code={CODE} />);
 
-        // `await`, not `get`: the verify step is lazy-imported so its chunk (and the phone-number
-        // metadata in it) stays off the invitee's first paint.
         fireEvent.click(await screen.findByRole('button', { name: `verify:${CODE}:login` }));
 
         expect(mockFlow.onVerified).toHaveBeenCalledTimes(1);
     });
 
-    // Regression: a main user who already has a social-linked session but no phone (e.g. opened the
-    // deeplink while signed in) still gets `needVerify: true`, but the session is NOT a fresh device
-    // session — sending `mode: 'login'` there 400s server-side ("@mode[login] is for device
-    // session"). The fix reads the session kind and sends `link` instead (ADR-0042 §3).
     it('플로우가 link를 고르면 그대로 link 모드로 PhoneVerifyScreen을 띄운다', async () => {
         mockFlow = flow({ phase: 'verifying', verifyMode: 'link' });
         render(<RelayInviteAccept code={CODE} />);
@@ -172,9 +156,7 @@ describe('RelayInviteAccept', () => {
 
         expect(screen.getByText(title)).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'inviteAccept.confirm' }));
-        // Confirm and the primitive's own close both route here; dismissNotice is idempotent.
         expect(mockFlow.dismissNotice).toHaveBeenCalled();
-        // Terminal verdicts get one action: retrying would only replay the same answer.
         expect(screen.queryByRole('button', { name: 'inviteAccept.retry' })).not.toBeInTheDocument();
         expect(mockFlow.retry).not.toHaveBeenCalled();
     });
@@ -187,8 +169,6 @@ describe('RelayInviteAccept', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'inviteAccept.retry' }));
 
-        // The primitive closes itself after the confirm callback, so `dismissNotice` fires here too —
-        // ordered AFTER `retry`, which is what lets the flow's ref guard swallow it (see its suite).
         expect(mockFlow.retry).toHaveBeenCalledTimes(1);
         const retryOrder = (mockFlow.retry as jest.Mock).mock.invocationCallOrder[0];
         const dismissOrder = (mockFlow.dismissNotice as jest.Mock).mock.invocationCallOrder[0];
@@ -212,7 +192,6 @@ describe('RelayInviteAccept', () => {
         expect(container).toBeEmptyDOMElement();
     });
 
-    // The relay's personal place is called "default" by the backend, which is not a name to show.
     it('draws the invited place under the home-place branding', () => {
         mockFlow = flow({
             invite: {
@@ -229,8 +208,6 @@ describe('RelayInviteAccept', () => {
         expect(screen.queryByText('default')).not.toBeInTheDocument();
     });
 
-    // The state where relay invite.get doesn't populate site$ — the card just folds away quietly
-    // (ADR-0089 D1, applied ahead of time). Branding must not conjure one out of nothing.
     it('플레이스 메타가 없으면 카드가 접힌다', () => {
         mockFlow = flow({ invite: { id: 'inv-1', state: 'pending', inviter$: { nick: 'Sunny' } } });
         render(<RelayInviteAccept code={CODE} />);
@@ -262,7 +239,6 @@ describe('RelayInviteAccept — naming the inviter', () => {
     ])('shows the nameless heading and a caption-only card for %s', (_label, inviter) => {
         open(inviter);
 
-        // The i18n stub returns the key, so the nameless line reads as `inviteAccept.title`.
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('inviteAccept.title');
         expect(screen.queryByText('Account Name')).not.toBeInTheDocument();
         expect(screen.getByTestId('invite-target-card')).toHaveTextContent('inviteAccept.target.oneToOne');
@@ -298,18 +274,11 @@ describe('RelayInviteAccept — 거절 확인 다이얼로그 (ADR-0043, Figma 3
         expect(mockFlow.confirmDecline).not.toHaveBeenCalled();
     });
 
-    // Regression: confirmDecline used to flip the flow's phase to 'submitting', which has no
-    // branch of its own here and fell through to the accept screen with its "Accept" spinner — the
-    // confirm dialog disappeared right when the user had just clicked "Decline". Staying in
-    // `declining` and driving the dialog's own `isPending` (checked via the disabled confirm
-    // button, same as InviteWaitingPage's cancel dialog) is what fixes that.
     it('isRejecting이 켜지면 다이얼로그에 남아 양쪽 버튼이 비활성화된다 — 수락 화면으로 떨어지지 않는다', () => {
         mockFlow = flow({ phase: 'declining', isRejecting: true });
         render(<RelayInviteAccept code={CODE} />);
 
         expect(screen.getByText('relayInviteAccept.declineDialog.title')).toBeInTheDocument();
-        // Pending swaps the confirm button's label for a spinner (ConfirmDialog's own contract), so
-        // it is found by position rather than name — every button in the dialog is disabled.
         const buttons = screen.getAllByRole('button');
         expect(buttons.length).toBeGreaterThan(0);
         buttons.forEach(button => expect(button).toBeDisabled());
@@ -340,7 +309,6 @@ describe('RelayInviteAccept — 프로필 스텝 (ADR-0041)', () => {
         expect(mockFlow.onProfileSaved).toHaveBeenCalledTimes(1);
     });
 
-    // The cloud invite's rule: required, but not a trap once the server refuses the save.
     it('offers no X until a save has failed, then X skips into the accept', async () => {
         mockSetMyPlaceProfile.mockRejectedValueOnce(new Error('500'));
         mockFlow = flow({ phase: 'profiling' });

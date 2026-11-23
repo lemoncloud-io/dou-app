@@ -7,23 +7,11 @@ import { useDebugSharedStrings } from '../i18n/screens/shared';
 
 const STATE_ICON = { idle: Copy, copied: Check, failed: TriangleAlert } as const;
 
-/**
- * The panel's copy control: one look, and it always says what happened.
- *
- * Replaces four different-looking silent buttons (a bordered one, a pill, and two bare text
- * links). The variety was drift rather than design, and a tester scanning the panel should not
- * have to learn which shape copies.
- *
- * `value` is a getter, not a string: these screens poll, so the snapshot has to be the one on
- * screen when the button was pressed rather than whatever the last render serialized.
- */
 export const CopyButton = ({ value, label }: { value: () => string | null | undefined; label?: string }) => {
     const { state, copy } = useCopyFeedback();
     const strings = useDebugSharedStrings();
     const stateText: Record<CopyState, string> = strings.copy;
 
-    // Copy buttons sit inside rows that are themselves clickable (the DB browser's expander). A
-    // copy should never also toggle the row it lives in.
     const handleClick = (event: MouseEvent) => {
         event.stopPropagation();
         void copy(value());

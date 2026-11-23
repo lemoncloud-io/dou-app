@@ -4,18 +4,11 @@ import { useMemo, useState } from 'react';
 import { buildInviteRedirectUrl, DEFAULT_INVITE_REDIRECT_BASE } from '../../lib';
 import { inviteRedirectErrorText, useInviteRedirectStrings } from '../../i18n/screens/InviteRedirectScreen';
 
-/**
- * Debug tool: paste a share link — cloud (…/s?code=…&api=…&stage=… or …/s?code=…&backend=…) or relay
- * (…/s?code=…, with or without the `relay` flag) — preview the converted invite redirect URL, and
- * navigate to it. The redirect base is editable so any environment can be targeted.
- */
 export const InviteRedirectScreen = () => {
     const strings = useInviteRedirectStrings();
     const [input, setInput] = useState('');
     const [baseUrl, setBaseUrl] = useState(DEFAULT_INVITE_REDIRECT_BASE);
 
-    // Recompute on every edit; surface a parse/validation error instead of throwing. The thrown
-    // Error carries an English message (see lib/buildInviteRedirectUrl.ts) — map it to table text.
     const { url, error } = useMemo(() => {
         if (!input.trim()) return { url: '', error: '' };
         try {
@@ -39,7 +32,6 @@ export const InviteRedirectScreen = () => {
                 </div>
 
                 <div className="flex flex-col gap-5">
-                    {/* Source share link */}
                     <label className="flex flex-col gap-1.5">
                         <span className="text-[14px] font-semibold text-foreground">{strings.inputLinkLabel}</span>
                         <textarea
@@ -51,7 +43,6 @@ export const InviteRedirectScreen = () => {
                         />
                     </label>
 
-                    {/* Editable redirect base */}
                     <label className="flex flex-col gap-1.5">
                         <span className="text-[14px] font-semibold text-foreground">{strings.redirectDomainLabel}</span>
                         <input
@@ -62,7 +53,6 @@ export const InviteRedirectScreen = () => {
                         />
                     </label>
 
-                    {/* Result / error */}
                     {error && <p className="text-[13px] text-destructive">{error}</p>}
                     {url && (
                         <div className="flex flex-col gap-1.5">

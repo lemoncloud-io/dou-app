@@ -7,10 +7,6 @@ import { DEBUG_SCREEN_ICONS } from './screenIcons';
 import { debugOverlayActions } from './overlayStore';
 import { useShellPresence } from './useShellPresence';
 
-/**
- * Panel home: every screen in the manifest, grouped by section. Icons carry the scanning — 23 rows
- * of same-length Korean/English titles are slow to read by text alone.
- */
 export const HomeMenu = () => {
     const { disable } = useDebugMode();
     const strings = useDebugStrings();

@@ -5,7 +5,6 @@ const en = {
     subtitle: 'See exactly what the store returns',
     fetchProducts: 'Fetch products',
     purchaseHistory: 'Purchase history',
-    // Operation label passed to `fire()` — distinct from the "Store" button caption below.
     openStoreOperation: 'Open store',
     storeButton: 'Store',
     manageSubscription: 'Manage subscription',

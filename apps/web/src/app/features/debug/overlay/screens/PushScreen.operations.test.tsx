@@ -27,10 +27,8 @@ jest.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { warn: jest
 jest.mock('../../hooks', () => ({
     usePushRegistration: () => ({ state: 'idle', token: null, summary: null, error: null, check: jest.fn() }),
     useReceivedPushLog: () => ({ entries: [], clear: jest.fn() }),
-    // Uses the real implementation — mocking it would leave this hook's contract, like "no confirmation", unverified.
     useDebugOperation: jest.requireActual('../../hooks/useDebugOperation').useDebugOperation,
 }));
-// A fake that returns the DEV scheme — this distinguishes whether the screen resolves the scheme, versus having it hardcoded somewhere.
 jest.mock('../../lib', () => ({
     copyText: jest.fn(),
     formatRegisteredAt: () => '—',
@@ -75,11 +73,9 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
 
         await click('Show local notification');
 
-        // It has to be this build's scheme. Getting 'chatic://…' would be that bug where a dev device opens the prod app.
         expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ deeplink: 'chatic-dev://chats' }));
     });
 
-    // An older app doesn't know the command and rejects. Not smoothing a failure over as a success is the whole point of this screen.
     it('앱이 거부하면 실패를 그대로 적는다', async () => {
         deleteFcmToken.mockRejectedValue(new Error('NOT_FOUND'));
         render(<PushScreen />);
@@ -89,7 +85,6 @@ describe('PushScreen — 조작 (ADR-0080 결정 11)', () => {
         expect(await screen.findByText(/failed: NOT_FOUND/)).toBeInTheDocument();
     });
 
-    // Post-based, so there's no confirmation reply — pretending it was acknowledged would violate decision 10.
     it('확인 응답이 없는 조작은 "확인 없음"이라고 밝힌다', async () => {
         render(<PushScreen />);
 

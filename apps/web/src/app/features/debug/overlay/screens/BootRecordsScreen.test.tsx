@@ -39,7 +39,6 @@ describe('BootRecordsScreen', () => {
     beforeEach(() => {
         restoreLanguage = setDebugLanguageForTests('en');
         jest.clearAllMocks();
-        // Learning is module-scoped, so what one case learns must not leak into the next.
     });
 
     afterEach(() => restoreLanguage());
@@ -48,15 +47,13 @@ describe('BootRecordsScreen', () => {
         fetchBootRecords.mockImplementation(() => ok());
         render(<BootRecordsScreen />);
 
-        expect(await screen.findByText('980 ms')).toBeInTheDocument(); // total boot
-        expect(screen.getByText('975 ms')).toBeInTheDocument(); // web-app-ready
+        expect(await screen.findByText('980 ms')).toBeInTheDocument();
+        expect(screen.getByText('975 ms')).toBeInTheDocument();
         expect(screen.getByText('provider ready')).toBeInTheDocument();
         expect(screen.getByText('12 ms')).toBeInTheDocument();
-        // Fixes the "1 rows" plural bug: one record now reads "1 row".
         expect(screen.getByText('1 row')).toBeInTheDocument();
     });
 
-    // These two are not the value of any one record but the state of the app currently running — that's why they arrive together in the same request.
     it('현재 앱 실행의 카운터 두 개를 별 절에 보여준다', async () => {
         fetchBootRecords.mockImplementation(() => ok());
         render(<BootRecordsScreen />);

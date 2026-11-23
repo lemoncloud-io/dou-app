@@ -4,9 +4,7 @@ const en = {
     refresh: 'Refresh',
     clear: 'Clear',
     copyJson: 'Copy JSON',
-    // Fixes the "1 rows" plural bug the English sweep left behind.
     rowCount: (count: number) => `${count} ${count === 1 ? 'row' : 'rows'}`,
-    // Operation labels passed to `run()` — they end up in the shared result line above the list.
     loadOperation: 'Boot records',
     clearOperation: 'Clear records',
     currentRun: {
@@ -23,7 +21,6 @@ const en = {
         appRender: 'web app render',
         sessionInit: 'web session init',
     },
-    /** Native milestones, in the order the boot happened — see `NATIVE_MARK_KEYS`. */
     nativeMarks: {
         providerReady: 'provider ready',
         appMount: 'app mount',

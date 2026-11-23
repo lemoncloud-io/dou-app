@@ -54,7 +54,6 @@ describe('CustomZipScreen', () => {
         expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
     });
 
-    // The gate is decided by the app — this screen only displays what the app reports.
     it('앱이 허용하지 않으면 그 사실을 적고 적용을 잠근다', async () => {
         fetchCustomZipStatus.mockImplementation(() => status({ allowed: false }));
         render(<CustomZipScreen />);
@@ -65,7 +64,6 @@ describe('CustomZipScreen', () => {
         expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();
     });
 
-    // Turning off is never blocked, so a device that switched to PROD doesn't get stuck.
     it('허용되지 않는 빌드에서도 켜져 있으면 끌 수 있다', async () => {
         fetchCustomZipStatus.mockImplementation(() => status({ allowed: false, serverUrl: 'http://127.0.0.1:8890' }));
         disableCustomZip.mockResolvedValue({ data: { success: true } });

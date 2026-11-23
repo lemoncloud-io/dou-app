@@ -11,19 +11,11 @@ const ms = (value: number | undefined | null) => (value != null ? `${value} ms` 
 
 const kb = (bytes: number) => `${Math.round(bytes / 1024)} KB`;
 
-/**
- * Current-session boot timeline: navigation timing + app milestones + paint
- * vitals + whether the core bundles came from cache or the network. Everything
- * is relative to navigation start, so rows read as one timeline. Polled while
- * open — late resource entries and LCP updates keep flowing in.
- */
 export const BootScreen = () => {
     const t = useBootScreenStrings();
     const [snapshot, setSnapshot] = useState<BootSnapshot | null>(null);
     const [vitals, setVitals] = useState<Record<string, VitalSample>>({});
 
-    // Named for the JSON, not the state: `snapshot` is already the BootSnapshot above. Hooks may
-    // not sit after the early return below, so this is declared here and reads the state it needs.
     const bootJson = useCallback(() => JSON.stringify({ boot: snapshot, vitals }, null, 2), [snapshot, vitals]);
 
     useEffect(() => {

@@ -119,8 +119,6 @@ describe('filterLogs — 질의 문법', () => {
     });
 
     it('data 본문까지 찾는다 — 식별 정보는 message가 아니라 payload에 있다', () => {
-        // The message is usually the generic side ("request failed"), and the actual identifying
-        // clues — status, id, url — live in the payload. Missing those would make search half-useless.
         const logs = [
             log({ message: 'request failed', data: { status: 503, url: '/hello/profile' } }),
             log({ message: 'request failed', data: { status: 200 } }),
@@ -154,10 +152,6 @@ describe('filterLogs — 질의 문법', () => {
     });
 
     it('망가진 질의도 그냥 텍스트로 다룬다 — 검색창이 거부하거나 터지면 안 된다', () => {
-        // Anything that doesn't parse as syntax falls back to a literal. A lone `-` isn't
-        // "exclude" but a hyphen search, and a lone `tag:` isn't a tag filter but a search for
-        // that literal string. Producing a result even from a mid-typing intermediate state is
-        // better than an empty screen or an error.
         const logs = [log({ message: 'a-b' }), log({ message: 'zzz' })];
 
         expect(filterLogs(logs, { levels: new Set(), query: '-' }).map(l => l.message)).toEqual(['a-b']);
