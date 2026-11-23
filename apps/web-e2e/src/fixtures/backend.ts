@@ -1,3 +1,5 @@
+import { lookup } from 'node:dns/promises';
+
 import type { Page, Request, Route, WebSocketRoute } from '@playwright/test';
 
 import { E2E_BASE_URL, E2E_ENDPOINTS } from '../support/env';
@@ -5,6 +7,13 @@ import { GUEST, guestProfile, guestRelayProfile, registerDeviceAnswer, SELF_CHAN
 
 /** One HTTP answer: the JSON body, sent with status 200. Throwing fails the request as a 500. */
 export type HttpHandler = (request: Request) => unknown;
+
+export class RawBody {
+    constructor(
+        readonly body: Buffer,
+        readonly contentType: string
+    ) {}
+}
 
 /** A socket frame as the relay sends and receives it. */
 export interface SocketFrame {
@@ -32,6 +41,26 @@ export type SocketHandler = (data: unknown, frame: SocketFrame) => unknown;
  * that leading status is what the page reads a refusal by.
  */
 export class SocketRefusal extends Error {}
+
+export interface HttpFault {
+    match: string | RegExp;
+    status?: number;
+    hang?: boolean;
+    hangMs?: number;
+    delayMs?: number;
+    times?: number;
+    hits?: number;
+}
+
+export interface SocketFault {
+    type: string | RegExp;
+    endpoint?: string;
+    error?: string;
+    drop?: boolean;
+    delayMs?: number;
+    times?: number;
+    hits?: number;
+}
 
 /** A frame the page sent, with the socket it went out on. */
 export interface SentFrame extends SocketFrame {
@@ -64,6 +93,12 @@ export class FakeBackend {
     /** Connections that read every frame and answer none (`silenceSockets`). */
     private readonly silentSockets = new Set<WebSocketRoute>();
     private readonly connectionCounts = new Map<string, number>();
+    private readonly httpFaults: HttpFault[] = [];
+    private readonly socketFaults: SocketFault[] = [];
+    private networkDown = false;
+    private readonly socketsRefusedUntil = new Map<string, number>();
+    httpRequests = 0;
+    refusedConnections = 0;
     /** The device id the page registered with — the guest's name everywhere the relay echoes it. */
     deviceId = '';
 
@@ -165,6 +200,20 @@ export class FakeBackend {
         await Promise.all(relay.map(([ws]) => ws.close({ code: 1001, reason: 'e2e: dropped by the relay' })));
     }
 
+    push(frame: SocketFrame, endpoint: string = E2E_ENDPOINTS.socket): number {
+        const targets = [...this.openSockets]
+            .filter(([ws, open]) => open === endpoint && !this.silentSockets.has(ws))
+            .map(([ws]) => ws);
+        const raw = JSON.stringify({ ...frame, meta: { ts: Date.now() } });
+        for (const ws of targets) ws.send(raw);
+        return targets.length;
+    }
+
+    async closeSocketsAt(endpoint: string): Promise<void> {
+        const sockets = [...this.openSockets].filter(([, open]) => open === endpoint).map(([ws]) => ws);
+        await this.closeAll(sockets, 'e2e: dropped by the cloud');
+    }
+
     /**
      * Leaves every open relay socket half-open: the connection stays up and the page's frames still
      * arrive, but nothing is answered on it again — no `:ok`, no pong. That is what the page finds when
@@ -177,20 +226,64 @@ export class FakeBackend {
         }
     }
 
+    addHttpFault(fault: HttpFault): () => void {
+        const entry = fault;
+        this.httpFaults.push(entry);
+        return () => removeFrom(this.httpFaults, entry);
+    }
+
+    addSocketFault(fault: SocketFault): () => void {
+        const entry = fault;
+        this.socketFaults.push(entry);
+        return () => removeFrom(this.socketFaults, entry);
+    }
+
+    async setNetworkDown(down: boolean): Promise<void> {
+        if (down) await assertUnresolvable();
+        this.networkDown = down;
+        if (down) await this.closeAll(this.openSockets.keys(), 'e2e: the network went away');
+    }
+
+    async refuseSockets(ms: number, endpoint: string = E2E_ENDPOINTS.socket): Promise<void> {
+        await assertUnresolvable();
+        this.socketsRefusedUntil.set(endpoint, Date.now() + ms);
+        await this.closeSocketsAt(endpoint);
+    }
+
     private async answerHttp(route: Route): Promise<void> {
+        this.httpRequests += 1;
         const request = route.request();
         const url = new URL(request.url());
         const relay = new URL(E2E_ENDPOINTS.relay);
         const onRelay = url.origin === relay.origin && url.pathname.startsWith(relay.pathname);
+        const fullKey = `${request.method()} ${url.origin}${url.pathname}`;
+        const relayKey = onRelay ? `${request.method()} ${url.pathname.slice(relay.pathname.length)}` : undefined;
+        if (this.networkDown) return route.abort('internetdisconnected');
+        const { delayMs, fault } = takeFaults(
+            this.httpFaults,
+            f => matchesKey(f.match, fullKey, relayKey),
+            f => Boolean(f.hang || f.status)
+        );
+        if (delayMs) await sleep(delayMs);
+        if (fault?.hang) {
+            await sleep(fault.hangMs ?? 30_000);
+            return route.abort('timedout').catch(() => undefined);
+        }
+        if (fault?.status) {
+            return route.fulfill({ status: fault.status, json: { message: `e2e: chaos ${fault.status}` } });
+        }
         const handler =
-            this.http.get(`${request.method()} ${url.origin}${url.pathname}`) ??
-            (onRelay ? this.http.get(`${request.method()} ${url.pathname.slice(relay.pathname.length)}`) : undefined);
+            this.http.get(fullKey) ?? (relayKey ? this.http.get(relayKey) : undefined) ?? this.prefixHandler(fullKey);
         if (!handler) {
-            this.unexpected.push(`${request.method()} ${url.origin}${url.pathname}`);
+            this.unexpected.push(fullKey);
             return route.abort();
         }
         try {
-            return await route.fulfill({ json: await handler(request) });
+            const answer = await handler(request);
+            if (answer instanceof RawBody) {
+                return await route.fulfill({ body: answer.body, contentType: answer.contentType });
+            }
+            return await route.fulfill({ json: answer });
         } catch (error) {
             return route.fulfill({ status: 500, json: { message: String(error) } });
         }
@@ -204,6 +297,11 @@ export class FakeBackend {
         if (!endpoint) {
             this.unexpected.push(`socket connect ${ws.url().split('?')[0]}`);
             void ws.close({ code: 1008, reason: 'e2e: no fixture for this socket' });
+            return;
+        }
+        if (this.networkDown || Date.now() < (this.socketsRefusedUntil.get(endpoint) ?? 0)) {
+            this.refusedConnections += 1;
+            ws.connectToServer();
             return;
         }
         const table = this.socketTables.get(endpoint) as Map<string, SocketHandler>;
@@ -245,12 +343,25 @@ export class FakeBackend {
                 if (data === undefined && !frame.mid) return;
                 reply({ type: `${frame.type}:ok`, data: data ?? null });
             };
+            const { delayMs, fault } = takeFaults(
+                this.socketFaults,
+                f => (!f.endpoint || f.endpoint === endpoint) && matchesType(f.type, frame.type),
+                f => Boolean(f.drop || f.error)
+            );
             let data: unknown;
-            try {
-                data = handler(frame.data, frame);
-            } catch (error) {
-                refuse(error);
-                return;
+            if (delayMs || fault) {
+                data = sleep(delayMs).then(() => {
+                    if (!this.openSockets.has(ws) || fault?.drop) return NO_REPLY;
+                    if (fault?.error) throw new SocketRefusal(fault.error);
+                    return handler(frame.data, frame);
+                });
+            } else {
+                try {
+                    data = handler(frame.data, frame);
+                } catch (error) {
+                    refuse(error);
+                    return;
+                }
             }
             if (!(data instanceof Promise)) {
                 answer(data);
@@ -261,7 +372,67 @@ export class FakeBackend {
             void data.then(answer, refuse);
         });
     }
+
+    private prefixHandler(fullKey: string): HttpHandler | undefined {
+        for (const [key, handler] of this.http) {
+            if (key.endsWith('/*') && fullKey.startsWith(key.slice(0, -1))) return handler;
+        }
+        return undefined;
+    }
+
+    private async closeAll(sockets: Iterable<WebSocketRoute>, reason: string): Promise<void> {
+        const all = [...sockets];
+        for (const ws of all) this.openSockets.delete(ws);
+        await Promise.all(all.map(ws => ws.close({ code: 1001, reason }).catch(() => undefined)));
+    }
 }
+
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+const removeFrom = <T>(list: T[], item: T): void => {
+    const index = list.indexOf(item);
+    if (index >= 0) list.splice(index, 1);
+};
+
+const takeFaults = <T extends { times?: number; hits?: number; delayMs?: number }>(
+    faults: T[],
+    matches: (fault: T) => boolean,
+    isTerminal: (fault: T) => boolean
+): { delayMs: number; fault: T | undefined } => {
+    let delayMs = 0;
+    let terminal: T | undefined;
+    for (const fault of faults.filter(matches)) {
+        if (terminal && isTerminal(fault)) continue;
+        fault.hits = (fault.hits ?? 0) + 1;
+        delayMs += fault.delayMs ?? 0;
+        if (isTerminal(fault)) terminal = fault;
+        if (fault.times !== undefined) {
+            fault.times -= 1;
+            if (fault.times <= 0) faults.splice(faults.indexOf(fault), 1);
+        }
+    }
+    return { delayMs, fault: terminal };
+};
+
+let resolvable: Promise<void> | undefined;
+
+const assertUnresolvable = (): Promise<void> =>
+    (resolvable ??= lookup(new URL(E2E_ENDPOINTS.socket).hostname).then(
+        ({ address }) => {
+            throw new Error(
+                `${new URL(E2E_ENDPOINTS.socket).hostname} resolves to ${address}: this resolver answers names under .test, so a refused socket would reach a real host`
+            );
+        },
+        () => undefined
+    ));
+
+const matchesKey = (match: string | RegExp, fullKey: string, relayKey: string | undefined): boolean =>
+    typeof match === 'string'
+        ? match === fullKey || match === relayKey
+        : match.test(fullKey) || (relayKey !== undefined && match.test(relayKey));
+
+const matchesType = (match: string | RegExp, type: string): boolean =>
+    typeof match === 'string' ? match === type : match.test(type);
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -304,6 +475,7 @@ const guestSocket = (backend: FakeBackend): Record<string, SocketHandler> => ({
         error: '',
         member$: { id: GUEST.uid, name: backend.deviceId },
     }),
+    'auth.refresh': () => registerDeviceAnswer(backend.deviceId),
     // The web switches the socket into the place it shows; the answer is the token for that place.
     'auth.switch': () => registerDeviceAnswer(backend.deviceId),
     'user.my-site': () => ({ list: [], total: 0 }),

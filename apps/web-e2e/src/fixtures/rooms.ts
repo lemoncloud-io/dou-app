@@ -188,3 +188,27 @@ export const longDmRoom = (count: number): FixtureRoom => {
 
 /** The text of message `chatNo` in `longDmRoom`. */
 export const historyLine = (chatNo: number): string => `History line ${chatNo}`;
+
+export const chatSendSocket = (
+    rooms: FixtureRoom[],
+    selfChats: FixtureRoom['chats'] = []
+): { handlers: Record<string, SocketHandler>; sends: { channelId: string; content: string }[] } => {
+    const sends: { channelId: string; content: string }[] = [];
+    const handlers: Record<string, SocketHandler> = {
+        'chat.send': data => {
+            const { channelId = '', content = '' } = (data ?? {}) as { channelId?: string; content?: string };
+            const room = rooms.find(candidate => candidate.channel.id === channelId);
+            if (!room && channelId !== SELF_CHANNEL.id) {
+                throw new SocketRefusal(`403 FORBIDDEN - not a member of channel[${channelId}]`);
+            }
+            const chats = room ? room.chats : selfChats;
+            const chatNo = (chats[chats.length - 1]?.chatNo ?? 0) + 1;
+            const row = chatView(channelId, chatNo, content, GUEST.uid);
+            chats.push(row);
+            if (room) room.channel.chatNo = chatNo;
+            sends.push({ channelId, content });
+            return row;
+        },
+    };
+    return { handlers, sends };
+};
