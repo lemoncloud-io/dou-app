@@ -14,25 +14,19 @@ import {
 import { formatSize } from '../../lib/webStorage';
 import type { StorageMedium } from '../../../../runtime/activeStorage';
 
-/** Rendering every config key of a busy device makes the panel crawl; the search finds the rest. */
 const RENDER_CAP = 300;
 
-/** The fields a key's record has, offered in the filter and sort pickers. */
 const ENTRY_FIELDS = ['key', 'value', 'medium', 'group', 'bytes'] as const;
 
-type Editing = { mode: 'edit'; entry: KeyValueEntry; text: string } | { mode: 'new'; medium: StorageMedium; key: string; text: string };
+type Editing =
+    | { mode: 'edit'; entry: KeyValueEntry; text: string }
+    | { mode: 'new'; medium: StorageMedium; key: string; text: string };
 
 export interface StorageKeyBrowserProps {
     media: KeyValueMedium[];
-    /** Test seam for the reload after an edit. */
     reload?: () => void;
 }
 
-/**
- * Every key of every medium the run keeps state in, searchable, with edit, delete and add. Each write
- * goes to the medium's own store object — the one the app holds — and the list is read again from it,
- * so what is shown is what the store now answers, not what was typed.
- */
 export const StorageKeyBrowser = ({ media, reload = () => window.location.reload() }: StorageKeyBrowserProps) => {
     const t = useStorageScreenStrings();
     const [version, setVersion] = useState(0);
@@ -43,7 +37,6 @@ export const StorageKeyBrowser = ({ media, reload = () => window.location.reload
     const [armedDelete, setArmedDelete] = useState<string | null>(null);
     const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
 
-    // `version` is the reason to read again: the stores are not observable, so a write bumps it.
     const entries = useMemo(() => readKeyValueEntries(media), [media, version]);
     const scoped = useMemo(
         () => (mediumFilter === 'all' ? entries : entries.filter(e => e.medium === mediumFilter)),
@@ -51,7 +44,6 @@ export const StorageKeyBrowser = ({ media, reload = () => window.location.reload
     );
     const shown = useMemo(() => applyFilter(scoped, filter), [scoped, filter]);
     const writable = media.filter(m => !m.blocked);
-    // Only a medium that is not blocked: a vault the page did not open must never receive a write.
     const storeOf = useCallback(
         (medium: StorageMedium) => media.find(m => m.medium === medium && !m.blocked)?.store,
         [media]
@@ -107,7 +99,9 @@ export const StorageKeyBrowser = ({ media, reload = () => window.location.reload
                         aria-pressed={mediumFilter === medium}
                         onClick={() => setMediumFilter(medium)}
                         className={`rounded border px-2 py-0.5 text-[11px] ${
-                            mediumFilter === medium ? 'border-primary text-primary' : 'border-border text-muted-foreground'
+                            mediumFilter === medium
+                                ? 'border-primary text-primary'
+                                : 'border-border text-muted-foreground'
                         }`}
                     >
                         {medium === 'all' ? t.keys.all : t.active.media[medium]}{' '}
@@ -116,7 +110,13 @@ export const StorageKeyBrowser = ({ media, reload = () => window.location.reload
                 ))}
             </div>
 
-            <FilterBar filter={filter} onChange={setFilter} shown={shown.length} total={scoped.length} fields={ENTRY_FIELDS} />
+            <FilterBar
+                filter={filter}
+                onChange={setFilter}
+                shown={shown.length}
+                total={scoped.length}
+                fields={ENTRY_FIELDS}
+            />
 
             <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -184,7 +184,11 @@ export const StorageKeyBrowser = ({ media, reload = () => window.location.reload
                         />
                     </label>
                     <div className="flex gap-2">
-                        <button type="button" onClick={save} className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground">
+                        <button
+                            type="button"
+                            onClick={save}
+                            className="rounded bg-primary px-3 py-1 text-xs text-primary-foreground"
+                        >
                             {t.keys.save}
                         </button>
                         <button
@@ -199,7 +203,10 @@ export const StorageKeyBrowser = ({ media, reload = () => window.location.reload
             )}
 
             {message && (
-                <p className={`break-all text-xs ${message.error ? 'text-destructive' : 'text-muted-foreground'}`} role="status">
+                <p
+                    className={`break-all text-xs ${message.error ? 'text-destructive' : 'text-muted-foreground'}`}
+                    role="status"
+                >
                     {message.text}
                 </p>
             )}
@@ -227,7 +234,9 @@ export const StorageKeyBrowser = ({ media, reload = () => window.location.reload
                                     </span>
                                     <span className="break-all font-mono">{entry.key}</span>
                                 </button>
-                                <span className="shrink-0 font-mono text-muted-foreground">{formatSize(entry.bytes)}</span>
+                                <span className="shrink-0 font-mono text-muted-foreground">
+                                    {formatSize(entry.bytes)}
+                                </span>
                                 <CopyButton value={() => entry.value} />
                                 <button
                                     type="button"
@@ -256,7 +265,9 @@ export const StorageKeyBrowser = ({ media, reload = () => window.location.reload
                     ))}
                 </ul>
             )}
-            {shown.length > RENDER_CAP && <p className="text-[11px] text-muted-foreground">{t.keys.capped(RENDER_CAP)}</p>}
+            {shown.length > RENDER_CAP && (
+                <p className="text-[11px] text-muted-foreground">{t.keys.capped(RENDER_CAP)}</p>
+            )}
         </div>
     );
 };

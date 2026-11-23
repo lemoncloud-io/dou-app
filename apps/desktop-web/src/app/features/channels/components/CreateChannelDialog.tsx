@@ -13,7 +13,6 @@ import { ChannelNameField } from './ChannelNameField';
 
 type Visibility = 'public' | 'private';
 
-// Only the failures a second try can fix say "try again"; a full place or a refusal says what it is.
 const FAILURE_KEY: Record<CreateChannelFailure, string> = {
     limit: 'channels.create.failed.limit',
     denied: 'channels.create.failed.denied',
@@ -24,10 +23,6 @@ const FAILURE_KEY: Record<CreateChannelFailure, string> = {
 const VISIBILITIES: readonly Visibility[] = ['public', 'private'];
 
 interface CreateChannelDialogProps {
-    /**
-     * Open the new channel. Selecting it here raced the channel list: the id was
-     * not in it yet, so the host's auto-select put the previous channel back.
-     */
     onCreated: (channelId: string) => void;
 }
 
@@ -52,8 +47,6 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
     };
 
     const handleOpenChange = (next: boolean) => {
-        // Escape, the X and the backdrop are ignored while the channel is being created, as in
-        // Rename and AddMembers: closing then would drop a failure message with nobody to read it.
         if (next || isMutating) return;
         reset();
         close();
@@ -83,9 +76,6 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            {/* No description: the title and the field's own label and hint say it all, and a
-                hidden copy of the title made a screen reader read it twice. `undefined` is
-                Radix's opt-out from its missing-description warning. */}
             <DialogContent closeLabel={t('common.close')} aria-describedby={undefined} className="sm:max-w-md">
                 <DialogTitle>{t('channels.create.title')}</DialogTitle>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
@@ -104,8 +94,6 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
 
                     <div className="flex flex-col gap-1.5">
                         <span id="create-channel-visibility">{t('channels.create.visibility')}</span>
-                        {/* A naked Public/Private pair says nothing about what either
-                            does, so each option carries its own consequence line. */}
                         <div role="radiogroup" aria-labelledby="create-channel-visibility" className="flex gap-2">
                             {VISIBILITIES.map(option => (
                                 <button

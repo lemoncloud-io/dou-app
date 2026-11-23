@@ -79,7 +79,6 @@ describe('ReportIssueDialog', () => {
         expect(body.value).toBe('It crashes');
     });
 
-    // The failure is announced off the fields it blocks: both point at it.
     it('ties the send failure to both fields', async () => {
         reportIssue.mockRejectedValue(new Error('network down'));
         const { title, body, submit } = setup();

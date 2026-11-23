@@ -28,31 +28,18 @@ import { ChannelActionDialogs } from './ChannelActionDialogs';
 import { ChannelWebhooksSection } from './ChannelWebhooksSection';
 import { MemberList } from './MemberList';
 
-/** Below this member count the roster is short enough to scan without a filter. */
 const MEMBER_SEARCH_THRESHOLD = 5;
 
 interface ChannelSettingsPanelProps {
-    /** The channel matching the store's openChannelId, resolved by the host. */
     channel: DomainChannel | undefined;
     myUid: string | null;
-    /** Roster, fetched once by the host and shared with the chat pane. */
     members: ChannelMember[];
     membersLoading: boolean;
     membersError: Error | null;
-    /** A failed incremental sync behind an otherwise shown roster; never hides it. */
     membersSyncError?: Error | null;
-    /** Re-runs the member loads behind both roster error states. */
     onRetryMembers?: () => void;
 }
 
-/**
- * Slack-style right-side settings panel (drag-resizable). Visibility is driven by
- * useChannelSettingsStore.openChannelId; the host renders this only when set.
- * Sections: channel name (+ Rename, owner only), members (+ Invite),
- * notifications, the channel ID (+ Copy, group channels only), footer actions
- * (Leave for everyone, Delete for owner). After delete/leave the panel closes
- * and the selected channel is cleared.
- */
 export const ChannelSettingsPanel = ({
     channel,
     myUid,
@@ -75,14 +62,12 @@ export const ChannelSettingsPanel = ({
 
     const memberCount = members.length || channel?.memberNo || 0;
 
-    // Opened from the header's member chip: land on the member list.
     useEffect(() => {
         if (focus !== 'members') return;
         membersHeadingRef.current?.scrollIntoView?.({ block: 'start' });
         membersHeadingRef.current?.focus({ preventScroll: true });
     }, [focus, channelId]);
 
-    // Filter only kicks in on larger rosters — a handful of members needs no search box.
     const [memberQuery, setMemberQuery] = useState('');
     const showMemberSearch = members.length > MEMBER_SEARCH_THRESHOLD;
     const filteredMembers = useMemo(() => {
@@ -93,8 +78,6 @@ export const ChannelSettingsPanel = ({
     const noMatches = memberQuery.trim().length > 0 && filteredMembers.length === 0;
 
     const actions = useChannelActions(channelId, {
-        // The removal answers about a second after its confirm; by then the reader may have opened
-        // another room or its settings, which stay.
         onRemoved: () => {
             closeIfOpenFor(channelId);
             clearIfOpen(channelId);
@@ -103,9 +86,6 @@ export const ChannelSettingsPanel = ({
     });
     const { openDialog, openKick, kickTarget } = actions;
 
-    // Shared writer (local pref + announced server sync) — read above the early
-    // return: hooks must run in the same order on every render, including the
-    // ones where the channel has not resolved yet.
     const { notifyMode, notifyModes, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 
     if (!channel || !channelId) return null;
@@ -113,8 +93,6 @@ export const ChannelSettingsPanel = ({
     const kickName = members.find(m => m.id === kickTarget)?.name ?? '';
 
     const notifyProps = radioGroupOptions(notifyModes, notifyMode, onNotifyChange);
-    // A service posts into a group channel by its id, and the desktop app has no address bar to
-    // read one from. A 1:1 or my notes-to-self is not somewhere a service posts to.
     const showId = !isDmChannel(channel) && !isSelfChannel(channel);
 
     return (
@@ -166,7 +144,6 @@ export const ChannelSettingsPanel = ({
                         tabIndex={-1}
                         className="text-overline text-muted-foreground outline-none"
                     >
-                        {/* The count alone: "Members · 3 members" said the noun twice. */}
                         {t('channels.settings.membersSection')} · <span className="tabular-nums">{memberCount}</span>
                     </h3>
                     {showMemberSearch && (
@@ -179,7 +156,6 @@ export const ChannelSettingsPanel = ({
                                 value={memberQuery}
                                 onChange={e => setMemberQuery(e.target.value)}
                                 placeholder={t('channels.members.search')}
-                                // The placeholder was its only name, and it is gone once you type.
                                 aria-label={t('channels.members.search')}
                                 className="focus-ring h-9 border-hairline bg-well pl-8 text-callout shadow-well"
                             />
@@ -256,13 +232,8 @@ export const ChannelSettingsPanel = ({
                     </section>
                 )}
 
-                {/* Owner-only, and only where a service can post: a DM or the self chat has no
-                    webhook, same as the Channel ID above. */}
                 {isOwner && showId && <ChannelWebhooksSection channelId={channelId} />}
 
-                {/* Leaving and deleting used to sit under the Notifications heading, so a
-                    mute decision and an irreversible one shared a group. They get their
-                    own, and the heading says what the group is for. */}
                 <section className="flex flex-col gap-2 border-t border-hairline pt-4">
                     <h3 className="text-overline text-muted-foreground">{t('channels.settings.danger')}</h3>
                     <Button

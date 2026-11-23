@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 const createInvite = vi.fn(async () => ({ id: 'inv-1', deeplink: 'https://dou.example/i/abc' }));
-// `user.invite` answers with the link in `Location`, not `deeplink`.
 const requestPlaceInvite = vi.fn(async () => ({ id: 'inv-p', Location: 'https://dou.example/p/xyz' }));
 
 vi.mock('@chatic/runtime', async () =>
@@ -25,7 +24,6 @@ vi.mock('@chatic/runtime', async () =>
     })
 );
 
-// The relay user the invite is issued as: a contact invite rides the relay slot.
 const relayUser = vi.hoisted(() => ({ current: { userRole: 'user' } as { userRole: string } | null }));
 
 const logError = vi.hoisted(() => vi.fn());
@@ -40,7 +38,6 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     toast,
 }));
 
-// The clipboard is not observable in jsdom; the spy is how a test sees the copy.
 const copy = vi.hoisted(() => vi.fn());
 vi.mock('../../../shared/hooks/useCopyToClipboard', () => ({
     useCopyToClipboard: () => [false, copy] as const,
@@ -104,9 +101,7 @@ describe('SendInviteDialog', () => {
 
         await screen.findByRole('alert');
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
-        // Still open: the failure is shown in place, not stranded on a closed dialog.
         expect(screen.getByRole('dialog')).toBeTruthy();
-        // A failed send is no invite: the welcome's step stays open.
         expect(useWelcomeStore.getState().invited).toEqual({});
     });
 
@@ -225,14 +220,11 @@ describe('SendInviteDialog', () => {
         });
         expect(copy).toHaveBeenCalledWith('https://dou.example/i/abc');
         expect(useSendInviteStore.getState().target).toBeNull();
-        // The send lands on the waiting dialog with the recipient's memory.
         expect(useInviteWaitingStore.getState().inviteId).toBe('inv-1');
-        // The open place's welcome counts the invite step done.
         expect(useWelcomeStore.getState().invited).toEqual({ [welcomeKey('me', 'site-1')]: true });
         act(() => useInviteWaitingStore.getState().close());
     });
 
-    // A place invite names no room — and lands on the link dialog, not the waiting one.
     it('sends a place-bound invite and opens its link', async () => {
         openPlaceDialog();
 

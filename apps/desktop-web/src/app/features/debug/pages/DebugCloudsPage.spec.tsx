@@ -30,7 +30,6 @@ vi.mock('@chatic/runtime', async () =>
         },
     })
 );
-// The real label rule, so the test pins the switcher's notion of untitled rather than a copy of it.
 vi.mock('../../../shared', async () => ({
     useCloudSessionCatalog: () => ({ clouds: catalog, isFetchingClouds: false, isCloudsError: false, refetchClouds }),
     useClouds: () => ({ clouds: rail }),

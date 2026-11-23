@@ -69,10 +69,20 @@ normal path, not an error.
 | Main user, no phone | `!isGuest && linked.phone absent` | `InviterVerifyPrompt` → verification sheet (`link`)  |
 | No place profile    | `isProfileAbsent === true`        | `PlaceProfileCreateDialog`                           |
 
+The "no phone" gate narrows on `'absent'` alone. `useLinkedAccounts` answers `'unknown'` both when
+the profile has not loaded and when the slot was never built, and treating either as absent would
+demand a number the user already has; the gate falls back on `'unknown'` rather than blocking on
+it. The place-profile gate is `undefined` while its read is in flight, and the form must not render
+then either, or a submit could beat the verdict. Both gates check in order: prove a number first (a
+guest has none, and a main user may still lack one), then require a place profile, then the form.
+
 The form renders only when all three clear (`showForm`). **Rendering a form and covering it with a
 dialog is the thing to avoid**: it leaves a frame in which the unmet condition can be submitted
 past. Verification is offered at most once per visit, so a `403` that verification cannot fix — a
 withdrawn or suspended account — explains itself instead of reopening the sheet forever.
+
+A profile is required because an invite issued without one would go out as an SMS signed with the
+generic default sender name (`contactInvite.defaultSenderName`).
 
 The profile is a precondition rather than a requirement. Closing its dialog leaves for home, and
 leaving means no invitation was issued, so "an invite sent by someone with no name" has no path into
@@ -81,6 +91,22 @@ existence. The same shape as the accept lane's profile step, for the same reason
 The whole page is **one `return`** with the verification sheet in a fixed child slot. Two returns
 would place it at a different index per branch, and React reconciles by position — so the promotion
 that flips `isGuest` mid-visit would remount the sheet and lose its state.
+
+### The form's number and name
+
+- **The picker's country is chosen once and then follows the number.** A prefilled number's own
+  country wins; otherwise the last explicit pick, otherwise the device locale's region, otherwise none
+  (`resolveDefaultCountry`). With no country there is nothing to validate the number against, and the
+  user has made no mistake, so submit is disabled without an error. A pasted `+81…` declares its own
+  country: the picker follows it and the field is rewritten to the local form, so the two never point at
+  different countries. A logged number is E.164, so a re-invite prefill is split the same way.
+- **The name counter may read `21/20`.** The field does not enforce its length; it shows a
+  "too long" error and disables submit instead of silently truncating what was typed or pasted.
+- **The mode of a verification is stored, not derived.** The gate picks `login` or `link` from the
+  session role, but the `403` fallback knows the server does not see a main user whatever the role
+  cache says, and always runs `login` (sending `link` from a session the server still reads as a
+  device user would `403` again). The form keeps its input, and there is no auto-retry after
+  verification, which would fire on a stale closure.
 
 ### Re-invite detection
 
@@ -185,6 +211,11 @@ filter exists once: `pending`, `expired` or `rejected`, with an `id`, and not lo
   the conversation.
 - `canceled` is out because the sender retired it.
 
+`InviteChannelRow` decides only how one row looks. A tap goes to the waiting screen from both lists, with no
+inline action, because cancel and re-invite both live there and one owner is better than a trigger in
+every list. A spent row explains itself on its second line (declined or expired); a live one has no
+status to report, so it keeps the masked number, the only thing telling two same-named invites apart.
+
 `resolveInviteRowBadge` maps the state to a badge. `rejected` keeps the `expired` tone — it is the
 same "this invite is spent" signal, and only the label and the row's second line differ. `accepted`,
 `canceled` and an unrecognized state resolve to `null`, which is defence in depth behind the filter
@@ -211,6 +242,11 @@ rather than a reachable case.
 - `useSentInviteLog`'s storage key is versioned, and bumping it **is** the migration — there is no
   `persist` middleware and no `migrate` hook. The previous key was keyed by local Korean digits,
   which collide once invites can go anywhere; its entries were left to lapse.
+- The waiting screen's cancel sets `isCanceling` **before** resolving the code. Resolution can itself
+  take a network round trip (the re-ask fallback), and setting the flag afterwards would let a second
+  click double-submit. A reissue needs the device's local record of the number: with none (storage was
+  cleared), or one that cannot be parsed back to a country, there is nothing to reissue with and it says
+  so instead of issuing blind.
 - The waiting screen exempts a retire it made itself from its own "this invite is gone" redirect,
   or a reissue would bounce the user home mid-flow.
 - The re-invite-into-a-channel path holds its own submitting flag across the retire round trip. The

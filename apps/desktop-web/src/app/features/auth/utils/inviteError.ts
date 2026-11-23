@@ -2,18 +2,6 @@ import { logger } from '@chatic/bridges';
 
 import { classifyWireError, type WireErrorKind } from '../../../shared';
 
-/**
- * Invite-login failure surfaced to the user. Two families:
- *  - turned down locally, nothing sent, so there's no server text and we show a canned hint:
- *    `format` (unparseable paste), `backend` (the link names a server this build does not trust,
- *    see `isTrustedInviteBackend`), `relay` (a phone-to-phone invite this screen cannot accept),
- *    `unmarked` (an encoded link that names no server) and `loggedIn` (an account is signed in, and
- *    joining as a guest would replace it). The preview step adds three read from the lookup's
- *    `state`: `used` (already accepted), `expired`, and `canceled` (the inviter withdrew it or the
- *    invitee declined).
- *  - `server` — the API/socket rejected it; the dialog gets a sentence that says what to do next,
- *    with the raw text under it and in the failure toast.
- */
 export type InviteLoginError =
     | { kind: 'format' | 'backend' | 'relay' | 'unmarked' | 'loggedIn' | 'used' | 'expired' | 'canceled' }
     | { kind: 'server'; message: string };
@@ -33,13 +21,6 @@ type InviteErrorKey =
     | 'auth.invite.failed.network'
     | 'auth.invite.failed.generic';
 
-/**
- * A mistyped code used to print the server's wire text verbatim
- * (`400 INVALID - @code[invt:bogus] is invalid (not-found)`), which reads as a
- * crash and says nothing about what to do. An unrecognised failure takes the
- * generic line; the raw text goes under it, in the dialog and the failure toast.
- * A bare 400 means the code was not accepted, so it reads as not found.
- */
 const KEY_BY_KIND: Record<WireErrorKind, InviteErrorKey> = {
     expired: 'auth.invite.failed.expired',
     notFound: 'auth.invite.failed.notFound',
@@ -50,7 +31,6 @@ const KEY_BY_KIND: Record<WireErrorKind, InviteErrorKey> = {
     unknown: 'auth.invite.failed.generic',
 };
 
-/** Refusals made locally, before anything was sent: one line each, no server text to classify. */
 const KEY_BY_LOCAL_KIND: Record<Exclude<InviteLoginError['kind'], 'server'>, InviteErrorKey> = {
     format: 'auth.invite.failed.format',
     backend: 'auth.invite.failed.backend',
@@ -62,7 +42,6 @@ const KEY_BY_LOCAL_KIND: Record<Exclude<InviteLoginError['kind'], 'server'>, Inv
     canceled: 'auth.invite.failed.canceled',
 };
 
-/** Resolve the user-facing line for an invite-login error. */
 export const inviteLoginErrorText = (error: InviteLoginError, t: (key: string) => string): string => {
     if (error.kind !== 'server') return t(KEY_BY_LOCAL_KIND[error.kind]);
     logger.error('AUTH', '[InviteLogin] rejected', { raw: error.message });

@@ -6,18 +6,6 @@ import { contrast } from './app/shared/theme/shellPalette';
 import { avatarStyle } from './app/shared/utils/avatarColor';
 import { darkPage as dark, lightPage as light, ratio, resolve, tokensOf } from './testing/cssTokens';
 
-/**
- * The contrast contract of the theme tokens, measured from styles.css itself.
- *
- * The file states its ratios in comments, and twice a token drifted under AA while
- * its comment still claimed the old figure. These pairs are the ones the app draws
- * text or a focus indicator with; a value that breaks one fails here, not in review.
- * The shell palettes are measured in shellPalette.spec.ts, on the rule that makes them.
- */
-/**
- * [foreground, background, minimum]: 4.5 for text, 3 for a focus indicator and for the
- * boundary or state of an interactive control (WCAG 1.4.11).
- */
 const PAIRS: [string, string, number][] = [
     ['foreground', 'background', 4.5],
     ['muted-foreground', 'background', 4.5],
@@ -35,30 +23,21 @@ const PAIRS: [string, string, number][] = [
     ['link', 'background', 4.5],
     ['toast-foreground', 'toast', 4.5],
     ['toast-muted', 'toast', 4.5],
-    // Tooltips (Hint) are ink: the page's own text colour as the ground.
     ['background', 'foreground', 4.5],
     ['focus-ring', 'background', 3],
     ['focus-border', 'background', 3],
-    // Control boundaries: a text field (kit Input reads --input-border), an unselected
-    // option, the composer box. Settings controls sit on cards, dialogs on the popover.
     ['control-border', 'background', 3],
     ['control-border', 'card', 3],
     ['control-border', 'popover', 3],
     ['input-border', 'surface', 3],
-    // Switch off: the background-coloured thumb on the control-border track.
     ['background', 'control-border', 3],
-    // Switch on: the ink edge against the card it sits on, and the ink thumb on the fill.
     ['primary-ink', 'card', 3],
     ['primary-foreground', 'primary', 3],
-    // A Block Kit card (webhook messages) draws its text on --card rather than the page: the
-    // title in the foreground, the body in the label grey, its context line and field captions
-    // in the description grey — that one also on the well of an inline value chip — and links.
     ['foreground', 'card', 4.5],
     ['label', 'card', 4.5],
     ['description', 'card', 4.5],
     ['description', 'well', 4.5],
     ['link', 'card', 4.5],
-    // A webhook card's type badge with no colour of the sender's: the design's grey pill.
     ['label', 'well', 4.5],
 ];
 
@@ -71,17 +50,11 @@ describe.each([
     });
 });
 
-// Mist keeps the dark shell in dark mode, so its sample card has to show that shell too.
 it('draws the Mist sample card in dark mode with the dark shell', () => {
     const card = tokensOf(".dark [data-palette-preview='mist']");
     for (const name of ['rail', 'rail-elevated', 'sidebar']) expect(card[name]).toBe(dark[name]);
 });
 
-/**
- * Avatar initials sit on a fill whose hue is derived per user, so no single pair covers
- * them: every hue has to clear 4.5:1 against --avatar-fg. The fill formula is read from
- * avatarStyle itself, so a change to its saturation is measured here too.
- */
 describe.each([
     ['light', light],
     ['dark', dark],
@@ -102,7 +75,6 @@ describe.each([
     });
 });
 
-/** `H S% L%` as styles.css writes a token, to `#RRGGBB`. */
 const hexOf = (hsl: string): string => {
     const [h, s, l] = hsl.split(/\s+/).map(parseFloat) as [number, number, number];
     const [S, L] = [s / 100, l / 100];
@@ -120,11 +92,6 @@ const hexOf = (hsl: string): string => {
     );
 };
 
-/**
- * A webhook card's accent (the sender's `color`, read by `@chatic/block-kit`) is fitted against a
- * reference ground rather than this app's `--card`, because the lib serves three apps. These hold
- * this app's own cards to it: every accent link the sender's colours can produce reads on them.
- */
 describe.each([
     ['light', light, 'light'],
     ['dark', dark, 'dark'],

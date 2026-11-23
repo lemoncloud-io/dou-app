@@ -1,55 +1,23 @@
 import type { ComponentType } from 'react';
 
-/**
- * Single catalog of every debug screen. Ids and behaviour live here; every human-readable label
- * lives in `../i18n.ts`, one table per language (the old mix of `Email Login` and `앱 아이콘` came
- * from labels being written wherever the screen happened to be registered). Replaces the old split between `debugMenu.ts` (the
- * expanded-sheet menu) and the hardcoded `TABS` array in `MiniPanel.tsx`, where the same screen
- * could be listed twice and "which screen may appear as a tab" lived only in a prose comment.
- *
- * React-free at runtime (the `ComponentType` import is type-only), so navigation and grouping stay
- * unit-testable without rendering.
- */
-
-/**
- * Panel size, not a separate navigation tree — the same catalog is reachable at every size.
- *
- *  'mini'  a small floating widget: one screen, icon-only tabs, meant to sit in a corner while the
- *          app is used. The smallest thing that still shows a live number.
- *  'dock'  the default floating panel.
- *  'full'  the whole viewport, for wide content.
- */
 export type DebugPanelSize = 'mini' | 'dock' | 'full';
 
-/** Small to large. `expand`/`minimize` step through this. */
 export const DEBUG_PANEL_SIZES: readonly DebugPanelSize[] = ['mini', 'dock', 'full'];
 
 export type DebugSectionKey = 'info' | 'tools' | 'data';
 
-/** Menu order. Monitoring-style screens first — they are what the panel is opened for most often. */
 const SECTION_ORDER: readonly DebugSectionKey[] = ['info', 'tools', 'data'];
 
 interface DebugScreenEntry {
     key: string;
-    /** lucide-react icon name; resolved to a component in `screenIcons` so this stays pure data. */
     icon: string;
     section: DebugSectionKey;
-    /** Forces this size on open. Only for screens whose content cannot be read in the dock. */
     size?: DebugPanelSize;
-    /**
-     * The screen's whole point is a native-shell command, so in a plain browser it can only render
-     * buttons that fail. The panel says so instead of rendering it (ADR-0080 decision 2 · delta ②).
-     *
-     * Not for screens that merely have a native-only corner — those keep their own `isNative`
-     * check and stay usable in a browser (log buffer, cache metrics, the bridge screen itself,
-     * which exists precisely to report that there is no shell).
-     */
     requiresShell?: true;
     load: () => Promise<{ default: ComponentType }>;
 }
 
 export const DEBUG_SCREENS = [
-    // Info — read-only observation.
     {
         key: 'State',
         icon: 'Activity',
@@ -75,8 +43,6 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/UnreadScreen').then(m => ({ default: m.UnreadScreen })),
     },
     {
-        // Two stores, one screen: the reconstructed history stack and the visited trail. They
-        // disagree by design (`/a → /b → back → /c`), and the back-button questions need the stack.
         key: 'Route',
         icon: 'Route',
         section: 'info',
@@ -90,14 +56,12 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/DeviceInfoScreen').then(m => ({ default: m.DeviceInfoScreen })),
     },
     {
-        // Half of ADR-0079 decision 16's screen — the logging half is already emitted by configStateLog.
         key: 'Config',
         icon: 'SlidersHorizontal',
         section: 'info',
         load: () => import('./screens/ConfigScreen').then(m => ({ default: m.ConfigScreen })),
     },
     {
-        // The half moved over from the app's settings screen (ADR-0080 decision 13 · unresolved 4). PROD is rejected by the app.
         key: 'CustomZip',
         requiresShell: true,
         icon: 'FileArchive',
@@ -105,7 +69,6 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/CustomZipScreen').then(m => ({ default: m.CustomZipScreen })),
     },
     {
-        // Which side holds the session on the phone. A production app answers it only in debug mode.
         key: 'SessionOwner',
         requiresShell: true,
         icon: 'ArrowLeftRight',
@@ -113,8 +76,6 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/SessionOwnerScreen').then(m => ({ default: m.SessionOwnerScreen })),
     },
     {
-        // Distinct from the Boot screen: that one measures the current web session live, this is the
-        // native side's persisted per-boot history (ADR-0080 decision 11).
         key: 'BootRecords',
         requiresShell: true,
         icon: 'History',
@@ -122,7 +83,6 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/BootRecordsScreen').then(m => ({ default: m.BootRecordsScreen })),
     },
 
-    // Tools — screens that drive something.
     {
         key: 'Bridge',
         icon: 'Plug',
@@ -148,7 +108,6 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/EmailLoginScreen').then(m => ({ default: m.EmailLoginScreen })),
     },
     {
-        // Tables plus its own scenario switcher — unreadable at dock width.
         key: 'CacheTest',
         icon: 'FlaskConical',
         section: 'tools',
@@ -169,7 +128,6 @@ export const DEBUG_SCREENS = [
         section: 'tools',
         load: () => import('./screens/PushScreen').then(m => ({ default: m.PushScreen })),
     },
-    // Moved off the app's "feature test" section (ADR-0080 decision 11).
     {
         key: 'Sms',
         requiresShell: true,
@@ -198,8 +156,6 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/InviteRedirectScreen').then(m => ({ default: m.InviteRedirectScreen })),
     },
     {
-        // Distinct from the converter above: that one navigates the WEB, this hands the APP an
-        // inbound deeplink (ADR-0080 decision 11).
         key: 'Deeplink',
         requiresShell: true,
         icon: 'ExternalLink',
@@ -207,7 +163,6 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/DeeplinkScreen').then(m => ({ default: m.DeeplinkScreen })),
     },
     {
-        // Opens a page on another origin in the app's sub WebView and logs the close that comes back.
         key: 'SubWebView',
         requiresShell: true,
         icon: 'AppWindow',
@@ -215,10 +170,7 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/SubWebViewScreen').then(m => ({ default: m.SubWebViewScreen })),
     },
 
-    // Data — direct reads and edits of stored rows.
     {
-        // The open room's channel and messages as the page holds them, beside their cache rows and a
-        // server copy. Fed by the room and thread pages themselves, so it is empty until one is open.
         key: 'Room',
         icon: 'MessageSquareCode',
         section: 'data',
@@ -231,9 +183,6 @@ export const DEBUG_SCREENS = [
         load: () => import('./screens/DBBrowserScreen').then(m => ({ default: m.DBBrowserScreen })),
     },
     {
-        // Both halves of what the device keeps — the WebView's own storage and the native shell's —
-        // side by side, because clearing either one alone leaves the other's stale copy behind. Not
-        // `requiresShell`: in a browser the web half is the whole story and still worth reading.
         key: 'Storage',
         icon: 'HardDrive',
         section: 'data',
@@ -248,7 +197,6 @@ export type DebugScreenIcon = (typeof DEBUG_SCREENS)[number]['icon'];
 export interface DebugMenuItem {
     key: DebugScreenKey;
     icon: DebugScreenIcon;
-    /** True when the screen needs the native shell to do anything. */
     requiresShell: boolean;
 }
 
@@ -257,7 +205,6 @@ export interface DebugMenuSection {
     items: DebugMenuItem[];
 }
 
-/** Home menu: every screen, grouped by section. */
 export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = SECTION_ORDER.map(section => ({
     section,
     items: DEBUG_SCREENS.filter(screen => screen.section === section).map(screen => ({
@@ -267,14 +214,8 @@ export const DEBUG_MENU_SECTIONS: DebugMenuSection[] = SECTION_ORDER.map(section
     })),
 })).filter(section => section.items.length > 0);
 
-/**
- * Tab strip: every screen, in menu order. It used to carry a hand-picked subset, which meant a
- * second rule about which screens deserved a chip — and the menu is one tap away for the rest
- * anyway. All of them, scrollable, is the simpler contract.
- */
 export const DEBUG_TABS: DebugMenuItem[] = DEBUG_MENU_SECTIONS.flatMap(section => section.items);
 
-/** Screens that must open at a given size; everything else keeps the size the panel already has. */
 export const DEBUG_SCREEN_SIZES = DEBUG_SCREENS.reduce(
     (acc, screen) => {
         if ('size' in screen) acc[screen.key] = screen.size;

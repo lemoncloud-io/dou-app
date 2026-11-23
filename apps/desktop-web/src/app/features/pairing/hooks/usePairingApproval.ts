@@ -15,24 +15,12 @@ export type PairingApprovalStep =
 
 type LookupResult = { check: PairingCheck } | { error: PairingApprovalError };
 
-/**
- * The approving device's side of a pairing: a code typed or pasted in, looked up once it has all eight
- * digits, then approved for a chosen target or declined.
- *
- * Each code is looked up at most once per visit. A lookup is the relay's record that this account saw
- * the code, so a second one for the same code only earns a refusal; editing the field and typing the
- * same code back shows what the first lookup said instead. The one exception is a lookup that failed
- * for no reason the relay gave (the network, most likely), where trying again is the remedy.
- *
- * `onDecided` runs after the relay accepted the approval or the refusal — the screen leaves from there.
- */
 export const usePairingApproval = ({ onDecided }: { onDecided: (decision: 'approved' | 'denied') => void }) => {
     const { pairing } = runtime.data.useRuntimeRepositories();
     const [code, setCodeState] = useState('');
     const [state, setState] = useState<PairingApprovalStep>({ step: 'input' });
     const [error, setError] = useState<PairingApprovalError | null>(null);
     const results = useRef(new Map<string, LookupResult>());
-    // The code the field holds now; a lookup answering for a code that is no longer there is dropped.
     const current = useRef('');
 
     const show = useCallback((result: LookupResult) => {
@@ -97,7 +85,6 @@ export const usePairingApproval = ({ onDecided }: { onDecided: (decision: 'appro
         [pairing, state, onDecided]
     );
 
-    /** Back to an empty field, for another code. What was looked up stays remembered. */
     const reset = useCallback(() => {
         current.current = '';
         setCodeState('');

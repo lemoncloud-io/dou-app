@@ -1,20 +1,8 @@
 import { buildEncodedInviteEntryParams } from './buildEncodedInviteEntryParams';
 import { buildInviteEntryParams } from './buildInviteEntryParams';
 
-/**
- * The two link formats, `/s?code=…` and `/i?t=…`, are parsed by two functions on purpose. This file
- * pins the property that makes two functions safe: the same invite, carried either way, produces
- * the same invite-entry params. Everything downstream of here sees one shape and never learns which
- * link the user actually opened.
- *
- * If the formats ever drift apart, this is where it shows — before an invitee ends up on a
- * different server than the person who sent them the link.
- */
-
-/** Encoded the way the server does, with Node's own base64url — not with the decoder under test. */
 const token = (payload: Record<string, unknown>): string => Buffer.from(JSON.stringify(payload)).toString('base64url');
 
-/** Params are order-insensitive here; sorted pairs are what "the same params" means. */
 const pairs = (params: URLSearchParams): string[] => [...params.entries()].map(([k, v]) => `${k}=${v}`).sort();
 
 const CODE = 'invt:1000072-2:e3faf0d0';
@@ -53,11 +41,6 @@ describe('/s와 /i는 같은 초대 진입 파라미터를 낸다', () => {
         expect(pairs(fromEncoded)).toEqual(pairs(fromShare));
     });
 
-    // The one place the two formats are MEANT to disagree, and the reason they are separate paths.
-    // A `/s` link with no address is relay by convention — the relay server has none to carry. The
-    // same convention applied to `/i` would be a guess: the payload states relay in `r`, so its
-    // absence means a cloud invite whose coordinates went missing, and routing that to the relay
-    // server would send the invitee somewhere the invite does not exist.
     it('좌표 없는 payload는 /s의 code-only와 달리 relay가 아니다', () => {
         const fromShare = buildInviteEntryParams(`?code=${encodeURIComponent(CODE)}`);
         const fromEncoded = buildEncodedInviteEntryParams(`?t=${token({ c: CODE })}`);
@@ -65,7 +48,6 @@ describe('/s와 /i는 같은 초대 진입 파라미터를 낸다', () => {
         expect(fromShare.get('relay')).toBe('1');
         expect(fromEncoded.has('relay')).toBe(false);
         expect(fromEncoded.has('_backend')).toBe(false);
-        // What they still agree on: the invite itself.
         expect(fromEncoded.get('code')).toBe(fromShare.get('code'));
         expect(fromEncoded.get('provider')).toBe('invite');
         expect(fromEncoded.get('version')).toBe('2');

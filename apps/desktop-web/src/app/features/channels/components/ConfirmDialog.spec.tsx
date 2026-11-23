@@ -20,7 +20,6 @@ const renderDialog = (fullDescription?: boolean) =>
 describe('ConfirmDialog', () => {
     afterEach(cleanup);
 
-    // The description usually quotes user content, which is there to identify the thing, not reproduce it.
     it('clamps the description by default', () => {
         renderDialog();
 

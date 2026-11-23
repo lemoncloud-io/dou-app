@@ -16,22 +16,16 @@ import {
 import { socketErrorStatus } from '../../../shared';
 import { ensureDeviceSession } from '../utils';
 
-/** Digits in the code the server sends. */
 export const PHONE_CODE_LENGTH = 6;
 
-/** The wait the server enforces between sends to one number (it answers 429 inside it). */
 export const PHONE_RESEND_COOLDOWN_MS = 60 * 1000;
 
-/** The country a UI language implies, for a phone field on an OS whose locale says otherwise. */
 const UI_LANGUAGE_COUNTRY: Record<string, PhoneCountry> = { ko: 'KR' };
 
-/** How long a send waits for the relay socket to finish authenticating a just-registered device. */
 const RELAY_VERIFY_TIMEOUT_MS = 10_000;
 
-/** The raw field keeps what was typed so a bad format stays visible; the parser reads digits. */
 const PHONE_INPUT_MAX = 20;
 
-/** Why a step did not go through. The page turns each into a sentence (`auth.phone.error.<key>`). */
 export type PhoneLoginError =
     | 'invalidNumber'
     | 'deviceFailed'
@@ -48,28 +42,9 @@ export type PhoneLoginError =
 type Busy = 'idle' | 'sending' | 'resending' | 'confirming';
 
 export interface PhoneLoginOptions {
-    /** The session now belongs to the number's account. `isNew`: the server made that account just now. */
     onSignedIn: (result: { isNew: boolean }) => void;
 }
 
-/**
- * Phone-number sign-in over `auth.link-account` in `login` mode: send a code, then confirm it through
- * `runtime.session.confirmPhoneLogin`, which makes the account this device's session and keeps its token. Only the login side of the packet is used here —
- * linking a number to an account that is already signed in is the mobile app's.
- *
- * - The server takes a login only from a device session, so sending registers the device first when
- *   there is no session (the same registration the Welcome page's guest start does), and waits for the
- *   relay socket to authenticate it before the send goes out.
- * - The code is checked by `confirm` alone. `verify` would only say the code is valid, which `confirm`
- *   proves anyway, and whether the number makes a new account is answered by `confirm` alone.
- * - The proof steps send the number and country the code was sent with, pinned at send time, not
- *   whatever the field holds by then: the server needs the same pair on both.
- * - A confirmed code is spent. When the session switch after it fails, the runtime keeps the token and
- *   the retry (`retryPhoneLogin`) finishes the switch without re-checking the code; leaving the page
- *   cancels it.
- *
- * The number and the code stay in the request body: nothing here logs them.
- */
 export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
     const { auth } = runtime.data.useRuntimeRepositories();
     const { deviceId } = runtime.session.useDynamicDeviceId();
@@ -87,21 +62,16 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
     const [busy, setBusy] = useState<Busy>('idle');
     const [phoneError, setPhoneError] = useState<PhoneLoginError | null>(null);
     const [codeError, setCodeError] = useState<PhoneLoginError | null>(null);
-    // A confirmed code whose session switch failed. The runtime keeps the token; `retrySwitch` finishes it.
     const [awaitingSwitch, setAwaitingSwitch] = useState(false);
-    // The value last submitted. A ref, not `busy`: a keystroke landing as the last digit goes in must
-    // not race the state update into a second confirm, which would spend another of the five attempts.
     const submittedRef = useRef<string | null>(null);
 
     const countdown = useOtpExpiryCountdown(expiredAt);
-    // The same ticker, run to the end of the wait between sends, so Resend says when it opens.
     const resendWait = useOtpExpiryCountdown(resendAt);
     const resendIn = resendWait && !resendWait.isExpired ? resendWait.secondsLeft : 0;
     const isExpired = countdown?.isExpired ?? false;
     const codeSent = expiredAt !== undefined;
     const isBusy = busy !== 'idle';
 
-    // A different number or country makes the outstanding code someone else's.
     const dropOutstandingCode = () => {
         setExpiredAt(undefined);
         setResendAt(undefined);
@@ -113,7 +83,6 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
 
     const changePhone = (value: string) => {
         const next = value.slice(0, PHONE_INPUT_MAX);
-        // A pasted `+81…` names its own country; the picker follows and the field keeps the local part.
         const international = readInternationalInput(next);
         if (international) {
             setCountry(international.country);
@@ -138,8 +107,6 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
             setPhoneError('invalidNumber');
             return;
         }
-        // E.164, not the local form: the server's phone hasher ignores `countryCode` once the number
-        // starts with `+`, so E.164 is right whether or not the country is. The country rides along anyway.
         const wirePhone = toE164(phone, country);
         setBusy('sending');
         setPhoneError(null);
@@ -151,9 +118,6 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
                 setPhoneError('deviceFailed');
                 return;
             }
-            // The code goes over the relay socket, which a fresh registration has only just started to
-            // authenticate: sent before that handshake ends, the first send fails. Never rejects; on a
-            // timeout the send goes anyway and the server's answer is what the person sees.
             await runtime.connection.waitUntilVerified(runtime.connection.RELAY_SLOT, RELAY_VERIFY_TIMEOUT_MS);
             const sent = await auth.sendPhoneCode(wirePhone, { mode: 'login', countryCode: country });
             setExpiredAt(sent.expiredAt);
@@ -165,14 +129,12 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         } catch (error) {
             const status = socketErrorStatus(error);
             logger.error('AUTH', `[usePhoneLogin] send failed (status=${status ?? '-'})`, { error });
-            // A first send refused with 429 is a daily cap (per number, per device).
             setPhoneError(status === 429 ? 'tooManySends' : 'sendFailed');
         } finally {
             setBusy('idle');
         }
     };
 
-    /** A new code for the number the last one went to. It does not reset the wrong-answer count. */
     const resend = async () => {
         if (!sentWith || isBusy) return;
         setBusy('resending');
@@ -190,7 +152,6 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         } catch (error) {
             const status = socketErrorStatus(error);
             logger.warn('AUTH', `[usePhoneLogin] resend failed (status=${status ?? '-'})`, { error });
-            // Mid-flow, 429 is the cooldown between sends: restart the wait the button shows.
             if (status === 429) setResendAt(Date.now() + PHONE_RESEND_COOLDOWN_MS);
             setCodeError(status === 429 ? 'cooldown' : 'resendFailed');
         } finally {
@@ -204,14 +165,12 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         onSignedIn({ isNew });
     };
 
-    // Signed in on the server, not on this device: the runtime keeps the token so the retry can finish it.
     const switchFailed = () => {
         setAwaitingSwitch(true);
         setCodeError('sessionSwitchFailed');
         setBusy('idle');
     };
 
-    /** The phone login's own failures, apart from a wrong code — both are told by the error's `code`. */
     const failureOf = (error: unknown): unknown => (error as { code?: unknown } | null)?.code;
 
     const confirm = async (code: string) => {
@@ -219,7 +178,6 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         setBusy('confirming');
         setCodeError(null);
         try {
-            // The check and the session switch as one step; the session token never comes back here.
             const { isNew } = await runtime.session.confirmPhoneLogin(sentWith.phone, code, {
                 countryCode: sentWith.country,
             });
@@ -229,8 +187,6 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
                 switchFailed();
                 return;
             }
-            // A login confirm always carries a session token. Without one the device would stay on its
-            // guest session, so it is a contract break, not a wrong code.
             if (failureOf(error) === runtime.session.PHONE_LOGIN_NO_TOKEN) {
                 logger.error('AUTH', '[usePhoneLogin] login confirm came back without a token');
                 setCodeError('verifyFailed');
@@ -256,13 +212,9 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         const next = value.replace(/\D/g, '').slice(0, PHONE_CODE_LENGTH);
         setOtp(next);
         setCodeError(null);
-        // Editing the code re-arms it: after a failed check, deleting a digit and typing it back has to
-        // submit again, or the only way out would be spending a resend.
         if (next.length < PHONE_CODE_LENGTH) submittedRef.current = null;
     };
 
-    // Submit once every digit is in. Keyed on the value, so pasting a corrected code over a full one
-    // still submits, and the ref keeps one value from being submitted twice.
     useEffect(() => {
         if (otp.length !== PHONE_CODE_LENGTH) return;
         if (isExpired || awaitingSwitch || submittedRef.current === otp) return;
@@ -279,7 +231,6 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
             signedIn(isNew);
         } catch (error) {
             if (failureOf(error) === runtime.session.PHONE_LOGIN_NOTHING_PENDING) {
-                // Nothing left to finish (a newer confirm replaced it): back to the code, which a resend renews.
                 setAwaitingSwitch(false);
                 setCodeError('verifyFailed');
                 setBusy('idle');
@@ -289,7 +240,6 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         }
     };
 
-    // A token the runtime keeps for a retry is not left behind when the page closes.
     useEffect(() => () => runtime.session.cancelPhoneLogin(), []);
 
     return {
@@ -298,18 +248,15 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         country,
         changeCountry,
         phoneError,
-        // Open as soon as something is typed: asking for a code is where a malformed number is told why.
         canRequestCode: phone.trim().length > 0 && !codeSent && !isBusy,
         requestCode: () => void requestCode(),
         codeSent,
         otp,
         changeOtp,
-        // Expiry shows on the code field even before a failed check, so a dead code never sits beside a live-looking timer.
         codeError: codeError ?? (isExpired ? ('codeExpired' as const) : null),
         countdown,
         resend: () => void resend(),
         canResend: codeSent && !isBusy && !awaitingSwitch && resendIn === 0,
-        /** Seconds until Resend opens; 0 once it is open. */
         resendIn,
         busy,
         isRetry: awaitingSwitch,

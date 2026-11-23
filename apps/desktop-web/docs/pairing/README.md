@@ -44,6 +44,16 @@ Leaving before that goes back to Welcome. The guest the page registered is signe
 The hold stays until that sign-out has run, and the page shows only a spinner meanwhile: the
 sign-out drops the session before it reloads, and the page would otherwise start over.
 
+Leaving by the browser's own Back, or any route change, skips the Back button, so the unmounting
+screen undoes the same way: without it the hold would keep `/auth/pair` routed and the guest it
+registered would land in the app. That check runs a tick after the unmount, because strict mode
+unmounts a screen and mounts it again at once and the page must not read that as leaving. The
+page's navigation comes before the release of the hold, since releasing it drops this route from the
+signed-in branch.
+
+The QR code sits on a white tile in either theme: a scanner reads dark modules on a light field. The
+code itself is set larger than any type step, because it is read across a desk, off a screen.
+
 An account that is already signed in is sent home from the page; it has nothing to pair.
 
 ## Approving (`/settings/pairing/approve`)

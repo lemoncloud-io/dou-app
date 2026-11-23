@@ -13,7 +13,6 @@ import { useReceivedPushLog } from './useReceivedPushLog';
 const mockUseOnReceive = useOnReceiveNotification as jest.Mock;
 const mockLoggerInfo = logger.info as jest.Mock;
 
-/** The handler the hook registered on its latest render. */
 const latestHandler = (): ((message: AppMessageData<'OnReceiveNotification'>) => void) => {
     const lastCall = mockUseOnReceive.mock.calls.at(-1);
     if (!lastCall) throw new Error('useOnReceiveNotification was not called');
@@ -47,8 +46,6 @@ describe('useReceivedPushLog — 푸시 수신 기록', () => {
         expect(result.current.entries[0].id).not.toBe(result.current.entries[1].id);
     });
 
-    // The received entry is left by the app-wide subscriber (useInAppPushMessage). If this also
-    // logged it, every receipt would become two lines while the debug screen is open.
     it('로그는 남기지 않는다 — 전역 구독자와 중복되기 때문', () => {
         const { result } = renderHook(() => useReceivedPushLog());
 

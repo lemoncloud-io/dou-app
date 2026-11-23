@@ -37,53 +37,24 @@ import { useRealtimeProfileSync } from './useRealtimeProfileSync';
 import { usePairedCloudSignOut } from './usePairedCloudSignOut';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 
-/** Mounts desktop OS-notification wiring inside the runtime host (needs engine repositories). */
 const DesktopNotifications = () => {
-    // Every place's nicks, so the banner, the inbox and my threads name a sender as the feed does.
     usePlaceProfiles();
     useDesktopNotifications();
-    // A channel first seen in a place with a chosen notification level takes that level.
     usePlaceNotifyInheritance();
-    // Realtime place-profile sync — re-pull on the server's profile.sync broadcast so a
-    // peer's nick/photo edit surfaces live (v2 dropped the engine's realtime profile:sync path).
     useRealtimeProfileSync();
-    // Cross-cloud push: register this device's FCM token with the broker.
     useDeviceTokenRegistration();
-    // Cross-cloud push: toast when focused, OS banner when not (the shell only forwards).
     useCrossCloudPushNotifications();
-    // Cross-cloud push: mark the source cloud's rail tile until it's visited.
     useCrossCloudPushBadge();
-    // Cross-cloud push: a reinstall-wiped invited cloud is named only by the
-    // push's cid — re-derive and re-cache its endpoints (presentation aside).
     usePushInvitedCloudRecovery();
-    // Capture mentions, 1:1 messages and reactions to mine across all channels into the device-local inbox;
-    // replies in my threads reach it through useMyThreadsCapture below.
     useInboxCapture();
-    // Record the threads I take part in from background channels, and hand others' replies in them to
-    // the inbox.
     useMyThreadsCapture();
-    // A push means new activity the v2 socket won't stream for background channels — re-pull the
-    // active cloud's channels so the unread badges update at push time, not 60s later.
     useRefreshOnPush();
-    // On wake/refocus/online, reconnect + re-auth the live WS immediately (still-valid
-    // token case) instead of waiting on the ~60s periodic heal.
     useSocketWakeRecovery();
-    // Self-heal a socket left unverified after sleep/wake (cloud-token 400 loop)
-    // by reloading the Electron renderer — automatic equivalent of a manual ctrl+r.
     useSocketWedgeReload();
-    // Offline outbox: once the socket is verified again, re-send the messages that failed
-    // while it was down. Desktop-only opt-in — apps/web keeps its manual resend button.
     useChatOutbox();
     return null;
 };
 
-/**
- * Gate the notification wiring on a live session. The Electron FCM receiver keeps running and the
- * device stays registered after logout, so without this the previous user's pushes would still
- * raise toasts/badges/OS banners on the logged-out shell. Unmounting drops the OnReceiveNotification
- * listeners so a logged-out app silently ignores inbound pushes; it re-registers on the next login.
- */
-/** Attributes the device-wide invited-cloud records to the signed-in account (needs a live session). */
 const AuthedCloudRecords = () => {
     useCloudRecordOwnership();
     return null;
@@ -94,12 +65,6 @@ const AuthedNotifications = () => {
     return isAuthenticated ? <DesktopNotifications /> : null;
 };
 
-/**
- * Always-mounted unread sync: runs the per-place unread aggregation once and publishes it to
- * useUnreadStore, then mirrors the total onto the OS badge and the window title. Lives here
- * (not in HomePage) so the badge/title keep updating on /profile and /settings where HomePage
- * is unmounted.
- */
 const ShellUnreadSync = () => {
     const unread = usePlaceUnreadCounts();
     const setUnread = useUnreadStore(s => s.setUnread);
@@ -108,21 +73,8 @@ const ShellUnreadSync = () => {
     }, [unread, setUnread]);
 
     const { total } = unread;
-    // Keep a cloud's rail dot when switching away from it with unread still pending.
-    // Operates on the active-cloud total (its own concern), not the cross-cloud sum.
     useRetainLeavingCloudBadge(total);
 
-    // The live socket only counts the active cloud; other clouds surface as boolean
-    // push badges (no count). Fold each into the OS dock badge as +1 so the dock
-    // reflects cross-cloud activity instead of reading 0 while other clouds wait —
-    // an approximation (cloud count, not message count), same as the rail dots.
-    //
-    // Count only badged clouds that are (a) NOT the active one — its unread is already
-    // in `total` — and (b) a REAL cloud present in the rail. A stray self-mark during a
-    // relay-fallback window, or a foreign/stale cloud id the backend stamped into
-    // `data.cid` (or a cloud that no longer exists), can never be visited to clear it, so
-    // it would fold a permanent +1 into the dock badge — the "stuck at 1 with everything
-    // read" bug. Filtering to real, non-active clouds drops those dead flags.
     const { clouds, activeCloudId } = useClouds();
     const railCloudIds = useMemo(() => new Set(clouds.map(c => c.id)), [clouds]);
     const badgedClouds = useCloudPushBadgeStore(s => s.badged);
@@ -136,91 +88,32 @@ const ShellUnreadSync = () => {
     return null;
 };
 
-/**
- * Runtime layer — assembles the declarative `runtime.connection.RuntimeAuthHost` (transport bootstrap,
- * socket lifecycle and re-auth from the session's own socket slots). Session readiness is owned by
- * that host, which is the single web-core init driver (runtime-core's session controller) and builds
- * its own socket session delegate internally — apps no longer inject one. The desktop notification /
- * unread / connection runners self-gate on socket verification.
- *
- * The host is the variant WITHOUT background guest login, and that is the whole point on desktop.
- * The sibling host keeps a session-less visitor alive as a guest, which on this shell meant a new
- * guest account per window: the welcome screen painted for about a second before the background
- * login claimed the route, so Google sign-in, invite login and the dev sign-in form were unreachable,
- * and Log out dropped the user straight back into a fresh guest session. Desktop already has an
- * explicit door — the welcome screen's "start as guest" button registers the device itself — so
- * nothing needs a session before someone asks for one.
- *
- * Trade-off, deliberate: a session the server revokes mid-flight now ends at the welcome screen
- * instead of silently re-entering as a guest. That is one tap from recovery and it no longer hides
- * the revoke from the person it happened to.
- */
 export const DesktopRuntime = () => {
-    // Debug frame log: start recording inbound socket envelopes for the whole session, so the debug
-    // page opens onto a buffer that was already filling. From an effect, not at import: it reads the
-    // runtime engine, which exists only once the entry point has called `initAppRuntime`, and this
-    // module is imported before that. It is started once for the app's life (the store guards a
-    // second call) and deliberately not stopped on unmount.
     useEffect(() => {
         startSocketFrameLog();
     }, []);
 
-    // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies (and on
-    // return from sleep). Nothing else refreshes them at boot and the SDK's first writeback is a
-    // refresh cycle (5min) away, so without this every relay-signed request — the
-    // cloud switch's `delegate-cloud` first among them — 403s meanwhile, and a 403 with no CORS
-    // header reaches the app as a bare `Network Error`.
     useRelayCredentialRefresh();
 
-    // The cloud half of the same problem. A cloud AWS credential also lives about an hour, and the
-    // only thing that re-mints it mid-session is the cloud socket's refresh writeback — so a session
-    // that stays inside one cloud (or whose cloud socket drops) simply lets it lapse, and every
-    // cloud-signed request 403s the same opaque way. Re-entering a cloud hid this, because entering
-    // re-issues.
-    //
-    // Called with no policy, unlike the relay hook next door, and the difference is not an oversight:
-    //  - The hub arms itself off the credential's own `Expiration`, so there is no cadence to pick.
-    //  - `checkOnVisible` defaults to true and this shell gets real `visibilitychange` events, so the
-    //    wake-from-sleep trigger needs no local wiring (apps/web only adds one because a native
-    //    WebView does not fire it reliably).
-    //  - It must NOT be gated on the cloud socket. Cloud recovery is a RE-ISSUE from the relay
-    //    identity, not a refresh, so it works precisely when that socket is down — which is the case
-    //    this guard exists for. Gating it the way the relay hook gates its visibility trigger would
-    //    disable it exactly when it is needed.
     runtime.session.useCloudCredentialGuard();
-    // A browser a phone approved into clouds re-checks them through the relay — at mount, every ten
-    // minutes and on returning to the window — and signs out once an approval ended.
     usePairedCloudSignOut();
-    // The invite page signs the device guest in before its code is checked; that socket is not
-    // the person's concern yet, so the banner stays off the page until the attempt is left.
     const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
 
     return (
         <runtime.connection.RuntimeAuthHost>
-            {/* One provider for the whole app: Radix tooltip roots require an ancestor
-                provider, and a chat pane renders dozens of message toolbars at once.
-                `delayDuration` is short because these tooltips name icon-only controls —
-                the label is the only way to learn what a button does. */}
             <TooltipProvider delayDuration={300}>
                 <BackgroundSyncRunner />
                 <BackgroundCloudsRunner />
                 <AuthedNotifications />
                 <AuthedCloudRecords />
                 <ShellUnreadSync />
-                {/* The banners are a row in the layout, not fixed overlays. Fixed, they
-                    covered the shell's top row, and when both fired the update banner sat
-                    entirely under the connection banner. Stacked here, both show and the
-                    app below gives up exactly their height. */}
                 <div className="flex h-full flex-col">
                     <div className="flex shrink-0 flex-col">
                         <ConnectionBanner quiet={inviteAttemptHeld} />
-                        {/* Desktop auto-update banner — always mounted (no-op in browser). */}
                         <UpdateBanner />
                     </div>
                     <div className="relative min-h-0 flex-1">
                         <AppRouter />
-                        {/* Inside the area under the banners, so a banner pushes toasts down
-                            with the header rather than covering them. */}
                         <AppToaster />
                     </div>
                 </div>

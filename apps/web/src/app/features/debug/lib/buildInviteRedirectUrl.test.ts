@@ -46,7 +46,6 @@ describe('buildInviteRedirectUrl', () => {
     });
 
     it('accepts a relay link with a valueless flag and without api/stage', () => {
-        // A bare `&relay` reads as an empty string, so presence — not truthiness — is the discriminator.
         expect(buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&relay')).toBe(
             'https://dou-dev.chatic.io/?code=c&provider=invite&version=2&relay=1'
         );
@@ -73,7 +72,6 @@ describe('buildInviteRedirectUrl', () => {
     });
 
     it('accepts a `backend` link without api/stage', () => {
-        // The landing and mobile converters accept this form, so the debug tool must not reject it.
         expect(() =>
             buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&backend=https%3A%2F%2Fapi.example.com%2Fdev')
         ).not.toThrow();
@@ -88,7 +86,6 @@ describe('buildInviteRedirectUrl', () => {
     });
 
     it('treats a code-only link as relay even with unrelated params present', () => {
-        // utm/ref params are not addresses, so they must not push the link into the cloud branch.
         const url = new URL(buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&utm_source=kakao'));
 
         expect(url.searchParams.get('relay')).toBe('1');
@@ -103,7 +100,6 @@ describe('buildInviteRedirectUrl', () => {
     it('throws a descriptive error for an invalid URL or a partial cloud address', () => {
         expect(() => buildInviteRedirectUrl('not-a-url')).toThrow('Not a valid URL.');
         expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?api=x&stage=dev')).toThrow('code');
-        // A half-specified address is a broken cloud link, not a relay link — do not silently relay it.
         expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&stage=dev')).toThrow('api or backend');
         expect(() => buildInviteRedirectUrl('https://app-dev.chatic.io/s?code=c&api=x')).toThrow('stage');
     });

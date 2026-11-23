@@ -46,6 +46,33 @@ and says it reaches the channels when the place is opened. How the level is writ
 channel inherits it, and what it cannot reach are in
 [`../chat/notifications.md`](../chat/notifications.md#place-and-cloud-levels).
 
+## My profile in this place
+
+The name and photo a person goes by in a place (their place profile) are edited from the **My profile**
+entry above and from the profile page (`/profile`, `src/app/features/profile/`). The profile page has
+two cards: **This place**, how the person appears in the current place, and **Account**, the
+read-only account identity, which links to the account hub instead of repeating it (the account
+card reads the relay session; see [auth](../auth/README.md#social-login)). With no place selected
+(the Default Cloud) there is nowhere to save a place profile, so the This place card is not offered.
+
+- **The card waits for its read.** Whether a place profile exists is known only once the page has read
+  it (or the cache already holds my entry), so the card is drawn after that. Drawing it earlier showed
+  "Set up" and flipped to "Edit" behind the dialog. What is shown is the place profile when there is
+  one, else the account's name and photo.
+- **The dialog seeds in layers.** It fills the form at once from the cached place profile (my own
+  entry, keyed by my id in this cloud, which is not always the session's id), falling back to the
+  account's name and photo, then replaces the fields with the freshly read profile: loaded, else
+  cached, else account. A guest's "Guest" is how the app names it, not a nick it chose, so it is
+  never put into the nick field and only shows as the placeholder.
+- **Saving means using it.** There is no separate "active" toggle: saving a nick and photo sets the
+  place profile active. **Use account profile** deactivates it (the server keeps the nick; display
+  falls back to the account). It is offered only while a place profile is active, so it never reads
+  as deleting something that was not set, and it sits in a block of its own with its consequence
+  stated rather than beside Cancel and Save, where it would look like a third way to close.
+- **Focus returns to the nick field** whenever the form comes back from loading or saving. Both disable
+  the field, and a disabled input cannot hold focus, so without this focus fell to the page behind
+  the dialog, away from the field a failed save needs corrected.
+
 ## Managing channels
 
 `PlaceChannelsPage` lists the channels of the place in the URL (`useChannels`), each row with a

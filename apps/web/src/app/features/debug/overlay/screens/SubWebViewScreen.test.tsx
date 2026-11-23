@@ -102,7 +102,6 @@ describe('SubWebViewScreen', () => {
         expect(await screen.findByText('failed: NOT_ALLOWED — off the allowlist')).toBeInTheDocument();
     });
 
-    // The half of the round trip the Bridge screen cannot show.
     it('logs the close with its reason and the result the page handed back', () => {
         render(<SubWebViewScreen />);
 

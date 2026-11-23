@@ -17,7 +17,6 @@ import { formatPairingCode, formatRemaining } from '../utils/pairingCode';
 import { pairingTargetOptions, type PairingTargetOption } from '../utils/pairingTargets';
 import type { PairingCheck } from '../utils/types';
 
-/** Where the screen was opened from, set by the entry that opened it; back and "done" return there. */
 export interface PairingApproveEntry {
     from?: string;
 }
@@ -31,7 +30,6 @@ const ERROR_KEYS: Record<PairingApprovalError, `pairing.approve.error.${PairingA
     unknown: 'pairing.approve.error.unknown',
 };
 
-/** A phone asks with its system as the platform; everything else that asks is a browser. */
 const isPhonePlatform = (platform: string | undefined): boolean => platform === 'ios' || platform === 'android';
 
 const fieldClass = cn(
@@ -39,14 +37,6 @@ const fieldClass = cn(
     'border-control-border focus:border-focus-border disabled:opacity-50'
 );
 
-/**
- * The approving side of a pairing, in the desktop app: the person types the code a browser shows,
- * checks that the browser named is the one they opened, picks what it may use, and approves or
- * declines.
- *
- * Offered only in the desktop app (a browser is the requesting side) and only to a session that
- * signed in for itself: a paired session approving would hand on access it was itself only lent.
- */
 export const PairingApprovePage = () => {
     const isPaired = runtime.session.useIsPairedSession();
     const { from = '/settings' } = (useLocation().state ?? {}) as PairingApproveEntry;
@@ -82,7 +72,6 @@ const ApprovalScreen = ({ backTo }: { backTo: string }) => {
                     <label htmlFor={inputId} className="text-callout font-medium text-foreground">
                         {t('pairing.approve.codeLabel')}
                     </label>
-                    {/* No maxLength: a pasted `0734-4168` is nine characters, and the field keeps its digits. */}
                     <input
                         id={inputId}
                         autoFocus
@@ -108,7 +97,6 @@ const ApprovalScreen = ({ backTo }: { backTo: string }) => {
                 </section>
             ) : (
                 <ConfirmRequest
-                    // A new check is a new request: its debug acknowledgement and target choice start over.
                     key={state.check.pairingId}
                     check={state.check}
                     deciding={state.step === 'deciding'}
@@ -159,7 +147,6 @@ const ConfirmRequest = ({
         [relayGuest, clouds, selectedCloudId]
     );
     const [picked, setPicked] = useState<string | null>(null);
-    // The default follows the catalog until the person picks; a pick the catalog no longer lists falls back.
     const selected = options.find(option => option.key === picked) ?? options.find(option => option.key === defaultKey);
 
     const scopeName = (option: PairingTargetOption) => option.cloudName ?? '';

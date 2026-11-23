@@ -84,16 +84,13 @@ describe('SearchDialog rows', () => {
         act(() => usePlaceProfilesStore.setState({ bySid: {} }));
     });
 
-    // Two hits from different people read as the same line twice.
     it('says who sent each match', async () => {
         await openWith('deploy');
         const options = screen.getAllByRole('option').map(option => option.textContent);
         expect(options[1]).toContain('Ada');
-        // Not resolved yet: no stand-in name that would flash and then change.
         expect(options[2]).not.toMatch(/bob|Someone/);
     });
 
-    // The OS banner named a sender by their place nick while search still showed the account name.
     it("names a match's sender by their nick in the channel's place", async () => {
         act(() => usePlaceProfilesStore.getState().setPlace('s1', { ada: { nick: 'Ada Nick' } }));
         await openWith('deploy');
@@ -101,7 +98,6 @@ describe('SearchDialog rows', () => {
         expect(options[1]).toContain('Ada Nick');
     });
 
-    // A message of mine carries my cloud id while my nick can sit under my account id.
     it('names my own match by my nick under either of my ids', async () => {
         act(() => usePlaceProfilesStore.getState().setPlace('s1', { me: { nick: 'My Nick' } }));
         search.ownMatch = true;
@@ -110,14 +106,12 @@ describe('SearchDialog rows', () => {
         expect(options[2]).toContain('My Nick');
     });
 
-    // The previous count stayed up and jumped as the cache filled in.
     it('holds the match count back while a search is running', async () => {
         search.isSearching = true;
         await openWith('deploy');
         expect(screen.getAllByRole('option')[0].textContent).not.toContain('2 matches');
     });
 
-    // Without an open channel there is nothing to narrow to.
     it('offers no scope toggle without a current channel', async () => {
         await openWith('deploy');
         expect(screen.queryByRole('group', { name: 'Search scope' })).toBeNull();
@@ -134,7 +128,6 @@ describe('SearchDialog scope', () => {
         seenChannels.list = [];
     });
 
-    // The reader usually wants the room they are looking at, not the whole place.
     it('narrows the search to the open channel', async () => {
         await openWith('deploy', { channels: [channel, random], currentChannelId: 'c1' });
         fireEvent.click(screen.getByRole('button', { name: 'This channel' }));
@@ -149,8 +142,6 @@ describe('SearchDialog scope', () => {
         const narrowed = lastSearchedChannels();
         fireEvent.change(screen.getByRole('combobox'), { target: { value: 'deploy plan' } });
 
-        // A fresh array per render reads as a new channel set, and the real search hook's
-        // effect then sets state on every render until React aborts the tree.
         expect(lastSearchedChannels()).toBe(narrowed);
     });
 
@@ -161,7 +152,6 @@ describe('SearchDialog scope', () => {
         expect(lastSearchedChannels().map(c => c.id)).toEqual(['c1', 'c2']);
     });
 
-    // The channel behind the dialog may be a different one by the next opening.
     it('resets the scope when the dialog reopens', async () => {
         const rendered = render(
             <SearchDialog channels={[channel, random] as never} onSelect={vi.fn()} currentChannelId="c1" />
@@ -196,12 +186,10 @@ describe('SearchDialog empty result', () => {
         onSelect.mockReset();
     });
 
-    // A cold start said "Nothing here yet" for every query, with no hint that nothing was loaded.
     it('says the device has nothing loaded yet on a cold start', async () => {
         search.scannedCount = 0;
         await openEmptyWith('deploy');
         expect(screen.getByText(/hasn't loaded any messages yet/)).toBeTruthy();
-        // The empty line states the scope; only the dialog's description carries it, not a footer too.
         expect(screen.getAllByText(/Searches this place/)).toHaveLength(1);
     });
 

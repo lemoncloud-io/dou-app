@@ -16,7 +16,6 @@ vi.mock('@chatic/runtime', async () =>
 
 const load = vi.fn();
 const setMyProfile = vi.fn();
-/** Mirrors the real hook's flags: loading while the opening read is in flight, saving around a save. */
 const useFakeMyProfile = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -49,8 +48,6 @@ import { useSiteProfilesStore } from '../../../shared';
 import { useEditPlaceProfileDialogStore } from '../stores';
 import { EditPlaceProfileDialog } from './EditPlaceProfileDialog';
 
-// Saving disables the field and the buttons, so the control that was focused goes dead
-// and focus fell to <body>. A failed save left it there, away from the field to fix.
 describe('EditPlaceProfileDialog focus after a failed save', () => {
     beforeEach(() => {
         load.mockResolvedValue(null);
@@ -66,7 +63,6 @@ describe('EditPlaceProfileDialog focus after a failed save', () => {
 
     it('puts focus back on the nickname field when Save fails', async () => {
         render(<EditPlaceProfileDialog />);
-        // The opening read disables the form until it settles.
         await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy());
         await waitFor(() =>
             expect((screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement).disabled).toBe(false)
@@ -96,8 +92,6 @@ describe('EditPlaceProfileDialog focus after a failed save', () => {
         await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('Nickname')));
     });
 
-    // The autofocused field is disabled while the opening read loads, so the
-    // autofocus lands nowhere and focus is left on the page behind the dialog.
     it('focuses the nickname field once the opening load finishes', async () => {
         let settle: (profile: null) => void = () => undefined;
         load.mockReturnValue(new Promise<null>(resolve => (settle = resolve)));

@@ -16,22 +16,12 @@ interface Row {
     totalMs: number;
 }
 
-/**
- * A viewer for native cache call instrumentation (`nativeCacheMetrics`).
- *
- * The key point is that the sort key is **cumulative time (count × avg)**, not the average. A
- * call that's slow once and a call that's fast but called often call for different fixes
- * (storage vs. observer re-fetching), and only the cumulative view shows which one is actually
- * eating the time.
- */
 export const CacheMetricsScreen = () => {
     const strings = useCacheMetricsStrings();
     const [rows, setRows] = useState<Row[]>([]);
     const [totalOps, setTotalOps] = useState(0);
     const [snapshot, setSnapshot] = useState<unknown>(null);
 
-    // The screen doesn't import @chatic/db directly — it only sees the counts through the runtime, which
-    // reads them where the cache is (another process on the phone), so a read answers asynchronously.
     const metricsSource = useMemo(() => runtime.data.getCacheMetricsSource(), []);
 
     const read = useCallback(async () => {
@@ -45,7 +35,6 @@ export const CacheMetricsScreen = () => {
         );
     }, [metricsSource]);
 
-    // Instrumentation is module state, so it doesn't fire events — poll only while this is open.
     useEffect(() => {
         void read();
         const id = setInterval(() => void read(), REFRESH_MS);

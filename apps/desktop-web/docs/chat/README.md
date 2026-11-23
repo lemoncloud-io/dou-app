@@ -62,3 +62,13 @@ stores in `src/app/shared/`.
   resend of failed messages.
 - [push-routing.md](./push-routing.md): which cloud and place a forwarded push belongs to, when it shows,
   and the link a click opens.
+
+Dialogs reached from the sidebar and the room header:
+
+- [message-search.md](./message-search.md): what the search dialog looks through, what counts as a hit, and
+  how "nothing loaded", "no match" and "could not read" differ.
+- [create-channel.md](./create-channel.md): the name rule shared with rename and how a refused create is
+  explained.
+- [channel-members.md](./channel-members.md): how the roster loads, what an invite writes locally, and kick with
+  undo.
+- [invite-waiting.md](./invite-waiting.md): the waiting dialog's polling, cancel and reissue.

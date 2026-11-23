@@ -39,7 +39,6 @@ vi.mock('@chatic/runtime', async () => {
         settings: {
             get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined),
         },
-        // The desktop app's relay sign-in, which sends the authorize page to the system browser.
         signIn: {
             ...browserSignIn(),
             relayOAuth: {
@@ -73,8 +72,6 @@ describe('useSocialLogin.start', () => {
     const open = vi.fn();
 
     beforeEach(() => {
-        // The shell's persistent backing, as main.tsx wires it.
-        // As in the desktop shell, where the session's plain store is localStorage.
         configureAppStores({ device: WebStore.local(), tab: WebStore.session(), plain: WebStore.local() });
         localStorage.clear();
         open.mockReset();
@@ -200,7 +197,6 @@ describe('useSocialLogin.start', () => {
             act(() => {
                 started = result.current.start('google');
             });
-            // Registering flips the router to the signed-in branch, which unmounts the Welcome page.
             unmount();
             await act(async () => {
                 finish();
@@ -298,7 +294,6 @@ describe('useSocialLogin.start', () => {
             expect(session.toast).not.toHaveBeenCalled();
         });
 
-        // A browser tab restored or reloaded on the hand-off page sends the link it already sent.
         it('is ignored without a word when it comes again, and leaves a newer start alone', async () => {
             startRecord();
             session.createCredentialsByProvider.mockResolvedValue(undefined);
@@ -306,7 +301,6 @@ describe('useSocialLogin.start', () => {
             await act(() => result.current.completeFromHandoff({ provider: 'google', code: 'c', nonce: 'n1' }));
             const newer = { provider: 'google', intent: 'login' as const, startedAt: Date.now(), nonce: 'n2' };
             saveOAuthLoginStart(newer);
-            // A successful login reloads the app, so the repeat meets a fresh hook.
             const reloaded = renderHook(() => useSocialLogin()).result;
 
             await act(() => reloaded.current.completeFromHandoff({ provider: 'google', code: 'c', nonce: 'n1' }));
@@ -331,7 +325,6 @@ describe('useSocialLogin.start', () => {
                 expect.objectContaining({ description: i18n.t('auth.social.notStarted') })
             );
             expect(takeOAuthLoginStart()).toBeNull();
-            // The reason is logged; neither the code nor the nonce is.
             expect(session.warn).toHaveBeenCalledWith('AUTH', expect.any(String), {
                 reason: nonce ? 'nonce-mismatch' : 'nonce-missing',
             });
@@ -439,14 +432,12 @@ describe('useSocialLogin.start', () => {
 
             expect(session.confirmSocialAccount).not.toHaveBeenCalled();
             expect(session.patchRelaySessionUser).not.toHaveBeenCalled();
-            // Left for the account hub's sign-in card, which keeps it until dismissed; no toast.
             expect(useOAuthAttemptStore.getState().linkFailure).toBe(failure);
             expect(session.toast).not.toHaveBeenCalled();
         });
 
         it.each([
             ['409 CONFLICT', 'occupied'],
-            // 403 from confirm can also be a session that is not a main user: only verify names type-linked.
             ['403 FORBIDDEN', 'failed'],
             ['500 ERROR', 'failed'],
         ])('reads a confirm refused with %s', async (message, failure) => {
@@ -483,7 +474,6 @@ describe('useSocialLogin.start', () => {
 
             expect(done).toBe('link');
             expect(useOAuthAttemptStore.getState().linkFailure).toBe('failed');
-            // The attempt is over either way: the hub's link button comes back.
             expect(useOAuthAttemptStore.getState().attempt).toBeNull();
         });
 

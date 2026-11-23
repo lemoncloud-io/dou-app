@@ -103,8 +103,6 @@ export const DebugLoginPage = () => {
 
                 <button
                     type="button"
-                    // Back to wherever this page was opened from (welcome or invite);
-                    // a fresh load with no history lands on the welcome screen.
                     onClick={() => (location.key === 'default' ? navigate('/auth/welcome') : navigate(-1))}
                     className="text-micro font-medium text-muted-foreground hover:text-foreground"
                 >

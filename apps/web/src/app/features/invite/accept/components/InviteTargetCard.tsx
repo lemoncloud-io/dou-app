@@ -4,13 +4,8 @@ import { Badge, DefaultAvatar, IconUsersGroup, Text } from '@chatic/web-ui-kit';
 
 import { InviteCard } from './InviteCard';
 
-/**
- * What accepting the invite joins. A relay invite is always a 1:1; a cloud invite is a group
- * room, or — when it names no room — the place alone.
- */
 export type InviteTargetKind = 'group' | 'oneToOne' | 'place';
 
-/** The kinds that have a room to draw a card for; a place invite joins none. */
 export type InviteRoomKind = Exclude<InviteTargetKind, 'place'>;
 
 const CAPTION_KEY: Record<InviteRoomKind, string> = {
@@ -19,30 +14,11 @@ const CAPTION_KEY: Record<InviteRoomKind, string> = {
 };
 
 interface InviteTargetCardProps {
-    /** Member count of the target room; when present a group badge is shown. */
     memberCount?: number;
     kind?: InviteRoomKind;
-    /**
-     * Name of the room: the group room's name, or the inviter for a 1:1. Blank or absent draws no name
-     * line at all — the caption alone is complete, an empty line or a placeholder is not.
-     */
     name?: string;
 }
 
-/**
- * Invite accept screen — the room card: what the invite leads to. Shows the room's name (when the
- * invite carries one) over the room-kind caption (Figma 3072-10943 · 3076-11341). Cloud invites are
- * group chats, so that stays the default; the relay 1:1 invite passes `oneToOne`. A place invite
- * joins no room, so the screen does not draw this card for it.
- *
- * The avatar is the `self` variant on purpose: the design uses the Figma "1-Person Profile" solid glyph for
- * **both** kinds rather than the three-person group glyph (flagged for designer review, so switching to
- * `variant="group"` later is a one-word change).
- *
- * The "room friends N" badge appears only once the invite metadata carries a member count. The field is
- * wired all the way through (`InviteInfo.memberCount` → CloudInviteAccept → here), but the backend does
- * not denormalize it yet, so in practice the badge stays hidden until it does.
- */
 export const InviteTargetCard = ({ memberCount, kind = 'group', name }: InviteTargetCardProps) => {
     const { t } = useTranslation();
     const roomName = name?.trim();
@@ -63,12 +39,6 @@ export const InviteTargetCard = ({ memberCount, kind = 'group', name }: InviteTa
             {memberCount != null && memberCount > 0 && (
                 <Badge
                     icon={<IconUsersGroup size={18} />}
-                    // Figma 3076-11378: white 20% painted *over* the InviteCard it sits in, so the pill
-                    // ends up lighter than the card in both themes, lifted by a soft shadow. One fill
-                    // for both themes on purpose — a `dark:` override matching the card's own
-                    // `white/10` would leave the pill with no edge to read against. Styled through
-                    // className rather than a new Badge variant (and so tw-merge drops the default
-                    // tone) because this is the only place in the app that needs the treatment.
                     className="gap-1.5 bg-white/20 px-3.5 py-2 text-[13px] leading-4 text-label shadow-[0px_0px_6px_0px_rgba(0,0,0,0.04)]"
                 >
                     {t('inviteAccept.target.roomFriends', { count: memberCount })}

@@ -8,18 +8,6 @@ import { CopyButton } from '../../components/CopyButton';
 import { useIapScreenStrings } from '../../i18n/screens/IapScreen';
 import { appBridge } from '../../../../bridge';
 
-/**
- * In-app purchase plumbing — the app's IAP Test screen, moved here (ADR-0080 decision 11).
- *
- * All six commands already existed and the web's own `useSubscriptionIap` maps 1:1 onto them
- * (stage 1). What this screen adds over the product UI is the raw view: the store's answer
- * verbatim, so a mismatch between what Apple/Google returns and what the plan catalog expects is
- * visible.
- *
- * **Buying is `post`, not `request`** — the result arrives later as `OnPurchaseSuccess` or
- * `OnPurchaseError`, which is why this subscribes rather than awaiting. Saying "purchased" off the
- * `purchase` call alone would be a claim the bridge never made (decision 10).
- */
 export const IapScreen = () => {
     const t = useIapScreenStrings();
     const { result, run, fire } = useDebugOperation();
@@ -33,8 +21,6 @@ export const IapScreen = () => {
     }, []);
 
     useEffect(() => {
-        // The store call is slow and can fail outright (no shell, sandbox account trouble); the
-        // buttons below let the tester retry, so a silent empty list is the right initial state.
         void loadProducts().catch(() => setProducts([]));
     }, [loadProducts]);
 
@@ -115,11 +101,7 @@ export const IapScreen = () => {
                                     {t.buy}
                                 </button>
                             </div>
-                            {/* Android needs an `offerToken` this screen does not guess at — the raw
-                                JSON below is where the tester finds it. */}
                             <details className="mt-1">
-                                {/* The copy used to be an onClick on the <pre> itself — nothing said it
-                                    was clickable, and it could not report the outcome. */}
                                 <summary className="cursor-pointer text-[11px] text-muted-foreground">{t.raw}</summary>
                                 <div className="mt-1 flex justify-end">
                                     <CopyButton value={() => JSON.stringify(product, null, 2)} />

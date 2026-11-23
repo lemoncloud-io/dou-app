@@ -20,17 +20,9 @@ interface ConfirmDialogProps {
     onConfirm: () => void;
     isPending?: boolean;
     variant?: 'danger' | 'default';
-    /**
-     * The description is the app's own explanation, not quoted user content, so it is shown whole
-     * instead of clamped — cutting it would cut the consequence the person is confirming.
-     */
     fullDescription?: boolean;
 }
 
-/**
- * Generic confirmation dialog (delete / leave / kick). Desktop-native rebuild of
- * the apps/web ConfirmDialog pattern (ADR-0002 — no cross-app imports).
- */
 export const ConfirmDialog = ({
     open,
     onOpenChange,
@@ -52,9 +44,6 @@ export const ConfirmDialog = ({
         <AlertDialog open={open} onOpenChange={handleOpenChange}>
             <AlertDialogContent className="sm:max-w-sm">
                 <AlertDialogTitle>{title}</AlertDialogTitle>
-                {/* Clamped: the description quotes user content — a message, a channel
-                    name — and it is here to identify the thing, not to reproduce it. A
-                    long message would otherwise push the buttons off the dialog. */}
                 <AlertDialogDescription className={cn(description ? !fullDescription && 'line-clamp-3' : 'sr-only')}>
                     {description ?? title}
                 </AlertDialogDescription>

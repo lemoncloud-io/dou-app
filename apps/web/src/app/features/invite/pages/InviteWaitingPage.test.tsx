@@ -17,7 +17,6 @@ let mockInvite: any;
 let mockIsLoading = false;
 let mockSyncStatus: 'unknown' | 'waiting' | 'ready' | 'timeout' = 'unknown';
 let mockIsCanceled = false;
-/** Live store behind `markCanceled`, so a dismiss the page makes is visible to `isCanceled`. */
 const canceledIds = new Set<string>();
 
 jest.mock('react-router-dom', () => ({ useParams: () => ({ inviteId: 'invite-1' }) }));
@@ -25,18 +24,12 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/runtime', () => require('@chatic/runtime/testing').fakeRuntimeModule({}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-// Same pattern as ChannelList.test.tsx: render the dropdown content unconditionally so the
-// menu item is queryable without simulating a Radix trigger click. Covers both this file's own
-// import and ChatRoomHeader's internal one (same module path).
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
     DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
     DropdownMenuItem: ({ children, onClick }: any) => <div onClick={onClick}>{children}</div>,
     DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
 }));
-// The real barrel also exports AddFriendSheet, which pulls channels/hooks -> @chatic/runtime
-// -> chatic-sockets-lib -> lemon-model (needs a TextEncoder global this test env doesn't polyfill).
-// Same fix PlaceChannelManagePage.test.tsx uses: mock the barrel down to what this page needs.
 jest.mock('../../channels/components', () => ({
     ConfirmDialog: ({ open, title, description, confirmLabel, onConfirm }: any) =>
         open ? (
@@ -69,8 +62,6 @@ jest.mock('../hooks/useLocallyCanceledInvites', () => ({
         markCanceled,
     }),
 }));
-// The retire policy itself is covered by useRetireInvite.test.ts — here it is a controllable seam
-// so each reissue branch (canceled/conflict/failed/dismissed) can be staged directly.
 jest.mock('../hooks/useRetireInvite', () => ({
     useRetireInvite: () => ({ retire }),
 }));
@@ -128,7 +119,6 @@ describe('InviteWaitingPage', () => {
         const confirmCancel = () => {
             render(<InviteWaitingPage />);
             fireEvent.click(screen.getByText('inviteWaiting.cancelInvite'));
-            // The stub-era "local only" copy is gone — the dialog states the real consequence.
             expect(screen.getByText('inviteWaiting.cancelDialog.description')).toBeInTheDocument();
             fireEvent.click(screen.getByText('inviteWaiting.cancelDialog.confirm'));
         };
@@ -139,7 +129,7 @@ describe('InviteWaitingPage', () => {
             await waitFor(() => expect(cancelInvite).toHaveBeenCalledWith('invt:invite-1:c0de'));
             await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.canceledToast' }));
             expect(navigate).toHaveBeenCalledWith('/', { replace: true });
-            expect(markCanceled).not.toHaveBeenCalled(); // The server remembers — there is no local stamp anymore
+            expect(markCanceled).not.toHaveBeenCalled();
         });
 
         it('409(이미 수락)면 홈으로 가지 않고 목록을 재조회해 화면이 사실을 따르게 한다', async () => {
@@ -167,8 +157,6 @@ describe('InviteWaitingPage', () => {
     describe('재발급 — 이전 초대 retire 선행 (ADR-0043 결정 5) · 국가 복원 (ADR-0044)', () => {
         beforeEach(() => {
             mockIsLoading = false;
-            // The log key IS the E.164 value the packet wants now; parsing it back only recovers the
-            // country, for the `countryCode` field (ADR-0044 §5 correction).
             findByInviteId.mockReturnValue({ inviteId: 'invite-1', phone: '+821012345678', name: '홍길동' });
             createInvite.mockResolvedValue({ id: 'invite-2', deeplink: 'https://dou.chatic.io/s?code=xyz' });
         });
@@ -232,7 +220,7 @@ describe('InviteWaitingPage', () => {
         it('rejected에서 재발급하면 retire(dismiss)가 로컬 기록을 남겨도 홈으로 튕기지 않는다', async () => {
             mockInvite = { id: 'invite-1', code: 'c0de', state: 'rejected', name: '홍길동' };
             retire.mockImplementation(async () => {
-                markCanceled('invite-1'); // Reproduces the mark a dismiss leaves behind flipping isGone
+                markCanceled('invite-1');
                 return 'dismissed';
             });
 
@@ -240,8 +228,6 @@ describe('InviteWaitingPage', () => {
             fireEvent.click(screen.getByText('inviteWaiting.reissue'));
 
             await waitFor(() => expect(navigate).toHaveBeenCalledWith('/invite/invite-2/waiting', { replace: true }));
-            // The dismiss is this screen's own, so the "gone invite" redirect must stay out of it —
-            // otherwise the reissue lands on home instead of the new invite's waiting screen.
             expect(navigate).not.toHaveBeenCalledWith('/', { replace: true });
         });
 
@@ -259,7 +245,6 @@ describe('InviteWaitingPage', () => {
 
         it('로그의 키가 국가를 잃었으면 재발급하지 않는다 — 어느 나라로 보낼지 알 수 없다', () => {
             mockInvite = { id: 'invite-1', code: 'c0de', state: 'expired', name: '홍길동' };
-            // A v1-era local-digits key that somehow survived: no `+`, so no country to send with.
             findByInviteId.mockReturnValue({ inviteId: 'invite-1', phone: '01012345678', name: '홍길동' });
 
             render(<InviteWaitingPage />);
@@ -271,15 +256,12 @@ describe('InviteWaitingPage', () => {
         });
     });
 
-    // Figma 3263-30117 with the product rule: a declined invite offers both actions, and no validity card.
-    // The server keeps a decline through a cancel, so canceling one hides it here instead.
     it('cancels a declined invite by hiding it locally, without asking the server', async () => {
         mockIsLoading = false;
         mockInvite = { id: 'invite-1', code: 'c0de', state: 'rejected', name: '홍길동' };
 
         render(<InviteWaitingPage />);
         fireEvent.click(screen.getByText('inviteWaiting.cancelInvite'));
-        // The confirm says what canceling a declined invite does: it leaves the list.
         expect(screen.getByText('inviteWaiting.cancelDialog.rejectedDescription')).toBeInTheDocument();
         fireEvent.click(screen.getByText('inviteWaiting.cancelDialog.confirm'));
 

@@ -8,33 +8,13 @@ import { useRouteScreenStrings } from '../../i18n/screens/RouteScreen';
 import { getRouteTrail } from '../../../../utils/routeTrail';
 import { canGoBackInApp, routeStackTracker, type RouteStackSnapshot } from '../../../../navigation';
 
-/**
- * Navigation inspector: the history stack and the visited trail side by side.
- *
- * The two answer different questions and routinely disagree — `/a → /b → back → /c` leaves a trail
- * of `a, b, c` and a stack of `a, c`. Showing them together is the point: a back button that
- * misbehaves is a stack problem, while "how did the user reach this screen" is a trail question.
- *
- * Reads module stores rather than `useLocation`, because the overlay mounts OUTSIDE the Router
- * (see DebugOverlayHost) and has no router context to hook into.
- *
- * Every number carries a hint (see HintRow): the values here are only useful to someone who knows
- * which of them is the app's own depth and which is the browser's, and that distinction is exactly
- * what the numbers do not show on their own.
- */
 export const RouteScreen = () => {
     const t = useRouteScreenStrings();
     const [stack, setStack] = useState<RouteStackSnapshot>(() => routeStackTracker.getSnapshot());
     const [trail, setTrail] = useState<string[]>(() => getRouteTrail());
     const [historyLength, setHistoryLength] = useState(() => window.history.length);
-    // Asked of the same function the back button asks, rather than derived from the snapshot
-    // above. The two agree in the ordinary cases, but a pushState that bypassed the router kills
-    // the live index while the tracker still shows its last observed one — and this row saying
-    // "yes" while back does nothing is the exact confusion this screen exists to prevent.
     const [canGoBack, setCanGoBack] = useState(() => canGoBackInApp());
 
-    // Polled, like the Perf screen: the stores are plain module state with no subscription, and the
-    // panel is only open while someone is watching it.
     useEffect(() => {
         const poll = () => {
             setStack(routeStackTracker.getSnapshot());
@@ -98,8 +78,6 @@ export const RouteScreen = () => {
             </Section>
 
             <Section title={t.stack.title}>
-                {/* Always visible, not a hint: the reader needs to know what this list IS before
-                    reading it, and the stack/trail distinction is the whole reason for two lists. */}
                 <p className="text-muted-foreground pb-1 text-xs leading-snug">{t.stack.description}</p>
                 {!stack.isIndexed && (
                     <HintRow label={t.stack.warningLabel} value={t.stack.warningValue} hint={t.stack.warningHint} />

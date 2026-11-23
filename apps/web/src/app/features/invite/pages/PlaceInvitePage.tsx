@@ -8,31 +8,13 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { resolvePlaceInviteGate } from '../../../utils/placeInviteGate';
-// Direct path, not the `hooks` barrel: the barrel reaches web-core's transport, whose `import.meta`
-// jest cannot parse.
 import { usePlaceInviteExperiment } from '../../../hooks/usePlaceInviteExperiment';
-// Direct paths, not the channels barrels: the room invite's contact picker, link sheet and hook are
-// what this page reuses, and the barrels would pull the whole room feature in with them.
 import { AddFriendSheet } from '../../channels/components/AddFriendSheet';
 import { ContactInviteTab } from '../../channels/components/ContactInviteTab';
 import { useCreateInviteBatch } from '../../channels/hooks/useCreateInviteBatch';
 
-/** The same cap the room invite puts on one confirm. */
 const MAX_INVITE_SELECTION = 100;
 
-/**
- * Invite people into a cloud place without a room — the home profile menu's "invite to place".
- *
- * It is the room invite's contact tab, bound to the place instead of a room: device contacts on the
- * app (one person → the SMS composer, several → a server-sent batch), a name-and-number link sheet
- * on the web or past the list. Every invite goes out with no `channelId`, so accepting joins the
- * place and nothing else.
- *
- * The packet carries no site either: the server files the invite under the site the session is
- * sitting on. That is why the route names the place and every send re-checks it against the session
- * — a place switch between opening this page and confirming (another tab, a push) would otherwise
- * invite people somewhere the screen never said.
- */
 export const PlaceInvitePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -45,7 +27,6 @@ export const PlaceInvitePage = () => {
     const { isEnabled: isExperimentEnabled } = usePlaceInviteExperiment();
     const [addFriendOpen, setAddFriendOpen] = useState(false);
 
-    // `undefined` until the cache has answered once, so "not loaded" and "no such place" differ.
     const [place, setPlace] = useState<DomainPlace | null | undefined>(undefined);
     useEffect(() => {
         setPlace(undefined);
@@ -64,27 +45,14 @@ export const PlaceInvitePage = () => {
         sessionSiteId: selectedSiteId,
     });
 
-    // The menu entry is hidden for anyone who cannot invite here; a direct visit is sent back, the
-    // same defensive backstop PlaceEditPage keeps for its owner-only screen. Ownership has to wait
-    // for the place row — an unloaded row is not a non-owner — but the Lab switch does not: with the
-    // experiment off, an old link or the back stack is sent home at once rather than showing the form
-    // until the cache answers.
     useEffect(() => {
         if ((place !== undefined || !isExperimentEnabled) && gate === 'hidden') {
             navigate(ROUTES.home, { replace: true });
         }
     }, [place, gate, isExperimentEnabled, navigate]);
 
-    /**
-     * Refuses to send unless the session is on this place right now. It throws rather than returning
-     * quietly: the contact tab and the link sheet both toast a thrown message and keep the user where
-     * they are, which is the behaviour wanted here.
-     */
     const ensureReady = () => {
         if (gate !== 'ready') throw new Error(t('placeInvite.placeChanged'));
-        // The gate reads the selection. The session itself can sit on another place for a moment — a
-        // credential renewal re-registers it wherever the server picks, until it is switched back —
-        // and the server files the invite there, so ask the token as well. Unknown is not a refusal.
         const sessionSiteId = runtime.session.getCommittedSessionSiteId();
         if (sessionSiteId && sessionSiteId !== placeId) throw new Error(t('placeInvite.placeChanged'));
     };

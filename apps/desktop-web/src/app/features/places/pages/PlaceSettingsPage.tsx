@@ -19,12 +19,6 @@ import { useEditPlaceDialogStore } from '../../chat/stores/useEditPlaceDialogSto
 import { EditPlaceProfileDialog } from '../../profile/components/EditPlaceProfileDialog';
 import { useEditPlaceProfileDialogStore } from '../../profile/stores/useEditPlaceProfileDialogStore';
 
-/**
- * One place's settings surface: read-only info plus the entries that act on
- * it. The "my profile" entry shows only for the ACTIVE place — the edit
- * dialog it opens has no place parameter and always edits the active one, so
- * offering it elsewhere would edit the wrong place.
- */
 export const PlaceSettingsPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -124,7 +118,6 @@ export const PlaceSettingsPage = () => {
                         </div>
                     )}
 
-                    {/* Owners alone rename the place itself; everyone else reads it above. */}
                     {place.isOwner && (
                         <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
                             <div className="flex min-w-0 flex-col gap-0.5">
@@ -171,9 +164,6 @@ export const PlaceSettingsPage = () => {
                     </div>
                 </section>
             </div>
-            {/* The two entries above only flip their dialog stores; HomePage, which mounts
-                these dialogs on the home route, is not rendered here, so this page mounts
-                its own (as ProfilePage does). */}
             <EditPlaceDialog places={places} />
             <EditPlaceProfileDialog />
         </div>

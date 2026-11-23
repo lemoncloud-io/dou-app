@@ -22,7 +22,6 @@ import {
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
 import { CustomPaletteFields } from './CustomPaletteFields';
 
-// Segmented text choice shared by the font size and density radio groups.
 const SEGMENT_BUTTON =
     'focus-ring tactile flex-1 rounded-lg border px-4 py-2 text-callout transition-colors ease-tactile';
 const segmentTone = (checked: boolean): string =>
@@ -32,25 +31,14 @@ const segmentTone = (checked: boolean): string =>
 
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
 
-// The bundles that actually ship (src/i18n.ts owns the list). A picker with a
-// single choice is chrome, so it stays hidden until there is a second language.
 const LANGUAGE_OPTIONS = SUPPORTED_LANGUAGES;
 
-/**
- * Mini preview swatch for each theme choice. The two solid halves of the system
- * swatch are the light and dark grounds side by side — not a gradient blend,
- * which would read as a third theme that does not exist.
- */
 const THEME_SWATCH: Record<Theme, string> = {
     light: 'border-swatch-border bg-swatch-light',
     dark: 'border-swatch-border bg-swatch-dark',
     system: 'border-swatch-border bg-swatch-light',
 };
 
-/**
- * Display mode, shell palette, text size, message density and language: every control writes as it
- * changes. The body of the Appearance dialog; `className` is the surface the caller puts it on.
- */
 export const AppearanceControls = ({ className }: { className?: string }) => {
     const { t, i18n } = useTranslation();
     const uid = useId();
@@ -67,10 +55,8 @@ export const AppearanceControls = ({ className }: { className?: string }) => {
     const customPalette = useAppearancePrefsStore(s => s.customPalette);
     const setPalette = useAppearancePrefsStore(s => s.setPalette);
     const setCustomPalette = useAppearancePrefsStore(s => s.setCustomPalette);
-    // Custom's colours, or what it would start from: the colours of the palette that is on.
     const customColors = customPalette ?? colorsOf({ palette, customPalette });
     const announcePalette = useCallback(() => toast({ title: t('settings.palette.applied') }), [t]);
-    // The shell recolours the moment a card is picked; the toast says so for the one who looked away.
     const pickPalette = (next: PaletteChoice) => {
         if (next === palette) return;
         if (next === 'custom') setCustomPalette(customColors);
@@ -78,7 +64,6 @@ export const AppearanceControls = ({ className }: { className?: string }) => {
         announcePalette();
     };
     const paletteProps = radioGroupOptions(PALETTE_CHOICES, palette, pickPalette);
-    // Each sample card draws its own palette, whichever one is on, from the rule the shell uses.
     const presetPreviewCss = useMemo(
         () =>
             PALETTES.map(option =>
@@ -114,7 +99,6 @@ export const AppearanceControls = ({ className }: { className?: string }) => {
                                 aria-hidden
                                 className={cn('flex h-6 w-10 overflow-hidden rounded-md border', THEME_SWATCH[option])}
                             >
-                                {/* "System" is both grounds at once: two solid halves, no blend. */}
                                 {option === 'system' && <span className="h-full w-1/2 bg-swatch-dark" />}
                             </span>
                             {t(`settings.theme.${option}`)}
@@ -151,8 +135,6 @@ export const AppearanceControls = ({ className }: { className?: string }) => {
                                     segmentTone(palette === option)
                                 )}
                             >
-                                {/* The shell in miniature: cloud rail, nav rail, list, and the chat
-                                        card, drawn from the palette's own tokens. */}
                                 <span
                                     aria-hidden
                                     data-palette-preview={option}
@@ -215,8 +197,6 @@ export const AppearanceControls = ({ className }: { className?: string }) => {
                 </div>
             </div>
 
-            {/* Two static sample messages drawn with the live font size and the same row
-                    spacing variables the feed uses, so a change shows here without a reload. */}
             <div className="flex flex-col gap-2.5">
                 <span className="text-callout font-medium text-foreground">{t('settings.preview')}</span>
                 <div
@@ -236,9 +216,6 @@ export const AppearanceControls = ({ className }: { className?: string }) => {
                 </div>
             </div>
 
-            {/* Hidden while a single bundle ships — see LANGUAGE_OPTIONS. The
-                        choice is remembered, and with none stored the app follows the
-                        system language. */}
             {LANGUAGE_OPTIONS.length > 1 && (
                 <div className="flex flex-col gap-2.5">
                     <span id={`${uid}-language-label`} className="text-callout font-medium text-foreground">

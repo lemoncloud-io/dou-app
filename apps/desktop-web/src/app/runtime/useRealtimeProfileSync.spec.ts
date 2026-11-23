@@ -2,13 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderHook, waitFor } from '@testing-library/react';
 
-/**
- * The pull itself (`profile.syncProfiles`) is the data layer's, and the cursor bookkeeping is shared
- * with the 60s poll. What belongs to this hook — and what a regression here would silently break —
- * is WHICH server frame triggers a re-pull: the server broadcasts a place-profile change as
- * `profile.sync` (the old `channel.sync-site-profile` is a request name only, never pushed), so a
- * subscription to anything else leaves a peer's nick/photo edit waiting for the next poll.
- */
 const mockOnServerEvent = vi.fn<(type: string, listener: (message: unknown) => void) => () => void>();
 const mockSyncProfiles = vi.fn();
 const mockGetSyncedAt = vi.fn();
@@ -34,7 +27,6 @@ vi.mock('@chatic/runtime', async () =>
 
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
 
-/** The listener the hook registered for `type`, or undefined when it never subscribed to it. */
 const listenerFor = (type: string) => mockOnServerEvent.mock.calls.find(([t]) => t === type)?.[1];
 
 beforeEach(() => {
@@ -51,7 +43,6 @@ describe('useRealtimeProfileSync', () => {
         const listener = listenerFor('profile.sync');
         expect(listener).toBeDefined();
 
-        // The frame the server broadcasts: the changed profile as the payload, which the hook ignores.
         listener?.({ type: 'profile.sync', data: { id: 'site-1@user-2', siteId: 'site-1', nick: 'new nick' } });
 
         await waitFor(() => expect(mockSyncProfiles).toHaveBeenCalledWith(100, 'site-1'));

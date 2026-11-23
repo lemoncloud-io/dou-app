@@ -6,26 +6,13 @@ import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
 import { summarizeRegisterResult, type RegistrationSummary } from '../lib';
 
-/**
- * Lifecycle of a single "check registration" run.
- * - `no-native`: the app holds no push token here (not inside the app shell), so there is none to check.
- * - `no-token`: shell returned no token (permission denied / not yet issued).
- * - `done`: server responded; inspect `summary` for the verdict.
- */
 export type PushRegistrationState = 'idle' | 'checking' | 'no-native' | 'no-token' | 'done' | 'error';
 
 const APPLICATION = 'chatic';
 
-/**
- * The text this hook needs but does not own — the caller (`PushScreen`) passes it in from its own
- * i18n table so the hook stays free of user-visible strings.
- */
 export interface PushRegistrationMessages {
-    /** Shown when `check()` runs outside the native app shell. */
     noNative: string;
-    /** Shown when the shell returned no token. */
     noToken: string;
-    /** Fallback when the register-device call rejects without a message. */
     checkFailed: string;
 }
 
@@ -37,17 +24,8 @@ export interface UsePushRegistration {
     check: () => Promise<void>;
 }
 
-/**
- * Debug helper that confirms whether the current push token is registered on the
- * server. The backend exposes no read-only lookup, so this fetches the live
- * token from the native shell and performs an idempotent register-device call,
- * then summarizes the response (SNS endpoint / registeredAt) as the source of
- * truth. Only meaningful inside the native app shell.
- */
 export const usePushRegistration = (messages: PushRegistrationMessages): UsePushRegistration => {
     const { deviceInfo } = useDeviceInfo();
-    // Same single source as socket identity and production push registration —
-    // this debug check must confirm the exact record production writes.
     const { deviceId, firebaseInstallationId } = runtime.session.useDynamicDeviceId();
     const { mutateAsync } = runtime.push.useRegisterDeviceTokenMutation();
 
@@ -78,8 +56,6 @@ export const usePushRegistration = (messages: PushRegistrationMessages): UsePush
                 return;
             }
 
-            // No read-only endpoint exists, so registration is confirmed by an
-            // idempotent register-device call (force re-runs it server-side).
             const result = await mutateAsync({
                 deviceToken: nextToken,
                 deviceId,

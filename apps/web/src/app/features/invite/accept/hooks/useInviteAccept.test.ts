@@ -42,7 +42,6 @@ jest.mock('@chatic/runtime', () =>
         session: {
             useInviteFlow: () => ({ runInviteFlow: mockRunInviteFlow, isInviting: false }),
             forgetInviteLogin: (...args: unknown[]) => mockForgetInviteLogin(...args),
-            // Only the first block sets an identity; the others run without a guest.
             useSessionIdentity: () => mockUseSessionIdentity() ?? {},
         },
     })
@@ -102,7 +101,6 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
         expect(mockCacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'cloud-1', cloudType: 'invited' }));
         expect(mockEnterSite).toHaveBeenCalled();
         expect(mockEnterChannel).toHaveBeenCalled();
-        // Entered before cached: a cached cloud is listed, and a listed one gets a re-issued socket.
         expect(mockEnterCloud.mock.invocationCallOrder[0]).toBeLessThan(mockCacheWrite.mock.invocationCallOrder[0]);
         expect(result.current.errorKey).toBeNull();
         expect(result.current.missingDelegator).toBe(false);
@@ -117,7 +115,6 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
         await runAccept(context);
 
         expect(mockEnterCloud).toHaveBeenCalledWith(context.info);
-        // Not entered with: the runtime need not keep the invitee's token.
         expect(mockForgetInviteLogin).toHaveBeenCalledWith('invite-login-1');
         expect(mockCacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'cloud-1', cloudType: 'invited' }));
         expect(mockEnterChannel).toHaveBeenCalled();
@@ -134,7 +131,6 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
     });
 
     it('checks ownership against the catalog as it is when the cloud is entered, not when Accept was pressed', async () => {
-        // Cold start from the link: the catalog is empty at the press and resolves during the login.
         let finishLogin: (token: unknown) => void = () => undefined;
         mockRunInviteFlow.mockReturnValue(new Promise(resolve => (finishLogin = resolve)));
         const context = ctx();
@@ -175,7 +171,6 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
     it('relay 마커가 있으면 backend 없이도 login을 진행한다 (web-core가 릴레이 엔드포인트로 폴백)', async () => {
         const result = await runAccept(ctx({ params: { code: 'invt:1:abc', relay: true } } as Partial<InviteContext>));
 
-        // backend stays undefined: registerUserWithInviteCode resolves getDynamicRelayBackend().
         expect(mockRunInviteFlow).toHaveBeenCalledWith({ code: 'invt:1:abc', backend: undefined });
         expect(mockToast).not.toHaveBeenCalled();
         expect(result.current.errorKey).toBeNull();
@@ -303,7 +298,6 @@ describe('useInviteAccept — place profile step', () => {
     });
 
     it('stops before the room when the invited place has no profile of mine', async () => {
-        // `profile.get-mine` answers even with no real profile; `active: false` is what says so.
         mockGetMyProfile.mockResolvedValue({ id: 'site-9@me', active: false });
 
         const result = await runAccept(withSite());
@@ -371,8 +365,6 @@ describe('useInviteAccept — finding the invited place', () => {
         mockSyncChannels.mockResolvedValue({ syncedAt: 1, removedCount: 0 });
     });
 
-    // The cache answers an observer synchronously or later; emitting from inside the call covers the
-    // case where it fires before the subscription handle exists.
     const roomRowIs = (row: Record<string, unknown>) =>
         mockObserveChannel.mockImplementation((_id: string, cb: (item: unknown) => void) => {
             cb(row);
@@ -398,7 +390,6 @@ describe('useInviteAccept — finding the invited place', () => {
         expect(mockGetMyProfile).toHaveBeenCalled();
     });
 
-    // A cloud 1:1 lives in the place it was opened in, like any room.
     it('reads the place off an invited cloud 1:1 like any room', async () => {
         roomRowIs({ id: 'site-8@u1@u2', sid: 'site-8', stereo: 'dm', cid: 'cloud-1' });
 
@@ -436,8 +427,6 @@ describe('useInviteAccept — before the invite has been read', () => {
     });
 
     it('does not log in when Accept is pressed before the invite lookup answered', async () => {
-        // Pressed on a cold start before `hello/invite-code` answered, the login used to go through
-        // with nothing to enter, leaving the invitee on home outside the cloud.
         const result = await runAccept(ctx({ info: undefined }));
 
         expect(mockRunInviteFlow).not.toHaveBeenCalled();
@@ -499,8 +488,6 @@ describe('useInviteAccept — invite_accept trace', () => {
 });
 
 describe('resolveInviteErrorKey — a used link and an expired one', () => {
-    // The backend's grace message contains its expiry message as a substring, so these two cases only
-    // stay apart while the grace check runs first. Both live here so a reorder fails one of them.
     it('reads a link past its grace period as already used', () => {
         const error = new Error('400 INVALID - grace-timeout by invite[x]');
 
@@ -520,7 +507,6 @@ describe('resolveInviteErrorKey — a used link and an expired one', () => {
     });
 
     it('does not read the grace message in a step after the login', () => {
-        // Past the login the failure is about entering, whatever the text says.
         expect(resolveInviteErrorKey('enter-site', new Error('400 INVALID - grace-timeout by invite[x]'))).toBe(
             'inviteAccept.enterFailed'
         );

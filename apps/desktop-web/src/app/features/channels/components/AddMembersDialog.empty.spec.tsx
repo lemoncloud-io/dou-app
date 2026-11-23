@@ -19,7 +19,6 @@ beforeEach(() => {
 });
 
 describe('AddMembersDialog empty pool', () => {
-    // An owner with nobody yet was told everyone was already here.
     it('says who can be added and that someone new is invited from the mobile app', () => {
         renderDialog();
         expect(screen.getByText(i18next.t('channels.addMembers.empty'))).toBeTruthy();

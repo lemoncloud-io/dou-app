@@ -8,21 +8,10 @@ import type { ActiveCloudData, OtherCloudUnread } from '../../../../hooks';
 import { readCursorOf, readPositionOf } from '../../../../utils/countUnread';
 import { useDebugObservation } from '../sharedObservationStore';
 
-// Unread inspector: shows the aggregates the home surface / app badge use — cloud total, per-site
-// sums, the per-channel unread list — plus the inactive clouds read from the local cache, which is
-// the badge's other half. Read-only, and it reads the app-wide shared observation rather than opening
-// its own, so opening the overlay adds no subscriptions and no join sync registration.
-//
-// It gets that observation MIRRORED in (`sharedObservationStore`) rather than from the contexts: the
-// overlay is mounted outside `AppRuntime` so it survives a boot hang, which also puts it outside the
-// providers — consuming them here threw "ActiveCloudDataProvider is missing" and, inside the app-wide
-// error boundary, replaced the entire UI with the error screen.
 export const UnreadScreen = () => {
     const t = useUnreadScreenStrings();
     const { activeCloud, otherCloud } = useDebugObservation();
 
-    // Nothing mirrored yet: the runtime has not committed the providers (boot hang, gated session).
-    // Say that, rather than render zeros that would read as real counts.
     if (!activeCloud) {
         return <p className="p-4 text-xs text-muted-foreground">{t.notPublished}</p>;
     }
@@ -38,29 +27,18 @@ const UnreadReport = ({
     otherCloud: OtherCloudUnread | null;
 }) => {
     const t = useUnreadScreenStrings();
-    // The two records the count is derived from, shown raw. A wrong badge is almost never a wrong
-    // formula — it is one of these four numbers being stale or missing, and reading them off the
-    // device is the only way to tell which (ADR-0048).
     const { channels, myJoins, unreads } = activeCloud;
     const { byChannel, byPlace, total } = unreads;
-    // The cross-cloud read is published by the same reporter, but it is a separate provider: treat a
-    // missing half as 0 instead of hiding the active-cloud numbers that ARE there.
     const otherByCloud = otherCloud?.byCloud ?? {};
     const otherTotal = otherCloud?.total ?? 0;
     const nameById = new Map(channels.map(ch => [ch.id, ch.name ?? ch.id]));
 
-    // "Unread list" — only entries with unread > 0.
     const unreadPlaces = Object.entries(byPlace).filter(([, count]) => count > 0);
     const unreadChannels = Object.entries(byChannel).filter(([, count]) => count > 0);
     const otherClouds = Object.entries(otherByCloud).filter(([, count]) => count > 0);
 
-    // Channels worth inspecting: anything wearing a badge, plus any channel whose read position carries
-    // no `metaNo` snapshot — that is the row whose cursor cannot be converted, so its count is the
-    // one that runs low until the room is read again.
     const derivationRows = channels
         .map(channel => {
-            // The position the count actually used — my join row or the channel's `$join`, whichever
-            // is further along — so the row explains the number beside it.
             const position = readPositionOf(myJoins.get(channel.id), channel.$join);
             return {
                 id: channel.id,

@@ -9,19 +9,6 @@ import { useSocialLogin } from '../hooks';
 import { buildAppDeeplink, buildOAuthDeeplink } from '../utils';
 import { tabStore } from '../../../storage';
 
-/**
- * OAuth Relay hand-off page. The relay redirects here with `?code=&provider=` after the provider
- * consent screen, and with the `nonce` the app put on the `redirect` address when it started the
- * login. A return that has no nonce is not one this app asked for, so the page stops with the
- * failure screen instead of opening the app.
- *
- * - Inside the Desktop Shell (where the relay's code is completed in place, `runtime.signIn`): exchange
- *   the code directly — covers the degenerate case where the relay return landed in the app window.
- * - In a plain browser (the normal system-browser flow): forward the code and the nonce into
- *   the app via the `chatic://oauth` deeplink, with a manual button as fallback
- *   for when the auto-jump is blocked.
- */
-/** The nonce whose link this browser tab has already sent to the app. */
 const HANDOFF_SENT_KEY = 'chatic-oauth-handoff-sent';
 
 export const OAuthResponsePage = () => {
@@ -36,7 +23,6 @@ export const OAuthResponsePage = () => {
     const provider = params.get('provider') || 'google';
     const nonce = params.get('nonce') ?? '';
     const isComplete = code.length > 0 && nonce.length > 0;
-    // Where the code is exchanged: here, inside the app; or handed back to the app from the system browser.
     const completesInPlace = runtime.signIn.relayOAuth?.returnedCode === 'complete';
 
     useEffect(() => {
@@ -45,9 +31,6 @@ export const OAuthResponsePage = () => {
         if (!isComplete) return;
 
         if (completesInPlace) {
-            // Pre-auth: success flips isAuthenticated → router leaves this branch.
-            // In-app (already signed in): the exchange swaps the session and reloads.
-            // A link leaves the session as it was, so nothing moves the page: go back to the account hub.
             void completeFromHandoff({ provider, code, nonce }).then(done => {
                 if (done === 'link') navigate('/account', { replace: true });
             });
@@ -55,8 +38,6 @@ export const OAuthResponsePage = () => {
         }
         const url = buildOAuthDeeplink(provider, code, nonce);
         setDeeplink(url);
-        // Once per sign-in: a tab reloaded or restored on this page would otherwise send the used link
-        // again, and the app would have to tell it apart from a link it never started. The button stays.
         if (tabStore.get(HANDOFF_SENT_KEY) === nonce) return;
         tabStore.set(HANDOFF_SENT_KEY, nonce);
         window.location.replace(url);
@@ -84,8 +65,6 @@ export const OAuthResponsePage = () => {
                             {t('auth.social.backToWelcome')}
                         </Button>
                     ) : (
-                        // In the system browser a way "back" would open a second copy of the app in this
-                        // tab. The retry is in the DoU window, so the page points there and opens it.
                         <Button size="lg" asChild>
                             <a href={buildAppDeeplink()}>{t('auth.social.openApp')}</a>
                         </Button>

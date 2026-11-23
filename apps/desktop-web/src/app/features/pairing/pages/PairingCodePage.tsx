@@ -39,12 +39,6 @@ const Outcome = ({ message, action, onAction }: { message: string; action: strin
     </div>
 );
 
-/**
- * Leaving the screen before it finished. A guest this screen registered is signed out on the way,
- * which reloads to Welcome: backing out is not choosing to be a guest. Any other session just goes
- * back to Welcome.
- */
-/** Code screens mounted right now — strict mode unmounts and remounts one at once. */
 let mountedScreens = 0;
 
 const useLeavePairing = () => {
@@ -56,9 +50,6 @@ const useLeavePairing = () => {
             const signedIn = runtime.session.getIdentityContext().isAuthenticated;
             if (signedIn && store.registeredGuest && isRelayGuest()) {
                 store.startLeaving();
-                // The hold stays until the sign-out has run: released first, the router would open the app
-                // as the guest for as long as the logout takes. The logout reloads; the release matters on
-                // failure, where the guest is all there is to land in.
                 try {
                     await signOutGuest();
                 } catch (error) {
@@ -69,7 +60,6 @@ const useLeavePairing = () => {
                 }
                 return;
             }
-            // Navigate first: releasing the hold drops this route from the signed-in branch.
             if (navigateAway) navigate('/auth/welcome');
             store.release();
         },
@@ -77,20 +67,6 @@ const useLeavePairing = () => {
     );
 };
 
-/**
- * The browser's "sign in with another device" screen: it shows an 8-digit code and its QR, and signs in
- * once a signed-in app approves it — a relay approval with that account, a cloud approval by entering
- * that cloud as a guest.
- *
- * The relay takes a code request from a guest session only, and a browser on Welcome has no session at
- * all. So the screen runs in two phases. Signed out, it signs in as a guest and shows a spinner; the
- * hold it takes first keeps `/auth/pair` routed once that sign-in flips the router to its signed-in
- * branch. The flip remounts the page, so the code request (`usePairingRequest`) is mounted only in the
- * second phase, signed in, where it is mounted once.
- *
- * An account that is already signed in is turned away: it has nothing to pair. Judged once, on arrival,
- * because a relay approval turns this very session into an account.
- */
 export const PairingCodePage = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const leaving = usePairingCodePageStore(s => s.leaving);
@@ -110,7 +86,6 @@ const LeavingCard = () => {
     );
 };
 
-/** Phase one: register this browser as a guest, once. The hold goes first so the flip keeps the page. */
 const GuestSignIn = () => {
     const { t } = useTranslation();
     const leave = useLeavePairing();
@@ -140,7 +115,6 @@ const GuestSignIn = () => {
     );
 };
 
-/** Phase two, signed in as a guest: ask for a code, show it, and finish once it is approved. */
 const PairingCodeScreen = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -150,9 +124,6 @@ const PairingCodeScreen = () => {
     const finished = useRef(false);
     const [thisDevice] = useState(() => runtime.session.pairingClientOf().name);
 
-    // Leaving by the browser's own Back (or any route change) skips `onBack`: undo the same way, or the
-    // hold would keep `/auth/pair` routed and the guest this screen registered would land in the app.
-    // Judged a tick after the unmount: strict mode's remount has mounted the screen again by then.
     const leaveRef = useRef(leave);
     leaveRef.current = leave;
     useEffect(() => {
@@ -180,7 +151,6 @@ const PairingCodeScreen = () => {
                       description: t('pairing.code.doneRelayBody'),
                   }
         );
-        // Navigate first: releasing the hold drops this route from the signed-in branch.
         navigate('/', { replace: true });
         usePairingCodePageStore.getState().release();
     }, [state, t, navigate]);
@@ -197,7 +167,6 @@ const PairingCodeScreen = () => {
 
             {showsCode && (
                 <div className="flex flex-col items-center gap-3 text-center">
-                    {/* The QR sits on white in either theme: a scanner reads dark modules on a light field. */}
                     <div
                         className={cn(
                             'rounded-xl border border-border bg-white p-3',
@@ -208,7 +177,6 @@ const PairingCodeScreen = () => {
                     </div>
                     <p
                         className={cn(
-                            // Larger than any type step: the code is read across a desk, off a screen.
                             'font-mono text-[2rem] font-semibold leading-10 tracking-[0.12em] text-foreground',
                             state.phase === 'expired' && 'text-muted-foreground line-through'
                         )}

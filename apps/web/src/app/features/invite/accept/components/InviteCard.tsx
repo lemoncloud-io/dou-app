@@ -6,13 +6,6 @@ interface InviteCardProps extends HTMLAttributes<HTMLDivElement> {
     children: ReactNode;
 }
 
-/**
- * Rounded surface card used by the invite accept screen (place / target / validity blocks).
- * Mirrors the Figma glassmorphism: 24px radius, a translucent white fill over the screen's
- * brand-green tint. White alpha + a `dark:` fallback keep the glass read correct in both themes
- * (content colors stay on theme tokens for legibility). No `backdrop-blur` — see
- * `InviteGlassSurface` for why nothing on this screen frosts its backdrop.
- */
 export const InviteCard = ({ children, className, ...props }: InviteCardProps) => (
     <div
         className={cn(

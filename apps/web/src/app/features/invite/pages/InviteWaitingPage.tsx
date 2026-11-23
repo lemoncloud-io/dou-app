@@ -25,16 +25,6 @@ import { resolveInviteCode } from '../utils/inviteCode';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
 
-/**
- * The invite waiting screen (ADR-0089 Track B; the actual cancel/decline API is ADR-0043;
- * international numbers are ADR-0044) — Figma 3263-30072 (waiting) / 3398-25887 (accepted and
- * entering) / 3263-30117 (declined) / 3263-30162 (expired) / 3263-30207 (cancel confirm) /
- * 3413-18662 (cancel toast).
- *
- * A pseudo-channel-room screen: same header language as a chat room (`ChatRoomHeader`), but shows
- * invite status instead of messages. Reached from `ContactInvitePage` after issuing, or from a
- * sent-invite row in `ChannelList`/`PlaceChannelManagePage`.
- */
 export const InviteWaitingPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -60,22 +50,16 @@ export const InviteWaitingPage = () => {
 
     const goHome = () => navigate(ROUTES.home, { replace: true });
 
-    /** Set while this screen retires an invite itself, so the redirect below leaves that retire alone. */
     const reissueRetireRef = useRef(false);
     useEffect(() => {
         reissueRetireRef.current = false;
     }, [inviteId]);
 
-    // Locally dismissed (a rejected row already re-invited over, or a legacy pre-API cancel stamp)
-    // or canceled server-side (e.g. from another device) — this screen has nothing live to show.
-    // A retire this screen just made as part of a reissue is exempt: it is already replacing the
-    // route with the new invite's waiting screen, and bouncing home would swallow that.
     const isGone = dismissedLocally || invite?.state === 'canceled';
     useEffect(() => {
         if (isGone && !reissueRetireRef.current) goHome();
     }, [isGone]);
 
-    // The channel synced locally — hand off to the real room.
     useEffect(() => {
         if (isAccepted && syncStatus === 'ready' && invite?.channelId) {
             navigate(ROUTES.channels.room(invite.channelId), { replace: true });
@@ -86,13 +70,10 @@ export const InviteWaitingPage = () => {
         if (!inviteId || isReissuing || !invite) return;
         const logEntry = findByInviteId(inviteId);
         if (!logEntry) {
-            // This device has no memory of the phone (e.g. storage was cleared) — nothing to reissue with.
             toast({ title: t('inviteWaiting.reissueMissingLog'), variant: 'destructive' });
             return;
         }
 
-        // The log key IS the E.164 value the packet wants; parsing it back only recovers `country`,
-        // for the `countryCode` field the packet still accepts (ADR-0044 §5 correction).
         const recipient = readInternationalInput(logEntry.phone);
         if (!recipient) {
             toast({ title: t('inviteWaiting.reissueMissingLog'), variant: 'destructive' });
@@ -102,15 +83,10 @@ export const InviteWaitingPage = () => {
         setIsReissuing(true);
         let replaced = false;
         try {
-            // Retire the prior invite FIRST (ADR-0043 decision 5). A pending prior must actually cancel —
-            // issuing before that leaves two live codes for the same phone, and issuing after a failed
-            // cancel is how the pre-API reissue used to misbehave. Expired priors are best-effort
-            // tidying and never block; rejected priors are dismissed locally (see useRetireInvite).
             reissueRetireRef.current = true;
             const outcome = await retire(invite);
             if (invite.state === 'pending' && outcome !== 'canceled') {
                 if (outcome === 'conflict') {
-                    // Accepted in the meantime — re-ask and let the screen flip to the accepted state.
                     void refetch();
                 } else {
                     toast({ title: t('inviteWaiting.reissueFailed'), variant: 'destructive' });
@@ -136,7 +112,6 @@ export const InviteWaitingPage = () => {
             logger.error('INVITE', '[InviteWaitingPage] reissue failed', { error });
             toast({ title: t('inviteWaiting.reissueFailed'), variant: 'destructive' });
         } finally {
-            // If we stayed on this screen, re-arm the redirect guard (a dismiss may have landed).
             if (!replaced) reissueRetireRef.current = false;
             setIsReissuing(false);
         }
@@ -144,8 +119,6 @@ export const InviteWaitingPage = () => {
 
     const handleCancelConfirm = async () => {
         if (!invite || !invite.id || isCanceling) return;
-        // A declined invite is already final, and the server keeps that mark through a cancel — so
-        // canceling one hides it here, the same way a reissue retires it (useRetireInvite).
         if (isRejected) {
             markCanceled(invite.id);
             setIsCancelDialogOpen(false);
@@ -153,23 +126,15 @@ export const InviteWaitingPage = () => {
             goHome();
             return;
         }
-        // Set before the (async) code resolution below, not after — code resolution can itself
-        // take a network round trip (see resolveInviteCode's refetch fallback), and leaving
-        // isCanceling unset across that window would let a second click double-submit.
         setIsCanceling(true);
         try {
-            // A cache-first row (ADR-0052) carries no code — resolve against the current list
-            // first and fall back to one re-ask before giving up.
             const code = await resolveInviteCode(invites, refetch, invite.id);
             if (!code) {
-                // Only reachable on malformed list data — a row the server answered without its code.
                 setIsCancelDialogOpen(false);
                 toast({ title: t('inviteWaiting.cancelFailed'), variant: 'destructive' });
                 return;
             }
 
-            // Idempotent and final: any resolution means the invite is retired (the view can come
-            // back `rejected` when the recipient declined first — the card is equally gone).
             await cancelInvite(code);
             setIsCancelDialogOpen(false);
             toast({ title: t('inviteWaiting.canceledToast') });
@@ -177,7 +142,6 @@ export const InviteWaitingPage = () => {
         } catch (error) {
             setIsCancelDialogOpen(false);
             if (getSocketErrorCode(error) === 409) {
-                // Accepted in the meantime (01-spec L89) — re-ask and let the screen tell the truth.
                 void refetch();
             } else {
                 logger.error('INVITE', '[InviteWaitingPage] cancel failed', { error });
@@ -200,10 +164,6 @@ export const InviteWaitingPage = () => {
         />
     );
 
-    /**
-     * The in-stream status block — the pseudo-room's only "message" (Figma 3263-30072 and
-     * siblings): a left-aligned bold headline over a muted explanation, in place of a chat log.
-     */
     const statusBlock = (title: string, description: string, danger = false) => (
         <div className="flex flex-col gap-1 px-4 pt-1">
             <p className={cn('text-[17px] font-bold leading-[1.4]', danger ? 'text-destructive' : 'text-foreground')}>
@@ -213,10 +173,6 @@ export const InviteWaitingPage = () => {
         </div>
     );
 
-    /**
-     * Link-validity row: clock chip + label + live remaining time as a spaced clock, days folded into
-     * the hours, reddened inside the last ten minutes and once it runs out (`00 : 00 : 00`).
-     */
     const validityCard = () => {
         if (!countdown) return null;
         const spent = countdown.isExpired || countdown.isImminent;
@@ -242,11 +198,6 @@ export const InviteWaitingPage = () => {
         );
     };
 
-    /**
-     * "Reissue invite" / "Cancel invite" — the two actions the design puts under the validity card,
-     * offered for a declined invite too. The decline itself is final (the server keeps that mark), so
-     * canceling one takes it off the user's list rather than changing what the recipient did.
-     */
     const actionRow = () => (
         <div className="flex items-center gap-2 px-4">
             <button
@@ -298,7 +249,6 @@ export const InviteWaitingPage = () => {
                     </div>
                 );
             }
-            // 'timeout' or 'unknown' (no channelId yet — request item 5 undecided): best-effort hand-off.
             return (
                 <EmptyState
                     title={t('inviteWaiting.accepted.title')}
@@ -309,8 +259,6 @@ export const InviteWaitingPage = () => {
             );
         }
 
-        // The recipient declined (Figma 3263-30117): the room frame stays, the validity card goes
-        // (the link is spent, not ticking), and both actions stay — invite again, or cancel.
         if (isRejected) {
             return (
                 <div className="flex flex-col gap-5 pt-2">
@@ -321,8 +269,6 @@ export const InviteWaitingPage = () => {
             );
         }
 
-        // Everything below is a live invite the recipient has not taken up yet: the design keeps the
-        // room frame and swaps only the status block, so the card + actions are shared.
         const isDead = invite.state === 'expired';
         return (
             <div className="flex flex-col gap-5 pt-2">
@@ -341,8 +287,6 @@ export const InviteWaitingPage = () => {
             {header}
             <div className="flex flex-1 flex-col overflow-y-auto">{renderBody()}</div>
 
-            {/* The room's composer is present but inert until the invite is accepted — the design
-                shows the chat frame so the screen reads as the conversation-to-be, not a form. */}
             <div className="shrink-0 px-4 pb-safe-bottom pt-2">
                 <MessageInput
                     value=""
@@ -358,7 +302,6 @@ export const InviteWaitingPage = () => {
                 open={isCancelDialogOpen}
                 onOpenChange={setIsCancelDialogOpen}
                 title={t('inviteWaiting.cancelDialog.title')}
-                // A declined invite is only hidden here; the recipient's side is already settled.
                 description={t(
                     isRejected
                         ? 'inviteWaiting.cancelDialog.rejectedDescription'

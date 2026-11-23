@@ -10,7 +10,6 @@ type CopyState = 'idle' | 'copied' | 'failed';
 
 const COPY_LABEL: Record<CopyState, string> = { idle: 'Copy JSON', copied: 'Copied', failed: 'Copy failed' };
 
-/** Long enough to read the outcome, short enough that a second copy gets its own. */
 const COPY_FEEDBACK_MS = 1500;
 
 const Heading = ({ children }: { children: string }) => (
@@ -26,13 +25,6 @@ const JsonCard = ({ title, value }: { title: string; value: unknown }) => (
     </div>
 );
 
-/**
- * Everything the cloud switcher builds a row from, side by side: the relay catalog as the server
- * sent it, the local cloud cache (whose name wins over the catalog's), the invite-joined clouds,
- * and the rail entries those produce. A row that reads wrong in the switcher — an untitled or
- * suspended cloud — is diagnosed by finding which source it came from, so the sources are shown
- * raw rather than summarised.
- */
 export const DebugCloudsPage = () => {
     const { clouds: catalog, isFetchingClouds, isCloudsError, refetchClouds } = useCloudSessionCatalog();
     const { clouds: rail } = useClouds();
@@ -49,9 +41,6 @@ export const DebugCloudsPage = () => {
         return () => clearTimeout(timer);
     }, [copyState]);
 
-    // One paste carries every source, so a report from another user's machine needs no follow-up.
-    // The clipboard can refuse (no focus, no permission), and this is the tab's one action, so a
-    // refusal is shown rather than dropped.
     const copy = async () => {
         const report = { capturedAt: new Date().toISOString(), catalog, cached, joined, rail };
         try {
@@ -86,7 +75,6 @@ export const DebugCloudsPage = () => {
             <div className="mb-6 rounded-xl border border-border bg-card px-4 py-3">
                 {rail.map((entry, index) => (
                     <p key={`${index}:${entry.id}`} className="break-all py-1 font-mono text-caption text-foreground">
-                        {/* The switcher's own test for "untitled", so a generated name reads as it does there. */}
                         {entry.kind} · {entry.id} · {cloudLabel(entry, '(untitled)')} · {entry.status ?? '—'}
                     </p>
                 ))}

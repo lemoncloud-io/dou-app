@@ -37,7 +37,6 @@ vi.mock('../hooks', () => ({
 
 import { NewDmDialog } from './NewDmDialog';
 
-// Initialises i18next so the dialog copy resolves.
 import '../../../../i18n';
 
 const onOpenChange = vi.fn();
@@ -167,7 +166,6 @@ describe('NewDmDialog', () => {
 
             const row = selfRow();
             expect(row?.textContent).toContain('Louis');
-            // Pinned first, before anyone from the pool.
             expect(screen.getAllByRole('button').indexOf(row as HTMLElement)).toBeLessThan(
                 screen.getAllByRole('button').indexOf(screen.getByRole('button', { name: /Aiden/ }))
             );
@@ -219,7 +217,6 @@ describe('NewDmDialog', () => {
 
             fireEvent.change(screen.getByPlaceholderText('Search by name or user ID'), { target: { value: 'lou' } });
             expect(selfRow()).toBeTruthy();
-            // Only I match, so the list does not also claim that no one does.
             expect(screen.queryByText('No one matches that search.')).toBeNull();
         });
 

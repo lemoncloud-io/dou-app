@@ -88,7 +88,6 @@ describe('InviteWaitingDialog', () => {
         listInvites.mockResolvedValue([pendingRow()]);
         openWaiting();
         await screen.findByText('Waiting for Ada');
-        // The refetch inside the failed cancel now answers canceled.
         listInvites.mockResolvedValueOnce([{ ...pendingRow(), state: 'canceled' } as MyInviteView]);
 
         fireEvent.click(screen.getByRole('button', { name: 'Cancel invite' }));
@@ -138,7 +137,6 @@ describe('InviteWaitingDialog', () => {
         await act(async () => {
             await Promise.resolve();
         });
-        // Expired priors are best-effort tidying and never block the reissue.
         expect(createInvite).toHaveBeenCalledWith({ phone: '+821012345678', name: 'Ada', expiresDays: 1 });
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'New invite sent.' }));
         expect(useInviteWaitingStore.getState().inviteId).toBe('inv-2');
@@ -154,7 +152,6 @@ describe('InviteWaitingDialog', () => {
         await act(async () => {
             await Promise.resolve();
         });
-        // Without the channel the new invite is unbound, and accepting it no longer enters the room.
         expect(createInvite).toHaveBeenCalledWith({
             phone: '+821012345678',
             name: 'Ada',
@@ -189,7 +186,6 @@ describe('InviteWaitingDialog', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Cancel invite' }));
         fireEvent.click(screen.getByRole('button', { name: 'Yes, cancel' }));
 
-        // The failed re-ask is not "gone": the dialog stays for a retry.
         await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' })));
         expect(useInviteWaitingStore.getState().inviteId).toBe('inv-1');
     });
@@ -206,7 +202,6 @@ describe('InviteWaitingDialog', () => {
         fireEvent.click(confirm);
         fireEvent.click(confirm);
 
-        // The confirm handler resolves the code first; flush the chain.
         await act(async () => {
             await Promise.resolve();
         });

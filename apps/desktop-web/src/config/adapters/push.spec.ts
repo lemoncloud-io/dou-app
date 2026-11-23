@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { WebHostFacts } from '@chatic/runtime-web';
 
-// The desktop shell's requests and events, captured so a test can see what was sent and play the
-// app's announcements back.
 const { request, onEvent, events } = vi.hoisted(() => {
     const events: Record<string, (message: unknown) => void> = {};
     return {
@@ -19,7 +17,6 @@ vi.mock('@chatic/bridges', () => ({ webClient: { request, onEvent } }));
 
 import { desktopPush } from './push';
 
-// Neither side reads the facts; the implementations decide from the side alone.
 const facts = {} as WebHostFacts;
 const shell = () => desktopPush.shell({ kind: 'shell' }, facts);
 const browser = () => desktopPush.browser({ kind: 'browser' }, facts);
@@ -82,7 +79,6 @@ describe('desktopPush — the desktop app', () => {
         request.mockRejectedValueOnce(new Error('NATIVE_NOT_SUPPORTED'));
 
         expect(() => shell().localBanner?.present({ title: 't', body: 'b' })).not.toThrow();
-        // A rejection left unhandled would fail the run here.
         await flush();
     });
 });

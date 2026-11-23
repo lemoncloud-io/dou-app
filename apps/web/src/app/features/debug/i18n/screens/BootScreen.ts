@@ -1,9 +1,5 @@
 import { defineDebugStrings } from '../define';
 
-/**
- * `TTFB`/`DOMContentLoaded`/`FCP`/`LCP` stay out of this table and inline in `BootScreen.tsx` — they
- * are the literal Navigation Timing / Web Vitals names, identical in both languages.
- */
 const en = {
     copyBoot: 'Copy boot',
     navigation: {

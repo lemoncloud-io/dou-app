@@ -23,7 +23,6 @@ describe('useInviteCountdown', () => {
     });
 
     it('breaks the remaining time into days / hours / minutes / seconds', () => {
-        // 1 day + 2 hours + 3 minutes + 4 seconds ahead.
         const expiredAt = NOW + (26 * 60 + 3) * MINUTE + 4 * SECOND;
         const { result } = renderHook(() => useInviteCountdown(expiredAt));
 
@@ -50,7 +49,6 @@ describe('useInviteCountdown', () => {
     });
 
     it('puts the imminent boundary at exactly 10 minutes, not 10:59', () => {
-        // Floored minutes would call 10:59 imminent; visible now that the card counts by the second.
         const { result: at } = renderHook(() => useInviteCountdown(NOW + 10 * MINUTE));
         expect(at.current?.isImminent).toBe(true);
 
@@ -76,7 +74,6 @@ describe('useInviteCountdown', () => {
 
         expect(result.current?.isExpired).toBe(true);
         expect(jest.getTimerCount()).toBe(0);
-        // Mount (initializer + effect) plus the single tick that observed expiry.
         expect(renders).toBeLessThanOrEqual(4);
     });
 
@@ -87,14 +84,11 @@ describe('useInviteCountdown', () => {
             );
             expect(result.current).toMatchObject({ days: 3, hours: 0, minutes: 5, seconds: 30 });
 
-            // A second passing changes nothing: the card reads in minutes until the last ten.
             act(() => {
                 jest.advanceTimersByTime(SECOND);
             });
             expect(result.current).toMatchObject({ minutes: 5, seconds: 30 });
 
-            // The next tick lands where the shown minute turns over — seconds round up, so that is
-            // 4:59 left, not 5:00.
             act(() => {
                 jest.advanceTimersByTime(29 * SECOND);
             });
@@ -111,7 +105,6 @@ describe('useInviteCountdown', () => {
             );
             expect(result.current?.isImminent).toBe(false);
 
-            // The minute tick lands on 10:00 — imminent — and from there every second counts.
             act(() => {
                 jest.advanceTimersByTime(30 * SECOND);
             });
@@ -123,8 +116,6 @@ describe('useInviteCountdown', () => {
         });
     });
 
-    // The waiting screen and the 1:1 strip are a clock throughout, so a day or more out still ticks
-    // by the second.
     it('ticks by the second by default even with days to go', () => {
         const { result } = renderHook(() => useInviteCountdown(NOW + 2 * DAY + 5 * SECOND));
 

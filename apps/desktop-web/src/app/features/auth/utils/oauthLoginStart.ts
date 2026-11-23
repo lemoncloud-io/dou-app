@@ -2,42 +2,18 @@ import { plainStore } from '../../../storage';
 
 import type { OAuthDeeplinkPayload } from './oauth';
 
-/**
- * What the code that comes back is for. `login` signs the device in as the provider account's owner;
- * `link` hangs the provider account on the account already signed in, and the session stays as it is.
- */
 export type OAuthStartIntent = 'login' | 'link';
 
-/**
- * The record that a social login was started from this app. A `chatic://oauth` deeplink can be opened
- * by anything on the machine — a web page, a document, another app — so the deeplink alone proves
- * nothing about who began the login; an unprompted one would sign the person in as whoever owns the
- * code it carries. The deeplink is only honoured when a start record is waiting for it and the link
- * carries that record's nonce.
- */
 export interface OAuthLoginStart {
     provider: string;
     intent: OAuthStartIntent;
-    /**
-     * For a link, the relay user id of the account that pressed the button. The code is linked only to
-     * that account: someone else signed in by the time it comes back must not receive the Google.
-     */
     account?: string;
     startedAt: number;
-    /**
-     * Random per start. It rides the relay's `redirect` address and has to come back on the deeplink;
-     * it marks the link as belonging to this start and is not a secret.
-     */
     nonce: string;
 }
 
-/** How long a start stays valid: the browser consent screen plus the hand-off back to the app. */
 export const OAUTH_LOGIN_START_TTL_MS = 10 * 60 * 1000;
 
-/**
- * The session's plain store (`plainStore` — localStorage in the shell): a start is
- * often followed by the app quitting and being relaunched by the deeplink.
- */
 const OAUTH_LOGIN_START_KEY = 'chatic-oauth-login-start';
 
 export type OAuthDeeplinkRejection = 'no-start' | 'expired' | 'provider-mismatch' | 'nonce-missing' | 'nonce-mismatch';
@@ -62,15 +38,6 @@ export const createOAuthLoginStart = (
     nonce: createNonce(),
 });
 
-/**
- * Whether a deeplink may be exchanged. Pure: the caller supplies the record and the clock.
- *
- * The checks run in a fixed order so the reason names what is most useful to know: a start that is
- * missing, then one that has expired, then the provider, then the nonce — absent before different.
- * A deeplink without the nonce is refused even when a fresh start is waiting: the nonce is what
- * separates a link that came back from this start from one that was merely opened on the machine
- * inside the ten-minute window.
- */
 export const evaluateOAuthDeeplink = (
     start: OAuthLoginStart | null,
     payload: OAuthDeeplinkPayload,
@@ -78,7 +45,6 @@ export const evaluateOAuthDeeplink = (
 ): OAuthDeeplinkVerdict => {
     if (!start) return { ok: false, reason: 'no-start' };
     const age = now - start.startedAt;
-    // A negative age means the clock moved back since the start; treat it as stale, not as fresh.
     if (age < 0 || age >= OAUTH_LOGIN_START_TTL_MS) return { ok: false, reason: 'expired' };
     if (start.provider !== payload.provider) return { ok: false, reason: 'provider-mismatch' };
     if (payload.nonce === undefined) return { ok: false, reason: 'nonce-missing' };
@@ -103,10 +69,6 @@ const isLoginStart = (
     );
 };
 
-/**
- * Read the start record and delete it in the same call. A record is good for one deeplink whatever
- * that deeplink's fate — accepted, rejected or expired — so a replayed link finds nothing.
- */
 export const takeOAuthLoginStart = (): OAuthLoginStart | null => {
     const raw = plainStore.get(OAUTH_LOGIN_START_KEY);
     plainStore.remove(OAUTH_LOGIN_START_KEY);
@@ -115,8 +77,6 @@ export const takeOAuthLoginStart = (): OAuthLoginStart | null => {
         const parsed: unknown = JSON.parse(raw);
         if (!isLoginStart(parsed)) return null;
         const { intent, account, ...rest } = parsed;
-        // Only `link` is read as a link. A record written before the intent existed was a login, and an
-        // unreadable intent must never turn a login into something that writes to the account.
         return {
             ...rest,
             intent: intent === 'link' ? 'link' : 'login',
@@ -127,13 +87,6 @@ export const takeOAuthLoginStart = (): OAuthLoginStart | null => {
     }
 };
 
-/**
- * The nonces of the last few starts this app took, so a link that comes again after its start was used
- * is recognised as a repeat rather than as a link from someone else. A browser tab left on the hand-off
- * page sends its link again when it is reloaded or restored, and that must not warn the person, nor use
- * up a newer start that is waiting. Persistent, like the start: the repeat often lands after the reload
- * a successful login makes.
- */
 const OAUTH_USED_NONCES_KEY = 'chatic-oauth-used-nonces';
 const USED_NONCES_KEPT = 5;
 

@@ -25,34 +25,16 @@ interface NewDmDialogProps {
     onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Start a 1:1 with someone from this cloud. One pick opens the room: the server returns the
- * existing 1:1 for a pair that already has one, so people I already talk to stay in the list and
- * picking them just takes me back there.
- *
- * I am offered too, pinned first, for my notes-to-self room. The pool leaves me out (it is people
- * to talk to) and the room comes from its own call, so the row is drawn separately — independent of
- * the pool loading, failing or being empty.
- *
- * The pool is the members of this place, channel or no channel; when the place list cannot be had
- * it falls back to the people I share a channel with (see `useInviteCandidates`). On failure the
- * dialog stays open (the hook shows the toast) so the pick can be retried.
- *
- * Mount it only while open: the candidate hook reads the place's member list.
- */
 export const NewDmDialog = ({ open, onOpenChange }: NewDmDialogProps) => {
     const { t } = useTranslation();
     const { startDm, openSelf, isStarting, canOpenSelf } = useStartDm();
     const { candidates, isLoading, error } = useInviteCandidates(null, { enabled: true });
     const [query, setQuery] = useState('');
     const placeProfiles = useSiteProfileMap();
-    // My id in this cloud, which is what place profiles are keyed by — the session one can differ.
     const myUid = runtime.session.useUidInCloud(runtime.session.useGlobalSession().cloud.cloudId ?? '') ?? '';
     const me = useUser(myUid || null);
     const myDisplay = resolveDisplay(placeProfiles[myUid], me ? displayName(me) : t('dm.you'), me?.thumbnail);
 
-    // Each person as the sidebar's 1:1 rows show them: this place's profile (nick and photo) over
-    // the user record. The search matches that name, the account name and the id.
     const peers = useMemo(
         () =>
             candidates.map(candidate => ({
@@ -88,7 +70,6 @@ export const NewDmDialog = ({ open, onOpenChange }: NewDmDialogProps) => {
 
     return (
         <Dialog open={open} onOpenChange={next => !isStarting && onOpenChange(next)}>
-            {/* A flex column, as in AddMembersDialog: in a short window the list gives way first. */}
             <DialogContent closeLabel={t('common.close')} className="flex flex-col sm:max-w-md">
                 <DialogTitle>{t('dm.new.title')}</DialogTitle>
                 <DialogDescription>{t('dm.new.description')}</DialogDescription>
@@ -114,7 +95,6 @@ export const NewDmDialog = ({ open, onOpenChange }: NewDmDialogProps) => {
                             <PeerRow
                                 seed={myUid || myDisplay.name}
                                 display={myDisplay}
-                                // Before my record loads the name already reads "You"; don't say it twice.
                                 tag={me ? t('dm.you') : undefined}
                                 detail={t('dm.new.self')}
                                 onPick={handlePickSelf}
@@ -146,15 +126,12 @@ interface PeerListProps {
     peers: Peer[];
     isLoading: boolean;
     error: Error | null;
-    /** True when the pool itself is empty, as opposed to the search filtering it down to nothing. */
     hasNoCandidates: boolean;
-    /** The pinned "me" row is showing, so a search that matches only me is not "no matches". */
     hasSelfMatch: boolean;
     onPick: (userId: string) => void;
     disabled: boolean;
 }
 
-/** Body of the picker — early returns per state, matching the add-members picker. */
 const PeerList = ({ peers, isLoading, error, hasNoCandidates, hasSelfMatch, onPick, disabled }: PeerListProps) => {
     const { t } = useTranslation();
 
@@ -190,12 +167,9 @@ const PeerList = ({ peers, isLoading, error, hasNoCandidates, hasSelfMatch, onPi
 };
 
 interface PeerRowProps {
-    /** Avatar colour seed — the person's id. */
     seed: string;
     display: ResolvedDisplay;
-    /** Small label beside the name ("You" on my own row). */
     tag?: string;
-    /** Second line: the channels we share, or what my own row opens. */
     detail?: string;
     onPick: () => void;
     disabled: boolean;

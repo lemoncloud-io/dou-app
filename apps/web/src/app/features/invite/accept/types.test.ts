@@ -48,7 +48,6 @@ describe('isInviteEntry', () => {
 
     it('code 또는 _backend가 누락되면 false (무시 대상)', () => {
         expect(isInviteEntry(parseInviteDeeplink('?provider=invite&_backend=https://api'))).toBe(false);
-        // No `_backend` and no `relay` marker: nothing identifies a target, so the link is ignored.
         expect(isInviteEntry(parseInviteDeeplink('?provider=invite&code=abc'))).toBe(false);
         expect(isInviteEntry(parseInviteDeeplink('?provider=invite'))).toBe(false);
     });
@@ -57,7 +56,6 @@ describe('isInviteEntry', () => {
 describe('isRelayInvite', () => {
     it('초대 진입이면서 relay 마커가 있으면 true', () => {
         expect(isRelayInvite(parseInviteDeeplink('?provider=invite&code=abc&relay=1'))).toBe(true);
-        // A relay link doesn't carry _backend, but treats it as relay even when it tags along.
         expect(isRelayInvite(parseInviteDeeplink('?provider=invite&code=abc&_backend=https://api&relay'))).toBe(true);
     });
 

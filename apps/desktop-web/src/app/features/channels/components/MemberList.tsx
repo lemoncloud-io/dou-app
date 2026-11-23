@@ -8,13 +8,9 @@ interface MemberListProps {
     members: ChannelMember[];
     isLoading: boolean;
     error: Error | null;
-    /** A failed incremental sync: the roster above may be stale. Shown inline, never hiding it. */
     syncError: Error | null;
-    /** Re-runs the member loads behind both error states; omit to render them without retry. */
     onRetry?: () => void;
-    /** Current user id — drives the "me" badge and hides self-kick. */
     myUid: string | null;
-    /** Whether the current user can remove (kick) other members (owner only). */
     canKick: boolean;
     onKick: (userId: string) => void;
 }

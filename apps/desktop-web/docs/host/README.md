@@ -87,3 +87,29 @@ desktop app, or in an older shell, it is `undefined`.
   Saves that end close together share one notice that counts them
   (`useDownloadNotices`); the join window is shorter than the toast's life by half a second, because a
   toast closes that long after it opened whatever it was updated to, and a closed one cannot be updated.
+
+## Details that bite
+
+- **One object to `post`.** The shell bridge's `webClient.post` takes a single `{ type, data }` object.
+  The two-argument form fails typecheck and, worse, silently does nothing at runtime: the message
+  has no `type`, so no handler matches (the update actions `StartUpdateDownload` and
+  `RestartToUpdate` are posts).
+- **System browser, not the window.** The shell sends an untrusted `https` page the app window opens
+  to the OS browser, and blocks navigating the app's own window away (`will-navigate`), so the relay
+  sign-in goes out through `window.open`. A code that returns inside the app window is exchanged
+  there; in a tab, the return page hands it to the app through the deeplink and closing the tab
+  ends the sign-in.
+- **The sub view handshake is asked for here only.** desktop-web sends no handshake at startup, so
+  `links.subWebView.openScope` sends the one `WebAppReady` on demand, and the desktop app answers it
+  with no side effect. A failed handshake is logged and read as "not offered", which is the same
+  answer as a shell that said no but leaves a trace, so it is not mistaken for one.
+- **Link previews cross to the main process** because the page cannot read another origin; it
+  fetches the page and parses its tags.
+- **A banner that fails never breaks the page.** An older app answers `NATIVE_NOT_SUPPORTED` to
+  `ShowNotification` and the bridge can fail in passing, so the request's rejection is swallowed: a
+  dropped OS banner is the cost, never a broken renderer.
+- **An empty bridge event is dropped.** The notification feed is typed as always carrying a payload,
+  but an event is whatever the other side sent; a message without one is not passed on, rather
+  than thrown on inside the bridge's dispatch.
+- **The token is renewed unprompted** (`OnFetchFcmToken`) because the app stays open for days, and
+  waiting for the next launch would leave the registered endpoint stale for that long.

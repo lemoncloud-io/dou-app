@@ -8,12 +8,6 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { useSelectedChannelStore, useSocketFrameLogStore, VersionInfo } from '../../../shared';
 import { deviceStore } from '../../../storage';
 
-/**
- * Dev-only socket + cache health page, written to be read at a glance:
- * a plain-language summary up top, then the live socket feed, the persisted
- * cache (IndexedDB), and a restart-survival check.
- */
-
 const DB_NAME = 'ChaticWebCacheDB';
 const STORE = 'cache_store';
 const BASELINE_KEY = '__dou_debug_sync_baseline';
@@ -171,7 +165,6 @@ const Stat = ({ label, value, sub }: { label: string; value: string; sub?: strin
     </div>
 );
 
-/** Plain-language summary: is sync healthy right now? */
 const HealthCard = ({
     socket,
     totalRows,
@@ -196,7 +189,6 @@ const HealthCard = ({
     </div>
 );
 
-/** Live, human-readable feed of inbound socket frames (newest first). */
 const SocketFrameLog = () => {
     const frames = useSocketFrameLogStore(s => s.frames);
     const paused = useSocketFrameLogStore(s => s.paused);
@@ -246,7 +238,6 @@ const SocketFrameLog = () => {
     );
 };
 
-/** Presentational browser over persisted rows (data supplied by the page). */
 const CacheExplorer = ({
     rows,
     loading,

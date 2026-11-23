@@ -12,7 +12,6 @@ jest.mock('@chatic/runtime', () =>
 const relay = { key: 'default', kind: 'relay', active: true, state: 'connected', verified: true, connectCount: 1 };
 const cloud = { key: 'cloud-a', kind: 'cloud', active: false, state: 'connected', verified: true, connectCount: 1 };
 
-/** Lets the pending `getSlotStatuses` answers land. */
 const settle = () => act(async () => undefined);
 
 describe('useSlotStatuses', () => {

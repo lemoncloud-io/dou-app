@@ -1,21 +1,12 @@
 import type { DomainChat } from '@chatic/runtime';
 
-/**
- * Web-side runtime metrics. All aggregation happens here — components only push
- * raw state via `report*` callbacks. The engine (libs/runtime) stays unaware
- * of metrics; cache activity is observed in-memory from `observe` notifications.
- */
 export interface MetricsSnapshot {
-    // throughput / latency — live chat deltas only (initial history is excluded)
     chatMessagesTotal: number;
     chatMessagesPerSec: number;
     lastChatLatencyMs: number | null;
     avgChatLatencyMs: number | null;
-    // cache: count of observe notifications per domain (proxy for cache changes)
     cacheObservations: Record<string, number>;
-    // render counts per labelled component
     renders: Record<string, number>;
-    // socket connection quality
     socketState: string;
     socketConnects: number;
     socketDisconnects: number;
@@ -43,8 +34,6 @@ export class MetricsCollector {
     private readonly listeners = new Set<() => void>();
     private readonly now: () => number;
 
-    // per-channel highest chatNo we have already counted — first sight seeds the
-    // baseline (history) without counting it as live throughput.
     private readonly chatBaseline = new Map<string, number>();
     private readonly recentMessageTimes: number[] = [];
     private readonly latencySamples: number[] = [];
@@ -60,7 +49,6 @@ export class MetricsCollector {
 
     public getSnapshot = (): MetricsSnapshot => this.snapshot;
 
-    /** Report the current chat list for a channel (from an observe callback). */
     public reportChat = (channelId: string, list: DomainChat[]): void => {
         this.bumpObservation('chat');
 
@@ -68,7 +56,6 @@ export class MetricsCollector {
         const baseline = this.chatBaseline.get(channelId);
 
         if (baseline === undefined) {
-            // First sight: seed baseline, treat existing messages as history.
             this.chatBaseline.set(channelId, maxNo);
             this.commit();
             return;
@@ -94,13 +81,11 @@ export class MetricsCollector {
         this.commit();
     };
 
-    /** Report that a domain's observe stream fired (cache change observed). */
     public reportObservation = (domain: string): void => {
         this.bumpObservation(domain);
         this.commit();
     };
 
-    /** Report a component render. */
     public reportRender = (label: string): void => {
         this.snapshot = {
             ...this.snapshot,
@@ -109,7 +94,6 @@ export class MetricsCollector {
         this.emit();
     };
 
-    /** Report the current socket state; transitions are counted here. */
     public reportSocketState = (state: string): void => {
         if (state === this.snapshot.socketState) return;
 

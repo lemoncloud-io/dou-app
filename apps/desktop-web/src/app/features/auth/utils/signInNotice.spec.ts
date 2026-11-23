@@ -30,7 +30,6 @@ describe('isAccountMadeSince', () => {
 
 describe('sign-in notice storage', () => {
     beforeEach(() => {
-        // As in the desktop shell, where the session's plain store is localStorage.
         configureAppStores({ device: WebStore.local(), tab: WebStore.session(), plain: WebStore.local() });
         localStorage.clear();
     });

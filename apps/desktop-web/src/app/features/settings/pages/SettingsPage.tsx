@@ -24,10 +24,6 @@ import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 import { QuietHoursMentionSection } from './QuietHoursMentionSection';
 
-/**
- * Length of a quiet window that may cross midnight (22:00–07:00 is 9h), or null
- * when it is empty or unreadable — start equal to end silences nothing.
- */
 const quietWindowMinutes = (start: string, end: string): number | null => {
     const s = parseHourMinute(start);
     const e = parseHourMinute(end);
@@ -57,11 +53,7 @@ export const SettingsPage = () => {
             title={t('settings.title')}
             backTo="/"
             backLabel={t('cloud.home')}
-            actions={
-                // Every control here writes as it changes. Saying so once is what
-                // stops a person hunting for a Save button that does not exist.
-                <span className="text-caption text-muted-foreground">{t('settings.autosave')}</span>
-            }
+            actions={<span className="text-caption text-muted-foreground">{t('settings.autosave')}</span>}
         >
             <section className="flex flex-col gap-4">
                 <SettingsRowGroup>
@@ -70,8 +62,6 @@ export const SettingsPage = () => {
                         hint={t('account.openHint')}
                         onClick={() => navigate('/account')}
                     />
-                    {/* Beside the account: approving a browser lends it this account. The browser's code
-                        screen names this place ("Settings › Approve web sign-in"), so it stays here. */}
                     {canApprovePairing(isPairedSession) && (
                         <SettingsNavRow
                             label={t('pairing.approve.entry')}
@@ -82,10 +72,8 @@ export const SettingsPage = () => {
                 </SettingsRowGroup>
             </section>
 
-            {/* Desktop shell only — renders nothing in a plain browser. */}
             <LaunchAtLoginSection />
 
-            {/* A shell that opens any https page only, and never in the Default Cloud. */}
             <MiniAppSettingsItem />
 
             <section className="mt-8 flex flex-col gap-4">
@@ -100,9 +88,6 @@ export const SettingsPage = () => {
                         onCheckedChange={setDesktopEnabled}
                     />
 
-                    {/* A different axis from the switch above: that one stops this app from
-                        raising a banner, this one stops the server from sending the device
-                        anything — including while the app is closed. */}
                     <SettingsSwitchRow
                         label={t('settings.devicePush')}
                         hint={t(pushMute.isSupported ? 'settings.devicePushHint' : 'settings.devicePushShellOnly')}
@@ -112,9 +97,6 @@ export const SettingsPage = () => {
                         onCheckedChange={pushMute.setPushEnabled}
                         disabled={!pushMute.isSupported || pushMute.isPending}
                     >
-                        {/* Off wherever it cannot apply: a disabled switch showing "on"
-                            claimed a push this browser was never going to receive. The
-                            reason it is off — or disabled — is read with it. */}
                         {pushMute.hasFailed && (
                             <span id="device-push-error" className="text-caption text-destructive">
                                 {t('settings.devicePushFailed')}
@@ -154,10 +136,6 @@ export const SettingsPage = () => {
                                 </label>
                             </fieldset>
                         )}
-                        {/* The computed window, so an overnight range reads as intended and
-                            an empty one (start = end) is caught instead of silently doing nothing.
-                            A steady live region, not a toggled alert: both inputs point at it,
-                            and it explains the empty window instead of blocking the save. */}
                         {quietHours && (
                             <p
                                 id="quiet-hours-window"
@@ -179,13 +157,9 @@ export const SettingsPage = () => {
                         )}
                     </SettingsSwitchRow>
 
-                    {/* Its own row, not a child of the quiet-hours row: nested there its switch
-                        stopped short of the column the other switches share. */}
                     <QuietHoursMentionSection />
                 </SettingsRowGroup>
 
-                {/* The sidebar owned the only snooze control; the section that owns
-                    muting surfaces it too. Self-contained: store-driven, no props. */}
                 <div className="rounded-xl border border-border bg-card p-2">
                     <NotificationSnoozeButton />
                 </div>
@@ -197,7 +171,6 @@ export const SettingsPage = () => {
                 <div className="flex flex-col items-start gap-4 rounded-xl border border-border bg-card p-5">
                     <VersionInfo />
                     <div className="flex flex-wrap gap-2">
-                        {/* The only way back to the welcome tips once they were dismissed. */}
                         <Button
                             variant="outline"
                             size="sm"

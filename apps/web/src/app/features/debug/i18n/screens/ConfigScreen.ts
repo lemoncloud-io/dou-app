@@ -19,7 +19,6 @@ const en = {
     revert: 'Revert',
     readOnly: (writers: string) => `Read-only on this device — writable by: ${writers}`,
     noWriters: 'none',
-    /** Keyed by `SetRejection` — why `config.set`/`config.clear` refused a write. */
     rejection: {
         unknownKey: 'Not a key in the registry',
         laneNotAllowed: 'Not writable from this screen (outside the local lane)',
@@ -27,7 +26,6 @@ const en = {
         invalidValue: "Value doesn't match this key's type",
         notWired: 'Not wired up yet',
     },
-    /** When the change actually lands. A control that silently needs a restart is a lie. */
     appliesAt: {
         live: 'Applies immediately',
         reconnect: 'Applies after reconnect',

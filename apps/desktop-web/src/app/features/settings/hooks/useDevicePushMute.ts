@@ -3,35 +3,11 @@ import { useMutation } from '@tanstack/react-query';
 import { runtime } from '@chatic/runtime';
 import { hostProfile } from '@chatic/bridges';
 
-/**
- * Whether this device accepts push notifications, and the writer that changes it.
- *
- * There is no endpoint that reads the current value — `device.update-remote` is a
- * write, and its response echoes what the server now holds. So the displayed state
- * comes from a local mirror seeded by our own writes: flip it optimistically, then
- * reconcile to the echo on success or roll it back on failure. That echo is the
- * authoritative value, not the boolean we sent; the server may disagree. The mirror
- * itself is `@chatic/config`'s `ui.pushMuted` (not the notification-prefs store — that
- * store holds only settings this app has no config-registry key for yet).
- *
- * `isSupported` mirrors the push-registration gate. Only the Electron shell injects
- * `CHATIC_APP_PLATFORM` (read from the host profile) and registers a device with pushes-api, so
- * in a plain browser there is no device for the write to address and it would always fail. The
- * switch is disabled there, with a reason rather than a silently greyed control. It reads the
- * platform rather than the `push` port because that is what it has always read: a host that has a
- * bridge but injects no platform would answer differently.
- *
- * `apps/web` has a hook of the same name and shape, also reading `ui.pushMuted`. It is not shared:
- * the web one reports failure through a toast this app does not use, so lifting it would mean
- * parameterising both — more work than the fifty lines it would save, and a seam neither app asked
- * for.
- */
 export const useDevicePushMute = () => {
     const { device } = runtime.data.useRuntimeRepositories();
     const pushMuted = runtime.settings.useConfigValue<boolean>('ui.pushMuted') ?? false;
     const setPushMuted = (value: boolean) => runtime.settings.set('ui.pushMuted', value, { lane: 'local' });
 
-    // Shell globals are injected before the app boots, so the profile's boot value is stable.
     const isSupported = !!hostProfile().globals.CHATIC_APP_PLATFORM;
 
     const mutation = useMutation({
@@ -48,10 +24,6 @@ export const useDevicePushMute = () => {
         });
     };
 
-    // The switch reads as "receive notifications", which is the inverse of muted.
-    // `isError` doubles as the "show the failure line" flag: it is set when the write
-    // rejects and cleared the moment the next one starts, which is exactly when the
-    // message should disappear.
     return {
         pushEnabled: !pushMuted,
         setPushEnabled,

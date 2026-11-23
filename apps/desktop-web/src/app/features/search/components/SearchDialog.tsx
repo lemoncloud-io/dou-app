@@ -22,13 +22,11 @@ import {
 import { SEARCH_MAX_CHANNELS, useMessageSearch } from '../hooks';
 import { useSearchDialogStore } from '../stores';
 
-/** Channels offered by name when no message matched; a short list, not a second switcher. */
 const MAX_CHANNEL_OFFERS = 3;
 
 const isSameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-/** "Today", "Yesterday", or the date (with the year when it is not this year). */
 const formatWhen = (ms: number | undefined, t: (key: string) => string): string => {
     if (!ms) return '';
     const date = new Date(ms);
@@ -40,11 +38,9 @@ const formatWhen = (ms: number | undefined, t: (key: string) => string): string 
     return formatShortDate(ms);
 };
 
-/** Bold the first occurrence of the query inside the message snippet. */
 const highlight = (content: string, query: string): ReactNode => {
     const at = content.toLowerCase().indexOf(query.toLowerCase());
     if (at < 0) return content;
-    // Trim long leads so the match is visible inside the row.
     const lead = at > 32 ? `…${content.slice(at - 24, at)}` : content.slice(0, at);
     return (
         <>
@@ -58,30 +54,12 @@ const highlight = (content: string, query: string): ReactNode => {
 interface SearchDialogProps {
     channels: DomainChannel[];
     onSelect: (channelId: string) => void;
-    /**
-     * Scroll the feed to one matched message and flash it. Without it a match
-     * row can only open its channel, which drops the reader at the latest
-     * message instead of the one they searched for.
-     */
     onJumpToMessage?: (channelId: string, chatNo: number, threadRootId?: string) => void;
-    /**
-     * The channel the reader has open behind the dialog, when it is one of
-     * `channels`. Offers a "this channel" scope; absent (or not listed) keeps
-     * the dialog on the whole place with no toggle.
-     */
     currentChannelId?: string | null;
 }
 
-/** Search breadth. `current` narrows to the channel open behind the dialog. */
 type SearchScope = 'all' | 'current';
 
-/**
- * Mod+Shift+F message search over the local chat cache (see useMessageSearch
- * for scope/limits). Hosted by ChannelList alongside the QuickSwitcher for the
- * same reason: the channel list + select handler already live there. A channel
- * header opens the channel; a match row jumps to that message. When the open
- * channel is one of the searched ones, a scope toggle narrows the search to it.
- */
 export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChannelId }: SearchDialogProps) => {
     const { t } = useTranslation();
     const open = useSearchDialogStore(s => s.isOpen);
@@ -89,10 +67,7 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
     const toggleOpen = useSearchDialogStore(s => s.toggle);
     const [query, setQuery] = useState('');
     const [scope, setScope] = useState<SearchScope>('all');
-    // The scope toggle only exists when the open channel is one of the searched ones.
     const currentChannel = currentChannelId ? channels.find(channel => channel.id === currentChannelId) : undefined;
-    // Memoised: a fresh one-element array per render reads as a new channel set to the search
-    // and label hooks below, whose effects then set state — an endless render loop.
     const scopedChannels = useMemo(
         () => (scope === 'current' && currentChannel ? [currentChannel] : channels),
         [scope, currentChannel, channels]
@@ -102,15 +77,10 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
         scopedChannels
     );
     const labelOf = useChannelLabels(scopedChannels);
-    // Rows were the snippet and a date only, so two hits from different people read
-    // as the same line twice.
     const ownerIds = useMemo(() => results.flatMap(result => result.matches.map(chat => chat.ownerId)), [results]);
     const names = useAuthorNames(ownerIds);
     const { userId: myUid } = runtime.session.useSessionIdentity();
     const profilesBySid = usePlaceProfilesStore(s => s.bySid);
-    // The sender's nick in the channel's place wins over their account name, as in the feed and the
-    // OS banner; the account name is the fallback. The row's `owner$` snapshot is left out on purpose,
-    // so nothing but a nick can come back from `senderNameIn`.
     const senderOf = (chat: DomainChat, channel: DomainChannel): string | undefined =>
         senderNameIn({ ownerId: chat.ownerId, stereo: chat.stereo }, profilesBySid[channel.sid ?? ''], {
             uid: myUid,
@@ -132,26 +102,19 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
     useEffect(() => {
         if (open) {
             setQuery('');
-            // A narrowed scope must not survive into the next opening: the channel
-            // behind the dialog may be a different one by then.
             setScope('all');
         }
     }, [open]);
 
     const trimmed = query.trim();
     const showEmpty = trimmed.length >= 2 && !isSearching && results.length === 0;
-    // Nothing cached to search (a cold start) is a different answer from "no match", and only
-    // opening a channel changes it.
     const nothingLoaded = showEmpty && scannedCount === 0;
-    // With no message to show, a channel whose name has the words may be what the reader wanted.
     const channelOffers = showEmpty
         ? scopedChannels
               .filter(channel => channel.id && labelOf(channel).toLowerCase().includes(trimmed.toLowerCase()))
               .slice(0, MAX_CHANNEL_OFFERS)
         : [];
 
-    // One flat option list — each channel header, then its matches — so the
-    // arrows walk every result in the order it is drawn.
     type Option = { key: string; channelId: string; chatNo?: number; threadRootId?: string };
     const options: Option[] = showEmpty
         ? channelOffers.map(channel => ({ key: `offer:${channel.id}`, channelId: channel.id ?? '' }))
@@ -163,15 +126,11 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                       key: `m:${channelId}:${chat.id ?? chat.tempId ?? chat.chatNo}`,
                       channelId,
                       chatNo: chat.chatNo,
-                      // A reply lives in its thread panel; the main feed never renders it,
-                      // so scrolling the feed for it could only fail.
                       threadRootId: chat.parentId || undefined,
                   })),
               ];
           });
 
-    // A channel header opens the channel; a match row carries its own chatNo, so
-    // it scrolls to the matched message rather than the channel's latest one.
     const pick = (option: Option | undefined) => {
         if (option?.channelId) {
             if (option.chatNo != null && onJumpToMessage) {
@@ -192,8 +151,6 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                 className="top-[15%] max-h-[70vh] translate-y-0 gap-2 overflow-hidden p-2 sm:max-w-lg"
             >
                 <DialogTitle className="sr-only">{t('search.title')}</DialogTitle>
-                {/* The scope, not the title again: a screen reader announced the same
-                    four words twice on open and learned nothing from the second. */}
                 <DialogDescription className="sr-only">{t('search.scope')}</DialogDescription>
                 <div className="flex items-center gap-2 border-b border-hairline px-2 pb-2">
                     <Search size={16} className="shrink-0 text-muted-foreground" aria-hidden />
@@ -214,9 +171,6 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                         />
                     )}
                 </div>
-                {/* Narrow to the channel open behind the dialog. Rendered only when
-                    that channel is one of the searched ones; otherwise there is
-                    nothing to narrow to and the dialog stays place-wide. */}
                 {currentChannel && (
                     <div role="group" aria-label={t('search.scopeLabel')} className="flex gap-1 px-2 pt-2">
                         {(['all', 'current'] as const).map(value => (
@@ -240,13 +194,10 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                 {trimmed.length < 2 ? (
                     <p className="px-3 py-4 text-center text-caption text-muted-foreground">{t('search.hint')}</p>
                 ) : showEmpty ? (
-                    // The empty result names the cache-only scope itself, so the footer below
-                    // stays quiet here rather than say the same caveat twice.
                     <div className="flex flex-col gap-1">
                         <p className="px-3 py-4 text-center text-caption text-foreground">
                             {t(nothingLoaded ? 'search.nothingLoaded' : 'search.noResults')}
                         </p>
-                        {/* A failed cache read is missing rows, not a verified no-match. */}
                         {failedCount > 0 && (
                             <p role="status" className="px-3 pb-2 text-center text-micro text-muted-foreground">
                                 {t('search.partialFailed')}
@@ -321,9 +272,6 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                                         role="option"
                                         tabIndex={-1}
                                         aria-selected={headerIndex === nav.activeIndex}
-                                        // It looks like a group heading but it is an option:
-                                        // picking it opens the channel. Say so, or a screen
-                                        // reader hears a heading that answers Enter.
                                         aria-label={t('search.openChannel', {
                                             name: channelRef(channelKind(result.channel), labelOf(result.channel)),
                                         })}
@@ -340,8 +288,6 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                                             <User size={12} className="shrink-0 text-muted-foreground" aria-hidden />
                                         )}
                                         <span className="truncate">{labelOf(result.channel)}</span>
-                                        {/* Held back while a search is running: the old count stayed
-                                            up and jumped (4, then 13) as the cache filled in. */}
                                         <span className="ml-auto shrink-0 font-normal tabular-nums text-muted-foreground">
                                             {isSearching ? '…' : t('search.matchCount', { count: result.matchCount })}
                                         </span>
@@ -366,8 +312,6 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                                                 )}
                                             >
                                                 <span className="flex items-baseline gap-2">
-                                                    {/* Blank until the profile resolves: a stand-in name
-                                                        flashed on every row, then changed. */}
                                                     <span className="min-w-0 flex-1 truncate text-caption font-semibold text-foreground">
                                                         {senderOf(chat, result.channel)}
                                                     </span>
@@ -386,8 +330,6 @@ export const SearchDialog = ({ channels, onSelect, onJumpToMessage, currentChann
                         })}
                     </div>
                 )}
-                {/* The search is local and bounded; say so rather than let an empty
-                    result read as "this was never said". */}
                 {trimmed.length >= 2 && (!showEmpty || isTruncated) && (
                     <p className="border-t border-hairline px-3 pt-2 text-micro text-muted-foreground">
                         {isTruncated

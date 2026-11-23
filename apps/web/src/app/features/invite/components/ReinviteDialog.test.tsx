@@ -41,8 +41,6 @@ describe('ReinviteDialog', () => {
         );
 
         expect(screen.getByText('contactInvite.reinvite.expired.title')).toBeInTheDocument();
-        // Reissuing cancels the prior code server-side first (ADR-0043 decision 5), so there is only
-        // one truthful description now — no auto-revoke variant to pick between.
         expect(screen.getByText('contactInvite.reinvite.expired.description')).toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'contactInvite.reinvite.reissueConfirm' }));

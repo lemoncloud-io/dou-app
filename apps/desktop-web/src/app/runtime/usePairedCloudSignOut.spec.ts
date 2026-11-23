@@ -2,11 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook } from '@testing-library/react';
 
-/**
- * The check itself (re-issue through the relay, teardown of an ended cloud) is `@chatic/runtime`'s
- * `usePairedCloudCheck` and is tested there. What is desktop-web's is the policy: check again on
- * returning to the window, and sign out — account reset, then logout — once an approval ended.
- */
 const env = vi.hoisted(() => ({
     check: vi.fn(),
     onEnded: (_cloudId: string) => undefined as void,
@@ -32,7 +27,6 @@ vi.mock('../shared', () => ({ useAccountResetOnLogout: () => ({ resetAccount: en
 
 import { usePairedCloudSignOut } from './usePairedCloudSignOut';
 
-/** Fires a real visibilitychange with `document.visibilityState` forced to `state`. */
 const emitVisibility = (state: DocumentVisibilityState) => {
     Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));

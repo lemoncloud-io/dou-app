@@ -18,10 +18,6 @@ interface RenameChannelDialogProps {
 const MIN = CHANNEL_NAME_MIN;
 const MAX = CHANNEL_NAME_MAX;
 
-/**
- * Rename a channel (name 2–20 chars → updateChannel). Matches CreateChannelDialog
- * style. Owner-only gating is enforced by the caller (server also enforces).
- */
 export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName }: RenameChannelDialogProps) => {
     const { t } = useTranslation();
     const { updateChannel, isMutating } = useDesktopChannelMutations();
@@ -29,7 +25,6 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [showInvalid, setShowInvalid] = useState(false);
 
-    // Re-seed the input each time the dialog opens for a (possibly different) channel.
     useEffect(() => {
         if (open) {
             setName(currentName);
@@ -53,8 +48,6 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
             await updateChannel({ channelId, name: trimmed });
             onOpenChange(false);
         } catch (e) {
-            // A sentence the person can act on in place; the wire text (e.g. "403 NOT ALLOWED -
-            // action[update] is invalid …") rides the failure toast under the same sentence.
             const text = t(channelActionErrorKey(e));
             setErrorMsg(text);
             toastFailure(text, e);
@@ -63,9 +56,6 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
 
     return (
         <Dialog open={open} onOpenChange={next => !isMutating && onOpenChange(next)}>
-            {/* No description: the title and the field's own label and hint say it all, and a
-                hidden copy of the title made a screen reader read it twice. `undefined` is
-                Radix's opt-out from its missing-description warning. */}
             <DialogContent closeLabel={t('common.close')} aria-describedby={undefined} className="sm:max-w-md">
                 <DialogTitle>{t('channels.rename.title')}</DialogTitle>
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-2">
