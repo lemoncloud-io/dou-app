@@ -11,5 +11,6 @@ module.exports = {
         'runtime-wiring-call': require('./runtime-wiring-call'),
         'host-facts': require('./host-facts'),
         'host-port-kind': require('./host-port-kind'),
+        ratchet: require('./ratchet'),
     },
 };
