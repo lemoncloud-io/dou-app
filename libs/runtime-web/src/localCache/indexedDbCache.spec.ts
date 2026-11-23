@@ -1,4 +1,3 @@
-// The IndexedDB adapter opens a real database in its constructor, so a shim must exist first.
 import 'fake-indexeddb/auto';
 
 import type { DataContextProvider } from '@chatic/data';

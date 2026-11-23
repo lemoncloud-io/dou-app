@@ -5,12 +5,6 @@ import { toAppLogInfo, toLogEntry } from './appLogInfoCodec';
 import type { AppLogInfo } from '@chatic/bridge-messages';
 import type { LogContext, LogEntry } from '@chatic/logger';
 
-/**
- * Built from `LOG_CONTEXT_FIELDS`, not hand-listed. A field added to
- * `LogContext` therefore enters this fixture on its own — which is the whole
- * point, since the failure this guards against is a mapper that silently drops
- * a field nobody remembered to add to a test.
- */
 const contextFixture = Object.fromEntries(LOG_CONTEXT_FIELDS.map(field => [field, `v-${field}`])) as Record<
     keyof LogContext,
     string
@@ -48,8 +42,6 @@ describe('appLogInfoCodec — 컨텍스트 튜플', () => {
     });
 
     it('설정되지 않은 컨텍스트 키는 아예 만들지 않는다', () => {
-        // A restored entry must not gain a `route: undefined` it never had —
-        // the payload is stored as-is by the server.
         const info = toAppLogInfo({ level: 'warn', tag: 'APP', message: 'x', timestamp: 1 });
 
         LOG_CONTEXT_FIELDS.forEach(field => {
@@ -69,19 +61,11 @@ describe('toAppLogInfo (LogEntry → AppLogInfo)', () => {
         );
 
         expect(info.source).toBe('web');
-        // Structure kept, not stringified: the native merged buffer is what a
-        // debug UI renders.
         expect(info.data).toEqual({ userId: 'u1', nested: { count: 2 } });
         expect(info.error).toMatchObject({ name: 'Error', message: 'boom' });
     });
 
     it('axios 에러의 요청/응답 상세만 이 자리에서 마스킹된다 — 일반 data는 저장·전송 경계에 맡긴다', () => {
-        // The split is deliberate. An axios error carries secrets in a shape
-        // this mapper has to take apart anyway (`config` never rides along), so
-        // it masks there. A plain `data` object is passed through intact and
-        // masked by whichever boundary stores or sends it — `serializeLogs` for
-        // MMKV/localStorage, `toWireLogEntry` for the server. The merged buffer
-        // itself never leaves the device on its own.
         const axiosError = Object.assign(new Error('Request failed with status code 400'), {
             isAxiosError: true,
             config: { method: 'post', url: '/hello/login', data: { id: 'u1', password: 'secret' } },
@@ -96,9 +80,6 @@ describe('toAppLogInfo (LogEntry → AppLogInfo)', () => {
 
 describe('toLogEntry (AppLogInfo → LogEntry)', () => {
     it('id와 발생 시점 컨텍스트를 그대로 복원한다', () => {
-        // The uploader drains this buffer into its queue, which dedups on the
-        // id; the context must stay the one captured when the entry was
-        // written, not whatever is current at drain time.
         const info: AppLogInfo = {
             id: 'native-1',
             runId: 'run-3',

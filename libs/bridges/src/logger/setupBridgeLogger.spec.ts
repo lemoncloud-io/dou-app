@@ -5,13 +5,6 @@ import { setupBridgeLogger } from './setupBridgeLogger';
 import type { BridgeLoggerHandle } from './setupBridgeLogger';
 import type { LogEntry } from '@chatic/logger';
 
-/**
- * The hub is the only way to observe an entry now, so the cases that used to
- * read the ring buffer install a subscriber instead. It must go in before the
- * action under test — the hub delivers only to whoever is subscribed at publish
- * time — and come out after, so the console-fallback cases in the first block
- * still see an unwired hub.
- */
 const collect = () => {
     const entries: LogEntry[] = [];
     const unsubscribe = logHub.subscribe(entry => entries.push(entry));
@@ -32,8 +25,6 @@ describe('setupBridgeLogger', () => {
     });
 
     afterEach(() => {
-        // Detach sinks so the module-level singleton state never leaks
-        // between cases.
         handle?.teardown();
         handle = undefined;
     });
@@ -44,9 +35,6 @@ describe('setupBridgeLogger', () => {
     });
 
     it('웹 환경에서는 아무것도 구독하지 않는다 — 콘솔은 apps/web 소관이다', () => {
-        // This used to attach the console here. The bridge-related function was deciding
-        // console output too, and the web sink lived inside the bridge package. Now
-        // apps/web's attachConsoleListener owns that decision.
         handle = setupBridgeLogger();
 
         logger.info('TEST', 'hello', { ok: true });
@@ -134,9 +122,6 @@ describe('setupBridgeLogger', () => {
     });
 
     it('teardown 이후에는 배선이 해제되고 아무 데도 찍히지 않는다', () => {
-        // This used to be where the core's console fallback came back to life. A sink
-        // that turns on based on subscriber count isn't pub/sub, so it was retired
-        // (principle 16), and teardown now truly leaves no subscriber behind.
         handle = setupBridgeLogger();
         handle.teardown();
         handle = undefined;
@@ -171,9 +156,6 @@ describe('createNativeForwarder — id와 발생 시점 컨텍스트 전달', ()
     });
 
     it('엔트리 id를 함께 보낸다 — 없으면 하이브리드에서 한 로그가 문서 두 건이 된다', () => {
-        // The uploader queues this entry AND later drains it back out of the
-        // native buffer; a shared id is what collapses the two into one
-        // document server-side.
         const data = postAndRead(() => logger.info('TEST', 'hybrid entry'));
 
         expect(data.id).toEqual(expect.any(String));
@@ -205,18 +187,12 @@ describe('createNativeForwarder — debug 릴레이 차단', () => {
     });
 
     it('debug는 브릿지로 보내지 않는다 — 앱 큐가 어차피 버리는데 왕복 비용만 낸다', () => {
-        // `withNetworkLog` emits one of these per HTTP request. The upload queue
-        // drops `debug`, so relaying it only evicts native-origin entries — which
-        // have no second copy anywhere — from the 500-slot native buffer.
         logger.debug('NET', 'GET /messages');
 
         expect(postMessage).not.toHaveBeenCalled();
     });
 
     it('debug는 hub에는 그대로 발행된다 — 웹 로컬 브레드크럼은 잃지 않는다', () => {
-        // The gate lives inside the forwarder, not in dispatch: `debug` still
-        // reaches every hub subscriber (console, upload queue, debug view), it
-        // just does not cross the bridge.
         const { entries, unsubscribe } = collect();
 
         logger.debug('NET', 'GET /messages');
@@ -252,8 +228,6 @@ describe('createNativeForwarder — 하이브리드의 유일한 웹→앱 경�
     });
 
     it('엔트리 하나가 메시지 하나다 — 묶지 않는다', () => {
-        // Batching entries would require this listener to hold a buffer, a timer, and
-        // trigger rules, which would make it behave differently from the other two listeners (principle 17).
         logger.info('TEST', 'one');
         logger.warn('TEST', 'two');
         logger.error('TEST', 'three');
@@ -262,8 +236,6 @@ describe('createNativeForwarder — 하이브리드의 유일한 웹→앱 경�
     });
 
     it('상태를 갖지 않는다 — 멈추거나 인수되는 경로가 없다', () => {
-        // This used to have a gate that went quiet once batch charging took over. That
-        // was because there were two paths; now there's only one, so there's nothing to switch to.
         logger.info('TEST', 'a');
         logger.info('TEST', 'b');
 
@@ -286,7 +258,6 @@ describe('createNativeForwarder — 폭주 제어', () => {
     let handle: BridgeLoggerHandle | undefined;
     let postMessage: jest.Mock;
 
-    /** The messages actually sent out over the bridge. */
     const sent = () => postMessage.mock.calls.map(call => JSON.parse(call[0]).data.message as string);
 
     beforeEach(() => {
@@ -303,9 +274,6 @@ describe('createNativeForwarder — 폭주 제어', () => {
     });
 
     it('같은 줄이 창 안에서 반복되면 임계 이후를 접는다', () => {
-        // When the network stalls, the same error fires on every timeout. The nth copy
-        // says nothing the first one didn't already say, yet it spends a postMessage call
-        // at exactly the moment the bridge has become a contended resource.
         for (let i = 0; i < 50; i += 1) logger.error('NET', 'GET /messages failed');
 
         expect(postMessage).toHaveBeenCalledTimes(5);
@@ -342,7 +310,6 @@ describe('createNativeForwarder — 폭주 제어', () => {
         jest.spyOn(Date, 'now').mockReturnValue(1_000);
         for (let i = 0; i < 20; i += 1) logger.error('NET', 'GET /messages failed');
 
-        // The first occurrence after the window has passed
         (Date.now as jest.Mock).mockReturnValue(1_000 + 1_500);
         logger.error('NET', 'GET /messages failed');
 

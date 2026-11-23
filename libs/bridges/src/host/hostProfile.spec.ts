@@ -4,7 +4,6 @@ import { liveShellGlobals, liveShellValue, SHELL_GLOBAL_NAMES } from './shellGlo
 
 const post = { postMessage: jest.fn() };
 
-// A host's globals as each shell sets them — the channel only, which is what `isNative()` reads.
 const CHANNEL_HOSTS: Array<[string, Record<string, unknown>]> = [
     ['a plain browser tab', {}],
     ['the phone app (React Native WebView)', { ReactNativeWebView: post }],
@@ -24,7 +23,6 @@ describe('buildHostProfile', () => {
         expect(profile.capabilities).toEqual({ kind: 'absent' });
     });
 
-    // The legacy rule: a shell that declares nothing is described exactly as `isNative()` saw it.
     describe.each(CHANNEL_HOSTS)('in %s', (_name, channel) => {
         const keys = Object.keys(channel);
 
@@ -84,7 +82,6 @@ describe('buildHostProfile', () => {
         expect(Object.isFrozen(profile)).toBe(true);
         expect(Object.isFrozen(profile.globals)).toBe(true);
         expect(Object.isFrozen(profile.runtimeOffer)).toBe(true);
-        // The shell's own object is left alone.
         expect(Object.isFrozen(offer)).toBe(false);
     });
 });

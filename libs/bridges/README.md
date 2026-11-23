@@ -653,3 +653,29 @@ the deployed web rather than a copy it was installed with, so once the web sourc
 message no production shell receives it, and the handshake stops listing them. A custom bundle loaded
 on purpose (the phone's non-PROD web zip, the desktop custom UI) can be older and still send one; it
 gets `NOT_FOUND`, which is accepted (ADR-0226).
+
+## Constraints worth knowing
+
+- **A message that fails to decode is logged at `debug`.** In a WebView an extension or other script can
+  inject a malformed `message` event, so most of these are noise that is not ours. `debug` is dropped by
+  both persistent sinks and is visible only in a dev console; if one of our own messages breaks here, it
+  shows up separately as its caller never getting a reply.
+- **The handshake's cache fields are measured, and the measurement may fail.** `resolveCacheDomainVersions`
+  is a thunk the host awaits inside the `WebAppReady` handler, so it must settle promptly and the
+  implementing side bounds its own slow work. If it rejects or resolves nothing, the per-domain field is
+  omitted and the reply is exactly what a host from before measurement sent. When it does answer,
+  `supportedCacheTypes` is derived from its keys instead of the static list: a domain the host could not
+  actually materialize must not be reported as supported, or the web's name-based fallback (a listed type
+  counts as version 1) would cancel the measurement. A host with no local cache DB reports neither.
+- **The profile copies a shell's JSON with a JSON round trip, not `structuredClone`**, which Hermes lacks.
+  A value that cannot be copied (a cycle, a `BigInt`) is kept as it is and left unfrozen; its reader
+  treats it as untrusted either way.
+- **A storage read waits five seconds** (`BridgeStorageChannel`): the shell answers from memory, so a
+  slower one is not answering. The timer is the bridge's own, which holds while the page is hidden, so a
+  boot that starts in the background is not timed out by its own pause. A rejected write reads as
+  "not confirmed", never as success; a rejected read is left to the caller as unavailable.
+- **The forwarder's repeat table holds at most 64 lines** and is cleared when full rather than evicted
+  cleverly: restarting suppression is harmless, an unbounded map in the log path is not.
+- **A statistic kind this build does not know is dropped on the way in**, which turns the entry into a
+  plain log. Carried on as an unknown statistic it would be judged and uploaded under a kind the server
+  may refuse, taking the logs in the same batch with it.

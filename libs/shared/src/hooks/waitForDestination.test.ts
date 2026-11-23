@@ -1,6 +1,5 @@
 import { waitForDestination } from './waitForDestination';
 
-/** Records whether the promise has settled, without awaiting it. */
 const track = (promise: Promise<void>) => {
     const state = { settled: false };
     void promise.then(() => {
@@ -9,7 +8,6 @@ const track = (promise: Promise<void>) => {
     return state;
 };
 
-/** Lets MutationObserver callbacks and promise reactions run. */
 const flushMicrotasks = () => Promise.resolve().then(() => undefined);
 
 const renderSomething = () => document.body.appendChild(document.createElement('div'));
@@ -42,9 +40,6 @@ describe('waitForDestination', () => {
         expect(wait.settled).toBe(false);
     });
 
-    // The production order: the router's popstate listener runs first and React commits right after
-    // it, before any listener of this module could run. So the entry change is read from history
-    // itself, and no popstate event is needed at all.
     it('resolves on the first render after the history entry changed, with no popstate of its own', async () => {
         window.history.pushState({ idx: 4 }, '');
         const wait = track(waitForDestination({ traversal: true }));
@@ -78,7 +73,6 @@ describe('waitForDestination', () => {
         await wait;
 
         expect(disconnect).toHaveBeenCalledTimes(1);
-        // The cap's timer was cleared with it.
         expect(jest.getTimerCount()).toBe(0);
         disconnect.mockRestore();
     });

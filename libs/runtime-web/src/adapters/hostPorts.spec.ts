@@ -30,7 +30,6 @@ import {
 } from './hostPorts';
 import type { ShellOrBrowserImplementations } from './hostPorts';
 
-// The app's implementations, reduced to which one was built and from what, so a port's value shows it.
 const builtFrom = <P extends Exclude<keyof HostPorts, 'checkout'>>() =>
     ({
         shell: jest.fn((base: object, facts: WebHostFacts) => ({ ...base, built: 'shell', bridge: facts.bridge })),
@@ -246,7 +245,6 @@ describe('host ports through startRuntime', () => {
         default: { id: `${port}.fake` as `${P}.fake`, port, create: () => ({}) as RuntimePorts[P] },
     });
 
-    /** apps/web's host ports: each follows the host, with the toggles a developer may reach for. */
     const declaration = (profile: ReturnType<typeof buildHostProfile>): RuntimeDeclaration<WebHostFacts> =>
         defineRuntime<WebHostFacts>({
             name: 'web',
@@ -323,7 +321,6 @@ describe('host ports through startRuntime', () => {
             fellBack: { requested: 'media.shell', because: 'not supported on this host' },
         });
         expect(published[0].media).toMatchObject({ kind: 'browser' });
-        // A browser offers the website, so that toggle stands.
         expect(published[0].checkout).toMatchObject({ kind: 'web' });
     });
 });

@@ -12,10 +12,6 @@ type Row = CacheModelOf<'invitecloud'>;
 const row = (id: string, acceptedBy?: string[], overrides: Partial<Row> = {}): Row =>
     ({ id, cid: id, name: `cloud-${id}`, cloudType: 'invited', acceptedBy, ...overrides }) as Row;
 
-/**
- * The tab store, in memory. `@chatic/db` is constructed by `localFactory` alone, so the real adapter
- * is not imported here; its own suite covers it.
- */
 const memoryStore = (): CacheStorage<'invitecloud'> => {
     const rows = new Map<string, Row>();
     return {
@@ -37,7 +33,6 @@ const memoryStore = (): CacheStorage<'invitecloud'> => {
     };
 };
 
-/** A legacy (IndexedDB) store stand-in: only `loadAll` is read by the import. */
 const legacyHolding = (rows: Row[]) => {
     const loadAll = jest.fn().mockResolvedValue(rows);
     return { store: { loadAll } as unknown as CacheStorage<'invitecloud'>, loadAll };
@@ -73,7 +68,6 @@ describe('InvitedCloudImportStorage', () => {
         expect(idsOf(await storage.loadAll())).toEqual(['mine', 'shared']);
     });
 
-    // desktop-web writes no `acceptedBy`; the tab's recorded uid in the cloud is its proof of entry.
     it('carries over an unattributed row the tab session holds a uid in', async () => {
         const legacy = legacyHolding([row('entered'), row('unattributed')]);
 
@@ -89,8 +83,6 @@ describe('InvitedCloudImportStorage', () => {
         expect(legacy.loadAll).not.toHaveBeenCalled();
     });
 
-    // An account session or a post-logout reload has no guest id yet; the guest that returns with the
-    // tab's device id must still find its rows on a later boot.
     it('leaves the marker unset when the pass ran without a guest, so a later boot retries', async () => {
         const legacy = legacyHolding([row('mine', ['guest-1']), row('entered')]);
 

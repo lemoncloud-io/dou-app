@@ -1,18 +1,11 @@
 import { prepareChatAttachment, prepareImage } from './prepareImage';
 import { THUMBNAIL_PROFILE } from './profiles';
 
-// jsdom has neither `URL.createObjectURL` nor a canvas implementation, so the browser edges this
-// function is made of are stubbed here. The stubs stay deliberately thin: each test states the one
-// thing the real browser would have done — decoded to these dimensions, produced these bytes — and
-// the assertions are about the branch taken, never about the pixels.
-
 interface DecodeResult {
-    /** Dimensions the decoder reports. `null` stands for a source the browser cannot decode. */
     size: { width: number; height: number } | null;
 }
 
 let decode: DecodeResult = { size: { width: 4032, height: 3024 } };
-/** Bytes each `toBlob` hands back, in call order; a `null` stands for the encoder failing. */
 let encodedSizes: (number | null)[] = [];
 let toBlobCalls: { type: string | undefined; quality: number | undefined }[] = [];
 let toDataUrlCalls: { type: string | undefined; quality: number | undefined }[] = [];
@@ -22,8 +15,6 @@ let canvasContext: object | null = {};
 
 const file = (name: string, type: string, size = 5_000_000): File => {
     const f = new File(['x'], name, { type });
-    // A File's `size` follows its contents, and allocating megabytes per test to move it would be
-    // wasteful — the code only ever compares it against the encoded size.
     Object.defineProperty(f, 'size', { value: size });
     return f;
 };
@@ -40,8 +31,6 @@ beforeEach(() => {
     Object.defineProperty(URL, 'createObjectURL', { value: jest.fn(() => 'blob:stub'), configurable: true });
     Object.defineProperty(URL, 'revokeObjectURL', { value: jest.fn(), configurable: true });
 
-    // `src = …` is what kicks off a decode in a real browser, so the setter is where the stubbed
-    // outcome is delivered — asynchronously, as the real events are.
     Object.defineProperty(Image.prototype, 'src', {
         configurable: true,
         set() {
@@ -97,7 +86,6 @@ describe('prepareImage — 프로필 없는 file 은 원문이다', () => {
 
         const { original } = await prepareImage(source, { original: ORIGINAL });
 
-        // The transport carries it, and re-encoding would spend the quality the sender chose.
         expect(original.file).toBe(source);
         expect([original.width, original.height]).toEqual([4032, 3024]);
     });
@@ -115,7 +103,6 @@ describe('prepareImage — 프로필 없는 file 은 원문이다', () => {
 
         expect(original.file.type).toBe('image/jpeg');
         expect(original.file.name).toBe('IMG_0001.jpg');
-        // Not resized — still 4032 wide.
         expect([original.width, original.height]).toEqual([4032, 3024]);
     });
 
@@ -141,7 +128,6 @@ describe('prepareImage — 프로필 없는 file 은 원문이다', () => {
 
         const { original, preview } = await prepareImage(source, { original: ORIGINAL, preview: PREVIEW });
 
-        // The type says this one is not nullable, and that is the guarantee: something always ships.
         expect(original.file).toBe(source);
         expect(preview).toBeNull();
     });
@@ -178,8 +164,6 @@ describe('prepareImage — 프로필 있는 file 은 줄인 사본이다', () =>
 
         const { original, thumbnail } = await prepareImage(source, { original: ORIGINAL, thumbnail: THUMB });
 
-        // The generic preparer only: a chat photo goes through `prepareChatAttachment`, which asks
-        // for no thumbnail for a GIF (covered below).
         expect(original.file).toBe(source);
         expect(thumbnail?.file.type).toBe('image/jpeg');
     });
@@ -211,7 +195,6 @@ describe('prepareImage — dataUrl 은 언제나 압축한다', () => {
 
         expect(preview).toBe('data:image/jpeg;base64,stub');
         expect(toDataUrlCalls).toHaveLength(1);
-        // Only one encoder runs — the two forms do not both fire.
         expect(toBlobCalls).toHaveLength(0);
     });
 
@@ -257,7 +240,6 @@ describe('prepareImage — 직교', () => {
             preview: PREVIEW,
         });
 
-        // The whole reason the request is a set rather than three calls.
         expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
     });
 
@@ -286,7 +268,6 @@ describe('prepareChatAttachment', () => {
         expect(original.file).toBe(source);
         expect([original.width, original.height]).toEqual([4032, 3024]);
         expect(thumbnail).toBeNull();
-        // No canvas work for a thumbnail nobody will upload.
         expect(toBlobCalls).toHaveLength(0);
     });
 });

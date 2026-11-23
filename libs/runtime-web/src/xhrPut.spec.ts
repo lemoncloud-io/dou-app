@@ -1,6 +1,5 @@
 import { createXhrPut } from './xhrPut';
 
-/** Just the surface `createXhrPut` touches, recording what it was asked to do. */
 class FakeRequest {
     method?: string;
     url?: string;
@@ -72,7 +71,6 @@ describe('xhrPut', () => {
         expect(request.timeout).toBeGreaterThan(0);
     });
 
-    // A 300 MB video over a slow uplink takes far longer than a 20 MB image, and a retry resends it whole.
     it('gives a large file time in proportion to its size', () => {
         const small = setup();
         void small.put(target, file, 'slot-0/original');

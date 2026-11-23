@@ -14,10 +14,6 @@ import { resolveShellOrBrowser } from './shellOrBrowser';
 
 const post = { postMessage: jest.fn() };
 
-/**
- * The declaration the phone app 0.32.2 injects, as it shipped to the stores: version 4, with the
- * values spelled `'app'` and `'page'` from before the rename.
- */
 const shipped0322 = (os: 'ios' | 'android') =>
     buildHostProfile({
         ReactNativeWebView: post,
