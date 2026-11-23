@@ -2,7 +2,8 @@
 name: dou-ship
 description: >-
     Take a finished change in this repo through review, commit and pull request. Use when a change is done and
-    verified, before the first commit, and whenever asked to review a change, commit, push, open a PR or "ship it". Replaces the old dou-review, dou-commit and dou-pr procedures.
+    verified, before the first commit, and whenever asked to review a change ("review my changes before I
+    commit"), commit, push, open a PR or "ship it". In this repo it replaces the generic code-review for that. Replaces the old dou-review, dou-commit and dou-pr procedures.
 ---
 
 # dou-ship
