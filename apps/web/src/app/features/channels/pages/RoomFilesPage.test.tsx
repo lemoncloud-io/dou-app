@@ -11,8 +11,6 @@ import { readHiddenMedia, setLocalMediaPrefsStorage } from '../lib/localMediaPre
 import { resetRoomAudioStore } from '../stores/roomAudioStore';
 import { RoomFilesPage } from './RoomFilesPage';
 
-// Naming follows the room's chain, which has its own suite; here the row's snapshot is enough.
-// One graph object, as the runtime hands out: a new one per render would resubscribe forever.
 let mockGraphInstance: unknown;
 const mockRoomGraph = () => {
     mockGraphInstance ??= jest.requireMock('@chatic/runtime').runtime.data.getCloudRepositories();
@@ -35,8 +33,6 @@ jest.mock('@chatic/shared', () => ({
 }));
 const mockToast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => mockToast(arg) }));
-// The real action is a Radix toast part that needs a mounted toast around it; a plain button is enough
-// to press the undo it carries.
 jest.mock('@chatic/ui-kit/components/ui/toast', () => ({
     ToastAction: ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => (
         <button type="button" onClick={onClick}>
@@ -71,7 +67,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('../hooks/useChannel', () => ({ useChannel: () => ({ channel: { id: 'ch-1', cid: 'c1' } }) }));
-// Saving and sharing have their own suites; here they only have to be reachable.
 const mockSaveAll = jest.fn();
 jest.mock('../hooks/useFileDownloads', () => ({
     useFileDownloads: () => ({ saveAll: mockSaveAll, share: jest.fn(), open: jest.fn() }),
@@ -94,7 +89,6 @@ jest.mock('../utils/openExternalUrl', () => ({ openExternalUrl: jest.fn() }));
 const NOV_2026 = Date.UTC(2026, 10, 11, 12);
 const OCT_2026 = Date.UTC(2026, 9, 3, 12);
 
-/** A cached message with one audio upload in slot 0. */
 const audioItem = (chatNo: number, sentAt = NOV_2026): RoomMediaItem => ({
     kind: 'audio',
     idx: 0,
@@ -123,7 +117,6 @@ const audioItem = (chatNo: number, sentAt = NOV_2026): RoomMediaItem => ({
     } as unknown as DomainChat,
 });
 
-/** A cached message with one photo in slot 0. */
 const photoItem = (chatNo: number): RoomMediaItem => ({
     ...audioItem(chatNo),
     kind: 'image',
@@ -143,13 +136,11 @@ const photoItem = (chatNo: number): RoomMediaItem => ({
     } as unknown as DomainChat,
 });
 
-/** The photos tab's only page, finished; other kinds answer empty. */
 const photoPage = (items: RoomMediaItem[]) =>
     mockListRoomMedia.mockImplementation((input: { kind: string }) =>
         Promise.resolve(input.kind === 'image' ? { items, nextCursorNo: null } : { items: [], nextCursorNo: null })
     );
 
-/** The audio tab's only page, finished; other kinds answer empty. */
 const audioPage = (items: RoomMediaItem[]) =>
     mockListRoomMedia.mockImplementation((input: { kind: string }) =>
         Promise.resolve(input.kind === 'audio' ? { items, nextCursorNo: null } : { items: [], nextCursorNo: null })
@@ -190,7 +181,6 @@ describe('RoomFilesPage', () => {
         expect(screen.getByText('take-2.m4a')).toBeInTheDocument();
         const november = screen.getByText('November 2026');
         const october = screen.getByText('October 2026');
-        // Newest month first, each file below its own month.
         expect(
             november.compareDocumentPosition(screen.getByText('take-8.m4a')) & Node.DOCUMENT_POSITION_FOLLOWING
         ).toBeTruthy();
@@ -300,7 +290,6 @@ describe('RoomFilesPage', () => {
         renderPage('media');
         await screen.findByLabelText(/chat\.attach\.tile/);
         fireEvent.click(screen.getByRole('button', { name: 'chat.files.select' }));
-        // Selecting, a press on the tile picks it.
         fireEvent.click(screen.getByLabelText(/chat\.attach\.tile/));
 
         expect(barButton('chat.attach.audio.share')).toBeDisabled();
@@ -338,7 +327,6 @@ describe('RoomFilesPage', () => {
         expect([...readHiddenMedia({ cid: 'c1', uid: 'u1' })]).toEqual(['ch-1:9:0']);
         await waitFor(() => expect(screen.queryByText('take-9.m4a')).not.toBeInTheDocument());
         expect(screen.getByText('take-8.m4a')).toBeInTheDocument();
-        // Selection mode is over: the ordinary header is back and the bar is gone.
         expect(screen.getByRole('button', { name: 'chat.files.select' })).toBeInTheDocument();
         expect(screen.queryByRole('toolbar')).not.toBeInTheDocument();
 
@@ -358,7 +346,6 @@ describe('RoomFilesPage', () => {
         audioPage([]);
         renderPage();
 
-        // The tab looks further by itself; once the server has nothing older, there is nothing to offer.
         await waitFor(() => expect(mockRefreshList).toHaveBeenCalledTimes(1));
         await waitFor(() =>
             expect(screen.queryByRole('button', { name: /chat\.files\.(findOlder|searching)/ })).not.toBeInTheDocument()

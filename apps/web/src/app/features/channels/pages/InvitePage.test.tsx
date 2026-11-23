@@ -10,7 +10,6 @@ const createSingleInvite = jest.fn().mockResolvedValue(undefined);
 const createBatchInvite = jest.fn().mockResolvedValue(undefined);
 const requestInviteLink = jest.fn().mockResolvedValue('https://dou.link/abc');
 let isNativeValue = true;
-/** The room being added to. `memberCount` is what caps the selection (100 seats in all). */
 let mockChannel: any = { id: 'ch1', sid: 'site-1' };
 
 jest.mock('react-router-dom', () => ({
@@ -31,8 +30,6 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
-        // The app's address book where the host has one, answering what `getContacts` replies; a
-        // browser has none.
         get links() {
             return isNativeValue
                 ? {
@@ -50,7 +47,6 @@ jest.mock('../hooks', () => ({
     useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite, requestInviteLink }),
     useChannel: () => ({ channel: mockChannel }),
 }));
-// The place tab has its own separate tests — here only "the tab wires it up" is checked.
 jest.mock('../components/PlaceInviteTab', () => ({
     PlaceInviteTab: (p: any) => (
         <div data-testid="place-tab" data-sid={String(p.sid)} data-max={String(p.maxSelection)}>
@@ -59,8 +55,6 @@ jest.mock('../components/PlaceInviteTab', () => ({
     ),
 }));
 jest.mock('../components/AddFriendSheet', () => ({
-    // Surfaces the two host callbacks, so the page's own wiring — which room the link is for, and
-    // where the link goes next — is what the tests drive.
     AddFriendSheet: (p: any) => (
         <div data-testid="add-friend-sheet" data-open={String(p.open)}>
             <button data-testid="sheet-request-link" onClick={() => p.requestLink?.({ name: 'n', phone: 'p' })} />
@@ -125,11 +119,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
 
 import { InvitePage } from './InvitePage';
 
-/**
- * The default tab is place (ADR-0075). Tests exercising the contacts flow switch the tab first —
- * since the contacts fetch also starts at that point, this switch is itself the trigger for
- * `getContacts()`.
- */
 const renderOnContactTab = () => {
     const result = render(<InvitePage />);
     fireEvent.click(screen.getByTestId('tab-contact'));
@@ -162,10 +151,6 @@ describe('InvitePage (native)', () => {
         fireEvent.click(screen.getByTestId('cta'));
 
         await waitFor(() => expect(createBatchInvite).toHaveBeenCalledTimes(1));
-        // E.164, not the local form: `user.invite-batch` has nowhere to carry a country
-        // (to/channelId/cloudId/cloudName), so the number has to declare its own (ADR-0044 §5).
-        // Both fixtures share a number; de-duplication belongs to the hook that owns the wire
-        // payload, so the page still passes what it collected.
         expect(createBatchInvite).toHaveBeenCalledWith(
             expect.objectContaining({ channelId: 'ch1', phones: ['+821012345678', '+821012345678'] })
         );
@@ -195,8 +180,6 @@ describe('InvitePage (native)', () => {
         expect(await screen.findByTestId('permission-banner')).toBeInTheDocument();
     });
 
-    // When the list is populated, there's no OS settings path. The escape hatch for when partial
-    // contacts access truncates the list is the link invite (see share-link availability below).
     it('opens the invite sheet from the populated list instead of the OS settings', async () => {
         renderOnContactTab();
         await screen.findByTestId('user-N1');
@@ -207,7 +190,6 @@ describe('InvitePage (native)', () => {
         expect(openSettings).not.toHaveBeenCalled();
     });
 
-    // A new group (no members counted yet) still offers all 100 seats.
     it('lets a new group pick 100 and explains the room limit on the 101st', async () => {
         const many = Array.from({ length: 101 }, (_, i) => contact(String(i)));
         getContacts.mockResolvedValue({ data: { contacts: many } });
@@ -222,7 +204,6 @@ describe('InvitePage (native)', () => {
         expect(screen.getByTestId('selected-row')).toHaveTextContent('100');
     });
 
-    // The cap is the room's, not the batch's: 98 members leave two seats.
     it('stops at the seats left in the room', async () => {
         mockChannel = { id: 'ch1', sid: 'site-1', memberCount: 98 };
         getContacts.mockResolvedValue({ data: { contacts: [contact('1'), contact('2'), contact('3')] } });
@@ -247,14 +228,11 @@ describe('InvitePage (native)', () => {
         fireEvent.click(screen.getByTestId('user-N1'));
 
         expect(screen.getByRole('alertdialog')).toHaveTextContent('chat.settings.memberLimit.message');
-        // Nothing was picked, so there is nothing to send.
         expect(screen.getByTestId('cta')).toBeDisabled();
     });
 });
 
 describe('share-link availability', () => {
-    // The link invite used to be open only on DEV/LOCAL builds (a temporary plan). Now that
-    // restriction is lifted, all three entry points must be live on the production app too.
     it('exposes every share-link entry on a release app build', async () => {
         renderOnContactTab();
         await screen.findByTestId('user-N1');
@@ -263,10 +241,6 @@ describe('share-link availability', () => {
         expect(screen.getByTestId('add-friend-sheet')).toBeInTheDocument();
     });
 
-    // The search row keeps just the one link button. Even when partial contacts access returns a
-    // truncated list, the link invite where you type a name + number directly becomes the path
-    // that reaches someone missing from the list — the test above protects the premise that this
-    // path stays open on the production app.
     it('leaves the link button alone in the search row', async () => {
         renderOnContactTab();
         await screen.findByTestId('user-N1');
@@ -284,10 +258,6 @@ describe('share-link availability', () => {
     });
 });
 
-/**
- * The payload an iPhone actually sends. iOS never fills `displayName` and omits a name key outright
- * when the field is empty, so every one of these rows used to render with a blank label.
- */
 describe('contacts that carry no display name', () => {
     const ios = (partial: any) => ({ recordID: 'ios-1', ...partial });
 
@@ -322,8 +292,6 @@ describe('contacts that carry no display name', () => {
         );
     });
 
-    // A contact with no number at all can neither be invited nor identified, so it is left out
-    // rather than shown as a row nobody can tap.
     it('leaves out a contact that has no number at all', async () => {
         getContacts.mockResolvedValue({
             data: {
@@ -344,8 +312,6 @@ describe('contacts that carry no display name', () => {
         expect(screen.queryByTestId('user-inviteFriends.unnamedContact')).not.toBeInTheDocument();
     });
 
-    // Not the same thing as "cannot be invited": a landline-only contact is still recognisable by
-    // its number, so it stays on the list and only the checkbox is off.
     it('keeps a contact whose only number is not an invitable mobile', async () => {
         getContacts.mockResolvedValue({ data: { contacts: [ios({ phoneNumbers: [{ number: '02-123-4567' }] })] } });
         renderOnContactTab();
@@ -545,11 +511,6 @@ describe('InvitePage — 탭 셸', () => {
         expect(await screen.findByTestId('user-N1')).toBeInTheDocument();
     });
 
-    /**
-     * `getContacts()` raises the OS permission popup. Now that the default tab is place, calling
-     * it on mount would prompt for permission even a user with no intention of using contacts, so
-     * it's deferred until the tab is actually opened.
-     */
     it('플레이스 탭에 머무는 동안에는 연락처를 요청하지 않는다', () => {
         render(<InvitePage />);
 
@@ -563,11 +524,6 @@ describe('InvitePage — 탭 셸', () => {
         expect(getContacts).toHaveBeenCalledTimes(1);
     });
 
-    /**
-     * Regression guard: if the trigger were hooked directly to `activeTab`, flipping the tab back
-     * would run cleanup that cancels the in-flight request, leaving only the re-request guard
-     * behind — so the contacts tab would stay empty forever.
-     */
     it('응답 전에 탭을 되돌려도 연락처가 결국 도착한다', async () => {
         let resolveContacts: (v: unknown) => void = () => undefined;
         getContacts.mockReturnValue(new Promise(res => (resolveContacts = res)));
@@ -591,7 +547,6 @@ describe('InvitePage — 탭 셸', () => {
         expect(getContacts).toHaveBeenCalledTimes(1);
     });
 
-    // The web has no device contacts — even so, the place tab opens to a screen with something to pick from.
     it('웹에서도 기본 탭은 플레이스다', () => {
         isNativeValue = false;
         render(<InvitePage />);

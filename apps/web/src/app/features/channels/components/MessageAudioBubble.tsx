@@ -15,39 +15,24 @@ import { useFileDownloads } from '../hooks/useFileDownloads';
 import { useAudioTrack, useRoomAudioStore } from '../stores/roomAudioStore';
 import { audioTrackOf, canPlayAudioType, isVoiceMessageName, type AudioMessageInfo } from '../utils/audioPlayback';
 
-/** What the message row knows about the message an audio upload belongs to. */
 export interface AudioMessageContext extends Omit<AudioMessageInfo, 'cid' | 'chatId' | 'chatNo'> {
     chatNo?: number;
     mine: boolean;
-    /** The whole message failed to send: its audio shows the failure and the retry and delete chips. */
     failed?: boolean;
     onRetry?: () => void;
-    /** Deletes the unsent row — the upload's ✕ while it goes, the delete chip once it failed. */
     onDelete?: () => void;
 }
 
 interface MessageAudioBubbleProps {
     file: ChatFileSlot;
-    /** The upload's position in the message's `upload$$`. */
     idx: number;
     cid: string;
     chatId?: string;
-    /** 0..1 while the message is on its way. */
     sendProgress?: number;
     context: AudioMessageContext;
     className?: string;
 }
 
-/**
- * One audio upload of a message, drawn as the design's audio bubble and played by the room's one
- * player (`useRoomAudioStore`): the bubble only shows the player's state for its file and asks it to
- * play, pause, seek or change speed. Its body opens the audio detail screen.
- *
- * Every state the upload can be in is this bubble's — on its way (a ring and ✕), failed (with the
- * retry and delete chips below it), broken, and a format this system cannot play (with a download
- * instead of play). Which format that is, the platform's player is asked (`canPlayAudioType`); a file
- * that fails anyway is marked by the player when it errors.
- */
 export const MessageAudioBubble = ({
     file,
     idx,
@@ -68,10 +53,6 @@ export const MessageAudioBubble = ({
             ? audioTrackOf({ ...context, cid, chatId, chatNo: context.chatNo }, file, idx)
             : undefined;
 
-    // A message read again hands the file a new signed address while the player keeps the one it is
-    // playing from: swapping it mid-play would download the whole file again. An address that has
-    // expired fails, and the player's host fetches a fresh one then (`RoomAudioHost`).
-
     const name = isVoiceMessageName(file.name)
         ? t('chat.attach.audio.voiceMessage')
         : file.name?.trim() || t('chat.attach.fileCard.fallbackName');
@@ -84,7 +65,6 @@ export const MessageAudioBubble = ({
         if (file.state === 'broken') return 'broken';
         if (unplayable) return 'unsupported';
         if (view.active) return view.status === 'idle' ? 'idle' : view.status;
-        // Paused here earlier and switched away from: still drawn at that position.
         return view.position > 0 ? 'paused' : 'idle';
     })();
 

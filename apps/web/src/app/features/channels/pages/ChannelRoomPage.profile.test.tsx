@@ -4,11 +4,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { ClientChatView, DomainChannel } from '../types';
 
-// Opening a person from the room: a sender's avatar or name, a 1:1's header, and a group's
-// participant stack. Every hook is mocked, as in ChannelRoomPage.test.tsx, so these cases pin what
-// the page hands the header, the rows and the profile dialog — not the hooks behind them.
-
-// Loose on purpose: the page reads `isSelfChat`, which the cache view type does not declare.
 let mockChannel: (Partial<DomainChannel> & { isSelfChat?: boolean }) | null = null;
 let mockMessages: Partial<ClientChatView>[] = [];
 let mockDmPeer: { id: string; profileNick?: string; thumbnail?: string } | null = null;
@@ -17,7 +12,6 @@ const mockNavigate = jest.fn();
 let mockHeaderProps: Record<string, any> = {};
 let mockDialogProps: Record<string, any> = {};
 
-// The profile's start-1:1 entry is gated by this hook; it is off unless a test turns it on.
 const mockStartDm = jest.fn();
 let mockStartDmAvailable = false;
 const mockUseStartDm = () => ({ startDm: mockStartDm, isStarting: false, isAvailable: mockStartDmAvailable });
@@ -32,7 +26,6 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), info: jest.fn() },
     isNative: () => false,
-    // The debug gate (useDebugMode) reads the shell's debug flag; no shell wrote one here.
     liveShellValue: () => undefined,
 }));
 jest.mock('@chatic/shared', () => ({
@@ -60,7 +53,6 @@ jest.mock('@chatic/runtime', () =>
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: jest.fn() }));
 jest.mock('@chatic/web-ui-kit', () => ({
     AvatarGroup: () => null,
-    // Records what the page hands the header — the click hooks are what these cases are about.
     ChatRoomHeader: (props: any) => {
         mockHeaderProps = props;
         return null;
@@ -85,7 +77,6 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     }),
 }));
 jest.mock('../stores/useRecentEmojiStore', () => ({ useRecentEmojiStore: () => jest.fn() }));
-// The row stand-in hands the page a sender the way the real row does — what it drew.
 jest.mock('../components/ChannelMessageRow', () => ({
     ChannelMessageRow: ({ message, onOpenProfile, ownerDisplayName, ownerAvatar }: any) => (
         <button
@@ -112,7 +103,6 @@ jest.mock('../components/RoomSkeleton', () => ({ RoomSkeleton: () => null }));
 jest.mock('../hooks/useSendImages', () => ({
     useSendImages: () => ({ sendImages: jest.fn(), retry: jest.fn(), canRetry: () => true, discard: jest.fn() }),
 }));
-// The voice message's own behaviour is its hook's test; here only where its pieces go.
 jest.mock('../hooks/useVoiceMessage', () => ({
     useVoiceMessage: () => ({ canRecord: true, open: jest.fn(), sheet: null }),
 }));
@@ -172,7 +162,6 @@ jest.mock('../hooks', () => ({
         fillGap: jest.fn(),
         revalidateAround: jest.fn(),
     }),
-    // The jump pills read the scroll state and the inbox; a room with no pill is what these cases need.
     useRoomJumpPills: () => ({ pill: null, checkInView: jest.fn() }),
     useChatScroll: () => ({ containerRef: { current: null }, handleScroll: jest.fn(), hasPendingRestore: () => false }),
     useDmInviteState: () => ({ state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: jest.fn() }),
@@ -239,7 +228,6 @@ describe('ChannelRoomPage — opening a sender from their message', () => {
         expect(mockDialogProps.memberIsOwner).toBe(true);
     });
 
-    // My own profile carries "profile settings", whose editor this room does not mount.
     it('never opens my own profile', () => {
         mockMessages = [row({ ownerId: 'me' })];
 
@@ -257,12 +245,10 @@ describe('ChannelRoomPage — opening a sender from their message', () => {
         act(() => mockDialogProps.onOpenChange(false));
 
         expect(screen.queryByTestId('profile-dialog')).not.toBeInTheDocument();
-        // Still naming them while it slides away, rather than blanking mid-animation.
         expect(mockDialogProps.member).toEqual({ id: 'peer', name: 'peer name', avatar: undefined });
     });
 });
 
-// The profile offers a 1:1 only where one can open; `canStartDmFromProfile` holds the full rule.
 describe('ChannelRoomPage — starting a 1:1 from a profile', () => {
     beforeEach(() => {
         mockStartDmAvailable = true;

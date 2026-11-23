@@ -190,6 +190,9 @@ streams in and a mid-hydration snapshot would count every member as roster-only.
 
 Owner-only: edit the room name and photo, write with `channel.update`. The avatar offers the picker;
 images are resized to base64 and capped at 10MB.
+A photo that cannot be encoded (a codec failure) shows the same "too large" message as an oversized one, so the log
+records the file's size and type to tell them apart and never its contents. `JoinNickDialog`'s self-chat photo
+follows the same rule.
 
 It once had a second mode, for an invited member, whose name field saved **my `join.nick`** as a
 personal name for the room, shown only to me. That mode is gone, because a group no longer reads that

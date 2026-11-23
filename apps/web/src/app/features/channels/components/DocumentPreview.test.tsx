@@ -40,7 +40,6 @@ jest.mock('../hooks/useFileDownloads', () => ({
     useFileDownloads: () => ({ download, stateOf: () => 'idle', progressOf: () => null }),
 }));
 
-// jsdom lays nothing out; the viewer measures its scroll area to size the pages.
 const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
 beforeAll(() => {
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 390 });

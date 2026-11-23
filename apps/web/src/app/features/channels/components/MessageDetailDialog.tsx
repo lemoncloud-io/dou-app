@@ -6,16 +6,10 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { MessageText } from './MessageText';
 
 export interface MessageDetailDialogProps {
-    /** The message being expanded (null = closed). */
     message: { content: string; hidden?: boolean } | null;
     onClose: () => void;
 }
 
-/**
- * Full body of a message the bubble had to truncate — the "view full" destination. Shared by the room
- * and the thread: a long reply is truncated by the same rule the room truncates by, so it needs the
- * same way out (the thread used to render the affordance with nothing behind it).
- */
 export const MessageDetailDialog = ({ message, onClose }: MessageDetailDialogProps) => {
     const { t } = useTranslation();
 
@@ -36,9 +30,6 @@ export const MessageDetailDialog = ({ message, onClose }: MessageDetailDialogPro
                 </header>
                 <div className="flex-1 overflow-y-auto px-4 py-3">
                     <p className="whitespace-pre-wrap break-all text-[15px] leading-[1.55] text-foreground">
-                        {/* Full content, so no `truncated` — a URL the bubble had to cut is a
-                            complete, tappable link here, and every fence is closed. */}
-                        {/* A deleted message has nothing left to show in full. */}
                         {message &&
                             (message.hidden ? (
                                 <span className="italic text-muted-foreground">{t('chat.room.deletedMessage')}</span>

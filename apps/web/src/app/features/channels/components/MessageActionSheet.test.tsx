@@ -67,7 +67,6 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(baseProps.onPickEmoji).toHaveBeenCalledWith('👍');
     });
 
-    // Pending/failed rows have no server id yet — a reaction or a reply would target a temp id.
     it('canReact/canReply가 꺼지면 리액션 줄과 답글 항목이 사라진다', () => {
         render(<MessageActionSheet {...baseProps} canReact={false} canReply={false} />);
 
@@ -76,10 +75,6 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(screen.getByText('chat.room.copyMessage')).toBeInTheDocument();
     });
 
-    // Opens to its content height (Figma 4712:16421). It used to be pinned to half the screen so
-    // copy/thread landed in the same spot on every long press, but the design keeps that spot
-    // fixed by row count instead — the quick row is always 6 items + the add button, and the two
-    // items below it are always the same two. Only the sheet's top edge moves.
     it('절반 높이 고정을 버리고 내용 높이로 열린다', () => {
         render(<MessageActionSheet {...baseProps} />);
 
@@ -88,8 +83,6 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(dialog).toHaveClass('rounded-t-[32px]');
     });
 
-    // There's no title bar and no close button — the grabber is the only chrome. The title just
-    // isn't rendered visually; it still remains for the screen reader.
     it('제목 바를 그리지 않지만 접근성 이름은 남긴다', () => {
         render(<MessageActionSheet {...baseProps} />);
 
@@ -97,8 +90,6 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
     });
 
-    // Thread on top, copy below (the design order) — the reason to open this sheet with a long
-    // press is the thread; copy is second choice.
     it('스레드 항목이 메시지 복사보다 위에 온다', () => {
         render(<MessageActionSheet {...baseProps} />);
 
@@ -115,8 +106,6 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(baseProps.onReply).toHaveBeenCalled();
     });
 
-    // Edit and delete only on my own message. The verdict is the shared `canModifyMessage`'s to
-    // make; the page hands the answer down.
     it('canModify가 아니면 수정·삭제를 내지 않는다', () => {
         render(<MessageActionSheet {...baseProps} />);
 
@@ -130,7 +119,6 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         const labels = screen
             .getAllByText(/^chat\.(room|thread)\.(replyAction|copyMessage|editMessage|deleteMessage)$/)
             .map(node => node.textContent);
-        // The order is the contract: the two existing rows must not move out from under a thumb.
         expect(labels).toEqual([
             'chat.thread.replyAction',
             'chat.room.copyMessage',
@@ -149,8 +137,6 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(baseProps.onDelete).toHaveBeenCalledTimes(1);
     });
 
-    // An image-only message: reactions, the thread and delete still apply, but there is no text for
-    // Copy or Edit to act on.
     it('leaves out copy and edit for a message with no text, keeping reply and delete', () => {
         render(<MessageActionSheet {...baseProps} canModify hasText={false} />);
 
@@ -161,8 +147,6 @@ describe('MessageActionSheet — 메시지 롱프레스 액션 시트', () => {
         expect(screen.getByLabelText('chat.room.moreEmoji')).toBeInTheDocument();
     });
 
-    // Sharing wording with 'chat.room.delete' — the ✕ on an unsent row — would read as "the one I
-    // removed earlier never reached them either". A server delete gets its own key.
     it('서버 삭제는 미전송 삭제와 다른 문구 키를 쓴다', () => {
         render(<MessageActionSheet {...baseProps} canModify />);
 
@@ -294,7 +278,6 @@ describe('MessageActionSheet — audio message', () => {
         expect(rowLabels()).toEqual(['chat.thread.replyAction', 'chat.attach.audio.save', 'chat.attach.audio.share']);
     });
 
-    // Its own save and share replace the document's lone "Share file" — two share rows would be one too many.
     it('does not add the document’s "Share file" row', () => {
         canShare();
         render(<MessageActionSheet {...baseProps} hasText={false} canModify fileMessage={audioMessage} />);

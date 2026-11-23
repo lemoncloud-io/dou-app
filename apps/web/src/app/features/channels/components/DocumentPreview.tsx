@@ -12,7 +12,6 @@ import { saveFileInBrowser } from '../lib/browserSave';
 import { fetchInBrowser, type BrowserFetchResult } from '../lib/fileDownload';
 import { loadPdf, preloadPdf, type PdfDocument } from '../lib/pdf';
 
-/** The document the viewer shows, and the message it came from (to sign its address again). */
 export interface DocumentPreviewTarget {
     file: ChatFileSlot;
     chatId?: string;
@@ -20,7 +19,6 @@ export interface DocumentPreviewTarget {
 
 interface DocumentPreviewProps {
     cid: string;
-    /** `null` closes the viewer. */
     target: DocumentPreviewTarget | null;
     onClose: () => void;
 }
@@ -28,14 +26,11 @@ interface DocumentPreviewProps {
 interface Loaded {
     status: DocumentViewerStatus;
     pages?: PdfDocument;
-    /** The file's bytes once fetched — kept even when they would not open, so save and share use them. */
     blob?: Blob;
 }
 
-/** The viewer's slide-out (`VIEWER_MOTION`, 300ms) with room to finish before its content goes. */
 const RELEASE_AFTER_CLOSE_MS = 500;
 
-/** Fetches the file, reading the message again once for a fresh address when the signed one expired. */
 const fetchFile = async (
     cid: string,
     target: DocumentPreviewTarget,
@@ -49,39 +44,23 @@ const fetchFile = async (
     return fetchInBrowser(fresh, { signal });
 };
 
-/**
- * A sent PDF read in a browser tab, in the photo viewer's frame (`DocumentViewer`), with share and
- * save along the bottom. Before this a press downloaded the file, and a phone browser then showed it in
- * place of the page, with no way back to the room and nothing to save it with.
- *
- * The bytes are fetched once when it opens and dropped once it has slid away. Save and share hand over those
- * same bytes, so neither waits on the network: a share has to start within moments of the press, or
- * the browser refuses it. Before the bytes arrive, save downloads as the card's button does; a file
- * that will not open (a damaged or locked PDF) still offers both.
- */
 export const DocumentPreview = ({ cid, target, onClose }: DocumentPreviewProps) => {
     const { t } = useTranslation();
-    // The last target, so the viewer keeps its content while it slides away after a close.
     const shownRef = useRef<DocumentPreviewTarget | null>(target);
     if (target) shownRef.current = target;
     const shown = target ?? shownRef.current;
     const files = useFileDownloads({ cid, chatId: shown?.chatId });
-    // Keyed by the target it was opened for: the host sets a new object on every open, so reopening the
-    // same file starts from the spinner rather than drawing the document the last close freed.
     const [held, setLoaded] = useState<Loaded & { for?: DocumentPreviewTarget }>({ status: 'loading' });
     const [sharing, setSharing] = useState(false);
     const canShare = useMemo(() => canShareFilesInBrowser(), []);
-    // Aborted when this open ends, so a share still fetching never brings its sheet up over the room.
     const openRef = useRef<AbortController | null>(null);
 
-    // The host keeps the target in state, so a new object means a new file to open.
     useEffect(() => {
         if (!target?.file.url) return;
         const controller = new AbortController();
         openRef.current = controller;
         let doc: PdfDocument | undefined;
         const open = async (): Promise<Loaded> => {
-            // pdf.js arrives while the file is still on its way.
             preloadPdf();
             const result = await fetchFile(cid, target, controller.signal);
             if (result.kind !== 'blob') return { status: 'failed' };
@@ -102,7 +81,6 @@ export const DocumentPreview = ({ cid, target, onClose }: DocumentPreviewProps) 
         };
     }, [cid, target]);
 
-    // Once the viewer has slid away, the bytes (up to the 50MB document limit) and the freed document go.
     useEffect(() => {
         if (target) return;
         const timer = setTimeout(() => {
@@ -114,7 +92,6 @@ export const DocumentPreview = ({ cid, target, onClose }: DocumentPreviewProps) 
 
     if (!shown) return null;
     const { file, chatId } = shown;
-    // What was opened for another target — its document already freed — is never drawn for this one.
     const loaded: Loaded = held.for === shown ? held : { status: 'loading' };
     const name = file.name ?? t('chat.attach.fileCard.fallbackName');
 
@@ -123,8 +100,6 @@ export const DocumentPreview = ({ cid, target, onClose }: DocumentPreviewProps) 
             void files.download(file, chatId);
             return;
         }
-        // On iOS this is the share sheet ("Save to Files"); the bytes are already here, so the press
-        // is fresh enough for it.
         const saved = await saveFileInBrowser(loaded.blob, name);
         if (saved === 'needs-gesture') toast({ title: t('chat.attach.browserShare.again') });
         if (saved === 'failed') toast({ title: t('chat.attach.browserShare.saveFailed'), variant: 'destructive' });
@@ -145,11 +120,9 @@ export const DocumentPreview = ({ cid, target, onClose }: DocumentPreviewProps) 
                 }
                 const fetched = result.blob;
                 blob = fetched;
-                // Kept, so the press the browser asks for next shares at once.
                 setLoaded(previous => (previous.for === shown ? { ...previous, blob: fetched } : previous));
             }
             const outcome = await shareFileInBrowser(blob, name);
-            // Closed while the sheet was up: what it says no longer belongs to anything on screen.
             if (signal.aborted) return;
             if (outcome === 'needs-gesture') toast({ title: t('chat.attach.browserShare.again') });
             if (outcome === 'failed') toast({ title: t('chat.attach.browserShare.failed'), variant: 'destructive' });
@@ -179,7 +152,6 @@ export const DocumentPreview = ({ cid, target, onClose }: DocumentPreviewProps) 
                             <Share className="size-5" aria-hidden="true" />
                         </MediaViewerActionButton>
                     ) : (
-                        // Holds the left end, so save stays at the right as in the photo viewer.
                         <span aria-hidden="true" />
                     )}
                     <MediaViewerActionButton

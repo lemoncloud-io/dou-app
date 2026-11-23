@@ -11,25 +11,12 @@ import { isVoiceMessageName } from '../utils/audioPlayback';
 
 interface RoomMiniPlayerProps {
     channelId: string;
-    /** The thread this surface shows, as its root's chatNo; omitted for the room. */
     threadRootNo?: string;
-    /** The scrolling list the bubbles sit in. */
     containerRef: RefObject<HTMLElement | null>;
-    /** Changes whenever the drawn rows change, so a bubble mounted later is found. */
     rowsVersion: unknown;
-    /** Distance from the top of the screen, px — under the header. */
     top: number;
 }
 
-/**
- * The room's mini player (Figma 6072:23033): shown while a file is playing or paused mid-way and its
- * bubble is not on screen — scrolled away, or not drawn on this surface at all. Its body jumps back to
- * the bubble the way a search result does (`useMessageJumpStore`); a reply's file is in its thread, so
- * from the room that opens the thread first. × stops and unloads.
- *
- * Whether the bubble is on screen is asked of an `IntersectionObserver` on the list, against the
- * bubble's `data-audio-key` element.
- */
 export const RoomMiniPlayer = ({ channelId, threadRootNo, containerRef, rowsVersion, top }: RoomMiniPlayerProps) => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -45,8 +32,6 @@ export const RoomMiniPlayer = ({ channelId, threadRootNo, containerRef, rowsVers
         const root = containerRef.current;
         if (!key || !root || typeof IntersectionObserver === 'undefined') return undefined;
         const bubble = root.querySelector(`[data-audio-key="${CSS.escape(key)}"]`);
-        // Only a missing bubble is known to be off screen at once; a found one keeps the last answer
-        // until its observer speaks, so a list update does not flash the player for a frame.
         if (!bubble) {
             setInView(false);
             return undefined;

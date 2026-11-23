@@ -19,29 +19,16 @@ import type { ClientChatView } from '../types';
 import { hasMyReaction, type ReactionTally } from '../utils/foldReactions';
 import { audioFileOf, shareableFile } from '../utils/messageActions';
 
-// Fills the quick row when the person has few recents. Together with QUICK_REACTIONS
-// these are conversation acknowledgements, not a "top emoji" chart.
 const QUICK_FALLBACK = ['😂', '❤️', '🙏', '😮'];
 const QUICK_ROW_SIZE = 6;
 
 interface MessageActionSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Folded reactions of the target message — pressed state for the quick row. */
     tallies?: ReactionTally[];
-    /** Quick row + "more" picker shown only when the target can be reacted to (persisted row). */
     canReact: boolean;
-    /** Reply action shown only for persisted, top-level messages (flat threads, ADR-0008). */
     canReply: boolean;
-    /**
-     * Edit and delete shown only for a message of mine the server has settled — the shared
-     * `canModifyMessage` verdict, which the page computes so every surface asks it the same way.
-     */
     canModify: boolean;
-    /**
-     * The message has text of its own. An image-only message has none, so Copy and Edit — the two
-     * actions that act on text — are left out for it; delete still applies.
-     */
     hasText: boolean;
     isCopying: boolean;
     onPickEmoji: (emoji: string) => void;
@@ -50,48 +37,9 @@ interface MessageActionSheetProps {
     onReply: () => void;
     onEdit: () => void;
     onDelete: () => void;
-    /**
-     * The target message, for "Share file": shown when it carries a stored document and the installed
-     * app can share one — the same handshake the viewer's share asks. Never in a browser.
-     */
     fileMessage?: Pick<ClientChatView, 'cid' | 'id' | 'upload$$' | 'chatNo' | 'hidden'> | null;
 }
 
-/**
- * Long-press action sheet for one message: a one-tap reaction row (recents + fixed
- * quick reactions), then the thread and copy actions (copy only when the message has
- * text). Replaces the old Radix dropdown —
- * a narrow dropdown cannot hold the emoji row, and sheet options are the touch-target
- * size the dropdown items were not (ADR-0093).
- *
- * The quick row's pressed state mirrors the chips: tapping an emoji you already
- * reacted with sends `off`, so the sheet is a toggle surface, not add-only.
- *
- * The panel sizes to its content and carries no title bar — only the grabber (Figma
- * 4712:16421). That reverses the fixed 50vh it used to hold, which existed so the rows
- * would not move under the thumb between long-presses; the design's answer was instead
- * to keep the row COUNT stable — the quick row is always six plus the add button, and
- * the actions below it were the same two every time. What moves is the panel's top edge,
- * not the targets' distance from the bottom.
- *
- * THAT STABLE COUNT IS GONE, deliberately. Edit and delete only exist for a message of
- * mine, so the list is now two rows or four. Do not "restore" the invariant by pulling
- * them back out: the alternative was a second message-action surface on a phone, and one
- * sheet that sometimes has more in it beats two places to look. What is preserved is the
- * part the invariant was protecting, as an ORDER: thread, copy, edit, delete, with each
- * row present only when it applies. Adding anything further goes below. A message with no
- * text (a photo) has no copy and no edit, so on my own photo delete sits where copy sits
- * on text — accepted because the delete asks for confirmation. Do not "fix" that by
- * showing a disabled copy on a photo; it reads as a broken feature.
- *
- * An audio message adds save and share between thread and delete — the design's order for it, minus
- * reply-with-quote (the app has none) and forward (the server cannot attach another member's upload to
- * a new message). They replace the audio card's old ⋯ menu.
- *
- * WHO reacted is deliberately not here — it lives in `ReactionDetailSheet`, reached by
- * long-pressing the chip itself. This sheet answers "what can I do to this message";
- * that one answers "who is in this reaction", and faces need room this list has not.
- */
 export const MessageActionSheet = ({
     open,
     onOpenChange,
@@ -113,13 +61,9 @@ export const MessageActionSheet = ({
     const recent = useRecentEmojiStore(s => s.recent);
     const canShareFiles = useCanExportImages();
     const files = useFileDownloads({ cid: fileMessage?.cid ?? '', chatId: fileMessage?.id });
-    // An audio message saves and shares its audio, above delete (Figma 6044:24120); any other document
-    // keeps the lone "Share file" at the bottom.
     const audioFile = fileMessage ? audioFileOf(fileMessage) : undefined;
     const sharedFile = canShareFiles && fileMessage ? shareableFile(fileMessage) : undefined;
 
-    // Recents first (habit wins), topped up with the fixed acknowledgements — deduped
-    // on the raw string; the fold key only matters once a reaction exists.
     const quickEmojis = [...new Set([...recent, ...QUICK_REACTIONS, ...QUICK_FALLBACK])].slice(0, QUICK_ROW_SIZE);
 
     return (
@@ -165,8 +109,6 @@ export const MessageActionSheet = ({
                 </div>
             )}
 
-            {/* Thread above message copy (design order): opening the conversation is the reason
-                this sheet gets long-pressed open, and copy is the fallback. */}
             {canReply && (
                 <SheetAction icon={<IconThread size={26} />} label={t('chat.thread.replyAction')} onClick={onReply} />
             )}
@@ -186,7 +128,6 @@ export const MessageActionSheet = ({
             )}
             {audioFile && (
                 <>
-                    {/* The save's progress and its result are the shell's toast; the sheet closes at once. */}
                     <SheetAction
                         icon={<IconDownload size={22} />}
                         label={t('chat.attach.audio.save')}
@@ -207,17 +148,11 @@ export const MessageActionSheet = ({
                     )}
                 </>
             )}
-            {/* After thread and copy, always — see the note on the row order above. */}
             {canModify && (
                 <>
                     {hasText && (
                         <SheetAction icon={<Pencil size={22} />} label={t('chat.room.editMessage')} onClick={onEdit} />
                     )}
-                    {/* `deleteMessage`, NOT the `delete` key an unsent row's ✕ uses. That one
-                        clears a failed send from my own screen; this one removes the message for
-                        everyone. They never appear on the same message, but the same person meets
-                        both in the same room, and one word for both teaches that the earlier one
-                        was hidden from the other side too. */}
                     <SheetAction
                         icon={<Trash2 size={22} className="text-destructive" />}
                         label={t('chat.room.deleteMessage')}
@@ -225,8 +160,6 @@ export const MessageActionSheet = ({
                     />
                 </>
             )}
-            {/* Below everything else, per the order above. The sheet closes at once; the download's
-                progress shows on the document's own card, and the share sheet follows it. */}
             {sharedFile && (
                 <SheetAction
                     icon={<Share size={22} />}

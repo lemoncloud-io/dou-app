@@ -15,10 +15,6 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => mockNavigate,
 }));
 
-/**
- * jsdom has no IntersectionObserver. This one records what is observed, so a test can say whether
- * the bubble is on screen by firing an entry the way the browser would.
- */
 class FakeIntersectionObserver {
     static instances: FakeIntersectionObserver[] = [];
     observed: Element[] = [];
@@ -60,7 +56,6 @@ const track = (over: Partial<AudioTrack> = {}): AudioTrack => ({
 const load = (playing: AudioTrack = track(), status: AudioStatus = 'playing', position = 5) =>
     act(() => useRoomAudioStore.setState({ current: playing, status, position, duration: 30 }));
 
-/** The scrolling list, with or without the playing file's bubble drawn in it. */
 const list = (withBubble: boolean) => {
     const root = document.createElement('div');
     if (withBubble) {
@@ -215,7 +210,6 @@ describe('RoomMiniPlayer', () => {
     it('opens the thread first for a reply’s file played from the room', () => {
         load(track({ threadRootNo: '3' }));
         renderPlayer(list(false));
-        // The thread page is what handles the jump, so it must be on its way before the jump is asked.
         let jumpAtNavigate: unknown = 'not navigated';
         mockNavigate.mockImplementation(() => {
             jumpAtNavigate = useMessageJumpStore.getState().target;

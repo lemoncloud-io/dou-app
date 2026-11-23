@@ -24,7 +24,6 @@ jest.mock('@chatic/runtime', () =>
         data: {
             useImageSendProgress: (pendingId?: string) => (pendingId ? mockSendProgress.get(pendingId) : undefined),
         },
-        // Who moves files, as the host's `files` port says: the app when the case runs in the app.
         get files() {
             return { kind: mockNative ? 'shell' : 'browser' };
         },
@@ -38,8 +37,6 @@ jest.mock('@chatic/shared', () => ({
 const refresh = jest.fn().mockResolvedValue(true);
 jest.mock('../hooks/useImageAddressRefresh', () => ({ useImageAddressRefresh: () => refresh }));
 
-// The cache has its own suite. Here it answers per request: by default every image is drawn from its
-// signed address, as when the cache cannot fetch; a test can resolve some keys to a kept copy instead.
 type Request = { key: string; variant: string; url: string } | undefined;
 const cachedKeys = new Map<string, string | 'pending'>();
 const rejected: string[] = [];
@@ -66,8 +63,6 @@ jest.mock('../hooks/useCachedImages', () => ({
     },
 }));
 
-// Frame making has its own suite. Here it answers per key, and records what was asked and whether the
-// message was on screen; jsdom has no IntersectionObserver, so it always is.
 type FrameRequest = { key: string; url: string } | undefined;
 const frameAnswers = new Map<string, { status: 'image'; src: string } | { status: 'element'; url: string }>();
 const frameCalls: { requests: FrameRequest[]; visible: boolean }[] = [];
@@ -99,7 +94,6 @@ beforeEach(() => {
 });
 
 describe('MessageImages', () => {
-    // A cached row keeps addresses that expire; the message is read again for fresh ones.
     it('re-reads the message from its cloud when an image fails, and shows a placeholder meanwhile', () => {
         const uploads = [sent('u1', 'https://s3/u1-thumb-old'), sent('u2', 'https://s3/u2-thumb')];
         const { container } = render(<MessageImages uploads={uploads} chatId="ch1:5" cid="cloud-b" align="start" />);
@@ -126,7 +120,6 @@ describe('MessageImages', () => {
         expect(container.querySelector('img')).toHaveAttribute('src', 'https://s3/new');
     });
 
-    // A message still on its way draws from a local preview; there is nothing to re-read.
     it('never re-reads for a local preview', () => {
         const uploads = [{ localStatus: 'sending', localThumbUrl: 'blob:1' }] as Uploads;
         const { container } = render(<MessageImages uploads={uploads} chatId="tmp-1" cid="c" align="end" />);
@@ -136,7 +129,6 @@ describe('MessageImages', () => {
         expect(refresh).not.toHaveBeenCalled();
     });
 
-    // Tiles and cards are numbered apart; the progress is by `upload$$` position, which interleaves them.
     it('draws each pending slot its own progress, by its place in the message', () => {
         const uploads = [
             { localStatus: 'sending', localThumbUrl: 'blob:1' },
@@ -156,7 +148,6 @@ describe('MessageImages', () => {
         expect(bars.map(bar => bar.getAttribute('aria-valuenow'))).toEqual(['30', '50']);
         expect(bars[0]).toHaveAccessibleName('chat.attach.sending');
         expect(screen.getByText('1 MB / 2 MB')).toBeInTheDocument();
-        // The second photo has not started counting, and spins.
         expect(container.querySelectorAll('.animate-spin')).toHaveLength(1);
     });
 
@@ -196,7 +187,6 @@ describe('MessageImages', () => {
             expect(viewerSrc()).toBe('https://s3/u2');
         });
 
-        // The tiles show four and a "+n"; the viewer still reaches the ones behind it.
         it('reaches the images hidden behind the "+n" tile', () => {
             render(<MessageImages uploads={many(6)} chatId="ch1:5" cid="c" align="start" />);
 
@@ -237,7 +227,6 @@ describe('MessageImages', () => {
             expect(container.querySelector('img')).toHaveAttribute('src', 'blob:kept-u1');
         });
 
-        // Starting the signed download alongside the lookup would spend the download the cache saves.
         it('draws nothing while the copy is looked up', () => {
             cachedKeys.set('c/u1/thumb', 'pending');
             const { container } = render(
@@ -247,7 +236,6 @@ describe('MessageImages', () => {
             expect(container.querySelector('img')).toBeNull();
         });
 
-        // A kept copy that does not decode is dropped; its address has not expired, so nothing is re-read.
         it('drops a kept copy that fails, without re-reading the message', () => {
             cachedKeys.set('c/u1/thumb', 'blob:bad');
             const { container } = render(
@@ -272,7 +260,6 @@ describe('MessageImages', () => {
                 undefined,
                 undefined,
             ]);
-            // No original is fetched until the viewer opens.
             expect(originals.every(request => request === undefined)).toBe(true);
         });
 
@@ -281,7 +268,6 @@ describe('MessageImages', () => {
             cachedKeys.set('c/u5/thumb', 'blob:t5');
             render(<MessageImages uploads={many(6)} chatId="ch1:5" cid="c" align="start" />);
 
-            // Tile 4 is u3; one step on shows u4, between u3 and u5.
             fireEvent.click(screen.getByRole('button', { name: 'chat.attach.tile:4' }));
             fireEvent.click(screen.getByRole('button', { name: 'chat.attach.viewerNext' }));
 
@@ -294,14 +280,11 @@ describe('MessageImages', () => {
                 'c/u4/org',
                 'c/u5/org',
             ]);
-            // Behind the "+n" tile, yet drawn as a placeholder beside the open image.
             expect(thumbs[5]?.key).toBe('c/u5/thumb');
             expect(viewer().querySelector('img[data-current]')).toHaveAttribute('src', 'blob:o4');
             expect(viewer().querySelector('img[data-placeholder][src="blob:t5"]')).toBeInTheDocument();
         });
 
-        // Three originals fetched side by side split a slow network three ways, and the one being looked
-        // at is the one that matters.
         it('leads with the open original, ahead of its neighbours', () => {
             render(<MessageImages uploads={many(6)} chatId="ch1:5" cid="c" align="start" />);
             expect(leads.at(-1)).toBeUndefined();
@@ -311,7 +294,6 @@ describe('MessageImages', () => {
 
             const originals = requested.at(-1) ?? [];
             expect(originals[leads.at(-1) as number]?.key).toBe('c/u4/org');
-            // The thumbnails have no lead: a row's tiles are all on screen at once.
             expect(leads.at(-2)).toBeUndefined();
         });
 
@@ -460,7 +442,6 @@ describe('MessageImages — videos and documents', () => {
     };
 
     beforeEach(() => {
-        // jsdom's player decodes nothing and says so; a real one says it may play an m4a.
         jest.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockReturnValue('maybe');
         resetRoomAudioStore();
         useRoomAudioStore.getState().attach({
@@ -485,7 +466,6 @@ describe('MessageImages — videos and documents', () => {
         );
 
         expect(screen.getByText('quote')).toBeInTheDocument();
-        // No element of its own: the page's one player plays it.
         expect(document.querySelector('audio')).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: 'chat.attach.audio.play' }));
         expect(useRoomAudioStore.getState().current).toMatchObject({

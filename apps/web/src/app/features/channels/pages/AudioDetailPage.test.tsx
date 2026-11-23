@@ -9,7 +9,6 @@ import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { resetRoomAudioStore, useRoomAudioStore } from '../stores/roomAudioStore';
 import { AudioDetailPage } from './AudioDetailPage';
 
-// Naming follows the room's chain, which has its own suite; here the row's snapshot is enough.
 jest.mock('../hooks/useRoomSenderName', () => ({
     useRoomSenderName: () => (chat: { ownerId?: string; owner$?: { name?: string } }) =>
         chat.owner$?.name ?? chat.ownerId ?? '',
@@ -30,8 +29,6 @@ jest.mock('@chatic/runtime', () =>
             useUidInCloud: () => 'u1',
         },
         data: (() => {
-            // One graph object, as the runtime hands out.
-            // Built on first use: the mocks it holds are initialised after this factory runs.
             let graph: unknown;
             const graphOf = () => (graph ??= { chat: { cacheRead: mockCacheRead, getChat: mockGetChat } });
             return { getCloudRepositories: graphOf, useRuntimeRepositories: graphOf };
@@ -39,7 +36,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('../hooks/useChannel', () => ({ useChannel: () => ({ channel: { id: 'ch-1', cid: 'c1' } }) }));
-// The waveform reads and decodes the file; its own suite covers that. Undefined draws the decorative bars.
 jest.mock('../hooks/useAudioWaveform', () => ({ useAudioWaveform: () => undefined }));
 const mockDeleteServerMessage = jest.fn();
 jest.mock('../hooks/useChatMutations', () => ({
@@ -73,7 +69,6 @@ const message = (over: Partial<DomainChat> = {}): DomainChat =>
         ...over,
     }) as unknown as DomainChat;
 
-/** A media element as the store drives it — see `roomAudioStore.test.ts`. */
 const fakeAudio = () => ({
     src: '',
     currentTime: 0,
@@ -172,7 +167,6 @@ describe('AudioDetailPage', () => {
 
         openMore();
 
-        // The sheet is open, with none of the rows that lead back to the message.
         expect(await screen.findByRole('dialog')).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'chat.attach.audio.viewInChat' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'chat.thread.replyAction' })).not.toBeInTheDocument();

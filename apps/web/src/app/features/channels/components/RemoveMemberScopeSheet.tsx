@@ -4,36 +4,18 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/ui-kit';
 import { BottomSheet, Button, ListRow } from '@chatic/web-ui-kit';
 
-/** Where a member is removed from: this room only, or the room's place and every group in it. */
 export type RemoveMemberScope = 'room' | 'place';
 
 interface RemoveMemberScopeSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** The member being removed, as the profile names them. */
     memberName: string;
-    /** This room's name — present when I may remove from the room. */
     roomName?: string;
-    /** The room's place name — present when I may remove from the place. */
     placeName?: string;
-    /** The scopes I hold the right for, in display order. A scope I cannot use is not drawn. */
     scopes: readonly RemoveMemberScope[];
-    /** The pick, once the bottom button confirms it. Confirming the removal itself is the caller's. */
     onChoose: (scope: RemoveMemberScope) => void;
 }
 
-/**
- * "Where should this member leave from?" — the first step of removing a member from their profile.
- *
- * Built from the sheet parts the app already uses (the titled `BottomSheet`, `ListRow`, the green
- * footer `Button` of the phone-verification sheet) with the radio mark `SheetOption` draws, because
- * `SheetOption` carries no description line and each scope here needs one. No comp exists for this
- * sheet from the profile; the layout follows the report-management flow's scope screen.
- *
- * Even one available scope is shown as a choice rather than skipped: the step is where the reader
- * learns how far the removal reaches, which matters most when the only option is the wide one.
- * Nothing is picked when the sheet opens, and the button waits for a pick.
- */
 export const RemoveMemberScopeSheet = ({
     open,
     onOpenChange,
@@ -46,7 +28,6 @@ export const RemoveMemberScopeSheet = ({
     const { t } = useTranslation();
     const [picked, setPicked] = useState<RemoveMemberScope | null>(null);
 
-    // Every opening starts unpicked, so a second removal never inherits the first one's choice.
     useEffect(() => {
         if (open) setPicked(null);
     }, [open]);

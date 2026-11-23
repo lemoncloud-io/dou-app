@@ -9,38 +9,12 @@ import type { ReactionTally } from '../utils/foldReactions';
 interface ReactionDetailSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Every reaction on the message — one tab each. Live, so a toggle elsewhere updates the sheet. */
     tallies: ReactionTally[];
-    /** Fold key of the chip that was long-pressed; selects the tab the sheet opens on. */
     initialKey?: string;
     nameOf: (userId: string) => string;
-    /** Reactor avatar, resolved by the caller (site profile → member cache). */
     avatarOf: (userId: string) => string | undefined;
 }
 
-/**
- * Who reacted, one tab per emoji (ADR-0047 revision — see the note below).
- *
- * Reached by long-pressing a reaction chip, not by tapping it: a chip's primary job is the
- * toggle, and the tap has to stay with the job people do constantly. Long-press is the gesture
- * already spent on "tell me more about this thing" everywhere else in the room.
- *
- * A surface of its own rather than a block inside the message action sheet, because the two
- * answer different questions — the action sheet is "what can I do to this message", this is
- * "who is in this reaction" — and because faces need room the action sheet does not have.
- *
- * The tabs are the same `ReactionChip` the message rows use, one size up, so the chip that was
- * long-pressed is recognisably the chip that is now selected. Its accent border keeps meaning
- * "mine"; the underline is what marks the open tab. Those are two different facts and a tab can
- * carry either, both, or neither.
- *
- * `tallies` is the live fold: if someone removes their reaction while this is open the tab's
- * count drops under the reader, and a tab that disappears entirely falls back to the first one.
- *
- * The open tab's emoji is named under the tab row — the same CLDR name the picker shows on a hold,
- * since holding a chip is the room's way of asking about a reaction. A reaction from outside the
- * curated set (another client's emoji) has no name and gets no line.
- */
 export const ReactionDetailSheet = ({
     open,
     onOpenChange,
@@ -50,13 +24,10 @@ export const ReactionDetailSheet = ({
     avatarOf,
 }: ReactionDetailSheetProps) => {
     const { t } = useTranslation();
-    // Not suspending, as in the picker: until the namespace arrives the sheet just has no name line.
     const { t: tEmoji } = useTranslation('emoji', { useSuspense: false });
     const emojiName = (emoji: string) => tEmoji(emojiNameKey(emoji), { defaultValue: '' });
     const [selectedKey, setSelectedKey] = useState(initialKey);
 
-    // Re-point at the long-pressed chip each time the sheet is aimed at a new one. Kept in sync
-    // via effect rather than a remount so the sheet's close animation survives.
     useEffect(() => setSelectedKey(initialKey), [initialKey]);
 
     const active = tallies.find(tally => tally.key === selectedKey) ?? tallies[0];
@@ -70,19 +41,10 @@ export const ReactionDetailSheet = ({
             description={t('chat.room.reactionsDescription')}
             hideHeader
             showHandle
-            // Half the screen, always: the reactor list grows and shrinks live while the sheet is
-            // open, and a sheet that resized under the reader's thumb moved the rows they were
-            // reading. Unlike the action sheet, this one's content length is unbounded — one
-            // reaction or forty faces — so the fixed panel is what keeps it from covering the
-            // message it was opened from.
             className="h-[50vh] rounded-t-[32px]"
         >
             {active && (
                 <div className="flex h-full flex-col">
-                    {/* Scrolls sideways rather than wrapping: a message with many distinct
-                        reactions would otherwise push the reactor list off the screen.
-                        `pb-3` leaves room for the selected chip's underline, which hangs
-                        below the pill. */}
                     <div
                         role="tablist"
                         aria-label={t('chat.room.reactions')}
@@ -99,8 +61,6 @@ export const ReactionDetailSheet = ({
                                 role="tab"
                                 aria-selected={tally.key === active.key}
                                 aria-pressed={undefined}
-                                // The chip's glyph is hidden from assistive tech, so without a
-                                // label a tab reads as its count alone.
                                 aria-label={
                                     emojiName(tally.emoji)
                                         ? `${emojiName(tally.emoji)} ${tally.userIds.length}`

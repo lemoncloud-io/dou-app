@@ -33,110 +33,55 @@ import { MessageLinkPreview } from './MessageLinkPreview';
 import { ReactionChips } from './ReactionChips';
 import { ThreadFooter } from './ThreadFooter';
 
-// A message longer than this is truncated in the bubble with a "view all" affordance.
 const MAX_MESSAGE_LENGTH = 200;
-// `self-end` so the marker sits on the bubble's last line rather than its vertical middle.
 const EDITED_MARK_CLASS = 'shrink-0 self-end pb-0.5 text-[11px] leading-none text-muted-foreground';
 
-/** Per-message read state — computed by the container from join cursors. */
 export interface MessageReadInfo {
-    /** Whether a read receipt should be shown for this chat at all. */
     show: boolean;
-    /** Join cursors have synced enough to trust the counts. */
     isReady: boolean;
-    /** Members who have read this message. */
     readCount: number;
-    /** Members who have not read this message yet. */
     unreadCount: number;
-    /**
-     * Receipt presentation: `count` (N·M beside the time), `dm` (1:1 "1" badge), or `readers` — the
-     * group room's line under my newest message, with who read it. Defaults to `count`.
-     */
     mode?: 'count' | 'dm' | 'readers';
-    /** `readers` mode: who has read it, by user id, me excluded. */
     readers?: string[];
 }
 
 export interface ChannelMessageRowProps {
     message: ClientChatView;
-    /** Sender avatar/name shown (first message of a consecutive group). */
     showProfileAndName: boolean;
-    /** Time + status meta shown (last message of a group, or pending/failed). */
     showTimeAndStatus: boolean;
-    /** Display name (site nick preferred) for `other` rows. */
     ownerDisplayName: string;
-    /** Avatar thumbnail URL for `other` rows. */
     ownerAvatar?: string;
-    /** Preformatted send time (e.g. "PM 12:10"). */
     time: string;
     read: MessageReadInfo;
-    /** Long-press / right-click — opens the message action sheet (owned by the page). */
     onLongPress: () => void;
     onExpand: () => void;
     onRetry: () => void;
     onDelete: () => void;
-    /** Folded reactions for this message; chips render only when present. */
     reactions?: ReactionTally[];
     onToggleReaction?: (emoji: string, isMine: boolean) => void;
-    /** The last reaction toggle on this message was rejected by the server. */
     reactionFailed?: boolean;
-    /** Resolves a reactor's display name for the chip a11y label. */
     nameOf?: (userId: string) => string;
-    /** Opens the emoji picker straight from the chip row's add button (ADR-0047 decision 1). */
     onAddReaction?: () => void;
-    /** Long-press on a chip — opens the reactor detail sheet on that emoji's tab. */
     onShowReactors?: (key: string) => void;
-    /** Resolves a replier's avatar for the thread footer — profile first, embed as fallback. */
     avatarOf?: (userId: string) => string | undefined;
-    /** Loaded-reply aggregate for this root; the footer renders only when present. */
     threadMeta?: ThreadMeta;
-    /** How many replies are newer than my read cursor (ADR-0093 decision 5); 0 = none. */
     unseenReplyCount?: number;
-    /** An unseen reply in this message's thread calls the reader — the footer says so. */
     unseenRepliesMentionMe?: boolean;
-    /** Formats the last reply's clock time for the footer — the room owns the 12/24h form. */
     formatThreadTime?: (date: Date) => string;
-    /** Opens the full-screen thread. Absent on surfaces without one (the thread page itself). */
     onOpenThread?: () => void;
-    /**
-     * This is the message the composer is editing. The edit is typed in the composer, so the row
-     * only marks itself and keeps itself in view — the list is where you see which one it is.
-     */
     isEditTarget?: boolean;
-    /**
-     * Opens the sender's profile from their avatar or name. Handed exactly the name and photo this
-     * row drew, so the profile can never introduce the person differently from the row it was opened
-     * from. Absent leaves both inert.
-     */
     onOpenProfile?: (sender: MessageSender) => void;
-    /**
-     * Who is reading and who is in the room, for drawing mentions. Absent draws none — a surface that
-     * does not know its reader cannot tell a mention of them from one of anybody else.
-     */
     mentionViewer?: MentionViewer;
-    /**
-     * Room items hidden on this device (`localMediaPrefs` keys). A hidden attachment is not drawn and a
-     * hidden link loses its preview card; the text stays. A message left with nothing to show is not
-     * drawn at all.
-     */
     hiddenMedia?: ReadonlySet<string>;
-    /** The thread page's root, when this row is drawn on one — the audio detail returns there. */
     threadRootNo?: string;
 }
 
-/** Who sent a row, as the row drew them. */
 export interface MessageSender {
     id: string;
     name: string;
     avatar?: string | null;
 }
 
-/**
- * One chat message row, composed from the web-ui-kit MessageRow + MessageBubble.
- * Owns the presentational concerns the design system stays out of: long-press to
- * open the action sheet, pending/failed status with retry/delete, the read receipt,
- * long-message truncation → "View All", reaction chips and the thread footer.
- */
 export const ChannelMessageRow = ({
     message,
     showProfileAndName,
@@ -171,21 +116,9 @@ export const ChannelMessageRow = ({
     const mine = message.isOwner;
     const mentionMarks = mentionMarksFor(message, mentionViewer);
     const content = message.content ?? '';
-    // A message another client soft-deleted. The row keeps its place — vanishing mid-read
-    // leaves no account of what happened — but nothing of the original survives on screen:
-    // not the body, not the unfurl, not the chips, and not the action sheet, which would
-    // otherwise hand the deleted text back through Copy (ADR-0047 decision 6).
     const isDeleted = !!message.hidden;
-    // An image message: the server's `upload$$`, or the local slots of one still on its way. With no
-    // text of its own the images ARE the body, drawn where the bubble would be — an empty bubble
-    // beside them would read as a blank message.
-    // What this device hid of the message: upload positions, and whether the link the card would
-    // unfurl is one of them. Keyed by the media index's own entries, so a key here and a row in the
-    // room's file list always name the same thing.
     const hidden = useMemo(() => hiddenPartsOf(message, hiddenMedia), [hiddenMedia, message]);
     const shownUploads = (message.upload$$?.length ?? 0) - (hidden?.slots.size ?? 0);
-    // A failed message of audio alone: its bubble draws the failure and the retry and delete chips
-    // under it, so the row's own failure mark and buttons would say it twice.
     const audioOnlyFailed = useMemo(() => {
         if (!message.isFailed || content.trim() || !message.upload$$?.length) return false;
         const split = chatMediaItems(message.cid, message.upload$$);
@@ -193,44 +126,8 @@ export const ChannelMessageRow = ({
     }, [message.isFailed, message.cid, message.upload$$, content]);
     const hasImages = !isDeleted && shownUploads > 0;
     const imageOnly = hasImages && !content.trim();
-    // Shared verdict, not a local rule — the same one desktop will move onto when the server grows
-    // a real edit flag. It already excludes tombstones, unsent rows and missing timestamps, so
-    // there is nothing to re-check here. An optimistic edit shows its new text at once and picks
-    // the marker up when the server's record lands; that lag is intended (see `isMessageEdited`).
     const wasEdited = !isEditTarget && isMessageEdited(message);
-    // A structured message — a webhook send (`stereo: 'webhook'`), carrying Block Kit either in
-    // `blocks$` or as JSON in `content`. `resolveChatBlocks` reads none from anyone else, so a
-    // person who pastes a payload keeps the text they sent. Null for everything else, which is
-    // nearly all of them.
-    //
-    // Three states never reach the card. A tombstone renders nothing of the original body.
-    // Pending and failed are states the bubble draws — the sending spinner, the retry button,
-    // the destructive tint — and a card would show a finished-looking message for a send that
-    // has not landed, or has failed. Those bodies stay in the bubble as text.
     const skipBlocks = isDeleted || message.isPending || message.isFailed;
-    // The blocks this row will actually draw, or null. Two questions collapse into one
-    // value: `resolveChatBlocks` may find none, and `hasDrawableBlocks` — the lib's own
-    // SPEC §5 predicate, so the row and `BlockKitMessage` cannot disagree — may find that
-    // none of them can be drawn, which falls back to the plain body in a bubble.
-    //
-    // `plain` is what the message SAYS, as opposed to what it is made of. The link unfurl
-    // means the former: hunting a URL inside a Block Kit payload reads a string no one is
-    // shown, and Slack's `<url|label>` token would hand the card a "URL" with the label
-    // still attached. It folds the blocks already resolved here rather than parsing
-    // `content` again, and only on the `content` read path — when the blocks came from
-    // `blocks$` the server put its own plain-text summary in `content` (SPEC §6-5), and
-    // folding them back would throw that summary away. Everything else, the all-unknown
-    // fallback included, is `content` itself, which is what the bubble prints.
-    //
-    // Memoised because a row re-renders for reasons that have nothing to do with its body
-    // — a new message, a read receipt, a reaction elsewhere in the list — and for a webhook
-    // send this is a `JSON.parse` plus the mrkdwn passes. Ordinary messages cost a `trim`
-    // and a `startsWith` either way (`parseBlocks` bails on the first character).
-    //
-    // `sourceUrl` is the webhook's full report, drawn as a link on the card's last line.
-    // `takeSourceLink` reads it from `source$.url`, or from the server's `원문 보기` element on the
-    // card's last line for a message stored before that field, and takes that element off so the
-    // link shows once.
     const { drawnBlocks, plain, sourceUrl } = useMemo(() => {
         if (skipBlocks) return { drawnBlocks: null, plain: content, sourceUrl: undefined };
         const { blocks, source } = resolveChatBlocks(message);
@@ -242,46 +139,20 @@ export const ChannelMessageRow = ({
             sourceUrl: linked?.sourceUrl,
         };
     }, [skipBlocks, content, message]);
-    // Truncation is the bubble's own affordance, so it measures what the bubble renders —
-    // and a card has no bubble to cut, which is why it never truncates. The all-unknown
-    // fallback does: it puts the original body in a bubble (SPEC §5), long JSON included.
     const isLong = !skipBlocks && !drawnBlocks && content.length > MAX_MESSAGE_LENGTH;
-    // Found in the full content, not the truncated bubble text: a long message still deserves a
-    // card for the link it had to cut — and the card is then the only way to reach it.
-    // Skipped on a tombstone for the same reason chips are (see `tallies`): a deleted message must
-    // not keep unfurling, which would also keep fetching the page on every render pass.
-    // `isLong` rides along so the card agrees with the bubble about what is code: the bubble closes
-    // a fence left dangling at the cut, and a URL under that fence must not summon a card the
-    // bubble is rendering as literal text.
     const firstUrl = skipBlocks || message.isSystem ? undefined : extractFirstUrl(plain, isLong);
     const previewUrl = firstUrl && hidden?.links.has(firstUrl) ? undefined : firstUrl;
 
-    // Chips are hidden on a tombstone — the reactions still exist in the fold, but a
-    // deleted message must not keep a live social surface.
     const tallies = !isDeleted ? reactions : undefined;
 
-    // Long-press (or right-click) opens the action sheet — the timer lives here since
-    // the web-ui-kit bubble is purely presentational. The images are part of the message as much
-    // as its text is, so an image-only message is pressable too: reacting to a photo or starting a
-    // thread on it is the same act as on a line of text. What the sheet then offers is the page's
-    // call — an image has nothing to copy or edit. Not while this message is being edited: the sheet
-    // would offer Edit again, which re-seeds the composer's draft and throws away what was typed.
     const canPress = !isDeleted && !isEditTarget && (!!content || hasImages);
-    // Opening the edit raises the keyboard, which can bury the message under it. Centred, to leave the
-    // keyboard room, and once, when the edit starts — not on every render while it lasts, which would fight the
-    // reader scrolling away to look something up.
     const pressTargetRef = useRef<HTMLSpanElement>(null);
     useEffect(() => {
         if (isEditTarget) pressTargetRef.current?.scrollIntoView?.({ block: 'center' });
     }, [isEditTarget]);
-    // React bubbles events out of portals along the component tree, not the DOM, so a press inside
-    // the image viewer — portalled to the body, but a child of the tiles here — would otherwise
-    // reach this gesture and open the sheet over the photo being looked at.
     const isOwnEvent = (event: { currentTarget: Element; target: EventTarget }) =>
         event.currentTarget.contains(event.target as Node);
     const timerRef = useRef<number | null>(null);
-    // Long-pressing a link should copy, not navigate. The gesture still ends in a `click` on the
-    // anchor, so the menu and the browser would both open; this flag swallows that click.
     const longPressFiredRef = useRef(false);
     const clearTimer = () => {
         if (timerRef.current !== null) {
@@ -289,15 +160,9 @@ export const ChannelMessageRow = ({
             timerRef.current = null;
         }
     };
-    // Where the press started, so a drag can be told from a hold (touch only — see below).
     const pressOriginRef = useRef<{ x: number; y: number } | null>(null);
     const handlePointerDown = (event: ReactPointerEvent<HTMLSpanElement>) => {
         if (!isOwnEvent(event)) return;
-        // NOT on touch: preventing the default of a `pointerdown` cancels the browser's own
-        // panning for that gesture, so a finger landing on a bubble could not scroll the list —
-        // and a thread is mostly bubbles, which is why scrolling died in bands down the screen.
-        // The default this was suppressing (drag-select, the iOS selection callout) is handled by
-        // the span's `select-none` / `touch-callout-none` instead, which costs the gesture nothing.
         if (event.pointerType === 'mouse') event.preventDefault();
         if (!canPress) return;
         if (event.pointerType === 'mouse' && event.button !== 0) return;
@@ -310,9 +175,6 @@ export const ChannelMessageRow = ({
             onLongPress();
         }, LONG_PRESS_DELAY_MS);
     };
-    // A touch implicitly captures the pointer to its target, so scrolling away from the bubble
-    // fires neither `pointerleave` nor `pointercancel` until the finger lifts — without this the
-    // hold would mature mid-scroll and the action sheet would open on a flick.
     const handlePointerMove = (event: ReactPointerEvent<HTMLSpanElement>) => {
         const origin = pressOriginRef.current;
         if (timerRef.current === null || !origin) return;
@@ -334,26 +196,18 @@ export const ChannelMessageRow = ({
         if (longPressFiredRef.current) return;
         openExternalUrl(url);
     };
-    // A mention opens the member it names — the profile their avatar opens — and, like a link, not
-    // after a hold that opened the action sheet.
     const handleMentionClick = onOpenProfile
         ? (person: MentionPerson) => {
               if (longPressFiredRef.current) return;
               onOpenProfile({ id: person.id, name: person.name, avatar: person.avatar });
           }
         : undefined;
-    // The same swallow for the image tiles, whose tap opens the viewer: a hold that opened the
-    // action sheet must not also open the photo behind it. Caught on the way down, before the
-    // tile's own handler.
-    // `detail === 0` is a keyboard activation: no pointer went down, so the flag is a leftover
-    // from an earlier right-click and must not eat the Enter that opens the photo.
     const handleImageClickCapture = (event: ReactMouseEvent<HTMLSpanElement>) => {
         if (event.detail === 0 || !longPressFiredRef.current || !isOwnEvent(event)) return;
         longPressFiredRef.current = false;
         event.preventDefault();
         event.stopPropagation();
     };
-    // Spread onto every long-press target the row has: the text bubble, and the image tiles.
     const pressHandlers = {
         onPointerDown: handlePointerDown,
         onPointerMove: handlePointerMove,
@@ -363,25 +217,17 @@ export const ChannelMessageRow = ({
         onContextMenu: handleContextMenu,
     };
 
-    // Avatar slot for `other` rows — the real avatar on the first message of a
-    // group, a same-size spacer otherwise so stacked bubbles stay aligned. 32px
-    // matches the Figma message-row avatar (node 3209:27250).
     const avatarImage = ownerAvatar ? (
         <ImageAvatar src={ownerAvatar} alt={ownerDisplayName} size={32} />
     ) : (
         <DefaultAvatar size={32} />
     );
-    // Only a row that shows its sender opens the sender: mine never does, a grouped follow-up has
-    // no avatar to press, a row with no owner id has nobody to open, and a webhook's sender is not
-    // a member — its system account has no profile to show.
     const openProfile =
         onOpenProfile && !mine && showProfileAndName && message.ownerId && !isWebhookChat(message)
             ? () => onOpenProfile({ id: message.ownerId as string, name: ownerDisplayName, avatar: ownerAvatar })
             : undefined;
     const avatar = mine ? undefined : showProfileAndName ? (
         openProfile ? (
-            // A real button, outside the bubble's long-press target, so a tap here never reaches
-            // the action sheet or the image viewer.
             <button
                 type="button"
                 onClick={openProfile}
@@ -397,7 +243,6 @@ export const ChannelMessageRow = ({
         <span className="block size-[32px] shrink-0" />
     );
 
-    // Time is suppressed for pending/failed rows — the status carries the state there.
     const metaTime = showTimeAndStatus && !message.isPending && !message.isFailed ? time : undefined;
 
     let status: React.ReactNode = undefined;
@@ -450,9 +295,6 @@ export const ChannelMessageRow = ({
         }
     }
 
-    // The group room's receipt: its own line under my newest message, after the reactions and the
-    // thread footer (Figma 5978:37669), with the readers' faces. A spinner holds its place until the
-    // join cursors have synced, as the beside-the-time receipt does.
     const receiptLine =
         read.show &&
         read.mode === 'readers' &&
@@ -481,11 +323,6 @@ export const ChannelMessageRow = ({
             )
         ) : null;
 
-    // The images, in place of the bubble or under it — either way a long-press target, with the
-    // same selection and callout suppression as the bubble (the callout here is iOS's own image
-    // menu). The wrapper takes over the side the tiles hug, since it is now the column's item, and
-    // `min-w-0` lets it shrink as the bare grid did — as a flex item it would otherwise hold the
-    // grid's fixed 240px and overflow the 75% column on a screen narrower than about 350px.
     const renderImages = () => (
         <span
             className={cn(
@@ -516,7 +353,6 @@ export const ChannelMessageRow = ({
         </span>
     );
 
-    // Every attachment hidden on this device and no text left: nothing of the message is drawn.
     if (hidden && !isDeleted && shownUploads === 0 && !content.trim()) return null;
 
     return (
@@ -531,8 +367,6 @@ export const ChannelMessageRow = ({
             {!mine &&
                 showProfileAndName &&
                 (openProfile ? (
-                    // The avatar is the labelled control; the name is a second, larger target for the
-                    // same action, kept out of the tab order so a keyboard meets it once.
                     <button
                         type="button"
                         tabIndex={-1}
@@ -545,24 +379,12 @@ export const ChannelMessageRow = ({
                 ) : (
                     <span className="text-xs text-muted-foreground">{ownerDisplayName}</span>
                 ))}
-            {/* `w-full` rather than shrink-to-fit. A fenced block's `whitespace-pre` line has no
-                break opportunity, so its min-content contribution is the WHOLE line, and every
-                shrink-to-fit ancestor (this row, the bubble's `w-fit`) is obliged to honour it —
-                min-content beats a max-width, so the row's 75% cap lost and one long code line
-                dragged the bubble ~850px wide on a 390px screen. Pinning this row to the column
-                gives the bubble's own `max-w-full` a definite basis to resolve against, and the
-                block then scrolls inside the bubble, which is what `overflow-x-auto` was for.
-                `justify-end` because my bubble no longer sits in a row that hugs it: the column is
-                wider than the bubble whenever the chips or the thread footer are. */}
             <div className={cn('flex w-full min-w-0 items-center gap-1.5', mine && 'justify-end')}>
                 {message.isFailed && mine && !audioOnlyFailed && (
                     <button onClick={onRetry} className="flex shrink-0 items-center">
                         <AlertCircle size={20} className="text-destructive" />
                     </button>
                 )}
-                {/* The marker sits beside the bubble on the side the bubble grew from, so it never
-                    pushes the text around. It is not drawn while editing — the row is mid-change,
-                    and "edited" is a statement about a settled message. */}
                 {wasEdited && mine && (
                     <span className={EDITED_MARK_CLASS} title={t('chat.room.editedDescription')}>
                         {t('chat.room.edited')}
@@ -572,42 +394,12 @@ export const ChannelMessageRow = ({
                     renderImages()
                 ) : (
                     <span
-                        // `min-w-0`: as a flex item this span defaults to `min-width: auto`
-                        // (= its min-content width), and min-width beats max-width — a long
-                        // unbroken message would push it past `max-w-full` and out of the row.
-                        // `select-none` (and the WebKit callout suppression) replaces what the old
-                        // `preventDefault()` on pointerdown did — without taking the scroll gesture
-                        // down with it. See `handlePointerDown`.
                         className="inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]"
                         ref={pressTargetRef}
                         data-edit-target={isEditTarget || undefined}
                         {...pressHandlers}
                     >
                         {drawnBlocks ? (
-                            // A card, not a bubble. A webhook send is not someone speaking, and
-                            // giving it the same ground as a person's message blurs who said what.
-                            // Block Kit also brings its own headings, rules and field grid, none of
-                            // which read as speech inside a speech bubble.
-                            //
-                            // `bg-card`, not `bg-surface`: in dark `--surface` is the page ground
-                            // itself, so a surface-filled card has no fill at all. What the fill has
-                            // to separate is this from the bubble beside it, and `--card` does that
-                            // in both themes (light 100% against a 95% bubble, dark 10% against 15%).
-                            // Against the page it reads as a card only in dark; in light the border
-                            // carries it, which is how this app draws every other card.
-                            //
-                            // As wide as what it holds, up to the row: a three-line attendance note
-                            // is a small card, and a stack trace fills the row because it needs to.
-                            // A card stretched to the row regardless leaves a short one mostly empty.
-                            //
-                            // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
-                            // so its raw-body path is unreachable from here. A message with nothing
-                            // drawable never enters this arm — it stays in the bubble as text.
-                            //
-                            // `onLinkClick` for the same reason the bubble's links take it: an
-                            // anchor's default would load the page into this WebView in the
-                            // native shell, and a hold that opened the action sheet must not
-                            // also follow the link.
                             <div className="min-w-0 max-w-full rounded-[10px] border border-hairline bg-card p-4">
                                 <BlockKitMessage
                                     blocks={drawnBlocks}
@@ -628,25 +420,17 @@ export const ChannelMessageRow = ({
                                 className={cn(
                                     message.isFailed &&
                                         'border border-destructive/30 bg-destructive/10 text-destructive',
-                                    // The one being edited, marked where it sits — the composer's
-                                    // quote says which message, this says where it is.
                                     isEditTarget && 'ring-2 ring-main-accent'
                                 )}
                                 onExpand={isLong ? onExpand : undefined}
                                 expandLabel={t('chat.room.viewAll')}
                             >
                                 {isDeleted ? (
-                                    // Italic muted, the same treatment desktop gives it: the row is
-                                    // still a message-shaped hole in the conversation, not a message.
                                     <span className="italic text-muted-foreground">
                                         {t('chat.room.deletedMessage')}
                                     </span>
                                 ) : (
                                     <>
-                                        {/* The ellipsis stays outside MessageText so it can't be swallowed
-                                    into a URL at the cut. `truncated` also stops a URL that runs
-                                    to the cut from being linked at all — it may be a fragment, and
-                                    makes a fence left open at the cut render as a block anyway. */}
                                         <MessageText
                                             text={isLong ? content.slice(0, MAX_MESSAGE_LENGTH) : content}
                                             truncated={isLong}
@@ -670,12 +454,6 @@ export const ChannelMessageRow = ({
                     </span>
                 )}
             </div>
-            {/* Ordered as the message, then metadata about it: the unfurl card belongs to the
-                content, reactions and the thread footer comment on it. All three sit outside the
-                long-press target — inside it the gesture would eat taps on the card — so each
-                becomes its own row in MessageRow's column, inheriting the 75% cap and side. */}
-            {/* Images that came with text sit under the bubble, as their own row in the column —
-                and, unlike the rows below, are pressed like the bubble: they are the message. */}
             {hasImages && !imageOnly && renderImages()}
             {previewUrl && <MessageLinkPreview url={previewUrl} />}
             {tallies && tallies.length > 0 && onToggleReaction && (
@@ -685,8 +463,6 @@ export const ChannelMessageRow = ({
                     onToggle={onToggleReaction}
                     onAdd={onAddReaction}
                     onShowReactors={onShowReactors}
-                    // My own row is right-aligned, so its chips grow leftwards from the bubble's
-                    // trailing edge — MessageRow's column only sets the side, not the wrap origin.
                     align={mine ? 'end' : 'start'}
                 />
             )}
