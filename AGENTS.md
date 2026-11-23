@@ -42,7 +42,7 @@ comments (a lint ratchet enforces it); allowed: published SDK public-API JSDoc, 
 Everything written into the repo or onto GitHub is English. Two exceptions, both by path: translation resources
 (`**/locales/**`, `**/i18n/**`) and the `.ko.md` author documents inside `libs/chatic-apps-sdk/` and
 `libs/chatic-apps-devtools/`, which change in the same PR as their English pair. Chat with the user is unaffected.
-Public repo: no internal paths or issue numbers. Over ~100 lines (plan, report) is an HTML artifact for the session, never linked from a PR.
+Public repo: no internal paths or issue numbers. Over ~100 lines (plan, report) is an HTML artifact shown in the session; PR bodies carry their own visuals.
 
 ## Module docs and ADRs
 
