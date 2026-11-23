@@ -4,7 +4,6 @@ export default [
     ...baseConfig,
     {
         files: ['**/*.ts'],
-        // Override or add rules here
         rules: {},
     },
     {

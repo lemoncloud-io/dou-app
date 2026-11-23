@@ -136,6 +136,10 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 - The 1:1 DM invite-code domain. The composition root **pins** the gateway to the relay slot — it must not follow the active cloud (ADR-0089).
 - Reading one's own list is local-first (ADR-0052 introduced the `invite` cache slot), but the remaining commands (`create`/`accept`/`cancel`/`reject`/`get`) have no cache slot.
 - `dismiss` is local display state, not server state.
+- **`list` is a remote read every time.** An invite changes on the recipient's device and no notification announces it, so a cached list cannot be trusted to be current; callers own the polling or refetch cadence, and the cache only gives a cold boot something to draw first.
+- **Only the sender's own invites reach the cache** — the answers of `list`, `create` and `cancel`, written under the scope the request was sent from (an answer landing after a switch belongs to the account and cloud that asked). `get`, `accept` and `reject` write nothing. A view without an `id` is skipped, since it would coerce to the empty id and collide with the next one.
+- **The cache row is an allowlist copy (`toCacheInviteView`).** The server's `code` and `deeplink` are never copied, and a field added to the wire view stays out until it is listed; deleting keys off a full copy would be undone by the next spread.
+- **Cache writes (including `dismiss`) are no-ops off the default cloud.** A cloud session's socket also answers `invite.list`, and caching that under the cloud's partition would seed rows nothing reads or clears.
 
 ### Auth
 
@@ -146,6 +150,8 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 - **Remote-only.** A surface of session identity commands with nothing to cache.
 - On the socket axis every phone/social proof goes out as the single `auth.linkAccount` packet — assembling `type`/`mode`/`step` is `AuthSocketDataSource`'s monopoly.
+- **What the proof's answers mean** (read the status from the socket error code, never the message). Sending is rate limited with 429 (the server's limits, not enforced here: a 60 s cooldown, 10 a day per number, 20 a day per device); on `mode: 'login'` a number that does not match the invite fails the send with 400 and no code goes out. `verify` commits nothing and is safe to repeat: a wrong code is 403 and the cap of five wrong answers is 429. On `mode: 'link'` it also says whether confirming would work (`linkable`, and when false a `reason`: `occupied` means the account belongs to someone else, `type-linked` means the session already holds a different value for that credential), which `confirm` reports only as 409 and 403, so a linking screen asks `verify` first. `confirm` on `mode: 'login'` is a login: its `$token` is a new session that the caller has to push into the sockets before issuing or accepting anything, or those calls fail with 403. On `mode: 'link'` no token comes back and the session is unchanged. Social proofs only ever link, and linking requires a session that is already a main user (403 otherwise, 409 when the account belongs to another user).
+- This repository performs those calls and does not interpret the token or touch session state; that is the runtime's. The same holds for the HTTP session-material commands, whose responses are returned raw because mapping them to a user would drop `Token`.
 - The HTTP axis carries signup, aliases and invite login plus the session-material actions (`login`, `exchangeCode`, `verifyOAuthCode`, `delegateCloud`, `exchangeToken`). What is missing is the two refresh calls, and they cannot be added because the wire vocabulary itself no longer has them → [http.md's gateway Pick](../remote/http.md#gateway-pick).
 
 ### Device

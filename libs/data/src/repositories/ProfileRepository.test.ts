@@ -1,10 +1,7 @@
 import { ProfileRepository } from './ProfileRepository';
 
 describe('ProfileRepository', () => {
-    // No ambient `sid` in the default context: the producer stopped seeding one (ADR-0085), so a
-    // path that still needed one fails here instead of quietly borrowing the fixture's.
     const createRepository = (context: Record<string, unknown> = { cid: 'cloud-a', uid: 'me' }) => {
-        // Profile owns its dedicated gateway: get / getMine / set / sync.
         const profileSocketDataSource = {
             get: jest.fn(),
             getMine: jest.fn(),
@@ -37,7 +34,6 @@ describe('ProfileRepository', () => {
 
     it('writes non-null sync deltas and deletes null resets for the current site', async () => {
         const { repository, profileSocketDataSource, profileLocalDataSource } = createRepository();
-        // The remote source now returns the mapped delta (domain upserts + ids to remove).
         profileSocketDataSource.sync.mockResolvedValue({
             upserts: [{ id: 'site-1@user-1', sid: 'site-1', uid: 'user-1', userId: 'user-1', nick: 'Alice' }],
             removals: ['site-1@user-2'],
@@ -46,7 +42,6 @@ describe('ProfileRepository', () => {
 
         const result = await repository.syncProfiles(0, 'site-1');
 
-        // profile.sync delta → cache writes for the active site scope.
         expect(profileSocketDataSource.sync).toHaveBeenCalledWith({ since: 0 }, expect.anything());
         expect(profileLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
             [
@@ -59,7 +54,6 @@ describe('ProfileRepository', () => {
             ],
             { cid: 'cloud-a', uid: 'me' }
         );
-        // Null deltas represent resets, so they should be translated into cache deletions.
         expect(profileLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['site-1@user-2'], {
             cid: 'cloud-a',
             uid: 'me',
@@ -87,7 +81,6 @@ describe('ProfileRepository', () => {
                 [expect.objectContaining({ id: 'site-1@u1', nick: 'Alice' })],
                 { cid: 'cloud-a', uid: 'me' }
             );
-            // A null answer is a reset, exactly as in the delta sync.
             expect(profileLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['site-1@u2'], {
                 cid: 'cloud-a',
                 uid: 'me',
@@ -134,7 +127,6 @@ describe('ProfileRepository', () => {
 
         await expect(repository.setMyProfile({ nick: 'After' } as any, 'site-1')).rejects.toThrow('boom');
 
-        // The rollback should restore the previous local snapshot after the remote failure.
         expect(profileLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
             expect.objectContaining({ nick: 'Before' }),
             { cid: 'cloud-a', uid: 'me' }
@@ -203,8 +195,6 @@ describe('ProfileRepository', () => {
         });
     });
 
-    // ADR-0085 — the site is an argument now. The provider sits on 'site-1', so an empty argument
-    // must fail rather than quietly resolve to it.
     it('setMyProfile refuses an empty siteId instead of falling back to the ambient one', async () => {
         const { repository, profileSocketDataSource } = createRepository();
 
@@ -266,7 +256,6 @@ describe('ProfileRepository', () => {
     });
 
     describe('when profile.set answers 404 because I have no row on the site yet', () => {
-        // Shape of the server's answer, as the socket library rejects with it.
         const notFound = () => new Error('404 NOT FOUND - profile/site-1@me @updateSiteProfile(site-1@me)');
         const saved = { id: 'site-1@me', sid: 'site-1', siteId: 'site-1', uid: 'me', userId: 'me', nick: 'After' };
 
@@ -344,8 +333,6 @@ describe('ProfileRepository', () => {
     });
 
     describe('when profile.set lands on a site other than the one named', () => {
-        // The server writes to the session's site whatever the payload says, so the response is
-        // where a write that went to the wrong place shows up.
         const landedElsewhere = {
             id: 'site-2@me',
             sid: 'site-2',

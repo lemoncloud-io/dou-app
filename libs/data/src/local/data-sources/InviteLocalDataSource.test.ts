@@ -38,8 +38,6 @@ describe('InviteLocalDataSource', () => {
         expect(result?.list.map(item => item.id)).toEqual(['c', 'b', 'a']);
     });
 
-    // The core "response is authoritative, dismiss survives" guarantee (ADR-0052 decisions 4 and 5): a
-    // list-sync write never mentions `dismissedAt`, so the merge in cacheWriteMany leaves it alone.
     describe('list-sync overwrite preserves dismissedAt', () => {
         it('cacheWriteMany overwrites server-owned fields but keeps a local dismissedAt stamp', async () => {
             const storage = createPartitionedMemoryStorage('invite');
@@ -48,8 +46,6 @@ describe('InviteLocalDataSource', () => {
             await dataSource.cacheWrite({ id: 'i1', state: 'rejected' } as any);
             await dataSource.cacheWrite({ id: 'i1', dismissedAt: 1000 } as any);
 
-            // A fresh invite.list response for the same id, with an updated state and no
-            // dismissedAt key at all (as toCacheInviteView never emits one).
             await dataSource.cacheWriteMany([{ id: 'i1', state: 'rejected', name: 'Updated Name' } as any]);
 
             const result = await dataSource.cacheRead('i1');
@@ -76,7 +72,6 @@ describe('InviteLocalDataSource', () => {
         const dataSource = new InviteLocalDataSource(contextProvider as any, storage);
 
         await dataSource.cacheWriteMany([{ id: 'windowed-out', createdAt: 1 } as any]);
-        // A subsequent sync only returns a different id (simulating the row falling out the window).
         await dataSource.cacheWriteMany([{ id: 'fresh', createdAt: 2 } as any]);
 
         const result = await dataSource.cacheReadList(undefined);

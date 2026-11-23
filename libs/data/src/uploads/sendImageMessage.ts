@@ -11,46 +11,22 @@ import type {
 } from './types';
 import { UploadResponseShapeError } from './types';
 
-/**
- * The server caps one message at this many attachments; anything past it is left out. The picker
- * is meant to stop the user before this, so here it is a backstop. Exported so the caller can cut
- * the list before it writes the pending row, or the row would show slots that are never sent.
- */
 export const IMAGE_MESSAGE_SLOT_MAX = 10;
 
-/** PUTs in flight at once, across the whole message. */
 const PUT_CONCURRENCY = 3;
 
-/**
- * Waits before each network retry of the same PUT. Two retries, then the slot fails. Only
- * `no-response: network` is retried — a transfer that answered, or a file that could not be read,
- * will not change by trying again.
- */
 const NETWORK_RETRY_DELAYS_MS: readonly number[] = [1000, 3000];
 
 type UploadFailure = NonNullable<UploadCompleteInput['list'][number]['failure']>;
 
 export type SendImageResult =
-    /** `failedIndexes`: the picked files left out of the message, by position in the pick. */
     | { status: 'sent'; uploadIds: string[]; failedIndexes: number[] }
-    /** Nothing reached `stored`, so no message was sent. */
     | { status: 'failed'; reason: 'no-stored-upload'; failedSlots: number }
-    /** A socket operation (start, complete or send) failed; the message as a whole failed. */
     | { status: 'failed'; reason: 'socket'; error: unknown };
 
 export interface SendImageOptions {
-    /** Injected for tests. Receives log-safe fields only — never a ticket URL or header. */
     log?: (message: string, data?: Record<string, unknown>) => void;
-    /** Injected for tests; defaults to a timer. */
     wait?: (ms: number) => Promise<void>;
-    /**
-     * Told where a slot's bytes stand, by its position in the pick: what has gone of its original and
-     * thumbnail together, out of both sizes. First called as the slot's PUTs begin, with what is
-     * already there (an original the server had stored); a retried PUT starts its count again; the
-     * last call says everything went. A slot that fails ends with a total of 0 — unknown, since its
-     * row says it failed only once the whole message has settled. A throw here is ignored.
-     * Nothing is said of a slot `start` rejected, or of one still waiting for a free PUT.
-     */
     onProgress?: (slot: number, sentBytes: number, totalBytes: number) => void;
 }
 
@@ -58,15 +34,11 @@ interface Slot<S extends ChatAttachmentSource = ChatAttachmentSource> {
     index: number;
     prepared: PreparedImageMirror<S> | null;
     uploadId?: string;
-    /** The upload is already `stored` on the server: its original has nothing left to send. */
     originalDone: boolean;
     transfer?: UploadPutTarget;
     thumbnailTransfer?: UploadPutTarget;
-    /** One re-issue per slot, whichever of its PUTs hit the expiry first. */
     reissued: boolean;
-    /** Set when the original did not make it — sent to `complete` so the server can close it. */
     failure?: UploadFailure;
-    /** Rejected by `start` validation: nothing was created, so there is nothing to complete. */
     rejectedAtStart: boolean;
 }
 
@@ -75,9 +47,7 @@ const defaultWait = (ms: number) => new Promise<void>(resolve => setTimeout(reso
 const defaultLog = (message: string, data?: Record<string, unknown>) => logger.info('UPLOAD', message, data);
 
 const isSuccess = (result: PutResult) =>
-    result.kind === 'responded' &&
-    // 412: the object is already there (a retry of a PUT whose answer was lost). Same outcome.
-    ((result.httpStatus >= 200 && result.httpStatus < 300) || result.httpStatus === 412);
+    result.kind === 'responded' && ((result.httpStatus >= 200 && result.httpStatus < 300) || result.httpStatus === 412);
 
 const STORAGE_CODE_BY_STATUS: Record<number, UploadFailure['code']> = {
     400: 'invalid',
@@ -108,8 +78,6 @@ const toIntent = (
     const { original, thumbnail } = prepared;
     return {
         name: original.file.name || fallbackName,
-        // The prepared file's own type and size, not the picked one's: they are what gets signed, and
-        // a preparer that re-encodes (a HEIC source into a JPEG, say) changes both.
         contentType: original.file.type,
         contentSize: original.file.size,
         ...(original.width > 0 && original.height > 0 ? { width: original.width, height: original.height } : {}),
@@ -127,7 +95,6 @@ const toIntent = (
     };
 };
 
-/** Runs `work` over `items` with at most `limit` running at once. */
 const runPool = async <T>(items: readonly T[], limit: number, work: (item: T) => Promise<void>) => {
     let next = 0;
     const lanes = Array.from({ length: Math.min(limit, items.length) }, async () => {
@@ -139,19 +106,6 @@ const runPool = async <T>(items: readonly T[], limit: number, work: (item: T) =>
     await Promise.all(lanes);
 };
 
-/**
- * Sends picked attachments as one chat message: prepare → `upload.start` → PUT → `upload.complete` →
- * `chat.send`. A pick is page files, shell files (which the PUT port sends from the shell's folder), or
- * both. The pending row is the caller's: this sequence reports the outcome and the caller
- * confirms or fails the row.
- *
- * - **A slot failing is not the message failing.** Whatever reached `stored` is sent; the server
- *   marks the rest. Only when nothing is stored does the message fail.
- * - **A socket operation failing is the message failing.** Retry starts over from preparation, and
- *   uploads already stored by the failed attempt are abandoned — the server clears them in a day.
- * - **The thumbnail never fails a slot.** Without it the server stores the original alone.
- * - Order is the picking order, whatever order the PUTs finish in.
- */
 export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
     files: readonly S[],
     ports: SendImagePorts<S>,
@@ -165,7 +119,6 @@ export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
     }
 
     try {
-        // One at a time: on the native shell a decode holds the whole source in WebView memory.
         const slots: Slot<S>[] = [];
         const intents: UploadStartInput['list'] = [];
         for (const [index, file] of picked.entries()) {
@@ -189,7 +142,6 @@ export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
                 slot.thumbnailTransfer = ticket.thumbnailTransfer;
                 return true;
             } catch (error) {
-                // A failed re-issue fails this slot only: the others still hold valid tickets.
                 log('image message: re-issue failed', { slot: slot.index, error: errorName(error) });
                 return false;
             }
@@ -206,7 +158,6 @@ export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
             for (;;) {
                 const target = payload === 'original' ? slot.transfer : slot.thumbnailTransfer;
                 if (!target) return null;
-                // Every attempt sends the file from its first byte, so its count starts over too.
                 onSent(0);
                 const result = await safePut(ports, target, file, label, onSent);
                 if (isSuccess(result)) return result;
@@ -243,8 +194,6 @@ export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
                     }
                 };
                 const report = () => tell(originalSent + thumbnailSent, originalSize + thumbnailSize);
-                // A sender's count is clamped to its file: a shell can count framing it sent with it. One that
-                // is not a number at all is dropped rather than drawn.
                 const counter =
                     (size: number, set: (sent: number) => void): PutProgress =>
                     sent => {
@@ -271,13 +220,10 @@ export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
                     }
                 }
                 if (slot.failure) {
-                    // Unknown again, not frozen at the count it reached: the message may run on for minutes
-                    // behind a large video, and a ring that stopped would look like one still moving.
                     tell(0, 0);
                     slot.prepared = null;
                     return;
                 }
-                // Stored, whatever the sender counted on the way: one that counts nothing ends full too.
                 originalSent = originalSize;
                 if (prepared.thumbnail && slot.thumbnailTransfer) {
                     report();
@@ -292,10 +238,8 @@ export const sendImageMessage = async <S extends ChatAttachmentSource = File>(
                         ...(result ? describeResult(result) : { noTransfer: true }),
                     });
                 }
-                // A thumbnail that failed does not fail its slot, so the slot is done either way.
                 thumbnailSent = thumbnailSize;
                 report();
-                // Done with this slot's bytes; let them go before the others finish.
                 slot.prepared = null;
             }
         );
@@ -339,12 +283,9 @@ const applyTicket = (slot: Slot, ticket: PresignedUploadTicket) => {
     }
     slot.transfer = ticket.transfer;
     slot.thumbnailTransfer = ticket.thumbnailTransfer;
-    // A stored upload (the server recognised these bytes) has no original to send, only perhaps a
-    // thumbnail to add.
     slot.originalDone = upload.status === 'stored';
 };
 
-/** A port that throws is treated as a transfer that never answered. */
 const safePut = async <S extends ChatAttachmentSource>(
     ports: SendImagePorts<S>,
     target: UploadPutTarget,
@@ -359,5 +300,4 @@ const safePut = async <S extends ChatAttachmentSource>(
     }
 };
 
-/** Only the error's name reaches a log: a transport message can quote the request it failed on. */
 const errorName = (error: unknown) => (error instanceof Error ? error.name : typeof error);

@@ -9,13 +9,10 @@ jest.mock('@chatic/logger', () => ({
 }));
 
 const MINUTE_MS = 60 * 1000;
-// Mirror of the sync-cursor TTL in local/ports/policy.ts (`meta`). Kept explicit so the test pins
-// the intended window rather than tautologically re-deriving it from the code under test.
 const TTL_MS = 30 * MINUTE_MS;
 
 const CONTEXT = { cid: 'cloud-a', uid: 'me' };
 
-/** A source whose partition answers `loaded` for the cursor row; `save` spies on that partition's writes. */
 const createSource = (
     loaded?: { syncedAt?: number; routing?: string; __cacheMeta?: CacheTtlMeta } | null,
     routingFingerprint?: string
@@ -29,7 +26,6 @@ const createSource = (
 };
 
 describe('SyncMetaLocalDataSource', () => {
-    // Adapters stamp __cacheMeta on save; tests reproduce it relative to now.
     const metaSavedAgo = (elapsedMs: number): CacheTtlMeta => {
         const lastSyncedAt = Date.now() - elapsedMs;
         return { lastSyncedAt, expiresAt: lastSyncedAt + TTL_MS };
@@ -50,17 +46,12 @@ describe('SyncMetaLocalDataSource', () => {
         await expect(source.getSyncedAt('channel-sync')).resolves.toBe(0);
     });
 
-    // Regression: on the cold (native) cache the cursor survives app restarts, so a cursor idle
-    // beyond the TTL used to be treated as valid (old 1-day window) — delta sync then replayed from a
-    // `since` past the server window and the channel list stayed stale. It must now expire.
     it('a long-idle cursor (a cold reopen) is treated as expired and returns 0', async () => {
         const { source } = createSource({ syncedAt: 1234, __cacheMeta: metaSavedAgo(6 * 60 * MINUTE_MS) });
         await expect(source.getSyncedAt('channel-sync')).resolves.toBe(0);
     });
 
     it('a cursor with no cache metadata (a legacy row) is treated as expired and returns 0', async () => {
-        // Read-time expiry deliberately ignores the stored expiresAt so rows written under the
-        // old "never expire" policy still fall back to a one-time full re-sync.
         const { source } = createSource({ syncedAt: 1234 });
         await expect(source.getSyncedAt('channel-sync')).resolves.toBe(0);
     });
@@ -77,10 +68,6 @@ describe('SyncMetaLocalDataSource', () => {
     });
 });
 
-// A cursor is a claim about data in ANOTHER domain's store. When that domain moves stores — the
-// gate raising a required contract version, or the emergency web pin — the cursor survives but the
-// data does not follow it, so trusting it would mean asking for deltas after T over an empty store
-// (ADR-0053).
 describe('SyncMetaLocalDataSource — a cursor whose routing changed', () => {
     const ROUTING = 'chat:native,channel:native';
     const MOVED = 'chat:web,channel:native';
@@ -101,14 +88,11 @@ describe('SyncMetaLocalDataSource — a cursor whose routing changed', () => {
         await expect(source.getSyncedAt('channel-sync')).resolves.toBe(0);
     });
 
-    // A row written before fingerprints existed. There is no basis for treating it as describing the
-    // current routing, so it retires with them — the price is one full resync right after deploy.
     it('an older cursor with no fingerprint also drops to 0', async () => {
         const { source } = createSource(fresh(undefined), ROUTING);
         await expect(source.getSyncedAt('channel-sync')).resolves.toBe(0);
     });
 
-    // The assembly gave no fingerprint (an injected storage factory, a test). The check itself is off.
     it('no check is made when no fingerprint is given', async () => {
         const { source } = createSource(fresh(undefined), undefined);
         await expect(source.getSyncedAt('channel-sync')).resolves.toBe(1234);
@@ -127,9 +111,6 @@ describe('SyncMetaLocalDataSource — a cursor whose routing changed', () => {
     });
 });
 
-// A sync already in flight when the cache was cleared can land after the clear and write a fresh
-// cursor over the emptied store. The clear moves `cursorsValidAfter` forward, and anything saved
-// before it has to drop to 0 however recent it is.
 describe('SyncMetaLocalDataSource — a cursor from before a cache clear', () => {
     const warn = logger.warn as jest.Mock;
     const savedAt = (lastSyncedAt: number) => ({
@@ -181,7 +162,6 @@ describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', 
 
     beforeEach(() => jest.clearAllMocks());
 
-    // Discarding a cursor makes the next sync refetch everything with since=0 — where that surge came from has to be on the record.
     it('discarding on a changed routing fingerprint is recorded with the reason', async () => {
         const { source } = createSource({ syncedAt: 1234, routing: 'old-routing' }, ROUTING);
 
@@ -207,7 +187,6 @@ describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', 
         });
     });
 
-    // No row at all is a first sync — counting an ordinary cold start as a discard makes noise on every boot.
     it('nothing is recorded when there is no row (a first sync)', async () => {
         const { source } = createSource(null, ROUTING);
 
@@ -224,7 +203,6 @@ describe('SyncMetaLocalDataSource — recording a discarded cursor (ADR-0099)', 
     });
 
     it("an override reads and writes the partition it names, not the provider's", async () => {
-        // The provider selects cloud B; a caller that names cloud A must land in A.
         const metas = createPartitionedMemoryStorage('meta');
         const provider = { getContext: () => ({ cid: 'cloud-b', uid: 'user-b' }), setContext: () => undefined };
         const source = new SyncMetaLocalDataSource(provider, metas);

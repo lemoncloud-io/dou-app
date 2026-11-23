@@ -111,8 +111,6 @@ describe('chatMediaItems', () => {
         expect(files[0]).not.toHaveProperty('name');
     });
 
-    // The server names a voice file's kind `audio` from its content type. It sits with the files, so it
-    // saves and shares like one, and is marked for the player card.
     it('lists an audio upload with the files, in its place, marked as audio', () => {
         const { media, files, fileSlots } = chatMediaItems('c1', [
             server({ id: 'p', stereo: 'image', orgUrl: 'https://s/p' }),
@@ -142,7 +140,6 @@ describe('chatMediaItems', () => {
         expect(fileSlots).toEqual([1]);
     });
 
-    // A recording on its way keeps the type it was picked with, which is how its card is known.
     it('marks a pending audio slot by the type it kept', () => {
         const { files } = chatMediaItems('c1', [
             {

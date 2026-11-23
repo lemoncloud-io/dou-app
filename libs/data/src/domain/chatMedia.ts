@@ -3,57 +3,34 @@ import { isPendingUploadSlot } from '../uploads/types';
 import { uploadSlotKind } from './chatAttachments';
 import type { DomainChat } from './models';
 
-/**
- * A message's uploads split the way a screen draws them: photos and videos as one list of media, which
- * the tiles and the media viewer page through, and documents and audio as cards. The viewer is given media items
- * only, never a message — so a later list from another source (a channel's media, say) opens the same
- * viewer with no change to it.
- */
-
 type UploadSlot = NonNullable<DomainChat['upload$$']>[number];
 
-/** How an item stands: on the server and drawable, still being sent, failed to send, or unreadable. */
 export type ChatUploadState = 'ready' | 'sending' | 'failed' | 'broken';
 
-/** One thing the media viewer can show. It knows nothing of the message or channel it came from. */
 export interface MediaItem {
-    /** Stable per item — `<cid>/<uploadId>`, or a local key for a slot still on its way. */
     readonly key: string;
     readonly kind: 'image' | 'video';
-    /** The original — the signed address, or a local preview while it is sent. Absent while it cannot be opened. */
     readonly src?: string;
-    /** The thumbnail, or a video's poster. A video without one draws a plain panel. */
     readonly preview?: string;
     readonly name?: string;
     readonly size?: number;
     readonly state: ChatUploadState;
 }
 
-/** One document of a message, as its card draws it. */
 export interface ChatFileSlot {
-    /** Same shape as a media item's key. */
     readonly key: string;
-    /** The server's upload id; absent on a slot still being sent, which nothing can download yet. */
     readonly uploadId?: string;
-    /** Absent on an upload older than names; the card shows a generic label then. */
     readonly name?: string;
     readonly size?: number;
     readonly contentType?: string;
-    /** The signed address to download it from. */
     readonly url?: string;
     readonly state: ChatUploadState;
-    /**
-     * A voice message or audio file: the server stores it as `audio`, and a slot still on its way says
-     * so by its type. Drawn as a player rather than a document card, and saved and shared like one.
-     */
     readonly audio?: true;
 }
 
-/** Where each item sits in the message's `upload$$`, for a caller that has to read the slot again. */
 export interface ChatMediaSplit {
     media: MediaItem[];
     files: ChatFileSlot[];
-    /** `mediaSlots[i]` is the `upload$$` position of `media[i]`; likewise `fileSlots` for `files`. */
     mediaSlots: number[];
     fileSlots: number[];
 }
@@ -63,16 +40,6 @@ const keyOf = (cid: string, slot: UploadSlot, index: number): string => {
     return slot.id ? `${cid}/${slot.id}` : `${cid}/upload-${index}`;
 };
 
-/**
- * A message's uploads as media and files, each in the order they were sent.
- *
- * A server slot that failed, carries an error, or came back with no address to open is `broken`: the
- * sender picked it, so it keeps its place and the count still says so. A slot still on its way draws from
- * what the page kept: an image from its local preview, a video from its poster once the shell made one.
- * An `audio` slot is listed with the files, marked `audio`: the server names the kind from a slot's
- * content type, and a pending slot's type says it as well. It downloads, saves and shares exactly as a
- * document does; only its card differs.
- */
 export const chatMediaItems = (cid: string, slots: readonly UploadSlot[] | null | undefined): ChatMediaSplit => {
     const split: ChatMediaSplit = { media: [], files: [], mediaSlots: [], fileSlots: [] };
     (slots ?? []).forEach((slot, index) => {
@@ -97,8 +64,6 @@ export const chatMediaItems = (cid: string, slots: readonly UploadSlot[] | null 
                 split.fileSlots.push(index);
                 return;
             }
-            // A pending image's preview is the picked file itself (or its thumbnail), so it opens too. A
-            // pending video has nothing the page can play.
             split.media.push({
                 key,
                 kind,
@@ -128,7 +93,6 @@ export const chatMediaItems = (cid: string, slots: readonly UploadSlot[] | null 
             split.fileSlots.push(index);
             return;
         }
-        // An image without a thumbnail draws its original in the tile; a video without a poster draws none.
         const src = slot.orgUrl ?? (kind === 'image' ? slot.thumbUrl : undefined);
         const preview = slot.thumbUrl ?? (kind === 'image' ? slot.orgUrl : undefined);
         split.media.push({

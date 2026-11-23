@@ -71,9 +71,6 @@ describe('UserSocketDataSource', () => {
         });
 
         it('fetchUsers: pulls $join off a member as a join and does not put it on the user record', async () => {
-            // A user record is channel-global, so laying a per-channel read cursor onto it makes the
-            // last-mapped channel own that field. The cursor's home is the join cache, keyed by
-            // `channelId@userId`.
             (mockGateways.user.listUser as jest.Mock).mockResolvedValue({
                 list: [{ id: 'user-1', $join: { channelId: 'ch-1', userId: 'user-1', chatNo: 5 } }, { id: 'user-2' }],
                 total: 2,
@@ -83,7 +80,6 @@ describe('UserSocketDataSource', () => {
 
             expect(joins).toEqual([expect.objectContaining({ id: 'ch-1@user-1', userId: 'user-1', chatNo: 5 })]);
             expect(users.list.every(u => !('$join' in u))).toBe(true);
-            // `$join.channelId` is still used to derive channelIds.
             expect(users.list[0].channelIds).toContain('ch-1');
         });
 
@@ -133,7 +129,7 @@ describe('UserSocketDataSource', () => {
             (mockGateways.user.syncUsers as jest.Mock).mockResolvedValue({
                 list: [
                     { id: 'u1', name: 'Alice', $join: { id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1', chatNo: 9 } },
-                    { id: 'u2', name: 'Bob' }, // no join → excluded from joins
+                    { id: 'u2', name: 'Bob' },
                 ],
                 ids: ['u1', 'u2'],
                 syncedAt: 1700,
@@ -224,7 +220,6 @@ describe('UserSocketDataSource', () => {
             const result = await dataSource.fetchPlaceUsers({ id: 'site-1', page: 3, limit: 5 }, context);
 
             expect(result.members.map(m => m.id)).toEqual(['u1']);
-            // No stated total is no stated end — paging continues to an empty page.
             expect(result).toMatchObject({ total: Number.POSITIVE_INFINITY, page: 3, limit: 5 });
         });
     });

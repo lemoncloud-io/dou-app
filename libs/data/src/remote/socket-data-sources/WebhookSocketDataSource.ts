@@ -7,7 +7,6 @@ import type {
 import type { WebhookWireView } from '../../domain';
 import type { WebhookSocketDomainGateway } from '../gateways';
 
-/** `ListResult<WebhookView>` — only the part the app reads. */
 export interface WebhookWireList {
     list?: WebhookWireView[];
     total?: number;
@@ -20,12 +19,6 @@ export interface IWebhookSocketDataSource {
     delete(payload: WebhookDeleteInput): Promise<WebhookWireView>;
 }
 
-/**
- * Channel webhook management remote source. Every call rides the ACTIVE slot: a webhook belongs to
- * the channel's own cloud, like `channel.*`. The gateway answers `unknown`; the wire view is typed
- * here and mapped by the repository. Nothing is cached, so no `DataContext` — and the `Token` in a
- * `make-token` answer is passed up once and never retained.
- */
 export class WebhookSocketDataSource implements IWebhookSocketDataSource {
     constructor(private readonly gateway: WebhookSocketDomainGateway) {}
 

@@ -1,8 +1,5 @@
 import { isForeignContext } from './scopeGuards';
 
-// This replaces six inlined sites with a function, so the table that preserves each site's skip/pass
-// cases one-to-one is pinned first (the design doc's §how to verify — the negation flip at
-// ChannelRepository:326 especially).
 describe('isForeignContext', () => {
     it.each`
         cid          | socketCid    | expected | why
@@ -18,7 +15,6 @@ describe('isForeignContext', () => {
     });
 
     it('is the negation of the write condition BaseRepository.acceptsAnswer applies', () => {
-        // Original: cache-write when `socketCid == null || (cid || 'default') === socketCid`
         const shouldWrite = (cid?: string, socketCid?: string) => !isForeignContext({ cid, socketCid });
 
         expect(shouldWrite('c1', 'c1')).toBe(true);

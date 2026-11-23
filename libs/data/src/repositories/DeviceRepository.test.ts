@@ -2,7 +2,6 @@ import { DeviceRepository } from './DeviceRepository';
 
 describe('DeviceRepository', () => {
     const createRepository = () => {
-        // Device viewing has no local cache; only the remote sync path is exercised.
         const deviceSocketDataSource = {
             saveDevice: jest.fn(),
             readDevice: jest.fn(),
@@ -51,8 +50,6 @@ describe('DeviceRepository', () => {
 
         repository.syncStatus('green');
 
-        // Partial merge on the server: viewing fields must be absent, not empty strings,
-        // or the send would clear the viewing pair.
         expect(deviceSocketDataSource.syncDevice).toHaveBeenCalledWith({ status: 'green' });
         const payload = deviceSocketDataSource.syncDevice.mock.calls[0][0];
         expect(payload).not.toHaveProperty('viewingType');
@@ -67,18 +64,17 @@ describe('DeviceRepository', () => {
         const result = await repository.updateRemotePushMute(true);
 
         expect(deviceSocketDataSource.updateRemoteDevice).toHaveBeenCalledWith({ muted: true });
-        expect(result).toBe(true); // authoritative echo from the server view
-        // The id is resolved by the server from the connection, so it is not sent.
+        expect(result).toBe(true);
         const [payload] = deviceSocketDataSource.updateRemoteDevice.mock.calls[0];
         expect(payload).not.toHaveProperty('id');
     });
 
     it('updateRemotePushMute falls back to the requested value when the response holds no muted', async () => {
         const { repository, deviceSocketDataSource } = createRepository();
-        deviceSocketDataSource.updateRemoteDevice.mockResolvedValue({}); // legacy/misconfigured backend
+        deviceSocketDataSource.updateRemoteDevice.mockResolvedValue({});
 
         const result = await repository.updateRemotePushMute(true);
 
-        expect(result).toBe(true); // falls back to the requested value
+        expect(result).toBe(true);
     });
 });

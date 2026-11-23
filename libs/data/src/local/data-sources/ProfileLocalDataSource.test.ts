@@ -1,7 +1,6 @@
 import { ProfileLocalDataSource } from './ProfileLocalDataSource';
 import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
-// Flush pending microtasks after timer-driven observer re-emits.
 const flushPromises = async () => {
     await Promise.resolve();
     await Promise.resolve();
@@ -30,14 +29,12 @@ describe('ProfileLocalDataSource', () => {
         const storage = createPartitionedMemoryStorage('profile');
         const dataSource = new ProfileLocalDataSource(contextProvider as any, storage);
 
-        // Write without a precomputed id so the datasource has to derive the cache key.
         await dataSource.cacheWrite({
             siteId: 'site-1',
             userId: 'user-1',
             nick: 'Alice',
         } as any);
 
-        // Read back through the derived key to prove the normalization path is stable.
         const loaded = await dataSource.cacheRead('site-1@user-1');
 
         expect(loaded?.id).toBe('site-1@user-1');
@@ -51,16 +48,13 @@ describe('ProfileLocalDataSource', () => {
         const dataSource = new ProfileLocalDataSource(contextProvider as any, storage);
         const emissions: string[][] = [];
 
-        // Subscribe first so the test can assert the initial empty snapshot and the follow-up update.
         const unsubscribe = dataSource.observeList(undefined, result => {
             emissions.push((result?.list ?? []).map(item => item.id));
         });
 
-        // Run the initial observer emission.
         jest.runAllTimers();
         await flushPromises();
 
-        // Mutate the cache and then flush the debounced observer pipeline.
         await dataSource.cacheWrite({
             siteId: 'site-1',
             userId: 'user-1',
@@ -87,7 +81,6 @@ describe('ProfileLocalDataSource', () => {
 
         const result = await dataSource.cacheReadList({ siteId: 'site-1', userId: 'user-2' });
 
-        // Cross-site rows must not bleed into the active place/profile lookup.
         expect(result?.list.map(item => item.id)).toEqual(['site-1@user-2']);
     });
 
@@ -109,7 +102,6 @@ describe('ProfileLocalDataSource', () => {
         const storage = createPartitionedMemoryStorage('profile');
         const dataSource = new ProfileLocalDataSource(contextProvider as any, storage);
 
-        // Members of the active place, cached under the logged-in user ('me') scope.
         await dataSource.cacheWriteMany([
             { sid: 'site-1', uid: 'user-1', nick: 'Alice', thumbnail: 'a.png' } as any,
             { sid: 'site-1', uid: 'user-2', nick: 'Bob', thumbnail: 'b.png' } as any,
@@ -118,8 +110,6 @@ describe('ProfileLocalDataSource', () => {
 
         const result = await dataSource.cacheReadList({ sid: 'site-1' });
 
-        // The dedupe map keys on the profile OWNER's uid; if a storage layer stamped the
-        // scope uid onto every row, all three would collapse onto `site-1@me`.
         expect(result?.list.map(item => item.id).sort()).toEqual(['site-1@user-1', 'site-1@user-2', 'site-1@user-3']);
         expect(result?.list.map(item => item.nick).sort()).toEqual(['Alice', 'Bob', 'Carol']);
         expect(result?.list.every(item => !!item.thumbnail)).toBe(true);
@@ -137,7 +127,6 @@ describe('ProfileLocalDataSource', () => {
             updatedAtMs: 100,
         } as any);
 
-        // A profile.get/profile.set response that omits `thumbnail` must not clear the photo.
         await dataSource.cacheWrite({ sid: 'site-1', uid: 'user-1', nick: 'Alicia', updatedAtMs: 200 } as any);
 
         const loaded = await dataSource.cacheRead('site-1@user-1');

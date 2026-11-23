@@ -3,7 +3,6 @@ import { type CacheStorageFactory, createCacheStorages, createScopedCacheStorage
 
 const SLOT_TYPES = ['channel', 'chat', 'invitecloud', 'join', 'profile', 'site', 'user', 'meta', 'invite'];
 
-/** A factory that hands out a distinct, labelled storage per call and remembers what each was built for. */
 const createRecordingFactory = () => {
     const built: Array<{ type: string; cid?: string; uid?: string; storage: CacheStorage<any> }> = [];
     const factory: CacheStorageFactory = jest.fn((type, provider) => {
@@ -44,8 +43,6 @@ describe('createCacheStorages', () => {
         createCacheStorages(mutableProvider, factory);
         live = { cid: 'cloud-b', uid: 'other' };
 
-        // The adapter reads its provider at call time; handed the live one, that read would follow
-        // the session. Every provider it was given must keep answering with the assembly scope.
         expect(providers).toHaveLength(9);
         for (const provider of providers) {
             expect(provider.getContext()).toEqual({ cid: 'cloud-a', uid: 'me' });
@@ -110,7 +107,6 @@ describe('createScopedCacheStorage', () => {
         const second = slot.forScope({ cid: 'cloud-b' });
 
         expect(second).toBe(first);
-        // The adapter still receives no uid, so it resolves no scope and skips every operation.
         expect(built).toHaveLength(1);
         expect(built[0].uid).toBeUndefined();
     });

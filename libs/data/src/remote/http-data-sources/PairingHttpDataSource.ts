@@ -19,16 +19,6 @@ export interface IPairingHttpDataSource {
     listPairings(): Promise<PairingListView>;
 }
 
-/**
- * Device pairing — the relay's `/pairings/**` operations.
- *
- * **Nothing is mapped and nothing is cached.** A pairing is a short-lived handshake, not an entity the
- * app keeps: the screens read the server's fields as they are, and the one list (`GET /pairings`) is
- * react-query's to cache. `claim`'s answer in particular passes through untouched — on a relay approval
- * its first `approved` answer carries the session, and that answer is never sent again.
- *
- * **Errors pass through untouched** too: the screens tell the outcomes apart by HTTP status and reason.
- */
 export class PairingHttpDataSource implements IPairingHttpDataSource {
     constructor(private readonly gateway: PairingHttpDomainGateway) {}
 

@@ -250,16 +250,17 @@ consumer side.
 
 ## Documents
 
-| Folder                                                         | What it covers                                                                                                    |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| [docs/local/](./docs/local/README.md)                          | Storing, reading and emitting streams. The stream model, scope and cache slots, chat cursors, cache clear         |
-| [docs/remote/](./docs/remote/README.md)                        | The contract both outbound axes share. Axis symmetry, how to call and wire, how to add a call, **naming history** |
-| [docs/remote/socket.md](./docs/remote/socket.md)               | The socket axis. 12 gateway mappings, where absence is the contract, routing, client-side request limits          |
-| [docs/remote/http.md](./docs/remote/http.md)                   | The HTTP axis. 5 gateway Picks, why it holds no cache, the admin console surface, the report lane                 |
-| [docs/repositories/](./docs/repositories/README.md)            | The data facade. Three contracts, context and scope, wiring, cache clear rules, leaving and rejoining             |
-| [docs/repositories/domains.md](./docs/repositories/domains.md) | The 13-domain method catalogue (a document you look things up in)                                                 |
-| [docs/outbox/](./docs/outbox/README.md)                        | State writes: local first, then the outbox. The machine, the join states, adding a state, the runtime port        |
-| [docs/uploads/](./docs/uploads/README.md)                      | Sending images as one message. The sequence, what counts as failure, the answer guard, pending image rows         |
+| Folder                                                         | What it covers                                                                                                     |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [docs/domain/](./docs/domain/README.md)                        | Models, mappers and the shared rules: chat classification, join window, mentions, message text, attachment formats |
+| [docs/local/](./docs/local/README.md)                          | Storing, reading and emitting streams. The stream model, scope and cache slots, chat cursors, cache clear          |
+| [docs/remote/](./docs/remote/README.md)                        | The contract both outbound axes share. Axis symmetry, how to call and wire, how to add a call, **naming history**  |
+| [docs/remote/socket.md](./docs/remote/socket.md)               | The socket axis. 12 gateway mappings, where absence is the contract, routing, client-side request limits           |
+| [docs/remote/http.md](./docs/remote/http.md)                   | The HTTP axis. 5 gateway Picks, why it holds no cache, the admin console surface, the report lane                  |
+| [docs/repositories/](./docs/repositories/README.md)            | The data facade. Three contracts, context and scope, wiring, cache clear rules, leaving and rejoining              |
+| [docs/repositories/domains.md](./docs/repositories/domains.md) | The 13-domain method catalogue (a document you look things up in)                                                  |
+| [docs/outbox/](./docs/outbox/README.md)                        | State writes: local first, then the outbox. The machine, the join states, adding a state, the runtime port         |
+| [docs/uploads/](./docs/uploads/README.md)                      | Sending images as one message. The sequence, what counts as failure, the answer guard, pending image rows          |
 
 ## How to verify
 

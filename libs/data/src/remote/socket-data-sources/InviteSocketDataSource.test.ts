@@ -63,7 +63,6 @@ describe('InviteSocketDataSource', () => {
 
         const result = await dataSource.getInvite('invt:1:secret');
 
-        // The code is a credential, so it rides in exactly one place: the body.
         expect(mockGateways.invite.get).toHaveBeenCalledWith({ code: 'invt:1:secret' });
         expect(result.needVerify).toBe(true);
     });

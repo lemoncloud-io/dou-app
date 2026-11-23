@@ -29,23 +29,13 @@ export interface ISubscriptionRepository extends DisposableRepository {
     fetchPlans(params?: Record<string, unknown>): Promise<ListResult<ProductView>>;
     fetchMembershipInfo(): Promise<MembershipView>;
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView>;
-    /**
-     * Records which owned clouds go when the quota shrinks. `cloudIds` is the final state — an
-     * owned cloud left out is unmarked, and an empty list clears every mark. Remote-only and
-     * uncached like the rest of this repository; callers refresh what they render afterwards.
-     */
     markDrops(body: MembershipDropsBody): Promise<MembershipDropsResult>;
 
-    /**
-     * Admin console surface (ADR-0101). Remote-only like the rest of this repository, which is the
-     * point: these reads are other users' records and must never reach a local cache.
-     */
     fetchAdminMemberships(
         params?: Record<string, unknown>,
         opts?: AdminEndpointOptions
     ): Promise<ListResult<MembershipView>>;
     updateMembershipByAdmin(userId: string, body: MembershipBody, opts?: AdminOverrideOptions): Promise<MembershipView>;
-    /** Full refund of a web subscription's last paid charge; the subscription expires at once. */
     refundSubscriptionByAdmin(
         userId: string,
         body: SubscriptionRefundBody,
@@ -57,33 +47,16 @@ export interface ISubscriptionRepository extends DisposableRepository {
         opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>>;
 
-    // The web subscription — one per account, billed through the payment provider rather than a store.
-    // Remote-only like the rest: the landing site's account pages read it and keep no copy. The
-    // subscription itself is read off the membership (`fetchMembershipInfo`), which carries its record.
-
-    /** The cards the payment provider holds; `isDefault` marks the one it charges. */
     fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]>;
-    /** What the provider's card window opens with, for the product the card is for. */
     issueBillingKey(productId: string, params?: SubscriptionSandboxParams): Promise<BillingIssueParams>;
     startSubscription(body: SubscriptionStartBody, params?: SubscriptionStartParams): Promise<WebSubscriptionView>;
     changeSubscription(productId: string): Promise<WebSubscriptionView>;
     cancelSubscription(): Promise<WebSubscriptionView>;
-    /** Adds a card; the default card stays as it was. */
     addCard(body: SubscriptionCardBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
-    /** Makes a card the one charged. */
     setDefaultCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
-    /** The payment service refuses the default card and the card a subscription in use is charged to. */
     removeCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
 }
 
-/**
- * Membership/IAP surface (introduced in ADR-0070 decision 5, late stage 2). Remote-only by nature — same shape as
- * `AuthRepository`/`DeviceRepository`: nothing here is a cacheable entity, so there is no local
- * data source to compose. `ISubscriptionHttpDataSource` injection is optional through stage 2 (every
- * `createRepositories` call site must still construct this repository even before `httpFactory`
- * exists) — every method throws a clear "not wired yet" error until injected. Stage 4 promotes it to
- * required once the REST hooks actually move behind it.
- */
 export class SubscriptionRepository extends BaseRepository implements ISubscriptionRepository {
     constructor(
         contextProvider: DataContextProvider,

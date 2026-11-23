@@ -49,7 +49,6 @@ describe('AuthSocketDataSource', () => {
             await dataSource.sendPhoneCode('01012345678', { mode: 'login', sms: false });
 
             const [payload] = mockGateways.auth.linkAccount.mock.calls[0];
-            // Only what was stated goes through. Shipping `slack` as false would switch that channel off.
             expect(payload).toMatchObject({ sms: false });
             expect(payload).not.toHaveProperty('slack');
             expect(payload).not.toHaveProperty('dryRun');
@@ -92,7 +91,6 @@ describe('AuthSocketDataSource', () => {
 
             const result = await dataSource.verifyPhoneCode('01012345678', '123456', { mode: 'link' });
 
-            // This is a response slot, not an error — neither the socket nor this layer turns it into :error.
             expect(result).toMatchObject({ linkable: false, reason: 'type-linked' });
         });
 
@@ -126,7 +124,6 @@ describe('AuthSocketDataSource', () => {
                 otp: '123456',
                 countryCode: undefined,
             });
-            // Interpreting and installing the token is not this layer's job — it is passed through as is.
             expect(result).toMatchObject({ $token: { identityToken: 'tok' } });
         });
 
@@ -181,7 +178,6 @@ describe('AuthSocketDataSource', () => {
         it('social has no login mode — it always goes out as link', async () => {
             mockGateways.auth.linkAccount.mockResolvedValue({ linked: true } as any);
 
-            // The contract is that a caller cannot choose the mode (social login for a device user goes down the REST path).
             await dataSource.confirmSocialAccount({ provider: 'google', idToken: 'tok', mode: 'login' } as any);
 
             expect(mockGateways.auth.linkAccount).toHaveBeenCalledWith(expect.objectContaining({ mode: 'link' }));

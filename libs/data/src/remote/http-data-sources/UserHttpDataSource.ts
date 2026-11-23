@@ -7,20 +7,14 @@ import type { AdminEndpointOptions } from './SubscriptionHttpDataSource';
 import { toDomainUserFromHttp } from './httpUserMapping';
 
 export interface IUserHttpDataSource {
-    /** `opts.endpoint` lists another stage's relay — the admin console's stage switch. */
     listRelayUsers(
         params: Record<string, unknown> | undefined,
         context: DataContext,
         opts?: AdminEndpointOptions
     ): Promise<DomainListResult<DomainUser>>;
-    /** No-retry profile probe — errors bubble, same as the gateway (caller decides fallback). */
     tryFetchProfile(): Promise<UserProfile$>;
 }
 
-/**
- * Relay user listing · profile probe. No local cache — `data`'s admin user list and profile probe
- * have no cache slot today, and HTTP reads never auto-write the local cache.
- */
 export class UserHttpDataSource implements IUserHttpDataSource {
     constructor(private readonly gateway: UserHttpDomainGateway) {}
 

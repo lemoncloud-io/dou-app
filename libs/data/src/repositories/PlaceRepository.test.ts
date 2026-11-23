@@ -12,12 +12,10 @@ jest.mock('@chatic/logger', () => ({
 
 import { logger } from '@chatic/logger';
 
-/** A channel clean-up for tests that never leave a place. */
 const noChannelCleanup = () => ({ evictLeftChannels: jest.fn(), dropMemberFromChannels: jest.fn() });
 
 describe('PlaceRepository', () => {
     const createRepository = () => {
-        // Mock remote fetch/mutation calls independently from local cache writes to keep sequencing assertions simple.
         const placeSocketDataSource = {
             fetchPlace: jest.fn(),
             createPlace: jest.fn(),
@@ -63,7 +61,6 @@ describe('PlaceRepository', () => {
 
         await expect(repository.updatePlace({ id: 'place-1', name: 'After' } as any)).rejects.toThrow('boom');
 
-        // The final write should be the rollback to the original cached place snapshot.
         expect(placeLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
             expect.objectContaining({ id: 'place-1', name: 'Before' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -100,7 +97,6 @@ describe('PlaceRepository', () => {
             },
             noChannelCleanup()
         );
-        // The session moves to another cloud while the server is still answering.
         placeSocketDataSource.deletePlace.mockImplementation(async () => {
             context = { cid: 'cloud-b', sid: 'site-9', uid: 'me-b' };
         });
@@ -156,7 +152,6 @@ describe('PlaceRepository', () => {
             await repository.refreshList();
 
             expect(placeLocalDataSource.cacheDelete).toHaveBeenCalledWith('place-1', scope);
-            // The snapshot that follows is empty and, by design, touches nothing.
             expect(placeLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
         });
 
@@ -329,12 +324,10 @@ describe('PlaceRepository', () => {
 
         await repository.updatePlace({ sid: 'site-7', name: 'After' } as any);
 
-        // The backend rejects place.update without @id, so the outgoing payload must carry it.
         expect(placeSocketDataSource.updatePlace).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'site-7', sid: 'site-7', name: 'After' }),
             expect.anything()
         );
-        // The optimistic pre-write engages off the normalized id instead of being skipped.
         expect(placeLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'site-7', name: 'After' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -352,7 +345,6 @@ describe('PlaceRepository', () => {
 
         const result = await repository.refreshList({});
 
-        // refreshList should preserve remote ordering by writing explicit order indexes into local cache.
         expect(placeLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
             [
                 expect.objectContaining({ id: 'place-1', order: 0 }),
@@ -370,7 +362,6 @@ describe('PlaceRepository', () => {
 
         const result = await repository.createPlace({ name: 'Created' } as any);
 
-        // A successful create should immediately hydrate the local read-model with the canonical server response.
         expect(placeLocalDataSource.cacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'place-3' }), {
             cid: 'cloud-a',
             sid: 'site-1',
@@ -382,7 +373,6 @@ describe('PlaceRepository', () => {
     it('follows a successful create with an ordered snapshot that shields the new place from pruning', async () => {
         const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
         placeSocketDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
-        // The list response has not caught up with the just-created place yet.
         placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
         placeLocalDataSource.cacheReadList.mockResolvedValue({
             list: [{ id: 'place-1' }, { id: 'place-3' }, { id: 'stale-row' }],
@@ -390,12 +380,10 @@ describe('PlaceRepository', () => {
 
         await repository.createPlace({ name: 'Created' } as any);
 
-        // The follow-up snapshot lands with order stamps for every caller of createPlace.
         expect(placeLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
             [expect.objectContaining({ id: 'place-1', order: 0 })],
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
-        // Stale rows are pruned, but the just-created id is protected from the lagging list.
         expect(placeLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['stale-row'], {
             cid: 'cloud-a',
             sid: 'site-1',
@@ -408,7 +396,6 @@ describe('PlaceRepository', () => {
         placeSocketDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
         placeSocketDataSource.fetchPlace.mockRejectedValue(new Error('snapshot down'));
 
-        // The place exists on the server; a failed snapshot must not fail the create.
         await expect(repository.createPlace({ name: 'Created' } as any)).resolves.toEqual(
             expect.objectContaining({ id: 'place-3' })
         );
@@ -423,8 +410,6 @@ describe('PlaceRepository', () => {
 
         await repository.refreshList();
 
-        // The server snapshot is authoritative: rows it no longer lists (e.g. an embedded-$site
-        // default place written into a cloud partition) are removed.
         expect(placeLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['stale-default-place'], {
             cid: 'cloud-a',
             sid: 'site-1',
@@ -441,7 +426,6 @@ describe('PlaceRepository', () => {
 
         await repository.refreshList({});
 
-        // A filtered response proves nothing about the rows it omits.
         expect(placeLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
     });
 
@@ -451,7 +435,6 @@ describe('PlaceRepository', () => {
 
         await repository.refreshList();
 
-        // Right after a switch the session may answer empty; writing or pruning would wipe real rows.
         expect(placeLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
         expect(placeLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
     });
@@ -462,7 +445,6 @@ describe('PlaceRepository', () => {
             placeSocketDataSource as any,
             placeLocalDataSource as any,
             {
-                // cid already flipped optimistically, but the socket is still bound to the outgoing cloud.
                 getContext: () => ({ cid: 'cloud-a', sid: 'site-1', uid: 'me', socketCid: 'cloud-b' }),
                 setContext: () => undefined,
             },
@@ -478,10 +460,6 @@ describe('PlaceRepository', () => {
 
     it('writes to the request-time snapshot even if the global context changes before remote resolve', async () => {
         const mutableContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
-        // The executor runs synchronously, so the resolver is assigned before anything below can
-        // reach it — hence the definite assignment. Declaring it `| null = null` instead made the
-        // control-flow analysis narrow it to `null` (an assignment inside a callback is not seen as
-        // having run), and the call site below stopped typechecking.
         let resolveRemote!: (value: unknown) => void;
         const pendingRemote = new Promise(resolve => {
             resolveRemote = resolve;
@@ -571,10 +549,6 @@ describe('PlaceRepository', () => {
     });
 });
 
-/**
- * The same late-answer race, with a real local data source on partitioned storage — the argument
- * assertion above shows what the repository asked for, this shows where the rows actually went.
- */
 describe('PlaceRepository — the scope an answer is written under', () => {
     it('a list answered after a cloud and account switch lands in the partition that asked, and prunes only there', async () => {
         const context = new DataContextHolder({ cid: 'cloud-a', uid: 'me' });
@@ -601,7 +575,6 @@ describe('PlaceRepository — the scope an answer is written under', () => {
         const idsIn = async (cid: string, uid: string) =>
             (await places.forScope({ cid, uid }).loadAll()).map(row => row.id);
         expect(await idsIn('cloud-a', 'me')).toEqual(['a-place']);
-        // Neither written into, nor pruned against, the partition the session moved to.
         expect(await idsIn('cloud-b', 'other')).toEqual(['b-place']);
     });
 
@@ -627,10 +600,6 @@ describe('PlaceRepository — the scope an answer is written under', () => {
     });
 });
 
-/**
- * Leaving a place, with the real channel repository behind it: the rows, the messages and the leave
- * guard are the channel side's, and this is where they are seen together.
- */
 describe('PlaceRepository — leaving a place clears what the channel side holds', () => {
     const scope = { cid: 'cloud-a', sid: 'site-1', uid: 'me' };
     const setup = () => {
@@ -679,7 +648,6 @@ describe('PlaceRepository — leaving a place clears what the channel side holds
             ['ch-2', scope],
         ]);
 
-        // A list request that was already in flight answers with the old rooms: they stay out.
         channelSocket.fetchChannel.mockResolvedValue({
             list: [
                 { id: 'ch-1', sid: 'site-1' },

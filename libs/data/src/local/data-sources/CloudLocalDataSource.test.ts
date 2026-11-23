@@ -1,7 +1,6 @@
 import { CloudLocalDataSource } from './CloudLocalDataSource';
 import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
-// Observer notifications are debounced, so flush the microtask queue after timers run.
 const flushPromises = async () => {
     await Promise.resolve();
     await Promise.resolve();
@@ -35,13 +34,11 @@ describe('CloudLocalDataSource', () => {
             totals.push(result?.meta.total ?? 0);
         });
 
-        // Flush the initial empty emission before mutating the datasource.
         jest.runAllTimers();
         await flushPromises();
 
         await dataSource.cacheWrite({ id: 'cloud-1', cid: 'cloud-1', name: 'Cloud One' } as any);
 
-        // Flush the debounced re-emit that follows the write.
         jest.runAllTimers();
         await flushPromises();
 
@@ -62,7 +59,6 @@ describe('CloudLocalDataSource', () => {
 
         const result = await dataSource.cacheReadList();
 
-        // Clearing should leave the local list in a stable empty state.
         expect(result?.list).toEqual([]);
     });
 
@@ -73,7 +69,6 @@ describe('CloudLocalDataSource', () => {
         await dataSource.cacheWrite({ id: 'cloud-1', cid: 'cloud-1', name: 'One' } as any);
         await dataSource.cacheWrite({ id: 'cloud-2', cid: 'cloud-2', name: 'Two', cloudType: 'owner' } as any);
 
-        // Unclassified clouds fall back to 'invited'; explicit ownership is kept verbatim.
         expect((await dataSource.cacheRead('cloud-1'))?.cloudType).toBe('invited');
         expect((await dataSource.cacheRead('cloud-2'))?.cloudType).toBe('owner');
     });

@@ -16,7 +16,6 @@ export interface IUserLocalDataSource
     cacheReadMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]>;
 }
 
-/** Caches channel user snapshots locally and reuses scoped keys for list observation. */
 export class UserLocalDataSource extends BaseLocalDataSource<'user'> implements IUserLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'user'>) {
         super(contextProvider, storages);
@@ -29,9 +28,6 @@ export class UserLocalDataSource extends BaseLocalDataSource<'user'> implements 
 
     public async cacheReadMany(ids: string[], contextOverride?: LocalDataSourceContextOverride): Promise<DomainUser[]> {
         if (ids.length === 0) return [];
-        // `loadMany` already drops absent ids, so no extra filter is needed. The returned order is
-        // unrelated to `ids` — callers (looking up chat authors in useChats, for instance) find by id
-        // and do not use the order.
         return this.storage(contextOverride).loadMany(ids);
     }
 
@@ -43,7 +39,6 @@ export class UserLocalDataSource extends BaseLocalDataSource<'user'> implements 
         let users = allUsers;
 
         if (query.channelId) {
-            // Domain users carry their channel membership in `channelIds` (mapped upstream).
             users = users.filter(user => (user.channelIds || []).includes(query.channelId!));
         }
 
@@ -84,7 +79,6 @@ export class UserLocalDataSource extends BaseLocalDataSource<'user'> implements 
         const storage = this.storage(scope);
         const existing = await storage.load(id);
 
-        // Channel membership is preserved by unioning the mapped `channelIds`.
         const channelIds = Array.from(new Set([...(existing?.channelIds || []), ...(item.channelIds || [])]));
 
         const merged: DomainUser = {
@@ -144,7 +138,6 @@ export class UserLocalDataSource extends BaseLocalDataSource<'user'> implements 
         const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        // Only the affected channel set is needed, so ids omitted because they are absent do not matter.
         const storage = this.storage(scope);
         const existingItems = await storage.loadMany(validIds);
         await storage.deleteAll(validIds);

@@ -15,12 +15,6 @@ import { ChatLocalDataSource } from './ChatLocalDataSource';
 import { chatMediaIndexMarkId, createChatMediaIndexMarks } from './chatMediaIndexMarks';
 import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';
 
-/**
- * A store that indexes only what it is handed — the stores' side of the contract. Entries live apart
- * from the rows, as `chat_media` and the `chatmedia` records do: a row carrying `mediaEntries` replaces
- * its message's entries, a row without the field leaves them, deletes and clears take them, and a fill
- * applies an item only while the row is still there at an older rules version. It never computes one.
- */
 type IndexedStorage = CacheStorage<'chat'> & { saveAllCalls: number; fillCalls: number };
 
 const createIndexedChatStorage = (supported: { value: boolean }) => {
@@ -141,7 +135,6 @@ const message = (chatNo: number, fields: Partial<DomainChat> = {}): DomainChat =
         ...fields,
     }) as DomainChat;
 
-/** A room of 30 messages: every third has two photos, every fifth a link, the rest are text. */
 const roomRows = (): DomainChat[] =>
     Array.from({ length: 30 }, (_, i) => {
         const chatNo = i + 1;
@@ -158,12 +151,10 @@ const setup = (options: { supported?: boolean; routing?: string; validAfter?: ()
     const marks = createChatMediaIndexMarks(meta, options.routing ?? 'fp-1', options.validAfter);
     const dataSource = new ChatLocalDataSource(contextProvider as never, slot, marks);
     const storage = () => slot.forScope(contextProvider.current) as IndexedStorage;
-    /** Rows cached before the index existed: straight into the store, without entries. */
     const seedLegacy = (rows: DomainChat[]) => base.forScope(contextProvider.current).saveAll(rows);
     return { dataSource, supported, storage, meta, seedLegacy, slot };
 };
 
-/** Every page of one kind, walked to the end with the given limit. */
 const walk = async (dataSource: ChatLocalDataSource, kind: ChatMediaKind, limit: number) => {
     const pages: Array<{ refs: string[]; next: number | null }> = [];
     let cursorNo: number | undefined;
@@ -225,7 +216,6 @@ describe('ChatLocalDataSource — room media', () => {
 
         const pages = await walk(s.dataSource, 'image', 3);
 
-        // Limit 3 lands inside a two-photo message, which is kept whole: pages of four.
         expect(pages[0]).toEqual({ refs: ['p30a', 'p30b', 'p27a', 'p27b'], next: 27 });
         expect(pages.flatMap(page => page.refs)).toHaveLength(20);
         expect(pages[pages.length - 1].next).toBeNull();
@@ -272,7 +262,6 @@ describe('ChatLocalDataSource — room media', () => {
             s.dataSource.listRoomMedia({ channelId: 'ch-1', kind: 'image', limit: 2 }),
         ]);
 
-        // 30 rows fit in one scan page, so one run is one fill write.
         expect(s.storage().fillCalls).toBe(1);
     });
 
@@ -357,7 +346,6 @@ describe('ChatLocalDataSource — room media', () => {
         await s.seedLegacy([message(1, { upload$$: [photo('u1')] as never, updatedAtMs: 100 })]);
         const storage = s.storage();
         const loadAll = storage.loadAll.bind(storage);
-        // A feed page that left the message out marks it hidden with the cached copy's own time.
         storage.loadAll = async options => {
             const rows = await loadAll(options);
             storage.loadAll = loadAll;

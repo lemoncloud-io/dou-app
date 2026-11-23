@@ -45,7 +45,6 @@ describe('parseUploadStartResult', () => {
         });
     });
 
-    // A signed request fails if any header it covers goes missing, whatever the header is called.
     it('keeps a header whose name is an object key', () => {
         const headers = JSON.parse('{"__proto__": "kept", "content-type": "image/jpeg"}');
 
@@ -129,7 +128,6 @@ describe('parseUploadStartResult', () => {
         expect(() => parseUploadStartResult(answer)).toThrow(new UploadResponseShapeError('start', path));
     });
 
-    // The error message travels to logs and crash reports; a malformed ticket still holds a signed URL.
     it('never puts a response value into the error message', () => {
         const answer = {
             list: [{ upload: { id: 'up-1', status: 'pending' }, transfer: presignedPut({ headers: undefined }) }],
