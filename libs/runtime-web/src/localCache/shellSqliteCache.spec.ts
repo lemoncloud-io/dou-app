@@ -23,7 +23,6 @@ describe('shellSqliteCache', () => {
         expect((storage as unknown as { bridge: unknown }).bridge).toBe(client);
     });
 
-    // The reply lands after the storage exists, so the report is asked on every media read.
     it('asks the report for the media index on each read, not once at construction', () => {
         let report: NativeCacheSupport | null = null;
         const storage = shellSqliteCache({ support: () => report, client }).storage('chat', context);

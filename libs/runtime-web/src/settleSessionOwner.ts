@@ -13,71 +13,35 @@ import type { RuntimeHelloOutcome, RuntimeMirrorPort } from '@chatic/runtime-cor
 
 import { webMirrorPort } from './createBridgedRuntime';
 
-/**
- * How long the page keeps asking a shell that offered to own the session before it gives up, counted
- * only while the page is shown. The shell answers once its runtime has started, which is well under a
- * second on a healthy launch; this only bounds a launch where it never does, so the person sees a
- * screen that says so instead of the boot cover forever. No hello outlasts it: the last one waits only
- * for what is left (`SESSION_OWNER_LAST_HELLO_MIN_MS` at the least).
- */
 export const SESSION_OWNER_GIVE_UP_MS = 30_000;
 
-/**
- * One hello's wait. The shell holds a hello for up to five seconds while its runtime starts and then
- * answers that it is still starting, so this only catches an answer that never comes.
- */
 export const SESSION_OWNER_HELLO_TIMEOUT_MS = 10_000;
 
-/** The shortest wait a hello is given, even when less than that is left of the limit. */
 export const SESSION_OWNER_LAST_HELLO_MIN_MS = 1_000;
 
-/** The pause before each ask after the first; the last one repeats. */
 const RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
 
-/** How the page runs this launch, as settled before it boots. */
 export type SessionOwnerChoice =
-    /** The page owns the session and boots its own runtime, as in a browser. */
     | { sessionOwner: 'web' }
-    /** The shell owns it: the page mirrors the shell's runtime from `hello` over `port`. */
     | {
           sessionOwner: 'native';
           contract: number;
           hello: { seq: number; session: RuntimeWireValue };
           port: RuntimeMirrorPort;
       }
-    /**
-     * Not settled, after asking for `SESSION_OWNER_GIVE_UP_MS` — or at once when the shell holds the
-     * session under a contract this page does not speak (`RUNTIME_CONTRACT_MISMATCH`), which asking
-     * again cannot change. The page boots neither runtime: the shell may hold the session, and a page
-     * that ran its own then would be a second owner.
-     */
     | { sessionOwner: null; attempts: number; lastFailure: string };
 
 export interface SessionOwnerOptions {
-    /** What the shell injected before the page ran (`window.CHATIC_APP_RUNTIME`), read as untrusted. */
     offer: unknown;
-    /**
-     * The page's own setting that it does not ask. With it set, a launch is the page's: a shell that
-     * offered waits for a hello that never comes and keeps its runtime off. It yields to an offer that
-     * says the shell's runtime already holds the session in this process (`held`): a page reloaded into
-     * such a process asks anyway, since running its own runtime would make it a second owner. A shell
-     * before bridge 2.35.0 never says so, and a page reloaded into one still boots its own.
-     */
     disabled?: boolean;
     client?: IWebBridgeClient;
     giveUpAfterMs?: number;
-    /** Test seams. `now` is the clock the limit is counted on: by default it runs only while the page is shown. */
     now?: () => number;
     wait?: (ms: number) => Promise<void>;
 }
 
 const defaultWait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
-/**
- * A clock that runs only while the page is shown. The bridge's own timeouts pause while the page is
- * hidden, and a launch sent to the background while it asks — or one waiting for a device's first
- * unlock — has not been failing for the time it spent away. Without a document it is the wall clock.
- */
 export const visibleClock = (): (() => number) => {
     if (typeof document === 'undefined') return Date.now;
     let shown = 0;
@@ -93,16 +57,6 @@ export const visibleClock = (): (() => number) => {
     return () => shown + (shownSince === null ? 0 : Date.now() - shownSince);
 };
 
-/**
- * Settles who owns the session this launch, before the page boots a runtime.
- *
- * No offer (a browser, a shell that does not run its runtime, an offer in none of the page's
- * contracts) or the page's own setting → `web`, at once and without a word to the shell — unless the
- * offer says the session is already held, which the page asks about whatever else it would decide.
- * Otherwise the page makes the mirror's port — before the hello, so a session push in between is kept — and asks.
- * `web` and `native` answers settle it; anything else (a timeout, a shell still starting, an answer
- * that does not read) is asked again, with a growing pause, until `giveUpAfterMs` has passed.
- */
 export const settleSessionOwner = async ({
     offer,
     disabled = false,
@@ -114,8 +68,6 @@ export const settleSessionOwner = async ({
     const sharesContract = readRuntimeOffer(offer) !== null;
     if (disabled || !sharesContract) {
         if (!offerHoldsSession(offer)) return { sessionOwner: 'web' };
-        // The rollback path: a web deploy that stops the mirror reaches app processes whose runtime
-        // already runs. Their pages keep mirroring until the next launch, which the page's default moves.
         logger.info('session.owner_held_asked', 'the shell holds the session in this process; asking anyway', {
             data: { disabled, sharesContract },
         });

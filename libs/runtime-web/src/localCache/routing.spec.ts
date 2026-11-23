@@ -1,5 +1,3 @@
-// The IndexedDB adapter opens a real database in its constructor, so a shim must exist before the
-// ports are imported.
 import 'fake-indexeddb/auto';
 
 import type { CacheType } from '@chatic/bridge-messages';
@@ -10,7 +8,6 @@ import type * as LocalCache from './index';
 import { readNativeCacheSupport } from './nativeCacheSupport';
 import { resolveCacheBackendFor } from './routing';
 
-/** The storage the web ports build for `type`, on the route they choose for it. */
 const storageFor = (
     ports: Pick<typeof LocalCache, 'webLocalCachePorts'>,
     type: CacheType,
@@ -21,27 +18,14 @@ const storageFor = (
     return cache.storage(type, cache.route(type), contextProvider, options);
 };
 
-/** A tab store in memory, standing in for the entry point's `webSession`. */
 const tabStore = () => new MemoryStore();
 
-/**
- * Storage routing: every cache type follows the environment (native → NativeDB/SQLite, browser →
- * IndexedDB), minus any type pinned to web storage — that table is empty now that the native
- * profile writer stores items verbatim. See WEB_PINNED_CACHE_TYPES in routing.ts. The one
- * exception is invited clouds in a plain browser tab, which live in the tab's sessionStorage.
- */
 describe('webLocalCachePorts storage routing', () => {
     const contextProvider: DataContextProvider = {
         getContext: () => ({ cid: 'c1', uid: 'u1' }),
         setContext: () => undefined,
     };
 
-    // The native capability snapshot lives at module scope (nativeCacheSupport), so each
-    // environment needs a fresh module registry. Adapters are identified by constructor name
-    // rather than `instanceof`: importing the classes here would either compare against a stale
-    // constructor (resetModules gives the factory a different copy) or, if imported dynamically to
-    // dodge that, mark @chatic/data as lazy-loaded and make every static import of it across
-    // @chatic/runtime an @nx/enforce-module-boundaries error.
     const loadFactory = async (isNative: boolean) => {
         jest.resetModules();
         if (isNative) (window as any).ReactNativeWebView = { postMessage: jest.fn() };
@@ -76,17 +60,12 @@ describe('webLocalCachePorts storage routing', () => {
         expect(adapterName(storageFor(ports, 'channel', contextProvider))).toBe('IndexedDBAdapter');
     });
 
-    // A plain tab's guest — the only user an invited cloud was granted to — lives in sessionStorage
-    // and ends with the tab, so the row does too. The store is wrapped by the one-time IndexedDB
-    // import that carries a tab's rows across the move.
     it('routes invited clouds to the tab session store in a plain browser', async () => {
         const ports = await loadFactory(false);
 
         expect(adapterName(storageFor(ports, 'invitecloud', contextProvider))).toBe('InvitedCloudImportStorage');
     });
 
-    // A desktop shell keeps the session in localStorage, so its invited clouds stay durable too: the
-    // shell is "native" for the session's storage while still having no SQLite to reach.
     it('keeps invited clouds in IndexedDB inside a desktop shell', async () => {
         jest.resetModules();
         delete (window as any).ReactNativeWebView;
@@ -100,11 +79,6 @@ describe('webLocalCachePorts storage routing', () => {
         }
     });
 
-    // Web/app deploy skew: the web ships ahead of the app, so a type newer than the installed app
-    // would be written into the native `default:` arm, which answers `null` with `success: true` —
-    // an invisible, permanently empty cache. Such a type goes to hot storage until the app catches up.
-    // 'invite' is the first real type this applies to — deliberately never added to
-    // LEGACY_NATIVE_CACHE_TYPES, so it exercises this exact path in production, not just in a test.
     it('routes a type the installed app cannot store to hot IndexedDB', async () => {
         const ports = await loadFactory(true);
         const futureType = 'invite';
@@ -114,7 +88,6 @@ describe('webLocalCachePorts storage routing', () => {
 
     it('routes it back to cold NativeDB once the app reports supporting it', async () => {
         const ports = await loadFactory(true);
-        // Same module registry as the ports (resetModules gives it its own copy of the snapshot).
         const { setNativeCacheSupport } = ports;
         const futureType = 'invite';
 
@@ -123,8 +96,6 @@ describe('webLocalCachePorts storage routing', () => {
         expect(adapterName(storageFor(ports, futureType, contextProvider))).toBe('NativeDBAdapter');
     });
 
-    // The full routing table, pinned as a matrix so a routing change can never slip through as a
-    // side effect — this is the behavior contract of having one routing decision point.
     it('routes every known cache type per the matrix in both environments', async () => {
         const EXPECTED: Record<CacheType, { browser: string; native: string }> = {
             chat: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
@@ -135,9 +106,6 @@ describe('webLocalCachePorts storage routing', () => {
             user: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
             meta: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
             profile: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
-            // Not legacy and this test never reports support, so it stays on web in EITHER
-            // environment — the one asymmetric row in this matrix, and exactly the skew-gate
-            // contract the invite domain relies on.
             invite: { browser: 'IndexedDBAdapter', native: 'IndexedDBAdapter' },
         };
 
@@ -152,10 +120,6 @@ describe('webLocalCachePorts storage routing', () => {
         }
     });
 
-    // Per-domain contract versions replaced the gate's criteria (frozen set + name list + global schema number) with one
-    // comparison against per-domain contract versions. The whole design rests on that switch moving
-    // ZERO routing decisions, since the web ships ahead of the app and most apps a new web meets
-    // still report names only. This pins the routing table across every report shape in the wild.
     it('routes every type identically whatever shape the app reports in', async () => {
         const ALL_TYPES: CacheType[] = [
             'chat',
@@ -169,15 +133,12 @@ describe('webLocalCachePorts storage routing', () => {
             'invite',
         ];
         const REPORT_SHAPES = [
-            // Pre-handshake / a build older than the fields. Only the frozen floor applies.
             { label: 'unreported', report: undefined, expected: (t: CacheType) => t !== 'invite' },
-            // What almost every installed app sends today: names, no contract versions.
             {
                 label: 'names only',
                 report: { cacheSchemaVersion: 11, supportedCacheTypes: ALL_TYPES },
                 expected: () => true,
             },
-            // An app that reports contract versions: measured editions alongside the legacy fields.
             {
                 label: 'names + contract versions',
                 report: {
@@ -187,8 +148,6 @@ describe('webLocalCachePorts storage routing', () => {
                 },
                 expected: () => true,
             },
-            // A partially migrated app: `invites` never landed, so it reports neither for that
-            // domain — the one case where the measurement must actually change a decision.
             {
                 label: 'partially migrated',
                 report: {
@@ -220,7 +179,6 @@ describe('webLocalCachePorts storage routing', () => {
 });
 
 describe('webLocalCachePorts unknown route', () => {
-    // Only `route()` makes routes; a storage asked for any other is a bug, not a domain for IndexedDB.
     it('refuses a route it did not make', async () => {
         jest.resetModules();
         const { webLocalCachePorts } = await import('./index');
@@ -263,7 +221,6 @@ describe('webLocalCachePorts chat cap injection', () => {
     });
 });
 
-// The decision itself, over a host handed in: the same table the page's ports route by above.
 describe('resolveCacheBackendFor', () => {
     it('routes by the bridge and the report it is handed', () => {
         expect(resolveCacheBackendFor('invitecloud', { bridge: null, support: null })).toBe('session');

@@ -28,7 +28,6 @@ beforeEach(() => jest.clearAllMocks());
 
 describe('applyChannelOrder', () => {
     it('저장된 순서를 먼저 유지하고, 모르는 id는 들어온(이름) 순서대로 뒤에 붙는다', () => {
-        // Stored: [c] — current list: a, b, c (name order). c stays in front, the rest keep name order.
         expect(applyChannelOrder(['a', 'b', 'c'], ['c'])).toEqual(['c', 'a', 'b']);
     });
 
@@ -43,7 +42,6 @@ describe('applyChannelOrder', () => {
 
 describe('moveChannel', () => {
     it('현재 목록에 없는 id를 order에서 가지런히 잘라낸다', () => {
-        // 'gone' is a channel that no longer exists — it gets cleaned up as part of the same move.
         expect(moveChannel(['a', 'b', 'gone', 'c'], 'c', 0, ['a', 'b', 'c'])).toEqual(['c', 'a', 'b']);
     });
 
@@ -62,10 +60,10 @@ describe('normalizeChannelOrder', () => {
         expect(
             normalizeChannelOrder({
                 'cloud-1:place-1': ['ch-2', 'ch-1'],
-                'place-1': ['ch-9'], // bare placeId — dropped because we don't know which cloud it belongs to
-                'cloud-2:place-2': ['ch-3', 42, null, ''], // strip non-string/empty-string entries
-                'cloud-3:place-3': [], // an empty-array scope is not stored
-                'cloud-4:place-4': 'nope', // not an array
+                'place-1': ['ch-9'],
+                'cloud-2:place-2': ['ch-3', 42, null, ''],
+                'cloud-3:place-3': [],
+                'cloud-4:place-4': 'nope',
             })
         ).toEqual({ 'cloud-1:place-1': ['ch-2', 'ch-1'], 'cloud-2:place-2': ['ch-3'] });
     });

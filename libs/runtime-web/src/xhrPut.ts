@@ -1,40 +1,18 @@
 import type { PutPort, PutResult } from '@chatic/data';
 
-/**
- * Headers the browser owns. The ticket lists them because they are signed, but `XMLHttpRequest`
- * refuses to set them (with a console warning) and fills them from the request itself — which is
- * the value that was signed, so leaving them out keeps the signature valid.
- */
 const USER_AGENT_OWNED_HEADERS = new Set(['content-length', 'host']);
 
-/**
- * A stalled connection (a network handoff, a captive portal) otherwise never ends: with no
- * timeout, `ontimeout` cannot fire. Generous, because it bounds the whole PUT, not a pause in it —
- * 20MB over a slow mobile uplink takes minutes. A larger file gets the time a 1 Mbps uplink needs
- * for it, so a 300MB video is not cut off halfway and then resent whole into the same limit.
- */
 const MIN_PUT_TIMEOUT_MS = 5 * 60_000;
 const SLOW_UPLINK_BYTES_PER_MS = 1_000_000 / 8 / 1000;
 
 const putTimeoutMs = (size: number): number => Math.max(MIN_PUT_TIMEOUT_MS, Math.ceil(size / SLOW_UPLINK_BYTES_PER_MS));
 
-/** S3 answers an error with an XML body; its `<Code>` is what tells an expiry from a denial. */
 const readProviderCode = (body: string): string | undefined => /<Code>([^<]+)<\/Code>/.exec(body)?.[1];
 
-/**
- * PUTs the bytes from the page itself — the browser and desktop shells' only way, and the old app's fallback when
- * its shell has no transfer module. Uploads started here stop when the page stops.
- *
- * Progress is counted only when the caller asks for it. A listener on `upload` makes a cross-origin
- * request preflighted, but a PUT carrying a signed `Content-Type` is preflighted already — neither
- * the method nor that header is one a browser sends without asking — so the listener costs no
- * extra round trip here.
- */
 export const createXhrPut =
     (createRequest: () => XMLHttpRequest = () => new XMLHttpRequest()): PutPort =>
     (target, file, _label, onProgress, signal) =>
         new Promise<PutResult>(resolve => {
-            // Cancelled before it started (the sender gave up while it waited its turn).
             if (signal?.aborted) {
                 resolve({ kind: 'no-response', reason: 'system' });
                 return;
@@ -49,8 +27,6 @@ export const createXhrPut =
                 const providerCode = request.status >= 300 ? readProviderCode(request.responseText ?? '') : undefined;
                 resolve({ kind: 'responded', httpStatus: request.status, ...(providerCode ? { providerCode } : {}) });
             };
-            // A CORS refusal also lands in `onerror`; from here it is indistinguishable from a
-            // dropped connection, and both are worth the same retry.
             request.onerror = () => resolve({ kind: 'no-response', reason: 'network' });
             request.ontimeout = () => resolve({ kind: 'no-response', reason: 'network' });
             request.onabort = () => resolve({ kind: 'no-response', reason: 'system' });

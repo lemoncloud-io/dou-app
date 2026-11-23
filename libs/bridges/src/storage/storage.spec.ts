@@ -50,7 +50,6 @@ describe('BridgeStorageChannel', () => {
 });
 
 describe('shellKeepsStorageMedium', () => {
-    // The answer is the host profile's, which is taken once; each case rebuilds it from `window`.
     const injecting = (media: unknown) => {
         window.CHATIC_APP_STORAGE_MEDIA = media;
         resetHostProfileForTests();

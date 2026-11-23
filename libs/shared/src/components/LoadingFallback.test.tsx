@@ -21,7 +21,6 @@ describe('LoadingFallback', () => {
     });
 
     it('falls back to the English name before any translations exist', () => {
-        // The boot splash renders before i18n is ready; react-i18next warns about exactly that.
         const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
         render(<LoadingFallback />);

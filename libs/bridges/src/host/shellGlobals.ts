@@ -1,12 +1,3 @@
-/**
- * The boot globals a shell sets before the page's own scripts run, as the web reads them: one entry
- * per name, the value exactly as first injected (`undefined` when the shell did not set it).
- *
- * Globals a shell writes again while the page runs — the log upload hold, the theme, the config bag,
- * the safe area — are not host facts and are not here at all. The phone also runs its boot script a
- * second time after load, which can rewrite the device ids and the version check; the profile keeps
- * the first values, and `apps/web`'s device store reads those live.
- */
 export const SHELL_GLOBAL_NAMES = [
     'CHATIC_APP_PLATFORM',
     'CHATIC_APP_APPLICATION',
@@ -26,10 +17,6 @@ export const SHELL_GLOBAL_NAMES = [
 
 export type ShellGlobalName = (typeof SHELL_GLOBAL_NAMES)[number];
 
-/**
- * The boot globals by name, typed as the strings every shell injects. The profile keeps each value as
- * it came, so a reader sees what it saw before the profile existed.
- */
 export type ShellGlobals = Readonly<Record<ShellGlobalName, string | undefined>>;
 
 declare global {
@@ -37,7 +24,6 @@ declare global {
         CHATIC_APP_PLATFORM?: string;
         CHATIC_APP_APPLICATION?: string;
         CHATIC_APP_STAGE?: string;
-        /** @deprecated Composite `deviceId:firebaseInstallId`; use CHATIC_APP_UNIQUE_DEVICE_ID + CHATIC_APP_FIREBASE_INSTALLATION_ID. */
         CHATIC_APP_DEVICE_ID?: string;
         CHATIC_APP_DEVICE_MODEL?: string;
         CHATIC_APP_OS_VERSION?: string;
@@ -46,13 +32,10 @@ declare global {
         CHATIC_APP_LATEST_VERSION?: string;
         CHATIC_APP_SHOULD_UPDATE?: string;
         CHATIC_APP_CURRENT_LANGUAGE?: string;
-        /** @deprecated Carries the bare device id despite the name; use CHATIC_APP_UNIQUE_DEVICE_ID. */
         CHATIC_APP_INSTALLATION_ID?: string;
         CHATIC_APP_UNIQUE_DEVICE_ID?: string;
         CHATIC_APP_FIREBASE_INSTALLATION_ID?: string;
-        /** The capabilities this shell declares — see `capabilities.ts`. Read as untrusted. */
         CHATIC_APP_CAPABILITIES?: unknown;
-        /** A shell's offer to own the session this launch. Read as untrusted by the runtime adapter. */
         CHATIC_APP_RUNTIME?: unknown;
     }
 }
@@ -65,20 +48,9 @@ export const readShellGlobals = (source: Readonly<Record<string, unknown>> | und
     return globals;
 };
 
-/**
- * The boot globals as they stand now, not as the profile kept them. Only for a reader that has to see
- * a value the shell rewrites after load — the phone's second boot pass can change the device ids, the
- * version check and the language — which is `apps/web`'s device store, its version floor and language
- * preference, and the session's device id. Everything else reads `hostProfile().globals`.
- */
 export const liveShellGlobals = (): ShellGlobals =>
     readShellGlobals(typeof window === 'undefined' ? undefined : (window as unknown as Record<string, unknown>));
 
-/**
- * Values a shell writes while the page runs, which are therefore not host facts and not in the
- * profile: the config bag the shell keeps for the page, the debug switch, the log upload hold, and the
- * run id its logs carry.
- */
 export const LIVE_SHELL_VALUE_NAMES = [
     'CHATIC_APP_CONFIG_BAG',
     'CHATIC_APP_DEBUG_MODE',
@@ -88,6 +60,5 @@ export const LIVE_SHELL_VALUE_NAMES = [
 
 export type LiveShellValueName = (typeof LIVE_SHELL_VALUE_NAMES)[number];
 
-/** One of those values as it stands now, untyped: each reader validates what it gets. */
 export const liveShellValue = (name: LiveShellValueName): unknown =>
     typeof window === 'undefined' ? undefined : (window as unknown as Record<string, unknown>)[name];

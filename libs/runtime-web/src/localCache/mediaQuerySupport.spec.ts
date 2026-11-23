@@ -1,11 +1,6 @@
 import { MemoryStore } from '@chatic/storage';
 import type { DataContextProvider } from '@chatic/data';
 
-/**
- * The phone shell's chat storage is handed the handshake's verdict as a question it asks on every
- * room media read, not as an answer fixed when it was built — the reply lands asynchronously, often
- * after the storage exists.
- */
 jest.mock('@chatic/logger', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));

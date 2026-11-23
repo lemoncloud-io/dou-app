@@ -58,8 +58,6 @@ describe('useCloudOrder', () => {
         expect(result.current.storedIds).toEqual([]);
     });
 
-    // The rail can be showing part of the list (the catalog read failed, a source is late). A drag
-    // then must not cost the clouds that are not on screen their place.
     it('keeps a stored cloud that is not on the rail, after the cloud it followed, when the others are reordered', () => {
         mockUseConfigValue.mockReturnValue(undefined);
         mockGet.mockReturnValue({ clouds: ['a', 'hidden', 'b', 'c'] });
@@ -125,7 +123,6 @@ describe('usePlaceOrder', () => {
         );
     });
 
-    // Before the cloud is known there is no key to write under.
     it('reads nothing and writes nothing without a cloud', () => {
         mockUseConfigValue.mockReturnValue({ places: { a: ['p1'] } });
 

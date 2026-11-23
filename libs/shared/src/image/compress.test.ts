@@ -2,10 +2,6 @@ import { drawToCanvas } from './compress';
 import { AVATAR_PROFILE, INLINE_PROFILE, sameSizeProfile, THUMBNAIL_PROFILE } from './profiles';
 import type { DecodedImage } from './decode';
 
-// jsdom has no canvas, so the element is stubbed. These tests are about the geometry a profile
-// picks — the numbers that decide whether a photo is cropped, stretched or left alone — so nothing
-// here needs real pixels.
-
 let drawCalls: { x: number; y: number; width: number; height: number }[] = [];
 let hasContext = true;
 
@@ -60,7 +56,6 @@ describe("drawToCanvas — fit: 'cover'", () => {
         const canvas = drawToCanvas(decoded(400, 200), AVATAR_PROFILE);
 
         expect([canvas?.width, canvas?.height]).toEqual([150, 150]);
-        // Scaled by 150/200 so the short edge fills, then pulled left by half the overflow.
         expect(drawCalls).toEqual([{ x: -75, y: 0, width: 300, height: 150 }]);
     });
 
@@ -82,8 +77,6 @@ describe('sameSizeProfile — 형식만 바꾸는 프로필', () => {
     it('원본 치수를 유지한다', () => {
         const canvas = drawToCanvas(decoded(4032, 3024), sameSizeProfile(4032, 3024, 'image/jpeg'));
 
-        // A HEIC has to become JPEG or the endpoint answers 415 — but that is correctness, not a
-        // size budget, so the pixels are left alone.
         expect([canvas?.width, canvas?.height]).toEqual([4032, 3024]);
     });
 });

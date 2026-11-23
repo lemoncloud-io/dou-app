@@ -1,6 +1,3 @@
-// How a web page reads its shell's capability declaration: one resolver per host port, each answering
-// what the entry point publishes for that port. The port contracts and the holder they are published
-// into are runtime-client's (`HostPorts`, `host`).
 export { CHECKOUT_INTRODUCED_IN, offeredCheckoutMethods, offeredStore, resolveCheckoutMethod } from './checkout';
 export type { OfferedCheckoutMethod } from './checkout';
 export { MEDIA_INTRODUCED_IN, resolveMediaMethod } from './media';

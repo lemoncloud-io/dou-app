@@ -331,3 +331,30 @@ way the host sells, in its order, for the checkout adapters a toggle may switch 
 - It holds the readers, not their meaning: what an `online` false means for the link, or which
   platform a user agent is, stays in the package that declared the port.
 - Its tests run in jsdom, because these are a page's readers (`src/transport.spec.ts`).
+
+## Constraints the adapters keep
+
+- **The platform for a socket comes from the host profile, not the app's device store.** That store is
+  filled by a React hook on mount, and the first socket can open before the hook runs.
+- **Outside a page the readers answer "fine", never "broken".** Without `navigator` the link reads as
+  online (weak evidence, which the link verdict already treats as such), and without a `document` the
+  foreground signal says "in front" and never changes: a retry that waits for a return it cannot observe
+  would wait forever.
+- **A session ends with `location.replace`, not `assign`**, so the history keeps no signed-in entry to
+  go back to; the next document's boot reads the `logout=1` it carries.
+- **`copyText` rejects where the Clipboard API is missing** (a non-secure context, an old WebView)
+  instead of answering `false`, so a caller with its own fallback can tell "no clipboard" from "the copy
+  failed".
+- **`xhrPut` leaves out the headers a browser owns** (`content-length`, `host`): `XMLHttpRequest`
+  refuses to set them and fills them from the request itself, which is the value that was signed.
+  Its timeout bounds the whole PUT and scales with size (at least five minutes, otherwise what a 1 Mbps
+  uplink needs), so a large video is not cut off halfway and then resent whole into the same limit.
+  Progress is wired only when asked. A CORS refusal lands in `onerror` and cannot be told from a dropped
+  connection; both get the same retry.
+- **Specs that touch IndexedDB install the shim before importing the ports** (the adapter opens a real
+  database in its constructor). To get a fresh capability snapshot, use `jest.resetModules` with
+  `jest.requireMock`: a dynamic `import()` of a library marks it lazy-loaded and turns every static
+  import of it into a module-boundary lint error.
+- **The jest environment needs two things for the socket lib and `uuid`**: a `TextEncoder`/`TextDecoder`
+  polyfill (jsdom has none, and the socket lib touches it at import time), and a transform for `uuid`,
+  which ships ESM only.

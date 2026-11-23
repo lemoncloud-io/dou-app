@@ -1,7 +1,3 @@
-/**
- * Tests for the WebSocket Worker message queue logic.
- * Simulates the Worker's internal logic to verify queue behavior.
- */
 describe('WebSocket Worker Message Queue', () => {
     const MAX_QUEUE_SIZE = 100;
     let messageQueue: string[];
@@ -40,11 +36,9 @@ describe('WebSocket Worker Message Queue', () => {
 
         expect(messageQueue).toHaveLength(100);
 
-        // The first message is id: 5 (0-4 were dropped)
         const first = JSON.parse(messageQueue[0]);
         expect(first.id).toBe(5);
 
-        // The last message is id: 104
         const last = JSON.parse(messageQueue[99]);
         expect(last.id).toBe(104);
     });
@@ -63,7 +57,6 @@ describe('WebSocket Worker Message Queue', () => {
         expect(JSON.parse(sent[1]).text).toBe('second');
         expect(JSON.parse(sent[2]).text).toBe('third');
 
-        // The queue is empty after flush
         expect(messageQueue).toHaveLength(0);
     });
 

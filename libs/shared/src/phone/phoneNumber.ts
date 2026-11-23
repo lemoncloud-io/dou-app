@@ -5,49 +5,24 @@ import {
     isValidPhoneNumber,
     parsePhoneNumberFromString,
 } from 'libphonenumber-js/mobile';
-// Type-only, so it is erased at build and pulls no metadata of its own. This is the LIBRARY's
-// country union, not `@lemoncloud/chatic-backend-api`'s — the app never binds its own types to the
-// backend package, so a backend type change cannot silently retype the app, which is why `PhoneCountry` below is a
-// plain string and the final verdict on a value is the server's 400.
 import type { CountryCode } from 'libphonenumber-js';
 
 import { config, storageKeyFor } from '@chatic/config';
 
-/**
- * ISO alpha-2 country of a phone number, as `libphonenumber-js` and the server both spell it.
- *
- * Deliberately `string` rather than a union: the backend's `CountryCode` LUT stays out of the app,
- * and the library's own union would drift against it just as silently.
- */
 export type PhoneCountry = string;
 
-/** One row of the country picker. */
 export interface PhoneCountryOption {
     code: PhoneCountry;
-    /** Localized region name, or the ISO code itself where `Intl.DisplayNames` is missing. */
     name: string;
-    /** Dial code with its `+` (e.g. `+82`), matching what the picker shows. */
     dialCode: string;
 }
 
-/**
- * Where the last explicit pick is remembered: the `ui.phoneCountry` setting. Per-device by design — no
- * server slot exists, and the setting is `persist: 'local'`.
- */
 const COUNTRY_SETTING = 'ui.phoneCountry';
 
-/** The key the pick lived under before it became a setting. Read once by `migrateLegacyPhoneCountry`. */
 export const LEGACY_PHONE_COUNTRY_KEY = 'dou.phoneInput.country.v1';
 
 const digitsOf = (value: string): string => value.replace(/\D/g, '');
 
-/**
- * Localized region names, degrading to the ISO code.
- *
- * `Intl.DisplayNames` exists in every modern browser and WebView, but the fallback is real rather
- * than defensive noise: the picker rows also carry the flag and dial code, so ISO codes alone still
- * identify a country.
- */
 const createRegionNamer = (lang: string): ((code: string) => string) => {
     let names: Intl.DisplayNames;
     try {
@@ -66,12 +41,6 @@ const createRegionNamer = (lang: string): ((code: string) => string) => {
 
 const listCache = new Map<string, PhoneCountryOption[]>();
 
-/**
- * Every country the mobile metadata knows (245), localized and sorted for `lang`.
- *
- * Memoized per language: the list is stable for a session, and building it walks the whole metadata
- * plus one `Intl.Collator` pass — too much to redo on each keystroke of the picker's search.
- */
 export const listPhoneCountries = (lang: string): PhoneCountryOption[] => {
     const cached = listCache.get(lang);
     if (cached) return cached;
@@ -92,7 +61,6 @@ export const listPhoneCountries = (lang: string): PhoneCountryOption[] => {
     return list;
 };
 
-/** Dial code of one country (`+82`), for the picker trigger. `null` for anything unsupported. */
 export const phoneCountryDialCode = (country: PhoneCountry): string | null => {
     try {
         return isSupportedCountry(country) ? `+${getCountryCallingCode(country as CountryCode)}` : null;
@@ -101,17 +69,6 @@ export const phoneCountryDialCode = (country: PhoneCountry): string | null => {
     }
 };
 
-/**
- * Is this a plausible MOBILE number for that country?
- *
- * Mobile-only on purpose: the flow delivers a code by SMS, so letting a landline through would be a
- * regression against the Korean-only rules this replaces (which accepted mobile prefixes alone).
- * That is also why the import above is `libphonenumber-js/mobile` and not `/min`, which calls a
- * Korean landline valid.
- *
- * A missing country is "not yet answerable", not "invalid" — the caller disables its CTA rather
- * than reddening the field.
- */
 export const isValidMobileNumber = (input: string, country: PhoneCountry | null): boolean => {
     if (!country) return false;
     try {
@@ -130,45 +87,18 @@ const parse = (input: string, country: PhoneCountry | null) => {
     }
 };
 
-/**
- * E.164 (`+819012345678`) — both the wire value and the local invite log's key.
- *
- * `chatic-backend-api`'s phone hasher (`asE164Phone`) only reads `countryCode` on a local (`0…`)
- * number and silently ignores it once the string already starts with `+`, so this is the one form
- * that is correct regardless of whether `countryCode` is trustworthy (the
- * local form, which the first version sent, depended on that country being right). The log
- * needs the same property for a different reason: a representation that cannot collide across
- * countries, since local forms can (`09012345678` is a JP number and a plausible KR-shaped string).
- *
- * Both guarantees hold only on the happy path. Callers gate on `isValidMobileNumber` first, so a
- * parse failure here is not expected to happen; if it somehow does, this degrades to the raw input
- * digits — a bare local-looking string, NOT E.164 — rather than throwing mid-submit. That fallback
- * is a last resort for an unreachable case, not a second form this function promises to produce.
- */
 export const toE164 = (input: string, country: PhoneCountry | null): string => {
     const parsed = parse(input, country);
     return parsed ? parsed.number : digitsOf(input);
 };
 
-/** A complete number read as a mobile: its wire value and the two ways to show it. */
 export interface MobileNumber {
-    /** The country the number belongs to — a `+…` input's own, not necessarily the one passed in. */
     country: PhoneCountry;
     e164: string;
-    /** `010-1234-5678` — the form its own country dials. */
     national: string;
-    /** `+1 415 555 0123` — unambiguous from anywhere. */
     international: string;
 }
 
-/**
- * Reads a COMPLETE number (one that was stored, not one being typed) as a mobile in `country`, or
- * `null` when it is not one.
- *
- * `isValidMobileNumber` + `toE164` answer the same question, but parse twice and cannot format; a
- * caller that runs over a whole address book wants one parse per number. A `+…` input names its own
- * country and `country` is ignored for it, exactly as in those two.
- */
 export const readMobileNumber = (input: string, country: PhoneCountry | null): MobileNumber | null => {
     const parsed = parse(input, country);
     if (!parsed?.country || !parsed.isValid()) return null;
@@ -180,19 +110,11 @@ export const readMobileNumber = (input: string, country: PhoneCountry | null): M
     };
 };
 
-/** A pasted international number, split into the country it declares and its local form. */
 export interface InternationalPhoneInput {
     country: PhoneCountry;
     national: string;
 }
 
-/**
- * Reads a pasted `+…` number as a country declaration.
- *
- * Typing `+81…` says which country the number is in more precisely than the picker does, so the
- * picker follows the input instead of the two disagreeing. Anything else — no `+`, or a prefix too
- * short to identify a country — returns `null` and the caller leaves both alone.
- */
 export const readInternationalInput = (input: string): InternationalPhoneInput | null => {
     const trimmed = input.trim();
     if (!trimmed.startsWith('+')) return null;
@@ -211,7 +133,6 @@ const readStoredCountry = (): PhoneCountry | null => {
     return stored && isSupportedCountry(stored) ? stored : null;
 };
 
-/** The device locale's region (`ko-KR` → `KR`), or `null` when the locale names none. */
 export const readLocaleCountry = (): PhoneCountry | null => {
     if (typeof navigator === 'undefined') return null;
     try {
@@ -222,35 +143,13 @@ export const readLocaleCountry = (): PhoneCountry | null => {
     }
 };
 
-/**
- * Which country a phone field opens on: last explicit pick, then the caller's `preferred` country (an
- * app whose UI language implies one: a Korean UI on an English OS), then the device locale's region,
- * then nothing.
- *
- * The stored pick wins over the locale because it is the stronger signal — someone abroad on a
- * Korean-language device corrects it once and keeps it. `null` is a legitimate
- * answer, not a failure: `navigator.language` is often region-less (`en`), and an empty picker with
- * a disabled CTA says "pick one" without accusing the user of a mistake.
- */
 export const resolveDefaultCountry = (preferred?: PhoneCountry | null): PhoneCountry | null =>
     readStoredCountry() ?? preferred ?? readLocaleCountry();
 
-/**
- * Remembers an explicit pick. A storage-denied browser simply forgets it: `config.set` swallows a
- * failed write, and the picker reopens on the locale next time.
- */
 export const rememberCountry = (country: PhoneCountry): void => {
     config.set(COUNTRY_SETTING, country, { lane: 'local' });
 };
 
-/**
- * Carries a pick stored under the old key over into the setting, once, and drops the old key.
- *
- * Called by each app's entry point right after `config.init()`, with its `localStorage` store — the
- * same storage config's `local` lane writes to; this lib does not reach web storage itself. The old key
- * goes only once the setting's own stored copy reads back: `config.set` answers `ok` even when its
- * storage write was dropped (a full quota), and then the next boot tries again.
- */
 export const migrateLegacyPhoneCountry = (local: {
     get(key: string): string | null;
     remove(key: string): void;
