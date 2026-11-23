@@ -111,7 +111,7 @@ adapter that forgot it, not a fallback discovered on a device.
    reads it.
 3. **No platform here.** The package compiles without the browser's types or Node's (`lib:
 ["es2022"]`, `types: []` in `tsconfig.lib.json`), its tests run in jest's `node` environment (a test
-   whose fixtures play a page says so with a `@jest-environment jsdom` docblock), and
+   whose fixtures play a page names `../../tools/jest/jsdom-environment.js` in a docblock), and
    it imports neither React nor React Native nor `@chatic/bridges`. One gap: React Native's global
    types (`fetch` among them) still arrive through `@chatic/bridge-messages`, which `@chatic/data`
    imports — globals both runtimes have.
@@ -259,8 +259,8 @@ node node_modules/.bin/tsc -b libs/runtime-core/tsconfig.json   # includes the r
 (cd libs/runtime-core && node ../../node_modules/.bin/eslint .)
 ```
 
-Jest runs in the `node` environment, and `jest.setup.ts` polyfills `TextEncoder` / `TextDecoder` for
-the tests that opt into jsdom, which lacks them while the socket library touches them at import time.
+Jest runs in the `node` environment. A test that opts into jsdom names the shared environment by path,
+which provides the `TextEncoder` / `TextDecoder` the socket library touches at import time (ADR-0371).
 
 To see a constraint fire, add an import that breaks it — `import 'react'` here, or
 `import '@chatic/runtime-web'` in a core package — and lint that package with `npx nx lint`. Running

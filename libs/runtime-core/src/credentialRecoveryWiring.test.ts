@@ -1,5 +1,5 @@
 /**
- * @jest-environment jsdom
+ * @jest-environment ../../tools/jest/jsdom-environment.js
  *
  * A page, because this case drives one: the fixtures read `window.location`, `localStorage` or the
  * document's visibility (through `@chatic/perf`). The package's own tests run in `node` otherwise.

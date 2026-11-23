@@ -1,6 +1,5 @@
 module.exports = {
-    testEnvironment: 'jsdom',
-    setupFiles: ['<rootDir>/jest.setup.ts'],
+    testEnvironment: '<rootDir>/../../tools/jest/jsdom-environment.js',
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     moduleNameMapper: {
         '^@chatic/ui-kit/(.*)$': '<rootDir>/../ui-kit/src/$1',
@@ -17,6 +16,7 @@ module.exports = {
             'ts-jest',
             {
                 tsconfig: '<rootDir>/tsconfig.spec.json',
+                astTransformers: { before: ['<rootDir>/../../tools/jest/import-meta-transformer.js'] },
             },
         ],
     },

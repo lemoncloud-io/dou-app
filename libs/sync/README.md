@@ -441,7 +441,7 @@ that finished before it began; it sends its own.
 - The grace window uses real timers, wrapped in `unrefTimer` so a pending stop cannot keep a Node process (or a jest run) alive.
 - `getSyncManager()` is a lazy singleton over `getSocketManager()`, with no reset seam. Construct `new SyncManager(fakeManager, deps)` in a test.
 - `SyncManager` subscribes to two things in its constructor — slot clients and the session signal — and each has a matching unsubscribe held for `destroy()`. A third subscription needs the same treatment.
-- Jest needs `TextEncoder`/`TextDecoder` polyfilled before any import (`jest.setup.ts`), because `@chatic/data` pulls the socket lib in. `__mocks__/assetsMock.js` stubs `@chatic/assets`, whose real module uses `import.meta.url`, which the CommonJS test transform cannot parse; it is a recursive proxy so any key of its growing maps answers with a usable placeholder. `uuid` is ESM-only and is transformed.
+- `@chatic/data` pulls the socket lib in, which reads `TextEncoder`/`TextDecoder` at import time; the shared jsdom environment in `tools/jest/` provides them (ADR-0371). `__mocks__/assetsMock.js` stubs `@chatic/assets` (image URLs no test asserts on); it is a recursive proxy so any key of its growing maps answers with a usable placeholder. `uuid` is ESM-only and is transformed.
 - The uids and the selected cid are read per call and never captured. The whole job of those readers is to notice a change.
 
 ## Documents

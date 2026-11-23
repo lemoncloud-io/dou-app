@@ -47,7 +47,11 @@ const TONE_CLASS: Record<CloudStatusTone, string> = {
  * Releasing is irreversible and cascades, so it is confirmed, and a release of the ACTIVE cloud
  * ends the cloud session and reloads: the session's tokens name a cloud that no longer exists.
  */
-export const CloudDetailPage = () => {
+const loadLogin = () => {
+    window.location.href = ROUTES.auth.login;
+};
+
+export const CloudDetailPage = ({ leaveForLogin = loadLogin }: { leaveForLogin?: () => void } = {}) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { toast } = useToast();
@@ -85,7 +89,7 @@ export const CloudDetailPage = () => {
             toast({ title: t('mypage.cloudManage.deleteSuccess') });
             if (wasActive) {
                 await logoutCloudSession();
-                window.location.href = ROUTES.auth.login;
+                leaveForLogin();
                 return;
             }
             navigate(ROUTES.mypage.cloud.manage, { replace: true });

@@ -11,14 +11,14 @@ type Vault = NonNullable<StorageStores['vault']>;
  * fell back to the tab, so when the page is shown again and the vault now answers, the page starts
  * over on it.
  */
-export const watchUnavailableVault = (vault: Vault): void => {
+export const watchUnavailableVault = (vault: Vault, reload: () => void = () => window.location.reload()): void => {
     const channel = new BridgeStorageChannel(webClient, 'nativeSecure');
     const onVisible = async () => {
         if (document.visibilityState !== 'visible' || vault.status === 'available') return;
         const read = await channel.read().catch(() => null);
         if (read?.status !== 'available') return;
         document.removeEventListener('visibilitychange', onVisible);
-        window.location.reload();
+        reload();
     };
     document.addEventListener('visibilitychange', onVisible);
 };
@@ -40,7 +40,7 @@ export const watchUnavailableVault = (vault: Vault): void => {
  * never opens it. Only a vault that could not be READ at launch is watched; one whose write failed later
  * reads fine and would reload the page on every return to the foreground.
  */
-export const storageResolved = (stores: StorageStores) =>
+export const storageResolved = (stores: StorageStores, reload?: () => void) =>
     defineAdapter<'storage', WebHostFacts>({
         id: 'storage.resolved',
         port: 'storage',
@@ -54,7 +54,8 @@ export const storageResolved = (stores: StorageStores) =>
                     tab: stores.webSession,
                     afterLogout: new URLSearchParams(window.location.search).get('logout') === '1',
                 });
-                if (outcome === 'unavailable' || outcome === 'unavailable-with-web-copy') watchUnavailableVault(vault);
+                if (outcome === 'unavailable' || outcome === 'unavailable-with-web-copy')
+                    {watchUnavailableVault(vault, reload);}
             }
             return { secret: stores.secret, plain: stores.plain, device: stores.device };
         },

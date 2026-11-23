@@ -222,9 +222,6 @@ Files you cannot guess from the name:
   from there rather than from a file inside. The files are split because only two of them may touch
   the router and a grep is what holds that line. Note `app/navigation/` is the app's own history
   stack; the push-tap seam is `app/bridge/navigation/`, a different thing with a similar name.
-- `app/utils/index.ts` deliberately **excludes** the modules that read `import.meta.env`. Import
-  those by concrete path (`app/utils/webVitals`) or the barrel becomes unloadable under the test
-  transform.
 
 `docs/feature/` carries one folder per feature in `app/features/`, and the names match exactly — the
 `diff` in [docs/README.md](./docs/README.md) is what enforces that. Code that has no feature folder
@@ -464,8 +461,10 @@ Then the traps:
 - Jest does not type check — the base sets `isolatedModules`, so ts-jest transpiles. A broken
   fixture surfaces as `… is not a function` at runtime unless the spec project is checked.
 - A spec that imports a barrel pulls the whole barrel. Import the concrete module when the barrel
-  drags in something the test environment cannot load — `app/utils/index.ts` excludes the
-  `import.meta.env` readers for exactly this reason.
+  drags in more than the spec needs. Jest compiles `import.meta` (ADR-0371), so that alone no longer
+  breaks a spec.
+- A spec fails when the code under test navigates the page or plays media: jsdom cannot, and the shared
+  environment turns its "not implemented" into a failure. Pass a stub through a parameter or prop.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again.
 - `.github/workflows/verify.yml` runs `typecheck` for `web` but **excludes `web` from the test
   step**, with the count of failures recorded in its own trailing comment. Web tests are the ones to

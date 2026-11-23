@@ -92,9 +92,9 @@ Smaller constraints that hold the pieces together:
 
 - `deeplinkUtils.ts` takes its invite-link decoder and sub WebView link readers from the `@chatic/shared`
   barrel, which also carries React components, image assets and the web's config. Only that one importer
-  is pointed at a virtual module re-exporting the two files those functions live in: the same code
-  without the rest of the barrel. A new `@chatic/shared` import in `deeplinkUtils.ts` has to be added to
-  `SHARED_DEEPLINK_MODULES` in `vite.shell.config.mts`.
+  is pointed at a virtual module re-exporting `libs/shared/src/utils` (`SHARED_FOR_DEEPLINKS` in
+  `vite.shell.config.mts`): the same code without the rest of the barrel. A new import from there needs no
+  change here; one from elsewhere in `@chatic/shared` fails `deeplinkSharedImports.spec.ts` by name.
 - The choice values (`DOU_SHELL_CHECKOUT` and the rest) and the store SKUs are written into
   `src/checkout.ts` by a Vite transform, not `define`: in dev `define` sets globals through Vite's client
   script, which the shell page never loads. The CLI reads that file in Node too, where the names stay

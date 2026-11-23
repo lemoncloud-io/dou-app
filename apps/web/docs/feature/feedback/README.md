@@ -121,9 +121,8 @@ puts `user.isAuthenticated: false` in the payload rather than refusing.
 ### What not to do
 
 - **Do not import the `app/utils` barrel from this feature.** `buildReportContext` imports
-  `utils/routeTrail` and `utils/viewport` by concrete path. The barrel drags in modules that read
-  `import.meta`, which the CommonJS test transform cannot parse, and the spec dies at load. The same
-  applies to `ui/layouts`: the page imports `KeyboardAwareLayout` directly.
+  `utils/routeTrail` and `utils/viewport` by concrete path. The barrel drags in far more than
+  the spec needs. The same applies to `ui/layouts`: the page imports `KeyboardAwareLayout` directly.
 - **Do not pass a full URL to `recordRoute`.** See the security rule above.
 - **Do not pass `fit: 'cover'` for screenshots.** That is the 150px square center-crop avatars
   want; on a screen capture it throws away the part that mattered. The default `'contain'` keeps

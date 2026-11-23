@@ -182,11 +182,11 @@ choices — `startRuntime` only logs them under `app.runtime_port` — so
 [`app/runtime/activeStorage.ts`](../../../src/app/runtime/activeStorage.ts) records them as they are
 made:
 
-| Recorded                                | By                                                 | When                         |
-| --------------------------------------- | -------------------------------------------------- | ---------------------------- |
-| the store set (`resolveStorageStores`)  | `main.tsx`                                         | before the runtime starts    |
-| the adapter id per port, and the engine | `main.tsx`, from `startRuntime`'s answer           | once the runtime has started |
-| each cache domain's route               | `cache.web-local` (`config/adapters/cache.ts`)     | when the data assembly runs  |
+| Recorded                                | By                                             | When                         |
+| --------------------------------------- | ---------------------------------------------- | ---------------------------- |
+| the store set (`resolveStorageStores`)  | `main.tsx`                                     | before the runtime starts    |
+| the adapter id per port, and the engine | `main.tsx`, from `startRuntime`'s answer       | once the runtime has started |
+| each cache domain's route               | `cache.web-local` (`config/adapters/cache.ts`) | when the data assembly runs  |
 
 The routes are the ones the assembly reported through `routed`, not a fresh `route()` call: the
 assembly asks once per domain and keeps the answer for the session, and inside the phone app the
@@ -304,9 +304,9 @@ Nothing else. The registry, the menu, the tab strip and the size rules all deriv
   Korean is the fallback language: the QA docs the panel is used against are Korean.
 - **Do not fetch the panel's copy from `/locales/`.** The panel is what you open when boot is
   broken, and translations behind a network request come up as raw keys in exactly that case.
-- **Do not put `import.meta` in a file that has a unit test.** ts-jest transpiles to CommonJS and
-  the file stops compiling — indirectly too, through anything it imports. Keep verdict logic in
-  pure functions and read env through the config registry.
+- **Read env through the config registry, not `import.meta`, in a screen.** Under Jest `import.meta.env`
+  is a fixed production build (ADR-0371), so a screen that reads it cannot be tested as a development
+  build without a mock. Keep verdict logic in pure functions.
 - **Do not add a second catalog for "screens worth a tab".** The strip carries all of them in menu
   order. A hand-picked subset means a second rule about which screens deserve a chip, and the menu
   is one tap away regardless.
