@@ -1,10 +1,5 @@
 import { credentialRecovery } from './credentialRecovery';
 
-/**
- * The late-bound hook the transport calls after a stale-credential failure. Unregistered must be a
- * SAFE state, not a broken one — a test or an app that never mounts the runtime host simply loses
- * the retry.
- */
 afterEach(() => {
     credentialRecovery.register(null);
 });
@@ -14,10 +9,6 @@ describe('credentialRecovery', () => {
         await expect(credentialRecovery.recover('relay')).resolves.toBe(false);
     });
 
-    // `HttpRoute` is `relay | oauth | iap`. This case used to pass `'cloud'`, which stopped being a
-    // route when the cloud backend became a destination reached with an explicit baseURL and relay
-    // signing — `oauth` is a real route that is not the `relay` the neighbouring cases use, so the
-    // pass-through is still visible.
     it('등록된 구현에 route를 그대로 넘긴다', async () => {
         const fn = jest.fn().mockResolvedValue(true);
         credentialRecovery.register(fn);

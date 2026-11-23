@@ -1,12 +1,6 @@
-/**
- * What matters here is the boundary, not the payload: a user report is a data call, so it goes
- * through the `report` repository and builds no request of its own. The body it hands
- * over is asserted alongside, since the session facts inside it are this file's job.
- */
 import { submitIssueReport } from './reportIssue';
 import type { IssueReportOrigin } from './types';
 
-// The page's graph, as the engine hands it over.
 const getRepositories = jest.fn();
 jest.mock('../data/dataCommands', () => ({ runtimeData: () => ({ repositories: () => getRepositories() }) }));
 let mockProject = 'chatic_web';
@@ -27,7 +21,6 @@ jest.mock('../session/sessionReads', () => ({
 
 const submitIssue = jest.fn();
 
-// The page that files it — a browser tab at the feedback screen unless a case says otherwise.
 let hasShellBridge = false;
 const origin: IssueReportOrigin = {
     hasShellBridge: () => hasShellBridge,
@@ -66,7 +59,6 @@ describe('reportIssue', () => {
         expect(submitIssue.mock.calls[0][0].silent).toBe(false);
     });
 
-    // A single attachment exceeds Slack's text cap — lose the notification, keep the photo.
     it('첨부가 있으면 저장만 한다 (silent: true)', async () => {
         await reportIssue('제목', '본문', { images: ['data:image/jpeg;base64,AAAA'] });
 

@@ -1,5 +1,3 @@
-// The host ports: their contracts and the one holder the start publishes into. The package barrel
-// sells these names from here.
 export { HOST_PORT_NAMES } from './ports';
 export {
     HostFacade,

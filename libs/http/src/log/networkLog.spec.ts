@@ -68,8 +68,6 @@ describe('withNetworkLog', () => {
     });
 
     it('keeps a record `error` at debug when the caller passed allowRecordError', async () => {
-        // `POST /clouds/{id}/release` answers 200 with the released cloud, whose own `error` column
-        // holds its last provisioning trace — a successful call, so not a warn.
         const sink = createSink();
         await withNetworkLog(
             { ...req, allowRecordError: true },
@@ -101,7 +99,6 @@ describe('withNetworkLog', () => {
         expect(sink.error).toHaveBeenCalledTimes(1);
         const [tag, message, fields] = sink.error.mock.calls[0];
         expect(tag).toBe(NETWORK_LOG_TAG);
-        // The cause belongs in the message: a breadcrumb line is read without expanding `data`.
         expect(message).toContain('failed (500)');
         expect(fields.error).toBe(axiosError);
         expect(fields).toMatchObject({
@@ -130,8 +127,6 @@ describe('withNetworkLog', () => {
 
         const [, message, fields] = sink.error.mock.calls[0];
         expect(fields.errorCode).toBe('ERR_NETWORK');
-        // No response came back — the message names the transport code so the two failure classes
-        // (server rejected vs never left) are told apart at a glance.
         expect(message).toContain('failed (ERR_NETWORK)');
     });
 });

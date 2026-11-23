@@ -3,7 +3,6 @@ import { fakeTransportPorts } from './testing/platform';
 
 import type { ITransportPlatform } from './platform';
 
-/** A holder of its own, so a case never inherits what another configured on the shared one. */
 const freshPlatform = (): ITransportPlatform => {
     let fresh: ITransportPlatform | undefined;
     jest.isolateModules(() => {

@@ -23,7 +23,6 @@ const session = fakeSessionView();
 const withCommands = (commands: Partial<SessionCommands>) =>
     initAppRuntime({ ...coreEngine, session, commands: fakeSessionCommands(commands) });
 
-// What the relay answers when the pairing behind a cloud has ended.
 const endedPairing = () =>
     Object.assign(new Error('Request failed with status code 403'), {
         response: { status: 403, data: '403 NOT ALLOWED - pairing revoked' },
@@ -48,7 +47,6 @@ describe('the session commands the app calls', () => {
         await expect(createCredentialsByProvider(undefined, 'code-1')).resolves.toEqual({ uid: 'u1' });
 
         expect(logout).toHaveBeenCalledWith({ preserveUrl: true });
-        // Google when the caller names no provider, as before.
         expect(loginByOAuthCode).toHaveBeenCalledWith('google', 'code-1', undefined);
     });
 

@@ -70,8 +70,6 @@ describe('WebStorageAdapter', () => {
         expect(localStorage.length).toBe(0);
     });
 
-    // invitecloud's policy pins one global partition whatever the session says, so two adapters with
-    // different contexts read the same rows — the same answer the IndexedDB adapter gives.
     it('follows the domain scope policy rather than the raw context', async () => {
         const first = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('c1', 'u1'));
         const second = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('c2', 'u2'));

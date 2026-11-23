@@ -4,15 +4,6 @@ import { Check, Copy } from 'lucide-react';
 
 import { cn } from '@chatic/ui-kit';
 
-/**
- * Copy the payload, from the pane's heading row.
- *
- * It takes the compiled payload rather than the editor's draft, which differs
- * only while the draft does not parse — and half a brace is not a payload
- * anyone can paste anywhere. That is also why it lives out here instead of
- * inside the editor: the thing worth copying is what the message compiles to,
- * which the editor is one of two ways of writing.
- */
 export const CopyPayloadButton = ({ json }: { json: string }) => {
     const [copied, setCopied] = useState(false);
 

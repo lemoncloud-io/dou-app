@@ -117,7 +117,6 @@ describe('createSubscriptionHttpGateway', () => {
         });
     });
 
-    // An empty list is the "clear every mark" request, not a no-op — it must still reach the relay.
     it('markDrops — sends an empty list as is', async () => {
         executeSignedRelayRequest.mockResolvedValue({ cloudIds: [], owned: 1 });
         const gateway = createSubscriptionHttpGateway(exec);
@@ -170,8 +169,6 @@ describe('createSubscriptionHttpGateway', () => {
         });
     });
 
-    // The console's stage switch: a refund aimed at another relay must land there, not on the
-    // configured one, or the confirmation dialog would name the wrong server.
     it('refundSubscriptionByAdmin — an endpoint override replaces the configured relay', async () => {
         executeSignedRelayRequest.mockResolvedValue({});
         const gateway = createSubscriptionHttpGateway(exec);
@@ -198,8 +195,6 @@ describe('createSubscriptionHttpGateway', () => {
         });
     });
 
-    // `view: 'mine'` scopes by session and `valid: 1` hides expired clouds. Neither is the
-    // console's to pick, so both stay pinned even when a caller passes their own.
     it('adminClouds — view/valid stay pinned even if the caller passes their own', async () => {
         executeSignedRelayRequest.mockResolvedValue({});
         const gateway = createSubscriptionHttpGateway(exec);
@@ -213,8 +208,6 @@ describe('createSubscriptionHttpGateway', () => {
         });
     });
 
-    // The relay only reads `userId` in its `mine` branch, so an admin list filtered by it would
-    // return everyone. The gateway takes the id positionally and spells it `ownerId` itself.
     it('adminClouds — a caller-supplied userId does not become the filter', async () => {
         executeSignedRelayRequest.mockResolvedValue({});
         const gateway = createSubscriptionHttpGateway(exec);

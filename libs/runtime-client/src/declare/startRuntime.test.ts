@@ -28,7 +28,6 @@ const declaration = (extra: { config?: ConfigRuntimePorts } = {}) => {
                 default: defineAdapter<'storage', Facts>({
                     id: 'storage.tab',
                     port: 'storage',
-                    // Asynchronous, like a store that has to load before the runtime reads it.
                     create: async () => storagePorts as unknown as RuntimePorts['storage'],
                 }),
             },
@@ -175,7 +174,6 @@ describe('startRuntime', () => {
     });
 
     it('takes config as initialised from the facade, not from whether it holds a port key', async () => {
-        // A facade made over an app's own modules may hold no `port.*` key at all.
         const config = fakeConfig(true);
         config.snapshot = (() => undefined) as unknown as RuntimeConfigAccess['snapshot'];
         const { decl } = declaration({ config: { env: {} } as unknown as ConfigRuntimePorts });
@@ -193,7 +191,6 @@ describe('startRuntime', () => {
     });
 });
 
-/** Every host port on one `browser` adapter (`checkout` on `none`), each recording when it was built. */
 const hostDeclarations = (built: string[]): HostPortDeclarations<Facts> => {
     const browser = <P extends HostPortName>(port: P, value: HostPorts[P]) =>
         defineHostAdapter<P, Facts>({
@@ -276,7 +273,6 @@ describe('startRuntime with host ports', () => {
 
         const started = await startRuntime(withHost, { ...h.options, publishHost });
 
-        // The facts say this is no shell, so the toggle falls back and the log says why.
         expect(started.hostChoices?.push).toMatchObject({
             id: 'push.browser',
             fellBack: { requested: 'push.shell', from: 'local', because: 'not supported on this host' },

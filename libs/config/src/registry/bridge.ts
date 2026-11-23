@@ -1,12 +1,5 @@
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * Bridge timing. `request.timeoutMs` is `'restart'`: `WebBridgeClient`'s constructor captures it
- * into an instance field (`this.timeoutMs = config.timeoutMs ?? 10000`), so a changed value has no
- * effect until the client is rebuilt — and its own default disagreed with `provider.ts`'s `15000`
- * before this key existed, so which one was live depended on whether a call went through the
- * provider. One key now settles it.
- */
 export const bridgeModule: ConfigRegistryModule = {
     'bridge.request.timeoutMs': {
         title: 'Bridge request timeout',

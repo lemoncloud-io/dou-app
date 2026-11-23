@@ -1,13 +1,5 @@
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * Feature gates: the ones that used to be scattered `isDevBuild()` / `VITE_ENV !== 'PROD'` ternaries,
- * and the Lab experiments a person turns on themselves.
- *
- * `feature.limits.enforced` is a bypass gate, not a limit value — the limit values themselves
- * (place/channel counts) stay out of this registry because ADR-0060 already moved their source of
- * truth to the server's product catalogue; putting them here would give product limits two owners.
- */
 export const featureModule: ConfigRegistryModule = {
     'feature.auth.phoneDevSwitches': {
         title: 'Phone auth dev switches',
@@ -47,7 +39,6 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local', 'server'],
         persist: 'session',
     },
-    // On in every stage. Kept as a key so the debug panel can still turn the screens off on one device.
     'feature.auth.devicePairing': {
         title: 'Device pairing',
         description: 'Shows web login by code, the approval screen, and device management.',
@@ -57,8 +48,6 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local', 'server'],
         persist: 'session',
     },
-    // Email + password sign-in is a development tool (switching between seeded test accounts), not a
-    // product entry point, so it is off everywhere except the stages developers run against.
     'feature.auth.emailLogin': {
         title: 'Email login',
         description: 'Shows the email + password form on the login screen.',
@@ -69,8 +58,6 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local'],
         persist: 'session',
     },
-    // The mobile web's top-level mini app tab, and with it the screens to manage the cloud's list. Off
-    // in production until it opens there; while it is on, the Lab's mini app card steps aside for it.
     'feature.miniApp.tab': {
         title: 'Mini app tab',
         description:
@@ -102,8 +89,6 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local', 'server'],
         persist: 'session',
     },
-    // The first Lab experiment. A place invite cannot be taken back once issued and the invitee
-    // shows up in no member list, so it ships opt-in rather than on everyone's home menu.
     'feature.placeInvite': {
         title: 'Place invite',
         description: 'Lets a place owner invite people into the place itself, with no chat room, from the home menu.',
@@ -114,8 +99,6 @@ export const featureModule: ConfigRegistryModule = {
         persist: 'local',
         appliesAt: 'live',
     },
-    // Lets a person lock the composer of a room they only read, so nothing goes out by accident.
-    // Opt-in while nobody knows whether a per-room lock is wanted at all.
     'feature.chatInputLock': {
         title: 'Chat input lock',
         description: 'Lets a person lock the message input of a chat room, and its threads, on this device.',

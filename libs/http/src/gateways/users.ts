@@ -4,19 +4,10 @@ import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
 import type { AdminEndpointOptions } from './subscriptions';
 import type { HttpGatewayExecutor } from './types';
 
-/** `/users/*` · `/hello/user/*` relay resource wire vocabulary. */
 export interface UserHttpGateway {
-    /**
-     * GET {relay}/hello/user/list — admin user listing (admin is the only consumer). `options.endpoint`
-     * aims it at another stage's relay, as the other admin calls allow.
-     */
     list(params?: Record<string, unknown>, options?: AdminEndpointOptions): Promise<ListResult<UserView>>;
-    /** GET {oauth}/users/0/profile, no-retry probe. Errors bubble — the "swallow and return null"
-     * behavior of the pre-lib `tryFetchProfile` is a caller concern, not wire vocabulary. */
     tryProfile(): Promise<UserProfile$>;
-    /** PUT {relay-dynamic}/users/{uid}. */
     updateProfile(uid: string, body: Record<string, unknown>): Promise<UserProfile$>;
-    /** POST {relay}/users/0/reg-dev?force — push device token registration. */
     registerDevice(body: RegisterDeviceTokenBody, opts?: { force?: boolean }): Promise<RegisterDeviceResult>;
 }
 

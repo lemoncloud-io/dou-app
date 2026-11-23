@@ -1,17 +1,8 @@
-// The upload path is the one request in the app that must NOT be logged. If it
-// ever goes through the network-logging interceptor, an upload failure becomes
-// an error entry, the error entry advances the next flush, and the retry fails
-// again — a loop the batching design exists to avoid. The opt-out itself now
-// lives in the gateway (`bypass: ['networkLog']`, pinned in
-// libs/http/src/gateways/report.spec.ts); what these cases pin is this side of
-// it — the wire body, and the outcome classification the queue depends on.
-
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { uploadLogBatch } from './logBatch';
 import type { LogEntry } from '@chatic/logger';
 
-// The page's graph, as the engine hands it over.
 const getRepositories = jest.fn();
 jest.mock('../data/dataCommands', () => ({ runtimeData: () => ({ repositories: () => getRepositories() }) }));
 
@@ -48,7 +39,6 @@ describe('uploadLogBatch — 전송 경로', () => {
         const body = execute.mock.calls.at(-1)?.[0] as { list: { id: string; data?: string }[] };
         expect(Object.keys(body)).toEqual(['list']);
         expect(body.list.map(e => e.id)).toEqual(['a', 'b']);
-        // data must be a string, per the server contract.
         expect(typeof body.list[1].data).toBe('string');
     });
 
@@ -61,15 +51,7 @@ describe('uploadLogBatch — 전송 경로', () => {
     });
 
     it('전송을 스스로 조립하지 않는다 — 우회 경로가 돌아오면 로깅 예외가 깨진다', () => {
-        // Checked at the source level on purpose: importing the transport to spy
-        // on it would pull `import.meta` into CJS jest and break the suite. What
-        // must never regress is that this file has no transport of its own —
-        // the single opt-out from network logging is the gateway's `bypass`, and
-        // a request built here would sidestep it (in either direction: an
-        // unlogged path nobody can see, or a logged one that closes the loop).
         const source = readFileSync(join(__dirname, 'logBatch.ts'), 'utf8');
-        // Comments in that file name these helpers to explain why they are
-        // avoided, so strip comments before looking for real usage.
         const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
         expect(code).toContain('runtimeData().repositories()');
@@ -108,9 +90,6 @@ describe('uploadLogBatch — 응답 분류', () => {
         await expect(uploadLogBatch([entry()])).resolves.toBe('discard');
     });
 
-    // Account switching is a common path, and the queue survives past logout. Discarding the batch on
-    // a 401/403 during the sessionless window would lose entries the next session could have mailed —
-    // and those are exactly the entries carrying the context of the session problem.
     it.each([401, 403])('%s는 폐기하지 않고 재시도한다 (지나가는 무세션 상태)', async status => {
         execute.mockRejectedValue(httpError(status));
 

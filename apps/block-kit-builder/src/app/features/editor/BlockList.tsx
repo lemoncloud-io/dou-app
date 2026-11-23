@@ -9,36 +9,14 @@ import { BlockFields } from './BlockFields';
 import { BlockGlyph } from './BlockGlyph';
 import { ICON_CONTROL } from './controlStyles';
 
-// Comfortable to hit with a thumb, tightened once there is a pointer.
 const ICON_BUTTON = cn(ICON_CONTROL, 'h-8 w-8 lg:h-6 lg:w-6');
 
-/**
- * The blocks in the message, in order, each with its own inputs.
- *
- * Dragging reorders the message under the pointer rather than on drop, so the
- * arrangement is judged while it is being chosen — the middle pane is the answer
- * to the question the drag is asking.
- *
- * The handle is also the keyboard path: focus it and the arrow keys move the
- * block. A drag is a pointer gesture, and reordering cannot be pointer-only.
- *
- * Touch gets buttons instead of the handle. HTML5 drag events do not fire for a
- * finger and there is no arrow key to fall back to, so on a phone the handle
- * would be an affordance that does nothing.
- *
- * A row is only draggable while its handle is held. Making the whole card
- * draggable would take the pointer away from selecting text in its inputs.
- */
 export const BlockList = () => {
     const blocks = useBuilderStore(state => state.blocks);
     const dragIndex = useBuilderStore(state => state.dragIndex);
     const [handleHeld, setHandleHeld] = useState(false);
     const { removeBlock, moveBlock, replaceBlock, beginDrag, previewDrag, endDrag } = useBuilderStore.getState();
 
-    // A block added from the palette lands at the end of a list that is usually
-    // already past the fold — and on a phone the preview is behind a tab, so
-    // nothing else moves to say the click worked. Scrolling to the new row is the
-    // receipt. Only on growth: a removal must not drag the reader to the bottom.
     const rows = useRef<HTMLLIElement[]>([]);
     const count = useRef(blocks.length);
     useEffect(() => {
@@ -46,8 +24,6 @@ export const BlockList = () => {
         count.current = blocks.length;
     }, [blocks.length]);
 
-    // Where to put focus after a keyboard move: the handle travels with its block,
-    // so following it means focusing the row it landed on, not the one left behind.
     const handles = useRef(new Map<number, HTMLButtonElement>());
     const landing = useRef<number | null>(null);
     useEffect(() => {
@@ -100,8 +76,6 @@ export const BlockList = () => {
                         onDrop={release}
                         className={cn(
                             'group rounded-md border bg-background transition-colors ease-tactile',
-                            // The row being carried loses its edge so the gap it will
-                            // land in is the thing the eye follows, not the row itself.
                             dragging ? 'border-primary/60 opacity-60 shadow-raised' : 'border-hairline'
                         )}
                     >
@@ -152,11 +126,6 @@ export const BlockList = () => {
                             <span className="text-muted-foreground/70">{kind ? <BlockGlyph kind={kind} /> : null}</span>
                             <span className="flex-1 truncate text-caption text-muted-foreground">{name}</span>
 
-                            {/* Dimmed until the row is touched: one control per row,
-                                five rows deep, competes with the text it acts on.
-                                Opacity, not display, so it stays in the tab order.
-                                Only where there is a pointer to touch it with —
-                                on a phone the row never enters a hover state. */}
                             <button
                                 type="button"
                                 aria-label={`Remove ${name}`}

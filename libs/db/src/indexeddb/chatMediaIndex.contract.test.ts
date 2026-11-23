@@ -16,12 +16,6 @@ if (typeof globalThis.structuredClone !== 'function') {
     globalThis.structuredClone = ((value: unknown) => JSON.parse(JSON.stringify(value))) as typeof structuredClone;
 }
 
-/**
- * The room media index contract on IndexedDB. The same table runs against the shell's real SQLite in
- * `apps/mobile` (`chatMediaIndex.contract.test.ts` there); both must answer it identically.
- *
- * The database is shared across cases, so each case runs in clouds of its own (`<case>/<cid>`).
- */
 const storeFor = (db: IndexedDBDatabase, namespace: string): ChatMediaContractStore => {
     const adapterFor = (scope: ChatMediaContractScope) =>
         new IndexedDBAdapter(db, 'chat', {

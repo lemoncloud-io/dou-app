@@ -2,7 +2,6 @@ import { NativeDBAdapter } from './NativeDBAdapter';
 import type { IWebBridgeClient } from '@chatic/bridges';
 import type { DataContextProvider } from '@chatic/data';
 
-// Mock the cache-meta injection utility (to simplify payload validation)
 jest.mock('@chatic/data', () => {
     const actual = jest.requireActual('@chatic/data');
     return {
@@ -19,7 +18,6 @@ describe('NativeDBAdapter', () => {
     const mockScope = { cid: 'test-cid', uid: 'test-uid' };
 
     beforeEach(() => {
-        // Cleanly mock the Bridge and ContextProvider
         mockBridge = {
             request: jest.fn(),
         } as unknown as jest.Mocked<IWebBridgeClient>;
@@ -28,7 +26,6 @@ describe('NativeDBAdapter', () => {
             getContext: jest.fn().mockReturnValue(mockScope),
         } as unknown as jest.Mocked<DataContextProvider>;
 
-        // Construct the implementation instance directly (avoiding dependence on a factory function)
         adapter = new NativeDBAdapter<'chat'>(mockBridge, 'chat', mockContextProvider);
     });
 
@@ -204,7 +201,6 @@ describe('NativeDBAdapter', () => {
                     ids: ['chat-1', 'chat-2', 'chat-3'],
                 },
             });
-            // Returns the order native gave, as-is — it is not reordered to match the request order.
             expect(result).toEqual([{ id: 'chat-2' }, { id: 'chat-1' }]);
         });
 
@@ -252,13 +248,10 @@ describe('NativeDBAdapter', () => {
             await expect(adapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();
             await adapter.loadLastPerChannel(['ch-1']);
 
-            // Since nothing was learned, the second read tries again too.
             expect(mockBridge.request).toHaveBeenCalledTimes(2);
         });
 
         it('answers null for a failed read and tries again on the next one', async () => {
-            // Whenever this lookup fails, the correct answer is always the window fallback, so
-            // it resolves null instead of throwing; the failure applies only to this read.
             mockBridge.request.mockRejectedValue({ code: 'TIMEOUT' });
 
             await expect(adapter.loadLastPerChannel(['ch-1'])).resolves.toBeNull();
@@ -270,7 +263,6 @@ describe('NativeDBAdapter', () => {
 
     describe('in-flight 읽기 중복 제거', () => {
         it('같은 loadAll이 동시에 두 번 요청되면 왕복은 한 번만 난다', async () => {
-            // A real situation: two observers with different logical keys sending out the same physical query (an argless loadAll).
             let resolveRequest: (value: unknown) => void = () => undefined;
             mockBridge.request.mockReturnValue(
                 new Promise(resolve => {

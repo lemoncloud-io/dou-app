@@ -13,16 +13,6 @@ import { systemModule } from './system';
 import { uiModule } from './ui';
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * Every domain module, merged at boot.
- *
- * Split by domain because the table runs past eighty keys and one file would stop being readable.
- * A duplicate key across modules keeps the first declaration and reports the later one — the boot
- * does not fail (see `ConfigRegistry`).
- *
- * 111 keys across 13 domains. `allModules.spec.ts` asserts the count, so that test is the number
- * that cannot drift — this line is a reader's convenience.
- */
 export const ALL_MODULES: readonly ConfigRegistryModule[] = [
     systemModule,
     envModule,

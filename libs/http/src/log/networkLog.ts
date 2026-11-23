@@ -1,26 +1,15 @@
-/** Tag used for every transport-level network log entry. */
 export const NETWORK_LOG_TAG = 'NET';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | (string & {});
 
-/** Request metadata known before the call is executed. */
 export interface NetworkRequestMeta {
     method: HttpMethod;
     url: string;
     params?: unknown;
     body?: unknown;
-    /**
-     * Mirrors `ApiRequestOptions.allowRecordError`: the caller reads the body as a record whose
-     * `error` field is data, so an `error` in a 200 is not an escalation here either.
-     */
     allowRecordError?: boolean;
 }
 
-/**
- * Structured payload handed to the log sink. Fields are RAW here — `@chatic/http` has zero
- * `@chatic/*` runtime dependencies, and redact/truncate live in `@chatic/logger`, so applying them
- * is the sink's job, not this lib's (ADR-0070 decision 3; see the README's design principle 6).
- */
 export interface NetworkLogFields {
     outcome: 'success' | 'error';
     method: HttpMethod;
@@ -31,14 +20,9 @@ export interface NetworkLogFields {
     status?: number;
     errorCode?: string;
     responseData?: unknown;
-    /**
-     * The response's `content-length`, when the server sent one: the size on the wire (compressed when
-     * the response was), and absent on a chunked response.
-     */
     responseBytes?: number;
 }
 
-/** Sink the caller injects to receive structured network log entries. Absent = no logging. */
 export interface HttpLogSink {
     debug(tag: string, message: string, fields: NetworkLogFields): void;
     warn(tag: string, message: string, fields: NetworkLogFields): void;
@@ -52,7 +36,6 @@ const baseFields = (req: NetworkRequestMeta): Pick<NetworkLogFields, 'method' | 
     requestBody: req.body,
 });
 
-/** The `content-length` of an axios-shaped response, when present and a number. */
 const readResponseBytes = (res: unknown): number | undefined => {
     const headers = (res as { headers?: Record<string, unknown> })?.headers;
     const raw = headers?.['content-length'] ?? headers?.['Content-Length'];
@@ -60,13 +43,11 @@ const readResponseBytes = (res: unknown): number | undefined => {
     return typeof bytes === 'number' && Number.isFinite(bytes) && bytes >= 0 ? bytes : undefined;
 };
 
-/** Extracts an HTTP status from an axios response shape, when present. */
 const readStatus = (res: unknown): number | undefined => {
     const status = (res as { status?: unknown })?.status;
     return typeof status === 'number' ? status : undefined;
 };
 
-/** Extracts a status/error code from an axios (or wrapped) error, defensively. */
 const readErrorCode = (error: unknown): string | undefined => {
     const err = error as { status?: unknown; response?: { status?: unknown }; statusCode?: unknown; code?: unknown };
     const status = err?.status ?? err?.response?.status ?? err?.statusCode;
@@ -80,17 +61,6 @@ const readResponseData = (error: unknown): unknown => {
     return err?.response?.data;
 };
 
-/**
- * Wraps a transport execute call to emit a structured network log for both success and failure
- * through the injected sink. No sink → no logging (the caller's `bypass` list, or simply omitting
- * `logSink` in `HttpRuntimePorts`, both land here as `sink === undefined`).
- *
- * - success: `debug` (or `warn` when the 200 body carries an `error` field, which
- *   `throwIfApiError` rejects downstream — unless the caller passed `allowRecordError`, which keeps
- *   that field as data)
- * - failure: `error`, carrying status/code and the response body; the original error is re-thrown
- *   so caller behavior is unchanged.
- */
 export const withNetworkLog = async <T extends { data?: unknown }>(
     req: NetworkRequestMeta,
     run: () => Promise<T>,
@@ -105,9 +75,6 @@ export const withNetworkLog = async <T extends { data?: unknown }>(
         const durationMs = Date.now() - startedAt;
         const responseError = (res?.data as { error?: unknown } | undefined)?.error;
 
-        // No response body on success: it is bulk with little diagnostic value, and every one of
-        // these entries is now a candidate for upload rather than just a local breadcrumb. Failures
-        // still carry theirs — that is where the body explains something.
         const fields: NetworkLogFields = {
             outcome: 'success',
             ...baseFields(req),
@@ -136,12 +103,6 @@ export const withNetworkLog = async <T extends { data?: unknown }>(
             responseData: readResponseData(error),
         };
 
-        // Status/code ride in the message, not just in `fields`: a breadcrumb line (report tail,
-        // console) is read without expanding objects, and "failed" alone forces a drill-down to
-        // learn whether the server rejected it or the request never left. @see ADR-0097
-        // `readErrorCode` already prefers the status, so the two collapse to the same string on an
-        // HTTP failure — take the status when a response came back, and the transport code
-        // (ERR_NETWORK, …) when none did.
         const cause = fields.status ? String(fields.status) : fields.errorCode;
         sink.error(NETWORK_LOG_TAG, `${req.method} ${req.url} failed${cause ? ` (${cause})` : ''}`, {
             ...fields,

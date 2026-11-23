@@ -17,8 +17,6 @@ describe('refusedChannels', () => {
         expect(isChannelRefused('ch-2')).toBe(false);
     });
 
-    // The membership behind a refusal can come back — accepting a re-invite restores the join — so
-    // a remembered "no" has to be retired by the channel answering, not survive the session.
     it('채널이 다시 응답하면 거절을 잊는다', () => {
         recordRefusedChannel('ch-1');
         clearRefusedChannel('ch-1');
@@ -36,8 +34,6 @@ describe('refusedChannels', () => {
         expect(isChannelRefused('ch-2')).toBe(false);
     });
 
-    // useSyncExternalStore re-reads on notification, so a notification that says nothing changed is
-    // a wasted render on every screen subscribed to this.
     it('상태가 실제로 바뀔 때만 알린다', () => {
         const listener = jest.fn();
         const unsubscribe = subscribeRefusedChannels(listener);

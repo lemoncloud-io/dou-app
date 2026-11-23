@@ -5,25 +5,16 @@ import type { ConfigEntry, ConfigSnapshot, Lane, Platform, Stage, ValueOrigin, W
 import { ConfigLanePolicy } from './ConfigLanePolicy';
 import { isValidValue } from './validate';
 
-/** The key that opens the local lane. Resolved before anything else, and exempt from its own gate. */
 export const UNLOCK_KEY = 'system.overridesUnlocked';
 
 export interface ResolverFacts {
     stage: () => Stage;
     buildStage: () => Stage;
     platform: () => Platform;
-    /** Raw build value by name — backs `envDefaultKey`. */
     raw: (name: string) => string | undefined;
     wired: () => Readonly<Record<Writer, boolean>>;
 }
 
-/**
- * Folds the precedence table into one value.
- *
- * Every lane's value goes through `isValidValue` before it is used, so a corrupted store or a
- * stale payload is demoted to the next row instead of reaching a screen. `defaultValue` is the
- * floor, which is why `get` can be synchronous and never fail.
- */
 export class ConfigResolver {
     private readonly policy = new ConfigLanePolicy();
 
@@ -34,12 +25,6 @@ export class ConfigResolver {
         private readonly facts: ResolverFacts
     ) {}
 
-    /**
-     * Whether the local lane is open.
-     *
-     * Resolving this does not need the answer it produces: the unlock key is `meta`, so the policy
-     * skips the gate for it. That exemption is what keeps this from recursing.
-     */
     isUnlocked(): boolean {
         const entry = this.registry.get(UNLOCK_KEY);
         if (!entry) return false;
@@ -62,9 +47,6 @@ export class ConfigResolver {
     }
 
     private fold(key: string, entry: ConfigEntry, isUnlocked: boolean): { value: unknown; origin: ValueOrigin } {
-        // Three keys are pure adapter passthroughs, not lane-folded toggles — the adapter already
-        // has a dedicated method for each, so asking again through `raw()` or a registry literal
-        // would just be a second, easier-to-drift source for the same fact.
         if (key === 'env.stage') return { value: this.facts.stage(), origin: 'default' };
         if (key === 'env.buildStage') return { value: this.facts.buildStage(), origin: 'default' };
         if (key === 'env.platform') return { value: this.facts.platform(), origin: 'default' };
@@ -77,7 +59,6 @@ export class ConfigResolver {
             return { value: read.value, origin: lane };
         }
 
-        // Row 5. A security-relevant rule is judged against the baked stage, which no page can set.
         const stage = entry.meta || key.startsWith('debug.') ? this.facts.buildStage() : this.facts.stage();
         const byStage = entry.byStage?.[stage];
         if (byStage !== undefined && isValidValue(entry, byStage)) {
@@ -88,8 +69,6 @@ export class ConfigResolver {
             return { value: byPlatform, origin: 'stageRule' };
         }
 
-        // A per-app build value (an endpoint, a version string) outranks the registry's generic
-        // literal but loses to a rule the registry itself declared above.
         if (entry.envDefaultKey) {
             const raw = this.facts.raw(entry.envDefaultKey);
             if (raw !== undefined && isValidValue(entry, raw)) {
@@ -100,17 +79,6 @@ export class ConfigResolver {
         return { value: entry.defaultValue, origin: 'default' };
     }
 
-    /**
-     * Row 1 is read first and on its own.
-     *
-     * A kill switch is used when everything else is broken, so it must not travel the same path as
-     * the thing it turns off. It looks at three things only — the cached payload, the key's own
-     * `writableBy`, and the TTL — and never at a stage rule, a store or the shell. Rows 2 to 6
-     * cannot change its answer.
-     *
-     * The other direction is deliberate too: if row 1 itself throws, it falls through quietly.
-     * Turning everything off because of an error would be the larger accident.
-     */
     private readLane(lane: Lane, key: string): { has: boolean; value?: unknown } {
         try {
             switch (lane) {

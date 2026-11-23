@@ -3,15 +3,6 @@ import { createHttpClient } from './client';
 import type { RequestBuilder, RequestSurface } from './adapters/requestExecutor';
 import type { HttpRoute, HttpRuntimePorts } from './ports';
 
-/**
- * The server's own "this session is over" verdict, reported to the app.
- *
- * `onAuthFailure` has been part of `HttpRuntimePorts` all along, but its only caller was
- * `withRetry` — which has no production callers left and is not exported — so the port never
- * fired. Every logout in the runtime therefore came from a GUESS (a guard that could not refresh)
- * rather than from a refusal. These cases pin the two halves of fixing that: what counts as a
- * refusal, and what must not.
- */
 const execute = jest.fn();
 const builder: RequestBuilder = {
     setBody: jest.fn(() => builder),
@@ -24,7 +15,6 @@ const lemonSurface: jest.Mocked<RequestSurface> = {
     buildSignedRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
 };
 
-/** No `isCredentialStale`, so nothing is marked stale and the recovery branch stays out of the way. */
 const portsWith = (
     onAuthFailure: HttpRuntimePorts['onAuthFailure'],
     recoverCredential?: (route: HttpRoute) => Promise<boolean>
@@ -89,9 +79,6 @@ describe('서버가 거절한 세션 — onAuthFailure 보고', () => {
         expect(onAuthFailure).not.toHaveBeenCalled();
     });
 
-    // Credential expiry is classified as `shouldLogout: false` from the start — a tab left open
-    // for an hour isn't a dead session. Same even if reissue fails: that's a socket concern, not
-    // a rejection from the server.
     it('자격증명 만료는 재발급이 실패해도 보고하지 않는다', async () => {
         execute.mockRejectedValue(Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' }));
         const onAuthFailure = jest.fn();
@@ -109,10 +96,6 @@ describe('서버가 거절한 세션 — onAuthFailure 보고', () => {
         expect(onAuthFailure).not.toHaveBeenCalled();
     });
 
-    // Since the reissue succeeded, the credential on the second attempt is no longer stale —
-    // so this time the same 403 is classified as a server rejection, not an "expired
-    // signature." While the store still says stale, a 403 also reads as expiry (classification
-    // checks the marker first), so the ordering is part of the contract.
     it('재발급 후 다시 보낸 요청이 403이면 그때 한 번 보고한다', async () => {
         execute
             .mockRejectedValueOnce(Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' }))

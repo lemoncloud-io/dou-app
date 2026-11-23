@@ -1,7 +1,6 @@
 import type { ConfigRuntimePorts, IConfigEnvAdapter, StorageLike } from '../ports';
 import type { ConfigEntry, ConfigRegistryModule, Platform, Stage } from '../types';
 
-/** A minimal entry, so each test only states the field it is about. */
 export const entry = (overrides: Partial<ConfigEntry> = {}): ConfigEntry => ({
     title: '테스트 키',
     description: '테스트용.',

@@ -5,11 +5,11 @@ import type { HttpRoute } from '../ports';
 export const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
 
 export enum ErrorType {
-    AUTHENTICATION = 'authentication', // 403 - logout required
-    NETWORK = 'network', // Network connectivity issue - retry
-    SERVER = 'server', // 5xx - retry
-    CLIENT = 'client', // 4xx (except 403) - fail immediately
-    UNKNOWN = 'unknown', // Other
+    AUTHENTICATION = 'authentication',
+    NETWORK = 'network',
+    SERVER = 'server',
+    CLIENT = 'client',
+    UNKNOWN = 'unknown',
 }
 
 export interface ErrorClassification {
@@ -17,12 +17,6 @@ export interface ErrorClassification {
     shouldRetry: boolean;
     shouldLogout: boolean;
     message: string;
-    /**
-     * The failure is recoverable by re-minting THIS route's signing credential — refresh (relay) or
-     * re-issue (cloud), which is the caller's decision, not this classifier's. Absent on every other
-     * classification, including the logout-worthy ones: a credential that merely lapsed says nothing
-     * about whether the session behind it is still good.
-     */
     refreshRoute?: HttpRoute;
 }
 
@@ -32,23 +26,11 @@ export const classifyError = (error: any): ErrorClassification => {
     const status = error?.status || error?.response?.status || error?.statusCode;
     const message = error?.message || '';
 
-    // Checked FIRST, and deliberately ahead of every status/message rule: the transport already
-    // knows this route's credential was lapsed when the call went out, which is a stronger signal
-    // than anything reconstructable from the error text. It is also the only signal available for
-    // the failure this exists to catch — an API Gateway IAM rejection whose 403 carries no CORS
-    // header, so the browser hands the app a status-less `ERR_NETWORK` and every rule below would
-    // read it as a network outage. See `error/credentialStale.ts`.
     const staleRoute = staleCredentialMarker.routeOf(error);
     if (staleRoute) {
         return {
             type: ErrorType.AUTHENTICATION,
-            // Retrying the same request with the same dead credential fails identically. The
-            // recovery is to re-mint first — `refreshRoute` says which credential, and the caller
-            // owns the retry.
             shouldRetry: false,
-            // NOT a logout: a lapsed credential is the ordinary end of an AWS temporary credential's
-            // life, and the session behind it is usually fine. Tearing the session down here would
-            // log a user out for the crime of leaving a tab open for an hour.
             shouldLogout: false,
             refreshRoute: staleRoute,
             message: 'Session credentials have expired',
@@ -64,10 +46,6 @@ export const classifyError = (error: any): ErrorClassification => {
         };
     }
 
-    // Server-side signature verification timeout — signature is invalid because the AWS
-    // credentials expired. An Error created by throwIfApiError has no HTTP status, so this is
-    // judged from the message alone. A client-side timeout (the "TIMEOUT:" prefix) is handled
-    // separately in isNetworkError.
     if (message.includes('signature timeout') || (status === 400 && message.includes('TIMEOUT'))) {
         return {
             type: ErrorType.AUTHENTICATION,
@@ -86,12 +64,6 @@ export const classifyError = (error: any): ErrorClassification => {
         };
     }
 
-    // Signature verification failure (lemon hmac mismatch, a rotated auth model, etc). An Error
-    // made by throwIfApiError has no HTTP status, so this used to flow to UNKNOWN → retry — but
-    // re-signing with the same material and retrying is guaranteed to fail the same way (a retry
-    // runaway booster — 2026-08 session audit §5-6). This does not log out immediately: if the
-    // socket refresh writeback renews the material, the state is recoverable, so only the retry
-    // is cut off here. A 403 that carries a status keeps the existing policy (logout) above.
     if (/no auth model/i.test(message) || (/signature/i.test(message) && /invalid|mismatch|not valid/i.test(message))) {
         return {
             type: ErrorType.AUTHENTICATION,
@@ -137,25 +109,20 @@ export const classifyError = (error: any): ErrorClassification => {
 };
 
 const isNetworkError = (error: any): boolean => {
-    // If there's an HTTP response, the server responded, so it's not a network error
     const status = error?.status || error?.response?.status || error?.statusCode;
     if (status && status >= 400) {
         return false;
     }
 
-    // Axios network error
     if (error?.code === 'ERR_NETWORK' || error?.code === 'ERR_INTERNET_DISCONNECTED') {
         return true;
     }
-    // Network connection failure
     if (error?.message?.includes('Network Error') || error?.message?.includes('fetch failed')) {
         return true;
     }
-    // Client-side timeout (ECONNABORTED, or our withTimeout's TIMEOUT: prefix)
     if (error?.code === 'ECONNABORTED' || error?.message?.startsWith('TIMEOUT:')) {
         return true;
     }
-    // Connection refused
     if (error?.code === 'ECONNREFUSED') {
         return true;
     }

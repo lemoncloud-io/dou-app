@@ -54,7 +54,6 @@ describe('createMiniAppHttpGateway', () => {
         });
     });
 
-    // The signer signs a missing body as `{}`; a DELETE sent with none fails the gateway's signature check.
     it('remove — DELETE {relay}/miniapps/{id} with no destroy param, and the empty body it is signed with', async () => {
         executeSignedRelayRequest.mockResolvedValue({ id: 'm1' });
         const gateway = createMiniAppHttpGateway(exec);

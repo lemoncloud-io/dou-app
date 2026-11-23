@@ -1,8 +1,3 @@
-/**
- * The cloud-id-keyed "is the signing credential still alive?" read. What matters here is that relay
- * and each cloud are answered from their OWN material — a cross-wired answer would send the recovery
- * to the wrong server — and that "cannot tell" is never reported as stale.
- */
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { credentialFreshness } from './credentialFreshness';
@@ -47,10 +42,6 @@ describe('credentialFreshness.timeToExpiry', () => {
         expect(mockGetRelayToken).not.toHaveBeenCalled();
     });
 
-    // This used to also ask `oauth`/`iap` and check they gave the same answer as relay. Once the key
-    // stopped being an `HttpRoute`, those two became values you can no longer ask about — they are
-    // routes with no credential of their own. The remaining contract is "an already-past credential
-    // is returned as a negative number."
     it('이미 지난 자격증명은 음수로 남은 시간을 돌려준다 — 0으로 깎지 않는다', () => {
         mockGetRelayToken.mockReturnValue(relayTokenWith(atOffset(-1_000)));
 
@@ -88,8 +79,6 @@ describe('credentialFreshness.isStale', () => {
         expect(credentialFreshness.isStale(RELAY_CLOUD_ID, NOW)).toBe(false);
     });
 
-    // Calling "cannot tell" stale would confidently attach the wrong explanation to a request that
-    // went out unsigned for a different reason and needs a different fix.
     it('측정할 수 없으면 false', () => {
         expect(credentialFreshness.isStale(RELAY_CLOUD_ID, NOW)).toBe(false);
         expect(credentialFreshness.isStale('cloud-1', NOW)).toBe(false);

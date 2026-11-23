@@ -2,7 +2,6 @@ import { createHttpManager } from './HttpManager';
 import { logger, setTelemetryRecorder } from '@chatic/logger';
 
 jest.mock('@chatic/logger', () => {
-    // The statistics slot is the real one: it is what the api_request tests drive.
     const actual = jest.requireActual('@chatic/logger');
     return {
         logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -27,13 +26,6 @@ jest.mock('@chatic/config', () => ({
 const mockedLoggerDebug = logger.debug as jest.Mock;
 const mockedLoggerError = logger.error as jest.Mock;
 
-/**
- * The manager no longer takes a cloud credential port — the SigV4 executor it fed went with the
- * cloud HTTP refresh (ADR-0070). Every request now rides the injected lemon surface, so that is what
- * this file drives.
- */
-// The builder chains: `setBody`/`setParams` return the builder itself. That self-reference has to be
-// annotated — inferring it from the initializer is circular (TS7022/TS7024).
 type FakeBuilder = { setBody: jest.Mock<FakeBuilder>; setParams: jest.Mock<FakeBuilder>; execute: jest.Mock };
 const execute = jest.fn();
 const builder: FakeBuilder = { setBody: jest.fn(() => builder), setParams: jest.fn(() => builder), execute };
@@ -45,8 +37,6 @@ beforeEach(() => {
 });
 
 describe('createHttpManager — endpoint 해석', () => {
-    // Having no cloud entry is the contract: a request destined for the cloud goes to baseURL and
-    // rides the relay signature.
     it.each([
         ['relay', 'https://relay.test'],
         ['oauth', 'https://oauth.test'],
@@ -132,7 +122,6 @@ describe('createHttpManager — api_request statistics', () => {
 
         const backends = record.mock.calls.map(([, , fields]) => fields.attrs.backend);
         expect(backends).toEqual(['relay', 'cloud', undefined]);
-        // The host itself is never carried.
         expect(JSON.stringify(record.mock.calls)).not.toContain('cloud-7.test');
     });
 

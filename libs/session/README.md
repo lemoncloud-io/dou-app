@@ -289,6 +289,48 @@ to yet and never received the post-commit write.
 caller names as an argument; seeding it from the ambient session is what let a write race a site
 switch — tagged for one site, sent under another's session.
 
+## Constraints worth knowing
+
+- **The account's profile is read from the relay token, not the cache.** `getRelaySessionUser()` returns
+  the display fields (name, photo, ...) of the relay token whichever slot is active, because account
+  screens must show the relay account while a cloud is connected, and the local cache cannot answer
+  that: it is read under the live scope, so the relay `user` row is out of reach while a cloud is
+  active. `patchRelaySessionUser(patch)` is the write half. It patches inside `$user` when the token
+  carries that wrapper (so the value written is the value read back), never touches the `Token`
+  credentials, saves through `saveRelayToken` so listeners fire, and is a no-op without a relay
+  session. Callers re-read on each session signal instead of holding a copy.
+- **"Committed" is read off the delegation token.** `getCommittedCloudId()` is the delegation token's
+  `cloudId`: a switch writes that token only when the exchange succeeds and leaves it alone on failure
+  or rollback, so it needs no separate record and no backfill. `getCommittedSessionSiteId()` is the
+  place the committed cloud's token names, not the selection: a token issued without being asked for a
+  place (a credential renewal) re-registers the session on whichever place the server picked while the
+  selection stays. Anything the server files under "the session's place", such as a place invite,
+  must check this one.
+- **Freshness is the credential's own `Expiration`.** `credentialFreshness` does not use lemon's
+  stored `expired_time` (a socket refresh that renewed the token but carried no credential leaves it
+  fresh while the signing material is dead) or the token view's `expiresIn` (that describes the
+  session, about 30 days, while the credential lives about an hour). The relay answer decides whether a
+  status-less failure was a signature rejection; a cloud's answer is a token-age proxy for when its
+  socket session needs re-issuing. It reads both stores directly: a wrapper that delegated back to it
+  once recursed.
+- **`msUntilExpiration` decodes the JWT payload by hand** instead of calling `atob`, because this
+  layer also runs outside a browser and the payload is plain ASCII JSON. The cloud cache uses the
+  identity token's `exp`, since cloud servers send no AWS credential.
+- **`SocketSlotContext` is narrower than the global context on purpose.** The connection controller
+  re-derives socket slots on `relay:token`, `cloud:token` and `selection` only, because identity
+  moves on its own signal (boot alone emits it twice, every login once more). Subscribing narrowly
+  while reading a wide snapshot would derive from a stale `identity` without anyone noticing, so the
+  type carries only the slices those three kinds cover; a reader that needs identity has to widen both
+  halves together.
+- **`getCloudSessionSnapshot()` reads through the same cache as every other context reader**, so two
+  callers in one tick cannot disagree about the session.
+- **`clearRelaySession` also resets the delegator id.** The delegator id is a relay-guest concept and
+  is re-established only by the next guest login, so relay logout is its single reset boundary. The
+  token drop, the reset and the identity rebuild are one batch.
+- **The push token is not stored here.** It is registration state keyed by account, device and
+  platform; this store is not keyed that way and would hand the next account the previous one's
+  token. It lives with the push registration record in `@chatic/runtime-core`.
+
 ## Usage
 
 ### Adding a store write
@@ -312,6 +354,7 @@ switch — tagged for one site, sent under another's session.
 - Each store takes its storage in the constructor, so a test builds one over a fake `StorageLike` rather than mocking a module. That is what `writeSignals.test.ts` and `contextStore.test.ts` do.
 - `sessionSignal` is a process singleton. A test that asserts fan-out counts must unsubscribe, because listeners survive between cases.
 - `msUntilExpiration` lives in `store/expiry.ts`, not with the use cases in @chatic/runtime, because the store needs it too and cannot import anything above it. Its `null` means "unmeasurable", which is explicitly **not** stale.
+- Jest needs `TextEncoder`/`TextDecoder` polyfilled before any module loads (`jest.setup.ts`): `@chatic/data` pulls the socket lib in, and jsdom does not provide them.
 - The identity context is seeded lazily. A test that asserts the initial state must read it once before asserting no signal fired.
 - `relayStore.getBackend()` throws until `configureSessionStore()` has run, so any test touching relay endpoints has to call it (or inject resolvers) first.
 

@@ -6,22 +6,6 @@ import { BaseDbAdapter } from '../base/BaseDbAdapter';
 
 type Rows<TType extends CacheType> = Record<string, CacheModelOf<TType>>;
 
-/**
- * A `CacheStorage` over a Web Storage area (`sessionStorage`, `localStorage`), for a domain whose rows
- * must live exactly as long as that area does.
- *
- * Its one user is the plain-browser `invitecloud` domain, routed to `sessionStorage`: a browser tab's
- * guest identity is kept there, and an invited cloud is entered on that guest's grant, so a row that
- * outlived the tab would name a cloud nobody left can enter.
- *
- * One key per partition holds every row as a single JSON object, read and rewritten whole. That is
- * only reasonable for a small domain — a handful of rows, no paging — which is all it is meant for.
- * Query options are not interpreted (`loadAll` returns the whole partition), so a domain that filters
- * through `CacheQueryOf` does not belong here.
- *
- * Nothing announces a write to other tabs, deliberately: in a `sessionStorage` area there are none,
- * and the data source above the adapter already re-emits its own observers.
- */
 export class WebStorageAdapter<TType extends CacheType> extends BaseDbAdapter<TType> {
     constructor(
         private readonly storage: Storage,
@@ -35,11 +19,6 @@ export class WebStorageAdapter<TType extends CacheType> extends BaseDbAdapter<TT
         return `chatic-cache:${this.type}:${scope.cid}:${scope.uid}`;
     }
 
-    /**
-     * An unreadable partition reads as empty rather than throwing: a value another build wrote in a
-     * different shape, or storage access refused by the browser, must not take the domain's whole
-     * read path down with it. The next write replaces the value.
-     */
     private read(scope: AdapterScope): Rows<TType> {
         try {
             const raw = this.storage.getItem(this.keyFor(scope));
@@ -81,8 +60,6 @@ export class WebStorageAdapter<TType extends CacheType> extends BaseDbAdapter<TT
             }
             rows[id] = withCacheMeta(this.type, item);
         }
-        // Same report as the IndexedDB adapter: otherwise the caller is told the batch was saved and an
-        // item is simply missing.
         if (dropped > 0) {
             logger.warn('CACHE', `dropped ${dropped} item(s) with no id from saveAll`, {
                 data: { type: this.type, dropped, total: items.length },

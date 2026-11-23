@@ -26,13 +26,10 @@ const UA = {
         'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
 };
 
-// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
 beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('resolveSocketDevice', () => {
     describe('mobile shell', () => {
-        // The only model global the shell injects is a hardware id (`iPhone17,1`, a board codename on
-        // Android), and a sent name overwrites the row's label on every save.
         it.each(['ios', 'android'] as const)('sends %s as injected, with no name', appPlatform => {
             expect(resolveSocketDevice({ appPlatform, userAgent: UA.iosWebView })).toEqual({ platform: appPlatform });
         });

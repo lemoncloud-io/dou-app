@@ -14,8 +14,6 @@ import {
     isPairedSession,
 } from './sessionReads';
 
-// The session the engine hands over is the only thing these read: an engine with a fake session view,
-// and nothing of the stores.
 const session = fakeSessionView();
 const base = emptySessionSnapshot();
 const signedIn = {

@@ -5,19 +5,6 @@ import { signRequest } from '../signing/sigV4';
 import type { SigningCredential } from '../signing/sigV4';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 
-/**
- * The relay's HTTP transport: a plain request, or one signed for the API Gateway's IAM auth.
- *
- * It holds nothing. Every signed request reads the credential and identity token at that moment
- * through `RequestSigningPorts`, which the assembly point binds to the session's relay token — so a
- * token the socket renewed is the one the very next request signs with, and there is no second copy
- * to fill, empty or let drift (this replaces lemon-web-core, which kept its own copy and its own
- * expiry clock).
- *
- * The request shape is the one lemon-web-core sent, kept so the gateway and the server see nothing
- * new: a JSON `Content-Type`, the SigV4 headers from `signRequest`, and `x-lemon-identity` carrying
- * the identity token, which the server reads to know who is calling.
- */
 export interface TransportRequestBuilder {
     setBody: (body: unknown) => TransportRequestBuilder;
     setParams: (params: Record<string, unknown>) => TransportRequestBuilder;
@@ -30,12 +17,9 @@ export interface RequestTransport {
 }
 
 export interface RequestSigningPorts {
-    /** The relay credential, or null when there is none — the request then goes unsigned, as lemon's did. */
     credential(): SigningCredential | null;
-    /** Sent as `x-lemon-identity` with a signed request. */
     identityToken(): string | null;
     region(): string;
-    /** Told when a signed request had to go out unsigned. */
     onUnsigned?(): void;
 }
 
@@ -92,10 +76,6 @@ class RequestBuilder implements TransportRequestBuilder {
     }
 }
 
-/**
- * Builds the transport. `axiosInstance` is shared by every request it builds; the caller owns the
- * singleton.
- */
 export const createRequestTransport = (
     signing: RequestSigningPorts,
     axiosInstance: AxiosInstance = axios.create()
