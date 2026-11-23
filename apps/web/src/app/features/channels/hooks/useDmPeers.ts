@@ -8,35 +8,13 @@ import { useChannelProfiles } from './useChannelProfiles';
 import type { DmPeer } from './useDmPeer';
 import { usePeerCloudNames, type CloudDmPeerRef } from './usePeerCloudNames';
 
-/**
- * Profile poll cadence for list surfaces. `useChannelProfiles` defaults to a room-tuned interval,
- * which is wrong here: a list is a resident screen holding one target per row, so that cadence means
- * N requests every few seconds for as long as the user sits on home. First paint does not depend on
- * the interval — the hook's one-shot bootstrap covers uncached ids.
- */
 export const LIST_PROFILE_SYNC_INTERVAL_MS = 60_000;
 
-/**
- * Batch variant of {@link useDmPeer} for channel LISTS (home, chat-room management).
- *
- * A list cannot use `useDmPeer`: that hook needs `members`/`profileMap` from `useChannelMembers`,
- * which costs a `syncChannelUsers` network call per channel. Here the peer is read straight off the
- * roster (`channel.memberIds`) and every peer's profile is fetched through ONE list-level
- * `useChannelProfiles` subscription instead of one per row.
- *
- * A cloud 1:1's peer also gets their cloud-profile name (`usePeerCloudNames`), which the title chain
- * reads when this place's profile does not name them. A relay 1:1 never reads it, so none is asked for.
- *
- * Returns a `channelId -> DmPeer` map holding DM channels only, so a caller can look up a row and
- * get `undefined` for anything that is not a DM.
- */
 export const useDmPeers = (
     sid: string | null,
     channels: DomainChannel[],
     userId: string | null | undefined
 ): Map<string, DmPeer> => {
-    // The peer of each DM row: the roster member that isn't me. Kept as channelId -> peerId so the
-    // profile lookup below can be deduped (the same person can share several DM rows in theory).
     const peerIdByChannel = useMemo(() => {
         const map = new Map<string, string>();
         for (const channel of channels) {
@@ -47,9 +25,6 @@ export const useDmPeers = (
         return map;
     }, [channels, userId]);
 
-    // Sorted, because `useChannelProfiles` keys its registration effect on `ids.join(',')` — an
-    // order-sensitive key fed by the caller's channel order. Without the sort, a list re-ordered by
-    // an incoming message (recent-activity sort) would dispose and re-register every profile target.
     const peerIds = useMemo(() => [...new Set(peerIdByChannel.values())].sort(), [peerIdByChannel]);
 
     const { profileMap } = useChannelProfiles(sid, peerIds, LIST_PROFILE_SYNC_INTERVAL_MS);

@@ -13,12 +13,10 @@ const requestBackgroundRefresh = jest.fn(() => Promise.resolve());
 const SWITCH_SITE_KEY = ['session', 'switch-site'];
 const SWITCH_CLOUD_KEY = ['session', 'switch-cloud'];
 
-/** What the latest render reads from `useSessionSelection`. */
 let mockSelection: { selectedCloudId: string | null; selectedSiteId: string | null } = {
     selectedCloudId: 'cloud-a',
     selectedSiteId: 'p1',
 };
-/** What the session holds right now, read outside a render by `getGlobalSessionContext`. */
 let mockLive: { cloudId: string | null; siteId: string | null } = { cloudId: 'cloud-a', siteId: 'p1' };
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -38,7 +36,6 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (...args: un
 jest.mock('../../../runtime/backgroundRefresh', () => ({
     requestBackgroundRefresh: () => requestBackgroundRefresh(),
 }));
-// One object, not a fresh one per render: the hook lists the repository in a dependency array.
 const repositories = { channel: { startDm: (...args: unknown[]) => startDmRequest(...args) } };
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
@@ -62,10 +59,6 @@ const setup = () => {
     return renderHook(() => useStartDm(), { wrapper });
 };
 
-/**
- * Starts a real pending mutation under a switch key, the way the session's switch does, and hands
- * back the way to settle it.
- */
 const startSwitch = (mutationKey: string[]) => {
     let finish: () => void = () => undefined;
     let fail: (error: Error) => void = () => undefined;
@@ -87,7 +80,6 @@ const startSwitch = (mutationKey: string[]) => {
     };
 };
 
-/** Lets pending promise chains run without settling anything the test holds. */
 const flush = () => act(() => new Promise(resolve => setTimeout(resolve, 0)));
 
 beforeEach(() => {
@@ -114,8 +106,6 @@ describe('useStartDm — opening the room', () => {
         expect(result.current.isStarting).toBe(false);
     });
 
-    // A room that names no place is not written to the cache, so home only lists it after the next
-    // channel sync; the hook asks for that sync instead of waiting for the poll.
     it('asks for a background refresh when the room names no place', async () => {
         startDmRequest.mockResolvedValue({ id: 'dm-1', sid: '' });
         const { result } = setup();
@@ -163,7 +153,6 @@ describe('useStartDm — opening the room', () => {
         expect(startDmRequest).toHaveBeenCalledTimes(2);
     });
 
-    // The picker replaces itself with the room, so back from the room returns home, not to the picker.
     it('forwards the replace option to the navigation', async () => {
         const { result } = setup();
 
@@ -174,8 +163,6 @@ describe('useStartDm — opening the room', () => {
         expect(navigate).toHaveBeenCalledWith('/channels/dm-1/room', { replace: true });
     });
 
-    // The request is already out, so the room is still made and home lists it; but a screen the person
-    // already left must not pull them into the room from wherever they went.
     it('still resolves to the room but does not navigate when unmounted before the room came back', async () => {
         let answer: (room: unknown) => void = () => undefined;
         startDmRequest.mockImplementation(
@@ -216,8 +203,6 @@ describe('useStartDm — failures', () => {
         expect(result.current.isStarting).toBe(false);
     });
 
-    // `/channels/undefined/room` is a real route that renders a broken room, so an id-less answer
-    // has to take the failure path rather than become a navigation.
     it('treats a room without an id as a failure', async () => {
         startDmRequest.mockResolvedValue({ sid: 'p1' });
         const { result } = setup();
@@ -232,8 +217,6 @@ describe('useStartDm — failures', () => {
 });
 
 describe('useStartDm — guards', () => {
-    // The guard is a ref precisely for this: both taps land before a re-render, so a state flag
-    // would still be false on the second one.
     it('sends one request when called twice while the first is in flight', async () => {
         const { result } = setup();
 
@@ -282,10 +265,7 @@ describe('useStartDm — guards', () => {
 });
 
 describe('useStartDm — a running place or cloud switch', () => {
-    // Sent before the switch settles, the request would reach a session still on the place being
-    // left, and the room would be filed there for good.
     it('waits for a running place switch to settle, then sends', async () => {
-        // The render already names the place being switched to.
         mockSelection = { selectedCloudId: 'cloud-a', selectedSiteId: 'p2' };
         mockLive = { cloudId: 'cloud-a', siteId: 'p2' };
         startDmRequest.mockResolvedValue({ id: 'dm-2', sid: 'p2' });
@@ -331,8 +311,6 @@ describe('useStartDm — a running place or cloud switch', () => {
         expect(startDmRequest).toHaveBeenCalledTimes(1);
     });
 
-    // A failed switch rolls the place back inside its own mutation: the place the person asked from
-    // is gone, so nothing is sent and nothing is said.
     it('sends nothing and returns null when the switch ends on a different place', async () => {
         mockSelection = { selectedCloudId: 'cloud-a', selectedSiteId: 'p2' };
         mockLive = { cloudId: 'cloud-a', siteId: 'p2' };
@@ -345,7 +323,6 @@ describe('useStartDm — a running place or cloud switch', () => {
         });
         await flush();
 
-        // The switch fails and rolls the session back before React renders the rollback.
         mockLive = { cloudId: 'cloud-a', siteId: 'p1' };
         await act(async () => {
             await sw.fail();
@@ -380,7 +357,6 @@ describe('useStartDm — a running place or cloud switch', () => {
         expect(startDmRequest).not.toHaveBeenCalled();
     });
 
-    // A cloud switch while the request was in flight leaves the room in the cloud that was left.
     it('does not navigate when the cloud moved while the request was in flight', async () => {
         startDmRequest.mockImplementation(async () => {
             mockLive = { cloudId: 'cloud-b', siteId: 'p7' };

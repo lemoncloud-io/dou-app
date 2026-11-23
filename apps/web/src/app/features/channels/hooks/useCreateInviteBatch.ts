@@ -3,39 +3,16 @@ import { useTranslation } from 'react-i18next';
 import type { UserInviteBatchPayload } from '@chatic/runtime';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useUserMutations } from './useUserMutations';
-// Direct path, not the `hooks` barrel: the barrel reaches web-core's transport, whose `import.meta`
-// jest cannot parse — the same reason CreatePlaceDialog bypasses the `ui/layouts` barrel.
 import { useMyProfile } from '../../../hooks/useMyProfile';
 import { sendInviteMessage, type InviteMessageChannel } from '../../invite/utils/sendInviteMessage';
 
-/**
- * `channelId` as the packet wants it: present when the invite enters a room, and the key absent —
- * not `undefined` — when it does not. A place invite names no room, and the server reads the
- * missing key as "the place alone".
- */
 const roomOf = (channelId?: string) => (channelId ? { channelId } : {});
 
-/**
- * User invite hook — supports both single and batch invites. Each takes an optional `channelId`:
- * with it the invite enters that room, without it only the place the session is on.
- * - createSingleInvite: invite 1 person → **sends the invite text via SMS** (app), or copies it
- *   to the clipboard on web.
- * - createPlaceInvite: the same, into the active place without a room.
- * - requestInviteLink: invite 1 person → returns only the Location link (doesn't auto-send it).
- *   For displaying/sharing on the invite link screen.
- * - createBatchInvite: batch-invite several people (the server sends the SMS).
- */
 export const useCreateInviteBatch = () => {
     const { t } = useTranslation();
     const { requestInvite, requestInviteBatch, isPending } = useUserMutations();
-    // The sender name used in the SMS body — the place-profile nick, not the account name.
     const { profile: myProfile } = useMyProfile();
 
-    /**
-     * After a single invite, **returns the server response's Location (deep-link URL) as a
-     * string without sharing it**. The invite link screen displays this URL, and the screen's
-     * own button handles the actual share/copy.
-     */
     const requestInviteLink = async (params: { channelId?: string; name: string; phone: string }): Promise<string> => {
         const inviteView = await requestInvite({
             ...roomOf(params.channelId),
@@ -49,19 +26,6 @@ export const useCreateInviteBatch = () => {
         return location;
     };
 
-    /**
-     * Single invite — **sends an SMS** to the target number containing the invite text with the
-     * server response's Location (deep-link URL). On the app, this opens the SMS composer
-     * pre-filled; on web, since there's no way to send an SMS, the text is copied to the
-     * clipboard instead — the same rule that {@link sendInviteMessage} applies across the whole
-     * invite path (ADR-0089 D4).
-     *
-     * The previous behavior of opening the OS share sheet made the user re-pick a recipient even
-     * though the target number was already known.
-     *
-     * `channel` reports what actually performed the delivery, so the caller can distinguish its
-     * messaging (`false` = the invite was issued but automatic delivery failed).
-     */
     const createSingleInvite = async (params: {
         channelId: string;
         name: string;
@@ -86,13 +50,6 @@ export const useCreateInviteBatch = () => {
         return { inviteView, channel: await sendInviteMessage(params.phone, body) };
     };
 
-    /**
-     * Place-only invite — the same single invite with **no `channelId`**, so accepting it joins the
-     * place and no room. There is no site field on the wire: the server stamps the site the session
-     * is sitting on, so the caller must only offer this while the session is on `placeName`'s place.
-     * Delivery and its `channel` report are the same as {@link createSingleInvite}; only the SMS body
-     * differs, because "invited you to a chat" would promise a room the invitee does not get.
-     */
     const createPlaceInvite = async (params: {
         name: string;
         phone: string;
@@ -114,14 +71,6 @@ export const useCreateInviteBatch = () => {
         return { inviteView, channel: await sendInviteMessage(params.phone, body) };
     };
 
-    /**
-     * Batch invite — `to` is an array on the wire, so the number list is passed straight through
-     * as an array. It used to be joined with commas into a single `alias`, but the server
-     * rejected that while trying to parse the string as one number (`@phone[a,b] is invalid format`).
-     *
-     * Duplicates are removed here, since the server would send SMS twice to the same target if
-     * the same number appeared twice (two contacts can share the same number). Order is preserved.
-     */
     const createBatchInvite = async (params: { channelId?: string; phones: string[] }): Promise<MyInviteView[]> => {
         const to = [...new Set(params.phones.map(phone => phone.trim()).filter(Boolean))];
         if (to.length === 0) return [];

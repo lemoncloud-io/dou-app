@@ -26,7 +26,6 @@ const recording = {
     size: 64_000,
 };
 
-/** A recorder whose answers the test hands out by hand. */
 const fakeRecorder = () => {
     let resolveStart: (result: StartRecordingResult) => void = () => undefined;
     let pushEnded: (ended: OnAudioRecordingEndedPayload) => void = () => undefined;
@@ -73,7 +72,6 @@ const Harness = ({
     const voice = useVoiceMessage({ sendImages, recorder, canRecord, disabled, scope, now });
     return (
         <div>
-            {/* The attach panel's voice entry. */}
             <button type="button" onClick={voice.open}>
                 voice-entry
             </button>
@@ -201,7 +199,6 @@ describe('useVoiceMessage', () => {
 
         await openSheet();
         await tapRecord();
-        // The header's × while the shell is still starting.
         await tap('common.close');
         await fake.started();
 

@@ -6,11 +6,6 @@ import type { ChannelCreateInput } from '@lemoncloud/chatic-sockets-api';
 
 import { useChannelMutations } from './useChannelMutations';
 
-/**
- * Create-channel payload. Widens ChannelCreateInput with `thumbnail` (the room photo): the socket
- * type does not declare it yet, but the gateway forwards the whole body unmodified, so the field is
- * sent as-is. Server acceptance is assumed per docs/adr/0018.
- */
 export type CreateChannelPayload = ChannelCreateInput & { thumbnail?: string };
 
 export const useCreateChannel = () => {

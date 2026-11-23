@@ -22,48 +22,20 @@ import { pauseInlineAudio } from './useInlineAudio';
 type Phase = 'idle' | 'starting' | 'recording' | 'stopping';
 
 interface UseVoiceMessageInput {
-    /** Sends the recording as a message of its own — `useSendImages().sendImages`. */
     sendImages: (files: ChatAttachmentSource[]) => Promise<void>;
-    /** The composer's lock: nobody to send to, a message being edited, the input lock. */
     disabled?: boolean;
-    /** The conversation the composer is in. A change throws away a recording still running. */
     scope?: string;
-    /** Test seams. */
     recorder?: typeof shellAudioRecorder;
     canRecord?: boolean;
     now?: () => number;
 }
 
 export interface VoiceMessage {
-    /** Whether the voice entry is offered: inside an app that records, on a composer that is open. */
     canRecord: boolean;
-    /** Opens the recording sheet — what the attach panel's voice entry calls. */
     open: () => void;
-    /** The recording sheet and the settings prompt for a refused microphone. Rendered once in the page. */
     sheet: ReactNode;
 }
 
-/**
- * The voice message, recorded in a sheet. The attach panel's voice entry opens it; a tap on its
- * microphone starts the shell's recorder, and while it records the sheet shows the clock against the
- * five-minute limit with Cancel and Send. Send stops the recording and sends it as a message of its
- * own; Cancel throws it away. The page never touches the microphone: the shell records into its own
- * folder and hands back the file, which goes up the way a file from the app's documents picker does.
- *
- * - **Only where the app records.** `canRecord` is true where the handshake lists
- *   `StartAudioRecording`, and never in a browser, so an app built before the recorder offers no entry
- *   that would fail.
- * - **The first tap asks for the microphone**, through the shell. Granted, the recording starts with
- *   the answer; refused, the sheet gives way to a prompt that leads to Settings.
- * - **While it records, only its own buttons end it** — Cancel, Send, or the header's ×, which
- *   cancels. A stray backdrop tap or swipe must not throw minutes of talk away, so both are ignored.
- * - **Under a second** the shell keeps nothing (`TOO_SHORT`), and the sheet says to record longer.
- * - **The limit** (five minutes) and **an interruption** (a call, the app leaving the screen) are ends
- *   the shell reports by itself: the first is sent and the sheet closes; the second is thrown away
- *   and said, and the sheet stays open to record again.
- * - **Leaving** — the conversation changing, the composer unmounting, a lock landing — throws a
- *   recording away and closes the sheet.
- */
 export const useVoiceMessage = ({
     sendImages,
     disabled = false,
@@ -81,8 +53,6 @@ export const useVoiceMessage = ({
     const [startedAt, setStartedAt] = useState(0);
     const [elapsedMs, setElapsedMs] = useState(0);
     const [permissionOpen, setPermissionOpen] = useState(false);
-    // Bumped whenever the recording under way is thrown away — Cancel while starting, leaving, a lock —
-    // so a start or stop answer that lands afterwards knows what it belonged to is gone.
     const generationRef = useRef(0);
     const sendRef = useRef(sendImages);
     sendRef.current = sendImages;
@@ -92,7 +62,6 @@ export const useVoiceMessage = ({
         setPhaseState(next);
     }, []);
 
-    /** What an end means to the person: a message sent, or a word about why nothing was. */
     const settle = useCallback(
         (ended: OnAudioRecordingEndedPayload) => {
             switch (ended.reason) {
@@ -111,7 +80,6 @@ export const useVoiceMessage = ({
                     toast({ title: t('chat.attach.voice.failed'), variant: 'destructive' });
                     return;
                 default:
-                    // Cancelled: the person asked for it.
                     return;
             }
         },
@@ -123,14 +91,11 @@ export const useVoiceMessage = ({
         setPhase('stopping');
         const generation = generationRef.current;
         const ended = await recorder.stop('send');
-        // A shell that had already ended it pushed that end, and `onEnded` settled it. Read again:
-        // the await may have moved the phase on.
         if ((phaseRef.current as Phase) !== 'stopping') return;
         setPhase('idle');
         if (ended && generation === generationRef.current) settle(ended);
     }, [recorder, setPhase, settle]);
 
-    // The ends the shell reports by itself.
     useEffect(
         () =>
             recorder.onEnded(ended => {
@@ -142,7 +107,6 @@ export const useVoiceMessage = ({
         [recorder, setPhase, settle]
     );
 
-    // The clock while it records. The shell's start time, so a slow answer does not shorten it.
     useEffect(() => {
         if (phase !== 'recording') return undefined;
         const tick = () => setElapsedMs(Math.max(0, now() - startedAt));
@@ -151,7 +115,6 @@ export const useVoiceMessage = ({
         return () => clearInterval(timer);
     }, [phase, startedAt, now]);
 
-    /** Throws away whatever is under way. A start still waiting on its answer is stopped when it comes. */
     const discard = useCallback(() => {
         generationRef.current += 1;
         if (phaseRef.current === 'recording') {
@@ -160,7 +123,6 @@ export const useVoiceMessage = ({
         }
     }, [recorder, setPhase]);
 
-    /** Leaving or a lock: the recording goes, and so does the sheet. */
     const abandon = useCallback(() => {
         discard();
         setIsOpen(false);
@@ -189,7 +151,6 @@ export const useVoiceMessage = ({
             }
             return;
         }
-        // Thrown away while the shell was starting: stop what it started.
         if (generation !== generationRef.current) {
             setPhase('stopping');
             await recorder.stop('cancel');
@@ -207,7 +168,6 @@ export const useVoiceMessage = ({
     }, [canRecord]);
 
     const close = () => {
-        // Send was tapped: the answer is on its way, and it closes the sheet itself.
         if (phaseRef.current === 'stopping') return;
         discard();
         setIsOpen(false);
@@ -219,7 +179,6 @@ export const useVoiceMessage = ({
         <>
             <BottomSheet
                 open={isOpen}
-                // The backdrop, a swipe, Escape: ignored while a recording is under way.
                 onOpenChange={next => {
                     if (!next && !active) close();
                 }}

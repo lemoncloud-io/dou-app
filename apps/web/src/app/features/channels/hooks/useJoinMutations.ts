@@ -9,23 +9,10 @@ type PendingState = Record<PendingKey, boolean>;
 
 const INITIAL_PENDING: PendingState = { update: false };
 
-/**
- * Join write operations backed by the engine's join repository. `updateJoin`
- * wraps `join.update` — an invited member sets their own per-channel nick (the
- * personal room name shown only to them) or notification flag. Kept separate
- * from useChannelMutations because it talks to a different repository.
- *
- * Both are state writes: the repository writes them locally and hands them to the outbox, so the
- * returned promise settles once the local write is done, and `receipt.delivered` once the server
- * has them. A screen reports a refusal from `delivered`; nothing waits on it to update.
- */
 export const useJoinMutations = () => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);
 
-    // Toggle the pending flag around the promise, and log the failure (mirrors useChannelMutations).
-    // A silent failure here leaves the user's own join row — their nick and mute flag — at its old
-    // value with no trace of the write that was refused.
     const run = useCallback(<T>(key: PendingKey, op: () => Promise<T>): Promise<T> => {
         setIsPending(prev => ({ ...prev, [key]: true }));
         return op()

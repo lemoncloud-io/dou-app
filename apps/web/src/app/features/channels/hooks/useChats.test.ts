@@ -24,15 +24,11 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 
-// Covered by its own test file; isolate useChats from the foreground-refresh side effects.
 jest.mock('./useForegroundChatRefresh', () => ({ useForegroundChatRefresh: jest.fn() }));
-// Covered by its own test file; here only what useChats hands it is checked.
 jest.mock('./useChannelHeadRefresh', () => ({ useChannelHeadRefresh: jest.fn() }));
 
 const chatObserveList = jest.fn();
 const chatRefreshList = jest.fn();
-// A stand-in for the repository's record of ranges a page answered for, keyed by channel id alone. A
-// range added while a room is open reaches it as the repository's coverage stream would.
 const coverage = (() => {
     let ranges: Array<[string, number, number]> = [];
     const listeners = new Map<string, Set<(covered: Array<[number, number]>) => void>>();
@@ -75,7 +71,6 @@ const seedUsers = (users: Array<Partial<DomainUser>>) =>
         return () => undefined;
     });
 
-/** The repository's coverage stream over the test's own record: now, then on each change. */
 const observeCoverage = (channelId: string, callback: (covered: Array<[number, number]>) => void) => {
     const stop = coverage.subscribe(channelId, callback);
     callback(coverage.covered(channelId));
@@ -85,7 +80,6 @@ const observeCoverage = (channelId: string, callback: (covered: Array<[number, n
 beforeEach(() => {
     jest.clearAllMocks();
     seedUsers([{ id: 'u1', name: 'Alice' }]);
-    // Always resolve so the entry refreshList's `.catch` chain is safe by default.
     chatRefreshList.mockResolvedValue({ fetchedCount: 0 });
     coverage.clear();
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
@@ -112,14 +106,14 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
 
         const [first, second] = result.current.messages;
-        expect(first.chatNo).toBe(1); // ascending: oldest first
+        expect(first.chatNo).toBe(1);
         expect(first.isOwner).toBe(false);
         expect(first.isSystem).toBe(true);
-        expect(first.ownerName).toBe('Alice'); // resolved from user cache
+        expect(first.ownerName).toBe('Alice');
         expect(first.timestamp.getTime()).toBe(100);
 
         expect(second.chatNo).toBe(2);
-        expect(second.isOwner).toBe(true); // ownerId === myUid
+        expect(second.isOwner).toBe(true);
         expect(second.isSystem).toBe(false);
     });
 
@@ -132,13 +126,9 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
 
-        // Only my own system row is hidden — my normal message and others' system rows remain.
         expect(result.current.messages.map(m => m.id)).toEqual(['a', 'c']);
     });
 
-    // ADR-0093: reaction events used to render as empty SystemNotice pills and replies
-    // leaked into the main feed. Both fold out of `messages` but stay on `rawChats`,
-    // which reaction folding / thread derivation read.
     it('리액션 이벤트와 스레드 답글은 messages에서 숨기고 rawChats에는 남긴다', () => {
         seedChats([
             chat({ id: 'a', chatNo: 1, ownerId: 'u1', stereo: 'user', createdAtMs: 100 }),
@@ -161,7 +151,6 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
 
-        // chatNo 0 (pending) doesn't get pushed to the front — it comes after the committed 1, 2.
         expect(result.current.messages.map(m => m.id)).toEqual(['a', 'b', 'p']);
     });
 
@@ -175,7 +164,6 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         seedChats([]);
         renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
 
-        // useChatSync(here mocked) owns the initial prime fetch, so useChats never calls refreshList on entry.
         expect(chatRefreshList).not.toHaveBeenCalled();
     });
 
@@ -197,13 +185,11 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
     });
 
     it('캐시가 요청한 페이지를 못 채우면 loadMore 없이도 스레드 시작으로 본다', () => {
-        // A room this short never overflows the viewport, so the scroll listener never fires
-        // loadMore and hasMore stays true — the intro must not wait on that.
         seedChats([chat({ id: 'a', chatNo: 1, ownerId: 'u1', createdAtMs: 100 })]);
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
 
-        expect(result.current.hasMore).toBe(true); // pagination itself stays enabled
+        expect(result.current.hasMore).toBe(true);
         expect(result.current.isThreadStartLoaded).toBe(true);
     });
 
@@ -241,7 +227,6 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
             await result.current.loadMore();
         });
 
-        // The oldest (smallest) chatNo is the page boundary, regardless of array order.
         expect(chatRefreshList).toHaveBeenCalledWith(
             { channelId: 'c1', cursorNo: 3, limit: 50 },
             { cursorIsRow: true }
@@ -262,10 +247,6 @@ describe('useChats — older pages', () => {
         return { promise, resolve, reject };
     };
 
-    /**
-     * An observer whose first subscription answers at once and every later one waits to be
-     * answered by hand — for the cases that turn on WHEN a widened window is read back.
-     */
     const holdLaterReads = (initial: DomainChat[]) => {
         const reads: Array<{ limit: number; emit: (list: DomainChat[]) => void }> = [];
         chatObserveList.mockImplementation((query, cb) => {
@@ -289,8 +270,6 @@ describe('useChats — older pages', () => {
             await result.current.loadMore();
         });
 
-        // The request is back, but its rows are not on screen yet: released now, the next check
-        // would read the same oldest row and ask for the same page again.
         expect(lastObserveLimit()).toBe(150);
         expect(result.current.isLoadingMore).toBe(true);
 
@@ -323,18 +302,15 @@ describe('useChats — older pages', () => {
             await result.current.loadMore();
         });
 
-        // Nothing for the room to fall over on: paging is simply not done yet.
         expect(result.current).not.toHaveProperty('isError');
         expect(result.current.isLoadingMore).toBe(false);
         expect(result.current.hasMore).toBe(true);
 
-        // Inside the wait, a retry is not sent — the prefetch re-checks on every scroll event.
         await act(async () => {
             await result.current.loadMore();
         });
         expect(chatRefreshList).toHaveBeenCalledTimes(1);
 
-        // The wait ending hands callers a new loadMore, which is what re-runs their effects.
         const beforeWait = result.current.loadMore;
         act(() => {
             jest.advanceTimersByTime(2000);
@@ -373,7 +349,6 @@ describe('useChats — older pages', () => {
         chatRefreshList.mockResolvedValue({ fetchedCount: 30, cursorNo: 970, latestNo: 999 });
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
-        // A jump has made the window 520 wide; adding to the 100-wide page axis would not move it.
         act(() => {
             result.current.loadUntil(500);
         });
@@ -395,14 +370,11 @@ describe('useChats — older pages', () => {
             await result.current.loadMore();
         });
 
-        // The last page is still shown; it just is not followed by an empty request to prove it.
         expect(lastObserveLimit()).toBe(110);
         expect(result.current.hasMore).toBe(false);
     });
 
     it('stops when a page brings nothing new into view', async () => {
-        // The cache answers the same rows whatever the window size, as it does when every row the
-        // page brought predates my membership.
         seedChats([chat({ id: 'a', chatNo: 60, ownerId: 'u1' })]);
         chatRefreshList.mockResolvedValue({ fetchedCount: 10, cursorNo: 50, latestNo: 59 });
 
@@ -425,14 +397,12 @@ describe('useChats — older pages', () => {
             await result.current.loadMore();
         });
 
-        // A re-joiner's history starts right after their join cursor, not at row 1.
         seedChats([8, 9, 10].map(no => chat({ id: `r${no}`, chatNo: no, ownerId: 'u1' })));
         const rejoined = renderHook(() => useChats({ channelId: 'c2', limit: 100, joinedNo: 7 }));
         await act(async () => {
             await rejoined.result.current.loadMore();
         });
 
-        // A short room asks to be filled on every entry; proving it has no more must cost nothing.
         expect(chatRefreshList).not.toHaveBeenCalled();
         expect(result.current.hasMore).toBe(false);
         expect(rejoined.result.current.hasMore).toBe(false);
@@ -471,8 +441,6 @@ describe('useChats — older pages', () => {
         act(() => reads[reads.length - 1].emit(rows(5, 10)));
         expect(lastObserveLimit()).toBe(6);
 
-        // Two messages arrive. The six-row window now holds 7–12: rows 5 and 6, the top of what the
-        // reader paged back to, fell out — so the window grows by two to take them back.
         act(() => reads[reads.length - 1].emit(rows(7, 12)));
 
         expect(lastObserveLimit()).toBe(8);
@@ -484,8 +452,6 @@ describe('useChats — older pages', () => {
         renderHook(() => useChats({ channelId: 'c1', limit: 3 }));
         act(() => reads[0].emit([9, 10, 11].map(no => chat({ id: `r${no}`, chatNo: no, ownerId: 'u1' }))));
 
-        // Nobody has paged back, so nobody is reading the rows that fall out: the window stays
-        // bounded instead of growing with every message for as long as the room is open.
         expect(lastObserveLimit()).toBe(3);
     });
 
@@ -501,8 +467,6 @@ describe('useChats — older pages', () => {
             await result.current.loadMore();
         });
 
-        // Ended when the request returned, a jump into this very page gave up a render before its
-        // rows arrived.
         expect(result.current.hasMore).toBe(true);
 
         act(() => reads[reads.length - 1].emit(rowRange(1, 11)));
@@ -524,7 +488,6 @@ describe('useChats — older pages', () => {
         });
         expect(result.current.isLoadingMore).toBe(false);
 
-        // The page never showed, so it is neither progress nor proof that nothing is older.
         await act(async () => {
             await result.current.loadMore();
         });
@@ -538,7 +501,6 @@ describe('useChats — older pages', () => {
         chatRefreshList.mockRejectedValueOnce(new Error('socket closed')).mockResolvedValue({ fetchedCount: 0 });
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
-        // A scroll handler the failure's own render has not replaced yet still calls this one.
         const beforeFailure = result.current.loadMore;
         await act(async () => {
             await beforeFailure();
@@ -588,7 +550,6 @@ describe('useChats — older pages', () => {
         });
 
         expect(lastObserveLimit()).toBe(550);
-        // Copied into pageLimit, the jump's over-estimate would read as rows the cache could not fill.
         expect(result.current.isThreadStartLoaded).toBe(false);
     });
 
@@ -604,8 +565,6 @@ describe('useChats — older pages', () => {
         act(() => reads[reads.length - 1].emit(rowRange(5, 10)));
         expect(lastObserveLimit()).toBe(6);
 
-        // Back at the bottom, nobody is reading rows 5 and 6: arrivals push them out as they always
-        // did, instead of growing the window for as long as the room stays open.
         act(() => reads[reads.length - 1].emit(rowRange(7, 12)));
 
         expect(lastObserveLimit()).toBe(6);
@@ -646,8 +605,6 @@ describe('useChats — loadUntil (점프용 캐시 윈도우 확장)', () => {
     const lastObserveLimit = () => chatObserveList.mock.calls[chatObserveList.mock.calls.length - 1][0].limit;
 
     it('캐시된 과거 메시지를 창 안으로 들이고, 서버를 부르지 않는다', async () => {
-        // Jumping to a chatNo far past the window (100). Server paging fetches 50 rows at a
-        // time, so this distance couldn't be reached within the budget (8 pages).
         seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
@@ -678,8 +635,6 @@ describe('useChats — loadUntil (점프용 캐시 윈도우 확장)', () => {
     });
 
     it('keeps the wider window when two widenings land in one commit', async () => {
-        // The thread page widens toward its root and the jump toward a newer reply in the same
-        // commit; the narrower ask must not undo the wider one.
         seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
@@ -704,9 +659,6 @@ describe('useChats — loadUntil (점프용 캐시 윈도우 확장)', () => {
     });
 
     it('확장된 창이 "대화 시작 도달" 판정을 흔들지 않는다', async () => {
-        // With only 1 row in the cache, widening the window a lot would make
-        // chats.length < pageLimit true — the jump-driven expansion has to be a separate axis
-        // from pageLimit.
         seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
 
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 1 }));
@@ -734,8 +686,6 @@ describe('useChats — 재입장 이력 숨기기 (ADR-0067)', () => {
     });
 
     it('전송 중인 낙관적 행(chatNo 0)은 joinedNo와 무관하게 남는다', () => {
-        // The optimistic row has no server number yet; hiding it would erase the message the user
-        // just typed — the whole reason the helper exempts a falsy chatNo.
         seedChats([
             chat({ id: 'old', chatNo: 3, ownerId: 'u1', createdAtMs: 300 }),
             chat({ id: 'pending', chatNo: 0, ownerId: 'me', createdAtMs: 900, isPending: true }),
@@ -747,11 +697,6 @@ describe('useChats — 재입장 이력 숨기기 (ADR-0067)', () => {
     });
 
     it('rawChats에서도 빠진다 — 재입장 유저에게 "대화의 시작"이 잘못 뜨지 않는다', () => {
-        // ChannelRoomPage turns on RoomIntro via `rawChats.some(chat => chat.chatNo === 1)`. If
-        // the pre-departure row #1 left over in the cache showed up here, the "start of
-        // conversation" block would appear only for someone who rejoined partway through — not
-        // for the person who was originally invited. Reaction folding and thread construction
-        // read the same list too.
         seedChats([
             chat({ id: 'first', chatNo: 1, ownerId: 'u1', createdAtMs: 100 }),
             chat({ id: 'new', chatNo: 8, ownerId: 'u1', createdAtMs: 800 }),
@@ -817,7 +762,6 @@ describe('useChats — gaps in the cached history', () => {
     it("does not read the previous channel's answered ranges as the next one's", () => {
         coverage.add('c1', 6, 39);
         seedChats(rows(5, 40));
-        // Every render's answer, the one before the subscription moves to the new channel included.
         const answers: boolean[] = [];
         const { rerender } = renderHook(
             ({ channelId }) => {
@@ -839,8 +783,6 @@ describe('useChats — gaps in the cached history', () => {
     it("subscribes again when the selected cloud changes, and does not read the previous cloud's ranges", () => {
         coverage.add('c1', 6, 39);
         seedChats(rows(5, 40));
-        // The repository binds a subscription to the cloud selected when it is made. The new cloud's
-        // ranges have not arrived yet, as a mirrored stream's first value may not have.
         const observeFeedCoverage = jest.fn(
             (channelId: string, callback: (covered: Array<[number, number]>) => void): (() => void) =>
                 observeFeedCoverage.mock.calls.length === 1 ? observeCoverage(channelId, callback) : () => undefined
@@ -885,7 +827,6 @@ describe('useChats — gaps in the cached history', () => {
     it("pages from nothing answered while the next channel's ranges have not arrived", async () => {
         coverage.add('c1', 1351, 1400);
         seedChats(rows(1401, 1402));
-        // c2's first value is late, as a mirrored stream's may be; c1's ranges must not stand in for it.
         const observeFeedCoverage = (channelId: string, callback: (covered: Array<[number, number]>) => void) =>
             channelId === 'c1' ? observeCoverage(channelId, callback) : () => undefined;
         (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
@@ -1054,7 +995,6 @@ describe('useChats — gaps in the cached history', () => {
     });
 
     it('asks next to what is still unanswered, so a page of deleted messages does not stall the gap', async () => {
-        // 150–199 was answered (all deleted): the newer side asks below 150, not below 200 again.
         coverage.add('c1', 150, 199);
         seedChats(rows(5, 200));
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
@@ -1136,7 +1076,6 @@ describe('useChats — catching up to the channel record', () => {
     });
 
     it('counts rows the join window hides, since the cache holds them all the same', () => {
-        // Every cached row predates the re-join: the feed is empty, yet nothing is missing from the cache.
         seedChats([
             chat({ id: 'a', chatNo: 3, ownerId: 'u1', createdAtMs: 300 }),
             chat({ id: 'b', chatNo: 5, ownerId: 'u1', createdAtMs: 500 }),
@@ -1148,7 +1087,6 @@ describe('useChats — catching up to the channel record', () => {
     });
 
     it("does not report the previous room's window as read for the next room", () => {
-        // The first room's window is in the cache; the second room's has not been read yet.
         chatObserveList.mockImplementation((query: { channelId: string }, cb: (result: unknown) => void) => {
             if (query.channelId === 'c1') cb({ list: [chat({ id: 'a', chatNo: 4, ownerId: 'u1', createdAtMs: 400 })] });
             return () => undefined;
@@ -1159,7 +1097,6 @@ describe('useChats — catching up to the channel record', () => {
         );
         (useChannelHeadRefresh as jest.Mock).mockClear();
 
-        // Switched in place, as a push banner does: the first render still holds c1's rows.
         rerender({ channelId: 'c2' });
 
         const forC2 = (useChannelHeadRefresh as jest.Mock).mock.calls
@@ -1170,9 +1107,6 @@ describe('useChats — catching up to the channel record', () => {
     });
 
     it("never answers the next room with the previous room's rows, so nothing reads them as its own", () => {
-        // The room derives its read marker from the newest message. Read under the next room's id,
-        // the previous room's newest chatNo went out as the next room's read and the server refused
-        // it as an overflow.
         chatObserveList.mockImplementation((query: { channelId: string }, cb: (result: unknown) => void) => {
             if (query.channelId === 'c1') {
                 cb({ list: [chat({ id: 'a', chatNo: 118, ownerId: 'u1', createdAtMs: 400 })] });

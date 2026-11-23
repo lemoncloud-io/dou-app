@@ -23,7 +23,6 @@ jest.mock('@chatic/runtime', () =>
 const observeItem = jest.fn();
 const unsubscribe = jest.fn();
 
-/** Hands back the observer callback so a test can emit whenever it likes (as sync would). */
 let emit: (item: DomainChannel | null) => void = () => undefined;
 
 const channelRow = (fields: Partial<DomainChannel> = {}): DomainChannel =>
@@ -35,7 +34,6 @@ beforeEach(() => {
     (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
     (runtime.sync.useChannelSync as jest.Mock).mockReturnValue(undefined);
     (runtime.sync.isChannelRefused as jest.Mock).mockReturnValue(false);
-    // The store's real subscribe; tests drive the verdict through `isChannelRefused` and re-render.
     (runtime.sync.subscribeRefusedChannels as jest.Mock).mockImplementation(() => () => undefined);
     observeItem.mockImplementation((_id, cb) => {
         emit = cb;
@@ -59,10 +57,6 @@ describe('useChannel', () => {
     });
 
     it('캐시 miss(첫 null)를 부재로 단정하지 않고 계속 기다린다', async () => {
-        // Regression: observeItem's first response only looks at the cache, so a room seen for
-        // the first time gets an immediate null even while the fetch is still in flight. Taking
-        // that as the final answer would send the caller away from the screen and cut off that
-        // fetch too.
         const { result } = renderHook(() => useChannel('ch-1'));
 
         act(() => emit(null));
@@ -95,7 +89,6 @@ describe('useChannel', () => {
 
         expect(result.current.isLoading).toBe(false);
         expect(result.current.channel).toBeNull();
-        // Removal is not an error — it's a normal situation where the caller should leave the screen.
         expect(result.current.isError).toBe(false);
     });
 
@@ -132,7 +125,6 @@ describe('useChannel', () => {
         it('시드가 있으면 관측 해소 전에도 즉시 렌더 가능한 채널을 준다', () => {
             const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow({ name: '시드' }) }));
 
-            // The observer hasn't given anything yet — shown immediately via the seed.
             expect(result.current.isLoading).toBe(false);
             expect(result.current.channel?.id).toBe('ch-1');
             expect(result.current.isError).toBe(false);
@@ -154,9 +146,6 @@ describe('useChannel', () => {
         });
 
         it('시드가 있으면 해소 타임아웃이 에러 화면으로 넘어가지 않는다', () => {
-            // Swapping in an error page after 10 seconds while the screen already has content
-            // would be worse than this timer's original purpose (blocking infinite loading) —
-            // the seed is already content.
             jest.useFakeTimers();
             const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow() }));
 
@@ -200,21 +189,15 @@ describe('useChannel', () => {
 
         rerender({ id: 'ch-2' });
 
-        // The new room knows nothing yet — leaving the old row in place would show someone
-        // else's room.
         expect(result.current.isLoading).toBe(true);
         expect(result.current.channel).toBeNull();
 
-        // And the new room's first null is not taken to mean absence either.
         act(() => emit(null));
         expect(result.current.isLoading).toBe(true);
         expect(result.current.isError).toBe(false);
     });
 
     it("never answers a new id with the previous room's row, not even in the render that carries it", async () => {
-        // The room screen stays mounted across a room-to-room move. The render that brings the new
-        // id runs before the hook's effect resets its state, and anything read in it — the roster
-        // above all — was registered as join targets of the new room.
         const renders: Array<{ id: string; channelId: string | undefined; isLoading: boolean }> = [];
         const { result, rerender } = renderHook(
             ({ id }) => {
@@ -234,7 +217,6 @@ describe('useChannel', () => {
         const underNewId = renders.filter(render => render.id === 'ch-2');
         expect(underNewId.length).toBeGreaterThan(0);
         expect(underNewId.every(render => render.channelId === undefined)).toBe(true);
-        // Still loading, not "resolved to nothing": the room would read that as a removal and leave.
         expect(underNewId.every(render => render.isLoading)).toBe(true);
     });
 
@@ -265,7 +247,6 @@ describe('useChannel', () => {
         unmount();
 
         expect(unsubscribe).toHaveBeenCalled();
-        // If the timer were still alive after unmount, it would call setState on a component that's gone.
         expect(jest.getTimerCount()).toBe(0);
     });
 
@@ -279,8 +260,6 @@ describe('useChannel', () => {
         expect(result.current.channel?.memberCount).toBe(3);
     });
 
-    // A refusal is an answer the server already gave, so the resolve timeout — which exists for a
-    // fetch that might still land — must not stand between it and the screen.
     describe('서버가 거절한 채널', () => {
         it('기다리지 않고 거절로 답한다', () => {
             (runtime.sync.isChannelRefused as jest.Mock).mockReturnValue(true);
@@ -292,17 +271,12 @@ describe('useChannel', () => {
             expect(result.current.isError).toBe(false);
         });
 
-        // Two different facts, two different sentences: one is something we know, the other is what
-        // we say when we do not. Folding them together would put "you are not in this" on a dropped
-        // connection.
         it('불러오기 실패와 섞이지 않는다', () => {
             const { result } = renderHook(() => useChannel('ch-1'));
 
             expect(result.current.isForbidden).toBe(false);
         });
 
-        // A cached row means the screen has something to show, and what happens to it belongs to the
-        // removal path — a refusal arriving late must not blank a room that is rendering.
         it('보여 줄 행이 이미 있으면 말하지 않는다', async () => {
             (runtime.sync.isChannelRefused as jest.Mock).mockReturnValue(true);
 
@@ -313,8 +287,6 @@ describe('useChannel', () => {
             expect(result.current.isForbidden).toBe(false);
         });
 
-        // An entry that hands its row across (the home list, a share) has the room on screen before
-        // the cache answers, so a refusal recorded in that gap does not evict the reader from it.
         it('does not call a seeded room refused before the cache answers', () => {
             (runtime.sync.isChannelRefused as jest.Mock).mockReturnValue(true);
 
@@ -334,7 +306,6 @@ describe('useChannel', () => {
             await waitFor(() => expect(result.current.channel?.isOwner).toBe(true));
         });
 
-        // After a kick the cached row's `$join` is the removed member's, until the next sync.
         it('keeps the owner after a kick leaves the removed member in $join', async () => {
             const { result } = renderHook(() => useChannel('ch-1'));
             act(() =>

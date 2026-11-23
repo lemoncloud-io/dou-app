@@ -31,7 +31,6 @@ const registerSyncTarget = runtime.sync.registerSyncTarget as jest.Mock;
 const profile = (userId: string, fields: Partial<DomainProfile> = {}): DomainProfile =>
     ({ userId, ...fields }) as unknown as DomainProfile;
 
-// Seed observeList to emit the given rows synchronously and return a disposer spy.
 const seedObserve = (rows: DomainProfile[]) => {
     observeList.mockImplementation((_query, cb) => {
         cb({ list: rows });
@@ -39,7 +38,6 @@ const seedObserve = (rows: DomainProfile[]) => {
     });
 };
 
-// The selection as render sees it and as the live session context reports it — one value, as in the app.
 const setSelectedCloud = (cid: string) => {
     (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: cid });
     (runtime.session.getGlobalSessionContext as jest.Mock).mockReturnValue({ cloud: { cloudId: cid } });
@@ -76,8 +74,6 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
 
         await waitFor(() => expect(registerSyncTarget).toHaveBeenCalledTimes(2));
-        // Default interval is 20s — member count / interval is directly the request rate, so a
-        // 5s interval in a 20-person room would have meant 4 requests per second.
         expect(registerSyncTarget).toHaveBeenCalledWith(
             { type: 'profile', id: 's1@u1', intervalMs: 20_000 },
             { cid: 'cloud-a' }
@@ -121,7 +117,6 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         renderHook(() => useChannelProfiles('s1', ['u1', 'u2']));
 
         await waitFor(() => expect(refreshItem).toHaveBeenCalledWith('s1@u2'));
-        // Let the rejected read settle: a registration it was going to make has been made by then.
         await act(async () => undefined);
         expect(registerSyncTarget).toHaveBeenCalledTimes(1);
         expect(registerSyncTarget).toHaveBeenCalledWith(
@@ -207,14 +202,12 @@ describe('useChannelProfiles — 사이트 프로필 구독/동기화', () => {
         cacheReadList.mockReturnValue(new Promise(resolve => (resolveRead = resolve)));
 
         renderHook(() => useChannelProfiles('s1', ['u1']));
-        // The session has already moved on; no render has told the hook yet.
         (runtime.session.getGlobalSessionContext as jest.Mock).mockReturnValue({ cloud: { cloudId: 'cloud-b' } });
         await act(async () => {
             resolveRead({ list: [] });
         });
 
         expect(refreshItem).not.toHaveBeenCalled();
-        // Registered unread — the poll is all that is left to find the member with.
         expect(registerSyncTarget).toHaveBeenCalledWith(
             { type: 'profile', id: 's1@u1', intervalMs: 20_000 },
             { cid: 'cloud-a' }

@@ -19,7 +19,6 @@ const track = (over: Partial<AudioTrack> = {}): AudioTrack => ({
     ...over,
 });
 
-/** Puts `playing` in the store as the loaded track, as a press on its bubble would. */
 const load = (playing: AudioTrack) => useRoomAudioStore.setState({ current: playing, status: 'playing', position: 3 });
 
 type Messages = ReadonlyArray<{ id?: string; hidden?: boolean }>;
