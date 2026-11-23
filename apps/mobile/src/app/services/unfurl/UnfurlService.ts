@@ -4,24 +4,13 @@ import type { IUnfurlService, UrlMetadataResult } from './types';
 const UNFURL_TIMEOUT_MS = 3000;
 const UNFURL_MAX_BYTES = 256 * 1024;
 
-/** Parsed pieces of an absolute http(s) URL. */
 export interface ParsedUrl {
-    /** Lowercased, with the trailing colon (`https:`). */
     protocol: string;
-    /** Lowercased host without port or userinfo. IPv6 literals keep their brackets. */
     hostname: string;
     origin: string;
-    /** Path only, without query or fragment. */
     path: string;
 }
 
-/**
- * Minimal absolute-URL splitter.
- *
- * React Native's `URL` global is a stub exposing only `href`/`toString()` — it has no `protocol`
- * or `hostname` — so the guards below cannot depend on it. Returns null for anything that isn't a
- * scheme-qualified absolute URL.
- */
 export const parseUrl = (raw: string): ParsedUrl | null => {
     const match = raw.trim().match(/^([a-z][a-z0-9+.-]*):\/\/([^/?#]*)([^?#]*)/i);
     if (!match) return null;
@@ -29,8 +18,6 @@ export const parseUrl = (raw: string): ParsedUrl | null => {
     const authority = match[2];
     if (!authority) return null;
 
-    // `http://trusted.example@127.0.0.1/` reads as trusted.example to a human but resolves to
-    // 127.0.0.1 — the real host is whatever follows the LAST `@`.
     const hostPort = authority.slice(authority.lastIndexOf('@') + 1);
     const hostname = hostPort.startsWith('[') ? hostPort.slice(0, hostPort.indexOf(']') + 1) : hostPort.split(':')[0];
     if (!hostname) return null;
@@ -44,21 +31,7 @@ export const parseUrl = (raw: string): ParsedUrl | null => {
     };
 };
 
-/**
- * Blocks hosts that must never be fetched on a user's behalf.
- *
- * Any channel member can post any URL and the shell fetches it automatically, so without this the
- * app is an intranet probe (SSRF). The default is deny: anything that doesn't look like a public
- * DNS name or a public IPv4 literal is rejected, which also closes the alternate IP encodings
- * (`http://2130706433/`, `http://0x7f000001/`) that a "not a dotted quad, so allow it" check lets
- * through.
- *
- * String-level only. A public DNS name that resolves to a private address still gets through — the
- * shell can't see resolution results. Closing that needs a server-side unfurl; see
- * docs/chat-link-preview.md.
- */
 export const isPrivateHost = (hostname: string): boolean => {
-    // Strip IPv6 brackets and a trailing FQDN dot.
     const host = hostname
         .toLowerCase()
         .replace(/^\[|\]$/g, '')
@@ -73,23 +46,19 @@ export const isPrivateHost = (hostname: string): boolean => {
         const a = Number(ipv4[1]);
         const b = Number(ipv4[2]);
         if (a === 0 || a === 10 || a === 127) return true;
-        if (a === 169 && b === 254) return true; // link-local
+        if (a === 169 && b === 254) return true;
         if (a === 172 && b >= 16 && b <= 31) return true;
         if (a === 192 && b === 168) return true;
         return false;
     }
 
     if (host.includes(':')) {
-        // IPv6 literal: loopback, unspecified, unique-local (fc00::/7), link-local (fe80::/10).
         return host === '::1' || host === '::' || /^f[cd]/.test(host) || host.startsWith('fe8');
     }
 
-    // Must look like a public DNS name: at least one dot, and a TLD that is alphabetic or punycode.
-    // Rejects single-label intranet hosts (`http://wiki/`) and every non-dotted-quad IP encoding.
     return !/^([^.\s]+\.)+([a-z]{2,}|xn--[a-z0-9-]+)$/.test(host);
 };
 
-/** `&amp;` is decoded last so `&amp;lt;` yields the literal `&lt;` rather than `<`. */
 const decodeEntities = (value: string): string =>
     value
         .replace(/&lt;/g, '<')
@@ -99,7 +68,6 @@ const decodeEntities = (value: string): string =>
         .replace(/&#x0*27;/gi, "'")
         .replace(/&amp;/g, '&');
 
-/** Reads `<meta property|name="<key>" content="...">` regardless of attribute order. */
 const metaContent = (html: string, key: string): string | undefined => {
     const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const forward = new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]*content=["']([^"']*)["']`, 'i');
@@ -109,11 +77,6 @@ const metaContent = (html: string, key: string): string | undefined => {
     return decoded || undefined;
 };
 
-/**
- * Resolves a possibly-relative `og:image` against the page it came from, then keeps it only if it
- * ended up https — the webview blocks http images as mixed content, so an http URL is dead weight
- * on the bridge.
- */
 const resolveImageUrl = (raw: string, landed: ParsedUrl): string | undefined => {
     const value = raw.trim();
     if (!value) return undefined;
@@ -127,12 +90,6 @@ const resolveImageUrl = (raw: string, landed: ParsedUrl): string | undefined => 
     return /^https:\/\//i.test(absolute) ? absolute : undefined;
 };
 
-/**
- * Extracts the preview fields from a page's HTML.
- *
- * `requestUrl` — not the redirect landing URL — is echoed back: it is the web side's cache key,
- * and a mismatch would make every redirecting link miss the cache forever.
- */
 export const parseOgMetadata = (html: string, requestUrl: string, landedUrl: string): UrlMetadataResult => {
     const landed = parseUrl(landedUrl) ?? parseUrl(requestUrl);
     const title =
@@ -142,7 +99,6 @@ export const parseOgMetadata = (html: string, requestUrl: string, landedUrl: str
             .trim() ||
             undefined);
 
-    // A card with no title isn't a card.
     if (!title || !landed) return { success: false, url: requestUrl };
 
     const image = metaContent(html, 'og:image') ?? metaContent(html, 'og:image:url');
@@ -161,20 +117,6 @@ export interface FetchedPage {
     landedUrl: string;
 }
 
-/**
- * GETs a page and returns at most UNFURL_MAX_BYTES of its HTML, or null if any guard rejects it.
- *
- * Uses XMLHttpRequest rather than fetch/axios on purpose. RN 0.83's `fetch` is XHR-backed and has
- * no `response.body`, so a streaming-reader byte cap always reads an empty body; and aborting an
- * axios request discards the bytes already received, so a page larger than the cap yields nothing
- * even though its og tags sit in the first few KB. Raw XHR gives all three guards their natural
- * home: header-time checks before any body arrives, a byte cap that keeps what it already read,
- * and a native timeout.
- *
- * Attaching progress/readystatechange listeners is also what makes RN stream text incrementally
- * into `responseText`. If that ever stops holding, the cap branch snapshots an empty string and
- * oversized pages simply fail — pages under the cap are unaffected.
- */
 export const fetchHtml = (url: string): Promise<FetchedPage | null> =>
     new Promise(resolve => {
         const xhr = new XMLHttpRequest();
@@ -189,8 +131,6 @@ export const fetchHtml = (url: string): Promise<FetchedPage | null> =>
             }
         };
 
-        // `abort()` synchronously dispatches an `abort` event, so every caller below must settle
-        // BEFORE aborting — otherwise the abort handler's `null` wins the race.
         const finish = (result: FetchedPage | null) => {
             if (settled) return;
             settled = true;
@@ -198,18 +138,14 @@ export const fetchHtml = (url: string): Promise<FetchedPage | null> =>
             resolve(result);
         };
 
-        // `xhr.timeout` is honoured by RN's native networking; this is the backstop for a stalled
-        // native layer that would otherwise leave the promise pending forever.
         const timer = setTimeout(() => {
             finish(null);
             abort();
         }, UNFURL_TIMEOUT_MS + 500);
 
         xhr.addEventListener('readystatechange', () => {
-            if (xhr.readyState !== 2) return; // HEADERS_RECEIVED
+            if (xhr.readyState !== 2) return;
 
-            // A redirect chain may land on an internal host. Re-check before reading any body:
-            // intermediate hops can't be inspected, but the destination must not be internal.
             const landedUrl = xhr.responseURL || url;
             const landed = parseUrl(landedUrl);
             if (!landed || isPrivateHost(landed.hostname)) {
@@ -226,7 +162,6 @@ export const fetchHtml = (url: string): Promise<FetchedPage | null> =>
         });
 
         xhr.addEventListener('progress', event => {
-            // Snapshot first: abort() clears the internal response buffer.
             snapshot = xhr.responseText || snapshot;
             if (event.loaded >= UNFURL_MAX_BYTES) {
                 finish({ html: snapshot, landedUrl: xhr.responseURL || url });
@@ -249,11 +184,6 @@ export const fetchHtml = (url: string): Promise<FetchedPage | null> =>
         }
     });
 
-/**
- * Fetches and parses og: metadata on the webview's behalf — it can't read cross-origin pages.
- *
- * Stateless: results are cached on the web side (per session, in memory), not here.
- */
 export class UnfurlService implements IUnfurlService {
     constructor(private readonly logger: ILogService) {}
 

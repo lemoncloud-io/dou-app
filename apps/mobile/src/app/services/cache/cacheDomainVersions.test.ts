@@ -3,7 +3,6 @@ import { resetCacheDomainVersions, resolveCacheDomainVersions } from './cacheDom
 
 const mockGetSchemaVersion = jest.fn();
 
-// The provider getter is what opens SQLite; stub the whole module so these tests never touch it.
 jest.mock('../provider', () => ({
     provider: {
         get sqliteDatabase() {
@@ -25,14 +24,11 @@ describe('resolveCacheDomainVersions', () => {
     });
 
     it('drops the domains a partially migrated DB cannot hold', async () => {
-        // Migration 10 (invites) rolled back, so the DB sits at 10.
         mockGetSchemaVersion.mockResolvedValue(10);
 
         await expect(resolveCacheDomainVersions()).resolves.not.toHaveProperty('invite');
     });
 
-    // The handshake awaits this, so a failure must degrade to "no measurement" — the bridge host
-    // then reports the static declaration, i.e. exactly the pre-ADR-0053 payload.
     it('answers undefined instead of rejecting when the DB is unreachable', async () => {
         mockGetSchemaVersion.mockRejectedValue(new Error('database is locked'));
 
@@ -41,7 +37,7 @@ describe('resolveCacheDomainVersions', () => {
 
     it('answers undefined when the measurement outruns its timeout', async () => {
         jest.useFakeTimers();
-        mockGetSchemaVersion.mockReturnValue(new Promise(() => undefined)); // never settles
+        mockGetSchemaVersion.mockReturnValue(new Promise(() => undefined));
 
         const pending = resolveCacheDomainVersions();
         jest.advanceTimersByTime(3_000);
@@ -50,8 +46,6 @@ describe('resolveCacheDomainVersions', () => {
         jest.useRealTimers();
     });
 
-    // One handshake per web load, but a WebView reload runs another; the answer cannot change within
-    // a process, and re-measuring would re-open the DB on a path that must stay cheap.
     it('measures once and reuses the answer', async () => {
         mockGetSchemaVersion.mockResolvedValue(TARGET_VERSION);
 
@@ -62,9 +56,6 @@ describe('resolveCacheDomainVersions', () => {
         expect(second).toBe(first);
     });
 
-    // A failure is transient (a wedged first boot, a lock held by a migration), unlike a real
-    // report. Caching it would let one slow boot pin every later handshake to the static fallback
-    // for the rest of the process.
     it('retries after a failure instead of caching the non-answer', async () => {
         mockGetSchemaVersion.mockRejectedValueOnce(new Error('database is locked'));
         await expect(resolveCacheDomainVersions()).resolves.toBeUndefined();

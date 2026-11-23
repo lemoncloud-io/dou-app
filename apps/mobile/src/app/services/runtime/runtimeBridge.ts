@@ -7,7 +7,6 @@ import { provider } from '../provider';
 import { recordAnsweredSessionOwner } from './launchSessionOwner';
 import { nativeRuntimeHost } from './nativeRuntime';
 
-/** A body at or over this size is logged, so the large ones show up before anything hits the cap. */
 const LARGE_PAYLOAD = 256 * 1024;
 
 type RuntimeMessage = 'RuntimeHello' | 'RuntimeCall' | 'RuntimeSubscribe' | 'RuntimeUnsubscribe';
@@ -33,13 +32,6 @@ const reportPayload = ({ kind, name, size }: RuntimePayloadSample): void => {
     });
 };
 
-/**
- * The four runtime requests of one WebView's bridge, answered by a `RuntimeBridgeHost` over the app's
- * runtime. One per bridge, because a host keeps that page's subscriptions; the runtime itself is the
- * process's, started by the first hello (`nativeRuntimeHost.start`).
- *
- * This module loads the whole runtime, so it is required only on a launch the app's runtime owns.
- */
 export const createAppRuntimeBridge = (bridge: IAppBridgeHost) => {
     const host = createRuntimeBridgeHost({
         engine: () => nativeRuntimeHost.start(),
@@ -53,7 +45,6 @@ export const createAppRuntimeBridge = (bridge: IAppBridgeHost) => {
         handlers: {
             RuntimeHello: async (message: WebMessageData<'RuntimeHello'>) => {
                 const answer = await host.hello(message.data);
-                // What the page now runs on, for the statistics stamped with who holds the session.
                 if (!('failure' in answer)) {
                     recordAnsweredSessionOwner(answer.value.sessionOwner === 'native' ? 'native' : 'web');
                 }

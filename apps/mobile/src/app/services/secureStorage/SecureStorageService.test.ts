@@ -28,7 +28,6 @@ const stored = (values: Record<string, string>) =>
 
 const rejection = (code: string) => Object.assign(new Error(`keychain error ${code}`), { code });
 
-/** A promise whose resolution the test controls. */
 const deferred = <T>() => {
     let resolve!: (value: T) => void;
     const promise = new Promise<T>(res => {
@@ -120,7 +119,6 @@ describe('SecureStorageService', () => {
             const { service } = createService();
             service.start();
 
-            // The first StorageGet joins the start-up read; the next one reads again.
             await expect(service.get()).resolves.toEqual({ status: 'unavailable', reason: 'locked', values: {} });
             await expect(service.get()).resolves.toEqual({ status: 'available', values: { token: 'a' } });
             expect(keychain.getGenericPassword).toHaveBeenCalledTimes(2);
@@ -324,7 +322,6 @@ describe('SecureStorageService', () => {
 
             await expect(service.get()).resolves.toEqual({ status: 'unavailable', reason: 'error', values: {} });
             expect(service.keyCount()).toBeNull();
-            // Unavailable for the run: no later write is attempted either.
             await expect(service.save({ token: 'c' }, [])).resolves.toBe(false);
             expect(keychain.setGenericPassword).toHaveBeenCalledTimes(1);
         });

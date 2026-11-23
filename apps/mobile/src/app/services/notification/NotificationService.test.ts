@@ -5,8 +5,6 @@ import { Platform } from 'react-native';
 import { BadgeSyncBridge } from '../../bridge';
 import { foregroundAPNsCopy, NotificationService } from './NotificationService';
 
-// Mock every native import NotificationService pulls in at module load so the class can be
-// instantiated under jsdom.
 const mockPermissionCheck = jest.fn();
 const mockPermissionRequest = jest.fn();
 const mockMessagingRequest = jest.fn();
@@ -45,8 +43,6 @@ jest.mock('@react-native-community/push-notification-ios', () => ({
     },
 }));
 jest.mock('../../bridge', () => ({ BadgeSyncBridge: { setBase: jest.fn().mockResolvedValue(undefined) } }));
-// The real formatter (it only reads the locale tables); the utils entry point itself pulls in
-// react-native-device-info, which jest cannot load.
 let mockLanguage = 'ko';
 jest.mock('../../utils', () => ({
     t: (key: string) => key,
@@ -58,7 +54,6 @@ const notifeeSetBadge = notifee.setBadgeCount as jest.Mock;
 const setBaseMock = BadgeSyncBridge.setBase as jest.Mock;
 
 describe('NotificationService 뱃지 — 네이티브 base 동기화', () => {
-    // Minimal ILogService stand-in; only error() is touched on failure paths.
     const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
     let service: NotificationService;
 
@@ -99,8 +94,6 @@ describe('foregroundAPNsCopy', () => {
         expect(foregroundAPNsCopy(data, 'chat', '')).toEqual({ title: 'Raine', body: 'Sent 3 photos' });
     });
 
-    // Today's payload for an attachment-only message: the APNs alert body is empty and the text key
-    // has no args, so both the old and the naive reading would show nothing or "{0}".
     it('shows the fallback copy for a text key that arrived without its arg', () => {
         expect(foregroundAPNsCopy({ loc_key: 'push_chat_message_body' }, 'Raine', '').body).toBe('새 메시지');
     });
@@ -113,8 +106,6 @@ describe('foregroundAPNsCopy', () => {
         expect(foregroundAPNsCopy({ title_loc_key: 'push_chat_message_title' }, 'chat', 'x').title).toBe('chat');
     });
 
-    // The server sends silent pushes with the same loc keys and no alert; the web drops a push with
-    // neither title nor body, so building copy here would turn it into a banner.
     it('leaves a silent push without copy', () => {
         const data = {
             loc_key: 'push_chat_image_body',
@@ -211,7 +202,6 @@ describe('NotificationService permission prompt', () => {
 });
 
 describe('NotificationService cold-start capture', () => {
-    // Minimal ILogService stand-in; only error() is touched on failure paths.
     const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
     let service: NotificationService;
 

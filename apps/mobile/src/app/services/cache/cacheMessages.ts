@@ -3,26 +3,12 @@ import type { WebMessageData } from '@chatic/bridge-messages';
 import type { ILogService } from '../log';
 import type { ICacheCrudService, ICacheSearchService } from './types';
 
-/**
- * What the cache's messages are answered with. Getters, not the services themselves: the SQLite
- * database opens on the first cache message that reaches a service, off the boot's critical path.
- */
 export interface CacheMessageServices {
     crud(): ICacheCrudService;
     search(): ICacheSearchService;
     logger: ILogService;
 }
 
-/**
- * How the cache's messages are answered on this device — once, for every caller. The WebView's
- * handlers answer the page with these, and the runtime in this process reaches the same SQLite through
- * them too, so the two can never read or write the cache differently.
- *
- * A failed read or write is answered, not thrown: `success: true` with an empty result (`items: null`,
- * `id: null`, `success: false` in the payload). The web reads `null` as "fall back for this read
- * only", and learns a message is unsupported only from a missing handler (older app builds). Search is
- * the exception: its failure is `success: false`, which a bridge client turns into a rejection.
- */
 export const createCacheMessageHandlers = ({ crud, search, logger }: CacheMessageServices) => ({
     FetchAllCacheData: async (message: WebMessageData<'FetchAllCacheData'>) => {
         const data = message.data;
@@ -275,7 +261,6 @@ export const createCacheMessageHandlers = ({ crud, search, logger }: CacheMessag
             return {
                 type: 'OnSearchGlobalCacheData' as const,
                 success: false,
-                // `message` exactly as the WebView handler always sent it: a thrown value's own `message`.
                 error: { code: 'SEARCH_ERROR', message: (e as { message?: string }).message },
             };
         }
@@ -284,5 +269,4 @@ export const createCacheMessageHandlers = ({ crud, search, logger }: CacheMessag
 
 export type CacheMessageHandlers = ReturnType<typeof createCacheMessageHandlers>;
 
-/** The messages the cache answers — every one a page's cache adapters and global search send. */
 export type CacheMessageType = keyof CacheMessageHandlers;

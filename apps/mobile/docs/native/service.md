@@ -69,6 +69,15 @@ the identical reason — it runs during `MainScreen` render, before the WebView 
 reads through. Outside the runtime's declaration (`src/config/mobile.ts`) this app never imports
 `@chatic/config` — elsewhere the library name appears only in comments.
 
+`ConfigKvService` does not validate what it stores, and does not need to: every key it touches carries
+the `config:` prefix, on the same MMKV instance the preference service uses. The prefix keeps a config
+key from colliding with another service's key and lets `getAll()` answer just the config bag. It also
+means a write can never land on `debugSettings`, the persisted key whose `webviewBaseUrlOverride`
+decides where the WebView loads from on the next launch. The registry exposes only a read-only
+`env.webviewBaseUrl`, and everything else it exposes is a display or behaviour setting, so a corrupted
+value degrades what it controls, not what the WebView may load. Keep the prefix, and do not add a
+writable key for the web address on the assumption that nothing can reach the override.
+
 ## Usage
 
 ### Adding a service

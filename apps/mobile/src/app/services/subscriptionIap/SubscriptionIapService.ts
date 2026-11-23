@@ -23,19 +23,11 @@ export class SubscriptionIapService implements ISubscriptionIapService {
         try {
             return await initConnection();
         } catch (error) {
-            // A failed store connection kills every later purchase, and it used to be a bare
-            // rethrow: the user saw "payment failed" while the reason — the connection never
-            // opened — existed nowhere (ADR-0099).
             this.logService.error('IAP', 'Store connection failed', error as Error);
             throw error;
         }
     }
 
-    /**
-     * Callers log their own reason for fetching (restore on launch, post-purchase
-     * refresh, replacement lookup) — logging it here too would print the same
-     * generic line for three unrelated events.
-     */
     public async getAvailablePurchases(): Promise<Purchase[]> {
         try {
             return await getAvailablePurchases();
@@ -56,7 +48,6 @@ export class SubscriptionIapService implements ISubscriptionIapService {
                 const offers = product.subscriptionOffers ?? [];
                 const uniqueBasePlans = new Map();
 
-                // Loop over all offers, filling in pricing per plan
                 offers.forEach(offer => {
                     const basePlanId = offer.basePlanIdAndroid;
                     const phases = offer.pricingPhasesAndroid?.pricingPhaseList ?? [];
@@ -113,13 +104,8 @@ export class SubscriptionIapService implements ISubscriptionIapService {
             });
         }
 
-        // Typed rather than `any`: the old `any` let this read `localizedPrice`, a field iOS products
-        // no longer carry, and the `undefined` it returned overwrote the store's own `displayPrice`.
-        // The web shows only the store's price, so every iOS plan read as "store unavailable".
         return (products as ProductSubscriptionIOS[]).map(product => {
             const num = product.subscriptionPeriodNumberIOS;
-            // StoreKit reports `empty` for a product with no period; passing it on would read as a
-            // 'P1E' billing period.
             const rawUnit = product.subscriptionPeriodUnitIOS;
             const unit = rawUnit && rawUnit !== 'empty' ? rawUnit : undefined;
             const billingPeriod = num && unit ? `P${num}${unit.charAt(0).toUpperCase()}` : undefined;
@@ -156,14 +142,11 @@ export class SubscriptionIapService implements ISubscriptionIapService {
                   }
                 : undefined;
 
-        // On Android, and only when all the data needed for an upgrade/downgrade is present
         if (Platform.OS === 'android' && oldPlanId && newPlanId && googleRequest) {
-            // Find the previous purchase using the sku
             this.logService.debug('IAP', 'Looking up existing purchase for plan change');
             const availablePurchases = await this.getAvailablePurchases();
             const oldPurchase = availablePurchases.find(p => p.productId === id);
 
-            // If a previous purchase exists, add the upgrade/downgrade-related parameters
             if (oldPurchase) {
                 googleRequest.subscriptionProductReplacementParams = {
                     oldPurchaseToken: oldPurchase.purchaseToken,
@@ -181,9 +164,6 @@ export class SubscriptionIapService implements ISubscriptionIapService {
                 },
             });
         } catch (error) {
-            // The store's own refusal. The web records that a purchase failed, but only this layer
-            // ever sees WHY — the catalog puts this entry in the service, not the bridge handler,
-            // for that reason.
             this.logService.error('IAP', `Store refused purchase: id=${id}`, error as Error);
             throw error;
         }
@@ -193,8 +173,6 @@ export class SubscriptionIapService implements ISubscriptionIapService {
         try {
             await finishTransaction({ purchase, isConsumable: false });
         } catch (error) {
-            // An unfinished transaction is re-presented by the store, which is how a purchase that
-            // already validated turns into a second charge.
             this.logService.error('IAP', `Finish transaction failed: id=${purchase.productId}`, error as Error);
             throw error;
         }

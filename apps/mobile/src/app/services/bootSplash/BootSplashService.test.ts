@@ -21,8 +21,6 @@ describe('BootSplashService', () => {
         expect(listener).not.toHaveBeenCalled();
     });
 
-    // An older web build never sends FirstScreenReady; waiting for it would keep the splash up to the
-    // native safety cap on every launch.
     it('reveals on the handshake of a web build that does not declare it', () => {
         const { service, splash, listener } = setup();
 
@@ -49,8 +47,6 @@ describe('BootSplashService', () => {
         expect(listener).toHaveBeenCalledWith('load-error');
     });
 
-    // An Android warm start re-arms the native splash in onCreate while this JS runtime lives on, so a
-    // remembered "already revealed" would leave that second splash up until its cap.
     it('asks the native side again on every reveal', () => {
         const { service, splash } = setup();
 
@@ -71,8 +67,6 @@ describe('BootSplashService', () => {
         expect(listener).not.toHaveBeenCalled();
     });
 
-    // The notification permission prompt waits on this: raised under the held splash, Android plays
-    // its activity transition onto an undrawn window (black, then the splash again).
     describe('whenRevealed', () => {
         afterEach(() => jest.useRealTimers());
 

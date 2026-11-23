@@ -6,20 +6,6 @@ import { NATIVE_RUN_ID } from '../../log/native/nativeLogContext';
 import type { IFirebaseCrashlyticsService } from './types';
 import { getUserAgent } from '../../../utils';
 
-/**
- * Crashlytics attributes are a flat string map, so an entry's `data` cannot be
- * spread in as-is: nested values arrive as `[object Object]` and the keys are
- * whatever the call site happened to use.
- *
- * More importantly this is a sink OUTSIDE the upload path, so it has to redact
- * for itself. `dispatch` keeps the raw value in the buffer and masking happens
- * inside `safeStringify`, which only the wire mapper calls — anything that
- * reads `entry.data` directly is reading unmasked input.
- *
- * Masked `strict`: bare placeholders only. The log pipeline may keep a token's
- * fingerprint or a number's last four digits for its own readers; that is not
- * a widening this pipeline gets to make for Firebase.
- */
 const STRICT = { strict: true } as const;
 
 const toCrashlyticsAttributes = (data: unknown): Record<string, string> => {
@@ -41,38 +27,15 @@ export class FirebaseCrashlyticsService implements IFirebaseCrashlyticsService {
     init() {
         void crashlytics().setCrashlyticsCollectionEnabled(true);
 
-        // The run id is the only thing tying a Crashlytics crash back to this
-        // launch's uploaded logs. A native crash kills the process before
-        // anything can report, so the stack exists only in the Crashlytics
-        // console while the surrounding logs exist only in the collector —
-        // without a shared axis the two halves cannot be put back together.
-        // Set in init(), not setupUser(), so a crash in the boot window (while
-        // setupUser is still awaiting DeviceInfo) is already tagged.
         void crashlytics().setAttribute('run_id', NATIVE_RUN_ID);
 
         this.unsubscribeLog = this.logger.subscribe(entry => {
             const { level, tag, message, data, error } = entry;
 
-            // `debug` is a console-only level: its whole purpose is to be read
-            // live in a terminal, which every build except `prodRelease` does.
-            // It must not become a breadcrumb.
-            //
-            // Crashlytics keeps roughly 64KB of custom log per session and drops
-            // the OLDEST lines when that fills. `withNetworkLog` emits one debug
-            // per HTTP request, so letting them in means a busy session spends
-            // its whole budget on request noise and evicts the `info`/`warn`
-            // lines immediately before the crash — the only ones worth having
-            // there. Filtering here is what makes the remaining breadcrumbs
-            // legible, and it matches the upload queue, which drops `debug` at
-            // its own door (principle 13). One level policy, both sinks.
             if (level === 'debug') return;
 
-            // Statistics (performance traces, usage events) share the hub with logs but are not
-            // breadcrumbs: they would spend the same 64KB budget and push out the lines before a crash.
             if (isTelemetryEntry(entry)) return;
 
-            // Occurrence time from the entry, so bridged web logs keep their
-            // original timeline in the Crashlytics breadcrumb (ADR-0097).
             const timestamp = new Date(entry.timestamp).toISOString();
             const dataString = data ? ` | Data: ${safeStringify(data, STRICT) ?? ''}` : '';
             const logLine = `${timestamp} [${level.toUpperCase()}] [${tag}] ${message}${dataString}`;

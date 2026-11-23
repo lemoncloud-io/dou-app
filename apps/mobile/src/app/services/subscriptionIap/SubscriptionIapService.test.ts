@@ -2,8 +2,6 @@ import { fetchProducts, finishTransaction, initConnection, requestPurchase } fro
 
 import { SubscriptionIapService } from './SubscriptionIapService';
 
-// Mock every native import the service pulls in at module load so it can be instantiated under
-// jsdom. Only the store-failure paths are exercised here (ADR-0099).
 jest.mock('react-native', () => ({ Platform: { OS: 'ios' }, Linking: { openURL: jest.fn() } }));
 jest.mock('react-native-iap', () => ({
     initConnection: jest.fn(),
@@ -28,7 +26,6 @@ describe('SubscriptionIapService — 스토어 실패 기록', () => {
         service = new SubscriptionIapService(logger);
     });
 
-    // A connection failure kills every purchase after it, but until now it was a bare rethrow, so the cause was logged nowhere.
     it('스토어 연결 실패를 error로 남기고 다시 던진다', async () => {
         initMock.mockRejectedValue(new Error('no store'));
 
@@ -47,7 +44,6 @@ describe('SubscriptionIapService — 스토어 실패 기록', () => {
         expect((logger as unknown as { error: jest.Mock }).error).not.toHaveBeenCalled();
     });
 
-    // Only this layer sees why the store declined — that's why this entry lives in the service, not the catalog/handler.
     it('스토어가 구매를 거절하면 상품 id와 함께 error로 남긴다', async () => {
         purchaseMock.mockRejectedValue(new Error('declined'));
 
@@ -59,7 +55,6 @@ describe('SubscriptionIapService — 스토어 실패 기록', () => {
         );
     });
 
-    // A finish failure leads the store to re-present the transaction, causing a re-charge.
     it('finish 실패를 error로 남기고 다시 던진다', async () => {
         finishMock.mockRejectedValue(new Error('finish boom'));
 
@@ -86,7 +81,6 @@ describe('SubscriptionIapService — iOS catalog mapping', () => {
     const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
     let service: SubscriptionIapService;
 
-    // The fields StoreKit actually returns for an auto-renewable subscription (react-native-iap v14).
     const iosProduct = {
         id: 'sku_pro',
         title: 'DoU Pro (1 Place)',
@@ -105,7 +99,6 @@ describe('SubscriptionIapService — iOS catalog mapping', () => {
         service = new SubscriptionIapService(logger);
     });
 
-    // The web refuses to sell a plan with no store price, so losing this field blocks every iOS purchase.
     it('keeps the store displayPrice on an iOS product', async () => {
         fetchProductsMock.mockResolvedValue([iosProduct]);
 

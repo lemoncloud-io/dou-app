@@ -1,6 +1,5 @@
 import { nativeRuntimeOffer } from './runtimeOffer';
 
-// Only the contract list is read here; the package's own import graph (sockets, native modules) is not.
 jest.mock('@chatic/runtime-mobile/polyfills', () => ({}));
 jest.mock('@chatic/runtime-mobile', () => ({ RUNTIME_CONTRACTS: [1, 2] }));
 

@@ -36,8 +36,6 @@ describe('ConfigKvService', () => {
             });
 
             expect(service.getAll()).toEqual({ 'ui.theme': '"dark"', 'debug.mockService.mode': '"off"' });
-            // Only the two config-prefixed keys are ever read back — the unrelated preference key
-            // is filtered out before a single getSync call, not after.
             expect(storage.getSync).toHaveBeenCalledTimes(2);
         });
 

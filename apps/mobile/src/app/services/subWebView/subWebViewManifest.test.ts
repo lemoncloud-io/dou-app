@@ -82,7 +82,6 @@ describe('parseSubWebViewManifest', () => {
         });
     });
 
-    // The bar is opt-in: a manifest that says nothing about display gets none.
     it('shows no bar unless the manifest asks for one', () => {
         const display = (fields: object) =>
             parseSubWebViewManifest(JSON.stringify({ manifestVersion: 1, ...fields }))?.display;
@@ -94,7 +93,6 @@ describe('parseSubWebViewManifest', () => {
         expect(display({ display: 'edgeToEdge' })).toBe('clean');
     });
 
-    // A page deployed before the rename keeps the look it asked for.
     it('reads the earlier display names as the displays they became', () => {
         const display = (fields: object) =>
             parseSubWebViewManifest(JSON.stringify({ manifestVersion: 1, ...fields }))?.display;
@@ -124,7 +122,6 @@ describe('fetchSubWebViewManifest', () => {
         expect(transient).toBe(false);
     });
 
-    // The origin's own answer is authoritative; a failure to reach it says nothing about the manifest.
     it.each([
         ['a missing file', respond('', { ok: false, status: 404 }), false],
         ['a redirect off the origin', respond('{"manifestVersion":1}', { url: 'https://evil.example/m.json' }), false],
@@ -167,7 +164,6 @@ describe('fetchSubWebViewManifest', () => {
 
 describe('createSubWebViewManifestStore', () => {
     const body = (permissions: string[]) => JSON.stringify({ manifestVersion: 1, permissions });
-    /** Lets a refresh started behind an answer settle. */
     const settle = () => new Promise(resolve => setTimeout(resolve, 0));
     const serve = (text: string) => async () => ({ ok: true, status: 200, url: MANIFEST_URL, text: async () => text });
     const offline = async () => {
@@ -190,7 +186,6 @@ describe('createSubWebViewManifestStore', () => {
         const third = await store.get(ORIGIN);
 
         expect(first.permissions).toEqual(new Set(['share']));
-        // The second open used the first manifest; the refresh it started is what the third gets.
         expect(second.permissions).toEqual(new Set(['share']));
         expect(third.permissions).toEqual(new Set());
     });
@@ -204,7 +199,6 @@ describe('createSubWebViewManifestStore', () => {
         expect(fetch).toHaveBeenCalledTimes(1);
     });
 
-    // Opened once offline, a page keeps what it was granted for the rest of the run.
     it('keeps the manifest it read when a later refresh cannot reach the origin', async () => {
         const fetch = respond(body(['share']));
         const store = createSubWebViewManifestStore({ fetch, logger: logger() });

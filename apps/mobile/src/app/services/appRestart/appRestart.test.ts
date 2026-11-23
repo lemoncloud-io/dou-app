@@ -34,13 +34,11 @@ describe('parseRestartNote', () => {
             { reason: 'session-ended', homeSearch: 'logout=1&reason=logout' },
         ],
         [stored({ reason: 'session-ended', homeSearch: 3 }), { reason: 'session-ended' }],
-        // Written by a build without the time, or one that cannot say when.
         ['{"reason":"session-ended"}', null],
     ])('reads %p as %p', (raw, note) => {
         expect(parseRestartNote(raw, NOW)).toEqual(note);
     });
 
-    // The process died between the note and the reload: the launch that finds it is the OS's.
     it('drops a note older than its lifetime, or one from the future', () => {
         expect(parseRestartNote(stored({ reason: 'session-ended' }, NOW - RESTART_NOTE_TTL_MS), NOW)).toEqual({
             reason: 'session-ended',
@@ -60,9 +58,7 @@ describe('createAppRestart', () => {
         const restart = build(file);
 
         expect(restart.note()).toEqual({ reason: 'session-ended', homeSearch: 'logout=1' });
-        // Removed from the file, so the next ordinary launch does not read it as a restart...
         expect(file.entries.has(RESTART_NOTE_KEY)).toBe(false);
-        // ...while every reader of this context still hears the same answer.
         expect(restart.note()).toEqual({ reason: 'session-ended', homeSearch: 'logout=1' });
     });
 
@@ -97,7 +93,6 @@ describe('createAppRestart', () => {
         expect(restart.note()).toBeNull();
     });
 
-    // A second reload would start a third context, with the note already taken by the second.
     it('restarts once when asked twice, keeping the first note', async () => {
         const file = fakeFile();
         const reload = jest.fn().mockResolvedValue(true);

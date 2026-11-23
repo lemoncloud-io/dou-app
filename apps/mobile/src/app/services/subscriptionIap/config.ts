@@ -23,28 +23,20 @@ export const itemSkus: string[] =
         android: ANDROID_SKU_LIST,
     }) ?? [];
 
-/**
- * Computes the tier of an Android product.
- * @param sku - the Android product SKU code to look up the tier for
- * @returns a rank score starting from 1 (returns 0 if not found in the list)
- */
 export const getSkuRank = (sku: string): number => {
     if (Platform.OS !== 'android') return 0;
     const index = ANDROID_PLAN_LIST.indexOf(sku);
     return index !== -1 ? index + 1 : 0;
 };
 
-/**
- * Computes the upgrade/downgrade mode
- */
 export const getReplacementMode = (oldSku: string, newSku: string): SubscriptionReplacementModeAndroid => {
     const oldRank = getSkuRank(oldSku);
     const newRank = getSkuRank(newSku);
 
     if (newRank > oldRank) {
-        return 'with-time-proration'; // upgrade
+        return 'with-time-proration';
     } else if (newRank < oldRank) {
-        return 'deferred'; // downgrade
+        return 'deferred';
     }
     return 'with-time-proration';
 };

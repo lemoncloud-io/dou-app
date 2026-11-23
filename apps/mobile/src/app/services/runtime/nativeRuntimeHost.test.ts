@@ -86,7 +86,6 @@ describe('createNativeRuntimeHost', () => {
         expect(deps.logService.info).toHaveBeenCalledWith('session.native_runtime_declined', expect.any(String), {
             secretStorage: 'empty',
         });
-        // Once per process: a page that says hello again hears the same answer without another boot.
         await expect(host.start()).resolves.toBeNull();
         expect(deps.boot).toHaveBeenCalledTimes(1);
     });
@@ -127,7 +126,6 @@ describe('createNativeRuntimeHost', () => {
             expect(host.holdsSession()).toBe(false);
 
             const started = host.start();
-            // A page loaded while the boot runs must not run its own session beside it.
             expect(host.holdsSession()).toBe(true);
             finishBoot(booted());
             await started;
