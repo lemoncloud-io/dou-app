@@ -29,7 +29,6 @@ function parseNameStatus(out) {
     return status;
 }
 
-/** Changed files between two commits, with lazy before/after content read from git objects. */
 function changedFiles({ base, head, cwd }) {
     const numstat = parseNumstat(git(['diff', '--numstat', '-z', '--no-renames', base, head], cwd));
     const status = parseNameStatus(git(['diff', '--name-status', '-z', '--no-renames', base, head], cwd));
@@ -47,20 +46,8 @@ function changedFiles({ base, head, cwd }) {
     });
 }
 
-function commitsBetween({ base, head, cwd }) {
-    const out = git(['log', '--format=%P%x00%s%x1e', `${base}..${head}`], cwd);
-    return out
-        .split('\x1e')
-        .map(s => s.replace(/^\n/, ''))
-        .filter(Boolean)
-        .map(rec => {
-            const [parents, subject] = rec.split('\0');
-            return { subject, parents: parents.trim().split(/\s+/).filter(Boolean).length };
-        });
-}
-
 function mergeBase({ base, head, cwd }) {
     return git(['merge-base', base, head], cwd).trim();
 }
 
-module.exports = { changedFiles, commitsBetween, mergeBase, parseNumstat, parseNameStatus, git };
+module.exports = { changedFiles, mergeBase, parseNumstat, parseNameStatus, git };

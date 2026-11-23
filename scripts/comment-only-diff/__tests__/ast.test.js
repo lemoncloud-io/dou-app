@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { proveCommentRemoval, countTests, comments, parse, cleanJsxText } = require('../ast');
+const { proveCommentRemoval, comments, parse, cleanJsxText } = require('../ast');
 
 const prove = (before, after, name = 'a.ts') => proveCommentRemoval(name, before, after);
 
@@ -84,22 +84,4 @@ test('cleanJsxText trims indentation and drops blank lines', () => {
     assert.equal(cleanJsxText('\n    Hello\n    World\n  '), 'Hello World');
     assert.equal(cleanJsxText('\n   \n'), '');
     assert.equal(cleanJsxText(' a '), ' a ');
-});
-
-test('countTests counts cases and focus or skip markers', () => {
-    const src = `describe('x', () => {
-        it('a', () => {});
-        test('b', () => {});
-        it.each([1, 2])('c %s', () => {});
-        test.only('d', () => {});
-        xit('e', () => {});
-        test.describe.skip('f', () => {});
-        test.step('not a case', async () => {});
-    });`;
-    assert.deepEqual(countTests('a.test.ts', src), { cases: 3, markers: 3, parses: true });
-});
-
-test('focus and skip markers before .each or as skipIf are counted', () => {
-    const src = `it.only.each([1])('a', f);\ndescribe.only.each([1])('b', f);\ntest.concurrent.skip.each([1])('c', f);\nit.skipIf(x)('d', f);\n`;
-    assert.equal(countTests('a.test.ts', src).markers, 4);
 });

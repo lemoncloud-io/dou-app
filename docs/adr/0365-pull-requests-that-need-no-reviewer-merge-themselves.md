@@ -1,8 +1,35 @@
 # ADR-0365: Pull requests that need no reviewer merge themselves
 
-> Status: Accepted · Decided: 2026-11-23 · Implemented: `feat/auto-merge-eligibility`
-> · Scope: `scripts/auto-merge/`, `.github/workflows/auto-merge.yml`, `.github/workflows/revert-ratchet.yml`
-> · The rules are documented in [scripts/auto-merge](../../scripts/auto-merge/README.md)
+> Status: Withdrawn on 2026-11-23 · Decided: 2026-11-23 · Implemented: `feat/auto-merge-eligibility`,
+> removed by `chore/drop-auto-merge`
+> · Scope (as built): `scripts/auto-merge/`, `.github/workflows/auto-merge.yml`,
+> `.github/workflows/revert-ratchet.yml`
+> · What survives is documented in [scripts/comment-only-diff](../../scripts/comment-only-diff/README.md)
+> and [scripts/revert-ratchet](../../scripts/revert-ratchet/README.md)
+
+## Withdrawn
+
+Auto-merge needs three repository settings this decision left to an admin: allowing auto-merge, a
+`develop` ruleset that requires the verify and e2e checks, and a bot token for the merge. Nobody
+driving this work holds admin rights on the repository, so auto-merge could never have been switched
+on. Meanwhile the observe-mode workflow labelled and commented on every pull request, teammates'
+included, for a step that could not follow. The classifier (`scripts/auto-merge/`) and
+`.github/workflows/auto-merge.yml` were removed. The `auto-merge:eligible` label was taken off the
+pull requests that carried it; the bot comments were left as a record.
+
+Two parts survive, because neither depends on auto-merge:
+
+- **The comment-only proof** (the A1 check below) moved to `scripts/comment-only-diff/`, with a CLI a
+  comment-cleanup pull request runs as its evidence for the reviewer.
+- **`revert-ratchet.yml`** still opens a `ratchet` issue for every merged revert. The issue now
+  proposes a candidate rule and asks for an adversarial check before a person approves it. Without
+  auto-merge there is no revert rate to count, so the issue no longer says whether the original was
+  auto-merged.
+
+If an admin later turns on the settings, this record and the backtest below are the starting point
+for a new decision. This one does not revive.
+
+The rest of this record is the decision as it was accepted.
 
 ## Context
 

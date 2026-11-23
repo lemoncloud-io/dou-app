@@ -1,23 +1,52 @@
 name: revert ratchet
 
 # A merged revert means a mistake reached develop. This opens an issue, labelled `ratchet`, that
-# proposes a candidate rule or test, asks for an adversarial check (counterexamples where the rule
-# would fire on a correct change) before a person approves it, and says whether the reverted pull
-# request had been auto-merged — the count auto-merge's revert rate is read from.
+# proposes a candidate rule or test and asks for an adversarial check (counterexamples where the
+# rule would fire on a correct change) before a person approves it.
 #
 # `pull_request_target` for the issue-writing token; nothing from the pull request's branch runs.
 # The title and body reach the script through the event file, never through shell interpolation.
+#
+# The `test` job runs the tests of this script and of `scripts/comment-only-diff`, which no other
+# CI step covers, on a plain `pull_request` with a read-only token.
 
 on:
     pull_request_target:
         types: [closed]
         branches: [develop]
+    pull_request:
+        paths:
+            - 'scripts/revert-ratchet/**'
+            - 'scripts/comment-only-diff/**'
+            - '.github/workflows/revert-ratchet.yml'
 
 permissions: {}
 
 jobs:
+    test:
+        if: github.event_name == 'pull_request'
+        name: revert-ratchet and comment-only-diff tests
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+            - name: Install TypeScript
+              run: npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/ts" typescript@5.9.3
+            - name: Test
+              env:
+                  NODE_PATH: ${{ runner.temp }}/ts/node_modules
+              run: node --test 'scripts/revert-ratchet/__tests__/*.test.js' 'scripts/comment-only-diff/__tests__/*.test.js'
+
     ratchet:
-        if: github.event.pull_request.merged && startsWith(github.event.pull_request.title, 'Revert')
+        if: >-
+            github.event_name == 'pull_request_target'
+            && github.event.pull_request.merged && startsWith(github.event.pull_request.title, 'Revert')
         name: open a ratchet issue
         runs-on: ubuntu-latest
         permissions:
@@ -33,7 +62,7 @@ jobs:
               with:
                   ref: develop
                   persist-credentials: false
-                  sparse-checkout: scripts/auto-merge
+                  sparse-checkout: scripts/revert-ratchet
 
             - uses: actions/setup-node@v4
               with:
@@ -45,7 +74,7 @@ jobs:
                   gh api --paginate "repos/$REPO/pulls/$NUMBER/commits" --jq '[.[].commit.message]' | jq -s 'add' > "$RUNNER_TEMP/messages.json"
                   jq --slurpfile m "$RUNNER_TEMP/messages.json" '{title: .pull_request.title, body: (.pull_request.body // ""), commitMessages: $m[0]}' \
                       "$GITHUB_EVENT_PATH" > "$RUNNER_TEMP/revert.json"
-                  node scripts/auto-merge/revert.js targets "$RUNNER_TEMP/revert.json" > "$RUNNER_TEMP/targets.json"
+                  node scripts/revert-ratchet/revert.js targets "$RUNNER_TEMP/revert.json" > "$RUNNER_TEMP/targets.json"
                   original=$(jq -r '.numbers[0] // empty' "$RUNNER_TEMP/targets.json")
                   if [ -z "$original" ]; then
                       for sha in $(jq -r '.shas[]' "$RUNNER_TEMP/targets.json"); do
@@ -61,8 +90,8 @@ jobs:
                       fi
                   fi
                   if [ -n "$original" ]; then
-                      gh pr view "$original" -R "$REPO" --json number,title,labels,files \
-                          | jq '{number, title, labels: [.labels[].name], files: [.files[].path]}' > "$RUNNER_TEMP/original.json"
+                      gh pr view "$original" -R "$REPO" --json number,title,files \
+                          | jq '{number, title, files: [.files[].path]}' > "$RUNNER_TEMP/original.json"
                   else
                       echo 'null' > "$RUNNER_TEMP/original.json"
                   fi
@@ -80,5 +109,5 @@ jobs:
                       echo "A ratchet issue for #$NUMBER already exists."
                       exit 0
                   fi
-                  node scripts/auto-merge/revert.js issue "$RUNNER_TEMP/issue.json" > "$RUNNER_TEMP/issue.md"
+                  node scripts/revert-ratchet/revert.js issue "$RUNNER_TEMP/issue.json" > "$RUNNER_TEMP/issue.md"
                   gh issue create -R "$REPO" --title "$title" --label ratchet --body-file "$RUNNER_TEMP/issue.md"
