@@ -11,7 +11,6 @@ jest.mock('./session/relayCredentialGuard', () => ({ RelayCredentialGuard: jest.
 jest.mock('./session/cloudCredentialGuard', () => ({ CloudCredentialGuard: jest.fn() }));
 jest.mock('./push/pushRegistration', () => ({ PushRegistration: jest.fn() }));
 jest.mock('./sync/primeChatRoom', () => ({ primeChatRoom: (...args: unknown[]) => mockPrime(...(args as [])) }));
-// The core engine makes its session view when it is defined, so the mock's own value is read back below.
 jest.mock('./session/sessionView', () => ({ createCoreSessionView: jest.fn(() => ({ id: 'session-view' })) }));
 
 const { createSessionController } = jest.requireMock('./session/sessionController');
@@ -20,7 +19,6 @@ const { RelayCredentialGuard } = jest.requireMock('./session/relayCredentialGuar
 const { CloudCredentialGuard } = jest.requireMock('./session/cloudCredentialGuard');
 const { PushRegistration } = jest.requireMock('./push/pushRegistration');
 const { createCoreSessionView } = jest.requireMock('./session/sessionView');
-// Read before any `clearAllMocks`: the view was made once, when the engine module loaded.
 const madeViews = [...createCoreSessionView.mock.results];
 
 beforeEach(() => jest.clearAllMocks());

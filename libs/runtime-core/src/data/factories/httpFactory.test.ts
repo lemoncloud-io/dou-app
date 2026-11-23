@@ -1,11 +1,3 @@
-/**
- * `createHttpDataSources` is `socketFactory`'s counterpart for HTTP — same non-negotiable:
- * the gateway bundle is never handed back out (ADR-0036), only the data sources built on it. This
- * mirrors `socketFactory.test.ts`'s framing (driven through the data sources, not the gateways).
- *
- * Building and caching the gateways is the transport's `http/gateways.ts`'s job now (and the
- * HttpManager itself is its `http/factory.ts`'s) — those have their own tests. What is left here is the assembly.
- */
 import { createHttpDataSources } from './httpFactory';
 
 const oauthGateway = jest.fn(() => ({ tag: 'oauth-gateway' }));
@@ -27,8 +19,6 @@ jest.mock('@chatic/transport', () => ({
     pairingGateway: () => pairingGateway(),
 }));
 
-// Named after the alias `httpFactory` imports it under, so it does not collide with the
-// same-named factory under test.
 const createDataHttpDataSources = jest.fn(({ gateways }: { gateways: unknown }) => ({ gateways }));
 jest.mock('@chatic/data', () => ({
     ...jest.requireActual('@chatic/data'),
@@ -61,9 +51,6 @@ describe('createHttpDataSources', () => {
         expect(result).not.toHaveProperty('gateways');
     });
 
-    // This file used to build its own bundle while data/hooks and session/auth each cached their own
-    // too, so two or three copies of the cloud/user gateways existed at once. Now there's one shared
-    // instance.
     it('공유 인스턴스를 쓴다 — 호출마다 새로 만들지 않는다', () => {
         createHttpDataSources();
         createHttpDataSources();

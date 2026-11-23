@@ -1,14 +1,3 @@
-/**
- * A send addressed to cloud A survives a switch to cloud B, end to end through the real
- * `SocketManager`, the real `SocketBinder`, the real background-slot selection and the real hold.
- * Only the SDK client factory, the session stores and the repository graph are fake: the graph's
- * `sendChat` is reduced to the one thing that matters here — a `chat.send` on the scoped client of
- * the cloud it was built for.
- *
- * The cloud is deliberately NOT in the joined list, so nothing but the hold keeps its slot after the
- * switch. The control case shows the same switch tearing the socket down under a send made without
- * one.
- */
 import { transportPlatform } from '@chatic/transport/platform';
 import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
@@ -60,7 +49,6 @@ jest.mock('../data/runtime', () => ({
 const mockedCreate = createClientSocketV2 as jest.MockedFunction<typeof createClientSocketV2>;
 const mockedCommitted = getCommittedCloudId as jest.MockedFunction<typeof getCommittedCloudId>;
 
-/** One ack per client, resolved by the test, so the switch can land while it is outstanding. */
 const acks = new Map<ClientSocketV2, (value: unknown) => void>();
 
 const makeClient = (): ClientSocketV2 => {
@@ -87,7 +75,6 @@ const config = (cid: string, wssType: 'relay' | 'cloud' = 'cloud'): SocketBindin
     cid,
 });
 
-/** The slots as `deriveSocketSlots` derives them: relay, the committed cloud, then the selection. */
 const deriveSlots = (): RuntimeSocketSlots => {
     const committed = mockedCommitted();
     return {
@@ -97,7 +84,6 @@ const deriveSlots = (): RuntimeSocketSlots => {
     };
 };
 
-// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
 beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('a send addressed to its cloud, across a switch', () => {
@@ -117,7 +103,6 @@ describe('a send addressed to its cloud, across a switch', () => {
         mockedCommitted.mockReturnValue('cloud-a');
     });
 
-    /** A binder that has applied the derived slots; the returned function derives and applies again. */
     const startBinder = () => {
         const binder = new SocketBinder(manager);
         binder.apply(deriveSlots(), delegate);
@@ -132,7 +117,6 @@ describe('a send addressed to its cloud, across a switch', () => {
         mockedCommitted.mockReturnValue('cloud-b');
         reconcile();
 
-        // B is on screen; A is still bound, only because of the hold.
         expect(manager.getClient()).toBe(manager.getClient(slotKeyOf('cloud-b')));
         expect(manager.getSlotKeys()).toContain('cloud-a');
         expect(clientA.request).toHaveBeenCalledWith('chat.send', { channelId: 'ch-1', content: 'hello' }, undefined);
@@ -141,7 +125,6 @@ describe('a send addressed to its cloud, across a switch', () => {
         acks.get(clientA)!({ id: 'ch-1:7' });
         await expect(sent).resolves.toEqual({ id: 'ch-1:7' });
 
-        // Settled: the hold is gone, and A — not joined — goes on the next reconcile.
         reconcile();
         expect(manager.getSlotKeys()).not.toContain('cloud-a');
         expect(clientA.destroy).toHaveBeenCalled();

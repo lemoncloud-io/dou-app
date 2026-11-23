@@ -23,7 +23,6 @@ const harness = (over: Partial<ChatOutboxOptions> = {}): Harness => {
     return { outbox, send, hasLanded, discard, sentIds: () => send.mock.calls.map(([e]) => e.id) };
 };
 
-/** Bring the outbox to the state it lives in on desktop: activated and on a verified socket. */
 const activate = async (outbox: ChatOutbox) => {
     outbox.start();
     outbox.setReady(CID, true);
@@ -105,8 +104,6 @@ describe('createChatOutbox', () => {
         const drainParked = new Promise<void>(resolve => {
             entered = resolve;
         });
-        // Hold the head's probe open so remove() can splice the queue while the drain is already
-        // holding that entry — the manual retry button firing mid-flight is exactly this shape.
         hasLanded.mockImplementationOnce(async () => {
             entered();
             await gate;
@@ -123,8 +120,6 @@ describe('createChatOutbox', () => {
         release();
         await outbox.flush();
 
-        // A positional shift would have dropped 'b' — the entry that slid into index 0 — and it
-        // would never have been sent by anyone.
         expect(sentIds()).toEqual(['a', 'b']);
         expect(outbox.pending()).toHaveLength(0);
     });
@@ -157,8 +152,6 @@ describe('createChatOutbox', () => {
 
     describe('a failed send', () => {
         it('retires the entry without a second attempt, and never discards the row', async () => {
-            // One attempt per ready transition is structural: sendChat mints a new optimistic row
-            // per call, so attempt 2 would strand attempt 1's failed row next to its own.
             const { outbox, send, discard, sentIds } = harness();
             send.mockRejectedValueOnce(new Error('boom'));
 
@@ -167,8 +160,6 @@ describe('createChatOutbox', () => {
 
             expect(sentIds()).toEqual(['a']);
             expect(outbox.pending()).toHaveLength(0);
-            // Retiring the queue entry must not delete the user's message — the row keeps its
-            // `isFailed` marking so the manual retry button stays authoritative.
             expect(discard).not.toHaveBeenCalled();
         });
 
@@ -186,8 +177,6 @@ describe('createChatOutbox', () => {
     });
 
     describe('connection rotation', () => {
-        // API Gateway connections live ~110min and rotate 10min early, so every long session
-        // reconnects and runs the ChatSyncPlan catch-up (lastNo -> channel.chatNo, cap 50).
         it('survives the reconnect with its queue intact', async () => {
             const { outbox, send } = harness();
             outbox.start();
@@ -204,9 +193,6 @@ describe('createChatOutbox', () => {
 
         it('does not re-send an entry the catch-up already pulled in (no double append)', async () => {
             const { outbox, send, hasLanded, discard } = harness();
-            // The original send reached the server but its ack was lost, so the row is marked
-            // failed locally while the message exists server-side. The reconnect catch-up pulls
-            // it into the cache; the landing probe sees it and the resend must be dropped.
             hasLanded.mockResolvedValue(true);
             outbox.start();
 

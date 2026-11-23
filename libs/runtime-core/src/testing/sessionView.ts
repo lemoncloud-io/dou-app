@@ -1,6 +1,5 @@
 import type { SessionSnapshot, SessionView } from '../session/snapshot';
 
-/** A signed-out session with nothing selected — the snapshot a fresh install starts from. */
 export const emptySessionSnapshot = (): SessionSnapshot => ({
     context: {
         relay: { backend: null, wss: null, siteId: null, isAuthenticated: false },
@@ -16,18 +15,11 @@ export const emptySessionSnapshot = (): SessionSnapshot => ({
     pairing: { isPairedSession: false, isInOwnCloudSession: false, cloudIds: [], cloudNames: {} },
 });
 
-/** A session view a test drives: `set` replaces the snapshot and tells every subscriber. */
 export interface FakeSessionView extends SessionView {
     set(next: Partial<SessionSnapshot>): void;
-    /** Signs out, as far as `onLogout` listeners hear. */
     logout(): void;
 }
 
-/**
- * A session view for a test of something that reads the session through the engine — hand it to the
- * React surface in an engine (`initAppRuntime({ ...coreEngine, session })`) and change the session with
- * `set`. Each `set` makes a new snapshot object, as the real view does on a change.
- */
 export const fakeSessionView = (initial: Partial<SessionSnapshot> = {}): FakeSessionView => {
     let current: SessionSnapshot = { ...emptySessionSnapshot(), ...initial };
     const listeners = new Set<() => void>();

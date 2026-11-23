@@ -27,19 +27,15 @@ import { markPrimeAsked, traceRoomFetch } from './roomTrace';
 import { createSessionMirror } from './sessionMirror';
 import { shareStructure } from './shareStructure';
 
-/** A mirror engine, and the way to stop hearing the runtime it mirrors. */
 export interface MirrorEngine extends RuntimeEngine {
-    /** Ends every stream the mirror holds and stops taking session pushes. */
     dispose(): void;
 }
 
 export interface MirrorEngineOptions {
     port: RuntimeMirrorPort;
-    /** The session as the hello's `native` answer carried it. */
     hello: { seq: number; session: RuntimeWireValue };
 }
 
-/** The connection as a page shows it before the first mirrored snapshot arrives: idle, nothing verified. */
 const INITIAL_CONNECTION: ConnectionSnapshot = {
     active: {
         state: 'idle',
@@ -53,13 +49,11 @@ const INITIAL_CONNECTION: ConnectionSnapshot = {
 
 const noop = () => undefined;
 
-/** A member that works only where the runtime runs in the page's own process (`local` in the contract). */
 const notInMirror = (name: string): Error =>
     Object.assign(new Error(`${name} does not cross the bridge: it works only with the runtime in the page`), {
         code: RUNTIME_NOT_AVAILABLE_CODE,
     });
 
-/** A wait that never rejects in-process: a bridge failure is a `false`, and logged. */
 const neverRejects = (wait: Promise<boolean>, name: string): Promise<boolean> =>
     wait.catch(error => {
         logger.warn('WEB_CORE', 'A mirrored wait failed', { error, data: { call: name } });
@@ -72,10 +66,6 @@ const inertGuard = <Policy>(): CredentialGuard<Policy> => ({
     setPolicy: noop,
 });
 
-/**
- * A view mirrored through its stream (`VIEW_STREAMS`): read synchronously, changed when an event
- * carries a value that differs, with the identities of the unchanged parts kept.
- */
 const mirrorView = <T>(talk: MirrorConversation, target: keyof typeof VIEW_STREAMS, initial: T) => {
     let value = initial;
     const listeners = new Set<() => void>();
@@ -101,11 +91,6 @@ const mirrorView = <T>(talk: MirrorConversation, target: keyof typeof VIEW_STREA
     };
 };
 
-/**
- * A repository graph whose every method crosses: a call per method, and an `observe*` method as a
- * stream whose listener is the method's function argument. `prefix` comes before the method's own
- * arguments — the cloud id, for a cloud's graph.
- */
 const mirrorGraph = (talk: MirrorConversation, target: string, prefix: readonly unknown[]): PageRepositories => {
     const graph: Record<string, Record<string, (...args: unknown[]) => unknown>> = {};
     for (const [repository, methods] of Object.entries(REPOSITORY_METHODS)) {
@@ -142,32 +127,6 @@ const mirrorGraph = (talk: MirrorConversation, target: string, prefix: readonly 
     return graph as unknown as PageRepositories;
 };
 
-/**
- * The engine of a page that mirrors a runtime running elsewhere — on the phone, the shell's. It has every
- * member the in-process engine has, so the React surface cannot tell which it was given; each member
- * crosses as the contract says (`contract.ts`, `repositories.ts`):
- *
- * - **The session** is the hello's snapshot, then each session push in number order
- *   (`createSessionMirror`). A command is one call; the shell sends the push for what the command did
- *   before it answers, so the command resolves with the snapshot already showing it.
- * - **Views** — the connection's snapshot, the refused rooms — are streams opened at once, read
- *   synchronously. Until the first value arrives the connection reads idle and no room is refused.
- * - **Calls** answer with the member's result; a `void` member (`setBackgroundClouds`,
- *   `setOwnedClouds`, `updateLocalSnapshot`, a repository's `send` methods) is sent without waiting, and
- *   a failure is logged. A wait that never rejects in-process (`waitUntilVerified`,
- *   `waitForCloudSocket`) answers `false` when the bridge fails.
- * - **Streams** — `observe*`, `onServerEvent`, `onBackgroundDelta`, a target registration, a cloud hold — stop
- *   synchronously, as in-process.
- * - **Local members** (`requestOnSlot`, `onServerMessage`, a repository's `local` methods) throw
- *   `RUNTIME_NOT_AVAILABLE`: a raw request, raw frames and a synchronous answer do not cross.
- * - **Lifecycle members** do nothing. The controllers, the credential guards and push registration run
- *   where the runtime runs; a page that mirrors only reads the outcome. The session controller reports
- *   ready once the mirrored session is initialised.
- * - **A room's trace** is marked around its prime and first fetch (`roomTrace.ts`), since those run where
- *   the trace is not.
- *
- * What crosses is JSON: a result that held a `Date` arrives as its ISO string, `undefined` as `null`.
- */
 export const createMirrorEngine = ({ port, hello }: MirrorEngineOptions): MirrorEngine => {
     const talk = createMirrorConversation(port);
     const session = createSessionMirror({ seq: hello.seq, session: hello.session as unknown as SessionSnapshot });
@@ -222,12 +181,9 @@ export const createMirrorEngine = ({ port, hello }: MirrorEngineOptions): Mirror
             return result;
         },
         prefetchRoomFeed: (cid, channelId) => {
-            // Never rejects, as in-process: the room fetches on its own if this did not start.
             const result = talk
                 .call<ChatRefreshResult | null>(SYNC_TARGET, 'prefetchRoomFeed', [cid, channelId])
                 .catch(() => null);
-            // In-process the prefetch starts nothing, and takes no trace, while the cloud's socket is not
-            // verified; the mirrored snapshot says the same here.
             if (connectionView.read().verifiedSlots.includes(slotKeyOf(cid))) traceRoomFetch(channelId, result);
             return result;
         },
@@ -235,10 +191,8 @@ export const createMirrorEngine = ({ port, hello }: MirrorEngineOptions): Mirror
             markPrimeAsked(channelId);
             let outcome: ChatPrimeOutcome;
             try {
-                // `cancelled` is a function and stays here: a late outcome is dropped instead.
                 outcome = await talk.call<ChatPrimeOutcome>(SYNC_TARGET, 'primeChatRoom', [cid, channelId]);
             } catch (error) {
-                // Never thrown, as in-process: a failure is the `failed` outcome.
                 logger.warn('SOCKET', '[useChatSync] Failed to prime chat target', { error, data: { channelId, cid } });
                 outcome = 'failed';
             }
@@ -265,7 +219,6 @@ export const createMirrorEngine = ({ port, hello }: MirrorEngineOptions): Mirror
                 talk.call<boolean>(DATA_TARGET, 'waitForCloudSocket', [cid, timeoutMs]),
                 'data.waitForCloudSocket'
             ),
-        // Stands while open: the shell holds the cloud's socket until the page stops it.
         holdCloud: cid => talk.open(DATA_TARGET, 'holdCloud', [cid], noop),
         recoverInvitedCloud: cloudId => talk.call(DATA_TARGET, 'recoverInvitedCloud', [cloudId]),
         syncInvitedCloudName: cloudId => talk.call(DATA_TARGET, 'syncInvitedCloudName', [cloudId]),

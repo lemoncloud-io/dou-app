@@ -7,7 +7,6 @@ jest.mock('@chatic/logger', () => ({
     logger: { warn: jest.fn(), info: jest.fn(), debug: jest.fn(), error: jest.fn() },
 }));
 
-/** A vault holding `values`, as the boot step reads it. */
 const vaultWith = (values: Record<string, string>) => {
     const held = { ...values };
     const store = new NativeSecureStore({

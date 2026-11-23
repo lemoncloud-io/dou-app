@@ -4,15 +4,8 @@ import { getAcceptorId, withAcceptor } from './invitedCloudAcceptance';
 import { getRepositories } from './runtime';
 import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
 
-/**
- * Rebuild an invited-cloud cache row from re-derived endpoints (no name — the name is owned by
- * `syncInvitedCloudName`). `auth.delegateCloud` hits the relay and returns backend/wss/cloudId
- * for any cloud the user holds a grant to — the only frontend source of an invited cloud's endpoints
- * once the cache DB is gone. A revoked/expired grant rejects here and the caller skips that cloud.
- */
 const rehydrateInvitedCloud = async (cloud: ICloudRepository, cloudId: string): Promise<void> => {
     const del: CloudDelegationTokenView = await getRepositories().auth.delegateCloud(cloudId);
-    // The delegation succeeded for the session signed in now, so the row is recorded as that user's.
     const existing = await cloud.cacheRead(cloudId);
     await cloud.cacheWrite({
         id: cloudId,
@@ -24,18 +17,6 @@ const rehydrateInvitedCloud = async (cloud: ICloudRepository, cloudId: string): 
     });
 };
 
-/**
- * Push safety net: when a push names a source cloud that is not in the local cache, re-derive and
- * re-cache it so cross-cloud routing can resolve it. No-op for empty cid or an already-present cloud.
- *
- * No-op for the relay as well. It is never an invited cloud and `delegate-cloud` serves only real
- * clouds — asked for the relay it answers 404, under either of its names. A push names the relay
- * `'#'`, which its reader translates to `RELAY_CLOUD_ID` before it gets here.
- *
- * The ONLY safety net left for this domain now that the web→native migration bridge is gone
- * (ADR-0053 decision 5). It is reactive — it fires when a push names a cid — so it repairs a
- * specific cloud, never the list. Closing that gap needs a server list API (ADR-0030).
- */
 export const recoverInvitedCloudIfMissing = async (
     cloud: ICloudRepository,
     cloudId: string | undefined
@@ -50,13 +31,6 @@ export const recoverInvitedCloudIfMissing = async (
     }
 };
 
-/**
- * Once connected to an invited cloud, fetch its authoritative name and persist it. Invited clouds are
- * absent from the relay catalog and the delegation token carries no name, so `cloud.get` is the only
- * source of a fresh name. The data layer sends it to the relay, which holds the name the owner set —
- * the cloud's own server keeps a copy that renames no longer reach. No-op for a non-invited active
- * cloud or when the name is unchanged.
- */
 export const syncInvitedCloudName = async (cloud: ICloudRepository, cloudId: string | undefined): Promise<void> => {
     if (!cloudId) return;
     const existing = await cloud.cacheRead(cloudId);
@@ -65,7 +39,7 @@ export const syncInvitedCloudName = async (cloud: ICloudRepository, cloudId: str
     try {
         fresh = await cloud.getCloud({ id: cloudId });
     } catch {
-        return; // socket not ready / request failed — best-effort
+        return;
     }
     const name = fresh?.name;
     if (!name || name === existing.name) return;

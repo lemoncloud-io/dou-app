@@ -1,10 +1,6 @@
 import type { SocketState } from '@chatic/transport';
 import type * as RuntimeConnectionModule from './runtimeConnection';
 
-/**
- * A manager with what the runtime connection reads. Teardown announces the slot while it is still
- * bound and removes it afterwards, the order SocketManager.teardownEntry uses.
- */
 const createFakeManager = () => {
     const bound = new Map<string, boolean>();
     const clientListeners = new Set<(key: string, client: object | null) => void>();
@@ -107,10 +103,8 @@ jest.mock('@chatic/session', () => ({
         },
     },
 }));
-/** Fires every listener subscribed to `kind`, the way the session signal flushes one. */
 const emit = (kind: string) => mockCommitListeners.filter(e => e.kinds.includes(kind)).forEach(e => e.listener());
 
-// Required after the mocks: their factories read the `mock*` values above.
 const { createCoreRuntimeConnection } = require('./runtimeConnection') as typeof RuntimeConnectionModule;
 
 beforeEach(() => {
@@ -336,7 +330,6 @@ describe('the core runtime connection — the clouds it keeps', () => {
     });
 
     it('reclaims again on a cloud token commit, with the latest lists, and on no other signal', () => {
-        // An invite entry committed after the catalog resolved: no list change follows it.
         const connection = createCoreRuntimeConnection();
         connection.setOwnedClouds(['a'], []);
         connection.setOwnedClouds(['a', 'b'], ['b']);

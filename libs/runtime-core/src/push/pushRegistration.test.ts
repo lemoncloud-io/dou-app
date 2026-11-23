@@ -44,7 +44,6 @@ const makeDelegate = (overrides: Partial<DeviceTokenDelegate> = {}): DeviceToken
     ...overrides,
 });
 
-/** Lets the fetch → register promise chain run. */
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 let authenticated = true;
@@ -52,11 +51,9 @@ const setAuthenticated = (next: boolean) => {
     authenticated = next;
 };
 
-/** Every launch a test made, stopped after it — the session signal and the port outlive a test. */
 const launched: Array<{ stop: () => void }> = [];
 afterEach(() => launched.splice(0).forEach(launch => launch.stop()));
 
-/** One app launch: a fresh registration (the record persists in storage), started with `delegate`. */
 const launch = (delegate: DeviceTokenDelegate) => {
     const registration = new PushRegistration({ delegate: () => delegate, deviceIds: () => deviceIds });
     const stop = registration.start();
@@ -65,7 +62,6 @@ const launch = (delegate: DeviceTokenDelegate) => {
     return handle;
 };
 
-/** A sign-out and a sign-in, as the session signal announces them. */
 const signOutAndIn = () => {
     setAuthenticated(false);
     sessionSignal.emit('relay:token');
@@ -73,13 +69,10 @@ const signOutAndIn = () => {
     sessionSignal.emit('relay:token');
 };
 
-/** The app returns to the foreground — a visibility change the port reports. */
 const returnToForeground = () => notifyForeground();
 
 beforeEach(() => {
     jest.clearAllMocks();
-    // The registration record persists in storage on purpose — a fresh store per case starts it as a
-    // fresh install rather than inheriting the previous one's "already registered".
     sessionStores.configure({ secret: new MemoryStore(), plain: new MemoryStore() });
     nowMs = 1_000_000;
     jest.spyOn(Date, 'now').mockImplementation(() => nowMs);
@@ -169,8 +162,6 @@ describe('PushRegistration — registering the device token', () => {
             expect(mockRegisterDevice).toHaveBeenCalledTimes(1);
             first.stop();
 
-            // Same install, next launch: the token is still fetched (that is how rotation is caught)
-            // but the record matches, so no call goes out.
             launch(makeDelegate());
             await flush();
 
@@ -218,7 +209,6 @@ describe('PushRegistration — registering the device token', () => {
             expect(mockRegisterDevice).toHaveBeenLastCalledWith(expect.objectContaining({ deviceToken: 'tok-2' }));
             second.stop();
 
-            // The refreshed record now covers tok-2.
             launch(makeDelegate());
             await flush();
             expect(mockRegisterDevice).toHaveBeenCalledTimes(2);
@@ -275,9 +265,6 @@ describe('PushRegistration — registering the device token', () => {
             expect(mockRegisterDevice).toHaveBeenCalledTimes(2);
         });
 
-        // The `jest.fn` generics spell out `NativeRecordMirror`'s signatures. Left to inference a
-        // fake reads as zero-arg returning `Promise<null>`, which makes `write.mock.calls[0][0]` an
-        // index into an empty tuple and refuses `read.mockResolvedValue(<a string>)`.
         it('네이티브 미러가 있으면 등록 성공 시 그쪽에도 기록한다', async () => {
             const nativeRecordMirror = {
                 read: jest.fn<Promise<string | null>, []>(() => Promise.resolve(null)),
@@ -303,7 +290,6 @@ describe('PushRegistration — registering the device token', () => {
             const persisted = nativeRecordMirror.write.mock.calls[0][0];
             first.stop();
 
-            // The webview's own storage is wiped; only the native tier survives.
             sessionStores.configure({ secret: new MemoryStore(), plain: new MemoryStore() });
             nativeRecordMirror.read.mockResolvedValue(persisted);
 
@@ -325,7 +311,6 @@ describe('PushRegistration — registering the device token', () => {
             expect(mockRegisterDevice).toHaveBeenCalledTimes(1);
             first.stop();
 
-            // Web storage still holds the record, so the next launch stays quiet.
             launch(makeDelegate({ nativeRecordMirror }));
             await flush();
 
@@ -339,8 +324,6 @@ describe('PushRegistration — registering the device token', () => {
             await flush();
             expect(mockRegisterDevice).toHaveBeenCalledTimes(1);
 
-            // No record can be keyed, so the register-every-time fallback stands: focus registers again,
-            // but only once the burst floor has elapsed.
             nowMs += 30_000;
             returnToForeground();
             await flush();
@@ -360,8 +343,6 @@ describe('PushRegistration — registering the device token', () => {
         await flush();
         expect(mockRegisterDevice).not.toHaveBeenCalled();
 
-        // Failure resets the throttle: the very next trigger (still inside the
-        // 60s window) fetches again — covers "permission granted later".
         mockFetchDeviceToken.mockResolvedValue('tok-late');
         nowMs += 1_000;
         returnToForeground();
@@ -414,11 +395,9 @@ describe('PushRegistration — registering the device token', () => {
         mockFetchDeviceToken.mockImplementation(() => new Promise<string>(resolve => (resolveFetch = resolve)));
 
         launch(makeDelegate());
-        // Let the attempt's first tick pass before counting.
         await flush();
         expect(mockFetchDeviceToken).toHaveBeenCalledTimes(1);
 
-        // In-flight fetch: a concurrent focus trigger must not start a second one.
         nowMs += 61_000;
         returnToForeground();
         await flush();
@@ -441,7 +420,6 @@ describe('PushRegistration — registering the device token', () => {
             await flush();
             expect(mockRegisterDevice).toHaveBeenCalledTimes(1);
 
-            // Inside the burst floor and with a record present — neither may block a rotation.
             mockFetchDeviceToken.mockResolvedValue('tok-rotated');
             nowMs += 1_000;
             notify();
@@ -486,8 +464,6 @@ describe('PushRegistration — registering the device token', () => {
             launch(makeDelegate());
             await flush();
 
-            // Nothing to assert beyond "it did not throw" — the absence of the optional hook must not
-            // break the mount path for mobile, which never supplies it.
             expect(mockRegisterDevice).toHaveBeenCalledTimes(1);
         });
     });
@@ -507,7 +483,6 @@ describe('PushRegistration — registering the device token', () => {
             expect(mockRegisterDevice).toHaveBeenCalledTimes(1);
         });
 
-        // React StrictMode starts, stops and starts the same registration before the first attempt is back.
         it('a stop and a start on one registration join the attempt in flight', async () => {
             let resolveFetch: (token: string) => void = () => undefined;
             mockFetchDeviceToken.mockImplementation(() => new Promise<string>(resolve => (resolveFetch = resolve)));

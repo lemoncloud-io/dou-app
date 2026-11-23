@@ -23,7 +23,6 @@ import type {
     SessionView,
 } from './snapshot';
 
-/** The value `project` made from the last source, while the source is the same object. */
 const memoBySource = <Source, Value>(project: (source: Source) => Value) => {
     let last: { source: Source; value: Value } | null = null;
     return (source: Source): Value => {
@@ -32,10 +31,6 @@ const memoBySource = <Source, Value>(project: (source: Source) => Value) => {
     };
 };
 
-/**
- * The previous value while `next` reads the same as JSON. For the parts the stores rebuild on every
- * read (a token's user fields, the paired list), so an unchanged part keeps its identity.
- */
 const memoByContent = <Value>() => {
     let last: { text: string; value: Value } | null = null;
     return (next: Value): Value => {
@@ -63,24 +58,11 @@ const toActiveServerView = (server: GlobalSessionContext['activeServer']): Activ
         ? { kind: 'cloud', cloudId: server.cloudId, siteId: server.siteId, backend: server.backend, wss: server.wss }
         : { kind: 'relay', backend: server.backend, wss: server.wss, siteId: server.siteId };
 
-/**
- * The session view over this process's stores — what the core engine hands the React surface.
- *
- * The stores rebuild their context on every session signal and hold it until the next one; this view
- * follows the same rhythm, and also re-reads when a source moves that has no session signal: the
- * background clouds, the token cache and the recorded identities (a cloud's uid), and the paired
- * clouds. Each part keeps its identity until it changes, so a reader of the identity does not
- * re-render for a paired cloud's new name.
- */
 export const createCoreSessionView = (): SessionView => {
     let stale = true;
     let wired = false;
     let current: SessionSnapshot | null = null;
 
-    // The sign-out listeners, kept here rather than in the relay session: it empties its own list each
-    // time it runs it, which suits a page (a sign-out reloads it) and not a process that lives on — the
-    // app's runtime hears every sign-out of its run. So this registers one callback with the relay
-    // session, and registers it again after each sign-out, once the relay session has emptied its list.
     const logoutListeners = new Set<() => void>();
     let logoutRegistered = false;
     const registerLogout = (): void => {
@@ -103,9 +85,6 @@ export const createCoreSessionView = (): SessionView => {
         stale = true;
     };
 
-    // Marking stale has to happen before any reader is told: the session signal runs its invalidators
-    // eagerly, ahead of its listeners, and the stores below call listeners in the order they were
-    // added — these are added before the first reader's, because every reader goes through `ensureWired`.
     const ensureWired = (): void => {
         if (wired) return;
         wired = true;
@@ -170,8 +149,6 @@ export const createCoreSessionView = (): SessionView => {
         snapshot() {
             ensureWired();
             if (current && !stale) return current;
-            // Marked fresh only once the read succeeded: a read that throws (the stores not wired yet)
-            // is tried again on the next call, not left behind an older snapshot until a signal.
             const next = read();
             stale = false;
             if (!current || !samePartsAs(current, next)) current = next;
