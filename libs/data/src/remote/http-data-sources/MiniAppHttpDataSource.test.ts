@@ -1,7 +1,6 @@
 import { MiniAppHttpDataSource, MiniAppSaveRefused, miniAppSaveProblemOf } from './MiniAppHttpDataSource';
 import type { MiniAppHttpDomainGateway } from '../gateways';
 
-/** An axios-shaped failure: the relay answers a refusal with its status and the error text as the body. */
 const relayError = (status: number, data: unknown) =>
     Object.assign(new Error(`Request failed with status code ${status}`), { response: { status, data } });
 
@@ -108,8 +107,6 @@ describe('MiniAppHttpDataSource', () => {
             expect(gateway.update).not.toHaveBeenCalled();
         });
 
-        // The relay refuses an owner's body in which the `hold` key exists at all, so nothing a caller
-        // spreads into the patch — a held mini app as read, a stray `state$` — may carry it through.
         it('sends only the patch fields it knows, never a hold spread into the patch', async () => {
             gateway.list.mockResolvedValue({
                 list: [
@@ -141,8 +138,6 @@ describe('MiniAppHttpDataSource', () => {
         });
     });
 
-    // One line per row of the relay's refusal table. The fixed parts matched here are copied from the
-    // relay; a reworded relay message is caught by a run against the relay, not by these tests.
     describe('refusals', () => {
         const scope = 'bodyToModel(miniapp/)';
         it.each([
@@ -162,8 +157,6 @@ describe('MiniAppHttpDataSource', () => {
             await expect(dataSource.updateMiniApp('m1', { url: 'u' })).rejects.toMatchObject({ problem });
         });
 
-        // The relay copies the address the user typed into its message, so the address can hold
-        // anything: another verdict, another rule's words, a line of its own.
         it.each([
             ['another verdict', `400 INVALID - .url[a] is hub b] is invalid - ${scope}`],
             ["another rule's words", `400 INVALID - .url[x .name is too long y] is invalid - ${scope}`],
@@ -218,7 +211,6 @@ describe('miniAppSaveProblemOf', () => {
         expect(miniAppSaveProblemOf(new MiniAppSaveRefused('hubUrl'))).toBe('hubUrl');
     });
 
-    // What the page throws after the bridge: a plain Error carrying the name and code that crossed.
     it('reads the reason off an error that crossed the bridge', () => {
         const crossed = Object.assign(new Error('save refused'), { name: 'MiniAppSaveRefused', code: 'tooMany' });
 

@@ -7,7 +7,6 @@ import type { FeedRange } from './feedCoverage';
 
 describe('ChatRepository', () => {
     const createRepository = () => {
-        // Split remote and local mocks so optimistic write and refresh behavior can be asserted independently.
         const chatSocketDataSource = {
             fetchChat: jest.fn(),
             sendChat: jest.fn(),
@@ -85,8 +84,6 @@ describe('ChatRepository', () => {
         });
     });
 
-    // Reactions are event-sourced: the server stores no state, so the optimistic write is
-    // an event of our own rather than an edit to the target message.
     it('writes a provisional reaction event before the request, then swaps in the server one', async () => {
         const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
         chatSocketDataSource.setReaction.mockResolvedValue({ id: 'ch-1:9', chatNo: 9 });
@@ -102,7 +99,6 @@ describe('ChatRepository', () => {
             ownerId: 'me',
             reaction$: { chatId: 'ch-1:4', emoji: '\u{1F44D}', action: 'on' },
         });
-        // No chatNo yet, so the fold sorts it last and it wins over the persisted events.
         expect(chatLocalDataSource.cacheWrite.mock.calls[1][0]).toMatchObject({ id: 'ch-1:9' });
         expect(chatLocalDataSource.cacheDelete).toHaveBeenCalledWith(provisional.id, expect.anything());
     });
@@ -125,7 +121,6 @@ describe('ChatRepository', () => {
         ).rejects.toThrow('offline');
 
         const [provisional] = chatLocalDataSource.cacheWrite.mock.calls[0];
-        // Nothing to restore — the event existed only here, so removing it is the rollback.
         expect(chatLocalDataSource.cacheDelete).toHaveBeenCalledWith(provisional.id, expect.anything());
         expect(chatLocalDataSource.cacheWrite).toHaveBeenCalledTimes(1);
     });
@@ -136,7 +131,6 @@ describe('ChatRepository', () => {
 
         await expect(repository.sendChat({ channelId: 'ch-1', content: 'hello' } as any)).rejects.toThrow('boom');
 
-        // The second write should preserve the optimistic message but flip it into a failed state.
         expect(chatLocalDataSource.cacheWrite).toHaveBeenNthCalledWith(
             2,
             expect.objectContaining({
@@ -167,7 +161,6 @@ describe('ChatRepository', () => {
 
         const result = await repository.refreshList({ channelId: 'ch-1', limit: 50 } as any);
 
-        // Refresh should populate local cache first and only use the return value for pagination metadata.
         expect(chatLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
             [expect.objectContaining({ id: 'm1', channelId: 'ch-1' })],
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -218,9 +211,6 @@ describe('ChatRepository', () => {
         expect((await repository.refreshList({ channelId: 'ch-1' } as any)).latestNo).toBe(0);
     });
 
-    // The server records each edit or delete as a revision notice on the room's next number. A page that
-    // brings one makes the repository re-read the message it points at, so a device that was offline
-    // ends up with the edit or the delete it missed.
     describe('revision notices in a page', () => {
         const flush = () => new Promise(resolve => setTimeout(resolve, 0));
         const row = (chatNo: number, over: Partial<DomainChat> = {}) =>
@@ -244,7 +234,6 @@ describe('ChatRepository', () => {
             );
         });
 
-        // Edit and delete are not told apart; the re-read row says which it now is.
         it('brings a deleted message to its deleted state the same way', async () => {
             const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
             chatSocketDataSource.fetchChat.mockResolvedValue({ list: [revision(9, 'ch-1:4', 'delete')], cursorNo: 0 });
@@ -286,7 +275,6 @@ describe('ChatRepository', () => {
             expect(chatSocketDataSource.getChat).toHaveBeenCalledTimes(1);
         });
 
-        // The page is the caller's answer; a failed re-read waits for the next page that holds the notice.
         it('answers with the page even when the re-read fails', async () => {
             const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
             chatSocketDataSource.fetchChat.mockResolvedValue({
@@ -304,8 +292,6 @@ describe('ChatRepository', () => {
             expect(chatLocalDataSource.cacheWriteMany).toHaveBeenCalledTimes(1);
         });
 
-        // Lists and catch-up read the newest page of every room; a notice stays on it until newer messages
-        // push it out. Acting on it once per session keeps those reads from re-reading the same message.
         it('acts on a notice once, however many pages bring it again', async () => {
             const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
             chatSocketDataSource.fetchChat.mockResolvedValue({ list: [revision(9, 'ch-1:4', 'update')], cursorNo: 0 });
@@ -334,7 +320,6 @@ describe('ChatRepository', () => {
             expect(chatSocketDataSource.getChat).not.toHaveBeenCalled();
         });
 
-        // A message the server no longer has (404) will never read; one that timed out may next time.
         it('stops asking after a gone answer, and asks again after a transient one', async () => {
             const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
             chatSocketDataSource.fetchChat.mockResolvedValue({
@@ -355,7 +340,6 @@ describe('ChatRepository', () => {
             expect(chatSocketDataSource.getChat.mock.calls.map(([input]) => input.id)).toEqual(['ch-1:4']);
         });
 
-        // Leaving a room clears its cache; a read still in flight must not put a row back into it.
         it('does not write a re-read message the cache dropped while the read was in flight', async () => {
             const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
             chatSocketDataSource.fetchChat.mockResolvedValue({ list: [revision(9, 'ch-1:4', 'update')], cursorNo: 0 });
@@ -382,7 +366,6 @@ describe('ChatRepository', () => {
     describe('what a page answers for', () => {
         beforeEach(() => feedCoverage.clear());
 
-        /** What a reader of the coverage stream works out for `[low, high]`, read once now. */
         const uncoveredOf = (
             repository: {
                 observeFeedCoverage: (id: string, cb: (covered: readonly FeedRange[]) => void) => () => void;
@@ -407,7 +390,6 @@ describe('ChatRepository', () => {
             stop();
             await repository.cacheClearByChannelId('ch-1');
 
-            // Now (nothing), then the page; the same page again changes nothing; the clear came after stop.
             expect(heard).toEqual([[], [[50, 99]]]);
         });
 
@@ -420,7 +402,6 @@ describe('ChatRepository', () => {
 
             await repository.refreshList({ channelId: 'ch-1', cursorNo: 100, limit: 50 } as any);
 
-            // 52–98 came back empty-handed: deleted, not unfetched.
             expect(uncoveredOf(repository, 'ch-1', 40, 120)).toEqual([
                 [40, 49],
                 [100, 120],
@@ -458,8 +439,6 @@ describe('ChatRepository', () => {
         });
 
         it('does not read a missing row older than the page as deleted at the start of history', async () => {
-            // Below the oldest row an end-of-history page carried sit rows from before my join, which
-            // the server also leaves out.
             const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
             chatSocketDataSource.fetchChat.mockResolvedValue({ list: [row(9), row(8)], cursorNo: 0, total: 2 });
             chatLocalDataSource.cacheReadList.mockResolvedValue({ list: [row(9), row(8)] });
@@ -485,8 +464,6 @@ describe('ChatRepository', () => {
         });
 
         it('stops at the head the server counted from, not at a request cursor above it', async () => {
-            // A block re-check near the newest messages asks below 1051 while the head is 1020; the
-            // answer covers 971–1020. Message 1021, arriving meanwhile, is neither covered nor deleted.
             const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
             const page = Array.from({ length: 50 }, (_, index) => row(1020 - index));
             chatSocketDataSource.fetchChat.mockResolvedValue({ list: page, cursorNo: 971, limit: 50 });
@@ -542,7 +519,6 @@ describe('ChatRepository', () => {
         expect(result).toEqual(expect.objectContaining({ id: 'm1' }));
     });
 
-    // A failed row is the only copy of the send, and a resend is rebuilt from it.
     it('sends the picked mention and keeps it on the row that a failure leaves behind', async () => {
         const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
         chatSocketDataSource.sendChat.mockRejectedValue(new Error('boom'));
@@ -583,8 +559,6 @@ describe('ChatRepository', () => {
         );
     });
 
-    // Not optimistic (see deleteChat's doc comment): nothing is written before the server answers,
-    // and what is written then is the server's own record, tombstone flag included.
     it('writes only the server record when deleteChat succeeds, and never removes the row', async () => {
         const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
         chatSocketDataSource.deleteChat.mockResolvedValue({ id: 'm1', content: 'before', hidden: true });
@@ -605,14 +579,10 @@ describe('ChatRepository', () => {
 
         await expect(repository.deleteChat({ id: 'm1' } as any)).rejects.toThrow('boom');
 
-        // There is no rollback to get right because there was no optimistic write to undo.
         expect(chatLocalDataSource.cacheWrite).not.toHaveBeenCalled();
         expect(chatLocalDataSource.cacheDelete).not.toHaveBeenCalled();
     });
 
-    // Above this line the cache is a `jest.fn()`, which only answers "what was the write called
-    // with". The delete rollback is a claim about what the cache CONTAINS afterwards, so it is
-    // asserted here over a real ChatLocalDataSource on the in-memory storage fixture.
     describe('deleteChat over a real cache', () => {
         const createRealCacheRepository = () => {
             const chatSocketDataSource = {
@@ -648,9 +618,6 @@ describe('ChatRepository', () => {
             await chatLocalDataSource.cacheWrite({ id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'before' } as any);
         };
 
-        // The one that matters. `cacheWrite` MERGES, so writing the previous record back cannot
-        // clear a key that record never had — an optimistic `hidden: true` survives its own
-        // rollback and the message stays deleted on screen while it is alive on the server.
         it('leaves the message visible when the delete fails', async () => {
             const { repository, chatSocketDataSource, chatLocalDataSource } = createRealCacheRepository();
             await seed(chatLocalDataSource);
@@ -676,7 +643,6 @@ describe('ChatRepository', () => {
 
             await repository.deleteChat({ id: 'm1' } as any);
 
-            // Soft delete: the row survives as a tombstone rather than disappearing.
             const row = await chatLocalDataSource.cacheRead('m1');
             expect(row).toMatchObject({ id: 'm1', hidden: true });
         });
@@ -693,7 +659,6 @@ describe('ChatRepository', () => {
         await repository.cacheClear();
         await repository.cacheClearByChannelId('ch-1');
 
-        // Channel-scoped clear is a distinct helper and should keep the active runtime context.
         expect(chatLocalDataSource.cacheClearByChannelId).toHaveBeenCalledWith('ch-1', {
             cid: 'cloud-a',
             sid: 'site-1',
@@ -790,7 +755,6 @@ describe('ChatRepository', () => {
             }
         });
 
-        // A video or document has no preview to draw while it is sent; its card needs these instead.
         it('keeps the name, type and size of a file that is not an image on its slot', async () => {
             const { repository, chatLocalDataSource } = createPendingRepository();
 
@@ -916,7 +880,6 @@ describe('ChatRepository', () => {
                 await expect(repository.sendPendingImageChat(id, { uploadIds: ['up-1'] })).rejects.toThrow();
                 await repository.failPendingImageChat(id);
 
-                // A retry re-arms the row with its previews only, as the image send does.
                 await repository.createPendingImageChat({
                     channelId: 'ch-1',
                     localThumbUrls: ['blob:a'],
@@ -947,7 +910,6 @@ describe('ChatRepository', () => {
                 await expect(repository.sendPendingImageChat(id, { uploadIds: ['up-1'] })).rejects.toThrow();
                 await repository.failPendingImageChat(id);
 
-                // The retry re-arms the row without naming the mention, as the image send does.
                 await repository.createPendingImageChat({
                     channelId: 'ch-1',
                     localThumbUrls: ['blob:a'],
@@ -1181,7 +1143,6 @@ describe('ChatRepository', () => {
             expect(rows.map(row => row.id)).toEqual([mine]);
         });
 
-        // Compile-time half: a mixed list goes through both cache writes without a cast.
         it('stores server uploads and pending slots side by side', async () => {
             const { chatLocalDataSource } = createPendingRepository();
             const mixed: DomainChat['upload$$'] = [

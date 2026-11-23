@@ -14,17 +14,6 @@ import {
 import type { DataContext } from '../../repositories/types';
 import type { UserSocketDomainGateway } from '../gateways';
 
-/**
- * Result of a channel user sync. Members arrive with their `$join` (read-state) embedded,
- * so we surface joins alongside users; `syncedAt` is the cursor for the next `since`, and
- * `ids` lists every currently-active member (for leave/kick detection).
- */
-/**
- * Result of a channel roster fetch. The joins are harvested from the RAW views: `$join` is the
- * member's read-state for THIS channel, and a user record is global (one row per user id across
- * every channel), so the cursor has no place on it — it belongs in the join cache, keyed
- * `channelId@userId`. Mirrors ChannelUsersSyncResult, which already worked this way.
- */
 export interface ChannelUsersFetchResult {
     users: DomainListResult<DomainUser>;
     joins: DomainJoin[];
@@ -37,21 +26,11 @@ export interface ChannelUsersSyncResult {
     syncedAt: number;
 }
 
-/**
- * Result of a current-session profile fetch. `user.profile` returns a `UserProfile$` wrapper, so
- * we surface the mapped user alongside the embedded current site (`$site`) for the caller to cache
- * into the place store. `site` is null when the profile carries no site (e.g. on the default cloud).
- */
 export interface UserProfileResult {
     user: DomainUser;
     site: DomainPlace | null;
 }
 
-/**
- * One page of `place.list-user`. `total` counts the place's member index BEFORE the server drops the
- * users who have left, so a page can hold fewer than `limit` and `total` can overstate the real count —
- * neither is a signal that the list has ended. `page` and `limit` are the server's echo.
- */
 export interface PlaceUsersPage {
     members: DomainPlaceMember[];
     total: number;
@@ -67,32 +46,17 @@ export type UserSyncChannelUsersInput = Parameters<UserSocketDomainGateway['sync
 export type UserFetchPlaceUsersInput = Parameters<UserSocketDomainGateway['listPlaceUser']>[0];
 
 export interface IUserSocketDataSource {
-    /** Requests a filtered user list and returns the domain users together with their embedded joins. */
     fetchUsers(payload: UserFetchUsersInput, context: DataContext): Promise<ChannelUsersFetchResult>;
-    /** Requests the current session's own profile and returns the domain user together with the embedded $site (place). (Relay and cloud alike.) */
     getMyProfile(context: DataContext): Promise<UserProfileResult>;
-    /** Requests an edit to my own profile. */
     updateProfile(payload: UserUpdateProfilePayload, context: DataContext): Promise<DomainUser>;
-    /** Invites an outside user and requests the invite result. (An invite view, not a domain user.) */
     requestInvite(payload: UserRequestInviteInput): Promise<MyInviteView>;
-    /** Invites several users in one batch. (An invite view, not a domain user.) */
     inviteBatch(payload: UserInviteBatchPayload): Promise<ListResult<MyInviteView>>;
-    /** Syncs channel members from `since` and returns the users, their embedded joins, and the cursor (`syncedAt`). */
     syncChannelUsers(payload: UserSyncChannelUsersInput, context: DataContext): Promise<ChannelUsersSyncResult>;
-    /** Requests one page of a place's members (`place.list-user`) and returns them as domain members. */
     fetchPlaceUsers(payload: UserFetchPlaceUsersInput, context: DataContext): Promise<PlaceUsersPage>;
-    /** Requests my own devices on the session's server (`user.list-device`). The SDK view, unchanged. */
     listDevices(): Promise<UserListDeviceView>;
-    /** Unlinks one of my devices other than this one (`user.unlink-device`). The SDK view, unchanged. */
     unlinkDevice(deviceId: string): Promise<UserUnlinkDeviceView>;
 }
 
-/**
- * User remote source. Single boundary where user API views become domain
- * models; callers receive domain shapes only. The request-time `context`
- * is supplied by the caller to keep a late response on its original scope.
- * Invite endpoints return invite views (not cached users) and stay raw.
- */
 export class UserSocketDataSource implements IUserSocketDataSource {
     constructor(private readonly gateway: UserSocketDomainGateway) {}
 
@@ -102,8 +66,6 @@ export class UserSocketDataSource implements IUserSocketDataSource {
         const channelId = (payload as { channelId?: string }).channelId;
 
         const list = rawList.map(item => toDomainUser(item, context));
-        // Each member carries its read-state in `$join`; take it off the raw view, because
-        // toDomainUser deliberately does not carry it onto the (global) user record.
         const joins = rawList
             .map(item => toDomainJoinFromUser(item, context, channelId))
             .filter((join): join is DomainJoin => !!join);
@@ -116,8 +78,6 @@ export class UserSocketDataSource implements IUserSocketDataSource {
 
     public async getMyProfile(context: DataContext): Promise<UserProfileResult> {
         const remote = ((await this.gateway.profile<UserProfile$>()) || {}) as UserProfile$;
-        // user.profile returns a UserProfile$ wrapper: the user lives under `$user` and the current
-        // site under `$site`. Fall back to the raw payload if it ever arrives as a flat user view.
         const userView = (remote.$user ?? (remote as unknown)) as UserView;
         const user = toDomainUser((userView || {}) as UserView, context);
         const site = remote.$site ? toDomainPlace(remote.$site as unknown as MySiteView, context) : null;
@@ -146,7 +106,6 @@ export class UserSocketDataSource implements IUserSocketDataSource {
         const channelId = (payload as { channelId?: string }).channelId;
 
         const users = rawList.map(item => toDomainUser(item, context));
-        // Each member carries its read-state in `$join`; surface it alongside the users.
         const joins = rawList
             .map(item => toDomainJoinFromUser(item, context, channelId))
             .filter((join): join is DomainJoin => !!join);
@@ -159,15 +118,12 @@ export class UserSocketDataSource implements IUserSocketDataSource {
         const members = (remote?.list || []).filter(item => !!item?.id).map(item => toDomainPlaceMember(item, context));
         return {
             members,
-            // No `total` means no stated end: the caller pages on to an empty page instead.
             total: typeof remote?.total === 'number' ? remote.total : Number.POSITIVE_INFINITY,
             page: typeof remote?.page === 'number' ? remote.page : (payload.page ?? 0),
             limit: typeof remote?.limit === 'number' ? remote.limit : (payload.limit ?? members.length),
         };
     }
 
-    // Device rows are not domain entities: nothing caches them and the device screen reads the
-    // server's fields (kind, presence, `current`) as they are, so the SDK views pass through.
     public async listDevices(): Promise<UserListDeviceView> {
         return this.gateway.listDevice();
     }

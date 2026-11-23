@@ -56,9 +56,6 @@ export interface SocketDataSources {
     webhook: IWebhookSocketDataSource;
 }
 
-/**
- * Gathers SocketDataSource construction in one place.
- */
 export const createSocketDataSources = ({ gateways }: { gateways: SocketGatewayBundle }): SocketDataSources => ({
     auth: new AuthSocketDataSource(gateways.auth),
     channel: new ChannelSocketDataSource(gateways.channel),

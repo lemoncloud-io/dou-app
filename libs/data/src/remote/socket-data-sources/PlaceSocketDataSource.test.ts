@@ -79,9 +79,6 @@ describe('PlaceSocketDataSource', () => {
         });
 
         it('uses site$.id as the place id when the createPlace response wraps an owner profile', async () => {
-            // The actual response to place.create is the newly created owner profile, and the site itself
-            // arrives embedded in `site$`. Using the top-level `id` (the profile id) as is makes a later
-            // place.get look up an id that does not exist and return 404.
             (mockGateways.place.create as jest.Mock).mockResolvedValue({
                 id: '1000002',
                 name: 'whatever',

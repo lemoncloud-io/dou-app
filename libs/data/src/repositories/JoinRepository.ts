@@ -7,7 +7,6 @@ import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 import type { JoinUpdateInput } from '@lemoncloud/chatic-sockets-lib';
 
-/** The fields of my own join row that `join.update` sets. */
 export interface MyJoinFields {
     nick?: string;
     notify?: DomainJoin['notify'];
@@ -20,16 +19,11 @@ export interface IJoinRepository extends DisposableRepository {
         contextOverride?: DataContext
     ): () => void;
 
-    /** Moves my read cursor locally at once and hands the server half to the outbox. */
     readChat(payload: ChatReadInput): Promise<WriteReceipt>;
-    /** Sets my nick and/or notification setting locally at once and hands each to the outbox. */
     updateJoin(payload: JoinUpdateInput): Promise<WriteReceipt>;
 
-    /** Outbox delivery for `join.read` — the socket half only. Screens call `readChat`. */
     sendRead(payload: { channelId: string; chatNo: number }): Promise<DomainJoin>;
-    /** Outbox delivery for `join.notify` / `join.nick` — the socket half only. Screens call `updateJoin`. */
     sendJoinUpdate(channelId: string, fields: MyJoinFields): Promise<DomainJoin>;
-    /** Outbox restore after a refusal — writes my join's fields locally. */
     writeMyJoinLocally(channelId: string, fields: MyJoinFields): Promise<void>;
 
     cacheReadList(query: DomainJoinListPayload): Promise<DomainListResult<DomainJoin> | null>;
@@ -38,14 +32,6 @@ export interface IJoinRepository extends DisposableRepository {
     cacheClear(): Promise<void>;
 }
 
-/**
- * Maintains join membership snapshots and read-state transitions for each channel context.
- *
- * My own join's writes — the read cursor, the notification setting, my name for the room — are
- * state writes: each goes two ways, locally at once and into the outbox, which sends it when this
- * cloud's socket can carry it (`../outbox`). There is no path that calls the server directly, so no
- * screen can skip the queue.
- */
 export class JoinRepository extends BaseRepository implements IJoinRepository {
     constructor(
         private readonly joinSocketDataSource: IJoinSocketDataSource,
@@ -80,11 +66,6 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
         return this.joinLocalDataSource.cacheClear(this.getRepositoryContext());
     }
 
-    /**
-     * A failure is never rolled back: a read position only moves forward, and the user has seen the
-     * messages whether or not the server heard about it yet. Restoring the old cursor put the unread
-     * badge back on a room the user had just read.
-     */
     public async readChat(payload: ChatReadInput): Promise<WriteReceipt> {
         const channelId = this.assertRequiredString(payload.channelId, 'channelId');
         const chatNo = payload.chatNo;
@@ -142,9 +123,6 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
 
     public async sendJoinUpdate(channelId: string, fields: MyJoinFields): Promise<DomainJoin> {
         const requestContext = this.getRequestContext();
-        // `join.update` requires a single composite join id; resolved when the write goes out, from the
-        // row the local half wrote. A row that is gone by then (I left the room) never comes back for
-        // this write, so it is a refusal rather than something to retry.
         const { existing } = await this.resolveMyJoin({ channelId } as ChannelUpdateJoinInput, requestContext).catch(
             (error: unknown) => {
                 throw new OutboxRefusalError(error instanceof Error ? error.message : String(error));
@@ -162,16 +140,10 @@ export class JoinRepository extends BaseRepository implements IJoinRepository {
         await this.joinLocalDataSource.cacheWrite({ ...existing, ...(fields as Partial<DomainJoin>) }, requestContext);
     }
 
-    /** The cloud and account a write belongs to, captured when it is made. */
     private writeScope(requestContext: DataContext): { cid: string; uid: string } {
         return { cid: this.getNormalizedContext(requestContext).cid as string, uid: String(requestContext.uid || '') };
     }
 
-    /**
-     * My join row in a channel, looked up in the local cache. `join.update` names the row by its
-     * composite id, and the app input arrives as `{channelId, userId}` or with the id itself. Only my
-     * own row can be written: its writes are keyed by my uid in the outbox.
-     */
     private async resolveMyJoin(
         payload: ChannelUpdateJoinInput,
         requestContext: DataContext

@@ -1,11 +1,3 @@
-/**
- * Returns `options` serialized as sorted-key JSON.
- * Used to build stream keys for the v2 local data sources (same scope + same query = same stream).
- *
- * - Sorts an object's keys before JSON serialization → equality independent of key order
- * - Drops `undefined` fields before sorting (making them equivalent to a missing key)
- * - MVP: the sorted-key JSON itself is the key
- */
 export function stableHash(value: unknown): string {
     return JSON.stringify(sortKeys(value));
 }

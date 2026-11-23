@@ -9,9 +9,6 @@ import {
     toDomainUser,
 } from './mappers';
 
-// All mappers convert an API view into a domain model. These tests pin three guarantees:
-// (1) cid/sid/uid follow the passed-in context, (2) missing fields get safe defaults,
-// (3) View↔Domain compatibility — original API fields survive the spread.
 describe('domain mappers (API View → Domain)', () => {
     const context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'user-1' };
 
@@ -24,7 +21,6 @@ describe('domain mappers (API View → Domain)', () => {
             expect(withoutSid.sid).toBe('site-1');
         });
 
-        // A cloud 1:1 belongs to the place the server stamped on it; the context names the reader's.
         it('a cloud 1:1 takes the place its id names, never the context', () => {
             expect(toDomainChannel({ id: 'site-7@u1@u2', stereo: 'dm' } as any, context).sid).toBe('site-7');
             expect(toDomainChannel({ id: 'u1@u2', stereo: 'dm' } as any, context).sid).toBe('');
@@ -79,8 +75,6 @@ describe('domain mappers (API View → Domain)', () => {
             expect(domain).toMatchObject({ id: 'j1', cid: 'cloud-a', joined: 1, readNo: 0 });
         });
 
-        // A place-keyed 1:1 id holds `@` itself, so its join id is `<sid>@<uidA>@<uidB>@<uid>`. It is
-        // kept as the server sent it rather than re-derived.
         it('keeps the join id of a place-keyed 1:1 as it is', () => {
             const domain = toDomainJoin({ id: 'S1@u1@u2@u1', channelId: 'S1@u1@u2', userId: 'u1' } as any, context);
             expect(domain).toMatchObject({ id: 'S1@u1@u2@u1', channelId: 'S1@u1@u2', userId: 'u1' });
@@ -96,8 +90,6 @@ describe('domain mappers (API View → Domain)', () => {
         });
 
         it('$join is only read and never placed on the result', () => {
-            // A user record is channel-global, so a per-channel read cursor must not be laid onto it —
-            // the cursor is owned by the join cache (`channelId@userId`).
             const domain = toDomainUser({ id: 'u1', $join: { channelId: 'ch-2', chatNo: 7 } } as any, context);
             expect('$join' in domain).toBe(false);
         });

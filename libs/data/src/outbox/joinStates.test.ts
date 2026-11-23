@@ -5,7 +5,6 @@ const ROW = { id: 'ch-1@me', channelId: 'ch-1', userId: 'me', readNo: 4, chatNo:
 
 const graph = () => {
     const join = {
-        // A whole row, as the server answers, with every field this device might be waiting to send.
         sendRead: jest.fn().mockResolvedValue({ ...ROW, readNo: 9, chatNo: 9, metaNo: 2 }),
         sendJoinUpdate: jest.fn().mockResolvedValue({ ...ROW, notify: 'none', nick: 'New' }),
         writeMyJoinLocally: jest.fn().mockResolvedValue(undefined),
@@ -37,7 +36,6 @@ describe('join states', () => {
             await joinReadState.accept?.(repositories, write('join.read', 9), answer);
 
             expect(join.sendRead).toHaveBeenCalledWith({ channelId: 'ch-1', chatNo: 9 });
-            // The answer's notify and nick may be older than a change still waiting to go out.
             expect(join.cacheWrite).toHaveBeenCalledWith({
                 id: 'ch-1@me',
                 channelId: 'ch-1',

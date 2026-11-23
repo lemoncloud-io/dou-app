@@ -21,11 +21,6 @@ import type {
 } from './models';
 import { dmPlaceOf, isCloudDm } from './channelScope';
 
-/**
- * Mapper input contract: a raw API view that MAY already carry persisted
- * domain-only fields (e.g. re-read cache rows or enriched responses).
- * Required API fields stay required; domain extras are optional reads.
- */
 type ApiInput<TView, TDomain> = TView & Partial<TDomain>;
 
 const toEpochMs = (value: unknown): number => {
@@ -72,23 +67,9 @@ const normalizeJoinId = (id: unknown, channelId: unknown, userId: unknown): stri
     return rawId;
 };
 
-// Each mapper performs a single, one-way "API View -> Domain" conversion.
-// They are the only place API shapes become domain shapes; repositories and
-// local data sources consume the resulting domain models without re-mapping.
-
-/**
- * API View -> DomainChannel.
- *
- * The view's `lastChat$` is deliberately NOT read here. The last message — and therefore its time —
- * is owned by the chat cache (`chat.observeLastList`, ADR-0057), so folding a server-side summary
- * into the channel model would give one channel two disagreeing answers for "when did this last move".
- * Ordering by the last chat's time is done from that cache instead; see `sortChannels`.
- */
 export const toDomainChannel = (api: ApiInput<ChannelView, DomainChannel>, context: DataContext): DomainChannel => {
     const cid = context.cid || 'default';
     const id = toStringSafe(api.id);
-    // A cloud 1:1 never takes the context's place: it belongs to the place the server stamped on it,
-    // which its id names when the answer carries no field (`isCloudDm`).
     const sid = isCloudDm({ stereo: api.stereo, cid })
         ? dmPlaceOf({ id, sid: api.sid, $: api.$ })
         : api.sid || api.$?.sid || context.sid || '';
@@ -97,14 +78,11 @@ export const toDomainChannel = (api: ApiInput<ChannelView, DomainChannel>, conte
         ...api,
         id,
         cid,
-        // Channel view sid: top-level field first, then the nested `$.sid`, then context.
-        // Mirrors ChannelLocalDataSource's precedence so a view's own site wins over context.
         sid,
         isNotificationEnabled: toBooleanSafe(api.isNotificationEnabled, true),
     };
 };
 
-/** API View -> DomainChat. Normalizes send-state flags and millisecond timestamps. */
 export const toDomainChat = (api: ApiInput<ChatView, DomainChat>, context: DataContext): DomainChat => {
     const createdAtMs = toEpochMs(api.createdAt);
     const updatedAtMs = toEpochMs(api.updatedAt);
@@ -124,7 +102,6 @@ export const toDomainChat = (api: ApiInput<ChatView, DomainChat>, context: DataC
     };
 };
 
-/** API View -> DomainJoin. */
 export const toDomainJoin = (api: ApiInput<JoinView, DomainJoin>, context: DataContext): DomainJoin => {
     const cid = context.cid || 'default';
     const channelId = toStringSafe(api.channelId);
@@ -137,18 +114,10 @@ export const toDomainJoin = (api: ApiInput<JoinView, DomainJoin>, context: DataC
         channelId,
         userId,
         joined: toNumberSafe(api.joined, 1),
-        // The server join's read cursor is `chatNo` — JoinView never carries a
-        // `readNo` field, so without the fallback every server-mapped join
-        // reported readNo 0 and only the raw chatNo passthrough was usable.
         readNo: toNumberSafe(api.readNo ?? api.chatNo, 0),
     };
 };
 
-/**
- * Channel user views (listUser / sync-users) embed the member's read-state in `$join`.
- * Extract it into a DomainJoin, backfilling channelId/userId/id from the request and the
- * parent user when the embedded view omits them. Returns null when there is no `$join`.
- */
 export const toDomainJoinFromUser = (
     user: { id?: string; $join?: JoinView },
     context: DataContext,
@@ -169,15 +138,6 @@ export const toDomainJoinFromUser = (
     );
 };
 
-/**
- * API View -> DomainUser. Collects channel ids from the user's own `channelId`
- * and an optional embedded `$join`, neither of which is part of the typed UserView.
- *
- * `$join` is READ here and NOT carried onto the result: a user record is global (one row per
- * user id, `channelIds` unioned across channels), so a per-channel read cursor riding on it
- * would mean whichever channel was mapped last owns the field. The cursor's home is the join
- * cache, keyed `channelId@userId` — `toDomainJoinFromUser` puts it there, off the raw view.
- */
 export const toDomainUser = (
     api: ApiInput<UserView, DomainUser> & { channelId?: string; $join?: { channelId?: string } },
     context: DataContext
@@ -196,11 +156,6 @@ export const toDomainUser = (
     };
 };
 
-/**
- * `place.list-user` item -> DomainPlaceMember. Only the listed display fields are carried; the
- * picture arrives under the backend's name `photo` and is moved to `thumbnail`, the field every
- * client surface reads a user's picture from. Without the move the picker draws no picture at all.
- */
 export const toDomainPlaceMember = (view: PlaceUserView, context: DataContext): DomainPlaceMember => {
     const member: DomainPlaceMember = { id: toStringSafe(view.id), cid: context.cid || 'default' };
     if (view.name) member.name = view.name;
@@ -210,7 +165,6 @@ export const toDomainPlaceMember = (view: PlaceUserView, context: DataContext): 
     return member;
 };
 
-/** API View -> DomainPlace. Normalizes the place `type` and keeps a stable sort `order`. */
 export const toDomainPlace = (api: ApiInput<MySiteView, DomainPlace>, context: DataContext): DomainPlace => {
     const rawType = api.type;
     const normalizedType = rawType === 'site' || rawType === 'user' ? rawType : undefined;
@@ -226,10 +180,6 @@ export const toDomainPlace = (api: ApiInput<MySiteView, DomainPlace>, context: D
     };
 };
 
-/**
- * API View -> DomainProfile. Resolves the `sid:uid` identity from API aliases
- * (siteId/userId) or the active context, then derives the cache id.
- */
 export const toDomainProfile = (
     api: ApiInput<ProfileView, DomainProfile> & Partial<ProfileDisplay>,
     context: DataContext
@@ -252,7 +202,6 @@ export const toDomainProfile = (
     };
 };
 
-/** API View -> DomainCloud. Classifies the cloud via `cloudType` ('invited' | 'owner'). */
 export const toDomainCloud = (api: ApiInput<CloudView, DomainCloud>, context: DataContext): DomainCloud => {
     const cid = context.cid || 'default';
 

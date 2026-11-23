@@ -24,7 +24,6 @@ describe('JoinLocalDataSource', () => {
 
         const result = await dataSource.cacheReadList({ channelId: 'ch-1', activeOnly: true });
 
-        // activeOnly should filter out archived membership rows for the same channel.
         expect(result?.list.map(item => item.id)).toEqual(['j1']);
     });
 
@@ -52,7 +51,6 @@ describe('JoinLocalDataSource', () => {
                 metaNo: 3,
             });
 
-            // A join sync that left before the read lands after it.
             await dataSource.cacheWrite({
                 id: 'j1',
                 channelId: 'ch-1',
@@ -117,7 +115,6 @@ describe('JoinLocalDataSource', () => {
 
         const result = await dataSource.cacheReadList({ channelId: 'ch-1', activeOnly: false });
 
-        // Bulk delete should remove every targeted row from the next channel snapshot.
         expect(result?.list).toEqual([]);
     });
 });

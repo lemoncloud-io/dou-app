@@ -13,7 +13,6 @@ import {
 export interface IProfileLocalDataSource
     extends ILocalDataSource<DomainProfile, DomainProfileListPayload | undefined, DomainListResult<DomainProfile>> {}
 
-/** Stores site profiles by normalized `sid@uid` keys and re-emits affected scoped observers. */
 export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> implements IProfileLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'profile'>) {
         super(contextProvider, storages);
@@ -31,11 +30,8 @@ export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> imple
         query?: DomainProfileListPayload,
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainProfile> | null> {
-        // Only the query decides the site filter — an ambient fallback would make the same query
-        // answer differently per selected site, invisibly to the observer key (ADR-0085).
         const sid = query?.sid || query?.siteId || '';
         const uid = query?.uid || query?.userId;
-        // Storage partitions only by cid/uid; sid is a logical filter applied here in memory.
         const allItems = await this.storage(contextOverride).loadAll();
 
         const deduped = new Map<string, DomainProfile>();
@@ -93,9 +89,6 @@ export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> imple
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
         const scope = this.resolveContext(contextOverride);
-        // Load the cached row BEFORE normalizing so partial payloads merge instead of
-        // overwriting (mirrors cacheWriteMany): a profile.get/profile.set response that
-        // omits `thumbnail` must not wipe the photo already cached for that profile.
         const storage = this.storage(scope);
         const existingId = this.makeProfileId(item, scope);
         const existing = existingId ? await storage.load(existingId) : null;
@@ -113,8 +106,6 @@ export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> imple
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<void> {
         const scope = this.resolveContext(contextOverride);
-        // Read the existing rows in one call. This used to issue a `load` per item, so syncing 50
-        // profiles began with 50 bridge round trips.
         const existingIds = items.map(item => this.makeProfileId(item, scope)).filter((id): id is string => !!id);
         const storage = this.storage(scope);
         const existingById = this.indexById(await storage.loadMany(existingIds));
@@ -154,7 +145,6 @@ export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> imple
         const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        // Only the affected sid set is needed, so ids omitted because they are absent do not matter.
         const storage = this.storage(scope);
         const existingItems = await storage.loadMany(validIds);
         await storage.deleteAll(validIds);
@@ -241,14 +231,6 @@ export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> imple
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueSids = Array.from(new Set(sids.map(sid => sid || '__all__')));
-        // Written sids, plus the all-sites observers (`sid:__all__`, what getListKey falls back to)
-        // which must hear about every sid.
-        //
-        // Two traps, both from `flush` matching with `key.startsWith(prefix)`:
-        //  - A bare `${scopeKey}|profiles` prefix matches EVERY profile observer, so one write woke
-        //    them all and each wake re-reads storage.
-        //  - Without the trailing `|`, `sid:site-1` also matches `sid:site-10`. The delimiter pins
-        //    the match to a whole key segment.
         return [`${scopeKey}|profiles|sid:__all__|`, ...uniqueSids.map(sid => `${scopeKey}|profiles|sid:${sid}|`)];
     }
 }

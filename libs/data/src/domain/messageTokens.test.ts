@@ -3,15 +3,6 @@ import { extractFirstUrl, toPlainPreview, toPlainText, tokenizeMessage } from '.
 const urls = (text: string, truncated = false) =>
     tokenizeMessage(text, { truncated }).flatMap(token => (token.type === 'url' ? [token.value] : []));
 
-/**
- * The fastest of up to three runs, stopping at the first that fits `budgetMs`.
- *
- * The budget tests below guard against a scan gone quadratic, which costs seconds on every run (the
- * old trimming took ~9s on a 60k-character input); the work itself takes 1–20 ms warm. A single
- * timed run also measured whatever else the machine was doing: on a CI runner, a cold first run
- * beside other jest workers once took 305 ms of a 300 ms budget. Load does not repeat on every
- * attempt; a regression does.
- */
 const fastestRunMs = (run: () => void, budgetMs: number): number => {
     let fastest = Infinity;
     for (let attempt = 0; attempt < 3 && fastest >= budgetMs; attempt += 1) {
@@ -26,7 +17,6 @@ describe('fastestRunMs', () => {
     it('stops at the first run that fits, so one slow run does not fail the budget', () => {
         const durations = [305, 12];
         let calls = 0;
-        // Each run reads the clock twice: before, then after.
         const now = jest.spyOn(performance, 'now').mockImplementation(() => {
             const run = Math.floor(calls / 2);
             const elapsed = calls % 2 === 0 ? 0 : (durations[run] ?? 0);
@@ -180,7 +170,6 @@ describe('inline code', () => {
         ]);
     });
 
-    // Retroactive rule: old messages that used a backtick as punctuation must not turn into code.
     it('leaves an unclosed backtick as plain text', () => {
         expect(tokenizeMessage('이건 `중요해요')).toEqual([{ type: 'text', value: '이건 `중요해요' }]);
     });
@@ -212,9 +201,6 @@ describe('fenced code blocks', () => {
         expect(token).toEqual({ type: 'codeBlock', value: 'a\nb', lang: undefined });
     });
 
-    // The newline ending each fence line belongs to the fence. Leaving it in the text runs stacked
-    // a blank line above and below every block, since the bubble renders whitespace-pre-wrap and
-    // the block is already its own box (measured: one extra line box in Chrome).
     it('keeps the surrounding text as its own runs, without the fence line breaks', () => {
         expect(tokenizeMessage('보세요:\n```\ncode\n```\n끝')).toEqual([
             { type: 'text', value: '보세요:' },
@@ -231,8 +217,6 @@ describe('fenced code blocks', () => {
         expect(tokenizeMessage('```ts\nconst x = 1;')).toEqual([{ type: 'text', value: '```ts\nconst x = 1;' }]);
     });
 
-    // The closing fence is on the other side of the cut, so honour the block rather than showing
-    // three stray backticks in the bubble. The full text is still available in the expand dialog.
     it('treats a fence left open by truncation as closed', () => {
         expect(tokenizeMessage('```ts\nconst x = 1;', { truncated: true })).toEqual([
             { type: 'codeBlock', value: 'const x = 1;', lang: 'ts' },
@@ -246,9 +230,6 @@ describe('fenced code blocks', () => {
     });
 });
 
-// A fence closes at the next backtick run at least as long as the one that opened it, as on desktop.
-// The desktop composer wraps code holding ``` in four backticks; closing at the next three cut such a
-// block short and spilled the rest of it out as text.
 describe('fence run length', () => {
     it('pairs a four-backtick fence with its own closing run, keeping the ``` inside as code', () => {
         expect(tokenizeMessage('````\nuse ```js\n````')).toEqual([
@@ -295,7 +276,6 @@ describe('fence run length', () => {
     });
 });
 
-// The ordering guarantee: code is resolved first, so URLs inside it never become links.
 describe('code wins over URLs', () => {
     it('does not link a URL inside a fenced block', () => {
         const tokens = tokenizeMessage("```ts\nfetch('https://api.example.com');\n```");
@@ -325,7 +305,6 @@ describe('code wins over URLs', () => {
 
     it('tokenizes a message mixing text, fence, inline code and a URL in order', () => {
         const tokens = tokenizeMessage('먼저 https://a.com\n```ts\nx\n```\n그리고 `npm i`');
-        // No text run between the URL and the fence: it held only the newline the fence consumes.
         expect(tokens.map(t => t.type)).toEqual(['text', 'url', 'codeBlock', 'text', 'code']);
     });
 });
@@ -357,12 +336,10 @@ describe('toPlainPreview', () => {
 });
 
 describe('toPlainText', () => {
-    // The search row highlights inside this, so a match on a fence's later lines must survive.
     it('keeps every line of a fenced block', () => {
         expect(toPlainText('```ts\nconst x = 1;\nconst y = 2;\n```')).toBe('const x = 1;\nconst y = 2;');
     });
 
-    // The fence swallows the line breaks around it; without one put back, words run into the code.
     it('keeps a fenced block on its own line beside text', () => {
         expect(toPlainText('앞\n```\nb\n```\n뒤')).toBe('앞\nb\n뒤');
         expect(toPlainText('```\nb\n```\n```\nd\n```')).toBe('b\nd');
@@ -383,8 +360,6 @@ describe('toPlainText', () => {
     });
 });
 
-// Message content is chosen by whoever sends it, and the home list now tokenizes the full last
-// message of every channel — so a pathological string must not be able to hang the main thread.
 describe('adversarial input', () => {
     const budgetMs = 300;
 
@@ -396,9 +371,6 @@ describe('adversarial input', () => {
         expect(fastestRunMs(() => toPlainPreview(`https://a${').'.repeat(20_000)}`), budgetMs)).toBeLessThan(budgetMs);
     });
 
-    // Every opening run that finds no closing one scans the rest of the message. Such runs can only
-    // get shorter as the message goes on — a later run as long would have closed the earlier one — so
-    // a message of strictly shrinking runs is the worst case: about √(2n) scans of the remainder.
     it('rejects a long series of ever-shorter unclosed fences within budget', () => {
         const runs = Array.from({ length: 344 }, (_, index) => '`'.repeat(346 - index)).join('a');
         expect(fastestRunMs(() => toPlainPreview(runs), budgetMs)).toBeLessThan(budgetMs);
@@ -414,16 +386,12 @@ describe('adversarial input', () => {
 });
 
 describe('extractFirstUrl and the bubble agree about code', () => {
-    // A message over the bubble cap whose fence never closes: the bubble treats the dangling fence
-    // as closed and renders the URL as code, so the card must not appear either.
     it('skips a URL under a fence the bubble closes at the cut', () => {
         const text = `\`\`\`\n${'가'.repeat(250)} https://inside.example.com/x`;
         expect(extractFirstUrl(text, true)).toBeUndefined();
         expect(extractFirstUrl(text, false)).toBe('https://inside.example.com/x');
     });
 
-    // Closing a dangling fence must not also drop a trailing URL — the card exists precisely to
-    // reach a link the bubble had to cut.
     it('still finds a trailing URL past the truncation point', () => {
         const long = `${'가'.repeat(250)} https://example.com/late`;
         expect(extractFirstUrl(long, true)).toBe('https://example.com/late');
@@ -467,7 +435,6 @@ describe('labelled links', () => {
     });
 });
 
-// The desktop composer's dialect, read the way the desktop reader reads it.
 describe('inline marks', () => {
     it('reads bold, italic and strikethrough', () => {
         expect(tokenizeMessage('**굵게** *기울임* ~~취소~~')).toEqual([
@@ -497,7 +464,6 @@ describe('inline marks', () => {
         expect(tokenizeMessage('```\n**x**\n```')).toEqual([{ type: 'codeBlock', value: '**x**', lang: undefined }]);
     });
 
-    // The desktop composer's B and I buttons together send `***x***`.
     it('reads bold and italic on the same words as both, with no asterisks left over', () => {
         expect(tokenizeMessage('***123123***')).toEqual([
             { type: 'bold', children: [{ type: 'italic', children: [{ type: 'text', value: '123123' }] }] },
@@ -541,7 +507,6 @@ describe('inline marks', () => {
         ]);
     });
 
-    // Inside a mark only marks are read again, as on desktop: an address there is its plain words.
     it('does not link an address inside a mark', () => {
         expect(tokenizeMessage('**https://example.com/a**')).toEqual([
             { type: 'bold', children: [{ type: 'text', value: 'https://example.com/a' }] },
@@ -601,7 +566,6 @@ describe('quotes', () => {
         ]);
     });
 
-    // `>_<` and `>.<` are faces, and the desktop composer always writes `> `.
     it('leaves a line where > is not followed by a space as text', () => {
         expect(tokenizeMessage('좋아요\n>_< 고마워')).toEqual([{ type: 'text', value: '좋아요\n>_< 고마워' }]);
         expect(toPlainPreview('>.< 헐')).toBe('>.< 헐');
@@ -631,7 +595,6 @@ describe('quotes', () => {
         ]);
     });
 
-    // The search surface keeps every line of a block; marks and quote markers go there too.
     it('flattens marks, a quote and a fence together for search', () => {
         expect(toPlainText('**a**\n> q\n```\nx\ny\n```')).toBe('a\nq\nx\ny');
     });

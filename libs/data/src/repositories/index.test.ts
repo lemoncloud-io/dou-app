@@ -4,14 +4,6 @@ import type { LocalDataSources } from '../local/data-sources';
 import type { SocketDataSources } from '../remote/socket-data-sources';
 import type { HttpDataSources } from '../remote/http-data-sources';
 
-/**
- * Every domain the factory builds — and therefore every domain `dispose()` has to reach.
- *
- * `dispose()` is a hand-written list inside `createRepositories`, so a domain added to
- * `buildRepositories` and forgotten there leaks in silence: nothing in the type system pairs the two.
- * This list is the pairing. Adding a domain means adding it here, and then both assertions below say
- * whether the factory and the teardown agree.
- */
 const DOMAIN_KEYS = [
     'auth',
     'channel',
@@ -30,7 +22,6 @@ const DOMAIN_KEYS = [
     'webhook',
 ] as const;
 
-/** Data sources are only stored by the constructors, so an inert stub per domain is enough. */
 const stubBundle = <T>(): T => new Proxy({}, { get: () => ({}) }) as T;
 
 const createContextProvider = (): DataContextProvider => ({
@@ -67,7 +58,6 @@ describe('createRepositories', () => {
     });
 
     describe('outbox', () => {
-        /** A graph whose join sources are real enough to carry one read. */
         const buildWithJoin = (outbox?: { set: jest.Mock }) => {
             const join = {
                 readChat: jest.fn().mockResolvedValue({ id: 'ch-1@user-a', chatNo: 9 }),
@@ -108,7 +98,6 @@ describe('createRepositories', () => {
             await delivered;
 
             expect(join.readChat).toHaveBeenCalledWith({ channelId: 'ch-1', chatNo: 9 }, expect.anything());
-            // The answer is recorded like any join the server sends.
             expect(joinLocal.cacheWrite).toHaveBeenLastCalledWith({ id: 'ch-1@user-a', chatNo: 9 }, expect.anything());
         });
     });

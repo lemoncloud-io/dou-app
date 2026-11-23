@@ -1,6 +1,5 @@
 import { isMentioningViewer, toMentionBody, toMentionRecord } from './mention';
 
-// `all` reaches the cache as `1` from a live `chat.sync`, which the view type does not admit.
 const chat = (mention$: unknown) => ({ mention$ }) as never;
 
 describe('isMentioningViewer', () => {
@@ -8,8 +7,6 @@ describe('isMentioningViewer', () => {
         expect(isMentioningViewer(chat({ userIds: ['u1', 'u2'] }), ['u2'])).toBe(true);
     });
 
-    // In a subscription cloud the record holds channel member ids, which are cloud user ids, not
-    // the account uid. Only checking the account uid would miss every mention in a cloud room.
     it('matches the cloud user id when the account uid is not in the record', () => {
         expect(isMentioningViewer(chat({ userIds: ['cloud-7'] }), ['account-1', 'cloud-7'])).toBe(true);
     });
@@ -49,7 +46,6 @@ describe('toMentionRecord', () => {
 });
 
 describe('toMentionBody', () => {
-    // The server takes only `true` for everyone; a record's 1 has to go back out as true.
     it('turns a chat.sync 1 back into true', () => {
         expect(toMentionBody({ all: 1 } as never)).toEqual({ all: true });
     });

@@ -1,10 +1,5 @@
 import { stableHash } from './stableHash';
 
-/**
- * The stream-key builder for the v2 local data sources: the same scope and query must land on one
- * key, and two different queries must never share one. A collision here does not throw — it hands a
- * subscriber somebody else's stream — so these tests pin each property the key rests on separately.
- */
 describe('stableHash', () => {
     it('ignores key order — one scope written two ways is one key', () => {
         expect(stableHash({ cid: 'cloud-a', uid: 'user-1' })).toBe(stableHash({ uid: 'user-1', cid: 'cloud-a' }));
@@ -47,10 +42,6 @@ describe('stableHash', () => {
         expect(stableHash({ chatNo: 7 })).not.toBe(stableHash({ chatNo: '7' }));
     });
 
-    // Documented, not endorsed. The signature promises `string`, but `JSON.stringify(undefined)` is
-    // `undefined`. Every caller today passes an object literal (`getScopeKey`,
-    // `createListObserverKey`), so nothing reaches this — the test is here so that a caller which
-    // starts passing a bare value has to come change this line on purpose.
     it('returns undefined for a bare undefined, despite the string signature', () => {
         expect(stableHash(undefined)).toBeUndefined();
     });

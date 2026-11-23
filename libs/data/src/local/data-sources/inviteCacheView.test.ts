@@ -18,12 +18,10 @@ const makeServerView = (overrides: Partial<MyInviteView> = {}): MyInviteView & R
     rejectedAt: undefined,
     createdAt: 100,
     updatedAt: 200,
-    // Credential / internal fields that must never survive the mapper.
     code: 'secret-code',
     deeplink: 'https://example.com/s?code=secret-code',
     phone: '+821012345678',
     hashPhone: 'hash-value',
-    // A field the type doesn't even declare — simulates a future backend addition.
     somethingBrandNew: 'should never appear',
     ...overrides,
 });

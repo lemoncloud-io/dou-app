@@ -16,7 +16,6 @@ describe('UserLocalDataSource', () => {
         const storage = createPartitionedMemoryStorage('user');
         const dataSource = new UserLocalDataSource(contextProvider as any, storage);
 
-        // Channel membership arrives pre-mapped as `channelIds` (resolved upstream from channelId/$join).
         await dataSource.cacheWriteMany([
             { id: 'u1', channelIds: ['ch-1'], name: 'Direct' } as any,
             { id: 'u2', channelIds: ['ch-1'], name: 'Nested' } as any,
@@ -36,12 +35,6 @@ describe('UserLocalDataSource', () => {
 
         const users = await dataSource.cacheReadMany(['u1', 'u2']);
 
-        // Batched reads should preserve the requested set without forcing callers into N single-item reads.
-        //
-        // Asserted as a set — order is not part of the contract. On native this goes down as a single
-        // `id IN (...)` and uses whatever order SQLite returns, so matching the requested order cannot be
-        // promised. (The fixture deliberately returns them reversed for the same reason: to keep this
-        // assertion from leaning on order.)
         expect(users.map(user => user.id).sort()).toEqual(['u1', 'u2']);
     });
 

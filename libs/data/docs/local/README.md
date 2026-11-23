@@ -95,6 +95,25 @@ touches local, **only the affected observers** are recomputed.
 - **Debounced flush** — re-emissions are collected on a 50ms timer and flushed at once (duplicate notifications are removed in the process).
 - **Nothing reaches a subscription after it ended** — the unsubscribe function is the end of delivery, including the first emit. That first emit can be a read still in flight, so it is checked against the live subscription when it lands rather than when it started. The case that needed it: a screen moves to another scope, its read there is out, and the move is undone (a refused cloud switch). The screen goes back to the old key and is answered from memory at once, and the abandoned key's read, landing after that, used to reach the same `setState` and replace the right answer with the abandoned scope's rows — home showed "no rooms" until something else wrote.
 
+### Observer sharing
+
+Observers on one key are one **group**, and the group, not each observer, owns the read.
+
+- **One query per key.** The key is built from every parameter that reaches storage, so the same key is the same query. A re-emit runs it once and hands the value to every callback; an observer that threw is kept as a breadcrumb and does not stop the others.
+- **A newcomer does not read storage again.** The group keeps its last value. A new subscriber is answered alone, from that value, or by attaching to the read already in flight (a burst of hooks mounting on one screen), and only the first subscriber of a key reads. Re-delivering to the others would re-render every consumer whenever one more mounted.
+- **A group outlives its last subscriber for a minute (at most 256 such groups).** A screen transition destroys subscriptions and recreates them at once, and on native each read is a bridge round trip. A resubscribe within that grace revives the group and is answered from memory. A write that reaches a group in grace discards it instead of re-querying, since nobody is listening and the next subscriber should read the post-write answer, not a value from before it. The grace timers are `unref`'d, so they never hold a Node process open.
+- **A failed first read is retried once, after one second.** The callback had never been called, so the screen would stay empty until the next write or resubscribe. The retry does nothing if the group gained a value, another read started, or the group was removed meanwhile; on success it delivers to everyone waiting on the key.
+- **Item keys carry the scope too.** A group reuses the query of whoever registered it first, so a raw id as the key handed a subscriber from another cloud the first one's data.
+
+### Re-emit prefixes
+
+`flush` matches a pending prefix with `startsWith` against observer keys, which makes two mistakes easy.
+
+- A bare `<scope>|channels` (or `|chats`, `|joins`, `|profiles`) prefix matches every observer of the domain, so one write woke all of them and each re-read storage. Only the written channels (or sids) are named.
+- The prefix ends in `|`, so it matches a whole key segment: without it `channel:ch-1` also matches `channel:ch-10`, and `sid:site-1` matches `sid:site-10`.
+- Cloud-wide observers (an empty `sid` for channels, `sid:__all__` for profiles) must hear every written sid, so they get their own entry.
+- `chats-last|` is the one catch-all kept on purpose: the last-chat observer's key is a set of channel ids, which `startsWith` cannot test membership against, so every chat write wakes it. It is the home list's single observer and the 50 ms flush coalesces it.
+
 ## Scope and cache slots
 
 A scope is `cid` (cloud) and `uid` (user) — **the same pair the storage partition uses**
@@ -241,6 +260,33 @@ for this — `canQueryChatMedia`, `loadChatMedia`, `countChatMedia` and `saveCha
 room's plain rows and runs the same `chatMediaEntries` over them: the same page and counts, slower,
 and nothing filled or marked. A read the index fails on (`null`, a bridge error) is answered the same
 way, for that read only.
+
+## Sync cursors and cache lifetime
+
+`SyncMetaLocalDataSource.getSyncedAt` answers 0 ("sync everything") whenever it cannot vouch for a
+cursor. A missing row is a first sync and stays silent; the other three are reported with a
+`sync-cursor-retired` warning naming the reason, because a retired cursor costs a full re-sync and a
+fingerprint that changed on every boot would otherwise charge it forever with nothing to point at.
+
+- **`expired`** — computed at read time from the row's `lastSyncedAt` against the current `meta` TTL, not from the stored `expiresAt`, so rows written under an older, longer policy are judged by today's. A row with no cache meta counts as expired. A cursor idle beyond the server's delta-history window points past what `channel.sync` / `profile.sync` can replay and would freeze the list stale; every successful sync re-saves the cursor and refreshes its TTL, so only an inactivity gap longer than the TTL expires one.
+- **`routing-changed`** — the stored `routing` differs from the assembler's fingerprint. The fingerprint deliberately covers every cache type, because cursor kinds are assembled by callers (`channel-sync:<cid>`) and a kind-to-domain table would silently miss a later one. The cost is that an unrelated domain's routing change also retires them. A cursor written before the stamp existed has no `routing` and retires once. Without a fingerprint (tests, injected storages) the check is off.
+- **`cache-cleared`** — saved before `cursorsValidAfter()`.
+
+TTLs by cache type (`ports/policy.ts`): `chat`, `invite` and `invitecloud` never expire in practice
+(100 years). An invite's expiry is judged from the server's `state` / `expiredAt`, so evicting the cache
+would only undo its purpose, instant render on a cold boot. `channel`, `join`, `profile`, `site`, `user`
+and `meta` live 30 minutes. The partition fallbacks are asymmetric: a missing `cid` becomes `default`,
+which is a real partition (the relay), but there is no uid-less cache, so no uid means no scope and the
+adapter skips every call. `invitecloud` is answered before that uid check with a fixed global partition,
+because whoever opens an invite link may not be signed in yet.
+
+## Reading rows
+
+- **`loadMany` omits absent ids and promises no order.** Merging writes index what came back by id (`indexById`) rather than pairing by position; the in-memory test fixture returns rows reversed so code that pairs by position breaks in tests. Readers that look rows up by id (chat authors, say) ignore the order.
+- **The last-chat read has a fast path and a fallback.** `cacheReadLastList` asks storage for the newest previewable and newest activity row per channel plus the channel's highest `chatNo` in one call (`loadLastPerChannel`, optional, one bridge round trip on native). The SQL decision is only an optimization: this layer re-checks each row with `isPreviewableChat` / `isActivityChat`, and a channel that is missing from the answer, fails the check or carries no `activityItem` (an app build that predates it) is read from its newest 30 cached rows instead. A channel with no rows is a valid answer (`lastNo: 0`, no preview), not a fallback. `lastNo` counts every row type so a head-driven refresh can compare against it.
+- **Channel and place lists sort by id, numeric-aware**, so the rail does not follow server order or activity times.
+- **A channel or profile query with no `sid` means every place of the cloud**, never the ambient one: reading it would answer differently depending on which place was selected while the observer key could not see the difference.
+- **A partial profile write merges.** The cached row is read before normalizing so a `profile.get` / `profile.set` answer without `thumbnail` does not wipe the cached photo; the existing rows of a batch are read in one call.
 
 ## Cache clear
 
