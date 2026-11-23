@@ -14,13 +14,10 @@ import {
 import { DESKTOP_MAIN_HOST_OPTIONS, registerHandlers, type DesktopBridgeDeps } from './bridgeHandlers';
 import { startUpdater } from './updater';
 
-// updater.ts registers the two auto-update handlers and is the one module here that needs electron.
-// Packaged, so it registers them; the update feed itself is a stub.
 jest.mock('electron', () => ({
     app: { isPackaged: true, on: jest.fn(), getPath: () => 'logs', getVersion: () => '1.0.0' },
     powerMonitor: { on: jest.fn() },
 }));
-// The updater's file log is covered by its own suite; here it must not write into the real logs.
 jest.mock('./updaterLog', () => ({
     createUpdaterLog: () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }),
 }));
@@ -40,8 +37,6 @@ jest.mock('./unfurl', () => ({
     fetchUrlMetadata: jest.fn(async (url: string) => ({ success: true, url, title: 'Example' })),
 }));
 
-// Reasons shared by many lines below. Every request desktop-web sends is handled — its six own, and
-// the SavePreference that @chatic/theme posts — so the rest belong to the phone shell.
 const PHONE = 'Phone OS or hardware surface with no desktop counterpart';
 const BROWSER = 'desktop-web does it with the browser (file input, downloads, clipboard, links)';
 const NO_STORE = 'No cache, preference or config store in the main process; desktop-web keeps them in the renderer';
@@ -53,15 +48,8 @@ const SYSTEM_BROWSER_LOGIN = 'Desktop social login runs in the system browser an
 const STORE_UPDATE = 'Store update check; desktop updates itself (StartUpdateDownload / RestartToUpdate)';
 const WEB_OWNS_SESSION =
     'The desktop shell never owns the session: desktop-web runs its own runtime and is never offered one';
-// The page-facing requests: a sub view page sends them to the sub view's own host, never to the main
-// window's. The desktop page host answers a subset of them (see desktopSubWebView.test.ts).
 const SUB_WEBVIEW_PAGE = "A sub WebView page's request; the main window's host never answers it";
 
-/**
- * Requests in `WEB_MESSAGE_RESPONSE_TYPE` the desktop shell deliberately leaves unregistered. The
- * host answers each with `NOT_FOUND`. A message belongs here only by decision — a new one in
- * `@chatic/bridge-messages` fails this suite until it has a handler or a line here.
- */
 const DESKTOP_UNSUPPORTED = {
     SetCanGoBack: PHONE,
     OpenSettings: PHONE,
@@ -177,10 +165,6 @@ const DESKTOP_UNSUPPORTED = {
     SetDefaultSessionOwner: WEB_OWNS_SESSION,
 } satisfies Partial<Record<WebMessageType, string>>;
 
-/**
- * A request each handled message can be sent with. A new desktop handler needs a line here, which is
- * what gets it exercised below.
- */
 const SAMPLE_REQUESTS: Partial<{ [K in WebMessageType]: WebMessagePayloadMap[K] }> = {
     WebAppReady: {},
     Ping: { payload: 'probe' },
@@ -210,8 +194,6 @@ const createDeps = (): jest.Mocked<DesktopBridgeDeps> => ({
         save: jest.fn(() => Promise.resolve(true)),
         clear: jest.fn(() => Promise.resolve(true)),
     },
-    // A stand-in: what opens and how is the service's, tested in desktopSubWebView.test.ts. Here each
-    // request only has to reach it and come back as its paired reply.
     subWebView: {
         open: jest.fn(() => ({
             ok: true as const,
@@ -227,11 +209,6 @@ const createDeps = (): jest.Mocked<DesktopBridgeDeps> => ({
     },
 });
 
-/**
- * A real host with everything the desktop main process registers on it, and the replies it sent.
- * This repeats createWindow's two calls (registerHandlers, startUpdater) rather than running them:
- * index.ts cannot load under jest. The registration-site test below keeps a third call site out.
- */
 const createShell = (deps = createDeps(), deliver?: (raw: string) => void) => {
     const replies: ResponseMessage[] = [];
     const host = new AppBridgeHost({
@@ -242,7 +219,6 @@ const createShell = (deps = createDeps(), deliver?: (raw: string) => void) => {
         ...DESKTOP_MAIN_HOST_OPTIONS,
     });
     registerHandlers(host, deps);
-    // startUpdater arms a check loop; the contract only needs what it registers.
     const interval = jest.spyOn(global, 'setInterval').mockReturnValue(0 as any);
     startUpdater(host, jest.fn());
     interval.mockRestore();
@@ -257,7 +233,6 @@ const createShell = (deps = createDeps(), deliver?: (raw: string) => void) => {
 };
 
 describe('desktop bridge contract', () => {
-    // Read off a real host, so `WebAppReady` and `Ping` — answered inside `AppBridgeHost` — count too.
     const registeredTypes = (): string[] => {
         const register = jest.spyOn(AppBridgeHost.prototype, 'registerHandler');
         createShell();
@@ -280,8 +255,6 @@ describe('desktop bridge contract', () => {
         expect(stale).toEqual([]);
     });
 
-    // The `satisfies` above says the same, but only to tsc — and CI's type check skips test files,
-    // nor does this suite's transform report it.
     it('lists as unsupported only requests in the vocabulary', () => {
         const stale = UNSUPPORTED.filter(type => !(type in WEB_MESSAGE_RESPONSE_TYPE));
 
@@ -296,11 +269,7 @@ describe('desktop bridge contract', () => {
         expect(handled).toEqual([]);
     });
 
-    // A handler registered anywhere else is invisible to the checks above, so a message already
-    // listed as unsupported could gain one without failing them.
     it('registers handlers only in the files this suite loads', () => {
-        // The sub view's own host registers the page-facing subset; it is a different host, and
-        // desktopSubWebView.test.ts holds it to that subset.
         const allowed = ['bridgeHandlers.ts', 'updater.ts', 'subWebView/desktopSubBridgeHost.ts'];
         const sources = (dir: string): string[] =>
             readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
@@ -316,13 +285,10 @@ describe('desktop bridge contract', () => {
         expect(elsewhere).toEqual([]);
     });
 
-    // What a web build reads to decide which controls to offer: exactly the requests decided as
-    // handled above, each with its paired reply, over the same client and channel code the page runs.
     it('advertises in the handshake exactly the requests it answers', async () => {
         const adapter = new InMemoryAdapter();
         const { host } = createShell(createDeps(), raw => adapter.receiveFromApp(JsonProtocol.decode(raw) as any));
         adapter.setAppHost(host);
-        // The client refuses to send without a `window` (its SSR guard); this suite runs in node.
         (globalThis as { window?: unknown }).window = globalThis;
         let report;
         try {
@@ -344,7 +310,6 @@ describe('desktop bridge contract', () => {
         );
     });
 
-    // Every handler, really run: the reply type the web checks against is the one the map names.
     it.each(registeredTypes())('answers %s with its mapped reply type', async type => {
         const sample = SAMPLE_REQUESTS[type as WebMessageType];
         expect(sample).toBeDefined();
@@ -390,7 +355,6 @@ describe('desktop bridge handlers', () => {
         expect(reply).toEqual(expect.objectContaining({ data: { key: 'theme', success: true } }));
     });
 
-    // The badge reply carries whether the OS took it, which the web reads.
     it.each([true, false])('passes the count and overlay on and reports success=%s', async took => {
         const deps = createDeps();
         deps.setBadgeCount.mockReturnValue(took);

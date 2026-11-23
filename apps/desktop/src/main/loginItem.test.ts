@@ -1,6 +1,5 @@
 import { createLoginItem, type LoginItemHost } from './loginItem';
 
-/** Stands in for Electron's `app`, which jest cannot import (see jest.config.js). */
 const fakeHost = (openAtLogin = false) => {
     const calls: { openAtLogin: boolean }[] = [];
     let current = openAtLogin;
@@ -38,8 +37,6 @@ describe('createLoginItem on a supported platform', () => {
     });
 
     it('reports what the OS actually did, not what was asked', () => {
-        // macOS 13+ can answer `requires-approval` and leave openAtLogin false. Echoing the
-        // request would leave the toggle showing a state the OS never entered.
         const host: LoginItemHost = {
             getLoginItemSettings: () => ({ openAtLogin: false }),
             setLoginItemSettings: () => undefined,

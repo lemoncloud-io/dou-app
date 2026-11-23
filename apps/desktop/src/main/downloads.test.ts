@@ -4,7 +4,6 @@ import { createDownloadLog, createDownloadTargets, savesWithoutAsking } from './
 
 const DIR = '/Users/ada/Downloads';
 
-/** A Downloads folder holding `names`, standing in for the disk. */
 const targetsWith = (...names: string[]) => {
     const onDisk = new Set(names.map(name => join(DIR, name)));
     return createDownloadTargets(DIR, path => onDisk.has(path));

@@ -5,7 +5,6 @@ const FILE = '/user-data/secrets.bin';
 
 const enoent = (): Error => Object.assign(new Error('no such file'), { code: 'ENOENT' });
 
-/** An in-memory file system with the four calls the vault makes, each spied. */
 const createFs = (initial: Record<string, Buffer> = {}) => {
     const files = new Map(Object.entries(initial));
     const fs = {
@@ -30,7 +29,6 @@ const createFs = (initial: Record<string, Buffer> = {}) => {
     return { fs, files };
 };
 
-/** "Encrypts" by prefixing, so a test can write a vault file and read one back. */
 const createSafeStorage = (overrides: Partial<SafeStorageLike> = {}): jest.Mocked<SafeStorageLike> => ({
     isEncryptionAvailable: jest.fn(() => true),
     getSelectedStorageBackend: jest.fn(() => 'gnome_libsecret'),

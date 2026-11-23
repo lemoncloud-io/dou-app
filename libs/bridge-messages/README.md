@@ -100,6 +100,11 @@ the envelopes around them (`BaseMessage`, `WebDefaultMessage`, `AppDefaultMessag
 `apps/desktop`). The cache engines the cache messages reach are [`@chatic/db`](../db/README.md), and
 the routing decision in front of them is [`@chatic/runtime`](../runtime/README.md).
 
+## Message catalogue
+
+What each message does, which way it goes and the payload notes the types do not show is in
+[`docs/messages/`](./docs/messages/README.md), grouped by area.
+
 ## Structure
 
 ```mermaid

@@ -1,6 +1,5 @@
 import { bringToFront, type FrontableWindow } from './bringToFront';
 
-/** Records the calls a window receives, in order. Electron cannot be imported under jest. */
 const fakeWindow = (minimized: boolean) => {
     const calls: string[] = [];
     const win: FrontableWindow = {

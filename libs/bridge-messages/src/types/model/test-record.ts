@@ -40,9 +40,7 @@ export type OnSaveAllTestRecordsPayload = {
     count: number;
 };
 
-export type ClearTestRecordsPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
+export type ClearTestRecordsPayload = {};
 
 export type OnClearTestRecordsPayload = {
     success: boolean;

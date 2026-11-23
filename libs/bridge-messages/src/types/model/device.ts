@@ -3,69 +3,44 @@ import type { Platform } from './common';
 export type PageLanguage = 'ko' | 'en' | 'cn' | 'jp' | 'vn' | 'id' | 'th';
 export type Env = 'local' | 'stage' | 'prod';
 
-/** App and web version info */
 export type VersionInfo = {
-    currentVersion: string; // Current combined version
-    latestVersion: string; // Latest version on the server
-    shouldUpdate: boolean; // Whether an update is forced
-    appVersion: string; // Native build version
-    webVersion: string; // Bundled web version
+    currentVersion: string;
+    latestVersion: string;
+    shouldUpdate: boolean;
+    appVersion: string;
+    webVersion: string;
 };
 
-/** Device-unique info */
 export type DeviceInfo = {
     stage: Env;
     platform: Platform;
-    application: string; // App package name / bundle ID
-    /** @deprecated Composite `deviceId:firebaseInstallId`; use `uniqueDeviceId` + `firebaseInstallationId`. */
+    application: string;
     deviceId?: string | null;
     deviceModel?: string | null;
-    /** @deprecated Carries the bare device id despite the name; use `uniqueDeviceId`. */
     installId?: string | null;
-    /** Bare unique device id, stable across app reinstalls. */
     uniqueDeviceId?: string | null;
-    /** Firebase installation id; changes on app reinstall. */
     firebaseInstallationId?: string | null;
     lang?: PageLanguage;
 };
 
-/** [Response] Device/version info update payload */
 export type OnUpdateDeviceInfoPayload = DeviceInfo & VersionInfo;
 
-// --- Test File Types ---
-
-/** [Request] Create a dummy sparse file for testing */
 export type CreateDummyFilePayload = {
     sizeInBytes: number;
     fileName: string;
 };
 
-/** [Response] Result of creating a dummy sparse file for testing */
 export type OnCreateDummyFilePayload = {
-    uri: string; // file:// URI of the created file
-    name: string; // File name
-    size: number; // Requested file size (bytes)
+    uri: string;
+    name: string;
+    size: number;
 };
 
-/** [Request] Contacts lookup request payload */
-export type GetContactsPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
+export type GetContactsPayload = {};
 
-/** [Request] App icon info lookup request payload */
-export type FetchAppIconPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
+export type FetchAppIconPayload = {};
 
-/** [Request] App icon list lookup request payload */
-export type FetchAppIconListPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
+export type FetchAppIconListPayload = {};
 
-/**
- * The prefix the phone app appends to its WebView's User-Agent, per platform. Declared here, in the
- * vocabulary both sides compile against, because it is part of what the app sends the web and the
- * server. It says which shell is speaking, not what that shell can do.
- */
 export const USER_AGENT_PREFIX_IOS = 'DOU_IOS';
 export const USER_AGENT_PREFIX_ANDROID = 'DOU_ANDROID';

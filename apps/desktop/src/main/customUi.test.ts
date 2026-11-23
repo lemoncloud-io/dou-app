@@ -21,8 +21,6 @@ describe('hashUrl', () => {
     });
 
     it('matches the mobile PoC, so both shells name the same bundle the same way', () => {
-        // Ported from apps/mobile customZipService; a silent divergence would only show up as
-        // the two shells disagreeing about which directory a bundle lives in.
         expect(hashUrl('https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc.zip')).toBe(
             'f14cb6c8'
         );
@@ -70,8 +68,6 @@ describe('zipDownloadPath', () => {
 });
 
 describe('isSymlinkEntry', () => {
-    // extract-zip follows what it creates, and resolveEntryPath only confines lexically, so
-    // this predicate is the whole defence against a `link -> /` entry.
     const attrs = (unixMode: number): number => (unixMode << 16) >>> 0;
 
     it('rejects a symlink entry', () => {
@@ -84,8 +80,6 @@ describe('isSymlinkEntry', () => {
     });
 
     it('admits an entry with no unix mode at all (DOS attributes only)', () => {
-        // extract-zip writes those as plain files, so rejecting them would break bundles
-        // zipped on Windows.
         expect(isSymlinkEntry(0)).toBe(false);
         expect(isSymlinkEntry(0x10)).toBe(false);
     });
@@ -133,28 +127,18 @@ describe('resolveEntryPath', () => {
     });
 
     it('confines traversal to the root — dot segments cannot climb out', () => {
-        // URL parsing resolves dot segments before this function sees them, encoded or not
-        // (`/%2e%2e/%2e%2e/etc/passwd` arrives as pathname `/etc/passwd`), so a traversal
-        // entry lands inside the root rather than above it. Asserted as the observable
-        // outcome, since that is the property that matters — not which layer enforces it.
         expect(resolveEntryPath(ROOT, req('/%2e%2e/%2e%2e/etc/passwd'))).toBe(join(ROOT, 'etc', 'passwd'));
         expect(resolveEntryPath(ROOT, req('/assets/%2e%2e/%2e%2e/%2e%2e/secret'))).toBe(join(ROOT, 'secret'));
         expect(resolveEntryPath(ROOT, req('/../..'))).toBe(join(ROOT, 'index.html'));
     });
 
     it('does not let a sibling that shares the root prefix be reached', () => {
-        // `/tmp/custom-web/abc123-evil` starts with the root string but is not inside it;
-        // it must resolve under the root, never beside it.
         expect(resolveEntryPath(ROOT, req('/%2e%2e/abc123-evil/index.html'))).toBe(
             join(ROOT, 'abc123-evil', 'index.html')
         );
     });
 
     it('confines traversal that URL parsing does NOT resolve — encoded slashes and backslashes', () => {
-        // The cases above survive because parsing normalizes them. These do not: an encoded
-        // slash keeps `..` from being a path segment, so the traversal is still intact when
-        // decodeURIComponent runs, and the root-prefix check is the only thing between it and
-        // a sibling directory. Without the `+ sep` these would resolve to `<root>-evil`.
         expect(resolveEntryPath(ROOT, req('/..%2fabc123-evil/index.html'))).toBeNull();
         expect(resolveEntryPath(ROOT, req('/%2e%2e%2fabc123-evil/index.html'))).toBeNull();
         expect(resolveEntryPath(ROOT, req('/..%2f..%2fetc%2fpasswd'))).toBeNull();
@@ -173,13 +157,6 @@ describe('resolveEntryPath', () => {
         expect(resolveEntryPath(ROOT, 'not a url')).toBeNull();
     });
 
-    // The invariant, stated once over every shape above and a few more. The cases individually
-    // asserted earlier pin *which layer* happens to stop each one, which is incidental — Node
-    // could change how it normalizes and leave the code just as safe. This is the property.
-    // The win32-only shapes (`..\..\`, `C:/…`) are deliberately absent: on a posix runner
-    // `resolve` treats both as ordinary filename characters, so they pass without the
-    // confinement check mattering and would read as coverage they are not. The drive-letter
-    // case customUi.ts cites stays unverified until this runs on Windows.
     it.each([
         '/../../../etc/passwd',
         '/%2e%2e/%2e%2e/etc/passwd',
@@ -217,7 +194,6 @@ describe('isDocumentRequest', () => {
     });
 
     it('does not match a type that merely contains text/html', () => {
-        // A prefix test would let `text/html-fragment` through; the split is on whole types.
         expect(isDocumentRequest('text/html-fragment')).toBe(false);
         expect(isDocumentRequest('application/text/html')).toBe(false);
     });

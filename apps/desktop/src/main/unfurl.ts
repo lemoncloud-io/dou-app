@@ -1,19 +1,3 @@
-/**
- * URL unfurl for chat link previews. Runs in the main process because the
- * renderer cannot read cross-origin pages (CORS).
- *
- * Security: any user can make any message containing any URL, and this code
- * fetches it automatically — so it must not become an internal-network probe
- * (SSRF). Guards: http(s) only, private/loopback/link-local hosts rejected
- * before every request including each redirect hop (followed by hand, capped
- * at five), 3s timeout across the whole chain, 256KB read cap, and only an
- * https image URL is forwarded (never image bytes).
- *
- * Not covered: a public hostname whose DNS answer is a private address
- * (nip.io-style names, DNS rebinding) — the check sees the name, not the
- * resolved address.
- */
-
 import { BlockList, isIP } from 'node:net';
 
 export interface UrlMetadataResult {
@@ -37,21 +21,16 @@ const isPrivateIpv4 = (a: number, b: number): boolean =>
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 192 && b === 168);
 
-// IPv6 ranges that are never a public host: unique-local fc00::/7, link-local fe80::/10, and
-// ::/96 — the unspecified address, loopback and the deprecated IPv4-compatible block.
 const PRIVATE_IPV6 = new BlockList();
 PRIVATE_IPV6.addSubnet('fc00::', 7, 'ipv6');
 PRIVATE_IPV6.addSubnet('fe80::', 10, 'ipv6');
 PRIVATE_IPV6.addSubnet('::', 96, 'ipv6');
 
-// `new URL` serialises an IPv4-mapped address as `::ffff:<hi>:<lo>` hextets, whatever spelling came in.
 const IPV4_MAPPED = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/;
 
-// Names that resolve to the local machine or an internal network by convention.
 const PRIVATE_SUFFIXES = ['.localhost', '.local', '.internal'];
 
 export const isPrivateHost = (hostname: string): boolean => {
-    // Trailing dots are the same name (`localhost.` resolves to loopback).
     const host = hostname
         .toLowerCase()
         .replace(/^\[|\]$/g, '')
@@ -60,7 +39,6 @@ export const isPrivateHost = (hostname: string): boolean => {
     const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
     if (ipv4) return isPrivateIpv4(Number(ipv4[1]), Number(ipv4[2]));
     if (isIP(host) === 6) {
-        // The address is an IPv4 one in disguise: apply the IPv4 table to the embedded address.
         const mapped = host.match(IPV4_MAPPED);
         if (mapped) {
             const high = parseInt(mapped[1], 16);
@@ -68,7 +46,6 @@ export const isPrivateHost = (hostname: string): boolean => {
         }
         return PRIVATE_IPV6.check(host, 'ipv6');
     }
-    // A single-label name (`http://wiki/`) resolves through the search domain to an intranet host.
     return !host.includes('.');
 };
 
@@ -80,7 +57,6 @@ const decodeEntities = (value: string): string =>
         .replace(/&quot;/g, '"')
         .replace(/&#0?39;/g, "'");
 
-/** Extract <meta property|name="<key>" content="..."> regardless of attribute order. */
 const metaContent = (html: string, key: string): string | undefined => {
     const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const forward = new RegExp(`<meta[^>]+(?:property|name)=["']${escaped}["'][^>]*content=["']([^"']*)["']`, 'i');
@@ -112,12 +88,6 @@ const readBody = async (response: Response): Promise<string> => {
 const isFetchable = (url: URL): boolean =>
     (url.protocol === 'https:' || url.protocol === 'http:') && !isPrivateHost(url.hostname);
 
-/**
- * GET `start`, following redirects by hand so each hop is checked before it is requested.
- * `redirect: 'follow'` would contact an internal host and only then let us look at where it
- * landed. Returns null when a hop is not fetchable, has no usable Location, or the chain is
- * longer than the cap.
- */
 const fetchChecked = async (start: URL, signal: AbortSignal): Promise<Response | null> => {
     let current = start;
     for (let hop = 0; hop <= UNFURL_MAX_REDIRECTS; hop++) {

@@ -14,8 +14,6 @@ describe('updater log', () => {
     });
     afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-    // The last lines before an install are written as the app quits, so a line has to be in the file
-    // by the time the call returns.
     it('has a line on disk as soon as it is logged', () => {
         const log = createUpdaterLog(join(dir, 'logs'), at);
 
