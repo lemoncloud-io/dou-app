@@ -39,9 +39,6 @@ const PERMISSION_MAP: Record<Exclude<AppPermissionType, 'NOTIFICATIONS'>, Permis
     }),
 };
 
-// The blocked state is read from the request's own answer: on Android the library's `check` never
-// reports BLOCKED (it only knows granted or not), while `request` does, once the OS stops showing
-// the prompt. LIMITED (iOS photo library) is usable access.
 const toRequestedStatus = (result: PermissionResult): RequestedPermissionStatus => {
     if (result === RESULTS.GRANTED || result === RESULTS.LIMITED) return 'GRANTED';
     if (result === RESULTS.BLOCKED) return 'BLOCKED';
@@ -67,8 +64,6 @@ export class PermissionService implements IPermissionService {
 
             const result = await check(permission);
             this.logger.info('PERMISSION', `Check ${type}: ${result}`);
-            // LIMITED (iOS photo library) is usable access: the request path already treats it
-            // as granted, and reporting it denied here turns a Limited grant into a dead end.
             return result === RESULTS.GRANTED || result === RESULTS.LIMITED;
         } catch (error) {
             this.logger.error('PERMISSION', `Check failed: ${type}`, error);
@@ -78,7 +73,6 @@ export class PermissionService implements IPermissionService {
 
     async status(type: DevicePermissionType): Promise<PermissionStatus> {
         const permission: Permission | null = PERMISSION_MAP[type];
-        // A platform with no such permission has nothing to ask: `check` reports it granted the same way.
         if (!permission) return 'GRANTED';
         try {
             const result = await check(permission);
@@ -86,7 +80,6 @@ export class PermissionService implements IPermissionService {
             if (result === RESULTS.UNAVAILABLE) return 'UNAVAILABLE';
             return toRequestedStatus(result);
         } catch (error) {
-            // Read as askable: a request then gives the real answer, where reading it blocked would not.
             this.logger.error('PERMISSION', `Status failed: ${type}`, error);
             return 'DENIED';
         }

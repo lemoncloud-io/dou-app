@@ -23,8 +23,6 @@ jest.mock('@react-native-firebase/crashlytics', () => ({
     }),
 }));
 
-// `react-native` itself ships untransformed ESM, and both this service and
-// nativeLogContext reach it through DeviceInfo/Platform.
 jest.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 jest.mock('react-native-device-info', () => ({
     __esModule: true,
@@ -36,7 +34,6 @@ jest.mock('react-native-device-info', () => ({
         getDeviceId: () => 'iPhone15,2',
     },
 }));
-// The utils barrel reaches react-native-config/localize, which are untransformed too.
 jest.mock('../../../utils', () => ({ getUserAgent: async () => 'test-ua' }));
 
 const entry = (overrides: Partial<LogEntry> = {}): LogEntry => ({
@@ -47,7 +44,6 @@ const entry = (overrides: Partial<LogEntry> = {}): LogEntry => ({
     ...overrides,
 });
 
-/** Starts the service and hands back the listener it registered on the hub. */
 const startService = (): LogListener => {
     let listener: LogListener | undefined;
     const logService = {
@@ -78,8 +74,6 @@ describe('FirebaseCrashlyticsService', () => {
     it('sets the run id eagerly in init, before the async identity setup', () => {
         startService();
 
-        // setupUser awaits DeviceInfo; a crash in that window must already be
-        // tagged, so the attribute cannot wait for it.
         expect(setAttribute).toHaveBeenCalledTimes(1);
     });
 
@@ -104,7 +98,6 @@ describe('FirebaseCrashlyticsService', () => {
         );
     });
 
-    // Crashlytics is Firebase: the log pipeline's fingerprints and partial display stop at its door.
     it('sends what it always sent, never the detailed forms the log pipeline prints', () => {
         const listener = startService();
 
@@ -130,7 +123,6 @@ describe('FirebaseCrashlyticsService', () => {
                 email: REDACTED,
                 deviceToken: REDACTED,
                 note: 'call [PHONE]',
-                // The log pipeline's safe lists widen nothing here either.
                 url: 'https://app.dou.io/chat?cid=[REDACTED]',
                 responseCode: REDACTED,
             })
@@ -166,10 +158,6 @@ describe('FirebaseCrashlyticsService', () => {
         expect(recordError).toHaveBeenCalledTimes(1);
     });
 
-    // `debug` is console-only by design. Crashlytics keeps ~64KB of custom log
-    // per session and evicts oldest-first, so one debug per HTTP request
-    // (withNetworkLog) would spend the whole budget on request noise and push
-    // out the lines just before the crash.
     it('drops debug entries instead of spending the breadcrumb budget on them', () => {
         const listener = startService();
 

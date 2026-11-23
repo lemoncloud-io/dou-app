@@ -11,13 +11,6 @@ import {
 
 import type { ILogService } from '../log';
 
-/**
- * Deep Link Utilities (Local to Mobile App)
- *
- * Handles deep link validation, parsing, and conversion to frontend WebView URLs.
- */
-
-/** Valid domains that can be used as deep link sources */
 export const VALID_DOMAINS = [
     'app.chatic.io',
     'app-dev.chatic.io',
@@ -26,40 +19,21 @@ export const VALID_DOMAINS = [
     'chatic.io',
 ] as const;
 
-/** Valid URL schemes */
 export const VALID_SCHEMES = ['chatic', 'chatic-dev', 'https', 'http'] as const;
 
-/** Custom URL schemes (non-http) */
 export const CUSTOM_SCHEMES = ['chatic', 'chatic-dev'] as const;
 
-/** Deep link domains that need conversion to frontend domain */
 export const DEEP_LINK_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io'] as const;
 
-/**
- * The custom scheme this build's OS registration actually uses.
- *
- * The registration itself is decided by the BUILD CONFIGURATION, not by the env file: iOS sets
- * `APP_URL_SCHEME` per configuration (`chatic-dev` on Debug Dev / Release Dev) and Android sets the
- * `appScheme` manifest placeholder per flavor. This function re-derives the same mapping from
- * `VITE_ENV` so runtime code can rebuild a scheme URL, so its polarity has to match what those
- * configurations register — every non-prod configuration registers `chatic-dev`.
- *
- * That is why the test is `=== 'PROD'` and not `=== 'DEV'`: with `VITE_ENV=LOCAL` on a dev
- * configuration (see apps/mobile/docs/release/local-run.md) the old `=== 'DEV'` form computed `chatic` while the OS had
- * registered `chatic-dev`, and warm-start links stopped resolving. `isCustomZipAllowed` already
- * gates on the same `!== 'PROD'` polarity.
- */
 export const getAppScheme = (): (typeof CUSTOM_SCHEMES)[number] =>
     Config.VITE_ENV === 'PROD' ? 'chatic' : 'chatic-dev';
 
-// AWS region hosting the invite backend API Gateway; used to expand `api`+`stage` into `_backend`.
 const INVITE_BACKEND_REGION = 'ap-northeast-2';
 
 export interface ConvertedUrlResult {
     url: string;
 }
 
-/** Type guards */
 export const isValidScheme = (scheme: string): scheme is (typeof VALID_SCHEMES)[number] =>
     (VALID_SCHEMES as readonly string[]).includes(scheme);
 
@@ -69,17 +43,6 @@ export const isCustomScheme = (scheme: string): scheme is (typeof CUSTOM_SCHEMES
 export const isValidDomain = (domain: string): domain is (typeof VALID_DOMAINS)[number] =>
     (VALID_DOMAINS as readonly string[]).includes(domain);
 
-/**
- * Safely parses any URL, including custom schemes, by normalizing them to standard HTTPS URLs first.
- * This ensures the pathname and query parameters are parsed correctly regardless of the scheme.
- */
-/**
- * Rewrites a custom-scheme link to its https equivalent, leaving anything else untouched.
- *
- * `new URL('chatic://s?code=x')` puts `s` in the HOST and leaves the path empty, so every path test
- * downstream would miss. Kept as a string transform (not a URL method) because the shared invite
- * decoder takes the link as text and has no business knowing this app's private schemes.
- */
 const normalizeSchemeForParsing = (url: string): string => {
     if (url.startsWith('chatic://')) {
         return url.replace('chatic://', 'https://app.chatic.io/');
@@ -92,9 +55,6 @@ const normalizeSchemeForParsing = (url: string): string => {
 
 export const parseUrlSafe = (url: string): URL => new URL(normalizeSchemeForParsing(url));
 
-/**
- * Validates if a URL is a valid deep link
- */
 export const isValidDeepLink = (url: string): boolean => {
     try {
         const scheme = url.split('://')[0];
@@ -119,16 +79,6 @@ export const isValidDeepLink = (url: string): boolean => {
     }
 };
 
-/**
- * Check if URL matches the new dynamic invite URL pattern
- *
- * Two accepted forms, both rooted at `/s` and both requiring `code`:
- * - cloud : `api`(+`stage`) or `backend` carries the target backend address.
- * - relay : a bare `relay` flag and no address at all — the relay server needs none.
- *
- * The relay flag is detected with `has()`, never the truthiness of `get()`: `&relay` parses to an
- * empty-string value, so `get('relay')` is falsy for a perfectly valid relay link.
- */
 export const isNewPatternInviteUrl = (url: string): boolean => {
     try {
         const parsed = parseUrlSafe(url);
@@ -148,9 +98,6 @@ export const isNewPatternInviteUrl = (url: string): boolean => {
     }
 };
 
-/**
- * Check if URL is a short URL (/s/{code} pattern)
- */
 export const isShortUrl = (url: string): boolean => {
     try {
         if (isNewPatternInviteUrl(url)) {
@@ -163,50 +110,22 @@ export const isShortUrl = (url: string): boolean => {
     }
 };
 
-/**
- * Expands an invite deep link into the WEBVIEW_URL-relative URL the web consumes.
- *
- * The frontend host is intentionally omitted: the WebView always loads from WEBVIEW_URL
- * (`VITE_WEBVIEW_BASE_URL`), and the OnNavigate contract carries only the relative path.
- *
- * - Cloud invite links (`/s?code=…&api=…&stage=…`) are expanded to the home route with the invite
- *   markers (`provider=invite&version=2`) and a resolved `_backend`, returned as a relative URL.
- * - Relay invite links (`/s?code=…&relay`) get the same markers plus an explicit `relay=1` and no
- *   `_backend`: the relay server needs no address, and the web gates on the marker rather than
- *   inferring relay from a missing `_backend`.
- * - Everything else passes through unchanged; resolveWebPath reduces it to pathname+search+hash.
- */
 export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => {
-    // `/i` is checked first and shares nothing with the `/s` branch below. The two formats are read
-    // by different rules on purpose: `/s` treats a missing address as the relay signal, while `/i`
-    // states relay outright, so a cloud invite whose payload carries no coordinates must not be
-    // re-read as relay on the way through here.
     const normalized = normalizeSchemeForParsing(url);
     if (isEncodedInviteUrl(normalized)) {
         try {
             const target = decodeInviteLink(normalized);
             if (!target) {
-                // Thrown, not returned: this is the same spot the `/s` branch throws on a missing
-                // code, and resolveDeepLink turns it into the `invalid` resolution that surfaces an
-                // error screen rather than dropping the user somewhere arbitrary.
                 throw new Error('Unreadable encoded invite link');
             }
 
-            // Assembled as a string for the same reason the `/s` branch documents below: React
-            // Native's URL ignores URLSearchParams mutations when producing `.search`.
             const query = [`code=${encodeURIComponent(target.code)}`, 'provider=invite', 'version=2'];
             if (target.relay) {
                 query.push('relay=1');
             } else if (target.backend) {
                 query.push(`_backend=${encodeURIComponent(target.backend)}`);
             }
-            // Neither marker means a cloud invite that arrived without coordinates. It is forwarded
-            // unmarked rather than guessed at — the web decides where an address-less invite lands.
 
-            // Forward anything the token did not carry (utm_*, ref, …) so attribution survives. React
-            // Native's query parser throws on a malformed escape anywhere in the query — damage the
-            // decoder reads past — so a query it cannot parse forwards nothing rather than losing the
-            // invite: attribution is worth less than the link.
             try {
                 parseUrlSafe(url).searchParams.forEach((value, key) => {
                     if (key !== 't') {
@@ -235,7 +154,6 @@ export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => 
             const api = parsed.searchParams.get('api');
             const stage = parsed.searchParams.get('stage');
             const backendParam = parsed.searchParams.get('backend');
-            // A bare `&relay` yields an empty-string value, so presence is the only reliable signal.
             const isRelay = parsed.searchParams.has('relay');
 
             if (!code) {
@@ -248,20 +166,13 @@ export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => 
                 backend = `https://${api}.execute-api.${INVITE_BACKEND_REGION}.amazonaws.com/${stage}`;
             }
 
-            // Assemble the query as a string rather than via `new URL().searchParams.set()`.
-            // React Native's built-in URL derives `.search` from the raw URL string and ignores
-            // URLSearchParams mutations, so `${url.pathname}${url.search}` drops everything we set and
-            // collapses the invite link to a bare "/". (Node/Jest reflects the mutation, which is why
-            // the unit tests stayed green while the device silently lost the invite params.)
             const query = [`code=${encodeURIComponent(code)}`, 'provider=invite', 'version=2'];
-            // Canonicalize the incoming flag (bare `relay`, `relay=`, …) to a single `relay=1`.
             if (isRelay) {
                 query.push('relay=1');
             }
             if (backend) {
                 query.push(`_backend=${encodeURIComponent(backend)}`);
             }
-            // Forward any other query parameters (e.g. utm_*) except the ones we consumed above.
             parsed.searchParams.forEach((value, key) => {
                 if (key !== 'code' && key !== 'api' && key !== 'stage' && key !== 'backend' && key !== 'relay') {
                     query.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
@@ -287,19 +198,12 @@ export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => 
     return { url };
 };
 
-// ============================================================================
-// Push notification tap → WebView path
-// ============================================================================
-
-// Dummy base so `URL` parses both absolute-relative ("/a/b") and bare ("a/b?x=1") link forms.
 const PUSH_PARSE_BASE = 'http://chatic.local';
 
 export interface PushNavigationData {
     link?: unknown;
     clickAction?: unknown;
-    /** App-level push type (`chat`, `cloud`, ...). Decides the destination when there is no link. */
     type?: unknown;
-    /** Metadata object (or its JSON string) holding cid/sid/chatId per the push payload spec. */
     payload?: unknown;
     cid?: unknown;
     sid?: unknown;
@@ -310,19 +214,10 @@ export interface PushNavigationData {
 const asString = (value: unknown): string | undefined =>
     typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 
-/**
- * The payload fields a tap carries into the web's navigation query: `cid`/`sid` are the cloud/site
- * context to switch to, `chatId` the notified chat — the web opens its thread when it is a reply and
- * stays in the room otherwise.
- */
 const PUSH_CONTEXT_KEYS = ['cid', 'sid', 'chatId'] as const;
 
 type PushContext = Partial<Record<(typeof PUSH_CONTEXT_KEYS)[number], string>>;
 
-/**
- * Resolves the tap context from the push data. These live inside `payload` per spec, but we also
- * honor top-level fields as a fallback for senders that flatten them onto `data`.
- */
 const extractPushContext = (data: PushNavigationData): PushContext => {
     let source: Record<string, unknown> = data;
 
@@ -340,39 +235,20 @@ const extractPushContext = (data: PushNavigationData): PushContext => {
     return Object.fromEntries(PUSH_CONTEXT_KEYS.map(key => [key, asString(source[key])])) as PushContext;
 };
 
-/** Drop a leading custom scheme (chatic://, chatic-dev://) so only path/query is parsed. */
 const stripPushScheme = (link: string): string => {
     const match = link.match(/^[a-zA-Z][a-zA-Z0-9+\-.]*:\/\/(.*)$/);
     return match ? match[1] : link;
 };
 
-/** Push types whose payload carries no `link` by contract, and whose tap destination is the root. */
 const ROOTED_PUSH_TYPES = new Set(['cloud']);
 
-/** Web root — where a linkless push whose type opts into rooting sends the tap. */
 const PUSH_ROOT_PATH = '/';
 
-/**
- * The root of the cloud the push names, or the bare root when it names none. Only `cid` is carried:
- * the cloud-ready push is about the cloud, so the tap opens its main screen and the web switches
- * to it (and stays put with an error when the cloud is gone). A place or chat is not this push's.
- */
 const rootedPushPath = (data: PushNavigationData): string => {
     const { cid } = extractPushContext(data);
     return cid ? `${PUSH_ROOT_PATH}?cid=${encodeURIComponent(cid)}` : PUSH_ROOT_PATH;
 };
 
-/**
- * Returns the WEBVIEW_URL-relative path (pathname+search+hash) for a push notification tap, with
- * cid/sid/chatId merged into the query. Shared with the deep link path so push taps and deep links
- * converge on one OnNavigate contract.
- *
- * A push with no link resolves to the root for the types that omit `link` BY CONTRACT (cloud
- * activation carries none, and the payload spec routes a linkless push to the root) — the root of
- * the cloud its `cid` names, so the tap lands in the cloud that just became ready — and to null
- * for everything else — a chat push arriving without a link is a malformed payload, not a request
- * to leave the screen the user is on, so that tap keeps only foregrounding the app.
- */
 export const resolvePushTapPath = (data: PushNavigationData | undefined | null): string | null => {
     if (!data) {
         return null;
@@ -393,14 +269,9 @@ export const resolvePushTapPath = (data: PushNavigationData | undefined | null):
         return null;
     }
 
-    // Reading pathname/search/hash is safe, but the context must be merged by string-building rather
-    // than `searchParams.set()`. React Native's URL derives `.search` from the raw string and ignores
-    // URLSearchParams mutations, so a set-then-read would silently drop it on device (Node/Jest
-    // hides this because it reflects the mutation). `searchParams.has()` is still fine — it only reads.
     const existingQuery = url.search.startsWith('?') ? url.search.slice(1) : url.search;
     const query = existingQuery ? [existingQuery] : [];
 
-    // Merge context without overriding values the link already carries explicitly.
     for (const key of PUSH_CONTEXT_KEYS) {
         const value = context[key];
         if (value && !url.searchParams.has(key)) {
@@ -412,11 +283,6 @@ export const resolvePushTapPath = (data: PushNavigationData | undefined | null):
     return `${url.pathname}${search}${url.hash}`;
 };
 
-// ============================================================================
-// Deep link resolution (OS universal links / custom schemes / invite links)
-// ============================================================================
-
-/** Native debug screens reachable via `chatic://debug/<Screen>?target=native`. */
 const DEBUG_SCREENS = [
     'Home',
     'SocketTest',
@@ -432,26 +298,15 @@ const DEBUG_SCREENS = [
     'UploadTest',
 ] as const;
 
-/** Partial navigation state accepted by navigationRef.reset() for native (Debug) routes. */
 export type NativeRouteState = {
     routes: Array<{ name: string; state?: unknown; params?: Record<string, string> }>;
 };
 
-/**
- * Discriminated result of resolving an inbound deep link:
- * - `web`: a WEBVIEW_URL-relative path to hand the web via OnNavigate.
- * - `native`: a navigation state to apply imperatively (target=native Debug).
- * - `invalid`: validation/parse failure; the caller surfaces an error screen.
- */
 export type DeepLinkResolution =
     | { kind: 'web'; path: string }
     | { kind: 'native'; state: NativeRouteState }
     | { kind: 'invalid'; error: string };
 
-/**
- * Reconstructs a full scheme URL from a raw path. React Navigation hands warm-start links as
- * leading-slash paths ("/s?code=..."), so we re-apply the env custom scheme before parsing.
- */
 const reconstructDeepLinkUrl = (path: string): string => {
     if (path.startsWith('http://') || path.startsWith('https://') || path.includes('://')) {
         return path;
@@ -460,15 +315,10 @@ const reconstructDeepLinkUrl = (path: string): string => {
     return `${getAppScheme()}://${cleanPath}`;
 };
 
-/**
- * Builds the native navigation state for `target=native` links (Debug screens, Main modal).
- * Unknown native routes fall back to the Main screen.
- */
 const buildNativeRouteState = (urlObj: URL, logger?: ILogService): NativeRouteState => {
     const segments = urlObj.pathname.split('/').filter(Boolean);
     const root = segments[0]?.toLowerCase();
 
-    // Forward every param except the routing marker `target` to the native screen.
     const routeParams: Record<string, string> = {};
     urlObj.searchParams.forEach((value, key) => {
         if (key !== 'target') {
@@ -490,16 +340,8 @@ const buildNativeRouteState = (urlObj: URL, logger?: ILogService): NativeRouteSt
     return { routes: [{ name: 'Main' }] };
 };
 
-/**
- * Reduces a web deep link to a WEBVIEW_URL-relative path. Invite links expand via
- * convertShortUrlWithEnvsSync (already host-less); other links are reduced to pathname+search+hash.
- * Parsing stays read-only per the RN URL footgun documented on convertShortUrlWithEnvsSync.
- * Throws for retired /s/{code} shortcodes (surfaced by resolveDeepLink as `invalid`).
- */
 const resolveWebPath = (fullUrl: string): string => {
     const converted = convertShortUrlWithEnvsSync(fullUrl).url;
-    // Invite conversion already yields a host-less relative path (/?code=...); a passthrough is
-    // still a full scheme URL that we reduce to pathname+search+hash without mutating searchParams.
     if (converted.startsWith('/')) {
         return converted;
     }
@@ -507,11 +349,6 @@ const resolveWebPath = (fullUrl: string): string => {
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 };
 
-/**
- * The `target` routing marker. React Native's query parser throws on a malformed escape anywhere in
- * the query; a link whose query it cannot parse carries no readable marker, so it is a web link —
- * which lets an encoded invite with damage glued onto its token still reach the decoder.
- */
 const readNativeTarget = (urlObj: URL): string | null => {
     try {
         return urlObj.searchParams.get('target');
@@ -520,12 +357,6 @@ const readNativeTarget = (urlObj: URL): string | null => {
     }
 };
 
-/**
- * Logs the shape of an encoded invite link that arrived damaged — refused, or read only after
- * dropping characters glued onto its end. The shape is all a report can carry: the token holds the
- * invite code, so the uploaded log redacts the URL, and without the shape a refused link leaves no
- * trace of what was wrong with it. An intact link logs nothing here.
- */
 const logDamagedInviteLink = (fullUrl: string, logger?: ILogService): void => {
     const normalized = normalizeSchemeForParsing(fullUrl);
     if (!logger || !isEncodedInviteUrl(normalized)) {
@@ -542,16 +373,11 @@ const logDamagedInviteLink = (fullUrl: string, logger?: ILogService): void => {
     }
 };
 
-/**
- * Resolves an inbound deep link into a routing decision. This is the single entry the deep link
- * coordinator uses; push taps share resolvePushTapPath so both converge on the OnNavigate contract.
- */
 export const resolveDeepLink = (rawUrl: string, logger?: ILogService): DeepLinkResolution => {
     const fullUrl = reconstructDeepLinkUrl(rawUrl);
     logger?.info('DEEPLINK', '[deeplinkUtils] resolveDeepLink', { rawUrl, fullUrl });
 
     if (!isValidDeepLink(fullUrl)) {
-        // Surface why validation failed (scheme/domain) so an unroutable link stays traceable.
         let hostname: string | undefined;
         try {
             hostname = parseUrlSafe(fullUrl).hostname;
@@ -565,10 +391,6 @@ export const resolveDeepLink = (rawUrl: string, logger?: ILogService): DeepLinkR
 
     logDamagedInviteLink(fullUrl, logger);
 
-    // A page link that does not read (`/apps/Quiz`, `/apps/`, a path after the id) is a broken page
-    // link, not a route: the invalid-link screen says so, where passing it through would land on home
-    // with no word. The custom scheme is read as its https form, so the landing site's launch
-    // (`chatic://apps/<id>?…`) is held to the same shape.
     const httpsForm = normalizeSchemeForParsing(fullUrl);
     const pageLink = readSubWebViewAppLink(httpsForm);
     if (isSubWebViewAppLinkAttempt(httpsForm) && !pageLink) {
@@ -577,10 +399,6 @@ export const resolveDeepLink = (rawUrl: string, logger?: ILogService): DeepLinkR
         return { kind: 'invalid', error };
     }
 
-    // A sub WebView page's link is not a route: the web resolves the app it names and opens its page
-    // over whatever it shows. Handed on as the link's own path, ahead of the native-target check: its
-    // query belongs to the page, so a `target` in it is the page's, not the shell's routing marker.
-    // Which page an app id opens is the web's to know, not the shell's.
     if (pageLink) {
         return { kind: 'web', path: subWebViewLinkPath(pageLink) };
     }

@@ -52,6 +52,20 @@ tap that launched the process, and the context before the restart already follow
 reopen that room on the signed-out home. Warm links and taps are followed as usual. See
 [../runtime/README.md](../runtime/README.md#when-a-session-ends).
 
+### Cold start: reading the launching link
+
+`DeepLinkManager.getInitialUrl` looks for the link that launched the app in three steps and stops at
+the first that answers: `Linking.getInitialURL()`, then (iOS only) the universal link `AppDelegate`
+buffered for the `InitialUrlModule` native module — a workaround for the race where the standard call
+runs before the link is delivered — then a 500 ms wait (`LATE_URL_WAIT_MS`) for a `url` event.
+
+- **A `url` event inside that wait resolves the wait with its url.** Clearing the timeout alone would
+  leave `getInitialUrl`, and whoever awaits the initial link, on a promise that never settles; the cold
+  start would then never be dispatched. An unsubscribe in the middle of the wait settles it with
+  `null` for the same reason.
+- **That url then travels the cold-start path only.** It is not forwarded to the router listener as
+  well, which would navigate to it a second time as if it were a warm start.
+
 ## Which links reach the app
 
 A `https` link opens the app only when the OS sees the tap and finds the app claiming that path:

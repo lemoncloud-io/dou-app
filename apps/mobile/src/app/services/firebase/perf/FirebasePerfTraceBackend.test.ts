@@ -3,7 +3,6 @@ import { FirebasePerfTraceBackend } from './FirebasePerfTraceBackend';
 import type { NativePerfTrace } from './FirebasePerfTraceBackend';
 import type { PerfTraceResult } from '@chatic/perf';
 
-// The SDK ships untransformed ESM and is replaced by the injected factory in every test anyway.
 jest.mock('@react-native-firebase/perf', () => ({ getPerformance: jest.fn(), trace: jest.fn() }));
 
 const createFakeTrace = () =>
@@ -76,7 +75,6 @@ describe('FirebasePerfTraceBackend', () => {
 
         backend.start({ id: 'stale', name: 'chat_room_open' });
         advance(FirebasePerfTraceBackend.OPEN_TTL_MS + 1);
-        // Expiry is swept on the next start.
         backend.start({ id: 'fresh', name: 'chat_room_open' });
         backend.stop(resultFor('stale'));
 
@@ -93,7 +91,6 @@ describe('FirebasePerfTraceBackend', () => {
         backend.start({ id: 'a', name: 'boot' });
         backend.stop(resultFor('a'));
 
-        // An unhandled rejection would fail the test run; flushing lets one surface if it exists.
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(failing.stop).toHaveBeenCalledTimes(1);
     });
