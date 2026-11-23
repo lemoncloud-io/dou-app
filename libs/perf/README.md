@@ -265,6 +265,21 @@ recorder reads.
 
 ## Notes for implementers and tests
 
+- **Sampling is a pure function of `runId`.** The native shell and the WebView already share the run id
+  (native issues it and injects it as `window.CHATIC_APP_RUN_ID`), so deciding from it alone gives both
+  runtimes the same answer with no bridge message, and so none of the "web deploys before the app"
+  problem a new message would bring. The unit is one run: a sampled run reports all its metrics and an
+  unsampled one none, which keeps the distribution unskewed and keeps within-session correlation (was
+  the run with the slow boot also slow to switch?). A missing `runId` is never sampled, since the two
+  runtimes could not agree on it. The hash is FNV-1a with `Math.imul`, chosen because it is short,
+  dependency-free and byte-identical wherever it runs.
+- **Hidden time is dropped by counting hides, not by timestamps.** `pageHideCount()` is taken when a
+  measurement starts and compared when it ends; a count needs no clock, so it cannot disagree with
+  whichever clock the measurement uses. The listener attaches on the first call, and with no document
+  (a native runtime, a test without jsdom) the count stays 0.
+- **Wrap the whole fan-out in the deferring backend**, not each branch: held calls are then released to
+  every branch in one order, so no branch sees a stop before its start. A throw in one branch is
+  swallowed and never re-thrown, since measurement must not surface as an app error.
 - `resetPerfTraces()` is the teardown. The slot is module state, and a suite that configures it
   without resetting leaks a backend into the next file.
 - A fake backend is `{ start: jest.fn(), stop: jest.fn() }`. Assert on what `stop` received, which

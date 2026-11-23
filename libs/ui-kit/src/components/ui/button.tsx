@@ -5,9 +5,6 @@ import { type VariantProps, cva } from 'class-variance-authority';
 
 import { cn } from '@chatic/ui-kit';
 
-// The focus ring is 2px behind a 2px gap in the ground colour, as the Switch and the
-// dialog close button draw theirs; the generator's 1px ring with no gap was the one
-// indicator in the kit too thin to find against a busy surface.
 const buttonVariants = cva(
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
     {
@@ -19,9 +16,6 @@ const buttonVariants = cva(
                     'border border-control-border bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
                 secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
                 ghost: 'hover:bg-accent hover:text-accent-foreground',
-                // Ink, not the fill: the fill colour is a surface, and as text on a light
-                // ground it can measure under 1.5:1. Underlined at rest so the variant reads
-                // as a link without relying on colour alone.
                 link: 'text-primary-ink underline underline-offset-4 hover:decoration-2',
             },
             size: {

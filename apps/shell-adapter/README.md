@@ -88,6 +88,20 @@ device refuses. The config is read in Node by the CLI as well as by the shell pa
 functions only load in the page, so the handler module — which only the page loads, before the shell
 starts — hands them to the config's event maps.
 
+Smaller constraints that hold the pieces together:
+
+- `deeplinkUtils.ts` takes its invite-link decoder and sub WebView link readers from the `@chatic/shared`
+  barrel, which also carries React components, image assets and the web's config. Only that one importer
+  is pointed at a virtual module re-exporting the two files those functions live in: the same code
+  without the rest of the barrel. A new `@chatic/shared` import in `deeplinkUtils.ts` has to be added to
+  `SHARED_DEEPLINK_MODULES` in `vite.shell.config.mts`.
+- The choice values (`DOU_SHELL_CHECKOUT` and the rest) and the store SKUs are written into
+  `src/checkout.ts` by a Vite transform, not `define`: in dev `define` sets globals through Vite's client
+  script, which the shell page never loads. The CLI reads that file in Node too, where the names stay
+  undefined and the module answers "no choice".
+- The store SKUs come from `apps/mobile/.env.dev` only. Falling back to another file could mix in
+  production SKUs.
+
 ## What it imitates and what it does not
 
 This table is the reference. Adding an imitation changes it in the same commit.
@@ -110,6 +124,19 @@ This table is the reference. Adding an imitation changes it in the same commit.
 | Session held by the app's runtime (`RuntimeHello`)                                       | **Not imitated.** The shell offers no runtime, so the web settles on holding the session itself, over its own socket. The app-held path is checked on a simulator         |
 | Device vault (`nativeSecure` storage)                                                    | **Not imitated.** The shell declares no storage medium, so the web keeps its session in the page's own storage, as a browser does                                         |
 | Input: user agent, pointer, touch                                                        | **Not imitated.** The frame keeps the desktop browser's: Enter sends instead of adding a line, and focus does not scroll into view. Check those in the native mode        |
+
+Details that are easy to get wrong:
+
+- **Opening a URL** opens a blank tab first and sets its address after. With `noopener` in the features,
+  `window.open` returns `null` whether or not a tab opened, so a blocked popup could not be told apart,
+  and the opener can only be cut while the tab is still same-origin, before it navigates. The app's own
+  refusal comes first and in its words, so a link the device would not open does not open here either.
+- **A failed Apple sign-in** is answered with the shape the app fails with (`OAUTH_LOGIN_ERROR`), not
+  `NOT_FOUND`: a `NOT_FOUND` would never reach the sign-in listener and would leave the button waiting.
+- **The per-channel chat preview** is answered `NOT_FOUND`, as the app's memory cache does, which sends
+  the web to a window per channel as an older app does; without it the home list waits on the panel's
+  card.
+- **The shell draws the badge the app sets but keeps no count to read back.**
 
 Every request the shell does not answer is logged as `unsupported` and shown as a notice beside the
 phone. What the shell cannot show is not a pass; check it on a simulator
@@ -138,6 +165,11 @@ can do, and the web's `checkout` port follows it (`apps/web/docs/bridge/host-por
 A choice kept under `dou.checkout` in the shell's store wins over the variable and applies from the next
 launch; nothing writes it yet.
 
+A declaration has to carry every key its version requires: a missing one reads in the web as a bug, not
+as "the legacy answer". So the shell takes the lowest version that holds what was picked and declares each
+key not picked as what the web would answer anyway for a shell that has a bridge (the device preset's
+store for `checkout`).
+
 `DOU_SHELL_MEDIA=browser` (or `shell`) declares who picks what a person attaches, in `media` — `browser` gives
 the page's own file input, as a browser has, where the shell otherwise answers with the app's picker
 messages. Declaring it takes declaration version 2, which has to carry `checkout` too; with no checkout
@@ -155,7 +187,8 @@ asking the shell's transfer messages. It takes declaration version 3, which has 
 as files in its own folder, which only its transfer module can send, so sending them fails. `src/checkout.ts` holds the choice and the declaration; the wrapped
 preset in `hybrid-shell.config.ts` appends the declaration to the preset's own globals.
 
-**The virtual store answers on dev only, and only when a store was picked.** Its catalog has one product
+**The virtual store answers on dev only, and only when a store was picked.** A fake receipt must never
+reach the production server. Its catalog has one product
 per SKU the mobile app sells on dev — read from `apps/mobile/.env.dev` and no other file, as the app's
 dev build reads it, so the server's plans join it as they join the real store's — each priced
 `₩0 (virtual store)`. Without that file the catalog is empty, the plan cards show no price, and the

@@ -2,7 +2,6 @@ import { connect, connectOver, type ChaticApps } from './chaticApps';
 import { installChaticAppsMock, type MockController, type MockOptions } from './mock';
 import type { Transport } from './transport';
 
-/** Lets the mock's asynchronous replies and pushes land. */
 const settle = () => new Promise(resolve => setTimeout(resolve, 5));
 
 describe('connect, against the mock app', () => {
@@ -82,7 +81,6 @@ describe('connect, against the mock app', () => {
         await settle();
         expect(onBack).toHaveBeenCalledTimes(1);
 
-        // Without the claim, back goes to the view's history, and with none left it closes the view.
         apps.onBack(null);
         await settle();
         mock.pressBack();
@@ -111,7 +109,6 @@ describe('connect, against the mock app', () => {
         jest.restoreAllMocks();
     });
 
-    // A page restored from the back-forward cache keeps its handlers but not its claims.
     it('sets its claims again when the page shows', async () => {
         const { apps, mock } = await start();
         const onBack = jest.fn();
@@ -211,7 +208,6 @@ describe('connect, against the mock app', () => {
         await expect(waiting).rejects.toEqual(expect.objectContaining({ code: 'DISCONNECTED' }));
     });
 
-    // A rejected value can be the user's own data; only its type reaches the log.
     it('reports a non-Error value by its type alone, and survives one it cannot read', async () => {
         const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
         const { apps } = await start();
@@ -228,7 +224,6 @@ describe('connect, against the mock app', () => {
         warn.mockRestore();
     });
 
-    // A page restored from the back-forward cache meets a fresh host, possibly in another theme.
     it('shakes hands again on a restore from the back-forward cache, and hears what changed', async () => {
         const { apps, mock } = await start();
         const listener = jest.fn();
@@ -236,7 +231,6 @@ describe('connect, against the mock app', () => {
         mock.changeContext({ theme: 'dark' });
         await settle();
         listener.mockClear();
-        // What a fresh host would report after a restore; the snapshot global stays as it was.
         mock.changeContext({ theme: 'light' });
         const restored = new Event('pageshow') as Event & { persisted?: boolean };
         Object.defineProperty(restored, 'persisted', { value: true });
@@ -278,7 +272,6 @@ describe('connect, against the mock app', () => {
             expect(mock.devices).toEqual({ camera: 'granted', microphone: 'prompt' });
         });
 
-        // Each kind stands alone: the camera never brings the microphone with it.
         it('keeps the two kinds apart', async () => {
             const { apps } = await start({ deviceAnswers: { microphone: 'blocked' } });
 
@@ -316,7 +309,6 @@ describe('connect, against the mock app', () => {
             );
         });
 
-        // A page with no permissions at all still reaches them: they are in the base set.
         it('answers a page that holds no permission', async () => {
             const { apps } = await start({ permissions: [] });
 

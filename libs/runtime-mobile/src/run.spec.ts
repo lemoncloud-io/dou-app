@@ -143,7 +143,6 @@ describe('runNativeRuntime', () => {
         appState.change('background');
         appState.change('active');
         expect(fake.engine.connection.recoverOnResume).toHaveBeenCalledTimes(2);
-        // The credential checks are not throttled: each return to the front asks again.
         expect(fake.cloud.check).toHaveBeenCalledTimes(3);
     });
 
@@ -170,7 +169,6 @@ describe('runNativeRuntime', () => {
 
         stop();
 
-        // The sockets started last — when the session became ready — so they stop first.
         expect(fake.calls).toEqual([
             'stop sockets',
             'stop push',

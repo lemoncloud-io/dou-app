@@ -4,7 +4,6 @@ import { NativeSecureStore } from './nativeSecureStore';
 
 import type { NativeReadResult, NativeStorageChannel } from './types';
 
-/** A shell that answers as told, and records what it was sent. */
 const fakeShell = (read: NativeReadResult | Promise<NativeReadResult> = { status: 'available', values: {} }) => {
     const saves: { set: Record<string, string>; remove: string[] }[] = [];
     const vault: Record<string, string> = {};

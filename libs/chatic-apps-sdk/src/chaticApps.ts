@@ -205,7 +205,6 @@ const notInApp = (what: string) =>
  * a query and nothing else, because the app opens every page at its root.
  */
 const queryOf = (params: LinkParams = {}): string => {
-    // A page without types can still pass the path the earlier `link(path)` took; that is no query.
     if (params === null || typeof params !== 'object' || Array.isArray(params)) {
         throw new ChaticAppsError('INVALID', 'link() takes an object of query params, such as { level: 3 }.');
     }
@@ -284,8 +283,6 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
     const cleanups: Array<() => void> = [];
 
     const supports = (capability: Capability) => state.supported.has(REQUESTS[capability]);
-    // `type` names another request of the same capability: the device requests come together, but each
-    // is checked against what the app listed, so one the app lacks is `NOT_SUPPORTED`, not `NOT_FOUND`.
     const call = <T>(capability: Capability, data?: object, timeoutMs?: number | null, type?: string): Promise<T> => {
         const request = type ?? REQUESTS[capability];
         return state.supported.has(request)
@@ -293,7 +290,6 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
             : Promise.reject(notSupported(capability));
     };
 
-    // `apps` is assigned below; the runtime only reports through it once the page is running.
     const runtime = runtimeOver(
         client,
         () => supports('data'),
@@ -301,7 +297,6 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
     );
     cleanups.push(() => runtime.dispose());
 
-    // The storage requests come together: an app that answers one answers all five.
     const stored = <T>(type: string, data: object) =>
         supports('storage') ? client.request<T>(type, data) : Promise.reject(notSupported('storage'));
 
@@ -314,8 +309,6 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
             }
         });
 
-    // Claims last one page load in the app, so they are set whenever a handler changes and again
-    // whenever the page shows.
     const assertClaims = () => {
         if (supports('back')) void client.request(REQUESTS.back, { canGoBack: !!backHandler }).catch(() => undefined);
         if (supports('closeGuard')) {
@@ -323,8 +316,6 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
         }
     };
 
-    // A page restored from the back-forward cache meets a fresh host: it shakes hands again, takes the
-    // context as it is now — the theme may have changed while it was away — and sets its claims again.
     const onPageShow = (event: Event) => {
         if (!(event as PageTransitionEvent).persisted) {
             assertClaims();
@@ -403,7 +394,6 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
                 call<{ state: PermissionState }>('permissions', { kind }, undefined, 'GetSubWebViewPermission').then(
                     reply => reply.state
                 ),
-            // Waits for the user, however long they take.
             request: kind => call<{ state: PermissionState }>('permissions', { kind }, null).then(reply => reply.state),
         },
         openSettings: () => call<void>('permissions', {}, undefined, 'OpenSettings').then(() => undefined),
@@ -473,7 +463,6 @@ const browserPermissions = (): ChaticAppsPermissions => {
             if (status.state === 'granted') return 'granted';
             return status.state === 'denied' ? 'blocked' : 'prompt';
         } catch {
-            // No Permissions API, or none for this kind (Firefox has no `camera`): only asking tells.
             return 'prompt';
         }
     };
@@ -494,8 +483,6 @@ const browserPermissions = (): ChaticAppsPermissions => {
                 if (name === 'NotFoundError' || name === 'OverconstrainedError') {
                     throw new ChaticAppsError('UNAVAILABLE', `This device has no ${kind}.`);
                 }
-                // Not an answer from the user: a busy device, an insecure page. Reading it as `prompt`
-                // would have the page ask again, forever.
                 if (
                     name === 'NotReadableError' ||
                     name === 'SecurityError' ||
@@ -539,8 +526,6 @@ const browserApps = (): ChaticApps => {
                     await navigator.share(content);
                     return 'shared';
                 } catch (error) {
-                    // Only the user's own cancel is an answer; anything else (no user gesture, a
-                    // refused payload) falls back to the clipboard.
                     if ((error as { name?: string })?.name === 'AbortError') return 'dismissed';
                 }
             }

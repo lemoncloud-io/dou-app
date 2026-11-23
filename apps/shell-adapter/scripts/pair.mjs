@@ -1,19 +1,4 @@
 #!/usr/bin/env node
-/**
- * `yarn local:pair` — open DoU in the virtual shell and sign it in from a phone, from a terminal.
- *
- * 1. Reuses the dev virtual shell when one answers on its port, or starts `hybrid-shell local`.
- * 2. Opens the shell in a visible Chromium window with a profile kept between runs, so a sign-in made
- *    once is still there next time (the shell's web runs in native mode, which keeps the session in
- *    the origin's localStorage).
- * 3. Already signed in: says as whom, and leaves the window open.
- * 4. A guest: opens "Sign in with another device", prints the code, and waits. The person types it
- *    into the DoU app on their phone (My page › Approve web sign-in). An expired code is replaced and
- *    printed again.
- * 5. Approved: prints the account (or the cloud) and leaves the shell signed in.
- *
- * Ctrl-C closes the window, and stops the shell when this run started it.
- */
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -29,7 +14,6 @@ const SIGNIN_TIMEOUT_MS = 15 * 60 * 1000;
 const say = message => process.stdout.write(`${message}\n`);
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 
-/** True when something already serves the shell page. */
 const shellAnswers = async () => {
     try {
         return (await fetch(SHELL_URL, { signal: AbortSignal.timeout(2000) })).ok;
@@ -38,7 +22,6 @@ const shellAnswers = async () => {
     }
 };
 
-/** Starts `hybrid-shell local` and resolves once the web behind it answers. */
 const startShell = () =>
     new Promise((resolveStart, rejectStart) => {
         say('Starting the virtual shell (dev)…');
@@ -62,7 +45,6 @@ const startShell = () =>
         }, 180_000).unref();
     });
 
-/** The app's frame inside the shell page. */
 const appFrame = async page => {
     for (let i = 0; i < 120; i++) {
         const frame = page.frames().find(f => f !== page.mainFrame() && f.url().startsWith('http'));
@@ -72,7 +54,6 @@ const appFrame = async page => {
     throw new Error('the shell never showed the app');
 };
 
-/** Who the app is signed in as: `{ guest, name }`, read from the relay session the app stored. */
 const sessionOf = frame =>
     frame.evaluate(() => {
         try {
@@ -90,7 +71,6 @@ const sessionOf = frame =>
         }
     });
 
-/** Moves the app's own router to a path, the way a link inside the app would. */
 const openInApp = (frame, path) =>
     frame.evaluate(target => {
         window.history.pushState({}, '', target);
@@ -112,11 +92,9 @@ const main = async () => {
     const context = await chromium.launchPersistentContext(PROFILE_DIR, {
         headless: false,
         viewport: { width: 1280, height: 900 },
-        // This script owns Ctrl-C: it closes the window and the shell it started, then exits cleanly.
         handleSIGINT: false,
         handleSIGTERM: false,
     });
-    // Closing the window is a way to finish too.
     context.on('close', () => {
         shellProcess?.kill('SIGTERM');
         process.exit(0);
@@ -131,7 +109,6 @@ const main = async () => {
     await page.goto(SHELL_URL);
     await page.waitForFunction(() => window.virtualShell?.status().handshake === 'ready', null, { timeout: 120_000 });
     const frame = await appFrame(page);
-    // The boot signs a fresh install in as a guest; wait until that session is stored.
     for (let i = 0; i < 60 && !(await sessionOf(frame).catch(() => ({ signedIn: false }))).signedIn; i++) {
         await sleep(1000);
     }
@@ -191,7 +168,6 @@ const main = async () => {
 
 main().catch(error => {
     process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    // A shell this run started must not outlive it.
     shellProcess?.kill('SIGTERM');
     process.exit(1);
 });

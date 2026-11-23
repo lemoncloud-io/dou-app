@@ -6,7 +6,6 @@ import type { DeviceVault, KeyValueFile } from './storage';
 
 jest.mock('react-native', () => ({ AppState: {} }));
 
-/** A key-value file held in a map, typed like MMKV's: strings in, strings out. */
 const fakeFile = (): KeyValueFile & { entries: Map<string, string> } => {
     const entries = new Map<string, string>();
     return {
@@ -19,7 +18,6 @@ const fakeFile = (): KeyValueFile & { entries: Map<string, string> } => {
     };
 };
 
-/** A vault that answers `reads` in turn (the last one from then on), and records every write. */
 const fakeVault = (...reads: NativeReadResult[]) => {
     const calls: string[] = [];
     const vault: DeviceVault & { calls: string[] } = {
@@ -39,7 +37,6 @@ const fakeVault = (...reads: NativeReadResult[]) => {
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
-/** An `AppState` stand-in whose state and `change` events the test sets. */
 const fakeAppState = (initial: string) => {
     const handlers = new Set<(state: string) => void>();
     const source = {

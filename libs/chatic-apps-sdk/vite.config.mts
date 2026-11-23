@@ -25,15 +25,12 @@ export default defineConfig({
             rollupTypes: true,
         }),
         {
-            // The workspace manifest points at sources; the published one is written beside the build.
             name: 'publish-manifest',
             closeBundle() {
                 for (const entry of ['index', 'mock']) {
                     copyFileSync(join(__dirname, outDir, `${entry}.d.ts`), join(__dirname, outDir, `${entry}.d.cts`));
                 }
                 copyFileSync(join(__dirname, 'package.publish.json'), join(__dirname, outDir, 'package.json'));
-                // The README, the guide and the rules for an assistant ship under the names a developer and
-                // an assistant look for, each with its Korean translation beside it (`.ko.md`).
                 const docs: [string, string][] = [
                     ['README', 'README'],
                     ['docs/guide/README', 'GUIDE'],
@@ -43,7 +40,6 @@ export default defineConfig({
                     copyFileSync(join(__dirname, `${source}.md`), join(__dirname, outDir, `${shipped}.md`));
                     copyFileSync(join(__dirname, `${source}.ko.md`), join(__dirname, outDir, `${shipped}.ko.md`));
                 }
-                // The skill ships as a folder of its own, so a project copies it whole.
                 mkdirSync(join(__dirname, outDir, 'skill'), { recursive: true });
                 for (const name of ['SKILL.md', 'SKILL.ko.md']) {
                     copyFileSync(join(__dirname, 'skill', name), join(__dirname, outDir, 'skill', name));
@@ -59,9 +55,6 @@ export default defineConfig({
             entry: { index: 'src/index.ts', mock: 'src/mock.ts' },
         },
         rollupOptions: {
-            // Named per format, chunks too: the published package is `"type": "module"`, so ES modules
-            // are `.js` and CommonJS `.cjs`. Vite's own chunk names follow this workspace's manifest,
-            // which has no type, and would ship an `.mjs` the package's `files` leave out.
             output: [
                 { format: 'es', entryFileNames: '[name].js', chunkFileNames: '[name]-[hash].js' },
                 { format: 'cjs', entryFileNames: '[name].cjs', chunkFileNames: '[name]-[hash].cjs' },

@@ -112,7 +112,6 @@ export const isOneReactionCharacter = (value: string): boolean => {
         );
     }
     if (isPictographic(first)) return isEmojiSequence(points);
-    // A letter: alone, or with one or two combining marks.
     if (isCombiningMark(first) || isVariationSelector(first) || isSkinTone(first) || isJoiner(first)) return false;
     return points.length <= 3 && points.slice(1).every(isCombiningMark);
 };
