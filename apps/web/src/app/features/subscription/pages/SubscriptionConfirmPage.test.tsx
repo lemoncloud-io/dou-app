@@ -28,8 +28,6 @@ const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
 
 let mockParams = new URLSearchParams();
-// Records every redirect: the mock leaves the page mounted, so one that flashed and went would not
-// be in the final DOM.
 const mockRedirect = jest.fn();
 jest.mock('react-router-dom', () => ({
     useSearchParams: () => [mockParams],
@@ -51,7 +49,6 @@ jest.mock('../hooks', () => ({
 }));
 jest.mock('../../../hooks/useCloudCatalog', () => ({ useClouds: jest.fn() }));
 jest.mock('../../../hooks/useMembership', () => ({ useMembershipInfo: jest.fn() }));
-// The policy footer reaches the restore hook on its own; it is covered where it lives.
 jest.mock('../components/subscription-select/PolicyFooter', () => ({ PolicyFooter: () => null }));
 
 const tier1 = { id: '#pro-tier-01', name: 'DoU Cloud 1', sort: 1, maxClouds: 1, trialDays: 7 };
@@ -107,10 +104,6 @@ const show = ({
     return render(<SubscriptionConfirmPage />);
 };
 
-/**
- * What the screen's hooks read once the purchase has been checked and the membership read again:
- * the tier just bought is the account's own, so it is no longer one to buy, and nothing is in trial.
- */
 const afterRefetch = (plan: typeof tier1) => {
     (usePlanCatalog as jest.Mock).mockReturnValue({
         summary: { state: 'active' },
@@ -249,8 +242,6 @@ describe('Subscription confirm — scenarios', () => {
         expect(screen.getByRole('button', { name: `${K}.subscribe` })).toBeDisabled();
     });
 
-    // The purchase resolves only after the membership has been read again, so the screen re-renders
-    // with the tier already the account's own while the purchase is still under way.
     it('a purchase that lands the tier still shows its confirmation, with the terms that were bought', async () => {
         const { rerender } = show({ plan: tier1, kind: 'new', state: 'none' });
         purchaseTier.mockImplementationOnce(async () => {
@@ -263,7 +254,6 @@ describe('Subscription confirm — scenarios', () => {
 
         expect(await screen.findByRole('dialog', { name: `${K}.done.newTitle` })).toBeInTheDocument();
         expect(mockRedirect).not.toHaveBeenCalled();
-        // A first purchase with its trial — not a change from the new plan to itself.
         expect(screen.getByText(`${K}.info.trialEndsOn`)).toBeInTheDocument();
     });
 

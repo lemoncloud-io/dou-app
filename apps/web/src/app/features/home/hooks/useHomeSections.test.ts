@@ -78,7 +78,6 @@ describe('setHomeSectionOpen', () => {
     });
 
     it('reads the stored record at write time, not the one a render captured', () => {
-        // Two toggles in the same tick: the second must see the first one's write.
         mockGet.mockReturnValueOnce(undefined).mockReturnValueOnce({ places: true });
 
         setHomeSectionOpen('places', false);

@@ -25,8 +25,6 @@ describe('evaluateCloudQuota', () => {
         });
     });
 
-    // Adding one more state can silently fall through to the default branch (canAdd: true).
-    // An admin block is rejected on the server anyway, since isValid is false there.
     it('관리자 차단도 거절한다 — 기본 갈래로 새지 않는다', () => {
         expect(evaluateCloudQuota({ used: 0, limit: 3, state: 'blocked' })).toEqual({
             canAdd: false,
@@ -71,7 +69,6 @@ describe('evaluateCloudQuota', () => {
     });
 
     it('한도를 모르면(null) 막지 않는다 — 0으로 읽어 유료 사용자를 세우면 안 된다', () => {
-        // For a super membership, or when the product list hasn't arrived yet.
         expect(evaluateCloudQuota({ used: 9, limit: null, state: 'active' })).toEqual({ canAdd: true });
     });
 });

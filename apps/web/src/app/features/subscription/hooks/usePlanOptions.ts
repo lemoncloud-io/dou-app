@@ -18,21 +18,11 @@ export interface PlanOption {
     kind: TierChangeKind;
     isSelectable: boolean;
     isCurrent: boolean;
-    /** Set only when the tier is refused — the card shows it instead of going quietly grey. */
     disabledReason?: string;
-    /**
-     * Why the tier cannot be picked, when it cannot. The card stays tappable either way and the tap
-     * opens the explanation (`TierRefusalDialog`) — a card that swallows the tap looks broken.
-     */
     refusal?: TierRefusal;
-    /**
-     * The store's localized, tax-inclusive price (e.g. `₩8,600`). Absent off-native or when the
-     * store has no entry for the plan — callers fall back to the server's USD reference value.
-     */
     displayPrice?: string;
 }
 
-/** The line a refused card carries under its name; the tap still opens the full explanation. */
 const REFUSAL_LINE: Record<Exclude<TierRefusal, 'current'>, string> = {
     entryTier: 'mypage.subscription.startAtEntryTier',
     resubscribeSame: 'mypage.subscription.startAtLapsedTier',
@@ -40,21 +30,10 @@ const REFUSAL_LINE: Record<Exclude<TierRefusal, 'current'>, string> = {
     otherStore: 'mypage.subscription.otherStoreOnly',
 };
 
-/**
- * Per-tier state for the plan picker, derived once and consumed by both the plans page and the home
- * subscribe sheet. Deriving it in each screen is how the two drifted apart the first time.
- *
- * Reads the catalog directly rather than borrowing `useTierPurchase.changeKindOf`: the screens call
- * both hooks, and going through the purchase hook would stand up a second `useSubscriptionIap` for
- * nothing.
- */
 export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } => {
     const { t } = useTranslation();
     const { sellablePlans, replaceablePlan, resubscribePlan, isIOS, isLoading, isOtherStore } = usePlanCatalog();
     const { nativeProducts, isLoading: isCatalogLoading } = useNativeCatalog();
-    // Billed elsewhere with no plan in the catalog to judge a tier against — the website's, when the
-    // catalog leaves it out. Read as "nothing running", every tier would be a first purchase, and the
-    // store would charge on top of the website. Each tier is refused as another store's instead.
     const billedElsewhereUnknown = isOtherStore && !replaceablePlan;
 
     const options = sellablePlans.map<PlanOption>(plan => {

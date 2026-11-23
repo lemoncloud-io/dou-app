@@ -7,10 +7,6 @@ import { logger } from '@chatic/bridges';
 import { CloudSessionSheet } from './CloudSessionSheet';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 
-// NOTE: @chatic/web-ui-kit is deliberately NOT mocked here. The point of this suite is the
-// composition — three real CollapsibleSections, with the add-cloud button living in the owned
-// section's footer so it survives a collapse. Stubbing the kit away would test nothing.
-
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 const navigate = jest.fn();
 jest.mock('@chatic/shared', () => ({
@@ -74,8 +70,6 @@ jest.mock('../../../hooks', () => ({
     useInvitedClouds: () => ({ invitedClouds: invited }),
     useIsAccountGuest: () => accountGuest,
 }));
-// The real CloudPromoBanner is kept (so the 0-cloud branch is exercised); only its decision hook,
-// which reaches into the preference store and thus the app bridge, is stubbed.
 jest.mock('../hooks/useCloudPromo', () => ({
     useCloudPromo: () => ({ isVisible: promoVisible, dismiss: jest.fn() }),
 }));
@@ -115,8 +109,6 @@ describe('CloudSessionSheet — section layout', () => {
 
         const { baseElement } = renderSheet();
 
-        // CollapsibleSection renders a <section> per group; its title is a <span>, not a heading
-        // (SectionHeader has never used heading markup), so assert DOM order instead of roles.
         const titles = Array.from(baseElement.querySelectorAll('section')).map(
             s => s.querySelector('span')?.textContent
         );
@@ -133,7 +125,6 @@ describe('CloudSessionSheet — section layout', () => {
 
         renderSheet();
 
-        // The counts replaced the old "(N)" suffix on the invited tab label.
         expect(screen.getByText('2')).toBeInTheDocument();
         expect(screen.getByText('1')).toBeInTheDocument();
     });
@@ -155,14 +146,12 @@ describe('CloudSessionSheet — add cloud affordance', () => {
         renderSheet();
         const rowBefore = screen.getByText('Cloud c1');
 
-        // Collapse "My Cloud" and let the height transition finish so its body unmounts.
         const toggles = screen.getAllByRole('button', { name: 'cloudSessionSheet.toggleSection' });
         const grid = rowBefore.closest('.grid') as HTMLElement;
         fireEvent.click(toggles[1]);
         fireEvent.transitionEnd(grid);
 
         expect(screen.queryByText('Cloud c1')).not.toBeInTheDocument();
-        // This is the regression the footer slot exists for.
         expect(screen.getByRole('button', { name: /cloudSessionSheet\.addAccount/ })).toBeInTheDocument();
         expect(screen.getByText('cloudSessionSheet.myCloudsDescription')).toBeInTheDocument();
     });
@@ -208,10 +197,6 @@ describe('CloudSessionSheet — owned section body', () => {
     });
 
     it('keeps the promo visible through a BACKGROUND refetch instead of flashing the skeleton', () => {
-        // The regression: `isLoading` used to be `isFetching && clouds.length === 0`, so every
-        // refetch (the sheet refetches on open, and useClouds is refetchOnMount: 'always') replaced
-        // the banner with a skeleton. Because the banner subscribed to that same query, mounting it
-        // kicked off the next refetch — an endless shimmer for a zero-cloud account.
         catalog.clouds = [];
         catalog.isPendingClouds = false;
         catalog.isFetchingClouds = true;
@@ -264,8 +249,6 @@ describe('CloudSessionSheet — selection', () => {
             expect(logger.info).toHaveBeenCalledWith('CLOUD', 'cloud switch succeeded', { cloudId: 'c1' })
         );
 
-        // `switchCloudSession` already logs its own failure and does the rollback — a second entry
-        // here would double the error count and the flush it advances.
         expect(logger.error).not.toHaveBeenCalled();
     });
 
@@ -278,8 +261,6 @@ describe('CloudSessionSheet — selection', () => {
         renderSheet();
         fireEvent.click(screen.getByText('cloudSessionSheet.douHome'));
 
-        // Nothing downstream logs this one: `logoutCloudSession` has no catch of its own, so before
-        // this line a failed disconnect left no trace anywhere.
         await waitFor(() =>
             expect(logger.error).toHaveBeenCalledWith('CLOUD', 'cloud session disconnect failed', { error: boom })
         );
@@ -290,14 +271,11 @@ describe('CloudSessionSheet — selection', () => {
 
         renderSheet();
 
-        // The pencil (and CloudNameEditDialog) were removed — cloud management's edit screen is the only path.
         expect(screen.queryByRole('button', { name: /edit|이름|rename/i })).not.toBeInTheDocument();
     });
 });
 
 describe('CloudSessionSheet — presence dots (ADR-0056)', () => {
-    // The 6×6 red dot became the 20×20 "N" badge (Figma 4147:24964), so match on the badge's
-    // accessible label (CloudUnreadBadge) rather than on its fill class.
     const UNREAD_BADGE = '[aria-label="cloudSessionSheet.unreadBadge"]';
     const dotCount = (baseElement: HTMLElement) => baseElement.querySelectorAll(UNREAD_BADGE).length;
 
@@ -392,7 +370,6 @@ describe('CloudSessionSheet — failed cloud row', () => {
 
         expect(navigate).toHaveBeenCalledWith('/mypage/cloud-manage/CL9');
         expect(toast).not.toHaveBeenCalled();
-        // The trace is for the log, not the user.
         expect(logger.warn).toHaveBeenCalledWith('CLOUD', expect.any(String), {
             cloudId: 'CL9',
             error: rawError,

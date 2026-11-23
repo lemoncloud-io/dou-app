@@ -5,13 +5,9 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { PlaceLimitDialog } from './PlaceLimitDialog';
 
 jest.mock('react-i18next', () => ({
-    // Echo the key so assertions can target keys directly; append the interpolation so the {{max}}
-    // hand-off is observable.
     useTranslation: () => ({
         t: (key: string, opts?: { max?: number }) => (opts?.max === undefined ? key : `${key}:${opts.max}`),
     }),
-    // The body copy carries <strong> emphasis from the translation, so it renders through Trans
-    // rather than a bare `t()`. Same key-echo convention, so `key:max` assertions still hold.
     Trans: ({ i18nKey, values }: { i18nKey: string; values?: { max?: number } }) =>
         values?.max === undefined ? i18nKey : `${i18nKey}:${values.max}`,
 }));
@@ -73,8 +69,6 @@ describe('PlaceLimitDialog', () => {
     });
 
     it('접속한 플레이스가 없으면 플레이스 관리는 비활성된다', () => {
-        // The settings route is keyed by a site id — with none active there is nowhere to go, so the
-        // action is disabled instead of navigating nowhere. "Add cloud" stays available.
         const { onOpenChange } = renderDialog({ onManagePlaces: undefined });
 
         expect(manage()).toBeDisabled();

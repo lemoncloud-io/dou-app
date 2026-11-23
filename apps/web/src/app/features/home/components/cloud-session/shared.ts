@@ -2,21 +2,12 @@ import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { cloudDisplayName } from '../../../../utils';
 
-// Shared styles for cloud/invite list rows.
 export const SELECTED_HIGHLIGHT = 'bg-[#F3F0FF] dark:bg-[#2D2640]';
 
-/** A cloud still being provisioned (not yet selectable). */
 export const isProvisioning = (status?: CloudView['status']): boolean => status === 'reserved' || status === 'init';
 
-/** The one chain cloud management uses too — see `utils/cloudDisplayName`. */
 export const getCloudDisplayName = (cloud: CloudView): string => cloudDisplayName(cloud);
 
-/**
- * Ordering for the cloud switcher list: the currently-selected cloud is pinned to the top, and the
- * rest fall in creation order, newest first (`createdAt` descending). Clouds without a `createdAt`
- * (e.g. invited clouds whose cache row does not persist it) sort last. View-only — does not mutate
- * the source list.
- */
 export const sortCloudsForSwitcher = <T extends { id?: string; createdAt?: number }>(
     list: T[],
     selectedId?: string | null

@@ -7,7 +7,6 @@ import { CreatePlaceDialog } from './CreatePlaceDialog';
 const createPlaceMock = jest.fn();
 const switchSiteMock = jest.fn();
 const setMyPlaceProfileMock = jest.fn();
-// What the profile-step stub last received, so a test can drive it.
 let profileStep: {
     placeName: string;
     dismissible?: boolean;
@@ -30,7 +29,6 @@ jest.mock('../../../runtime/useSiteSwitch', () => ({ useSiteSwitch: () => ({ swi
 jest.mock('@chatic/shared', () => ({ prepareImage: jest.fn() }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('react-i18next', () => ({
-    // Echo the key so assertions can target keys directly.
     useTranslation: () => ({ t: (k: string) => k }),
 }));
 
@@ -38,9 +36,6 @@ const done = () => screen.getByRole('button', { name: 'createPlace.done' });
 const close = () => screen.getByRole('button', { name: 'createPlace.close' });
 const type = (value: string) => fireEvent.change(screen.getByRole('textbox'), { target: { value } });
 const nameField = () => screen.getByRole('textbox');
-// The decorative header is not unmounted while typing, only collapsed behind `aria-hidden` — which
-// is exactly what `*ByRole` ignores, so its absence here is the compact layout being in effect.
-// `level: 1` picks the visible heading over the dialog's own sr-only <h2> of the same name.
 const header = () => screen.queryByRole('heading', { name: 'createPlace.title', level: 1 });
 
 beforeEach(() => {
@@ -48,7 +43,6 @@ beforeEach(() => {
     profileStep = null;
 });
 
-/** Fills in a name and confirms, returning once the profile step is up. */
 const createAndEnter = async (onOpenChange = jest.fn()) => {
     createPlaceMock.mockResolvedValue({ id: 'site-1' });
     switchSiteMock.mockResolvedValue(undefined);
@@ -195,8 +189,6 @@ describe('CreatePlaceDialog', () => {
         expect(header()).toBeInTheDocument();
     });
 
-    // Folding the text alone frees the room; a photo that shrank on every focus read as the screen
-    // changing under the user.
     it('keeps the photo at full size while the name field has focus', () => {
         render(<CreatePlaceDialog open onOpenChange={jest.fn()} />);
 

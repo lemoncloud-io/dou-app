@@ -8,34 +8,16 @@ import { formatDate, platformLabelKey, type TierChangeKind } from '../lib';
 import { NoticeList } from './NoticeList';
 
 export interface PurchaseDoneDialogProps {
-    /** The membership the relay validated — `null` keeps the dialog closed. */
     membership: MembershipView | null;
     kind: Extract<TierChangeKind, 'new' | 'upgrade' | 'downgrade'>;
-    /** Display name of the plan just bought or scheduled. */
     productName: string;
-    /** The store's price for that plan; absent, the amount row is left out rather than guessed. */
     price?: string;
-    /** The first subscription started a free trial — `validUntil` is then when it ends. */
     isTrial: boolean;
-    /** Fine print to repeat under the table (the refund wording after an upgrade). */
     notices: string[];
-    /** Primary action — add a cloud after a purchase, or pick clouds to keep after a downgrade. */
     primary?: { label: string; onClick: () => void };
-    /** Closes the dialog and leaves the flow. */
     onDone: () => void;
 }
 
-/**
- * The confirmation after a purchase or a tier change clears (Figma 4541-18323 · 4554-19998).
- *
- * Drawn from the membership the relay returned with the validation, not from a refetch: the receipt
- * just validated is the freshest copy there is, and waiting for the list queries to catch up would
- * leave the person looking at a spinner after the store already said yes.
- *
- * A full-screen dialog over the confirm screen rather than a route of its own, so leaving it can
- * replace the whole flow in history — back from the detail screen must not land on a confirm
- * button for a purchase that already happened.
- */
 export const PurchaseDoneDialog = ({
     membership,
     kind,
@@ -102,8 +84,6 @@ export const PurchaseDoneDialog = ({
 
     return (
         <Dialog open={!!membership} onOpenChange={open => !open && onDone()}>
-            {/* `max-w-app` and `top-[50%]`: a full-screen surface on the notice variant follows the
-                column and stays put over the keyboard, the way the email verification screen does. */}
             <DialogContent className="top-[50%] h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none" hideClose>
                 <DialogTitle className="sr-only">{title}</DialogTitle>
                 <DialogDescription className="sr-only">{t('mypage.subscription.detail.infoTitle')}</DialogDescription>

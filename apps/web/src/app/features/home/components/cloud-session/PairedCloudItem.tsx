@@ -7,19 +7,12 @@ import { SELECTED_HIGHLIGHT } from './shared';
 
 interface PairedCloudItemProps {
     cloudId: string;
-    /** The cloud's name once this browser has read it from inside the cloud; until then a short id stands in. */
     name?: string;
     isSelected: boolean;
     isDisabled: boolean;
     onSelectCloud: (cloudId: string) => void;
 }
 
-/**
- * A cloud this guest browser entered through a pairing. A guest's cloud catalog is empty and the
- * approval names only the cloud's id, so the name is read from the relay once the browser is inside
- * the cloud (`runtime.data.usePairedCloudNameSync`) and kept beside the paired-cloud list. Until that
- * read has succeeded the row shows the cloud's id, shortened — the one fact about it the browser has.
- */
 export const PairedCloudItem = ({ cloudId, name, isSelected, isDisabled, onSelectCloud }: PairedCloudItemProps) => {
     const { t } = useTranslation();
     const displayName = name?.trim() || t('pairing.cloud.unnamed', { id: cloudId.slice(-6) });

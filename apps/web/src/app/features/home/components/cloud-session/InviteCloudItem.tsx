@@ -11,7 +11,6 @@ interface InviteCloudItemProps {
     inviteCloud: DomainCloud;
     isSelected: boolean;
     isDisabled: boolean;
-    /** presence badge: any unread across this cloud's places (last-visited snapshot). */
     hasUnread?: boolean;
     onSelectCloud: (cloudId: string) => void;
 }
@@ -24,15 +23,10 @@ export const InviteCloudItem = ({
     onSelectCloud,
 }: InviteCloudItemProps) => {
     const { t } = useTranslation();
-    // Owner-name guide text (spec 5-3). The invite-accept flow does not yet persist the owner, so
-    // fall back to a generic "invited cloud" label when it is absent.
     const ownerName = inviteCloud.owner$?.name;
     const ownerLabel = ownerName
         ? t('cloudSessionSheet.invitedOwnerLabel', { owner: ownerName })
         : t('cloudSessionSheet.invitedFallbackLabel');
-    // A nameless invited cloud (an invite with no cloud name, before `cloud.get` fills one in)
-    // takes the owner label as its title and drops the caption, rather than printing its raw cid —
-    // an opaque id is not something to show a user.
     const cloudName = inviteCloud.name?.trim();
     const displayName = cloudName || ownerLabel;
     const subtitle = cloudName ? ownerLabel : null;
@@ -50,12 +44,8 @@ export const InviteCloudItem = ({
                 disabled && !isSelected && 'cursor-not-allowed opacity-60'
             )}
         >
-            {/* Owner's representative avatar — AppHeader-style initials avatar derived from the
-                cloud name (no image field exists in the model). */}
             <CloudAvatar name={displayName} size="lg" />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                {/* `min-w-0` on the row so the truncating name — not the badge — absorbs the
-                    overflow when the cloud name is long (Figma 3486:25664). */}
                 <div className="flex min-w-0 items-center gap-[6px]">
                     <span className="truncate text-[15px] font-medium leading-[1.19] tracking-[-0.02em] text-foreground">
                         {displayName}
@@ -68,8 +58,6 @@ export const InviteCloudItem = ({
                     </span>
                 )}
             </div>
-            {/* Same trailing lime disc as the owned rows — this row was still on the old leading
-                purple check that ADR-0014 replaced everywhere else. */}
             {isSelected && <IconCheckCircleSolid size={28} className="shrink-0 text-primary" />}
         </button>
     );

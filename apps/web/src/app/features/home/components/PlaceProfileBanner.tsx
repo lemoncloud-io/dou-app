@@ -8,27 +8,12 @@ import { useActivePlaceName, useSetMyPlaceProfile } from '../../../hooks';
 import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
 
 interface PlaceProfileBannerProps {
-    /** Whether the card shows — `usePlaceProfileNudge`. */
     visible: boolean;
-    /** Closes the banner for this place (see `usePlaceProfileNudge`). */
     onDismiss: () => void;
-    /** Called once the profile is saved. */
     onSaved: () => void;
-    /** Applied to the padding wrapper, not the card — the same gutter rule as `CloudPromoBanner`. */
     className?: string;
 }
 
-/**
- * Home's banner for a place I have no profile in, and the create form it opens. The caller decides
- * whether the card shows; this only renders it.
- *
- * Mounted whether or not the card shows, because the form must outlive it. A save writes my nick to
- * the cache before the server answers, and that hides the card at once; a form inside it would go
- * with it, taking a failed save's error with it too.
- *
- * The form keeps its close button and the unsaved-changes guard, as in room settings: the banner is
- * an invitation, not a gate, and the place entry points already ask with a required step.
- */
 export const PlaceProfileBanner = ({ visible, onDismiss, onSaved, className }: PlaceProfileBannerProps) => {
     const { t } = useTranslation();
     const placeName = useActivePlaceName();

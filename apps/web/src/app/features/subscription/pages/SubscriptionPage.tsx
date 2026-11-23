@@ -13,16 +13,6 @@ import { usePlanCatalog, usePlanPrice, useRestorePurchases } from '../hooks';
 import { formatDate, planDisplayName, productStatusWord } from '../lib';
 import { useRestoredSignal } from '../stores/useRestoredSignal';
 
-/**
- * "구독 관리" — the subscription list (Figma 4648-26863 · 4772-17913), the one place MY sends to.
- *
- * It shows the running subscription as a single card that opens the detail, or an empty state that
- * starts one. The design also draws past subscriptions as cards below; the relay offers no history a
- * user may read (its membership list is admin-only), so only the current one appears.
- *
- * Every state lands here — never-subscribed included — so MY no longer decides between this and the
- * cloud guide. The empty state's call to action is what leads to the guide.
- */
 export const SubscriptionPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -37,8 +27,6 @@ export const SubscriptionPage = () => {
     const { restore, isRestoring, canRestore, notice: webActiveNotice } = useRestorePurchases();
     const observe = useRestoredSignal(s => s.observe);
 
-    // Feeds the restored banner on the detail screen. Only settled states count — a half-loaded
-    // membership reads as `none` and would make every later `active` look like a comeback.
     useEffect(() => {
         if (!isLoading) observe(summary.state);
     }, [isLoading, summary.state, observe]);
@@ -49,8 +37,6 @@ export const SubscriptionPage = () => {
     const hasPendingChange = summary.isEntitled && !!summary.pendingProductId;
     const validUntil = formatDate(membership?.validUntil);
 
-    // One sentence under the card says what happens next. Which one is the state's call; the
-    // detail screen carries the rest.
     const statusLine = (() => {
         if (summary.state === 'blocked') return t('mypage.subscription.blockedNotice');
         if (summary.state === 'expired') return t('mypage.subscription.list.expiredLine', { date: validUntil });
@@ -68,8 +54,6 @@ export const SubscriptionPage = () => {
     })();
     const statusLineTone = summary.state === 'active' ? 'text-point-blue' : 'text-destructive';
 
-    // A store purchase attaches to the account signed in here, so a guest signs in first. Where the
-    // website sells, it signs the buyer in itself, so the guide leads straight there.
     const asksLogin = isGuest && sellsInStore;
     const handleStart = () => (asksLogin ? goToLogin() : navigate(ROUTES.subscription.guide));
 
@@ -91,7 +75,6 @@ export const SubscriptionPage = () => {
             }
         >
             <div className="flex flex-col gap-[18px] px-4 pb-8 pt-4">
-                {/* Clouds the relay held after a downgrade — reported, released elsewhere. */}
                 <HeldCloudsBanner />
 
                 {isLoading ? (
@@ -107,8 +90,6 @@ export const SubscriptionPage = () => {
                         entitled={summary.isEntitled}
                         onClick={() => navigate(ROUTES.subscription.detail)}
                     >
-                        {/* Only when there is something to say: a store with no price for the plan and
-                            no status line would otherwise leave a divider over an empty strip. */}
                         {(price || statusLine) && (
                             <div className="flex flex-col gap-2 pb-3 pt-1">
                                 {price && (
@@ -149,8 +130,6 @@ export const SubscriptionPage = () => {
                     </div>
                 )}
 
-                {/* Recovers a purchase the store took but this account never attached — a reinstall,
-                    a crash mid-purchase. Reachable from here and from the plan picker's footer. */}
                 {!isLoading && canRestore && (
                     <button
                         type="button"
