@@ -1,0 +1,84 @@
+name: revert ratchet
+
+# A merged revert means a mistake reached develop. This opens an issue, labelled `ratchet`, that
+# proposes a candidate rule or test, asks for an adversarial check (counterexamples where the rule
+# would fire on a correct change) before a person approves it, and says whether the reverted pull
+# request had been auto-merged — the count auto-merge's revert rate is read from.
+#
+# `pull_request_target` for the issue-writing token; nothing from the pull request's branch runs.
+# The title and body reach the script through the event file, never through shell interpolation.
+
+on:
+    pull_request_target:
+        types: [closed]
+        branches: [develop]
+
+permissions: {}
+
+jobs:
+    ratchet:
+        if: github.event.pull_request.merged && startsWith(github.event.pull_request.title, 'Revert')
+        name: open a ratchet issue
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: read
+            issues: write
+        env:
+            GH_TOKEN: ${{ github.token }}
+            REPO: ${{ github.repository }}
+            NUMBER: ${{ github.event.pull_request.number }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: develop
+                  persist-credentials: false
+                  sparse-checkout: scripts/auto-merge
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Find the reverted pull request
+              id: find
+              run: |
+                  gh api --paginate "repos/$REPO/pulls/$NUMBER/commits" --jq '[.[].commit.message]' | jq -s 'add' > "$RUNNER_TEMP/messages.json"
+                  jq --slurpfile m "$RUNNER_TEMP/messages.json" '{title: .pull_request.title, body: (.pull_request.body // ""), commitMessages: $m[0]}' \
+                      "$GITHUB_EVENT_PATH" > "$RUNNER_TEMP/revert.json"
+                  node scripts/auto-merge/revert.js targets "$RUNNER_TEMP/revert.json" > "$RUNNER_TEMP/targets.json"
+                  original=$(jq -r '.numbers[0] // empty' "$RUNNER_TEMP/targets.json")
+                  if [ -z "$original" ]; then
+                      for sha in $(jq -r '.shas[]' "$RUNNER_TEMP/targets.json"); do
+                          original=$(gh api "repos/$REPO/commits/$sha/pulls" --jq "[.[] | select(.merged_at != null and .number != $NUMBER)][0].number // empty" || true)
+                          [ -n "$original" ] && break
+                      done
+                  fi
+                  if [ -z "$original" ]; then
+                      reverted=$(jq -r '.revertedTitle // empty' "$RUNNER_TEMP/targets.json")
+                      if [ -n "$reverted" ]; then
+                          original=$(gh pr list -R "$REPO" --state merged --base develop --limit 50 --json number,title \
+                              | jq -r --arg t "$reverted" '[.[] | select(.title == $t)][0].number // empty')
+                      fi
+                  fi
+                  if [ -n "$original" ]; then
+                      gh pr view "$original" -R "$REPO" --json number,title,labels,files \
+                          | jq '{number, title, labels: [.labels[].name], files: [.files[].path]}' > "$RUNNER_TEMP/original.json"
+                  else
+                      echo 'null' > "$RUNNER_TEMP/original.json"
+                  fi
+                  jq -n --argjson n "$NUMBER" --slurpfile o "$RUNNER_TEMP/original.json" '{revert: {number: $n}, original: $o[0]}' > "$RUNNER_TEMP/issue.json"
+                  echo "original=$original" >> "$GITHUB_OUTPUT"
+
+            - name: Open the issue
+              env:
+                  ORIGINAL: ${{ steps.find.outputs.original }}
+              run: |
+                  gh label create ratchet -R "$REPO" --color 5319e7 \
+                      --description 'Turn a mistake that reached develop into a rule or a test' 2>/dev/null || true
+                  title="Ratchet: catch what #${ORIGINAL:-?} needed reverting (reverted in #$NUMBER)"
+                  if gh issue list -R "$REPO" --label ratchet --state all --search "\"reverted in #$NUMBER\" in:title" --json number --jq 'length' | grep -qv '^0$'; then
+                      echo "A ratchet issue for #$NUMBER already exists."
+                      exit 0
+                  fi
+                  node scripts/auto-merge/revert.js issue "$RUNNER_TEMP/issue.json" > "$RUNNER_TEMP/issue.md"
+                  gh issue create -R "$REPO" --title "$title" --label ratchet --body-file "$RUNNER_TEMP/issue.md"
