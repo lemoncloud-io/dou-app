@@ -18,8 +18,6 @@ import {
 
 const CLOUD_NAME_MIN = 2;
 
-// Anything not listed reads as the generic line. `notFound` and `conflict` have cloud wording of
-// their own: the shared ones talk about channels.
 const ERROR_KEY_BY_KIND: Partial<Record<WireErrorKind, string>> = {
     denied: 'errors.notAllowed',
     notFound: 'cloud.rename.error.notFound',
@@ -27,7 +25,6 @@ const ERROR_KEY_BY_KIND: Partial<Record<WireErrorKind, string>> = {
     network: 'errors.network',
 };
 
-/** The person gets a sentence they can act on; the wire text goes to the log and under it in the toast. */
 const renameErrorKey = (error: unknown): string => {
     const raw = extractErrorMessage(error);
     logger.error('CLOUD', '[CloudRename] failed', { error, raw });
@@ -41,17 +38,12 @@ interface RenameCloudDialogProps {
     currentName: string;
 }
 
-/**
- * Rename an owned cloud with a one-line field. Follows RenameChannelDialog; owner-only exposure is
- * the caller's call (the server enforces it too).
- */
 export const RenameCloudDialog = ({ open, onOpenChange, cloudId, currentName }: RenameCloudDialogProps) => {
     const { t } = useTranslation();
     const { renameCloud, isRenaming } = useRenameCloud();
     const [name, setName] = useState(currentName);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    // Re-seed the input each time the dialog opens for a (possibly different) cloud.
     useEffect(() => {
         if (open) {
             setName(currentName);
@@ -64,7 +56,6 @@ export const RenameCloudDialog = ({ open, onOpenChange, cloudId, currentName }: 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isRenaming || trimmed.length < CLOUD_NAME_MIN) return;
-        // Nothing changed — close without a round trip.
         if (trimmed === currentName) {
             onOpenChange(false);
             return;

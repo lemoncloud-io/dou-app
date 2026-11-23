@@ -174,7 +174,6 @@ describe('a voice card', () => {
         act(() => useForwardFileStore.getState().close());
     });
 
-    // The Default Cloud has no id in the session; the link names it, so it leaves another cloud for it.
     it('names the Default Cloud in a link copied there', async () => {
         sessionCloud.value = { cloudId: null, siteId: null };
         const writeText = vi.fn(async () => undefined);
@@ -188,7 +187,6 @@ describe('a voice card', () => {
         sessionCloud.value = { cloudId: 'cl-1', siteId: 'site-1' };
     });
 
-    // A message the server has not numbered yet has no address to link to.
     it('offers no link for a message without its number', async () => {
         render(<MessageFiles author={author} message={sent([song('a')])} />, { wrapper });
         await openMore('song.mp3');

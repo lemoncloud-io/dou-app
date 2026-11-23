@@ -8,64 +8,30 @@ import type { DomainChat } from '@chatic/runtime';
 
 import { classifyWireError, extractErrorMessage } from '../../../shared';
 
-/**
- * How many older pages the panel pulls on its own before it stops and hands the next batch to the
- * reader. A page is `useChats`' `loadOlder` (50 messages), so a batch is a few hundred messages: enough
- * that an ordinary old thread completes untouched, small enough that a thread buried under thousands
- * of messages costs a handful of requests instead of a flood.
- */
 export const REPLY_PAGES_PER_BATCH = 5;
 
-/** Where the thread's root message stands. */
-export type ThreadRootStatus =
-    /** The root is in hand — from the loaded window or a single fetch. */
-    | 'found'
-    /** Waiting on the feed window, or on the fetch of a root that is not in it. */
-    | 'loading'
-    /** The root is from before my current membership: it never arrives, so nothing is asked. */
-    | 'beforeJoin'
-    /** The server says there is no such message, or that I may not read it. */
-    | 'gone'
-    /** The fetch failed for a reason that may pass (network, timeout). */
-    | 'failed';
+export type ThreadRootStatus = 'found' | 'loading' | 'beforeJoin' | 'gone' | 'failed';
 
-/** How complete the replies are. Only a root fetched from outside the window can be incomplete. */
-export type ThreadRepliesStatus =
-    /** Everything between the root and the newest message is loaded. */
-    | 'complete'
-    /** Older pages are being fetched, by the batch or by the reader's press. */
-    | 'loadingOlder'
-    /** A batch ran out before reaching the root: the reader decides whether to continue. */
-    | 'partial'
-    /** The last older page failed; what is already shown stays. */
-    | 'olderFailed';
+export type ThreadRepliesStatus = 'complete' | 'loadingOlder' | 'partial' | 'olderFailed';
 
 interface ThreadRootArgs {
     channelId: string;
-    /** The root's `chatNo` string, or its full id (`<channelId>:<chatNo>`). */
     rootId: string;
-    /** The root as found in the loaded window, if it is there. */
     windowRoot: DomainChat | undefined;
-    /** The start of my current membership — messages at or before it are not mine to read. */
     joinedNo?: number;
-    /** The feed window's own loading flag: a root is only "outside" once the window has settled. */
     feedLoading: boolean;
-    /** The window's messages, oldest to newest. Their identity changes on every cache emission. */
     messages: DomainChat[];
-    /** `useChats`' next-older-page fetch. Resolves false when that fetch failed. */
     loadOlder: () => Promise<boolean>;
     hasMore: boolean;
     isLoadingOlder: boolean;
 }
 
-/** What a fetch of the root answered, and the place it asked from (a read is answered from the place the session is in). */
 type RootOutcome =
     | { key: string; site: string; root: DomainChat }
     | { key: string; site: string; failure: 'gone' | 'failed' };
 
 interface Pager {
     key: string;
-    /** Older pages still allowed in the current batch. */
     left: number;
     phase: 'running' | 'partial' | 'failed';
 }
@@ -74,18 +40,6 @@ const freshPager = (key: string): Pager => ({ key, left: REPLY_PAGES_PER_BATCH, 
 
 const parseRootNo = (rootId: string): number => Number(rootId.slice(rootId.lastIndexOf(':') + 1));
 
-/**
- * Secures the root of the thread the panel shows, wherever it sits.
- *
- * The feed window holds only the newest messages, so a thread opened from a mention, a saved item or a
- * notification can have a root far below it. This hook asks the server for that one message by id
- * (`chat.get` — the feed has no thread filter) and then pages the feed down to it so the replies fill
- * in too. It asks for nothing while the root is already in the window.
- *
- * A root from before my join window is never requested: the number alone says the server will not
- * serve it, and asking would only leave a spinner. A fetched root is also written to the cache by the
- * repository; the feed observer reads only the newest rows, so it stays out of the channel's feed.
- */
 export const useThreadRoot = ({
     channelId,
     rootId,
@@ -100,9 +54,6 @@ export const useThreadRoot = ({
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const site = selectedSiteId ?? '';
-    // The selected site flips at the start of a switch and the socket session follows when `auth.switch`
-    // returns, so for that stretch a read is still answered from the old place. The runtime's own
-    // in-flight signal (the one background sync pauses on) says when that is.
     const switching =
         useIsMutating({ mutationKey: runtime.session.SWITCH_SITE_MUTATION_KEY }) +
             useIsMutating({ mutationKey: runtime.session.SWITCH_CLOUD_MUTATION_KEY }) >
@@ -112,12 +63,6 @@ export const useThreadRoot = ({
     const key = channelId && Number.isInteger(rootNo) && rootNo > 0 ? `${channelId}:${rootNo}` : null;
     const beforeJoin = key !== null && !isInJoinWindow({ chatNo: rootNo }, joinedNo);
 
-    // Keyed by the root it answers, so a response that lands after the panel moved to another thread
-    // or channel is never read as the new one's. A verdict that the root is gone or failed is also keyed
-    // by the place it was asked from: the server answers a read from the place the session is in, so a
-    // root that is out of reach from one place can be fine from the next, and the verdict is taken again
-    // when the place changes, once the switch has finished (nothing is sent while one is in flight, and a
-    // refusal that lands then belongs to the old place). A root that arrived stays.
     const [outcome, setOutcome] = useState<RootOutcome | null>(null);
     const mine = outcome?.key === key && ('root' in outcome || outcome.site === site) ? outcome : null;
     const shouldFetch = !windowRoot && !feedLoading && !switching && key !== null && !beforeJoin && !mine;
@@ -131,7 +76,6 @@ export const useThreadRoot = ({
             },
             (error: unknown) => {
                 if (cancelled) return;
-                // Gone for good only when the server says so; anything else may pass, so it offers a retry.
                 const kind = classifyWireError(extractErrorMessage(error));
                 logger.warn('CHAT', '[useThreadRoot] root fetch failed', { key, kind, error });
                 setOutcome({ key, site, failure: kind === 'notFound' || kind === 'denied' ? 'gone' : 'failed' });
@@ -154,8 +98,6 @@ export const useThreadRoot = ({
     else if (mine && 'failure' in mine) status = mine.failure;
     else status = 'loading';
 
-    // Replies: a root fetched from outside the window has everything between it and the window's
-    // oldest message still to load. A root inside the window has all its replies already.
     const oldestNo = useMemo(() => {
         let oldest = Infinity;
         for (const chat of messages) {
@@ -167,11 +109,6 @@ export const useThreadRoot = ({
 
     const [pagerState, setPager] = useState<Pager>(() => freshPager(key ?? ''));
     const pager = pagerState.key === (key ?? '') ? pagerState : freshPager(key ?? '');
-    // The last older page asked for, by the cursor it started from. The window re-reads the cache after
-    // the fetch lands, and other writes re-emit it too (the fetched root, a live message, a reaction), so
-    // "the window changed" says nothing about the page. A page that brought rows always moves the window's
-    // oldest message down, so that is what says it has shown up. Not showing up is not an error: a failed
-    // fetch reports itself through `loadOlder`.
     const sent = useRef<{ key: string; from: number } | null>(null);
 
     useEffect(() => {
@@ -188,12 +125,10 @@ export const useThreadRoot = ({
         sent.current = request;
         setPager({ ...pager, left: pager.left - 1 });
         loadOlder().then(ok => {
-            // A failure that comes back after the panel moved on, or was asked again, is not this page's.
             if (!ok && sent.current === request) setPager(current => ({ ...current, phase: 'failed' }));
         });
     }, [key, needsOlder, isLoadingOlder, oldestNo, pager, loadOlder]);
 
-    /** The reader's press on "load earlier replies": one more batch, or a retry of the page that failed. */
     const loadOlderReplies = useCallback(() => {
         if (!key) return;
         if (pager.phase === 'failed') sent.current = null;

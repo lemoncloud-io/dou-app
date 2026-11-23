@@ -18,14 +18,11 @@ const ACTION =
     'focus-ring tactile flex h-8 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-caption font-medium transition-colors ease-tactile disabled:pointer-events-none disabled:opacity-50';
 
 interface SelectionBarProps {
-    /** How many of the listed cards are selected. */
     count: number;
-    /** `mixed` when some but not all of the listed cards are selected. */
     allState: boolean | 'mixed';
     onToggleAll: () => void;
     onSelectUnread: () => void;
     onClear: () => void;
-    /** Marks every item of the open tab read, listed or not. Absent when none is unread. */
     onMarkAllRead?: () => void;
     onMarkRead: () => void;
     onDelete: () => void;
@@ -34,11 +31,6 @@ interface SelectionBarProps {
 
 const MENU_ITEM = 'cursor-pointer py-2';
 
-/**
- * The Notifications header while cards are being selected: the select-all box and its options,
- * the count, and what can be done to the selection. It takes focus when it opens: the select
- * button that opened it is gone from the header.
- */
 export const SelectionBar = ({
     count,
     allState,
@@ -55,7 +47,6 @@ export const SelectionBar = ({
     useEffect(() => allRef.current?.focus(), []);
     return (
         <div className="flex min-w-0 flex-1 items-center gap-1">
-            {/* The select-all box and its options read as one control. */}
             <span className="flex h-8 shrink-0 items-center rounded-lg border border-input-border">
                 <button
                     ref={allRef}

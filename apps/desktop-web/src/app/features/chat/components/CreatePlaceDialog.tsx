@@ -22,13 +22,8 @@ import { useCreatePlace, toastFailure } from '../../../shared';
 import { useCreatePlaceDialogStore } from '../stores';
 import { PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, placeFailure, type PlaceFailure } from '../utils';
 
-/**
- * `enter`: the place exists, and the switch into it is what failed. The two `image` ones are about
- * the photo just picked, before anything was sent.
- */
 type Failure = PlaceFailure | 'enter' | 'imageTooLarge' | 'imageFailed';
 
-// Only the failures a second try can fix say "try again"; a refusal says what it is.
 const FAILURE_KEY: Record<Failure, string> = {
     denied: 'place.create.failed.denied',
     network: 'errors.network',
@@ -41,20 +36,10 @@ const FAILURE_KEY: Record<Failure, string> = {
 const IMAGE_MAX_MB = PLACE_IMAGE_MAX_BYTES / (1024 * 1024);
 
 interface CreatePlaceDialogProps {
-    /**
-     * Move the session into the new place, rejecting when the switch fails. The host passes its own
-     * switch so the rail it renders locks while this one runs.
-     */
     onEnter: (placeId: string) => Promise<void>;
-    /** Runs once the session is inside the new place, for what can only be done from in there. */
     onEntered?: (placeId: string) => void;
 }
 
-/**
- * Make a place in the active cloud and go into it. Two steps that can fail apart: once the place
- * is made, a failed switch keeps the dialog open and the next submit only switches, so a retry
- * never makes a second place. The photo is optional and goes out with the create call.
- */
 export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps) => {
     const { t } = useTranslation();
     const isOpen = useCreatePlaceDialogStore(s => s.isOpen);
@@ -64,22 +49,15 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
     const [name, setName] = useState('');
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);
     const fileRef = useRef<HTMLInputElement>(null);
-    // A photo is being read. The submit waits for it: a place made now would go out without the
-    // photo the form is about to show, and the desktop has no way to add one afterwards.
     const [encoding, setEncoding] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [failure, setFailure] = useState<Failure | null>(null);
-    // A place this dialog made but has not entered yet: what the next submit retries.
     const [unenteredPlaceId, setUnenteredPlaceId] = useState<string | null>(null);
 
     const trimmed = name.trim();
 
-    // Counts the times the dialog has closed. A submit remembers the count it started under and
-    // stops when it reads another, so a request that answers after the close does nothing more.
     const session = useRef(0);
 
-    // Start clean on every close, whoever closed it. The host closes the dialog when the cloud
-    // changes under it, and a place left unentered there must not be retried from another cloud.
     useEffect(() => {
         if (isOpen) return;
         session.current += 1;
@@ -92,15 +70,12 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
     }, [isOpen]);
 
     const handleOpenChange = (next: boolean) => {
-        // Escape, the X and the backdrop are ignored while the place is being made, as in the
-        // channel dialog: closing then would drop a failure message with nobody to read it.
         if (next || submitting) return;
         setOpen(false);
     };
 
     const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        // Cleared so that picking the same file again, after a failure or a remove, still fires.
         e.target.value = '';
         if (!file) return;
         setFailure(null);
@@ -116,7 +91,6 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
             if (session.current === startedIn) setThumbnail(avatar);
         } catch (error) {
             logger.warn('PLACE', '[CreatePlace] image failed', { error });
-            // The photo picked before, if any, is kept: this one simply was not taken.
             if (session.current === startedIn) setFailure('imageFailed');
         } finally {
             if (session.current === startedIn) setEncoding(false);
@@ -129,19 +103,15 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
         setSubmitting(true);
         setFailure(null);
         const startedIn = session.current;
-        // The store is read as well: the count only moves once the close has rendered.
         const closed = () => session.current !== startedIn || !useCreatePlaceDialogStore.getState().isOpen;
 
         let placeId = unenteredPlaceId;
         if (!placeId) {
             try {
                 placeId = (await createPlace({ name: trimmed, thumbnail })).id;
-                // Made, but for the cloud the dialog was open in: the place stays on that
-                // cloud's rail, and the session is not moved into it from wherever it is now.
                 if (closed()) return;
                 setUnenteredPlaceId(placeId);
             } catch (error) {
-                // Classified before the check: that is where the failure is logged.
                 const reason = placeFailure(error, 'CreatePlace');
                 if (closed()) return;
                 setFailure(reason);
@@ -168,7 +138,6 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
         onEntered?.(placeId);
     };
 
-    // The place carries its name and photo once it is made; only the switch is left then.
     const locked = submitting || unenteredPlaceId !== null;
 
     return (

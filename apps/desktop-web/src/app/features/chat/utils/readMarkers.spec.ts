@@ -4,7 +4,6 @@ import { placeReadMarkers } from './readMarkers';
 
 const at = (userId: string, cursor: number) => ({ userId, cursor });
 
-// The placement is keyed by message number; the order the map iterates in carries no meaning.
 const byChatNo = (placed: Map<number, string[]>) => [...placed].sort(([a], [b]) => a - b);
 
 describe('placeReadMarkers', () => {
@@ -18,7 +17,6 @@ describe('placeReadMarkers', () => {
     });
 
     it('lowers a cursor that sits between two shown messages to the nearest one below', () => {
-        // 4 and 6 are numbers a reaction or a system event used up, so no row carries them.
         const placed = placeReadMarkers([at('ada', 4), at('bob', 6)], [3, 5, 8]);
 
         expect(byChatNo(placed)).toEqual([
@@ -55,8 +53,6 @@ describe('placeReadMarkers', () => {
     });
 
     it('leaves out a member whose nearest message is from before they joined', () => {
-        // Joining writes the room's latest number into the cursor, so a late joiner's cursor is past
-        // messages they never saw. 5 is the last shown message at or below it, and they joined after it.
         const placed = placeReadMarkers([{ userId: 'late', cursor: 9, joinedNo: 6 }, at('ada', 9)], [3, 5]);
 
         expect(byChatNo(placed)).toEqual([[5, ['ada']]]);

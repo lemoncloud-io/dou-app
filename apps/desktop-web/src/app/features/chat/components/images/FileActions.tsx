@@ -14,11 +14,6 @@ import { Hint } from '../../../../shared';
 const ICON_BUTTON =
     'focus-ring tactile hit-target flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-foreground/[0.08] hover:text-foreground data-[state=open]:bg-foreground/[0.08]';
 
-/**
- * A sent file's Download button and its More menu: Download, Reply in thread, Copy link, Forward and
- * Delete file, each offered only where it is handed in. The voice card and every other file card show
- * the same menu, so a file offers the same things whatever kind it is.
- */
 export const FileActions = ({
     name,
     onSave,

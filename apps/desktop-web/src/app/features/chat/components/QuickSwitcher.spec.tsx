@@ -16,10 +16,8 @@ vi.mock('../../../shared/hooks/useAuthorNames', () => ({
 }));
 vi.mock('../../../shared/hooks/useSiteProfiles', () => ({ useSiteProfileMap: () => ({}) }));
 
-// Initialises i18next so the placeholder label resolves.
 import '../../../../i18n';
 
-// The open state is a global store, so each test opens it outright rather than toggling it.
 const openSwitcher = () =>
     act(() => {
         useQuickSwitcherStore.getState().setOpen(true);
@@ -32,7 +30,6 @@ const elsewhere = [
 ];
 
 describe('QuickSwitcher', () => {
-    // A common word used to fill all eight rows with this place and hide the others.
     it('keeps rows for other places when this place alone could fill the list', () => {
         const onSelectElsewhere = vi.fn();
         render(
@@ -54,7 +51,6 @@ describe('QuickSwitcher', () => {
         expect(onSelectElsewhere).toHaveBeenCalledWith('X2', 'P3');
     });
 
-    // The row showed the person's name, but the ranking matched the room's own name.
     it('finds a DM by the name its row shows', () => {
         const dm = { id: 'D1', stereo: 'dm', name: '1000002@1000192', memberIds: ['me', 'u-lemon'] } as DomainChannel;
         render(<QuickSwitcher channels={[...local, dm]} onSelect={vi.fn()} />);

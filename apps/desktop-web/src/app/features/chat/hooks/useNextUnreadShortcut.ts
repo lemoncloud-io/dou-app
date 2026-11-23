@@ -6,23 +6,12 @@ import { channelNotifyMode, isNotifyDm, useNotificationPrefsStore } from '../../
 import { useSidebarOrderStore } from '../stores';
 import { isTypingTarget, nextUnreadChannelId, sidebarMoveChord } from '../utils';
 
-/** Keys pressed here belong to something else: a dialog over the app, or a field other than the composer. */
 const ownedElsewhere = (target: EventTarget | null): boolean => {
     if (!(target instanceof Element)) return false;
     if (target.closest('[role="dialog"], [role="alertdialog"], [aria-modal="true"]')) return true;
-    // Option+Shift+↑/↓ extends a selection in a text field. The composer is the one
-    // field that gives it up, since it is where the reader sits while catching up.
     return isTypingTarget(target) && !target.closest('[data-composer-input]');
 };
 
-/**
- * Alt+Shift+↓/↑ opens the next or previous channel with unread, in the sidebar's
- * order, wrapping around. Muted channels are skipped (their unread is not asking
- * for attention), and so is a sidebar filter: the order is the whole list.
- *
- * Inside the sidebar the same chord reorders the focused row; that handler runs
- * first and claims the event.
- */
 export const useNextUnreadShortcut = (
     channels: readonly DomainChannel[],
     selectedChannelId: string | null,

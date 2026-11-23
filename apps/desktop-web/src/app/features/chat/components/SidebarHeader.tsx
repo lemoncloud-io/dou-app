@@ -9,23 +9,16 @@ import { Skeleton } from '../../../shared';
 import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
 interface SidebarHeaderProps {
-    /** Display name of the active place (place switching now lives in the place rail). */
     placeName: string;
     isLoading: boolean;
-    /** Default Cloud (Guest Session): no places to switch — show a static label. */
     isDefaultMode: boolean;
     query: string;
     onQueryChange: (value: string) => void;
-    /** Open the place-profile editor for the active place (per-place identity lives here). */
     onEditPlaceProfile: () => void;
-    /** Open the device-local Saved items page in the main pane. */
     onOpenSaved: () => void;
-    /** The Saved items page holds the main pane: its row is the current one. */
     isSavedOpen?: boolean;
-    /** Open the Threads page — the threads I take part in — in the main pane. */
     onOpenThreads: () => void;
     isThreadsOpen?: boolean;
-    /** A listed thread has a reply I have not looked at: the row carries the unread dot. */
     hasUnreadThreads?: boolean;
 }
 
@@ -54,12 +47,6 @@ const ActionRow = ({ icon, label, onClick, isActive, hasUnread }: ActionRowProps
     );
 };
 
-/**
- * Sidebar top (Figma Channel List Panel): the active place as a static title (the
- * place rail owns switching), a pill channel search, then Threads, Saved and editing my profile in this
- * place as labelled rows. Mentions, thread replies and the snooze live in the Notifications
- * destination.
- */
 export const SidebarHeader = ({
     placeName,
     isLoading,
@@ -86,7 +73,6 @@ export const SidebarHeader = ({
                         {isDefaultMode ? t('place.home') : placeName || t('place.none')}
                     </h2>
                 )}
-                {/* ⌘K opens the QuickSwitcher (see QuickSwitcher.tsx); this inline filter stays click-to-use. */}
                 <label className="flex items-center gap-2 rounded-full bg-well px-3.5 py-3 focus-within:ring-2 focus-within:ring-ring">
                     <Search size={16} aria-hidden className="shrink-0 text-muted-foreground" />
                     <input
@@ -100,7 +86,6 @@ export const SidebarHeader = ({
             </div>
             <div aria-hidden className="mt-3 h-px w-full shrink-0 bg-hairline" />
             <div className="flex flex-col gap-2 py-2">
-                {/* Threads and Saved lead (Figma Home); editing my profile here has no other way in. */}
                 <ActionRow
                     icon={<MessagesSquare size={18} aria-hidden />}
                     label={t('threads.title')}

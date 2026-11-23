@@ -39,7 +39,6 @@ describe('buildMessageRows — system rows', () => {
         expect(kinds(rows)).toEqual(['date', 'group', 'system', 'group']);
     });
 
-    // Landing on "new messages" only to find a join event wastes the jump.
     it('does not anchor the unread divider — that belongs above the first real message', () => {
         const rows = buildMessageRows(
             [
@@ -63,7 +62,6 @@ describe('buildMessageRows — system rows', () => {
 });
 
 describe('buildMessageRows — author avatar', () => {
-    // A cached row carries no embedded thumbnail; mine fell back to an initial after a reload.
     it('uses my account photo for my own messages when the row has none', () => {
         const rows = buildMessageRows(
             [
@@ -98,7 +96,6 @@ describe('buildMessageRows — webhook sender', () => {
         expect(groupsOf(rows)[0]).toMatchObject({ isWebhook: true, ownerName: 'hello-alarm', namePending: false });
     });
 
-    // The unconfirmed case: the server may not embed owner$ for the system sender.
     it('falls back to "Webhook" when owner$ is absent, even while the roster is loading', () => {
         const rows = buildMessageRows(
             [webhook({ id: 'C1:1', chatNo: 1, content: 'alarm' })],
@@ -146,8 +143,6 @@ describe('buildMessageRows — webhook sender', () => {
         expect(groupsOf(rows).map(group => group.ownerName)).toEqual(['deploy-bot', 'hello-alarm']);
     });
 
-    // The sender is not a member, but its owner id can still collide with a roster entry or a Place
-    // nick. A webhook is named by what it carries, never by a person who shares its id.
     it('names a webhook from owner$ or "Webhook" even when its ownerId is on the roster or has a Place nick', () => {
         const rows = buildMessageRows(
             [
@@ -167,8 +162,6 @@ describe('buildMessageRows — webhook sender', () => {
         expect(groups[0].messages).toHaveLength(2);
     });
 
-    // The viewer's own id on a webhook must not turn the card into "my message" (Delete, my avatar,
-    // skipped by the unread divider).
     it('never treats a webhook as mine, even when its ownerId is the viewer', () => {
         const rows = buildMessageRows(
             [
@@ -213,7 +206,6 @@ describe('buildMessageRows — time headers', () => {
         expect(groupsOf(rows).map(group => group.messages.length)).toEqual([2, 1, 1]);
     });
 
-    // A retried row sorts last by chatNo but keeps the minute it was first written in.
     it('gives a row from an earlier minute its own block rather than hiding it under a later time', () => {
         const rows = buildMessageRows(
             [

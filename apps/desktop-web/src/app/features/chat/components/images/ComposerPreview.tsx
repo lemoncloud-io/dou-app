@@ -10,7 +10,6 @@ import { canPreview, type ChatFile } from '../../utils';
 import { FileViewer } from './FileViewer';
 import { fitStyle } from './ImageViewer';
 
-/** A composer attachment as the file viewer takes it: its object URL, and the type the browser gave the file. */
 const toChatFile = (attachment: ComposerAttachment): ChatFile => ({
     id: attachment.id,
     kind: attachment.kind === 'video' ? 'video' : 'file',
@@ -20,15 +19,9 @@ const toChatFile = (attachment: ComposerAttachment): ChatFile => ({
     url: attachment.url,
 });
 
-/** Whether a tray tile is a voice file the tile itself plays, from the tray's object URL. */
 export const isAudioAttachment = (attachment: ComposerAttachment): boolean =>
     !!attachment.url && attachment.kind === 'file' && canPreview(toChatFile(attachment)) === 'audio';
 
-/**
- * Whether a tray tile opens in `ComposerPreview`. An image or a video always does; a document only
- * when the feed's viewer would draw it (PDF, text, HTML) — nothing in the page draws an office or Hancom
- * file, and a voice file plays in its tile instead.
- */
 export const canPreviewAttachment = (attachment: ComposerAttachment): boolean => {
     if (!attachment.url) return false;
     if (attachment.kind !== 'file') return true;
@@ -37,23 +30,13 @@ export const canPreviewAttachment = (attachment: ComposerAttachment): boolean =>
 };
 
 interface ComposerPreviewProps {
-    /** A tile `canPreviewAttachment` opens. */
     attachment: ComposerAttachment;
     onClose: () => void;
 }
 
-/**
- * A picked file at full size, before it is sent: the tile is a 92px crop, or only a name.
- *
- * A document opens in the feed's `FileViewer`, read from the file the page already holds. An image or
- * a video gets the image viewer's frame with the picture or player alone — no sender, save or copy,
- * since there is no message yet.
- */
 export const ComposerPreview = ({ attachment, onClose }: ComposerPreviewProps) => {
     const { t } = useTranslation();
     const closeRef = useRef<HTMLButtonElement>(null);
-    // The picture's own size, so a small one is held to the image viewer's upscale cap and looks
-    // the same here as it will once sent.
     const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
 
     if (attachment.kind === 'file') {
@@ -67,8 +50,6 @@ export const ComposerPreview = ({ attachment, onClose }: ComposerPreviewProps) =
                 variant="bare"
                 hideClose
                 overlayClassName="bg-overlay/70"
-                // Focus lands on close, as in the file viewer: the first control is a video's player,
-                // where Space would start playback.
                 onOpenAutoFocus={event => {
                     event.preventDefault();
                     closeRef.current?.focus();

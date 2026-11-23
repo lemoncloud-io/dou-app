@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
-// Initialises i18next, so the position line reads as the viewer says it.
 import '../../../../../i18n';
 
 import { ImageViewer, stageFitStyle } from './ImageViewer';
@@ -47,7 +46,6 @@ describe('ImageViewer keys', () => {
         expect(screen.getByRole('img', { name: 'Image 2 of 3 from Ada' })).toBeTruthy();
     });
 
-    // The dialog description already reads the position on open; saying it again doubled it.
     it('stays quiet about the position until it changes', () => {
         renderViewer();
         expect(position()).toBe('');
@@ -61,16 +59,13 @@ describe('ImageViewer zoom', () => {
     });
 
     beforeEach(() => {
-        // The zoom layer is 400x400 and the photo inside it a 400x200 landscape.
         vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
         vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(400);
         vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
         vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockImplementation(function (this: HTMLElement) {
             return this instanceof HTMLImageElement ? 200 : 400;
         });
-        // jsdom has no pointer capture; the product handler calls it for a real pointer.
         HTMLElement.prototype.setPointerCapture ??= () => undefined;
-        // jsdom has no PointerEvent; the product listens for pointerdown/move with clientX/Y.
         globalThis.PointerEvent ??= class extends MouseEvent {
             pointerId: number;
             constructor(type: string, init: MouseEventInit & { pointerId?: number } = {}) {
@@ -137,11 +132,8 @@ describe('ImageViewer zoom', () => {
 
     it('keeps a zoomed photo from being dragged past its edge', () => {
         renderViewer();
-        // A click on the layer's centre (200, 200) leaves translate at 0, so a pan that never
-        // moves would fail.
         clickPhoto();
         expect(scaleOf()).toBe(CLICK_ZOOM_SCALE);
-        // The 400x200 photo at 2.5x is 1000x500 in a 400x400 layer, so it can move 50 up or down.
         pointer('pointerdown', 0, 0);
         pointer('pointermove', 0, -1000);
         expect(Math.abs(translateY())).toBe(50);
@@ -207,7 +199,6 @@ describe('ImageViewer zoom', () => {
     it("pulls a panned, zoomed photo back inside the turned photo's edges when it is rotated", () => {
         renderViewer();
         const translateX = () => parseFloat(layer().style.transform.match(/translate3d\(([-\d.]+)px/)?.[1] ?? '');
-        // The 400x200 landscape can be dragged sideways while upright, but turned it is 200 wide.
         wheelZoomIn(0, 0);
         expect(translateX()).toBeGreaterThan(0);
 
@@ -237,7 +228,6 @@ describe('ImageViewer zoom', () => {
         expect(photo().style.transform).toBe('rotate(180deg)');
         fireEvent.click(rotate);
         fireEvent.click(rotate);
-        // The angle keeps counting, so the fourth press does not spin three quarters back.
         expect(photo().style.transform).toBe('rotate(360deg)');
 
         fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' });

@@ -42,26 +42,14 @@ interface ChannelListProps {
     selectedChannelId: string | null;
     query: string;
     onSelect: (channelId: string) => void;
-    /** Scroll the feed to one message — the search dialog's match rows use it. */
     onJumpToMessage?: (channelId: string, chatNo: number, threadRootId?: string) => void;
-    /** Channels in the cloud's other places, for the quick switcher. */
     elsewhereChannels?: ElsewhereChannel[];
-    /** Open a channel that lives in another place (switches place first). */
     onSelectElsewhere?: (channelId: string, placeId: string) => void;
-    /** Default Cloud has no channel creation — the empty-state hint must not point at a "+". */
     isDefaultMode: boolean;
-    /** The Channels section's "+" (hidden on the Default Cloud, which cannot create channels). */
     onCreateChannel?: () => void;
-    /**
-     * The Direct messages section's "+", which opens the new-message picker. Passed only where a
-     * 1:1 can be started (not on the Default Cloud); with it, the section shows even while empty.
-     */
     onCreateDm?: () => void;
-    /** People of this place with no 1:1 here yet, listed after the 1:1s (from `useChannels`). */
     memberPeers?: ReadonlyArray<{ peerId: string; channelId: string }>;
-    /** Starts the 1:1 with one of `memberPeers`. Passed only where a 1:1 can be started. */
     onStartDm?: (peerId: string) => void;
-    /** The person whose 1:1 is being started, while one is: that row shows progress and every person row waits. */
     startingPeerId?: string | null;
 }
 
@@ -84,30 +72,13 @@ interface ChannelRowProps {
     label: string;
     icon: ReactNode;
     isActive: boolean;
-    /** Favorites section row: carries the star instead of relying on the header toggle. */
     isFavorite?: boolean;
     onSelect: (channelId: string) => void;
-    /** Attached to the active row so keyboard nav / selection can scroll it into view. */
     rowRef?: React.Ref<HTMLButtonElement>;
 }
 
-/** Rows wait longer than the app-wide 300ms hint: skimming the list should not pop a tooltip on every row. */
 export const CHANNEL_ROW_HINT_DELAY_MS = 600;
 
-/**
- * One channel/DM row (Figma: 34px, glyph · name · trailing badge or star).
- *
- * The row is a single line; the last real message rides along as its tooltip (the
- * row's `title` — kept out of the accessible name, which stays the channel's). It
- * comes from `useLastChat`, which resolves the newest previewable message from the
- * chat cache — thread replies, reaction events and system rows excluded. The channel
- * record's `lastChat$` cannot stand in: it carries whatever the newest chat is, so a
- * reaction to an old message would become the preview.
- *
- * The unread marker's *shape* is `unreadIndicator`'s single call — the row never
- * re-derives "is there something unread" for the name emphasis, or the two would
- * drift apart the moment one of them grew a condition.
- */
 const ChannelRow = memo(function ChannelRow({
     channel,
     label,
@@ -121,32 +92,15 @@ const ChannelRow = memo(function ChannelRow({
     const id = channel.id ?? '';
     const unread = channel.unreadCount ?? 0;
     const indicator = unreadIndicator({ unread, isDm: isDmBucket(channel), isActive });
-    // The preview only ever appears in this row's tooltip, yet every row used to
-    // open a live chat subscription and a freshness fetch for it on mount — one
-    // per channel in the sidebar. The row now asks for it the first time the
-    // pointer or focus reaches it; the tooltip waits 600ms anyway.
     const [wantsPreview, setWantsPreview] = useState(false);
     const lastChat = useLastChat(wantsPreview ? id : '', lastChatNoOf(channel));
-    // Slack's draft pencil: text left in another channel's composer is easy to forget.
-    // Not on the open row — its composer is right there.
     const hasDraft = useComposerDraftStore(s => !isActive && !!s.drafts[id]?.trim());
-    // Muting a channel changed nothing here, so a channel that had been told to stay
-    // quiet looked the same as one that simply had nothing new — the silence read as
-    // a bug. Both quiet levels dim the name; each has its own glyph, because a channel
-    // that still tells me when I am called is not one that is off.
-    // The join row types `notify` with an empty-string member the store does not
-    // model; '' means "never set", which is exactly what `undefined` means here.
     const joinNotify = channel.$join?.notify;
     const isDm = isNotifyDm(channel);
     const notifyMode = useNotificationPrefsStore(s =>
         channelNotifyMode(s, id, joinNotify === '' ? undefined : joinNotify, isDm)
     );
     const isMuted = notifyMode !== 'all';
-    // An unread row says when one of its unread messages called me. Read from the mentions
-    // inbox, not from the last message: the row's `useLastChat` above is off until it is
-    // pointed at, and the newest message is not the only one that can have called me.
-    // "What I have read" is this device's cursor or the one on the channel record, whichever
-    // is further.
     const localReadNo = useReadCursorStore(s => s.cursors[id] ?? 0);
     const readNo = channelReadNo(channel, localReadNo);
     const calledMe = useMentionsStore(
@@ -154,9 +108,6 @@ const ChannelRow = memo(function ChannelRow({
             indicator !== 'none' &&
             hasUnreadMentionIn(s.items, { cloudId: channel.cid || RELAY_CLOUD_ID, id, placeId: channel.sid }, readNo)
     );
-    // A deleted message keeps its place here and says so, the way the feed does: its
-    // content survives the soft delete, and printing it would show text the row itself
-    // says is gone.
     const preview = useMemo(
         () => (lastChat?.hidden ? t('sidebar.deletedPreview') : lastChat ? messagePreview(lastChat) : ''),
         [lastChat, t]
@@ -169,8 +120,6 @@ const ChannelRow = memo(function ChannelRow({
                 onFocus={() => setWantsPreview(true)}
                 onClick={() => onSelect(id)}
                 aria-current={isActive ? 'true' : undefined}
-                // Arrow-key navigation focuses rows through this attribute rather
-                // than opening each one on the way past — see onKeyDown below.
                 data-channel-row={id}
                 className={cn(
                     'focus-ring flex h-9 w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
@@ -205,18 +154,12 @@ const ChannelRow = memo(function ChannelRow({
                         <span className="sr-only">{t('sidebar.draft')}</span>
                     </span>
                 )}
-                {/* A filled pill like the count beside it, not red text: the badge colour is made
-                to carry white text and is too dim as text on the dark sidebar. The fill also
-                keeps it apart from the mentions-only glyph, which is the same character. */}
                 {calledMe && (
                     <span className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-badge-unread px-1 text-tiny font-semibold text-badge-unread-foreground">
                         <span aria-hidden>@</span>
                         <span className="sr-only">{t('sidebar.mentionedMe')}</span>
                     </span>
                 )}
-                {/* The mark is decorative; the sr-only text carries it. Deliberately NOT
-                role="status" — that is a live region, and one per unread row would make
-                a screen reader announce the whole sidebar every time a count moved. */}
                 {indicator === 'dot' && (
                     <span className="h-2 w-2 shrink-0 rounded-full bg-badge-unread">
                         <span className="sr-only">{t('sidebar.unread')}</span>
@@ -229,7 +172,6 @@ const ChannelRow = memo(function ChannelRow({
                     </span>
                 )}
                 {isFavorite && indicator === 'none' && (
-                    // The star is the one warm accent in the sidebar (--favorite, Figma Colors/Orange).
                     <Star size={16} aria-hidden className="shrink-0 fill-favorite text-favorite" />
                 )}
             </button>
@@ -237,7 +179,6 @@ const ChannelRow = memo(function ChannelRow({
     );
 });
 
-/** A Direct messages row whose person has no name yet: the row's shape, never the raw id. */
 const PendingPersonRow = () => (
     <div aria-hidden className="flex h-9 items-center gap-2 p-2">
         <Skeleton className="h-6 w-6 shrink-0 rounded-full bg-muted animate-pulse" />
@@ -245,12 +186,10 @@ const PendingPersonRow = () => (
     </div>
 );
 
-/** Module-level so its identity is stable and the memo'd rows can skip re-rendering. */
 const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
 
-/** A person's avatar as the Direct messages rows draw it: their photo, else a colored initial. */
 const personAvatar = (seed: string, display: { name: string; thumbnail?: string }): ReactNode => (
     <Avatar className="h-6 w-6 shrink-0">
         {display.thumbnail && <AvatarImage src={display.thumbnail} alt={display.name} />}
@@ -260,12 +199,6 @@ const personAvatar = (seed: string, display: { name: string; thumbnail?: string 
     </Avatar>
 );
 
-/**
- * A person of this place with no 1:1 yet. It reads like a 1:1 row and starts one when clicked.
- * While any start is in flight (`blocked`) no person row starts another; the one being started
- * (`starting`) also shows progress. `aria-disabled`, not `disabled`: a disabled button leaves the
- * tab order, so the row just pressed would lose focus and the arrow-key walk would stop on it.
- */
 const MemberRow = ({
     peerId,
     label,
@@ -289,7 +222,6 @@ const MemberRow = ({
             aria-label={t('sidebar.startDm', { name: label })}
             aria-busy={starting || undefined}
             aria-disabled={blocked || undefined}
-            // Arrow keys walk every row through this attribute, 1:1s and people alike.
             data-channel-row={`member:${peerId}`}
             className={cn(
                 'focus-ring flex h-9 w-full min-w-0 items-center gap-2 rounded-lg p-2 text-left transition-colors duration-150 ease-tactile',
@@ -309,7 +241,6 @@ const MemberRow = ({
     );
 };
 
-/** A section header's "+" — the Channels and Direct messages sections share it. */
 const SectionAddButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
     <Hint label={label}>
         <button
@@ -341,31 +272,19 @@ export const ChannelList = ({
 }: ChannelListProps) => {
     const { t } = useTranslation();
     const myUid = runtime.session.useSessionIdentity().userId;
-    // A folded 1:1 section hides the Home pointer with its rows.
     const isDmCollapsed = useSidebarSectionsStore(s => !!s.collapsed.dm);
-    // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
-    // scoped to the active place — `pinnedIds` array order is the Favorites display order.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const pinScope = placeScopeKey(selectedCloudId, selectedSiteId);
     const { pinnedIds, reorder: reorderPinned, toggle: togglePinned } = usePinnedChannels(pinScope);
-    // Non-favorite display order comes from `ui.channelOrder` (one array: channels then DMs).
     const { storedIds: storedChannelOrder, set: setStoredChannelOrder } = useChannelOrder(pinScope);
-    // The drawing order, unfiltered, for the next-unread shortcut (useNextUnreadShortcut).
-    // Computed below the early returns, pushed to the store after every render.
     const displayOrderRef = useRef<string[]>([]);
     useEffect(() => {
         useSidebarOrderStore.getState().setIds(displayOrderRef.current);
     });
-    // Keep the selected channel visible (e.g. when moved by keyboard nav).
     const activeRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
         activeRef.current?.scrollIntoView({ block: 'nearest' });
     }, [selectedChannelId]);
-    // A keyboard move re-inserts the moved row's node (React reorders with insertBefore), and the
-    // browser blurs a focused node it moves — so the next Alt+Shift press would never reach the
-    // nav. Remember the focused row at the chord and hand focus back after the next commit, but
-    // only if focus fell to <body>: a clamped no-op move commits nothing, and by the time some
-    // later render clears the ref the user may have focused something else on purpose.
     const refocusAfterMoveRef = useRef<HTMLElement | null>(null);
     useLayoutEffect(() => {
         const el = refocusAfterMoveRef.current;
@@ -375,20 +294,14 @@ export const ChannelList = ({
         if (focusDropped && el.isConnected) el.focus();
     });
 
-    // ONE actions instance + ONE dialog stack for every row menu (the per-row
-    // alternative would mount a dialog per channel). menuTargetId is set when a
-    // menu opens; delete/leave run against that row.
     const [menuTargetId, setMenuTargetId] = useState<string | null>(null);
     const clearIfOpen = useSelectedChannelStore(s => s.clearIfOpen);
     const menuActions = useChannelActions(menuTargetId, {
         onRemoved: () => {
-            // Leave/delete from a row only clears the selection when that row
-            // is the open channel — when the server answers, not when the menu opened.
             clearIfOpen(menuTargetId);
         },
     });
 
-    // Slack-style sections: named channels, then DMs (self channel included).
     const { regular, dms } = useMemo(() => {
         const split = { regular: [] as DomainChannel[], dms: [] as DomainChannel[] };
         for (const channel of channels) {
@@ -397,12 +310,10 @@ export const ChannelList = ({
         return split;
     }, [channels]);
 
-    // DM rows show the other party; people with no 1:1 yet are named the same way.
     const canStartDm = !!onStartDm;
     const members = useMemo(() => (canStartDm ? (memberPeers ?? []) : []), [canStartDm, memberPeers]);
     const { identityOf, memberDisplay, holdSection: holdDmSection } = useDmIdentities(dms, members, pinScope ?? '');
 
-    /** Display identity for a DM/self row: label + avatar in place of the # glyph. */
     const dmIdentity = (channel: DomainChannel): { label: string; icon: ReactNode; pending: boolean } => {
         const { label, seed, display, pending } = identityOf(channel);
         return { label, icon: personAvatar(seed, display), pending };
@@ -414,8 +325,6 @@ export const ChannelList = ({
         return label.toLowerCase().includes(q) || (channel.name ?? channel.id ?? '').toLowerCase().includes(q);
     };
 
-    // Mounted on every branch, the empty and loading ones included: ⌘K is the way
-    // out of a place with no channels, and it used to be dead exactly there.
     const dialogs = (
         <>
             <QuickSwitcher
@@ -442,10 +351,6 @@ export const ChannelList = ({
         );
     }
 
-    // Filter AFTER identity resolution so a DM matches its display name too, then apply the
-    // stored order BY ID (applyChannelOrder takes ids — review-03 P0): stored ids first (in
-    // stored order), unknown/new ids in name order behind. Map back to rows right after.
-    // 1:1s go in the order of the names they show, not of the server-set room names they carry.
     const dmRows = dms
         .map(channel => ({ channel, identity: dmIdentity(channel) }))
         .sort((a, b) => a.identity.label.localeCompare(b.identity.label));
@@ -463,8 +368,6 @@ export const ChannelList = ({
         const c = chById.get(id);
         return c ? [c] : [];
     });
-    // My notes-to-self room is pinned above the 1:1s: no stored order or name sort moves it, and
-    // it cannot be dragged or moved by keyboard (see makeSectionReorder / moveSelectedByKeyboard).
     const visibleDms = orderedDmIds
         .flatMap(id => {
             const dm = dmById.get(id);
@@ -472,7 +375,6 @@ export const ChannelList = ({
         })
         .sort((a, b) => Number(isSelfChannel(b.channel)) - Number(isSelfChannel(a.channel)));
 
-    // A person with no 1:1 yet is never drawn as a raw id: the row waits for a name to load.
     const q = query.trim().toLowerCase();
     const memberRows = members
         .flatMap(({ peerId }) => {
@@ -482,12 +384,8 @@ export const ChannelList = ({
         })
         .sort((a, b) => a.display.name.localeCompare(b.display.name));
 
-    // A filtered view is a subset — dragging it would write a partial order, so rows lock.
     const isFiltering = query.trim().length > 0;
     if (isFiltering && visibleRegular.length + visibleDms.length + memberRows.length === 0) {
-        // The dialogs mount on every other branch (see above): a filter matching nothing
-        // must not take ⌘K / message search down with it — that is exactly when the
-        // reader reaches for them.
         return (
             <>
                 {dialogs}
@@ -496,23 +394,15 @@ export const ChannelList = ({
         );
     }
 
-    // Unfiltered, every section keeps its heading, and an empty one says what goes there (Figma
-    // Home): the first channel or 1:1 needs a section and its "+" to start from. A filter shows only
-    // the sections it matched.
     const showDmSection = visibleDms.length > 0 || memberRows.length > 0 || !isFiltering;
     const showChannelSection = visibleRegular.length > 0 || !isFiltering;
-    // Home has no "+": a 1:1 there starts from a phone number, which only the mobile app does. An
-    // empty section says so rather than leaving a heading with nothing under it and no way in.
     const showHomeDmPointer = isDefaultMode && visibleDms.length === 0 && !isFiltering && !isDmCollapsed;
 
     const selfIds = new Set(dms.filter(isSelfChannel).map(c => c.id ?? ''));
     const onReorderFavorites = (keys: string[]) => {
         reorderPinned(keys.map(key => key.replace(/^fav:/, '')));
     };
-    // A move rewrites only the moved section's slice; the other section keeps its stored order.
     const makeSectionReorder = (section: 'ch' | 'dm') => (keys: string[]) => {
-        // A person without a 1:1 has no room to order; their rows stay behind the 1:1s by name.
-        // Nor does my notes-to-self room, which is always drawn first.
         const orderedIds = keys
             .filter(key => !key.startsWith('member:'))
             .map(key => key.replace(/^(ch|dm):/, ''))
@@ -525,9 +415,6 @@ export const ChannelList = ({
             setStoredChannelOrder([...storedChannelOrder.filter(id => chIds.has(id)), ...orderedIds]);
         }
     };
-    // Keyboard twin of the drag: same section-slice rewrite, same fold/filter locks. A pinned
-    // selection moves inside Favorites (its pin order IS the display order); moveChannel does
-    // the clamp/prune that arrayMove does for the pointer path.
     const moveSelectedByKeyboard = (delta: 1 | -1) => {
         const id = selectedChannelId;
         if (!id) return;
@@ -555,36 +442,23 @@ export const ChannelList = ({
         makeSectionReorder('ch')(moveChannel(ids, id, from + delta, ids).map(orderedId => `ch:${orderedId}`));
     };
     const onKeyDown = (e: React.KeyboardEvent) => {
-        // The quick switcher and the search dialog are React children of this nav, but
-        // they render through a portal — so their keystrokes bubble here in the React
-        // tree while sitting outside it in the DOM. Without this guard, ArrowDown inside
-        // an open dialog moved focus to a sidebar row behind the modal, and the next
-        // Enter switched channel instead of opening the result.
         if (!e.currentTarget.contains(e.target as Node)) return;
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
         const chord = sidebarMoveChord(e);
         if (chord !== null) {
-            // Move chord, never navigation: Alt+Shift+↑/↓ reorders inside the selected row's
-            // OWN section — cross-section is impossible (matches the drag rule). Swallowed
-            // while filtering: a filtered view would write a partial order.
             e.preventDefault();
             if (isFiltering) return;
             if (document.activeElement instanceof HTMLElement) refocusAfterMoveRef.current = document.activeElement;
             moveSelectedByKeyboard(chord);
             return;
         }
-        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return; // OS/browser chords pass through
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
         e.preventDefault();
-        // Arrows MOVE FOCUS; Enter/Space on the focused row opens it. Selecting on
-        // every arrow press mounted each channel's feed in turn, which threw away
-        // the reading position of the channel the user was actually in.
         const rows = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>('[data-channel-row]'));
         if (rows.length === 0) return;
         const focused = document.activeElement;
         const from = rows.findIndex(el => el === focused);
         const delta = e.key === 'ArrowDown' ? 1 : -1;
-        // Nothing in the list has focus yet: enter it at the selected row, so the
-        // first arrow press starts from where the user is, not from the top.
         const start = from >= 0 ? from : rows.findIndex(el => el.dataset.channelRow === selectedChannelId);
         const nextIdx = start < 0 ? 0 : Math.min(rows.length - 1, Math.max(0, start + delta));
         rows[nextIdx]?.focus();
@@ -600,7 +474,6 @@ export const ChannelList = ({
     ): SectionItem => {
         const id = channel.id ?? '';
         const isActive = id === selectedChannelId;
-        // A row still waiting for its person's name has no label to show, to open or to drag.
         if (pending) {
             return {
                 key: `${section}:${id}`,
@@ -612,7 +485,6 @@ export const ChannelList = ({
         return {
             key: `${section}:${id}`,
             keepWhenCollapsed: isActive || (channel.unreadCount ?? 0) > 0,
-            // My notes-to-self room holds the top of Direct messages.
             dragDisabled: section === 'dm' && isSelfChannel(channel),
             node: (
                 <ChannelRowMenu
@@ -630,7 +502,6 @@ export const ChannelList = ({
                         isActive={isActive}
                         isFavorite={isFavorite}
                         onSelect={onSelect}
-                        // Only the canonical (non-favorite) row owns the scroll anchor.
                         rowRef={isActive && !isFavorite ? activeRef : undefined}
                     />
                 </ChannelRowMenu>
@@ -638,9 +509,6 @@ export const ChannelList = ({
         };
     };
 
-    // Favorites repeat their row in its own section (Figma), so a starred channel stays
-    // reachable from the top while keeping its place in Channels / DM. Display order IS the
-    // stored pin order; ids not in the current list are skipped.
     const favoriteById = new Map<
         string,
         { channel: DomainChannel; label: string; icon: ReactNode; pending?: boolean }
@@ -657,20 +525,16 @@ export const ChannelList = ({
         const fav = favoriteById.get(id);
         return fav ? [fav] : [];
     });
-    // Unfiltered: a sidebar filter narrows what is drawn, not what the shortcut walks.
     const allChannelIds = applyChannelOrder(
         regular.map(c => c.id ?? ''),
         pinScope ? storedChannelOrder : undefined
     );
-    // Self-first, as the section draws it.
     const allDmIds = applyChannelOrder(
         dmRows.map(dm => dm.channel.id ?? ''),
         pinScope ? storedChannelOrder : undefined
     ).sort((a, b) => Number(selfIds.has(b)) - Number(selfIds.has(a)));
     displayOrderRef.current = [...new Set([...pinnedIds, ...allChannelIds, ...allDmIds])].filter(Boolean);
 
-    // While the first names are loading the section is one block of placeholder rows: drawn row by
-    // row, it would re-sort as each name arrived.
     const dmSectionItems: SectionItem[] = holdDmSection
         ? [
               {
@@ -708,8 +572,6 @@ export const ChannelList = ({
           ];
 
     return (
-        // The switcher lives here (not HomePage) because this is where the
-        // channel list + select handler already are; it renders only when opened.
         <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-4 px-4 pb-6 pt-3">
             {dialogs}
             <Divider />
@@ -738,7 +600,6 @@ export const ChannelList = ({
                         dragDisabled={isFiltering}
                         onReorder={makeSectionReorder('ch')}
                         action={
-                            // Default Cloud (Self Channel only) does not support channel creation.
                             !isDefaultMode &&
                             onCreateChannel && (
                                 <SectionAddButton label={t('rail.addChannel')} onClick={onCreateChannel} />
@@ -752,7 +613,6 @@ export const ChannelList = ({
                 <SortableSection
                     id="dm"
                     title={t('sidebar.dms')}
-                    // Home's empty 1:1 section carries the mobile-app pointer instead.
                     emptyLabel={isDefaultMode ? undefined : t('sidebar.empty.dms')}
                     items={dmSectionItems}
                     dragDisabled={isFiltering || holdDmSection}
@@ -763,8 +623,6 @@ export const ChannelList = ({
             {showDmSection && showHomeDmPointer && (
                 <MobileAppPointer messageKey="mobileApp.homeDm" className="px-2 pb-2" />
             )}
-            {/* The row menus' dialog stack renders ONCE here, keyed to the last
-            right-clicked row; the menu items themselves only open it. */}
             <ChannelActionDialogs
                 channelId={menuTargetId ?? ''}
                 channelName={channels.find(c => (c.id ?? '') === menuTargetId)?.name ?? ''}

@@ -65,9 +65,6 @@ afterEach(() => {
     useSiteProfilesStore.getState().reset();
 });
 
-// A reaction tooltip names people the way their messages do: the place nickname over the
-// account name. It used to read the account name alone, so a nickname set on this place showed
-// everywhere except the one surface that lists who reacted.
 describe('MessageList reactor names', () => {
     it('names me by my place nickname, under either of my ids', () => {
         useSiteProfilesStore.getState().setAll({ 'me-cloud': { nick: 'Captain' } });

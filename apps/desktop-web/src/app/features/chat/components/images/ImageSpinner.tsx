@@ -4,7 +4,6 @@ interface ImageSpinnerProps {
     className?: string;
 }
 
-/** The ring Figma draws over an uploading image ("image loading"), in the scrim's own ink. */
 export const ImageSpinner = ({ className }: ImageSpinnerProps) => (
     <span
         aria-hidden

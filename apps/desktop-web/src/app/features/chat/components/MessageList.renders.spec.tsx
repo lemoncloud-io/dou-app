@@ -23,8 +23,6 @@ vi.mock('@chatic/runtime', async () =>
     })
 );
 
-// Every MessageRow render asks this one query, and nothing else in the feed does, so
-// counting the calls counts row renders without replacing the row or its memo.
 const rowRenders = vi.hoisted(() => ({ count: 0 }));
 vi.mock('../../../shared', async importOriginal => {
     const actual = await importOriginal<typeof SharedModule>();
@@ -56,7 +54,6 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     </QueryClientProvider>
 );
 
-// Authors alternate, so every message is its own block: one row per message.
 const message = (chatNo: number): DomainChat =>
     ({
         id: `C1:${chatNo}`,
@@ -70,12 +67,6 @@ const message = (chatNo: number): DomainChat =>
 const FEED = Array.from({ length: 200 }, (_, i) => message(i + 1));
 const NEXT = message(201);
 
-/**
- * How many rows a feed update re-renders. A channel keeps up to 1000 messages mounted, so an
- * update that re-renders every row is the one that makes a long channel feel slow; each case
- * here pins the number to the rows that actually changed.
- */
-// Mounting 200 rows in jsdom takes seconds on a loaded machine; the default 5s timed out in a full run.
 describe('MessageList row re-renders', { timeout: 30_000 }, () => {
     beforeEach(() => {
         rowRenders.count = 0;
@@ -114,7 +105,6 @@ describe('MessageList row re-renders', { timeout: 30_000 }, () => {
         const target = () => container.querySelector('[data-chat-no="100"]')?.outerHTML;
         expect(target()).toMatch(/bg-primary\/10/);
 
-        // The flash holds for 3s — as long as the inbox keeps the opened item marked — then clears.
         await act(() => new Promise(resolve => setTimeout(resolve, 2000)));
         expect(target()).toMatch(/bg-primary\/10/);
         rowRenders.count = 0;

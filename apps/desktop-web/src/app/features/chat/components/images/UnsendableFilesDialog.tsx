@@ -19,16 +19,10 @@ import { useUnsendableFilesStore, type RefusedFile } from '../../hooks';
 import { formatFileSize } from '../../utils';
 import { FileName } from './FileName';
 
-/**
- * "Some files can't be sent" (Figma "보낼 수 없는 파일"): every file a pick, drop or paste could not take,
- * each with why, and — when anything else fits — "Upload the other n" to add the rest, or Cancel to add
- * nothing. When nothing fits there is only OK. Mounted once beside the panes; the tray hook asks it.
- */
 export const UnsendableFilesHost = () => {
     const { t } = useTranslation();
     const request = useUnsendableFilesStore(s => s.request);
     const close = useUnsendableFilesStore(s => s.close);
-    // Closed with the home screen, adding nothing, as Cancel does: the composer that asked is gone.
     useEffect(() => close, [close]);
     if (!request) return null;
     const { refused, restCount, onUploadRest } = request;
@@ -39,7 +33,6 @@ export const UnsendableFilesHost = () => {
             <AlertDialogContent className="sm:max-w-md">
                 <AlertDialogTitle>{t('chat.attach.refused.title')}</AlertDialogTitle>
                 <AlertDialogDescription>{t('chat.attach.refused.description')}</AlertDialogDescription>
-                {/* Scrolls on its own: a drop of a hundred refused files keeps the buttons on screen. */}
                 <ul className="max-h-64 space-y-1 overflow-y-auto rounded-lg bg-muted p-2">
                     {refused.map((file, index) => (
                         <li key={`${index}:${file.name}`} className="flex items-center gap-2 rounded-md px-2 py-1.5">

@@ -16,7 +16,6 @@ describe('canModifyMessage', () => {
         expect(canModifyMessage(chat(), false)).toBe(false);
     });
 
-    // Both operations address the message by server id, which these do not have yet.
     it('refuses a message still in flight', () => {
         expect(canModifyMessage(chat({ isPending: true }), true)).toBe(false);
         expect(canModifyMessage(chat({ id: undefined }), true)).toBe(false);

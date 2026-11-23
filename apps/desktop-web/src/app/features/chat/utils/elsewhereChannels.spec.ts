@@ -25,7 +25,6 @@ describe('elsewhereChannels', () => {
         ]);
     });
 
-    // One person, two places: two rooms, each offered with its own place.
     it('offers the 1:1s with one person in other places as separate rows', () => {
         const known = {
             'place-b:place-b@me@u-1': entry('place-b', 'place-b@me@u-1', 'room-name', 'u-1'),
@@ -40,8 +39,6 @@ describe('elsewhereChannels', () => {
         ]);
     });
 
-    // An index persisted before 1:1s were keyed by place can hold one room under several places, and
-    // its room name is only what the server set.
     it('offers a 1:1 filed under several places once, named after the person', () => {
         const known = {
             'place-b:dm-1': entry('place-b', 'dm-1', 'room-name', 'u-1'),
@@ -61,8 +58,6 @@ describe('elsewhereChannels', () => {
         ).toEqual([]);
     });
 
-    // Channel ids repeat across places, so a group elsewhere is not the one listed here.
-    // My notes-to-self room is filed under every place.
     it('leaves out my notes-to-self room when this place lists it, and offers it once otherwise', () => {
         const self = (placeId: string) => ({ ...entry(placeId, 'U:me', '#self'), self: true });
         const known = { 'place-b:U:me': self('place-b'), 'place-c:U:me': self('place-c') };
@@ -83,7 +78,6 @@ describe('elsewhereChannels', () => {
         ).toHaveLength(1);
     });
 
-    // Only an opened room loads its members, so a 1:1 in a place not visited yet may have no name.
     it('names a 1:1 by its room until the person is known, and drops a row with no name at all', () => {
         const known = {
             'place-b:dm-2': entry('place-b', 'dm-2', 'room-name', 'u-unknown'),

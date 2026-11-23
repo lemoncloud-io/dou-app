@@ -1,6 +1,5 @@
 import { useEffect, useState, type RefObject } from 'react';
 
-/** Whether `ref` intersects the viewport grown by `rootMargin`. */
 export const useIntersecting = (ref: RefObject<Element | null>, rootMargin: string): boolean => {
     const [intersecting, setIntersecting] = useState(false);
     useEffect(() => {

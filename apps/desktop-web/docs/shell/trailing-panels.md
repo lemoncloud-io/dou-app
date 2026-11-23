@@ -77,6 +77,43 @@ dialogs (rename, delete, sign out) that must outlive it. Docked, the two rails a
 header and composer. The desktop window cannot be made this narrow, so in the app this is what a
 window zoomed far in gets.
 
+How the drawer behaves in detail:
+
+- **Mounted or hidden.** The compact drawer is hidden while shut, as above. The narrower drawer that
+  sits beside the rails is unmounted while shut instead: the column's own `flex` utility outranks the
+  `hidden` attribute, so a hidden one stayed on screen over the conversation and swallowed its clicks.
+  Nothing needs it mounted, because the channel list streams from the cache and repaints at once when the
+  drawer opens. The Home list's other duties (the next-unread order, ⌘K) live in the nav sidebar, which
+  stays mounted ([sidebar.md](../chat/sidebar.md)).
+- **Opens beside the rails, not over them**, so switching cloud or place, which is what someone reaching
+  for the channel list often wants next, stays one click away.
+- **Only the chat header shows the toggle**, and only while the sidebar is a drawer (`ShellSidebarContext`).
+  The header lives inside `<main>` and cannot read the layout's width decision any other way, and an
+  always-visible toggle would add a control to the docked layout that does nothing.
+- **No drag handle.** A drawer is a fixed-width overlay; the handle belongs to the docked column, where
+  there is a neighbour to trade width with.
+- **Conversation floor.** Docked, `<main>` has a `min-width` of `MIN_CHAT_WIDTH`, because the sidebar and
+  a docked trailing panel clamp independently and only a floor on the conversation itself keeps it from
+  being squeezed out between them. In drawer mode the floor is dropped: it would be the one thing left
+  that could force a horizontal scrollbar. Without the drawer, three fixed columns plus the floor pushed
+  the header actions and half the message column off-screen at a narrow window or at 200% zoom.
+- **Focus travels with it.** Opening records the focused element; closing returns focus to it, but only
+  after the drawer is gone. The opener sits in the chat, which is `inert` until then, so focusing it in
+  the same tick did nothing and focus fell to `<body>`. The drawer takes focus when it opens, Escape
+  closes it, and selecting a channel closes it so it does not cover the conversation just opened.
+  Widening the window docks the sidebar again and clears the open flag, so the drawer does not reopen the
+  next time the window narrows.
+
+## Skip links
+
+Three controls are the first tab stops on the page, visible only while focused: to the message box, to
+the messages, and to the sidebar. One conversation is dozens of tab stops (every message is one), so
+without them the composer sat behind all of them. The sidebar link focuses the list's first row, or the
+first shown control of whatever the open destination draws (the Home list stays mounted, hidden, under
+the other destinations, so its rows are passed over then); when the sidebar is a drawer it opens the
+drawer. They are not rendered while the drawer is open: they sit outside its dialog, so Tab would leave
+the drawer for them, and their targets are in the inert chat, so pressing them did nothing.
+
 ## Opening a panel on a section
 
 `useChannelSettingsStore.open(channelId, 'members')` opens the settings panel on its member list. The

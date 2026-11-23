@@ -4,10 +4,6 @@ import { X } from 'lucide-react';
 
 import { Hint } from '../../../../shared';
 
-/**
- * Stops a file's send while it uploads. The send is the whole message's, so this stops every file in
- * it; the message is removed rather than left failed — the reader said "don't send this".
- */
 export const CancelUploadButton = ({ name, onCancel }: { name: string; onCancel: () => void }) => {
     const { t } = useTranslation();
     return (

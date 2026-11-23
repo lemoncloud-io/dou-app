@@ -38,47 +38,20 @@ import { NotificationCard, SOURCE_ICON } from './NotificationCard';
 import { SelectionBar } from './SelectionBar';
 import { dayOf, inboxTabCounts, inboxView, isInTab } from './inboxView';
 
-/**
- * How long an item opened under the unread filter stays in the list, marked as the one opened,
- * before the filter takes it: long enough to see where the click went, short enough that the list
- * is the unread list again by the time the reader looks back.
- */
 export const OPENED_LINGER_MS = 3000;
 
 const DAY = 86_400_000;
 
-/** Each tab but All leads with the icon its cards' source chip carries; Mentions with the `@`. */
 const TAB_ICON: Partial<Record<InboxTab, LucideIcon>> = { ...SOURCE_ICON, mention: AtSign };
 
 interface NotificationsPanelProps {
-    /**
-     * The active cloud: only its items are listed (`placeScope` alone would also take another cloud's
-     * place of the same id), and it names the threads a reply answers and whether its thread scan is
-     * still running.
-     */
     cloudId: string;
-    /** Loaded channels (active place) — name the cards' channels before the name kept with the item. */
     channels: DomainChannel[];
-    /** The place `channels` belong to: channel ids repeat across places, so only its items use them. */
     currentPlaceId?: string;
-    /** The places whose items are listed, counted and marked read (`inboxPlaceScope`): the active one. */
     placeScope: ReadonlySet<string>;
-    /** Jump to the message: select its place and channel, then scroll to it or open its thread (4th arg). */
     onSelect: (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => void;
 }
 
-/**
- * The Notifications destination's sidebar column: the device-local inbox in tabs (where it
- * happened, or Mentions for why), an unread filter and a sort order, in date groups. It holds the
- * active place's items only; the store keeps every place's, so switching back shows them again.
- *
- * Opening an item jumps to its message and marks it read. Under the unread filter that would drop
- * the card from under the pointer, so the opened one stays for `OPENED_LINGER_MS`, marked, then
- * leaves; changing the tab or the filter lets it go at once.
- *
- * In selection mode a click selects instead. The selection is of the cards listed, so changing the
- * tab or the filter drops it; marking the whole tab read is undone from its toast.
- */
 export const NotificationsPanel = ({
     cloudId,
     channels,
@@ -127,13 +100,10 @@ export const NotificationsPanel = ({
     const [selecting, setSelecting] = useState(false);
     const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
     const [confirmingDelete, setConfirmingDelete] = useState(false);
-    // Deleting the last item ends the mode: there is nothing left to select.
     const isSelecting = selecting && !isEmpty;
-    // Ended for good, not paused: the next item captured opens rather than toggles.
     useEffect(() => {
         if (isEmpty) setSelecting(false);
     }, [isEmpty]);
-    // A place switch keeps the panel mounted, but what was picked or kept belongs to the place left.
     const scopeRef = useRef(placeScope);
     useEffect(() => {
         if (scopeRef.current === placeScope) return;
@@ -142,8 +112,6 @@ export const NotificationsPanel = ({
         setSelected(new Set());
         release();
     }, [placeScope, release]);
-    // The bar unmounts on the way out, so focus goes back to the button that opened it, or to the
-    // title when deleting the last item disabled that button.
     const selectButtonRef = useRef<HTMLButtonElement>(null);
     const titleRef = useRef<HTMLHeadingElement>(null);
     const wasSelecting = useRef(false);
@@ -182,7 +150,6 @@ export const NotificationsPanel = ({
         });
     };
 
-    // Stable for the memo'd cards: the host's onSelect is a fresh closure each render.
     const onSelectRef = useRef(onSelect);
     onSelectRef.current = onSelect;
     const openItem = useCallback(
@@ -349,7 +316,6 @@ export const NotificationsPanel = ({
                                 <DropdownMenuRadioItem
                                     key={key}
                                     value={key}
-                                    // The kit's leading dot gives way to the trailing check the design uses.
                                     className="cursor-pointer gap-2 py-2 pl-2 data-[state=checked]:bg-accent data-[state=checked]:font-semibold [&>span:first-child]:hidden"
                                 >
                                     {t(`inbox.sort.${key}`)}
@@ -377,7 +343,6 @@ export const NotificationsPanel = ({
                             <p className="max-w-xs text-caption text-muted-foreground">{t('inbox.emptyHint')}</p>
                         </>
                     )}
-                    {/* Said here too: an empty inbox on a second device is not a lost history. */}
                     <p className="max-w-xs text-caption text-muted-foreground">{t('inbox.deviceLocal')}</p>
                 </div>
             ) : (

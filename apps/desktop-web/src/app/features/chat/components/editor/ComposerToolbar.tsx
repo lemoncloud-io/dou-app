@@ -26,7 +26,6 @@ const textFormat =
         editor.dispatchCommand(FORMAT_TEXT_COMMAND, format);
     };
 
-/** Toggle the selection's blocks between quote and paragraph. */
 const toggleQuote = (editor: LexicalEditor): void => {
     editor.update(() => {
         const selection = $getSelection();
@@ -36,10 +35,6 @@ const toggleQuote = (editor: LexicalEditor): void => {
     });
 };
 
-// Slack's top row, cut to what the message format can carry: underline and lists have no wire
-// form the readers understand, so they get no button, and a link is its bare URL (LinkButton).
-// Inline formats and the link first, then the two block formats after a rule. Keyboard
-// equivalents live in FormatShortcutsPlugin.
 const INLINE_FORMATS = [
     { key: 'bold', Icon: Bold, apply: textFormat('bold') },
     { key: 'italic', Icon: Italic, apply: textFormat('italic') },
@@ -52,19 +47,14 @@ const BLOCK_FORMATS = [
     { key: 'codeBlock', Icon: SquareCode, apply: toggleCodeBlock },
 ] as const;
 
-// A format that is on. The fill alone is what hover draws, and at 1.1:1 on the box it cannot
-// be told from one; the inset edge is what says "on".
 const PRESSED_CLASS = 'bg-accent text-foreground ring-1 ring-inset ring-control-border';
 
-// `shrink-0`: in a box narrower than the row, the row wraps (the toolbar's `flex-wrap`) rather
-// than squeezing the buttons until the last one runs out of the box.
 const BUTTON_CLASS =
     'focus-ring tactile flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors ease-tactile hover:bg-accent hover:text-foreground disabled:opacity-50';
 
 type FormatKey = (typeof INLINE_FORMATS)[number]['key'] | (typeof BLOCK_FORMATS)[number]['key'];
 type ActiveFormats = Partial<Record<FormatKey | 'link', boolean>>;
 
-/** Which formats the current selection carries, so the row can light them up. */
 const readActiveFormats = (): ActiveFormats => {
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) return {};
@@ -80,14 +70,11 @@ const readActiveFormats = (): ActiveFormats => {
     };
 };
 
-/** Formatting row above the input — applies live formats and highlights the selection's active ones. */
 export const ComposerToolbar = () => {
     const { t } = useTranslation();
     const [editor] = useLexicalComposerContext();
     const [active, setActive] = useState<ActiveFormats>({});
 
-    // Mirror the selection's formats onto the row (Slack-style active highlight),
-    // so ⌘B and the buttons both reflect the caret's current state.
     useEffect(
         () =>
             editor.registerUpdateListener(({ editorState }) => {
@@ -102,9 +89,6 @@ export const ComposerToolbar = () => {
                 type="button"
                 aria-pressed={!!active[key]}
                 aria-label={t(`chat.composer.format.${key}`)}
-                // mousedown only prevents the default focus steal — the editor
-                // keeps its selection. The action itself runs on click, so
-                // Enter and Space reach it too.
                 onMouseDown={e => e.preventDefault()}
                 onClick={() => apply(editor)}
                 className={cn(BUTTON_CLASS, active[key] ? PRESSED_CLASS : 'text-label')}

@@ -21,16 +21,11 @@ import { PdfPages } from './PdfPages';
 import { Hint } from '../../../../shared';
 
 interface FileViewerProps {
-    /** A file `canPreview` reads as a PDF, text or an HTML page. */
     file: ChatFile;
-    /** The message's sender and time. Absent for a file still in the composer, not sent yet. */
     author?: ImageAuthor;
     onClose: () => void;
-    /** The card's own save: the whole file, under its name. Absent where there is nothing to save to. */
     onSave?: () => void;
-    /** The file's address failed to load; the owner re-reads the message, and the fresh address comes back as `file.url`. */
     onLoadError?: (src: string) => void;
-    /** The file's bytes, when the page already holds them (a file still in the composer). Read instead of fetching `file.url`. */
     local?: Blob;
 }
 
@@ -45,21 +40,6 @@ type Body =
     | { state: 'text'; text: string; truncated: boolean }
     | { state: 'pdf'; doc: PdfDocument };
 
-/**
- * A document, read in the app: the sender, time and name above it, with save and close. The
- * bytes are fetched when it opens and dropped when it closes; closing mid-download stops the fetch.
- * A fetch that fails — an address past its signature, say — says so and still offers the save.
- *
- * A file still in the composer opens here too, before it is sent: its bytes are already in the
- * page, so nothing is fetched, and the header says it is not sent instead of naming a sender.
- *
- * An HTML page is drawn in a frame with no permissions at all (`sandbox=""`): it runs no script, submits
- * no form, opens no window and has an origin of its own, so nothing in it reaches the app. A policy put
- * ahead of it stops it loading anything from the network (`htmlPreviewDocument`). A page past
- * `HTML_PREVIEW_MAX_BYTES` is not drawn: cut short, it would render broken.
- *
- * A voice file never opens here: it plays in its own card or tray tile.
- */
 export const FileViewer = ({ file, author, onClose, onSave, onLoadError, local }: FileViewerProps) => {
     const { t } = useTranslation();
     const name = file.name ?? t('chat.attach.previewFile');
@@ -68,18 +48,14 @@ export const FileViewer = ({ file, author, onClose, onSave, onLoadError, local }
 
     const preview = canPreview(file);
     useEffect(() => {
-        // A re-signed address reloads; the last body may hold a document the cleanup below destroyed.
         setBody({ state: 'loading' });
         const controller = new AbortController();
         let doc: PdfDocument | undefined;
         const open = async (): Promise<Body> => {
-            // Anything else — a voice file, which plays in its card — is not read as text: its bytes
-            // would come out as a screen of noise.
             if (preview !== 'pdf' && preview !== 'text' && preview !== 'html') return { state: 'failed' };
             if (preview === 'html') {
                 if ((file.size ?? local?.size ?? 0) > HTML_PREVIEW_MAX_BYTES) return { state: 'too-large' };
                 const start = local ?? (await fetchFileBytes(file.url, controller.signal, HTML_PREVIEW_MAX_BYTES + 1));
-                // What was read is at most one byte past the allowance, so having read past it is the page's size.
                 const size = Math.max(file.size ?? 0, start.size);
                 const page = await readTextPreview(start, size, HTML_PREVIEW_MAX_BYTES);
                 return page.truncated ? { state: 'too-large' } : { state: 'html', doc: htmlPreviewDocument(page.text) };
@@ -98,7 +74,6 @@ export const FileViewer = ({ file, author, onClose, onSave, onLoadError, local }
             .catch(() => {
                 if (controller.signal.aborted) return;
                 setBody({ state: 'failed' });
-                // A file kept on this device has no address to blame.
                 if (!local) onLoadError?.(file.url);
             });
         return () => {
@@ -122,8 +97,6 @@ export const FileViewer = ({ file, author, onClose, onSave, onLoadError, local }
                 variant="bare"
                 hideClose
                 overlayClassName="bg-overlay/70"
-                // Focus lands on close, not on the first control: that is save, whose tooltip would
-                // open with the dialog and take the first Esc for itself.
                 onOpenAutoFocus={event => {
                     event.preventDefault();
                     closeRef.current?.focus();
@@ -202,12 +175,10 @@ export const FileViewer = ({ file, author, onClose, onSave, onLoadError, local }
                         </div>
                     )}
                     {body.state === 'html' && (
-                        // White, not the theme's: a page is written for a white sheet and sets no background of its own.
                         <iframe
                             sandbox=""
                             referrerPolicy="no-referrer"
                             srcDoc={body.doc}
-                            // The frame's accessible name. Not `title`: that also draws a native tooltip.
                             aria-label={name}
                             className="min-h-0 flex-1 border-0 bg-white"
                         />

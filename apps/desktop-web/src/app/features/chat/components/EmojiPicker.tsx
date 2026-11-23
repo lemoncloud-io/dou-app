@@ -11,19 +11,11 @@ interface EmojiPickerProps {
     onPick: (emoji: string) => void;
 }
 
-/**
- * Category-tabbed emoji grid for the composer popover. Picks are remembered in
- * a device-local LRU ("recently used" tab). No external emoji DB — categories
- * are the curated sets in utils/emoji.ts. Hovering an emoji names it, in the
- * app's language, from the generated CLDR tables in the `emoji` namespace.
- */
 export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
     const { t } = useTranslation();
     const { t: tEmoji } = useTranslation('emoji');
     const recent = useRecentEmojiStore(s => s.recent);
     const remember = useRecentEmojiStore(s => s.remember);
-    // The popover unmounts on close, so this runs on every open: lead with the recents tab
-    // when it exists (same condition that renders it), the first category otherwise.
     const [categoryKey, setCategoryKey] = useState(recent.length > 0 ? 'recent' : EMOJI_CATEGORIES[0].key);
 
     const pick = (emoji: string) => {
@@ -38,8 +30,6 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
 
     return (
         <div className="flex w-72 flex-col gap-1.5">
-            {/* Scrolls sideways rather than shrinking the tabs: nine categories plus the recents
-                tab are ~338px of 32px targets inside a 288px popover. */}
             <div
                 role="tablist"
                 aria-label={t('chat.composer.emoji')}
@@ -83,8 +73,6 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
             <p className="px-0.5 text-overline uppercase text-muted-foreground">{label}</p>
             <div className="scrollbar-thin grid max-h-56 grid-cols-8 gap-0.5 overflow-y-auto">
                 {emojis.map(emoji => {
-                    // Empty when a name is missing (an emoji added to the curation without
-                    // regenerating the tables): the button then falls back to its glyph alone.
                     const name = tEmoji(emojiNameKey(emoji), { defaultValue: '' });
                     const button = (
                         <button

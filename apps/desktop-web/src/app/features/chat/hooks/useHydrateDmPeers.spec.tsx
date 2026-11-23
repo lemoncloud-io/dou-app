@@ -44,8 +44,6 @@ describe('useHydrateDmPeers', () => {
         expect(syncChannelUsers).not.toHaveBeenCalled();
     });
 
-    // A group channel stands for every member of a place who has no 1:1 yet; one named member must
-    // not hide another who is not.
     it('loads a shared channel when any of its peers is unnamed, once', async () => {
         state.cached = { 'u-1': { id: 'u-1', name: 'Aiden' } };
         renderHook(() =>
@@ -60,7 +58,6 @@ describe('useHydrateDmPeers', () => {
         expect(syncChannelUsers).toHaveBeenCalledTimes(1);
     });
 
-    // A group room's people change while the list is up; a newcomer still needs a name.
     it('asks a room again for a peer it has not seen, even after an all-named read', async () => {
         state.cached = { 'u-1': { id: 'u-1', name: 'Aiden' } };
         let peers = [{ channelId: 'g-1', peerId: 'u-1' }];

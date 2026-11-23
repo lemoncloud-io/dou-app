@@ -12,8 +12,6 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     toast: vi.fn(),
 }));
 
-// jsdom implements no playback: `play()` only logs. These stand in for the element's own methods,
-// and the tests fire the events a browser would.
 let play: ReturnType<typeof vi.spyOn>;
 let pause: ReturnType<typeof vi.spyOn>;
 
@@ -155,7 +153,6 @@ describe('useVoicePlayback', () => {
         expect(toast).toHaveBeenCalledTimes(1);
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: "This file can't be played" }));
 
-        // A view that arrives after the failure shows it, and says nothing more.
         renderHook(() => useVoicePlayback('https://s/b'));
         expect(toast).toHaveBeenCalledTimes(1);
     });

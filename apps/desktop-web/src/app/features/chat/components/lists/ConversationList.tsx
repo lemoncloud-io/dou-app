@@ -9,24 +9,11 @@ import { cn } from '@chatic/ui-kit';
 import { formatListTime, Skeleton } from '../../../../shared';
 import { threadRootId } from '../../utils';
 
-/**
- * A preview line, led by a thread mark when its message is a thread reply — so a reply does not read
- * as a message in the room itself. The mark goes in front of the sender.
- */
 export const markThreadReply = (lastChat: Pick<DomainChat, 'parentId'>, line: string, t: TFunction): string =>
     lastChat.parentId ? t('lists.threadReply', { text: line }) : line;
 
-/** Picking a row whose preview is a thread reply also names that reply's thread. */
 export type SelectConversation = (channelId: string, thread?: { threadRootId: string }) => void;
 
-/**
- * The row click for a list that previews each room's last message. A room's last message can be a
- * thread reply, and the room's feed leaves replies to the thread panel, so opening only the room
- * would show nothing of the line the row printed. The pick names the thread so the host opens it.
- *
- * The previews are read through a ref: they change on every message in any room, and a handler that
- * changed with them would re-render every memo'd row instead of only the one whose line moved.
- */
 export const usePickConversation = (lastByChannel: Map<string, DomainChat>, onSelect: SelectConversation) => {
     const lastRef = useRef(lastByChannel);
     lastRef.current = lastByChannel;
@@ -40,10 +27,6 @@ export const usePickConversation = (lastByChannel: Map<string, DomainChat>, onSe
     );
 };
 
-/**
- * One 60px row of the Channels or DM list: the room's tile or the person's avatar, its name (bold
- * while unread), the last message's time, the preview line and the unread count.
- */
 export const ConversationRow = memo(function ConversationRow({
     id,
     leading,
@@ -57,7 +40,6 @@ export const ConversationRow = memo(function ConversationRow({
     id: string;
     leading: ReactNode;
     label: string;
-    /** The last message's time, in ms; nothing is drawn without one. */
     time: number | undefined;
     preview: string;
     unread: number;
@@ -106,7 +88,6 @@ export const ConversationRow = memo(function ConversationRow({
     );
 });
 
-/** A row whose person has no name yet: the row's shape, never the raw id. */
 export const PendingConversationRow = () => (
     <li aria-hidden className="flex h-[3.75rem] items-center gap-3 pl-2.5 pr-3">
         <Skeleton className="h-9 w-9 shrink-0 animate-pulse rounded-full bg-muted" />
@@ -119,23 +100,15 @@ export const PendingConversationRow = () => (
 
 interface ConversationListProps {
     title: string;
-    /** The header's + and the empty state's button; absent where nothing can be started here. */
     create?: { label: string; onClick: () => void };
     search: { label: string; query: string; onChange: (query: string) => void };
     empty: { icon: ReactNode; title: string; hint: string };
     noMatch: string;
-    /** The place has no room of this kind. */
     isEmpty: boolean;
-    /** While the place's channels load, an empty list is not yet an empty place. */
     isLoading: boolean;
-    /** The rows, already filtered by the search; none when the search matches nothing. */
     children: ReactNode[];
 }
 
-/**
- * The frame the Channels and DM destinations share in the sidebar column: a title with its +, a
- * search field, then the rows, the empty state or the no-match line.
- */
 export const ConversationList = ({
     title,
     create,

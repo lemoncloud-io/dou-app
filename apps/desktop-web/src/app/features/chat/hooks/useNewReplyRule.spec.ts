@@ -37,7 +37,6 @@ describe('useNewReplyRule', () => {
         expect(result.current.seenByRoot?.get('1')).toBe(4);
     });
 
-    // A thread open in another channel says nothing about this one's roots, which share the numbers.
     it('ignores a thread open in another channel', () => {
         const { result } = render('C1', [chat(1), chat(3, '1')]);
 

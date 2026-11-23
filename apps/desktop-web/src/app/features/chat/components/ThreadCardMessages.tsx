@@ -12,20 +12,10 @@ interface ThreadCardMessagesProps {
     messages: DomainChat[];
     onRetry: (message: DomainChat) => void;
     onDiscard: (message: DomainChat) => void;
-    /** Leave out the rows' "Saved" tag — the Saved page, where every row is saved. */
     hideSavedMark?: boolean;
-    /**
-     * The `subType:'reaction'` chats around these messages, unfiltered — the rows fold them into chips.
-     * Left out, the rows show no chips.
-     */
     reactionEvents?: DomainChat[];
 }
 
-/**
- * A Threads page card's messages, drawn by the thread panel's own row: the author by their place
- * nickname and avatar, images and files, and a failed send's Retry and Delete. Rows are grouped the way
- * the panel groups them, so consecutive messages from one person share a header.
- */
 export const ThreadCardMessages = ({
     channel,
     messages,
@@ -56,7 +46,6 @@ export const ThreadCardMessages = ({
     );
 
     return (
-        // The card's column is the container the row toolbar's narrow rule measures (see MessageRow).
         <div className="flex flex-col gap-1 [container-type:inline-size]">
             {rows.map(row =>
                 row.kind === 'group' ? (

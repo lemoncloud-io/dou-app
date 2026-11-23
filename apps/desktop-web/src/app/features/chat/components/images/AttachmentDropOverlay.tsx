@@ -6,15 +6,6 @@ import { CHAT_ATTACHMENT_MAX_BYTES } from '@chatic/runtime';
 
 import { MAX_ATTACHMENTS, VOICE_EXTENSIONS, formatFileSize } from '../../utils';
 
-/**
- * Shown over the conversation while files are dragged in (Figma "#image drag over"): a
- * dashed drop zone, an attachment mark, and the limit. Pointer-transparent, so the drag
- * events keep landing on the pane underneath.
- *
- * It said "images and files" under a drawing of a code file and a note, and then
- * refused both, when only images were taken. Now images, videos and documents are, and the
- * copy says files; the mark uses the app's own accent instead of three hues found nowhere else.
- */
 export const AttachmentDropOverlay = () => {
     const { t } = useTranslation();
     return (
@@ -27,7 +18,6 @@ export const AttachmentDropOverlay = () => {
             </span>
             <p className="text-headline font-semibold text-foreground">{t('chat.attach.dropTitle')}</p>
             <p className="text-callout text-label">{t('chat.attach.dropHint', { count: MAX_ATTACHMENTS })}</p>
-            {/* Voice files are documents to the server, but the feed plays them; the drop zone says so. */}
             <p className="text-caption text-description">
                 {t('chat.attach.dropVoiceHint', {
                     extensions: VOICE_EXTENSIONS.join(', '),

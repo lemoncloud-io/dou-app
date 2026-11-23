@@ -21,7 +21,6 @@ vi.mock('../../utils', async importOriginal => ({
     fetchFileBytes: vi.fn(),
 }));
 
-// A channel's label reads the session for a 1:1's counterpart; these are named channels.
 vi.mock('../../../../shared', async importOriginal => ({
     ...(await importOriginal<object>()),
     useChannelLabels: () => (channel: DomainChannel) => channel.name ?? '',
@@ -89,7 +88,6 @@ describe('ForwardFileHost', () => {
         expect(screen.queryByRole('dialog')).toBeNull();
         await vi.waitFor(() => expect(sendImages).toHaveBeenCalledTimes(1));
         expect(toast).toHaveBeenCalledWith({ description: 'Forwarding to ops' });
-        // Not as the room's screen: the room may be open, and its rows are that screen's.
         expect(sendTargets).toContainEqual({ cid: 'cl-1', channelId: 'ch-ops', attach: false, put: filesPut });
         const [[files]] = sendImages.mock.calls as [[File[]]];
         expect(files[0].name).toBe('memo.m4a');

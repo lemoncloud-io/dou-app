@@ -23,7 +23,6 @@ interface PillProps {
 const renderPill = ({ faces = [SUNNY, RAIN], readers = [SUNNY, RAIN], nonReaders = [BOB] }: PillProps = {}) =>
     render(<ReadReceiptPill faces={faces} readers={readers} nonReaders={nonReaders} />);
 
-// The count is the button's accessible name, not text drawn beside the faces.
 const pill = () => screen.getByRole('button', { name: /Seen/ });
 
 afterEach(() => {
@@ -132,7 +131,6 @@ describe('ReadReceiptPill', () => {
             await act(async () => fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }));
 
             expect(screen.queryByRole('dialog')).toBeNull();
-            // Radix restores focus on the tick after the card unmounts.
             await waitFor(() => expect(document.activeElement).toBe(pill()));
         });
 

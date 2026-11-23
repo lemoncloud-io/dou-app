@@ -1,31 +1,21 @@
 import type { MessageRowItem } from '../utils';
 
-/** Stable measurement + React key for one feed row. */
 export const feedRowKeyOf = (row: MessageRowItem): string => (row.kind === 'group' ? row.group.key : row.key);
 
-/** First and past-the-end row indexes to mount. End is exclusive. */
 export interface FeedWindow {
     start: number;
     end: number;
 }
 
-/** Height budget rendered above and below the viewport so fast scrolls stay covered. */
 export const FEED_OVERSCAN_PX = 800;
 
-/** Fallback row height until a row is measured (a one-line text block). */
 export const FEED_DEFAULT_ESTIMATE_PX = 120;
 
-/**
- * Inter-row gap the spacer math accounts for (`gap-2` on the feed). Approximate
- * (rem-based), off by a pixel under zoom — absorbed by the overscan either way.
- */
 export const FEED_GAP_PX = 8;
 
-/** Bounded retries scrolling an unmounted jump target into its window. */
 export const MAX_JUMP_WINDOW_RETRIES = 12;
 export const JUMP_WINDOW_RETRY_MS = 60;
 
-/** Index of the row holding a chat message, or -1 when it is not loaded. */
 export const indexOfChatNo = (rows: MessageRowItem[], chatNo: number): number => {
     for (let i = 0; i < rows.length; i++) {
         const row = rows[i];
@@ -35,12 +25,6 @@ export const indexOfChatNo = (rows: MessageRowItem[], chatNo: number): number =>
     return -1;
 };
 
-/**
- * Which rows to mount so the viewport (plus overscan) is covered. Prefix sums
- * over per-row heights; linear scan — feeds hold hundreds of rows, and clarity
- * beats a binary search here. `heightOf` must return measured heights where
- * known and the running estimate elsewhere.
- */
 export const windowForViewport = ({
     count,
     heightOf,
@@ -70,19 +54,11 @@ export const windowForViewport = ({
     return { start: Math.min(start, count), end: Math.min(Math.max(end, start + 1), count) };
 };
 
-/** One day of mounted rows: the date row that opens it, then everything up to the next one. */
 export interface DayBlock {
     key: string;
     rows: MessageRowItem[];
 }
 
-/**
- * Splits mounted rows at each date row. A sticky pill is bounded by its parent, so a pill that
- * shares the whole feed with the others never hands over — the earlier one stays pinned under the
- * next. Giving each day its own block bounds it. Rows before the first mounted date row (their pill
- * scrolled out of the window) share one block under a fixed key, so they do not remount as the
- * window start moves.
- */
 export const groupIntoDayBlocks = (rows: MessageRowItem[]): DayBlock[] => {
     const blocks: DayBlock[] = [];
     for (const row of rows) {

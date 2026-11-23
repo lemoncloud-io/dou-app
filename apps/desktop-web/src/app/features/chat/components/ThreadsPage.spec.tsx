@@ -16,7 +16,6 @@ import { ThreadsPage } from './ThreadsPage';
 const cacheReadList = vi.fn();
 const cacheRead = vi.fn();
 const getChat = vi.fn();
-// The card watches the same window for its reaction events; `observed` is what that window holds.
 let observed: DomainChat[] = [];
 const observeList = vi.fn((_query: unknown, callback: (result: { list: DomainChat[] } | null) => void) => {
     callback({ list: observed });
@@ -53,7 +52,6 @@ vi.mock('../../channels', async importOriginal => ({
     useChannelMembers: (channelId: string | null, ownerId?: string) => channelMembers(channelId, ownerId),
 }));
 const composerKeys: string[] = [];
-// The editor is Lexical in its own chunk; a stand-in that sends what was typed is enough here.
 vi.mock('./LazyComposer', () => ({
     LazyComposer: ({
         onSend,
@@ -89,7 +87,6 @@ vi.mock('./LazyComposer', () => ({
     ),
 }));
 
-// jsdom has no layout. Every card starts on screen unless a test holds them off it, then brings them in.
 let startVisible = true;
 const observers: Array<{ margin: string; fire: (visible: boolean) => void }> = [];
 class TestObserver {
@@ -220,7 +217,6 @@ describe('ThreadsPage cards', () => {
 
         const card = screen.getByRole('article');
         await waitFor(() => expect(within(card).getByText('message 6')).toBeTruthy());
-        // The chip, not the toolbar's quick-reaction button: only the chip is labelled "<emoji> · <reactors>".
         expect(within(card).getByLabelText(/^🆗 ·/)).toBeTruthy();
     });
 
@@ -300,7 +296,6 @@ describe('ThreadsPage cards', () => {
             renderPage();
             const key = myThreadKey('K1', 'C1', '5');
             expect(useMyThreadsStore.getState().threads[key].seenReplyNo).toBe(10);
-            // The card reads first; the dwell starts once it shows the thread.
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(0);
             });
@@ -325,7 +320,6 @@ describe('ThreadsPage cards', () => {
             });
             expect(cacheReadList).not.toHaveBeenCalled();
 
-            // Near the screen: read ahead, but not looked at.
             bringNear();
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(1500);
@@ -345,7 +339,6 @@ describe('ThreadsPage cards', () => {
     });
 
     it('shows the latest replies in the order the page opened with while threads are read', async () => {
-        // Held off screen, the cards keep the record's previews to tell them apart by.
         startVisible = false;
         try {
             seed(
@@ -357,10 +350,8 @@ describe('ThreadsPage cards', () => {
             const order = () =>
                 screen.getAllByRole('article').map(card => within(card).getAllByText(/^root /)[0].textContent);
             expect(order()).toEqual(['root 2', 'root 1', 'root 3']);
-            // Thread 2 is read first; it keeps the top instead of dropping below thread 1.
             act(() => useMyThreadsStore.getState().markSeen('K1', 'C1', '2'));
             expect(order()).toEqual(['root 2', 'root 1', 'root 3']);
-            // A new reply in a read thread does not lift it above the others either.
             act(() =>
                 useMyThreadsStore.setState(state => {
                     const key = myThreadKey('K1', 'C1', '3');
@@ -474,7 +465,6 @@ describe('ThreadsPage inline reply', () => {
 
     it('opens an inline reply box only on demand, and sends to the thread with its full root id', async () => {
         seed(thread('5', { lastReplyNo: 12, seenReplyNo: 10 }));
-        // The send writes its row to the cache; the card's next read holds it.
         cacheReadList.mockResolvedValueOnce({ list: [chat(5)] }).mockResolvedValue({
             list: [
                 chat(5),
@@ -500,7 +490,6 @@ describe('ThreadsPage inline reply', () => {
             parentId: 'C1:5',
         });
         await waitFor(() => expect(within(card).getByText('my inline reply')).toBeTruthy());
-        // I just answered it: the thread counts as read.
         const listed = useMyThreadsStore.getState().threads[myThreadKey('K1', 'C1', '5')];
         expect(listed.seenReplyNo).toBe(listed.lastReplyNo);
         expect(listed.lastReplyPreview).toBe('my inline reply');
@@ -528,9 +517,7 @@ describe('ThreadsPage inline reply', () => {
         await waitFor(() => expect(within(card).getByText('message 5')).toBeTruthy());
 
         fireEvent.click(within(card).getByRole('button', { name: /^reply$/i }));
-        // A public room always offers the everyone row; the member's own row is what shows the roster arrived.
         expect(within(card).getByText('send with @Ada')).toBeTruthy();
-        // The card's own room, not whichever room the sidebar has selected.
         expect(channelMembers).toHaveBeenCalledWith('C1', C1.ownerId);
     });
 
@@ -556,7 +543,6 @@ describe('ThreadsPage inline reply', () => {
             content: 'my inline reply',
             parentId: 'C1:5',
         });
-        // No `mention` key at all without a pick, not even an undefined one.
         expect(sendMessage.mock.lastCall?.[1]).not.toHaveProperty('mention');
     });
 

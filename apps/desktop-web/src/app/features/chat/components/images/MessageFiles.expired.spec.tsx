@@ -31,7 +31,6 @@ const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{chi
 const author = { name: 'Ada', colorSeed: 'ada', time: '7:43 PM' };
 const sent = (upload$$: unknown[]) => ({ id: 'row-1', channelId: 'ch-1', upload$$ }) as DomainChat;
 
-// A message from yesterday: the addresses it was cached with are past their signature.
 describe('MessageFiles with an expired signed address', () => {
     beforeEach(() => {
         cleanup();

@@ -22,7 +22,6 @@ const picked = (file: File, kind: ComposerAttachment['kind']): ComposerAttachmen
     size: file.size,
 });
 
-/** The tray as the composer drives it: removing drops the attachment from state. */
 const Tray = ({ initial, onEmptied }: { initial: ComposerAttachment[]; onEmptied?: () => void }) => {
     const [items, setItems] = useState(initial);
     return (
@@ -40,7 +39,6 @@ const removeButton = (name: string) => screen.getByRole('button', { name: `Remov
 describe('ComposerAttachments', () => {
     afterEach(cleanup);
 
-    // A picked image could only be seen as a 92px crop until it was sent.
     it('opens a picked image in a viewer when its tile is clicked', () => {
         render(<Tray initial={[attachment('a.png')]} />, { wrapper });
         fireEvent.click(screen.getByRole('img', { name: 'a.png' }));
@@ -52,13 +50,10 @@ describe('ComposerAttachments', () => {
         const { baseElement } = render(<Tray initial={[video]} />, { wrapper });
         fireEvent.click(screen.getByRole('button', { name: 'Open clip.mp4' }));
         expect(baseElement.querySelector('video')?.getAttribute('src')).toBe('blob:clip.mp4');
-        // Not on the player, where Space would start playback.
         expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
     });
 
-    // The tray already holds an object URL of the picked file; the tile plays that one, in place.
     it('plays a picked voice file in its tile, without opening a viewer', () => {
-        // jsdom implements no playback; these stand in for the element's own methods.
         const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
         const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
         const song = picked(new File(['x'], 'song.mp3', { type: 'audio/mpeg' }), 'file');
@@ -76,7 +71,6 @@ describe('ComposerAttachments', () => {
         pause.mockRestore();
     });
 
-    // A disabled button takes no focus and its label would hide the error, so the tile turns plain.
     it('turns a voice file it cannot play into a plain tile that says so', () => {
         const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
         const song = picked(new File(['x'], 'song.mp3', { type: 'audio/mpeg' }), 'file');
@@ -88,9 +82,7 @@ describe('ComposerAttachments', () => {
         pause.mockRestore();
     });
 
-    // Read from the file the page holds: nothing is sent yet, so there is no address to fetch.
     it('reads a picked text file in the file viewer', async () => {
-        // jsdom's File has no `arrayBuffer`; a browser's and Node's Blob do.
         const bytes = new NodeBlob(['hello'], { type: 'text/plain' }) as unknown as File;
         const text = { ...picked(new File([], 'notes.txt'), 'file'), file: bytes, size: 5 };
         render(<Tray initial={[text]} />, { wrapper });
@@ -110,7 +102,6 @@ describe('ComposerAttachments', () => {
         expect(screen.queryByRole('button', { name: 'Open plan.docx' })).toBeNull();
     });
 
-    // The button that had focus is the one that goes, which used to drop focus on <body>.
     it('moves focus to the tile that takes the removed one’s place', () => {
         render(<Tray initial={[attachment('a.png'), attachment('b.png'), attachment('c.png')]} />, { wrapper });
         fireEvent.click(removeButton('a.png'));
@@ -131,7 +122,6 @@ describe('ComposerAttachments', () => {
         expect(screen.getByRole('status').textContent).toBe('a.png removed');
     });
 
-    // A document has no picture to show, so its tile names it instead of drawing a broken image.
     it('shows a video or document as its name and size, not an image', () => {
         const pdf = { id: 'p', name: 'report.pdf', url: '', kind: 'file', size: 1536 } as ComposerAttachment;
         render(<ComposerAttachments attachments={[pdf]} onRemove={vi.fn()} />, { wrapper });

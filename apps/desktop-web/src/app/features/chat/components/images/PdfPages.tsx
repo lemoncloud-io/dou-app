@@ -12,21 +12,10 @@ interface PdfPagesProps {
 
 const PAGE_MAX_WIDTH = 880;
 const THUMB_WIDTH = 120;
-/**
- * How far outside its scroll area a page is drawn ahead of the scroll, and kept after it. The rail's
- * thumbnails are small, so a wide margin there would draw a dozen at once.
- */
 const NEAR_MARGIN = '150% 0px';
 const RAIL_NEAR_MARGIN = '25% 0px';
-/** A window drag settles before the pages are drawn again at the new width. */
 const RESIZE_SETTLE_MS = 150;
 
-/**
- * A PDF's pages in a column, with a rail of numbered thumbnails beside them (Slack's layout). Only
- * pages near the view hold a canvas; the rest keep their place and shape, so a long file does not
- * hold every page in memory. The thumbnail of the page most in view is marked, and a thumbnail jumps
- * to its page.
- */
 export const PdfPages = ({ doc, name }: PdfPagesProps) => {
     const { t } = useTranslation();
     const pages = Array.from({ length: doc.pageCount }, (_, i) => i + 1);
@@ -41,12 +30,10 @@ export const PdfPages = ({ doc, name }: PdfPagesProps) => {
         let timer: ReturnType<typeof setTimeout> | undefined;
         let isFirst = true;
         const observer = new ResizeObserver(([entry]) => {
-            // The content box: the column's padding is already left out.
             const available = Math.floor(entry.contentRect.width);
             if (available <= 0) return;
             const apply = () => setWidth(Math.min(PAGE_MAX_WIDTH, available));
             clearTimeout(timer);
-            // The first measurement sizes the pages before any is drawn; only later ones wait.
             if (isFirst) apply();
             else timer = setTimeout(apply, RESIZE_SETTLE_MS);
             isFirst = false;
@@ -58,7 +45,6 @@ export const PdfPages = ({ doc, name }: PdfPagesProps) => {
         };
     }, []);
 
-    // The page most in view is the one being read.
     useEffect(() => {
         const column = columnRef.current;
         if (!column) return;
@@ -140,19 +126,12 @@ interface PdfPageProps {
     doc: PdfDocument;
     page: number;
     width: number;
-    /** The scroll area the page sits in: "near the view" is measured against it. */
     scrollRoot: RefObject<HTMLElement | null>;
-    /** How far outside the scroll area it is drawn ahead. */
     nearMargin?: string;
-    /** A page of the reading column, which the current-page tracking and the jumps look for. */
     isColumnPage?: boolean;
     className?: string;
 }
 
-/**
- * One page: a white sheet of the page's shape, drawn while it is near the view. The sheet keeps its
- * height whether or not it holds a canvas, so drawing a page never moves the ones around it.
- */
 const PdfPage = memo(function PdfPage({
     doc,
     page,
@@ -164,7 +143,6 @@ const PdfPage = memo(function PdfPage({
 }: PdfPageProps) {
     const holderRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    // The last drawing on this page, settled or not: the next one waits for it (one per canvas).
     const lastRender = useRef<Promise<unknown>>(Promise.resolve());
     const [isNear, setIsNear] = useState(false);
     const [aspect, setAspect] = useState(doc.aspectRatio);
@@ -188,7 +166,6 @@ const PdfPage = memo(function PdfPage({
         const drawn = lastRender.current.then(() => {
             if (!isActive) return;
             render = doc.renderPage(page, canvas, width);
-            // A page that fails to draw stays a blank sheet; the others still draw.
             return render.done.then(ratio => isActive && setAspect(ratio)).catch(() => undefined);
         });
         lastRender.current = drawn;
