@@ -4,6 +4,12 @@
 
 ### Chores
 
+- (comments) remove comments from desktop-web shared
+
+## [2026-11-23] - No version updates
+
+### Chores
+
 - (comments) remove comments from libs/web-ui-kit
 
 ## [2026-11-23] - No version updates
