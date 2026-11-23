@@ -40,12 +40,17 @@ Every PR body opens with the visuals that make it quick to read — a diagram, s
   or the fake shell / a component harness. Never name a file `web-e2e-*`: CI's e2e results replace those on
   every run. The branch also holds those CI screenshots and `pr-assets-cleanup.yml` handles it, so never run
   `--remove` on an open PR; other `pr-assets/*` branches are never touched.
+- **A device check ran** (`yarn mobile:verify`, [`dou-verify/references/device.md`](../../dou-verify/references/device.md)):
+  the shots that show the change — `final.png` and the relevant `checkpoint-*.png` from
+  `tmp/mobile-verify/<timestamp>-<platform>/<scenario>/` — pushed the same way, iOS and Android side by side in a
+  two-column table when both ran. Rename them on the way (`ios-final.png`, `android-checkpoint-send.png`).
 - **Structure or flow changed** (any PR with more than one moving part, and every PR with no screen: CI,
   scripts, docs, a comment cleanup, a refactor): a ` ```mermaid ` block of what changed. GitHub renders it.
 - **Results**: numbers that tell the story (files and lines removed, checks passed, a metric before and after)
   go in a Markdown table, never as an image of a terminal.
 
 **Fake data only.** The repository is public and a pushed image stays in git history after removal. Push only
-screenshots from fake-data runs (web-e2e and its evidence shots, the fake shell, a component harness). Never a
-real account, a dev server's data, a device's home screen, or anything with a token, email, phone number or name
-of a real person. When in doubt, use a diagram instead.
+screenshots from fake-data runs (web-e2e and its evidence shots, the fake shell, a component harness) and device
+checks on a guest or the fixture's fictional dev account. Never a real account, real people's rooms or messages on
+a dev server, a device's home screen or notifications, or anything with a token, email, phone number or name of
+a real person; a shot that shows any of that stays out of the PR. When in doubt, use a diagram instead.
