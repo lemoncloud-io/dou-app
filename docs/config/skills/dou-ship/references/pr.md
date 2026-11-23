@@ -36,8 +36,8 @@ Every PR body opens with the visuals that make it quick to read — a diagram, s
   `node docs/config/skills/dou-ship/references/pr-assets.mjs --pr <number> <image>...` pushes the images to the
   PR's own orphan branch `pr-assets/pr-<number>` and prints the Markdown lines
   (`https://raw.githubusercontent.com/lemoncloud-io/dou-app/pr-assets/pr-<number>/<file>`); open the PR first,
-  then `gh pr edit <number> --body-file …`. Take the screenshot from the single spec you ran (`evidence.shot`)
-  or the fake shell / a component harness. Never name a file `web-e2e-*`: CI's e2e results replace those on
+  then `gh pr edit <number> --body-file …`. Take the screenshot from the single spec you ran (`evidence.shot`),
+  the fake shell, a component harness or the dev server. Never name a file `web-e2e-*`: CI's e2e results replace those on
   every run. The branch also holds those CI screenshots and `pr-assets-cleanup.yml` handles it, so never run
   `--remove` on an open PR; other `pr-assets/*` branches are never touched.
 - **A device check ran** (`yarn mobile:verify`, [`dou-verify/references/device.md`](../../dou-verify/references/device.md)):
@@ -49,8 +49,7 @@ Every PR body opens with the visuals that make it quick to read — a diagram, s
 - **Results**: numbers that tell the story (files and lines removed, checks passed, a metric before and after)
   go in a Markdown table, never as an image of a terminal.
 
-**Fake data only.** The repository is public and a pushed image stays in git history after removal. Push only
-screenshots from fake-data runs (web-e2e and its evidence shots, the fake shell, a component harness) and device
-checks on a guest or the fixture's fictional dev account. Never a real account, real people's rooms or messages on
-a dev server, a device's home screen or notifications, or anything with a token, email, phone number or name of
-a real person; a shot that shows any of that stays out of the PR. When in doubt, use a diagram instead.
+**Dev and fake data only, never production.** The repository is public and a pushed image stays in git history
+after removal. Screens from web-e2e, the fake shell, a component harness, the dev server and device checks
+against the dev backend go in as they are: dev data is all fictional. A screen from production (a prod build,
+`*-v1` endpoints, a real user's account or data) never goes in, and neither does a token or secret on screen.
