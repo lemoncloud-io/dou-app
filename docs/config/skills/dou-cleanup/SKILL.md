@@ -18,8 +18,8 @@ agent folder by folder.
    (`libs/chatic-apps-sdk`, `libs/chatic-apps-devtools`), an `eslint-disable` with its reason, license
    headers.
 3. **Delete** comments only. No renames, no reformatting beyond what Prettier does, no logic.
-4. **Prove it**: run [`references/ast-equality.mjs`](./references/ast-equality.mjs) against `origin/develop`
-   for the changed files. It must print `identical` for every file. Paste its output in the PR.
-5. **Lower the baseline** for the files you cleaned (the comment ratchet's update command), run the gate,
+4. **Prove it**: commit, then `node scripts/comment-only-diff/cli.js` ([its README](../../../../scripts/comment-only-diff/README.md))
+   must exit 0 with every source file proven. Paste its output in the PR.
+5. **Lower the baseline** for the files you cleaned (`yarn ratchet:update`), run the gate,
    and ship with [`dou-ship`](../dou-ship/SKILL.md). The proof makes the review of a comment-only PR
    quick; it still gets a reviewer.
