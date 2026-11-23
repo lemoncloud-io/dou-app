@@ -10,7 +10,6 @@ interface LoaderState {
     setIsLoading: (isLoading: boolean, message?: string) => void;
 }
 
-// Timeout ID stored in closure, not in state — avoids unnecessary re-renders
 let loaderTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 export const useLoaderStore = create<LoaderState>(set => ({

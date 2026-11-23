@@ -12,7 +12,6 @@ const NATIVE = { sessionOwner: 'native', contract: RUNTIME_CONTRACTS[0], seq: 4,
 
 type Answer = { data: unknown } | { error: unknown };
 
-/** A bridge client that answers each hello with the next scripted answer, and lets the test push. */
 const scriptedClient = (...answers: Answer[]) => {
     const handlers = new Map<string, (message: { data: unknown }) => void>();
     const request = jest.fn(async (message: { type: string }, _options?: { timeoutMs?: number }) => {
@@ -31,7 +30,6 @@ const scriptedClient = (...answers: Answer[]) => {
     return { client: client as unknown as IWebBridgeClient, request, push };
 };
 
-/** A clock the waits move forward, so a run of retries takes no real time. */
 const fakeClock = () => {
     let at = 0;
     const waits: number[] = [];
@@ -96,9 +94,9 @@ describe('settleSessionOwner', () => {
     it('takes the web answer of a held offer as it would any other', async () => {
         const { client } = scriptedClient({ data: { sessionOwner: 'web' } });
 
-        await expect(
-            settleSessionOwner({ offer: { ...OFFER, held: true }, disabled: true, client })
-        ).resolves.toEqual({ sessionOwner: 'web' });
+        await expect(settleSessionOwner({ offer: { ...OFFER, held: true }, disabled: true, client })).resolves.toEqual({
+            sessionOwner: 'web',
+        });
     });
 
     it("says hello with the page's contracts and mirrors the shell when it answers native", async () => {
@@ -159,7 +157,6 @@ describe('settleSessionOwner', () => {
 
         expect(choice).toEqual({ sessionOwner: null, attempts: 5, lastFailure: 'TIMEOUT' });
         expect(request).toHaveBeenCalledTimes(5);
-        // After 250 + 500 + 1000 + 2000 another 2 s pause would pass 5 s, so the fifth ask is the last.
         expect(clock.waits).toEqual([250, 500, 1_000, 2_000]);
         expect(clock.now()).toBeLessThanOrEqual(5_000);
     });
@@ -184,7 +181,6 @@ describe('settleSessionOwner', () => {
     it('gives a hello no more than what is left of the limit, so asking stops at the limit', async () => {
         const clock = fakeClock();
         const { client, request } = scriptedClient();
-        // Every hello times out, using up the wait it was given.
         request.mockImplementation(async (_message: { type: string }, options?: { timeoutMs?: number }) => {
             await clock.wait(options?.timeoutMs ?? 0);
             throw { code: 'TIMEOUT' };

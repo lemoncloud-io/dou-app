@@ -44,7 +44,6 @@ export const Header = (): JSX.Element => {
                     <img src={Logo.douBk} alt="D.U" className="h-5" />
                 </Link>
                 <nav className="flex items-center gap-2 sm:gap-3">
-                    {/* Theme Toggle - hidden for now, functionality preserved */}
                     <button
                         onClick={toggleTheme}
                         className="hidden items-center justify-center w-8 h-8 rounded-full transition-all
@@ -54,7 +53,6 @@ export const Header = (): JSX.Element => {
                         {theme === 'light' ? <MoonIcon /> : <SunIcon />}
                     </button>
 
-                    {/* Language Toggle */}
                     <button
                         onClick={toggleLanguage}
                         className="flex items-center gap-2 px-5 py-2.5 text-[15px] xl:px-6 xl:py-4 xl:text-lg xl:tracking-[-0.72px] font-semibold rounded-full transition-all
@@ -64,9 +62,6 @@ export const Header = (): JSX.Element => {
                         {i18n.language === 'ko' ? 'EN' : 'KR'}
                     </button>
 
-                    {/* The way into the subscription pages: plain links, so the public page never reads
-                        who is visiting — a reader already signed in is sent on from the sign-in page.
-                        The plans are listed on every host; sign-in only where those pages are open. */}
                     <Link
                         to={ROUTES.subscription.plans}
                         className="flex items-center px-5 py-2.5 text-[15px] xl:px-6 xl:py-4 xl:text-lg xl:tracking-[-0.72px] font-semibold rounded-full transition-all

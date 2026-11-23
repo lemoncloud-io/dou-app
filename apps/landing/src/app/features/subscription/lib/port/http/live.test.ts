@@ -2,8 +2,6 @@ import { createCardEntryChannel } from '../cardEntry';
 
 import type { HttpPortOptions, PaymentWindow } from './createHttpPort';
 
-// The provider windows are replaced with spies, so a call into either SDK shows up here; the session
-// runtime is replaced so the port can be made without one.
 const portOneWindow = vi.hoisted(() => vi.fn());
 const stripeWindow = vi.hoisted(() => vi.fn());
 const createHttpPort = vi.hoisted(() => vi.fn((options: HttpPortOptions) => options));

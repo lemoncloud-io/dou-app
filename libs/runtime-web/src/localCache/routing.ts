@@ -4,67 +4,17 @@ import type { BridgeChannel } from '@chatic/bridges';
 import { isCacheTypeUsableBy } from './nativeCacheSupport';
 import type { NativeCacheSupport } from './nativeCacheSupport';
 
-/**
- * Whether `bridge` is the phone app's channel — the one shell with SQLite behind its bridge. Its
- * channel is `ReactNativeWebView`, which the host profile names apart from the other shells'.
- */
 export const isPhoneAppBridge = (bridge: BridgeChannel | null): boolean => bridge === 'react-native-webview';
 
-/**
- * What the routing decision reads about the host: the bridge channel the page found at boot, and the
- * shell's cache report (`null` until the handshake reply lands, and on a shell that predates it).
- */
 export interface CacheRoutingHost {
     bridge: BridgeChannel | null;
     support: NativeCacheSupport | null;
 }
 
-/**
- * Which physical store a cache type lands in.
- * - `web`: the WebView/browser's own IndexedDB.
- * - `native`: the app shell's SQLite, reached over the bridge.
- * - `session`: the browser tab's `sessionStorage` — gone when the tab is.
- */
 export type CacheBackend = 'web' | 'native' | 'session';
 
-// Types pinned to web storage even inside the native WebView, each listed with the reason it
-// cannot live on native storage — an entry leaves this table when its reason ships a fix.
-//
-// Empty today. `profile` sat here while the native writer stamped the scope `uid` over the profile
-// OWNER's `uid`, which collapsed every member of a place onto one `sid@myUid` key so a list read
-// returned a single profile and everyone else lost their nick/photo. `ProfileDataSource.serialize`
-// now stores the item verbatim (3682ca78) and that app release is out, so profile goes to native
-// storage with every other type — which is also the durable one, immune to WebView IndexedDB
-// eviction.
-//
-// Adding an entry here is a stopgap, not a home: it trades native durability for web storage the OS
-// can clear, so it only holds for data the server can re-derive. That rules out the local-authority
-// domains outright (nativeCacheSupport.LOCAL_AUTHORITY_CACHE_TYPES) — for those, sending rows to web
-// storage is not a downgrade but a loss, so this lever must never be pointed at them either.
 const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
 
-/**
- * THE routing decision: answers "where is this cache type stored" in one place, so the ports'
- * `storage()` (`routedCachePorts.ts`) stays a pure assembler. The host is handed in rather than read,
- * so a cache assembled from its own host facts routes by the same table. Checks, in order:
- *
- * 0. `invitecloud` in a plain browser tab → `session`. An invited cloud is entered on the grant of
- *    the guest that accepted the invite, and in a plain tab that guest lives in `sessionStorage` —
- *    each tab starts its own, and it ends with the tab. A row kept anywhere longer-lived outlives the
- *    only user who can enter the cloud. The test is whether the host profile found a bridge, the one
- *    the app entry points use to put the session in `sessionStorage`, so the row and the guest always share a lifetime:
- *    inside a desktop shell both persist (the shell keeps the session in `localStorage`), and the
- *    type falls through to the checks below.
- * 1. No native shell (plain browser, desktop-web) → `web`; there is no other store to reach.
- * 2. Type pinned to web (`WEB_PINNED_CACHE_TYPES`, reasons above) → `web`.
- * 3. The installed shell cannot be trusted to store the type → `web`. The web deploys ahead of
- *    the app, so a type newer than the installed app would otherwise be written into a native
- *    `default:` arm that answers `null` with `success: true` — a permanently empty cache that
- *    looks like a cold miss forever. How the shell reports what it implements, and why one domain
- *    is exempt from this check entirely, is owned by `nativeCacheSupport` (see
- *    docs/cache/README.md).
- * 4. Otherwise → `native`: a single durable store that survives WebView IndexedDB eviction.
- */
 export const resolveCacheBackendFor = (type: CacheType, host: CacheRoutingHost): CacheBackend => {
     if (type === 'invitecloud' && host.bridge === null) return 'session';
     if (!isPhoneAppBridge(host.bridge)) return 'web';

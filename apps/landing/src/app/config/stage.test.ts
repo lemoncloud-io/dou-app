@@ -51,17 +51,13 @@ describe('readProductionBuild', () => {
 
 describe('readSubscriptionAccountEnabled', () => {
     it.each([
-        // The local dev server and the dev stage, whatever the build.
         ['localhost', false, true],
         ['localhost', true, true],
         ['127.0.0.1', false, true],
         ['app-dev.chatic.io', false, true],
         ['app-dev.chatic.io', true, true],
-        // The production host with a production build.
         ['app.chatic.io', true, true],
-        // A dev build on the production host would take production's payments on the dev server.
         ['app.chatic.io', false, false],
-        // A production build anywhere else.
         ['dou.chatic.io', true, false],
         ['d1234abcd.cloudfront.net', true, false],
         ['www.app.chatic.io', true, false],

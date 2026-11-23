@@ -4,7 +4,6 @@ import { offeredCheckoutMethods, offeredStore, resolveCheckoutMethod } from './c
 
 const post = { postMessage: jest.fn() };
 
-// Hosts as their globals describe them. `capabilities` is set only where a case says so.
 const phone = (platform: string, extra: Record<string, unknown> = {}) =>
     buildHostProfile({ ReactNativeWebView: post, CHATIC_APP_PLATFORM: platform, ...extra });
 const desktop = (extra: Record<string, unknown> = {}) =>
@@ -18,8 +17,6 @@ describe('resolveCheckoutMethod', () => {
     });
     afterEach(() => warn.mockRestore());
 
-    // A shell that declares nothing is answered exactly as the screens answered before the port:
-    // `isNative()` picks the store, `CHATIC_APP_PLATFORM === 'ios'` (any case) picks Apple's.
     describe('the legacy rule', () => {
         it.each([
             ['an iPhone app', phone('ios'), 'apple'],

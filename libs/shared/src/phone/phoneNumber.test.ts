@@ -12,7 +12,6 @@ import {
     toE164,
 } from './phoneNumber';
 
-/** The web store an entry point passes in, as a plain map. */
 class MemoryStore {
     private readonly map = new Map<string, string>();
     get(key: string): string | null {
@@ -26,8 +25,6 @@ class MemoryStore {
     }
 }
 
-// A stand-in for the settings facade: the pick is the `ui.phoneCountry` setting now. Like the real one,
-// it mirrors a `local` write into the storage it was given (`mockLocal`), unless that write is dropped.
 const mockSettings = new Map<string, unknown>();
 const mockSetResult = { ok: true, storageWriteLands: true };
 const mockLocal: { current: MemoryStore | null } = { current: null };
@@ -44,7 +41,6 @@ jest.mock('@chatic/config', () => ({
     },
 }));
 
-/** jsdom fixes `navigator.language` at `en-US`; the locale branch needs to move it. */
 const setLanguage = (value: string) => {
     Object.defineProperty(window.navigator, 'language', { value, configurable: true });
 };
@@ -58,7 +54,6 @@ describe('isValidMobileNumber — 국가별 모바일 검증', () => {
     });
 
     it('rejects a Korean landline — the flow delivers by SMS', () => {
-        // The whole reason for the `/mobile` metadata: `/min` calls this valid.
         expect(isValidMobileNumber('0212345678', 'KR')).toBe(false);
     });
 

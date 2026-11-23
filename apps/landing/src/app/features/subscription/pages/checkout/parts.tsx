@@ -12,18 +12,8 @@ import { commonErrorKey } from '../../lib/errorKey';
 
 import type { CheckoutPreview } from '../../types';
 
-/**
- * Pieces the checkout screens share and no other screen group draws. They stay in this folder rather
- * than `components/` until a second group needs one.
- */
-
 const STEPS = ['plan', 'signIn', 'details', 'payment', 'done'] as const;
 
-/**
- * The five-step strip above W-24, W-08, W-05 and W-06. Steps before `current` are ticked. From `md` it
- * is the row of dots and names; on a phone a five-segment bar with "3/5 · name" under it, so the five
- * fit and only the step the reader is on is named.
- */
 export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element => {
     const { t } = useTranslation();
     const label = t('subscription.checkout.steps.label');
@@ -32,7 +22,6 @@ export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element 
             <ol className="hidden items-center gap-2.5 whitespace-nowrap md:flex" aria-label={label}>
                 {STEPS.map((step, index) => {
                     const number = index + 1;
-                    // The last step is ticked, not numbered, once the reader is on it: it is the finish.
                     const done = number < current || (current === 5 && number === 5);
                     const active = number === current;
                     return (
@@ -56,7 +45,6 @@ export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element 
                                         done || active ? 'bg-main-green text-navy' : 'border border-line text-[#999ca3]'
                                     )}
                                 >
-                                    {/* The design ticks the details step while it is open and numbers the payment step. */}
                                     {done || (active && number === 3) ? '✓' : number}
                                 </span>
                                 {t(`subscription.checkout.steps.${step}`)}
@@ -85,11 +73,6 @@ export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element 
     );
 };
 
-/**
- * Where the checkout screens sit: from `lg` the form at 640px with the order summary beside it at the
- * top, below it one column with the summary between the heading and the form. The three are separate
- * slots so that order costs no second copy of anything.
- */
 export const CheckoutLayout = ({
     head,
     summary,
@@ -98,7 +81,6 @@ export const CheckoutLayout = ({
 }: {
     head: ReactNode;
     summary: ReactNode;
-    /** On a phone, the summary goes under the form instead of above it (an aside, not a bill). */
     summaryLast?: boolean;
     children: ReactNode;
 }): JSX.Element => (
@@ -116,7 +98,6 @@ export const CheckoutLayout = ({
     </div>
 );
 
-/** Label-and-value rows, as in the order summary and the detail boxes. */
 export const FactRows = ({
     rows,
     className,
@@ -134,7 +115,6 @@ export const FactRows = ({
     </dl>
 );
 
-/** The grey order summary beside W-24, W-08 and W-05. */
 export const OrderSummary = ({ children }: { children: ReactNode }): JSX.Element => {
     const { t } = useTranslation();
     return (
@@ -145,11 +125,6 @@ export const OrderSummary = ({ children }: { children: ReactNode }): JSX.Element
     );
 };
 
-/**
- * The order summary beside W-24 and W-08: the plan, its allowance and price, the trial and when the first
- * charge falls. Until W-08's billing country is chosen (`priced` false) the currency is not known, so the
- * amounts are left blank and a line says what brings them.
- */
 export const CheckoutSummary = ({
     preview,
     priced = true,
@@ -157,7 +132,6 @@ export const CheckoutSummary = ({
 }: {
     preview: CheckoutPreview;
     priced?: boolean;
-    /** Whether an unpriced summary says a country brings the amounts — not when the country chosen cannot. */
     unpricedHint?: boolean;
 }): JSX.Element => {
     const { t, i18n } = useTranslation();
@@ -181,8 +155,6 @@ export const CheckoutSummary = ({
                     {
                         key: 'monthly',
                         label: t('subscription.checkout.summary.monthly'),
-                        // Won prices include VAT; how tax applies to a dollar price is not settled, so the
-                        // dollar price stands alone.
                         value: !priced
                             ? '—'
                             : plan.monthly.currency === 'KRW'
@@ -226,7 +198,6 @@ export const CheckoutSummary = ({
     );
 };
 
-/** `checking` spins while a card is checked; `progress` is a charge under way. */
 export type ResultTone = 'success' | 'checking' | 'progress' | 'danger' | 'neutral';
 
 const ICON_TONES: Record<Exclude<ResultTone, 'checking'>, string> = {
@@ -243,7 +214,6 @@ const ICONS: Record<Exclude<ResultTone, 'checking'>, string> = {
     neutral: '×',
 };
 
-/** The round mark, title and line that head every W-09 and W-06 scene. */
 export const ResultHeader = ({
     tone,
     title,
@@ -277,10 +247,6 @@ export const ResultHeader = ({
     </header>
 );
 
-/**
- * The column a payment status sits in: from `md` a bordered card centred under the bar, on a phone
- * the bare page. Everything inside is centred.
- */
 export const ResultCard = ({
     children,
     busy,
@@ -301,18 +267,15 @@ export const ResultCard = ({
     </section>
 );
 
-/** Two buttons at most: stacked full width on a phone, side by side and centred from `md`. */
 export const ResultActions = ({ children }: { children: ReactNode }): JSX.Element => (
     <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:justify-center">{children}</div>
 );
 
-/** The lime and the outlined pill a result offers, as links. */
 export const primaryLink =
     'inline-flex h-[46px] items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-bold text-navy hover:opacity-90 max-md:h-[54px]';
 export const secondaryLink =
     'inline-flex h-[46px] items-center justify-center rounded-full border-[1.5px] border-[#d9dbe0] bg-white px-7 text-[15px] font-semibold text-ink hover:bg-muted max-md:h-[54px]';
 
-/** A grey box with a bold heading, for the reason a payment failed or what to do next. */
 export const NoteBox = ({
     title,
     children,
@@ -328,11 +291,6 @@ export const NoteBox = ({
     </section>
 );
 
-/**
- * The way from a finished checkout to the app, where clouds are made. Desktop is where this page is
- * read, so it cannot open the app itself; it opens the store listing for the phone the reader most
- * likely has, as the desktop-only notice does.
- */
 export const AppStoreLink = ({ children }: { children: ReactNode }): JSX.Element => {
     const device = useDeviceDetect();
     return (
@@ -347,7 +305,6 @@ export const AppStoreLink = ({ children }: { children: ReactNode }): JSX.Element
     );
 };
 
-/** A screen that could not load what it draws: the reason, and a way to ask again. */
 export const LoadError = ({ error, onRetry }: { error: unknown; onRetry?: () => void }): JSX.Element => {
     const { t } = useTranslation();
     return (

@@ -36,7 +36,6 @@ import { commonErrorKey } from '../../lib/errorKey';
 
 import type { CardToken, PlanId } from '../../types';
 
-/** What an unexpected failure said, for a dev host only: a phone has no console to read it from. */
 const detailOf = (error: unknown): string | undefined =>
     isDevStage && !isPortError(error) ? (error instanceof Error ? error.message : String(error)) : undefined;
 
@@ -47,17 +46,6 @@ const errorKeyOf = (error: unknown): string => {
     return commonErrorKey(error);
 };
 
-/**
- * W-05 — the card, through the payment provider's window. Once a card is registered the checkout
- * starts and the reader follows it on W-09. A window that fails or is closed has started nothing, so
- * W-09 is told only how it ended.
- *
- * It needs what W-08 settled (country, billing email, payer), carried in the navigation state; without it —
- * a pasted link, or a return after signing in again — it goes back to W-08 rather than skip the
- * consents given there. A dollar checkout goes back the same way while the server sells no dollars
- * (`useForeignBilling`), which is read before anything here starts — for a dollar checkout only, so one
- * in Korea costs no call for it.
- */
 export const CheckoutPaymentPage = (): JSX.Element => {
     const location = useLocation();
     const [params] = useSearchParams();
@@ -69,7 +57,6 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     return <CheckoutPayment foreignBilling={foreignBilling === 'open'} />;
 };
 
-/** Whether the page was come back to from the provider's own page, with its result in the query. */
 const comesBack = (params: URLSearchParams): boolean => [...params.keys()].some(key => key !== 'plan');
 
 const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.Element => {
@@ -84,19 +71,11 @@ const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.E
     const today = toIsoDate(useToday());
     const [error, setError] = useState<string>();
     const [detail, setDetail] = useState<string>();
-    // Once the window has registered a card for this checkout, trying again goes straight to the
-    // charge with that card: reopening the window would register (and with a real provider,
-    // authorise) another one.
     const [card, setCard] = useState<CardToken>();
 
-    // A phone's payment window is the provider's own page: the browser left for it and came back here
-    // with the result in the query. The state W-08 handed over did not survive the trip, so the checkout
-    // saved when the window opened stands in for it.
     const [returning] = useState(() => (comesBack(params) ? peekPendingCheckout(params.get('plan')) : undefined));
     const [resuming, setResuming] = useState(!!returning);
     const resumed = useRef(false);
-    // A card dialog left open when the reader goes elsewhere ends as closed; by then this page is gone and
-    // has nowhere to send them.
     const mounted = useRef(true);
     useEffect(() => {
         mounted.current = true;
@@ -108,14 +87,11 @@ const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.E
     const details =
         checkoutDetailsOf(location.state, foreignBilling) ??
         (returning ? checkoutDetailsOf({ checkout: returning.details }, foreignBilling) : undefined);
-    // Priced in the billing country's currency, as W-08 showed it.
     const preview = usePreviewCheckout(
         route === 'checkout' && details ? plan?.id : undefined,
         details && currencyOfCountry(details.country)
     );
 
-    // From the registration on: a registered card goes straight on to the charge, anything else to the
-    // screen that says how the window ended.
     const charge = async (planId: PlanId, forDetails: CheckoutDetails, registeredCard: CardToken) => {
         const attempt = await startCheckout.mutateAsync({
             planId,
@@ -124,7 +100,6 @@ const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.E
             payer: forDetails.payer,
             card: registeredCard,
         });
-        // Replaced, not pushed: Back from W-09 should not land on a payment form already paid.
         navigate(statusUrl(attempt.id, planId), { replace: true, ...withCheckoutDetails(forDetails) });
     };
 
@@ -148,23 +123,19 @@ const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.E
                 return charge(returning.planId, settled, result.card);
             })
             .catch((err: unknown) => {
-                // A lost session is the route root's to handle; it has already moved the reader on.
                 if (!isPortError(err, 'unauthenticated')) {
                     setError(errorKeyOf(err));
                     setDetail(detailOf(err));
                 }
                 setResuming(false);
             });
-        // Once per arrival: the saved checkout is taken away above, so a second run would find nothing.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     if (loading) return <PageLoader />;
     if (loadError) return <LoadError error={loadError} onRetry={retry} />;
     if (!plan) return <Navigate to={ROUTES.subscription.plans} replace />;
-    // The window's result is being read and the charge started: nothing for the reader to press yet.
     if (resuming) return <PageLoader />;
-    // Back from W-09 or W-06, or a second tab: a subscriber has nothing left to buy here.
     if (route === 'change') return <Navigate to={changePlanUrl(plan.id)} replace />;
     if (route === 'plans') return <Navigate to={ROUTES.subscription.plans} replace />;
     if (!details) return <Navigate to={checkoutUrl(plan.id)} replace />;
@@ -183,8 +154,6 @@ const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.E
         try {
             let registeredCard = card;
             if (!registeredCard) {
-                // On a phone this call never returns: the page leaves for the provider's, and what was
-                // settled here has to be waiting when it comes back.
                 savePendingCheckout({ planId: plan.id, details });
                 const result = await registration.mutateAsync({
                     purpose: 'start',
@@ -203,7 +172,6 @@ const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.E
             }
             await charge(plan.id, details, registeredCard);
         } catch (err) {
-            // A lost session is the route root's to handle; it has already moved the reader on.
             if (!isPortError(err, 'unauthenticated')) {
                 setError(errorKeyOf(err));
                 setDetail(detailOf(err));
@@ -303,7 +271,6 @@ const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.E
                         : t('subscription.checkout.payment.renewPaid', { day, price: money(monthly) })}
                 </p>
             </div>
-            {/* What W-08 settled goes back with the reader, so W-08 opens filled in rather than empty. */}
             <Link
                 to={checkoutUrl(plan.id)}
                 state={withCheckoutDetails(details)?.state}

@@ -15,11 +15,9 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             protocol: JsonProtocol,
         });
 
-        // 1. Web is not ready yet, so pushEvent should only buffer
         host.pushEvent({ type: 'OnBackPressed', data: {} } as any);
         expect(mockSendToWeb).not.toHaveBeenCalled();
 
-        // 2. Web signals that it is ready
         const webAppReadyRequest = JsonProtocol.encode({
             type: 'WebAppReady',
             refId: '123',
@@ -29,15 +27,11 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
 
         await host.handleMessage(webAppReadyRequest as string);
 
-        // 3. The buffered events and the WebAppReady response should both be flushed
-        // The buffer flush should happen first, then the WebAppReady response.
         expect(mockSendToWeb).toHaveBeenCalledTimes(2);
 
-        // First call: Pushed event
         const firstCallMsg = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
         expect(firstCallMsg.type).toBe('OnBackPressed');
 
-        // Second call: WebAppReady response
         const secondCallMsg = JsonProtocol.decode(mockSendToWeb.mock.calls[1][0]) as any;
         expect(secondCallMsg.type).toBe('OnWebAppReady');
         expect(secondCallMsg.refId).toBe('123');
@@ -52,9 +46,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         );
     });
 
-    // The shell decides from the handshake whether to wait for a later web signal (the boot splash
-    // waits for FirstScreenReady only when the web declares it will send one), so the declaration has
-    // to reach onAppReady — and an older web that sends no data must still arrive as an object.
     it('hands the WebAppReady declaration to onAppReady', async () => {
         const onAppReady = jest.fn();
         const host = new AppBridgeHost({ sendToWeb: mockSendToWeb, protocol: JsonProtocol, onAppReady });
@@ -69,9 +60,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         expect(onAppReady).toHaveBeenLastCalledWith({});
     });
 
-    // The web deploys ahead of the app, so it cannot assume what the INSTALLED app can store. The
-    // handshake is where the app says so — and a host with no local cache DB must keep sending the
-    // exact payload it sent before these fields existed.
     it('reports local-cache capability only when the host declares it', async () => {
         const readyRequest = JsonProtocol.encode({
             type: 'WebAppReady',
@@ -100,10 +88,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         expect(declaredData).not.toHaveProperty('cacheDomainVersions');
     });
 
-    // ADR-0053: the app reports the contract version it IMPLEMENTS, measured rather than declared.
-    // Measuring can be slow or fail, so the resolver is a thunk the handshake awaits — and the rest
-    // of the handshake must survive it failing, since this reply is the web's only chance to learn
-    // any of this.
     describe('per-domain cache contract versions', () => {
         const readyRequest = () =>
             JsonProtocol.encode({
@@ -119,9 +103,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             const host = new AppBridgeHost({
                 sendToWeb: mockSendToWeb,
                 protocol: JsonProtocol,
-                // The static list still claims `invite`; the measurement says the table is not
-                // there. The report must follow the measurement, or the web reads the name alone as
-                // contract version 1 and the measurement buys nothing.
                 supportedCacheTypes: ['chat', 'invite'],
                 resolveCacheDomainVersions: async () => ({ chat: 1 }),
             });
@@ -145,7 +126,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
 
             await host.handleMessage(readyRequest());
 
-            // Degrading to exactly the pre-ADR-0053 payload, not to silence.
             expect(replyData()).not.toHaveProperty('cacheDomainVersions');
             expect(replyData().supportedCacheTypes).toEqual(['chat', 'invite']);
             expect(replyData().cacheSchemaVersion).toBe(11);
@@ -172,7 +152,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             protocol: JsonProtocol,
         });
 
-        // Register a mock request handler
         host.registerHandler('Ping' as any, async msg => {
             return {
                 type: 'Ping',
@@ -181,11 +160,9 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             } as any;
         });
 
-        // Push event while not ready
         host.pushEvent({ type: 'OnBackPressed', data: {} } as any);
         expect(mockSendToWeb).not.toHaveBeenCalled();
 
-        // Web sends a Ping request
         const pingRequest = JsonProtocol.encode({
             type: 'Ping',
             refId: 'ping-id',
@@ -195,7 +172,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
 
         await host.handleMessage(pingRequest as string);
 
-        // Should flush the buffered event first, then the Ping response
         expect(mockSendToWeb).toHaveBeenCalledTimes(2);
 
         const firstCall = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
@@ -271,17 +247,11 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             protocol: JsonProtocol,
         });
 
-        // The web logger (SendLog) relays from the earliest module-evaluation
-        // phase — long before the web app can receive events — so it must not
-        // trigger the buffered-event flush. (The legacy __console__ relay is
-        // gone; SendLog is the only log channel per ADR-0097.)
         host.registerHandler('SendLog' as any, async () => ({ type: 'OnSendLog', success: true, data: {} }) as any);
         host.registerHandler('Ping' as any, async () => ({ type: 'Ping', success: true, data: {} }) as any);
 
-        // Cold-start OnNavigate sits in the buffer while the web boots.
         host.pushEvent({ type: 'OnNavigate', data: { path: '/channels/1/room' } } as any);
 
-        // An early boot log arrives: it must be answered but must not flush the buffer.
         await host.handleMessage(
             JsonProtocol.encode({
                 type: 'SendLog',
@@ -295,7 +265,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         const logResponse = JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any;
         expect(logResponse.type).toBe('OnSendLog');
 
-        // A real (non-relay) message marks the web ready: buffered event flushes first.
         await host.handleMessage(
             JsonProtocol.encode({
                 type: 'Ping',
@@ -317,7 +286,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             protocol: JsonProtocol,
         });
 
-        // Make web ready by sending a dummy message
         await host.handleMessage(
             JsonProtocol.encode({
                 type: 'WebAppReady',
@@ -329,7 +297,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
 
         mockSendToWeb.mockClear();
 
-        // Push event - should go out immediately
         host.pushEvent({ type: 'OnBackPressed', data: {} } as any);
 
         expect(mockSendToWeb).toHaveBeenCalledTimes(1);
@@ -375,10 +342,6 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
     });
     it('아무것도 반환하지 않는 핸들러는 응답을 보내지 않는다 (fire-and-forget)', async () => {
         const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
-        // `SendLog` is this path. The web's log forwarder sends it up without a refId, so even
-        // when a response comes back down there's no pending entry to match it, and it gets
-        // discarded — but each discarded response still costs one UI-thread evaluateJavascript
-        // call. That was pure waste scaling with log volume.
         const handler = jest.fn().mockResolvedValue(undefined);
         host.registerHandler('SendLog', handler as any);
 
@@ -461,8 +424,6 @@ describe('AppBridgeHost handshake capability lists', () => {
         expect(report.supportedAppMessages).not.toContain('OnShareFile');
     });
 
-    // The list is read when the reply is built, so a later handshake (a page reload) reports a
-    // handler registered after the first one.
     it('reports the handlers registered at the time of each handshake', async () => {
         const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
         const before = await handshake(host);
@@ -490,7 +451,6 @@ describe('AppBridgeHost handshake capability lists', () => {
         const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
 
         await host.handleMessage(JsonProtocol.encode({ type: 'Ping', refId: 'p1', data: { payload: 'hi' } }) as string);
-        // No payload, which is what the web's debug overlay sends.
         await host.handleMessage(JsonProtocol.encode({ type: 'Ping', refId: 'p2', data: {} } as any) as string);
 
         const [withPayload, without] = mockSendToWeb.mock.calls.map(call => JsonProtocol.decode(call[0]) as any);

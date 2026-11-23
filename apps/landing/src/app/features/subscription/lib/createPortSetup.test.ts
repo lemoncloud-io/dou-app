@@ -74,7 +74,6 @@ describe('sandboxOf', () => {
 });
 
 describe('createPortSetup — sandbox payments', () => {
-    // The HTTP setup as `createPortSetup` calls it, keeping what it was given.
     const httpSpy = () => vi.fn((_server: SubscriptionServer, _options: { sandbox?: HttpSandbox }) => fakeHttp());
 
     it('ignores sandbox where the account surface is shut — the production host', () => {
@@ -95,7 +94,6 @@ describe('createPortSetup — sandbox payments', () => {
         setup.sandbox?.setInterval('10m');
         expect(options.sandbox?.interval()).toBe('10m');
         expect(window.sessionStorage.getItem('subscription.sandboxInterval')).toBe('10m');
-        // The tab keeps both, so the reload after a sign-in still runs on sandbox payments.
         const again = httpSpy();
         createPortSetup({ account: true, server: SERVER, search: '', createHttp: again });
         expect(again.mock.calls[0][1].sandbox?.interval()).toBe('10m');

@@ -3,12 +3,6 @@ import { useTranslation } from 'react-i18next';
 
 import { PolicyPageLayout } from '../components';
 
-/**
- * The refund policy the subscription pages link to. Its text has not been written yet, so the page
- * says so in a marked proposal block rather than carrying wording nobody has approved. When the text
- * exists it comes from `@chatic/policy-content` like the other three, with versions and an effective
- * date, and this page renders it the way `TermsOfServicePage` does.
- */
 export const RefundPolicyPage = (): JSX.Element => {
     const { t } = useTranslation();
 

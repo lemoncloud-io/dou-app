@@ -7,10 +7,6 @@ import { Banner, Button } from '../../components/ui';
 import { isPortError } from '../../lib/port';
 import { commonErrorKey } from '../../lib/errorKey';
 
-/**
- * What a subscription screen shows when what it reads did not load: "not found" with the way back
- * to the list for an id this account does not own, otherwise the error with a retry.
- */
 export const LoadFailure = ({
     title,
     error,

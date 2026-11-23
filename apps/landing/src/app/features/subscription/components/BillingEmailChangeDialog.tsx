@@ -10,15 +10,6 @@ import type { BillingEmail } from '../types';
 
 const k = (key: string) => `subscription.common.emailChange.${key}`;
 
-/**
- * The billing email change popup, the same from the payment details (W-08) and the billing info page
- * (W-16): verify a new address, then "change" swaps it in at once — it takes the old address's place,
- * primary mark and what it receives included, and the old one is gone. There is nothing to save
- * afterwards.
- *
- * Walking away changes nothing: a new address that was sent a code (or verified) but never swapped in
- * is removed again, so it does not linger in the billing list.
- */
 export const BillingEmailChangeDialog = ({
     current,
     where,
@@ -26,7 +17,6 @@ export const BillingEmailChangeDialog = ({
     onChanged,
 }: {
     current: BillingEmail;
-    /** `checkout` marks the current address verified; `billing` marks it primary and adds the notice rule. */
     where: 'checkout' | 'billing';
     onClose: () => void;
     onChanged?: (email: BillingEmail) => void;
@@ -38,10 +28,7 @@ export const BillingEmailChangeDialog = ({
     const remove = useRemoveEmail();
     const [verified, setVerified] = useState<BillingEmail>();
     const [error, setError] = useState<string>();
-    // While the form waits on a request the popup stays open: closing then would miss the address the
-    // request is about to add, and leave it behind.
     const [busy, setBusy] = useState(false);
-    // The address this popup added and has not swapped in yet — what to clean up on the way out.
     const started = useRef<string | undefined>(undefined);
 
     const known = (address: string) =>
@@ -119,7 +106,6 @@ export const BillingEmailChangeDialog = ({
                         started.current = id;
                     }}
                     onVerified={email => {
-                        // An address verified earlier and reused here was not added by this popup.
                         if (started.current !== email.id) started.current = undefined;
                         setVerified(email);
                     }}

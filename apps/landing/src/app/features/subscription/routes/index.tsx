@@ -31,21 +31,13 @@ import { LoginCallbackPage, LoginPage, NoLinkedAccountPage, PlansPage, StoreMana
 import { CancelSubscriptionPage, SubscriptionDetailPage, SubscriptionListPage } from '../pages/manage';
 import { RedirectIfSignedIn, RequireSession } from './guards';
 
-// This chunk loading is the moment the subscription copy joins the site's translations.
 registerSubscriptionCopy();
 
-// One port per page load, made the first time the routes mount, so its state outlives remounts. The
-// gate is fixed per host, so in practice only one of the two is ever made.
 let accountSetup: PortSetup | undefined;
 let catalogSetup: PortSetup | undefined;
 const setupFor = (account: boolean): PortSetup =>
     account ? (accountSetup ??= createPortSetup({ account })) : (catalogSetup ??= createPortSetup({ account }));
 
-/**
- * A query client that sends the reader to sign in whenever any call reports the session gone — the
- * one place `unauthenticated` is handled. No page catches it; every page simply stops where it is and
- * the reader comes back to it after signing in.
- */
 const createQueryClient = (onUnauthenticated: () => void): QueryClient => {
     const onError = (error: unknown) => {
         if (isPortError(error, 'unauthenticated')) onUnauthenticated();
@@ -54,24 +46,12 @@ const createQueryClient = (onUnauthenticated: () => void): QueryClient => {
         queryCache: new QueryCache({ onError }),
         mutationCache: new MutationCache({ onError }),
         defaultOptions: {
-            // Port errors are answers (a conflict, a limit), not blips to retry; the screens decide.
-            // An answer is fresh for a minute: moving between the pages reuses it instead of asking the
-            // server again on every mount — the membership read behind most of them is not a plain read
-            // (the server settles payments and reconciles clouds on it). What changes the state
-            // invalidates what it changed, and a poll keeps its own interval.
             queries: { retry: false, refetchOnWindowFocus: false, staleTime: 60_000 },
             mutations: { retry: false },
         },
     });
 };
 
-/**
- * Everything under `/subscription`. The query client and the port are provided here and nowhere above:
- * the public pages have no session and no data layer, and this chunk is where both begin.
- *
- * `account` is the gate (`isSubscriptionAccountOpen`): where it is shut the route table mounts this
- * at `/subscription/plans` only, and only the plans page is routed, on the catalog port.
- */
 export const SubscriptionRoutes = ({
     account = true,
     setup = setupFor(account),
@@ -79,7 +59,6 @@ export const SubscriptionRoutes = ({
 }: {
     account?: boolean;
     setup?: PortSetup;
-    /** Which of the card and billing-email screens exist (`lib/screens.tsx`); a boolean for both. */
     management?: boolean | ManagementScreens;
 }): JSX.Element => {
     const navigate = useNavigate();
@@ -93,7 +72,6 @@ export const SubscriptionRoutes = ({
         const client: QueryClient = createQueryClient(() => {
             client.setQueryData(subscriptionKeys.session(), null);
             const target = sessionEndedRedirect(locationRef.current);
-            // Where the account surface is shut there is no sign-in page to send anyone to.
             if (target && account) navigate(target, { replace: true });
         });
         return client;
@@ -117,11 +95,6 @@ export const SubscriptionRoutes = ({
     );
 };
 
-/**
- * The end of a checkout sits in two frames: a downgrade scheduled is an account page — the plan is
- * still in force, and the sidebar is where the reader goes next — while a purchase or an upgrade
- * finishes in the purchase flow's own frame.
- */
 const CheckoutCompleteRoute = (): JSX.Element => {
     const [params] = useSearchParams();
     return params.get('change') === 'downgrade' ? (
@@ -135,7 +108,6 @@ const CheckoutCompleteRoute = (): JSX.Element => {
     );
 };
 
-/** Where the account surface is shut: the plans, mounted at `/subscription/plans`, and nothing else. */
 const CatalogRoutes = (): JSX.Element => (
     <Routes>
         <Route element={<PublicShell account={false} />}>
@@ -147,7 +119,6 @@ const CatalogRoutes = (): JSX.Element => (
 
 const AccountRoutes = (): JSX.Element => {
     const screens = useManagementScreens();
-    // The billing history is left out where the port has no server for it, like the hidden screens.
     const history = useSupports()('listInvoices');
     return (
         <Routes>
@@ -181,7 +152,6 @@ const AccountRoutes = (): JSX.Element => {
                     {screens.cards ? (
                         <Route path="payment-methods" element={<PaymentMethodsPage />} />
                     ) : (
-                        // Not a screen, but a path the next route would take for a subscription's id.
                         <Route path="payment-methods" element={<Navigate to={ROUTES.subscription.root} replace />} />
                     )}
                     {history ? (

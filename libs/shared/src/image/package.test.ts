@@ -10,7 +10,6 @@ describe('encodeTypeFor — 나가는 형식', () => {
         expect(encodeTypeFor('image/jpeg')).toBe('image/jpeg');
         expect(encodeTypeFor('image/heic')).toBe('image/jpeg');
         expect(encodeTypeFor('image/heif')).toBe('image/jpeg');
-        // A browser that hands over an empty type still has to land somewhere valid.
         expect(encodeTypeFor('')).toBe('image/jpeg');
     });
 });
@@ -22,8 +21,6 @@ describe('isUploadableType — 서버가 받는 넷', () => {
 
     it('HEIC와 image/jpg는 통과하지 못한다', () => {
         expect(isUploadableType('image/heic')).toBe(false);
-        // iOS's picker emits exactly this, and the endpoint answers 415 — the alias is not resolved
-        // anywhere, so it must not read as uploadable.
         expect(isUploadableType('image/jpg')).toBe(false);
     });
 });
@@ -42,7 +39,6 @@ describe('renameForType — 이름이 바이트를 따라간다', () => {
     });
 
     it('이름이 점으로만 되어 있으면 통째로 살린다', () => {
-        // `.gitkeep`-shaped names would otherwise become an empty base.
         expect(renameForType('.hidden', 'image/jpeg')).toBe('.hidden.jpg');
     });
 
@@ -57,7 +53,6 @@ describe('toUploadFile — 선언이 바이트와 맞는다', () => {
     it('type과 이름이 같이 바뀐다', () => {
         const out = toUploadFile(new Blob(['y']), source, 'image/jpeg');
 
-        // Both values are declared to the upload endpoint and signed, so they have to move together.
         expect(out.type).toBe('image/jpeg');
         expect(out.name).toBe('IMG_0001.jpg');
     });

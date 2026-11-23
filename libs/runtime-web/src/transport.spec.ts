@@ -8,7 +8,6 @@ const globals = window as unknown as { CHATIC_APP_PLATFORM?: string; WebSocket: 
 afterEach(() => {
     setOnline(true);
     delete globals.CHATIC_APP_PLATFORM;
-    // The platform is the host profile's, taken once; the next case reads `window` again.
     resetHostProfileForTests();
 });
 

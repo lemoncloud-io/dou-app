@@ -19,7 +19,6 @@ describe('subWebViewTrustOf', () => {
         expect(subWebViewTrustOf(url)).toBe('firstParty');
     });
 
-    // The cases the mobile shell's allow-list accepts: the reviewed tier is that list, unchanged.
     it.each([
         ['a page on a subdomain, with any path', 'https://foo.apps.chatic.io/notice?id=1'],
         ['the root of a subdomain', 'https://foo.apps.chatic.io'],
@@ -119,8 +118,6 @@ describe('subWebViewOriginOf', () => {
     });
 });
 
-// Any https opens only when the web opens a link an owner saved. A push or a deep link reaches the
-// web from outside, so its gate stays the reviewed pages alone.
 describe('the push and deep-link gate', () => {
     it.each(['https://example.com', 'https://apps.chatic.io/', 'https://apps.chatic.io.evil.com/'])(
         'still refuses %s, which a sub WebView can open',
@@ -136,7 +133,6 @@ describe('subWebViewDisplayOf', () => {
         expect(subWebViewDisplayOf(display)).toBe(display);
     });
 
-    // A page deployed before the rename keeps the look it asked for.
     it('reads the earlier names as the displays they became', () => {
         expect(subWebViewDisplayOf('standard')).toBe('titled');
         expect(subWebViewDisplayOf('fullscreen')).toBe('clean');

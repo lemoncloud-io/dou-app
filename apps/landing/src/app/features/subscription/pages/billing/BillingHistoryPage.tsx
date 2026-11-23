@@ -10,18 +10,12 @@ import { nextRetryOf } from './display';
 
 import type { Invoice } from '../../types';
 
-// A result is a coloured word on a phone and a pill from `md`.
 const RESULT: Record<Invoice['status'], string> = {
     paid: 'text-[#167a4a] md:bg-note md:text-ink',
     failed: 'text-[#c1292e] md:bg-[#fdeced]',
     refunded: 'text-navy md:bg-[#eef3fb]',
 };
 
-/**
- * W-13 — every payment and refund, newest first, each with the provider's receipt where there is one.
- * A failed charge has no receipt. Nothing here is an action: retrying a failed payment happens on
- * the payment methods page, where the card to charge is chosen.
- */
 export const BillingHistoryPage = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const invoices = useInvoices();
@@ -29,12 +23,10 @@ export const BillingHistoryPage = (): JSX.Element => {
     const { subscription } = useCurrentSubscription();
     const today = useToday();
 
-    // A row names its plan, so the page waits for the plans as well as the invoices.
     if (invoices.isPending || plans.isPending) return <PageLoader />;
     if (invoices.isError) return <LoadFailed error={invoices.error} onRetry={invoices.refetch} />;
     if (plans.isError) return <LoadFailed error={plans.error} onRetry={plans.refetch} />;
 
-    // Only the latest failed charge is the one still being retried; older failures were settled.
     const nextRetry = nextRetryOf(subscription, today);
     const retrying = nextRetry ? invoices.data.find(invoice => invoice.status === 'failed')?.id : undefined;
 
@@ -84,9 +76,6 @@ export const BillingHistoryPage = (): JSX.Element => {
                             {columns('result')}
                             {columns('receipt')}
                         </div>
-                        {/* One row layout for both widths: a phone stacks the description over the date and the
-                            receipt on the left, the amount over the result on the right; from `md` the five sit
-                            in a line, date first. */}
                         {invoices.data.map(invoice => (
                             <div
                                 key={invoice.id}

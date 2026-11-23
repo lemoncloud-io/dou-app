@@ -1,7 +1,6 @@
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
 const { join } = require('path');
 
-/** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ['class'],
     content: [
@@ -27,8 +26,6 @@ module.exports = {
                     foreground: 'hsl(var(--card-foreground))',
                 },
                 navy: '#102346',
-                // Neutrals of the subscription design: headings, secondary copy, hairlines, and the two
-                // pale fills (page footer / panels, and the note box).
                 ink: '#12131a',
                 mute: '#80828a',
                 line: '#ededf0',
@@ -39,8 +36,6 @@ module.exports = {
                 'desc-alt': '#3A3C40',
                 'feature-orange': '#F87A26',
                 'feature-blue': '#266FF8',
-                // Banner and badge colours for the subscription pages: a foreground for text and
-                // icons, and a pale background behind it. Values live in styles.css.
                 status: {
                     success: 'hsl(var(--status-success))',
                     'success-bg': 'hsl(var(--status-success-bg))',

@@ -4,28 +4,17 @@ import { MOCK_POLICY, planOf } from './policy';
 import type { ConsentChoice, MockState, ScenarioId } from './state';
 import type { Account, BillingEmail, Invoice, PaymentMethod, PlanId, Subscription } from '../../types';
 
-/**
- * The account and its data for each `?mock=` scenario.
- *
- * Dates are fixed, not computed from today: a scenario is a picture of one moment, and `?now=` moves
- * the mock's today across it — which is how the same-day cases are reached (`?mock=downgrade-scheduled
- * &now=2026-11-20` is the day the downgrade applies).
- */
 const DEFAULT_TODAY = '2026-11-01';
 
-/** Where the fake server points a receipt link. Nothing is routed there; the tests only read it. */
 export const mockReceiptUrl = (invoiceId: string): string =>
     `/subscription/mock-receipt?invoice=${encodeURIComponent(invoiceId)}`;
 
 const price = (planId: PlanId) => planOf(planId).monthly;
 
-/** The retry days after a failed charge, from the policy. */
 const retriesAfter = (failedAt: string) => MOCK_POLICY.retryAfterDays.map(days => addDays(failedAt, days));
 
-/** The last day subscribing again restores the held clouds, from the policy. */
 const restoreUntil = (expiredAt: string) => addDays(expiredAt, MOCK_POLICY.restoreWindowDays);
 
-/** The payment provider's decline text, kept as it would arrive. */
 const DECLINE_REASON = '카드 한도 초과';
 
 const ACCOUNT: Account = {
@@ -86,7 +75,6 @@ const invoice = (
     receiptUrl: status === 'failed' ? undefined : mockReceiptUrl(id),
 });
 
-/** Cloud 2, renewing on the 20th — the subscription most of the designs draw. */
 const activeCloud2 = (overrides: Partial<Subscription> = {}): Subscription => ({
     id: 'sub-2',
     planId: 'pro-tier-02',
@@ -100,7 +88,6 @@ const activeCloud2 = (overrides: Partial<Subscription> = {}): Subscription => ({
     ...overrides,
 });
 
-/** The Cloud 1 subscription that ended before Cloud 2 began. */
 const endedCloud1: Subscription = {
     id: 'sub-1',
     planId: 'pro-tier-01',
@@ -133,7 +120,6 @@ const NEW_ACCOUNT: Account = { ...ACCOUNT, billingSource: 'none', trialUsed: fal
 
 const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
     visitor: () => ({ signedIn: false, account: NEW_ACCOUNT }),
-    // Signed in with Apple, which shares no address: the email step starts from an empty field.
     'new-apple': () => ({ signedIn: true, account: { ...NEW_ACCOUNT, provider: 'apple', email: undefined } }),
     new: () => ({ signedIn: true, account: NEW_ACCOUNT }),
     'new-trial-used': () => ({
@@ -200,7 +186,6 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
         paymentMethods: [{ ...CARDS[0], expMonth: 11, expYear: 2026, expiringSoon: true }, CARDS[1]],
         invoices: ACTIVE_INVOICES,
     }),
-    // The October renewal failed on the 30th; today (1 November) is D+2.
     'past-due': () => ({
         signedIn: true,
         account: ACCOUNT,
@@ -223,7 +208,6 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
             invoice('inv-1', '2026-09-30', 'first', 'pro-tier-02', 'paid'),
         ],
     }),
-    // Failed on 24 October; access was restricted on the 31st, so today is D+8.
     restricted: () => ({
         signedIn: true,
         account: ACCOUNT,
@@ -260,7 +244,6 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
         paymentMethods: CARDS,
         invoices: ACTIVE_INVOICES,
     }),
-    // Cloud 3 drops to Cloud 2 on the next renewal, which then charges the Cloud 2 price.
     'downgrade-scheduled': () => ({
         signedIn: true,
         account: ACCOUNT,
@@ -278,7 +261,6 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
             invoice('inv-1', '2026-09-20', 'first', 'pro-tier-03', 'paid'),
         ],
     }),
-    // Ended on 20 October: subscribing again before 19 November restores the held clouds.
     expired: () => ({
         signedIn: true,
         account: ACCOUNT,
@@ -296,7 +278,6 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
         paymentMethods: [CARDS[0]],
         invoices: [invoice('inv-1', '2026-09-20', 'first', 'pro-tier-02', 'paid')],
     }),
-    // One subscription of each ending beside the current one, for the list's per-status cards.
     'history-mixed': () => ({
         signedIn: true,
         account: ACCOUNT,
@@ -340,7 +321,6 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
     }),
 };
 
-/** A fresh mock state for a scenario. */
 export const buildScenario = (scenario: ScenarioId, options: { today?: string; noCards?: boolean } = {}): MockState => {
     const data = SCENARIO_DATA[scenario]();
     const paymentMethods = options.noCards ? [] : (data.paymentMethods ?? []);

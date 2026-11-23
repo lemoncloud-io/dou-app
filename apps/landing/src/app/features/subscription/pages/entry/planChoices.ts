@@ -2,7 +2,6 @@ import { changeKindOf } from '../../lib/changeKindOf';
 
 import type { Account, Plan } from '../../types';
 
-/** Which of the plan picker's scenes the reader is in. */
 export type PlansMode = 'visitor' | 'new' | 'change' | 'changeUnavailable' | 'storeBilled';
 
 export type PlanTag =
@@ -17,33 +16,18 @@ export type PlanTag =
 export interface PlanChoice {
     plan: Plan;
     tag?: PlanTag;
-    /** Picking this card leads somewhere (a first subscription, or a change). */
     pickable: boolean;
-    /** Drawn as the highlighted card. */
     selected: boolean;
 }
 
 export interface PlanChoices {
     mode: PlansMode;
     cards: PlanChoice[];
-    /** The plan a first subscription buys — the only pickable card before subscribing. */
     entry?: Plan;
     upgrade?: Plan;
     downgrade?: Plan;
 }
 
-/**
- * The plan picker's scene, read off `changeKindOf` so the page never re-derives which plan may be
- * picked. Before subscribing only the entry plan is offered; with a plan in force, the one step up
- * and the one step down; a store subscriber is offered nothing here.
- *
- * `account` is `null` for a visitor. `withTrial` says whether a first subscription would start with
- * the free trial; a visitor's answer is not known until they sign in, so the caller passes `true` —
- * the trial is what a first subscription normally comes with. `canChange` is whether the plan in
- * force may be changed in its current state (the caller reads it off `sceneOf`): a subscription
- * awaiting payment, ending, or carrying a scheduled change has something else to settle first, and
- * offering it a change here would only lead to one the change page refuses.
- */
 export const planChoicesOf = ({
     plans,
     current,
@@ -93,7 +77,6 @@ export const planChoicesOf = ({
 
     const upgrade = kinds.find(k => k.kind === 'upgrade')?.plan;
     const downgrade = kinds.find(k => k.kind === 'downgrade')?.plan;
-    // The step up is the suggestion when there is one, as an upgrade is the change most readers came for.
     const suggested = upgrade ?? downgrade;
     return {
         mode: 'change',

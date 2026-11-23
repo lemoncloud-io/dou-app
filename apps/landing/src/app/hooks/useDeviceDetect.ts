@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 
-/** The three kinds of device this site tells apart by user agent. */
 export type DeviceType = 'ios' | 'android' | 'desktop';
 
 export const useDeviceDetect = (): DeviceType => {

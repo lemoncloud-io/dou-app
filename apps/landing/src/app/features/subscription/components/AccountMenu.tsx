@@ -9,28 +9,17 @@ import { useToast } from './ui';
 
 import type { Account } from '../types';
 
-/** The address an account is shown by: its email, else the masked hint, else the provider's name. */
 export const accountLabel = (account: Account, t: (key: string) => string): string =>
     account.email ?? account.emailHint ?? t(`subscription.common.account.${account.provider}`);
 
 const MENU_ITEM = 'block w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-ink hover:bg-muted';
 
-/**
- * The signed-in reader's menu, shared by both shells: who is signed in and how, the way to the
- * subscription list, and signing out. Signing out asks nothing — it is undone by signing in — and
- * lands on the plans with a short notice.
- */
 export const AccountMenu = ({
     account,
     placement = 'below',
     className,
 }: {
     account: Account;
-    /**
-     * `above` for the sidebar's foot, where there is no room below, so the menu opens upward and the
-     * address shows beside the avatar. On a phone that avatar sits in the shell's top bar instead, and
-     * the menu opens downward from it.
-     */
     placement?: 'below' | 'above';
     className?: string;
 }): JSX.Element => {
@@ -80,7 +69,6 @@ export const AccountMenu = ({
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[#dfe0e2] bg-white text-lg font-bold text-ink">
                     {(account.displayName ?? label).slice(0, 1).toUpperCase()}
                 </span>
-                {/* The sidebar foot says who by address too; the top bar's avatar stands alone. */}
                 {placement === 'above' && (
                     <span className="truncate text-[13px] font-semibold text-[#4d4f57] max-md:hidden">{label}</span>
                 )}

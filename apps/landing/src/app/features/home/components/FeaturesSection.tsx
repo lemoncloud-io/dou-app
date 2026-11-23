@@ -22,7 +22,6 @@ const featureImages = {
 export const FeaturesSection = (): JSX.Element => {
     return (
         <section className="relative w-full feature-gradient-bg overflow-hidden">
-            {/* Star texture overlay */}
             <div
                 className="absolute inset-0 opacity-20 pointer-events-none"
                 style={{
@@ -33,7 +32,6 @@ export const FeaturesSection = (): JSX.Element => {
             />
 
             <div className="relative z-10 max-w-[1440px] mx-auto px-6 md:px-10 py-16 md:py-32 xl:py-[162px]">
-                {/* Feature cards */}
                 <div className="flex flex-col gap-7 md:gap-[38px] xl:gap-12">
                     {featureCards.map((card, index) => (
                         <FeatureCard
@@ -47,7 +45,6 @@ export const FeaturesSection = (): JSX.Element => {
                     ))}
                 </div>
 
-                {/* Pricing sub-section */}
                 <PricingSection />
             </div>
         </section>
