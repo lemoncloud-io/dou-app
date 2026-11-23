@@ -2,13 +2,6 @@ import baseConfig from '../../eslint.config.mjs';
 
 export default [
     ...baseConfig,
-    // ---------------------------------------------------------------------------------------------
-    // `@chatic/runtime-core` is open to this package: it is the native adapter, and building the
-    // runtime from the native ports is what it is for. The root config closes runtime-core to every
-    // package; this block sets the same rule again for this package's files, which opens that one
-    // barrel and keeps every other closure — it replaces the root's list, so each has to be repeated
-    // here.
-    // ---------------------------------------------------------------------------------------------
     {
         files: ['**/*.ts'],
         rules: {

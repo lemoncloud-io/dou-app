@@ -264,7 +264,6 @@ export const check = (options: CheckOptions): CheckResult => {
     const findings: Finding[] = [];
     const networkTargets: NetworkTarget[] = [];
 
-    // -- The bundle --------------------------------------------------------------------------------
     const distDir = resolveDir(root, options.dist ?? 'dist');
     const distName = options.dist ?? 'dist';
     let bundle: BundleSize | null = null;
@@ -344,7 +343,6 @@ export const check = (options: CheckOptions): CheckResult => {
         }
     }
 
-    // -- The manifest: the bundle's copy, which is what ships, else the project's ---------------------
     const candidates = [
         ...(built ? [{ path: join(distDir, MANIFEST), file: `${distName}/${MANIFEST}` }] : []),
         { path: join(root, 'public', MANIFEST), file: `public/${MANIFEST}` },
@@ -360,7 +358,6 @@ export const check = (options: CheckOptions): CheckResult => {
     }
     const permissions = manifest?.permissions ?? [];
 
-    // -- The source ------------------------------------------------------------------------------------
     const srcName = options.src ?? (existsSync(join(root, 'src')) ? 'src' : '.');
     const srcDir = resolveDir(root, srcName);
     const sources = [

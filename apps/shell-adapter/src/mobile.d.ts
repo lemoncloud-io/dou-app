@@ -1,10 +1,3 @@
-/**
- * The mobile app's route functions, reached through the alias in `vite.shell.config.mts`. Declared by
- * hand: an import would make `@chatic/mobile` a dependency of this project, and its typecheck would
- * build the mobile app. The compiler therefore does not hold these against the app's own signatures —
- * `routes.spec.ts` calls the real functions through the same alias instead, so a change in what the
- * app returns fails it.
- */
 declare module 'shell-adapter/mobile-deeplink' {
     export interface PushNavigationData {
         link?: unknown;
@@ -29,7 +22,6 @@ declare module 'shell-adapter/mobile-deeplink' {
     export const isCustomScheme: (scheme: string) => boolean;
 }
 
-/** The app's rule for which URLs the web may ask it to open (`useDeviceHandler`'s `OpenURL`). */
 declare module 'shell-adapter/mobile-url-trust' {
     export const isOpenableUrl: (url: unknown) => boolean;
 }

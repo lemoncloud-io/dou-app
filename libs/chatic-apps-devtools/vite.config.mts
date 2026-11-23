@@ -43,7 +43,6 @@ export default defineConfig({
             aliasesExclude: [/^@chatic\/chatic-apps-sdk/],
         }),
         {
-            // The workspace manifest points at sources; the published one is written beside the build.
             name: 'publish-manifest',
             closeBundle() {
                 const types = join(__dirname, outDir, 'index.d.ts');

@@ -4,10 +4,6 @@ import type { ShellHandlerTable } from './handlerTable';
 
 type Row = Record<string, unknown> & { id: string };
 
-/**
- * The save replies, not distributed over the cache types. Building a reply against these checks every
- * field; only the last step, to the distributed contract type, is an assertion.
- */
 interface SaveReply {
     type: CacheType;
     cid: string;
@@ -24,16 +20,13 @@ interface SaveAllReply {
     query?: unknown;
 }
 
-/** Per domain, what its SQLite data source filters on: exact fields, and the one `keyword` searches. */
 const QUERY_FILTERS: Partial<Record<CacheType, { exact: string[]; keyword?: string }>> = {
     channel: { exact: ['sid'], keyword: 'name' },
     chat: { exact: ['channelId'], keyword: 'content' },
     join: { exact: ['channelId', 'userId'] },
     site: { exact: [], keyword: 'name' },
-    // Profiles are not filtered by place here: the app's data source leaves that to the web.
 };
 
-/** The handshake's cache report. Every type the app persists, so the web stores nothing of its own. */
 export const FAKE_SHELL_CACHE_TYPES: CacheType[] = [
     'chat',
     'channel',
@@ -46,20 +39,6 @@ export const FAKE_SHELL_CACHE_TYPES: CacheType[] = [
     'invite',
 ];
 
-/**
- * The shell's local cache, in memory.
- *
- * Inside the app the web keeps its cache in the shell's SQLite (`FetchCacheData`, `SaveCacheData` and
- * their siblings) — not in IndexedDB — for every domain an installed app has ever stored, so a fake
- * shell that does not answer them leaves the home screen waiting on reads that fail. This answers them
- * the way `CacheCrudService` does, with the part of its query semantics the web relies on: a row is
- * scoped by cloud and user, each domain filters on the fields its SQLite data source filters on
- * (`QUERY_FILTERS`), and chat lists sort by `chatNo` (newest first unless asked) and page below
- * `cursorNo`. Left out: the columns a real save derives from the row (a chat's `channelId`, `chatNo`,
- * `createdAt` are read back from the row itself here), and the per-channel preview read
- * (`FetchLastChatsData`), which answers `NOT_FOUND` — the web then reads a window per channel, as it
- * does inside an older app.
- */
 export class MemoryCache {
     private readonly tables = new Map<string, Map<string, Row>>();
 
@@ -73,7 +52,6 @@ export class MemoryCache {
         return table;
     }
 
-    /** Seeds rows as if a previous run of the app had saved them. */
     seed(type: CacheType, scope: { cid: string; uid: string }, rows: Row[]): void {
         const table = this.table(type, scope.cid, scope.uid);
         for (const row of rows) table.set(row.id, row);
@@ -83,7 +61,6 @@ export class MemoryCache {
         return [...this.table(type, scope.cid, scope.uid).values()];
     }
 
-    /** Every row of a domain, in every cloud and user scope, with the scope it is stored under. */
     entries(type: CacheType): Array<{ cid: string; uid: string; row: Row }> {
         const prefix = `${type}|`;
         const found: Array<{ cid: string; uid: string; row: Row }> = [];
@@ -95,7 +72,6 @@ export class MemoryCache {
         return found;
     }
 
-    /** Forgets every row, as wiping the app's data does. */
     clear(): void {
         this.tables.clear();
     }
@@ -123,11 +99,7 @@ export class MemoryCache {
         return typeof limit === 'number' ? rows.slice(0, limit) : rows;
     }
 
-    /** The cache messages, answered from this store. */
     handlers(): ShellHandlerTable {
-        // The payloads are unions distributed over every cache type, which no single implementation
-        // narrows. The casts below are on row-valued fields, or on a reply already built against a
-        // checked shape (`SaveReply`) — never on a whole reply that nothing checked.
         return {
             FetchCacheData: data => ({
                 ...data,

@@ -5,7 +5,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { useTheme } from '../hooks';
 import { type Theme, ThemeProvider } from './ThemeProvider';
 
-// A controllable stand-in for the OS appearance: jsdom ships no matchMedia.
 const os = {
     dark: false,
     listeners: new Set<() => void>(),
@@ -94,7 +93,6 @@ describe('ThemeProvider', () => {
         expect(html().contains('light')).toBe(true);
         expect(os.listeners.size).toBe(0);
 
-        // The OS turned dark while 'light' was chosen; switching to system must see that.
         fireEvent.click(screen.getByRole('button', { name: 'system' }));
         expect(html().contains('dark')).toBe(true);
         expect(localStorage.getItem('vite-ui-theme')).toBe('system');

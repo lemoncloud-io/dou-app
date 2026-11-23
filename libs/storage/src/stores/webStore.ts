@@ -3,29 +3,15 @@ import { MemoryStore } from './memoryStore';
 
 import type { KeyValueStore } from './types';
 
-/**
- * A store over one of the page's web storages.
- *
- * Every call goes to the storage itself rather than to a copy taken at construction. The web storage
- * is already synchronous, so a copy would buy nothing, and it would go stale the moment anything
- * else writes the same storage — another frame, a debug wipe, a test fixture — answering with a
- * value the storage no longer holds.
- */
 export class WebStore implements KeyValueStore {
-    /** `webLocal` — this origin's `localStorage`. */
     static local(): KeyValueStore {
         return WebStore.over(globalStorage('localStorage'));
     }
 
-    /** `webSession` — this tab's `sessionStorage`. */
     static session(): KeyValueStore {
         return WebStore.over(globalStorage('sessionStorage'));
     }
 
-    /**
-     * A store over `storage`, or a memory store when there is none (a worker, a test environment
-     * without a DOM), so a caller never has to ask which one it was handed.
-     */
     static over(storage: Storage | undefined): KeyValueStore {
         return storage ? new WebStore(storage) : new MemoryStore();
     }

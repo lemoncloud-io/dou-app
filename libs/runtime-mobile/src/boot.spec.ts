@@ -12,7 +12,6 @@ import { nativeSecretStore } from './storage';
 
 jest.mock('react-native', () => ({ AppState: {}, Platform: { OS: 'ios' } }));
 
-/** The plain-store key a logout whose vault clear was not confirmed leaves (`@chatic/session`). */
 const SECRET_LOGOUT_PENDING_KEY = 'chatic-secret-logout-pending';
 
 const FULL_ENV: Record<string, string> = Object.fromEntries(
@@ -63,7 +62,6 @@ describe('loadNativeSession', () => {
 
     it('keeps a session signed in after the last logout, however long ago the logout was', async () => {
         const { storage, plain, vault, load } = setup({ 'chatic-relay-token': 'guest-after-logout' });
-        // The address the logout saved; the process ran on and a guest signed in after it.
         plain.set(HOME_SEARCH_KEY, 'logout=1');
 
         const loaded = await load();
@@ -83,7 +81,6 @@ describe('loadNativeSession', () => {
     });
 
     it('refuses a vault with no session, so the page can move one it still holds', async () => {
-        // An install updating from an app without a vault: its session is in the page's localStorage.
         const { vault, load } = setup();
 
         const loading = load();

@@ -22,8 +22,6 @@ const DialogOverlay = React.forwardRef<
     <DialogPrimitive.Overlay
         ref={ref}
         className={cn(
-            // The host's scrim token, not a literal black: an app that tints its scrim (or keeps
-            // it black) says so once in its stylesheet, and every kit overlay follows.
             'fixed inset-0 z-50 bg-overlay/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             className
         )}
@@ -32,81 +30,19 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-/**
- * Every variant caps at `--app-width` — the host app's own width, set by a phone-class app such
- * as `apps/web` and absent in a desktop host, where the `100%` fallback leaves the variant exactly
- * as it was. A dialog is `fixed` and portalled to `document.body`, so it escapes whatever column
- * the app shell centres its screens in; without a cap of its own, a full-screen dialog opened from
- * a narrow-column app spans a 1440px browser while the screen behind it does not.
- *
- * `default` is the notice-shaped dialog and does NOT follow the column: a card that grew to a
- * 768px phone-class column would be a banner. It takes one width instead — `--dialog-width`,
- * declared on the variant so no call site carries a number — which is a design width with a floor
- * guard, `min(311px, 100% - 48px)`: 311 on anything roomy, and 24px of breathing room either side
- * once the device is narrower than that. The third `min()` term is what scopes the rule: it reads
- * `--app-width` with no fallback, so in a host that declares no app width the whole declaration is
- * invalid, `--dialog-width` never resolves, and `max-width` falls back to the original 32rem. A
- * desktop host is untouched by construction, not by remembering to check.
- *
- * The two full-bleed variants pair `inset-0` with `mx-auto`: over-constrained horizontally with
- * auto margins, the panel centres on the same axis as the shell.
- */
 const APP_WIDTH_CAP = 'max-w-[var(--app-width,100%)] mx-auto';
 
-/**
- * A centred card is placed by its middle, so one taller than the window loses its title off the
- * top and its buttons off the bottom, with nothing to scroll — a desktop window can be as short as
- * 480px, and a list dialog grows past that. The cap keeps 1rem clear at either edge and scrolls the
- * panel itself; a dialog that wants one region to give way first (a list, not the whole panel)
- * lays itself out as a flex column and lets that region shrink. `dvh`, not `vh`, so a mobile
- * browser's collapsing toolbar is not counted as room. A caller that uses this variant as a
- * full-height screen passes `max-h-none`, and `top-[50%]` so that `CENTRE_ABOVE_KEYBOARD` does not
- * lift the whole screen by half the keyboard.
- */
 export const VIEWPORT_HEIGHT_CAP = 'max-h-[calc(100dvh-2rem-var(--keyboard-height,0px))] overflow-y-auto';
 
-/**
- * The vertical centre of a centred card: the middle of the part of the window the soft keyboard
- * leaves uncovered. The app's WebView does not shrink for the keyboard — the shell injects its
- * height as `--keyboard-height` instead — so a card centred on the whole window put its field and
- * buttons behind the keyboard on Android. Half the keyboard's height up keeps the card centred
- * above it, and `VIEWPORT_HEIGHT_CAP` takes the keyboard off the height the card may use. A host
- * that never sets the variable (a browser, the desktop app) gets the plain `50%`.
- */
 export const CENTRE_ABOVE_KEYBOARD = 'top-[calc(50%-var(--keyboard-height,0px)/2)]';
 
 const dialogVariants = {
     default: `${VIEWPORT_HEIGHT_CAP} ${CENTRE_ABOVE_KEYBOARD} p-6 left-[50%] w-full [--dialog-width:min(311px,calc(100%_-_48px),var(--app-width))] max-w-[var(--dialog-width,min(32rem,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg`,
     fullscreen: `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`,
-    /** No placement or entrance of its own — the caller's `className` positions the panel. */
     bare: '',
-    /**
-     * Full-bleed panel that rises from the bottom edge and leaves the same way.
-     *
-     * Both durations are written as `data-[state=…]:` variants rather than a plain `duration-*`,
-     * and that is the whole reason the exit used to read as a fade. `animate-in` / `animate-out`
-     * each declare an `animation-duration` of their own, and here they are variant-scoped, so
-     * Tailwind emits them AFTER every unprefixed utility — a plain `duration-500` loses the
-     * cascade and the panel ran at the plugin's 150ms default. At 150ms a translate across the
-     * whole viewport is over before the eye resolves it, and the simultaneous fade is all that
-     * registers. Matching the variant puts the duration back after the reset. `sheet.tsx` has
-     * always been written this way, which is why bottom sheets never had the bug.
-     *
-     * Opacity is held at 1 in both directions (`fade-in-100` / `fade-out-100` set the enter/exit
-     * opacity to full rather than adding a fade). The base `DialogContent` class fades every
-     * variant, which is right for a centred card appearing in place and wrong for a panel that
-     * announces itself by moving: a sheet that dissolves while it slides looks like two effects
-     * competing. The travel is the transition.
-     */
     'slide-up': `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:slide-out-to-bottom-full data-[state=open]:slide-in-from-bottom-full data-[state=open]:fade-in-100 data-[state=closed]:fade-out-100 data-[state=open]:duration-500 data-[state=closed]:duration-300 [animation-timing-function:cubic-bezier(0.32,0.72,0,1)]`,
 };
 
-/**
- * The built-in close button's accessible name is required whenever the button renders. It is
- * the one string these primitives write themselves, and an English default meant a caller that
- * forgot it shipped the one English word a Korean screen reader still read out — the compiler
- * now asks instead. A caller that hides the button owes no label.
- */
 export type CloseButtonProps = { hideClose: true; closeLabel?: string } | { hideClose?: false; closeLabel: string };
 
 const DialogContent = React.forwardRef<
@@ -114,7 +50,6 @@ const DialogContent = React.forwardRef<
     React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> &
         CloseButtonProps & {
             variant?: keyof typeof dialogVariants;
-            /** Restyles the backdrop (e.g. a frosted one) without leaving the kit's portal/overlay pairing. */
             overlayClassName?: string;
         }
 >(

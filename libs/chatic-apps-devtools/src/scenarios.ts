@@ -235,7 +235,6 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
         options.resolveDir
     );
 
-    // Every window a scenario opened, closed when it ends however it ends.
     const opened = new Set<() => void>();
 
     const start = async (sessionOptions: SessionOptions = {}): Promise<Session> => {
@@ -244,8 +243,6 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
         const streams = new Set<string>();
         let claim = false;
         let mutations = 0;
-        // Only what outlives a screen: listeners on the window, the document and other objects. An element's
-        // own listeners go with the element.
         const listeners = new Set<string>();
         const intervals = new Set<unknown>();
         let app: MockController | null = null;
@@ -268,7 +265,6 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                 window.eval(mockScript);
                 app = (window as unknown as Record<string, MockController>)[MOCK_GLOBAL];
 
-                // Replies and pushes, as the page hears them: what is open, and what the app ended.
                 window.addEventListener('message', event => {
                     let message: { refId?: string; success?: boolean; type?: string; data?: unknown };
                     try {
@@ -292,7 +288,6 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                     }
                 });
 
-                // Requests, as the page sends them.
                 const bridge = (window as unknown as { ReactNativeWebView: { postMessage(raw: string): void } })
                     .ReactNativeWebView;
                 const forward = bridge.postMessage;
@@ -331,7 +326,6 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                     },
                 };
 
-                // Listeners and intervals the page adds and removes from here on.
                 const keyOf = new WeakMap<object, number>();
                 let nextKey = 0;
                 const idOf = (value: object) => {
@@ -353,7 +347,6 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
                     const lasting = !(this instanceof window.Element);
                     if (key && !once && lasting) listeners.add(key);
                     const signal = typeof opts === 'object' ? (opts as { signal?: AbortSignal } | null)?.signal : null;
-                    // The original method: the runner's own listener is not the page's.
                     if (key && signal) add.call(signal, 'abort', () => listeners.delete(key), { once: true });
                     return add.call(this, type, listener as never, opts as never);
                 } as typeof proto.addEventListener;
@@ -678,8 +671,6 @@ export const runScenarios = async (options: RunOptions): Promise<ScenarioResult[
             const session = await start();
             const screen = config.screens?.[0];
             for (const selector of screen?.open ?? []) await session.click(selector);
-            // The page hears of the change through a stream the app ends, or the next read it makes: with no
-            // stream open, it cannot know yet, and only what it does next is checked.
             const before = { mutations: session.mutations(), at: Date.now(), streams: session.openStreams() };
             session.app.changeCloud();
             await settle(300);

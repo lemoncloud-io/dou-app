@@ -2,10 +2,6 @@ import * as React from 'react';
 
 import type { ToastActionElement, ToastProps } from './toast';
 
-/**
- * How many toasts show at once. One by default; an app whose errors stay until closed raises it
- * with {@link setToastLimit}, or the next toast would evict an error unread.
- */
 let toastLimit = 1;
 
 export const setToastLimit = (limit: number) => {

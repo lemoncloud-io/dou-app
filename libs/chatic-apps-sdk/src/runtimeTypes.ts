@@ -49,11 +49,6 @@ export interface CloudListMeta {
     source?: 'local' | 'remote' | 'fallback';
 }
 
-// ---------------------------------------------------------------------------------------------------
-// Views the server embeds inside a row (`owner$`, `lastChat$`, `$join`, ...). Every field is optional:
-// the server embeds what it had at hand.
-// ---------------------------------------------------------------------------------------------------
-
 /** A user as the server embeds one in another record. */
 export interface CloudUserView {
     id?: string;
@@ -308,10 +303,6 @@ export interface CloudChatMediaEntry {
     /** An attachment's upload id, or a link's URL. */
     ref: string;
 }
-
-// ---------------------------------------------------------------------------------------------------
-// The rows.
-// ---------------------------------------------------------------------------------------------------
 
 /** A room (`channel`), as the device cache holds it. */
 export interface CloudChannel {
@@ -851,10 +842,6 @@ export interface CloudSession {
     committedSiteId: string | null;
 }
 
-// ---------------------------------------------------------------------------------------------------
-// Arguments.
-// ---------------------------------------------------------------------------------------------------
-
 /** Which rooms: the place's (`sid`), one page of them. */
 export interface CloudChannelListQuery {
     sid?: string;
@@ -923,10 +910,6 @@ export interface CloudSendChatInput {
     /** Something besides white space, at most 1000 UTF-16 code units. */
     content: string;
 }
-
-// ---------------------------------------------------------------------------------------------------
-// The map.
-// ---------------------------------------------------------------------------------------------------
 
 /** The manifest permissions that open cloud data methods. */
 export type DataPermission = 'session' | 'cloud' | 'place' | 'channel' | 'chat' | 'user' | 'chatSend' | 'chatReact';
