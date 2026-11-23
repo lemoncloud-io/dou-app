@@ -2,7 +2,50 @@ import { defineDebugStrings } from '../define';
 
 const en = {
     title: 'Storage',
-    subtitle: 'What the app keeps natively and what the WebView keeps, side by side. Clearing one leaves the other.',
+    subtitle:
+        'The key-value stores this run keeps its session and settings in, read and edited through the same store objects the app uses. The clear section below empties the native cache and the WebView storage.',
+    active: {
+        section: 'Active storage',
+        adapter: 'Storage adapter',
+        sessionOwner: 'Session held by',
+        owners: { web: 'this page', native: 'the app (native runtime)' },
+        roles: {
+            secret: 'Session secrets (tokens)',
+            plain: 'Session state',
+            device: 'App state (outlives the tab)',
+            tab: 'Tab state',
+        },
+        media: { vault: 'Device vault', localStorage: 'localStorage', sessionStorage: 'sessionStorage' },
+        notRecorded: 'Not recorded — the entry point did not run in this page.',
+        vaultBlocked: {
+            nativeOwned: 'The app holds the session this launch; the page never opens the vault, so its keys cannot be read here.',
+            unavailable: 'The app could not read the vault this run; session secrets fell back to sessionStorage.',
+        },
+    },
+    keys: {
+        section: 'Keys',
+        all: 'All',
+        filter: 'Filter by store',
+        newKey: '+ New key',
+        key: 'Key',
+        value: 'Value',
+        medium: 'Store',
+        edit: 'Edit',
+        delete: 'Delete',
+        save: 'Save',
+        cancel: 'Cancel',
+        empty: 'No keys',
+        noMatch: 'No key matches the search',
+        keyRequired: 'A key is required',
+        notWritable: 'This store cannot be written this run',
+        capped: (shown: number) => `Showing the first ${shown} — narrow the search to see the rest.`,
+        writeNote:
+            "Writes go through the app's own store, the vault's to the device as well. A value the app already read into memory takes effect after a reload.",
+        reload: 'Reload page',
+        saved: (key: string) => `Saved ${key}`,
+        removed: (key: string) => `Removed ${key}`,
+    },
+    clearSection: 'Clear',
     refresh: 'Refresh',
     confirm: 'Tap again to confirm',
     native: {
@@ -53,7 +96,50 @@ const en = {
 
 const ko: typeof en = {
     title: '저장소',
-    subtitle: '앱이 네이티브에 저장한 것과 WebView가 저장한 것을 나란히 봅니다. 한쪽만 비우면 다른 쪽은 남습니다.',
+    subtitle:
+        '이번 실행이 세션과 설정을 담는 키-값 저장소를, 앱이 쓰는 저장소 객체 그대로 읽고 수정합니다. 아래 비우기 섹션은 네이티브 캐시와 WebView 저장소를 비웁니다.',
+    active: {
+        section: '사용 중인 저장소',
+        adapter: '저장소 어댑터',
+        sessionOwner: '세션 보유',
+        owners: { web: '이 페이지', native: '앱 (네이티브 런타임)' },
+        roles: {
+            secret: '세션 비밀값 (토큰)',
+            plain: '세션 상태',
+            device: '앱 상태 (탭보다 오래 유지)',
+            tab: '탭 상태',
+        },
+        media: { vault: '기기 보관함 (vault)', localStorage: 'localStorage', sessionStorage: 'sessionStorage' },
+        notRecorded: '기록 없음 — 이 페이지에서는 엔트리 포인트가 실행되지 않았습니다.',
+        vaultBlocked: {
+            nativeOwned: '이번 실행은 앱이 세션을 갖고 있어 페이지가 vault를 열지 않습니다. 여기서는 키를 읽을 수 없습니다.',
+            unavailable: '이번 실행에 앱이 vault를 읽지 못해 세션 비밀값이 sessionStorage로 대체되었습니다.',
+        },
+    },
+    keys: {
+        section: '키',
+        all: '전체',
+        filter: '저장소별 보기',
+        newKey: '+ 새 키',
+        key: '키',
+        value: '값',
+        medium: '저장소',
+        edit: '수정',
+        delete: '삭제',
+        save: '저장',
+        cancel: '취소',
+        empty: '키 없음',
+        noMatch: '검색에 맞는 키 없음',
+        keyRequired: '키를 입력하세요',
+        notWritable: '이번 실행에서는 이 저장소에 쓸 수 없습니다',
+        capped: shown => `앞의 ${shown}개만 보여 줍니다. 나머지는 검색을 좁혀 보세요.`,
+        writeNote:
+            '쓰기는 앱이 쓰는 저장소 객체를 거치며, vault는 기기에도 저장됩니다. 앱이 이미 메모리로 읽은 값은 새로고침 후 반영됩니다.',
+        reload: '페이지 새로고침',
+        saved: key => `${key} 저장됨`,
+        removed: key => `${key} 삭제됨`,
+    },
+    clearSection: '비우기',
     refresh: '새로고침',
     confirm: '한 번 더 눌러 확인',
     native: {

@@ -148,8 +148,8 @@ app-wide boundary and replace the entire UI — a read-only inspector taking the
 ### The Room screen shows what the open room holds, not a second read of it
 
 Chasing a wrong bubble means telling three copies of one record apart: what the screen holds, what
-the cache holds, and what the server says. The DB browser reaches only the second, and only by typing
-a channel id. The Room screen starts from the room that is open.
+the cache holds, and what the server says. The DB screen reaches only the second, and starts from a
+domain rather than from a room. The Room screen starts from the room that is open.
 
 - **The pages publish themselves.** `ChannelRoomPage` and `ThreadPage` call `useDebugRoomMirror`,
   which writes the channel and both message lists into the `room` slot of `sharedObservationStore`,
@@ -174,7 +174,55 @@ a channel id. The Room screen starts from the room that is open.
   under the result. Both go to the record's own cloud (`getCloudRepositories(cid)`), not the selected
   one. A row with no chat number has not reached the server, so it gets no server button.
 
-### The Storage screen shows two stores because the device keeps two
+### The Storage and DB screens show the stores this run uses, not every store there is
+
+Both screens answer "where does this run keep it, and what is in there", so both start from what the
+run actually chose rather than from what the environment could hold. Nothing else keeps those
+choices — `startRuntime` only logs them under `app.runtime_port` — so
+[`app/runtime/activeStorage.ts`](../../../src/app/runtime/activeStorage.ts) records them as they are
+made:
+
+| Recorded                                | By                                                 | When                         |
+| --------------------------------------- | -------------------------------------------------- | ---------------------------- |
+| the store set (`resolveStorageStores`)  | `main.tsx`                                         | before the runtime starts    |
+| the adapter id per port, and the engine | `main.tsx`, from `startRuntime`'s answer           | once the runtime has started |
+| each cache domain's route               | `cache.web-local` (`config/adapters/cache.ts`)     | when the data assembly runs  |
+
+The routes are the ones the assembly reported through `routed`, not a fresh `route()` call: the
+assembly asks once per domain and keeps the answer for the session, and inside the phone app the
+shell's capability report can land after it — asking again could name a store the rows are not in.
+On a launch the app's own runtime owns (`engine.mirror`), the page builds no cache and no route is
+recorded; the DB screen says the repositories answer from the app's runtime instead.
+
+**The Storage screen** lists the roles of the store set — session secrets, session state, app state,
+tab state — and the medium each lands in this run (device vault, `localStorage`, `sessionStorage`),
+then every key of every medium in use with search, a field filter, a sort, edit, delete and add.
+Writes go through the store objects the set built, never through `window.localStorage` or a fresh
+vault channel: the vault is a memory copy the app reads synchronously, and only its own `set`
+updates that copy and sends the write to the shell; where site data is blocked the web stores are
+page memory, and a second object would not be the one the app reads. JSON values are shown indented
+and stored back compact. A value the app already read into memory (a zustand store, the session's
+token) takes effect at the next load, which is why the screen has a reload button. The vault's keys
+are not readable when the app holds the session (the page never opens the vault on such a launch) or
+when the shell could not read it this run; the screen says which, instead of showing an empty list.
+
+**The DB screen** lists, per cache domain, the store it is routed to, then the rows of one domain in
+one scope — the selected cloud, or another cloud the cache knows — with the same search, field filter
+and sort, and edit, delete, add and clear. Every read and write goes through the repositories, the
+path the app takes, so the screens observing a row redraw when it changes (checked: an edit and a
+delete on a message showed in the open room at once) and it works whichever store holds the domain.
+Two consequences follow from that path:
+
+- `chat` and `join` list one channel per call, so the screen walks the cached channels — `chat` capped
+  at a number of newest rows per channel the screen lets you set. A channel whose read fails is
+  named; the others still list.
+- A write is merged into the cached row: a field deleted in the editor keeps its old value, and
+  `null` is how to clear one. A new message newer than the room's covered feed range lands in the
+  cache but appears in an open room only after the next read covers it (a reload, a sync).
+
+`meta` (the sync cursors) has no repository on the page and is not listed.
+
+### The Storage screen's clear section empties both stores because the device keeps two
 
 Inside the app, what survives a restart is split. The WebView's own storage holds the session —
 sign-in, the per-cloud token cache, the selected cloud and place — plus `@chatic/config` and UI

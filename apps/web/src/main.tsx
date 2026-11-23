@@ -44,6 +44,7 @@ import { onUsageSessionStart, startAppIconUsage, startTelemetry } from './app/ru
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
 import { setLaunchSessionOwner } from './app/runtime/launchSessionOwner';
+import { recordActiveStores, recordPortChoices } from './app/runtime/activeStorage';
 import { sendSessionOwnerDefault, sendSessionOwnerDefaultUnasked } from './app/runtime/sessionOwnerDefault';
 import { showSessionOwnerUnsettled } from './app/runtime/sessionOwnerUnsettled';
 import { dropSignedOutKeys } from './app/runtime/signedOutKeys';
@@ -87,6 +88,8 @@ reportRunIdJoin();
 // the tab's own mark, so it is safe this early; the features take their stores from here on.
 const stores = resolveStorageStores();
 configureAppStores({ device: stores.device, tab: stores.tab });
+// Kept as chosen, so the debug panel's Storage screen shows — and edits — the stores this run uses.
+recordActiveStores(stores);
 
 // `vite-ui-theme` is the durable, cross-app theme key (five apps' pre-paint scripts and
 // `@chatic/theme`'s `ThemeProvider` all read/write it directly); re-synced into `ui.theme`'s own
@@ -322,7 +325,8 @@ const startApp = (owner: Exclude<SessionOwnerChoice, { sessionOwner: null }>): v
 // under its own tag and thrown on, so it stays the uncaught error a failed boot always was, and nothing
 // renders on a runtime that never came up.
 void started.then(
-    ({ owner = { sessionOwner: 'web' } }) => {
+    ({ owner = { sessionOwner: 'web' }, choices, engineChoice }) => {
+        recordPortChoices({ storage: choices.storage.id, cache: choices.cache.id, engine: engineChoice.id });
         // The phone fields' last-picked country moved from its own key into the `ui.phoneCountry` setting;
         // carried over once, now that the setting can be written. Before the first render, the only
         // reader.

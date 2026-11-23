@@ -1,10 +1,13 @@
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+import { MemoryStore } from '@chatic/storage';
 
 import { StorageScreen } from './StorageScreen';
 import { setDebugLanguageForTests } from '../../i18n';
 import type { WebStorageEnv } from '../../lib/webStorage';
+import type { ActiveStores, ActiveVault } from '../../../../runtime/activeStorage';
 
 const fetchNativeStorageSummary = jest.fn();
 const clearNativeCache = jest.fn();
@@ -20,6 +23,9 @@ jest.mock('@chatic/bridges', () => ({
     isNative: () => native,
     logger: { warn: jest.fn(), info: jest.fn() },
 }));
+// The real one reads the host profile, which the bridges mock above leaves out; outside the shell it
+// answers undefined, the same as here.
+jest.mock('../../../../runtime/launchSessionOwner', () => ({ readLaunchSessionOwner: () => undefined }));
 const requestSyncCursorReset = jest.fn(async () => undefined);
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
@@ -237,5 +243,138 @@ describe('StorageScreen', () => {
         expect(fetchNativeStorageSummary).not.toHaveBeenCalled();
         expect(screen.getByRole('button', { name: 'Clear app cache' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Clear web cache' })).toBeEnabled();
+    });
+
+    describe('active storage', () => {
+        const vaultSet = (vaultStatus: 'available' | 'unavailable' = 'available') => {
+            const vault: ActiveVault = Object.assign(new MemoryStore(), { status: vaultStatus });
+            vault.set('chatic-relay-token', '{"c1":"tok"}');
+            const webLocal = new MemoryStore();
+            webLocal.set('ui.theme', 'dark');
+            const webSession = new MemoryStore();
+            webSession.set('chatic-debug-mode', 'true');
+            const active: ActiveStores = { secret: vault, plain: webLocal, vault, webLocal, webSession };
+            return { active, vault, webLocal, webSession };
+        };
+
+        const renderActive = (active: ActiveStores | null, sessionOwner: 'web' | 'native' = 'web') =>
+            render(
+                <StorageScreen
+                    env={env}
+                    navigate={navigate}
+                    active={active}
+                    choices={{ storage: 'storage.resolved' }}
+                    sessionOwner={sessionOwner}
+                />
+            );
+
+        it('names the adapter and the store each role uses this run', async () => {
+            renderActive(vaultSet().active);
+
+            expect(await screen.findByText('storage.resolved')).toBeInTheDocument();
+            const secrets = screen.getByText('Session secrets (tokens)').parentElement!;
+            expect(secrets).toHaveTextContent('Device vault');
+            expect(screen.getByText('Session state').parentElement!).toHaveTextContent('localStorage');
+        });
+
+        it('lists the keys of every store in use, the vault included, and narrows them by the search and the field filter', async () => {
+            const user = userEvent.setup();
+            renderActive(vaultSet().active);
+
+            expect(await screen.findByText('chatic-relay-token')).toBeInTheDocument();
+            expect(screen.getByText('ui.theme')).toBeInTheDocument();
+            expect(screen.getByText('chatic-debug-mode')).toBeInTheDocument();
+
+            await user.selectOptions(screen.getByLabelText('Filter field'), 'medium');
+            await user.type(screen.getByLabelText('Contains'), 'vault');
+
+            expect(screen.getByText('chatic-relay-token')).toBeInTheDocument();
+            expect(screen.queryByText('ui.theme')).not.toBeInTheDocument();
+
+            await user.clear(screen.getByLabelText('Contains'));
+            await user.type(screen.getByRole('searchbox', { name: 'Search' }), 'dark');
+
+            expect(screen.queryByText('chatic-relay-token')).not.toBeInTheDocument();
+            expect(screen.getByText('ui.theme')).toBeInTheDocument();
+        });
+
+        it('saves an edit through the store the app holds, JSON compact', async () => {
+            const user = userEvent.setup();
+            const { active, vault } = vaultSet();
+            renderActive(active);
+
+            const row = (await screen.findByText('chatic-relay-token')).closest('li')!;
+            await user.click(within(row).getByRole('button', { name: 'Edit' }));
+            const editor = screen.getByLabelText('Value');
+            expect(editor).toHaveValue('{\n  "c1": "tok"\n}');
+            await user.clear(editor);
+            await user.type(editor, '{{"c1": "new"}');
+            await user.click(screen.getByRole('button', { name: 'Save' }));
+
+            expect(vault.get('chatic-relay-token')).toBe('{"c1":"new"}');
+            expect(screen.getByRole('status')).toHaveTextContent('Saved chatic-relay-token');
+        });
+
+        it('removes a key only on the second tap', async () => {
+            const user = userEvent.setup();
+            const { active, webLocal } = vaultSet();
+            renderActive(active);
+
+            const row = (await screen.findByText('ui.theme')).closest('li')!;
+            await user.click(within(row).getByRole('button', { name: 'Delete' }));
+            expect(webLocal.get('ui.theme')).toBe('dark');
+            await user.click(within(row).getByRole('button', { name: 'Tap again to confirm' }));
+
+            expect(webLocal.get('ui.theme')).toBeNull();
+            expect(screen.queryByText('ui.theme')).not.toBeInTheDocument();
+        });
+
+        it('adds a key to the store picked, and refuses one without a name', async () => {
+            const user = userEvent.setup();
+            const { active, webSession } = vaultSet();
+            renderActive(active);
+
+            await user.click(await screen.findByRole('button', { name: '+ New key' }));
+            await user.click(screen.getByRole('button', { name: 'Save' }));
+            expect(screen.getByRole('status')).toHaveTextContent('A key is required');
+
+            await user.selectOptions(screen.getByLabelText('Store'), 'sessionStorage');
+            await user.type(screen.getByLabelText('Key'), 'probe');
+            await user.type(screen.getByLabelText('Value'), '1');
+            await user.click(screen.getByRole('button', { name: 'Save' }));
+
+            expect(webSession.get('probe')).toBe('1');
+        });
+
+        it('says why the vault shows no keys when the app holds the session', async () => {
+            renderActive(vaultSet().active, 'native');
+
+            expect(await screen.findByText(/the page never opens the vault/)).toBeInTheDocument();
+            expect(screen.queryByText('chatic-relay-token')).not.toBeInTheDocument();
+            expect(screen.getByText('ui.theme')).toBeInTheDocument();
+        });
+
+        it('never offers a blocked vault for a new key, even with its chip selected', async () => {
+            const user = userEvent.setup();
+            const { active, vault, webLocal } = vaultSet();
+            const vaultSet_ = jest.spyOn(vault, 'set');
+            renderActive(active, 'native');
+
+            await user.click(await screen.findByRole('button', { name: /Device vault/ }));
+            await user.click(screen.getByRole('button', { name: '+ New key' }));
+            expect(screen.getByLabelText('Store')).toHaveValue('localStorage');
+            await user.type(screen.getByLabelText('Key'), 'probe');
+            await user.click(screen.getByRole('button', { name: 'Save' }));
+
+            expect(vaultSet_).not.toHaveBeenCalled();
+            expect(webLocal.get('probe')).toBe('');
+        });
+
+        it('says nothing was recorded when the entry point did not run', async () => {
+            renderActive(null);
+
+            expect(await screen.findByText(/Not recorded/)).toBeInTheDocument();
+            expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+        });
     });
 });

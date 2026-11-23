@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import type { OnFetchNativeStorageSummaryPayload } from '@chatic/bridge-messages';
 import { runtime } from '@chatic/runtime';
@@ -17,7 +17,18 @@ import {
     type WebStorageEnv,
     type WebStorageSummary,
 } from '../../lib/webStorage';
+import { activeKeyValueMedia } from '../../lib/keyValueMedia';
 import { appBridge } from '../../../../bridge';
+import {
+    describeStoreRoles,
+    readActiveStores,
+    readPortChoices,
+    type ActivePortChoices,
+    type ActiveStores,
+    type StorageRole,
+} from '../../../../runtime/activeStorage';
+import { readLaunchSessionOwner } from '../../../../runtime/launchSessionOwner';
+import { StorageKeyBrowser } from './StorageKeyBrowser';
 
 type NativeState =
     | { status: 'loading' }
@@ -35,7 +46,15 @@ export interface StorageScreenProps {
      * at `/`, because after a web clear the route the page was on belongs to a session that is gone.
      */
     navigate?: (to: 'reload' | 'root') => void;
+    /** Test seam; the stores `main.tsx` recorded otherwise. */
+    active?: ActiveStores | null;
+    /** Test seam; the adapter ids `main.tsx` recorded otherwise. */
+    choices?: ActivePortChoices;
+    /** Test seam; who holds the session this launch, as the entry point settled it. */
+    sessionOwner?: 'web' | 'native';
 }
+
+const ROLE_ORDER: readonly StorageRole[] = ['secret', 'plain', 'device', 'tab'];
 
 const defaultNavigate = (to: 'reload' | 'root') => {
     if (to === 'root') window.location.replace('/');
@@ -54,7 +73,14 @@ const SizeLine = ({ name, detail, tag }: { name: string; detail: string; tag?: s
 );
 
 /**
- * Both halves of what the device keeps, and a clear for each.
+ * The key-value stores this run keeps state in — which ones, what each holds, and an editor over their
+ * keys — and below that, both halves of what the device keeps with a clear for each.
+ *
+ * The top half reads the stores `main.tsx` resolved and recorded (`activeStorage`): only the media this
+ * run actually uses are listed, each with the roles it plays (session secrets, session state, app and
+ * tab state), and edits go through those very store objects. A key browser that read
+ * `window.localStorage` instead would miss the vault entirely and, where site data is blocked, read a
+ * different object from the one the app writes.
  *
  * Inside the app the WebView's storage holds the session — sign-in, the per-cloud token cache, the
  * selected cloud — while the chat cache and the invited-cloud list live in the native shell's SQLite.
@@ -67,8 +93,21 @@ const SizeLine = ({ name, detail, tag }: { name: string; detail: string; tag?: s
  * next boot to retire every sync cursor saved before it: a sync in flight during the clear can land
  * afterwards and record "synced up to now" over an emptied store, and the gap would never fill.
  */
-export const StorageScreen = ({ env: envProp, navigate = defaultNavigate }: StorageScreenProps = {}) => {
+export const StorageScreen = ({
+    env: envProp,
+    navigate = defaultNavigate,
+    active: activeProp,
+    choices: choicesProp,
+    sessionOwner: ownerProp,
+}: StorageScreenProps = {}) => {
     const t = useStorageScreenStrings();
+    const [active] = useState(() => (activeProp === undefined ? readActiveStores() : activeProp));
+    const choices = choicesProp ?? readPortChoices();
+    // Undefined outside the app shell, where only the page can hold the session.
+    const sessionOwner = ownerProp ?? readLaunchSessionOwner() ?? 'web';
+    const media = useMemo(() => (active ? activeKeyValueMedia(active, sessionOwner) : []), [active, sessionOwner]);
+    const roles = active ? describeStoreRoles(active) : null;
+    const vaultBlocked = media.find(m => m.medium === 'vault')?.blocked;
     const [env] = useState(() => envProp ?? browserWebStorageEnv());
     const [web, setWeb] = useState<WebStorageSummary | null>(null);
     const [native, setNative] = useState<NativeState>({ status: 'loading' });
@@ -197,6 +236,28 @@ export const StorageScreen = ({ env: envProp, navigate = defaultNavigate }: Stor
                 <h1 className="text-[20px] font-semibold leading-[1.35]">{t.title}</h1>
                 <p className="mt-1 text-[13px] text-muted-foreground">{t.subtitle}</p>
             </div>
+
+            <Section title={t.active.section}>
+                <Row label={t.active.adapter} value={choices.storage ?? '—'} />
+                <Row label={t.active.sessionOwner} value={t.active.owners[sessionOwner]} />
+                {roles ? (
+                    ROLE_ORDER.map(role => {
+                        const medium = roles[role];
+                        return <Row key={role} label={t.active.roles[role]} value={medium ? t.active.media[medium] : '—'} />;
+                    })
+                ) : (
+                    <p className="text-xs text-muted-foreground">{t.active.notRecorded}</p>
+                )}
+                {vaultBlocked && <p className="text-xs text-destructive">{t.active.vaultBlocked[vaultBlocked]}</p>}
+            </Section>
+
+            {active && (
+                <Section title={t.keys.section}>
+                    <StorageKeyBrowser media={media} />
+                </Section>
+            )}
+
+            <p className="border-t border-border pt-3 text-sm font-semibold">{t.clearSection}</p>
 
             <Section title={t.native.section}>
                 {native.status === 'noShell' && <p className="text-xs text-muted-foreground">{t.native.noShell}</p>}
