@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-23] - No version updates
+
+### Chores
+
+- (comments) remove comments from web channels utils and lib
+
 ## [2026-11-23] - root@0.173.2, @chatic/web@0.101.1
 
 ### Documentation
