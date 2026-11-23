@@ -13,7 +13,6 @@ jest.mock('react-native-config', () => ({
     default: { VITE_ENV: 'DEV', VITE_WEBVIEW_BASE_URL: 'http://localhost:5003/' },
 }));
 
-// storageAdapter pulls in the native preferenceService, so replace it with a noop storage
 jest.mock('../stores/storageAdapter', () => ({
     storageAdapter: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
 }));
@@ -57,12 +56,10 @@ describe('customZipController', () => {
 
         expect(origin).toBe(ORIGIN);
         expect(settings().customZipLocalRoot).toBe(EXTRACT_ROOT);
-        // The store's setter normalizes the URL (trailing slash) — different from the raw origin the controller returns.
         expect(settings().customZipServerUrl).toBe(`${ORIGIN}/`);
         expect(reloadToken()).toBe(1);
     });
 
-    // If the store is updated first, a failure leaves a half-applied state pointing at an already-deleted root.
     it.each([
         ['다운로드', () => mockDownloadZip.mockRejectedValue(new Error('net'))],
         ['압축 해제', () => mockExtractZip.mockRejectedValue(new Error('no index.html'))],
@@ -76,7 +73,6 @@ describe('customZipController', () => {
         expect(settings().customZipServerUrl).toBeNull();
     });
 
-    // On a swap failure, the previous custom server is already down — staying on a dead origin means a blank screen.
     it('교체가 실패하면 활성 zip을 먼저 내리고 기본 웹으로 재로딩한다', async () => {
         useDebugSettingsStore.setState({ customZipLocalRoot: '/old/root', customZipServerUrl: 'http://127.0.0.1:1' });
         mockDownloadZip.mockRejectedValue(new Error('net'));

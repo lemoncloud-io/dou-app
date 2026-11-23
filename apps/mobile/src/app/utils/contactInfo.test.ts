@@ -2,12 +2,6 @@ import type { Contact } from 'react-native-contacts';
 
 import { toContactInfo } from './contactInfo';
 
-/**
- * iOS omits a key entirely when the underlying field is empty and never sends `displayName`,
- * `isStarred`, `backTitle`, `prefix`, `suffix` or `department` at all — so the payload really is
- * narrower than `Contact` declares, and the fixture casts rather than filling fields the platform
- * would not send.
- */
 const iosContact = (partial: Partial<Contact>): Contact => ({ recordID: 'c1', ...partial }) as Contact;
 
 describe('toContactInfo', () => {
@@ -17,7 +11,6 @@ describe('toContactInfo', () => {
         expect(info).toMatchObject({
             recordID: 'c1',
             givenName: '민수',
-            // The keys iOS never sends at all.
             displayName: '',
             familyName: '',
             middleName: '',
@@ -61,8 +54,6 @@ describe('toContactInfo', () => {
     });
 
     it('keeps a birthday that carries no year', () => {
-        // iOS drops `year` when the contact stored only a month and a day, which is why the wire
-        // type makes it optional.
         const info = toContactInfo(iosContact({ birthday: { month: 3, day: 14 } as Contact['birthday'] }));
 
         expect(info.birthday).toEqual({ month: 3, day: 14 });

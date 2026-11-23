@@ -4,70 +4,25 @@ import type { Env, RuntimeOffer, StorageMedium } from '@chatic/bridge-messages';
 import type { ThemeMode } from '../../stores/themeMode';
 import type { HostCapabilities } from './hostCapabilities';
 
-/**
- * Parameter interface for injecting device information
- */
 export interface DeviceInfoParams {
-    /**
-     * Identifier for this app run, issued once by the native shell. Injected so
-     * web entries carry the same value as native ones from the same launch;
-     * without it the web issues its own and the two sides do not line up.
-     */
     runId: string;
     platform: string;
     applicationName: string;
-    /**
-     * `Env`, not `VITE_ENV`. The web reads this global back as `Env` and it becomes part of the push
-     * application name, so the conversion (`toEnvStage`) has to happen before it gets here — typing
-     * it as `Env` is what makes the compiler say so.
-     */
     stage: Env;
-    /**
-     * Whether the app's console listener is live in this build.
-     *
-     * Injected so the web can decide whether relaying `debug` buys anything.
-     * It is deliberately the *same* condition that gates the app's console
-     * subscription rather than a stage string: `stage` is the server
-     * environment, which a release build can also point at, and what matters
-     * here is only "will anything over there print this".
-     *
-     * Absent on older apps, which reads as false — the web then keeps `debug`
-     * local, exactly as it did before this existed.
-     */
     consoleEnabled: boolean;
-    /**
-     * @deprecated Composite `deviceId:firebaseInstallId` string. Kept injected for
-     * older web bundles; use `uniqueDeviceId` + `firebaseInstallationId` instead.
-     */
     uniqueId: string;
     deviceModel: string;
-    /** DeviceInfo.getSystemVersion() — the log context's `osVersion`. */
     osVersion: string;
     appVersion: string;
     buildNumber: string;
     appLanguage: string;
-    /**
-     * @deprecated Confusing name — this has always carried the bare unique device id,
-     * not a Firebase installation id. Kept injected for older web bundles; use
-     * `uniqueDeviceId` instead.
-     */
     installationId: string;
-    /** Bare unique device id (DeviceInfo.getUniqueIdSync()), stable across app reinstalls on iOS keychain / Android SSAID semantics. */
     uniqueDeviceId: string;
-    /** Firebase installation id; empty string until the async Firebase lookup resolves. */
     firebaseInstallationId: string;
     latestVersion: string;
     shouldUpdate: boolean;
 }
 
-/**
- * Generates a script to inject the Safe Area and keyboard height as CSS variables (`--safe-*`, `--keyboard-height`) into the WebView.
- * The web frontend can use these variables to dynamically adjust UI margins according to the mobile device's notch, home indicator, and keyboard.
- *
- * @param insets Safe area information of the screen (top, bottom, left, right)
- * @param keyboardHeight The height of the currently active keyboard
- * @returns JavaScript string to be injected into the WebView
- */
 export const getSafeAreaScript = (insets: EdgeInsets, keyboardHeight: number): string => `
     (function() {
         const root = document.documentElement;
@@ -83,21 +38,6 @@ export const getSafeAreaScript = (insets: EdgeInsets, keyboardHeight: number): s
     true;
 `;
 
-/**
- * Generates a script that injects app and device information into the WebView's global (`window`) object,
- * and sets up the \`ChaticMessageHandler\` bridge, an integrated communication channel for sending messages from Web to App (Native).
- *
- * String values are JSON-stringified rather than wrapped in raw quotes: an unescaped quote or
- * backslash in a native-supplied string (e.g. a localized app display name or an odd device model
- * string on some Android OEMs) would otherwise break out of the literal and throw a SyntaxError
- * inside this injected script. Since the script has no `<script src>` to attribute the error to, the
- * browser reports it as an opaque, locationless "Script error." — this was the suspected root cause
- * of unexplained `[mobile] script-error` reports with no stack/location. `shouldUpdate` is boolean and
- * kept as a raw literal; downstream code reads it back as the string 'true'/'false' (apps/web's useDeviceInfoStore.ts).
- *
- * @param params Device and app information such as app version, OS platform, etc.
- * @returns JavaScript string to be injected into the WebView
- */
 export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
     window.CHATIC_APP_RUN_ID = ${JSON.stringify(params.runId)};
     window.CHATIC_APP_PLATFORM = ${JSON.stringify(params.platform)};
@@ -130,139 +70,45 @@ export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
     }
 `;
 
-/**
- * Generates a script exposing the persisted debug-mode unlock to the web, so a
- * restarted WebView boots already unlocked (single unlock covers both layers).
- */
 export const getDebugModeScript = (enabled: boolean): string => `
     window.CHATIC_APP_DEBUG_MODE = ${enabled ? 'true' : 'false'};
 `;
 
-/**
- * Generates a script exposing the log-upload hold to the web, whose scheduler is
- * the only thing that can actually stop a send.
- *
- * The toggle lives in the app's debug menu because the app queue is what you
- * watch while it is held, but the uploader runs in the WebView — so the flag has
- * to cross. Injection rather than a new bridge message pair: the web reads it
- * live before each send, an older web build simply ignores an unknown global,
- * and there is no `NOT_FOUND` handshake to get wrong.
- *
- * Re-injected on change (see AppWebView) so holding takes effect without a
- * reload, and carried in the boot script so a restarted WebView comes up still
- * holding.
- */
 export const getLogUploadHoldScript = (hold: boolean): string => `
     window.CHATIC_APP_LOG_UPLOAD_HOLD = ${hold ? 'true' : 'false'};
 `;
 
-/**
- * Generates a script exposing the persisted theme to the web, so the WebView's pre-paint
- * script can pick it up on the FIRST paint instead of waiting for a bridge round-trip.
- *
- * This is the restore path after a WebView cache wipe: localStorage is empty, but native
- * still holds the theme. Injected before content loads (see AppWebView's
- * `injectedJavaScriptBeforeContentLoaded`), so `index.html` can read it while deciding the
- * initial `<html>` class and `theme-color` (which also colour its boot cover). A bridge message could not
- * arrive in time — it lands after the first paint.
- *
- * The value is already normalized by themeStorage, so the web never sees a legacy envelope.
- *
- * `JSON.stringify` rather than a quoted template hole: this string is handed to
- * `evaluateJavaScript`, so an unescaped quote/backslash/newline in the value would be code,
- * not data. The `ThemeMode` type plus the bridge-side validation make that unreachable today —
- * escaping at the sink is what keeps it unreachable if a future caller is less careful.
- */
 export const getThemeScript = (theme: ThemeMode): string => `
     window.CHATIC_APP_THEME = ${JSON.stringify(theme)};
 `;
 
-/**
- * Generates a script exposing the shell's generic KV bag to the web, so `@chatic/config`'s
- * `IShellKvAdapter.readBag()` can hydrate the shell lane synchronously at `config.init()` — before
- * the web's own first paint, the same way `CHATIC_APP_THEME` seeds the pre-migration theme read.
- *
- * The bag is opaque here by design (ADR-0079 Decision 9): this function does not know what any key
- * means, only that `ConfigKvService.getAll()` already returns `{ [registryKey]: jsonEncodedValue }`.
- * An app build that predates `ConfigKvService` simply never sets the global, and `readBag()` treats
- * a missing global exactly like an empty bag — no shell overrides, not a crash.
- *
- * `JSON.stringify` for the same reason `getDeviceInfoScript` uses it: a stored value can be any
- * string a debug tool once wrote, and one unescaped quote would otherwise break out of the literal.
- */
 export const getConfigBagScript = (bag: Readonly<Record<string, string>>): string => `
     window.CHATIC_APP_CONFIG_BAG = ${JSON.stringify(bag)};
 `;
 
-/**
- * Generates a script listing the storage media this shell keeps for the web
- * (`window.CHATIC_APP_STORAGE_MEDIA`). The web decides from this list alone whether to ask for a
- * medium with `StorageGet`, so it has to be there before the page's own scripts run — the same reason
- * the theme and config bag are injected rather than sent. A shell without the list (an older build)
- * keeps no medium, and the web keeps its secrets where it did before.
- */
 export const getStorageMediaScript = (media: readonly StorageMedium[]): string => `
     window.CHATIC_APP_STORAGE_MEDIA = ${JSON.stringify(media)};
 `;
 
-/**
- * Generates the app's capability declaration (`window.CHATIC_APP_CAPABILITIES`), or nothing. Read by
- * the web once, before its first render, to choose how it reaches each capability (`hostCapabilities`).
- * A bare assignment that cannot throw, placed early for the same reason as the storage media.
- */
 export const getCapabilitiesScript = (capabilities: HostCapabilities | undefined): string =>
     capabilities ? `\n    window.CHATIC_APP_CAPABILITIES = ${JSON.stringify(capabilities)};\n` : '';
 
-/**
- * Generates the shell's offer to own the session (`window.CHATIC_APP_RUNTIME`), or nothing. Like the
- * storage media it is read before the page's own scripts run: a page asks for the runtime handshake
- * only when it finds an offer, so a launch the page owns offers nothing and is never asked.
- */
 export const getRuntimeOfferScript = (offer: RuntimeOffer | null | undefined): string =>
     offer ? `\n    window.CHATIC_APP_RUNTIME = ${JSON.stringify(offer)};\n` : '';
 
-/**
- * Parameters for generating the combined synchronous injection script.
- */
 export interface SyncInjectionScriptParams {
     insets: EdgeInsets;
     keyboardHeight: number;
     deviceInfo: DeviceInfoParams;
-    /** Persisted runtime debug unlock (see debugSettingsStore.debugModeEnabled). */
     debugModeEnabled?: boolean;
-    /** Persisted upload hold (see debugSettingsStore.logUploadHold). */
     logUploadHold?: boolean;
-    /** Persisted theme mode (see themeStore) — seeds the web's first paint. */
     theme: ThemeMode;
-    /** `@chatic/config`'s shell-lane KV bag (see `ConfigKvService.getAll()`). Empty when absent. */
     configBag?: Readonly<Record<string, string>>;
-    /** The storage media this shell keeps (`StorageGet` and friends answer for these). None when absent. */
     storageMedia?: readonly StorageMedium[];
-    /** The offer to own the session, on a launch the app's runtime owns. Nothing otherwise. */
     runtimeOffer?: RuntimeOffer | null;
-    /** What this app declares it can do (`hostCapabilities`). Nothing when absent. */
     capabilities?: HostCapabilities;
 }
 
-/**
- * Combines safe area, device info, debug mode, and theme scripts into a single script.
- * The legacy console-override relay (`__console__`) is gone — the structured
- * `SendLog` pipeline is the only web→native log channel (ADR-0097).
- *
- * The whole body is guarded (ADR-0097 P2): a runtime failure inside any
- * injected snippet reports itself through the SendLog channel (tag INJECTION,
- * landing in the merged buffer / future breadcrumbs) instead of surfacing as
- * an opaque "Script error.". Syntax errors cannot be caught this way — those
- * are prevented at build time by JSON.stringify interpolation (see
- * getDeviceInfoScript and getThemeScript).
- *
- * One throwing snippet skips every snippet after it, so the order matters. Android can run this
- * script before `document.documentElement` exists; the safe-area snippet returns early there
- * rather than throw, because a skipped config bag makes the web boot as a first run (onboarding)
- * and a skipped storage-media list makes it boot on the tab and reload once the shell answers.
- * The storage media also go first, as a bare assignment that cannot throw, so no later snippet
- * can cost the web its vault.
- */
 export const getSyncInjectionScript = (params: SyncInjectionScriptParams): string => `
     try {
         ${getStorageMediaScript(params.storageMedia ?? [])}

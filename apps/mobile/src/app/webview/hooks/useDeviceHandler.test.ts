@@ -16,12 +16,10 @@ jest.mock('../../hooks', () => ({
     useServices: () => ({ deviceService, logService }),
 }));
 
-// react-native ships untranspiled ESM; the handler only needs Linking.
 jest.mock('react-native', () => ({
     Linking: { openURL: jest.fn(), openSettings: jest.fn() },
 }));
 
-// The utils barrel pulls native device info; the handler only needs these two.
 jest.mock('../../utils', () => ({
     toContactInfo: (c: unknown) => c,
 }));
@@ -51,8 +49,6 @@ describe('useDeviceHandler handleOpenDocument', () => {
         expect(res.data.documents[0].base64).toBe('aGVsbG8=');
     });
 
-    // A failed read used to ride along as success with base64 undefined — the
-    // upload then had nothing to send and no message to show.
     it('reports a failed base64 read instead of a hollow success', async () => {
         readFile.mockRejectedValueOnce(new Error('locked'));
 
@@ -78,8 +74,6 @@ describe('useDeviceHandler handleOpenDocument', () => {
         expect(res).toEqual({ type: 'OnOpenSettings', success: true });
     });
 
-    // The BLOCKED permission status sends the reader to Settings; a button that
-    // silently does nothing strands them there.
     it('reports when the system settings cannot be opened', async () => {
         deviceService.openSettings.mockResolvedValueOnce(false);
 
@@ -99,9 +93,6 @@ const openUrl = (url: unknown) =>
 describe('useDeviceHandler handleOpenURL', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    // Which schemes pass is urlTrust's to say (and its own tests pin it); what this pins is that a
-    // refused URL never reaches the OS, since an intent or another app's scheme would run the
-    // payload the page chose.
     it('refuses a URL the scheme check rejects without asking the OS to open it', async () => {
         mockIsOpenableUrl.mockReturnValueOnce(false);
 

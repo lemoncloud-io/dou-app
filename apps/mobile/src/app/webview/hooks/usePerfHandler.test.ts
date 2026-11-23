@@ -33,8 +33,6 @@ const record = () => ({
 describe('usePerfHandler — 부팅 기록 읽기/비우기 (ADR-0080 결정 11)', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    // This is the reason this command exists — SendBootMetrics is a web→app write only, so there
-    // was no path to read the merged records back.
     it('handleFetchBootRecords는 기록과 두 카운터를 함께 돌려준다', async () => {
         mocked.getRecords.mockResolvedValue([record()]);
         mocked.getContentProcessReloadCount.mockReturnValue(2);

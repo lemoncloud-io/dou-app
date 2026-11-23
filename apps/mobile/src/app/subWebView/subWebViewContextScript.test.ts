@@ -12,7 +12,6 @@ const CONTEXT: SubWebViewContext = {
     params: { orderId: 7, note: 'line\u2028break' },
 };
 
-/** Runs the script against a stand-in `window` on `origin`, as the WebView would before the page. */
 const runOn = (origin: string, script: string) => {
     const window: Record<string, any> = { location: { origin } };
     // eslint-disable-next-line no-new-func -- running the injected script is what is under test
@@ -45,7 +44,6 @@ describe('buildSubWebViewContextScript', () => {
         );
     });
 
-    // Written as an object literal, `__proto__` would set the prototype and vanish as a key.
     it('keeps a __proto__ key in params as data', () => {
         const params = JSON.parse('{"__proto__": {"polluted": true}, "a": 1}');
         const script = buildSubWebViewContextScript({ ...CONTEXT, params }, 'https://foo.apps.chatic.io/');
@@ -56,7 +54,6 @@ describe('buildSubWebViewContextScript', () => {
         expect((context.params as { polluted?: boolean }).polluted).toBeUndefined();
     });
 
-    // Android runs it before content loads and again at load end.
     it('runs a second time without throwing or replacing the context', () => {
         const script = buildSubWebViewContextScript(CONTEXT, 'https://foo.apps.chatic.io/');
         const window = runOn('https://foo.apps.chatic.io', script);
@@ -67,7 +64,6 @@ describe('buildSubWebViewContextScript', () => {
         expect(window.ChaticSubWebView).toBe(first);
     });
 
-    // `params` were meant for the page the web opened, not one it navigated to.
     it('defines nothing on any other origin, another allowlisted one included', () => {
         const script = buildSubWebViewContextScript(CONTEXT, 'https://foo.apps.chatic.io/');
 
@@ -84,7 +80,6 @@ describe('buildSubWebViewContextScript', () => {
         expect(runOn('https://foo.apps.chatic.io', script).ChaticSubWebView.params).toEqual({ quote: '"\'`</script>' });
     });
 
-    // Nothing that identifies the device, the install or the user is in the contract.
     it('carries only the declared fields', () => {
         const script = buildSubWebViewContextScript(CONTEXT, 'https://foo.apps.chatic.io/');
 

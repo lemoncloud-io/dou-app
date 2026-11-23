@@ -8,7 +8,6 @@ let mockRequestClose: (() => void) | undefined;
 let mockWebViewProps: Record<string, any> | undefined;
 const mockClose = jest.fn();
 const mockViewStyles: unknown[] = [];
-// Whether the mocked view exposes its handle, as the real one does once mounted.
 let mockExposeHandle = false;
 const mockRequestCloseHandle = jest.fn();
 const mockManifestGet = jest.fn();
@@ -73,7 +72,6 @@ const renderScreen = async (manifest: Record<string, unknown> = MANIFEST) => {
     return { navigation, view };
 };
 
-/** The screen's own container as last drawn, once the manifest is in: the style holding `flex: 1`. */
 const lastContainerStyle = () =>
     mockViewStyles
         .filter(
@@ -82,7 +80,6 @@ const lastContainerStyle = () =>
         )
         .pop();
 
-/** The close control drawn last: the bar's, or the floating one. */
 const pressClose = () => mockClosePresses[mockClosePresses.length - 1]?.();
 
 describe('SubWebViewScreen', () => {
@@ -108,7 +105,6 @@ describe('SubWebViewScreen', () => {
         expect(mockWebViewProps).toBeUndefined();
     });
 
-    // A manifest that never answers cannot keep the user in.
     it('offers a close control while the manifest is still coming', () => {
         mockManifestGet.mockReturnValue(new Promise(() => undefined));
         mockClose.mockReturnValue({ ok: true });
@@ -144,7 +140,6 @@ describe('SubWebViewScreen', () => {
         expect(mockWebViewProps).toEqual(expect.objectContaining({ permissions: new Set() }));
     });
 
-    // The bar is opt-in: a page whose manifest says nothing, or is missing, gets only the floating close.
     it('draws no bar for a page with no manifest, and still offers a way out', async () => {
         mockManifestGet.mockRejectedValue(new Error('unexpected'));
         mockExposeHandle = true;
@@ -185,7 +180,6 @@ describe('SubWebViewScreen', () => {
         expect(mockRequestCloseHandle).toHaveBeenCalledWith('control');
     });
 
-    // The view decides whether the page's close guard asks first; the control only says who asked.
     it('hands the close control to the view, which applies the close guard', async () => {
         mockExposeHandle = true;
         await renderScreen();
@@ -218,7 +212,6 @@ describe('SubWebViewScreen', () => {
         expect(mockWebViewProps).toEqual(expect.objectContaining({ display }));
     });
 
-    // The page draws under the system bars, so it is told how far they reach instead.
     it('pads no edge for an immersive page and hands the view the insets', async () => {
         await renderScreen({ ...MANIFEST, display: 'immersive' });
 
@@ -247,8 +240,6 @@ describe('SubWebViewScreen', () => {
         expect(mockRequestCloseHandle).toHaveBeenCalledWith('control');
     });
 
-    // The service's close event is what takes the screen down; the screen leaves nothing to chance
-    // twice over.
     it('closes the view as the user, and leaves the dismissal to the service', async () => {
         mockClose.mockReturnValue({ ok: true });
         const { navigation } = await renderScreen();
@@ -259,7 +250,6 @@ describe('SubWebViewScreen', () => {
         expect(navigation.goBack).not.toHaveBeenCalled();
     });
 
-    // A screen the service no longer knows has no other way out: no gesture, no service event.
     it('leaves by itself when the service no longer knows the view', async () => {
         mockClose.mockReturnValue({ ok: false, code: 'NOT_OPEN' });
         const { navigation } = await renderScreen();
@@ -277,8 +267,6 @@ describe('SubWebViewScreen', () => {
         );
     });
 
-    // The page's own request outranks the document's title, which outranks the web's, which outranks
-    // the manifest's name.
     it('shows the title the page asked for over the others', async () => {
         const { view } = await renderScreen({ ...MANIFEST, name: 'From manifest' });
         expect(view.container.textContent).toContain('From web');

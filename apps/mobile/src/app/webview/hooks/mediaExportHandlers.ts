@@ -7,18 +7,14 @@ import type {
 import type { IMediaExportBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 
-/** The outcome of an Android runtime permission request, as `PermissionsAndroid.request` reports it. */
 export type StoragePermissionResult = 'granted' | 'denied' | 'never_ask_again';
 
 export interface MediaExportPlatform {
     os: string;
-    /** Android API level; ignored elsewhere. */
     apiLevel: number;
-    /** Asks for `WRITE_EXTERNAL_STORAGE`. Only called on Android below API 29. */
     requestStoragePermission(): Promise<StoragePermissionResult>;
 }
 
-/** API 29 is where an app may add its own images to the shared collection without a permission. */
 const SCOPED_STORAGE_API_LEVEL = 29;
 
 const KNOWN_CODES: MediaExportErrorCode[] = [
@@ -32,13 +28,6 @@ const KNOWN_CODES: MediaExportErrorCode[] = [
 
 type Failure = { code: MediaExportErrorCode; message: string; details?: MediaExportPermissionDetails };
 
-/**
- * A native rejection carries a media export code; anything else (a missing module, a thrown
- * programming error) is reported as INTERNAL so the web always gets a code it knows.
- *
- * A `PERMISSION_DENIED` from native is final: iOS asks once and after a refusal only the Settings
- * app can grant access, and on Android the prompt has already been answered in JS by then.
- */
 const toFailure = (e: unknown): Failure => {
     const raw = (e as { code?: unknown })?.code;
     const code =
@@ -54,17 +43,6 @@ const isNonEmptyString = (value: unknown): value is string => typeof value === '
 const hasUri = (data: unknown): data is { uri: string } =>
     isNonEmptyString((data as { uri?: unknown } | undefined)?.uri);
 
-/**
- * Relays `SaveToPhotoLibrary`, `ShareFile`, `OpenFile` and `SaveFile` to the native MediaExport module.
- *
- * The one decision made here is the Android storage permission below API 29, for both saves: asking
- * needs an Activity result, which React Native's `PermissionsAndroid` already handles, so it is asked
- * here before native is called rather than inside the native module. The prompt appears at the
- * moment of saving and nowhere else.
- *
- * None of these calls has a timeout here. `ShareFile`, `OpenFile` and `SaveFile` on iOS answer when
- * the sheet or preview closes, which is up to the person; the web gives each request its own wait.
- */
 export const createMediaExportHandlers = (
     mediaExport: IMediaExportBridge,
     platform: MediaExportPlatform,
@@ -72,7 +50,6 @@ export const createMediaExportHandlers = (
 ) => {
     const needsStoragePermission = () => platform.os === 'android' && platform.apiLevel < SCOPED_STORAGE_API_LEVEL;
 
-    /** Asks for the storage permission where a save needs it; the failure to answer with, if refused. */
     const askStoragePermission = async (): Promise<Failure | null> => {
         if (!needsStoragePermission()) return null;
         let result: StoragePermissionResult;
@@ -107,7 +84,6 @@ export const createMediaExportHandlers = (
             return reply({ data: await mediaExport.saveToPhotoLibrary(message.data.uri) });
         } catch (e) {
             const error = toFailure(e);
-            // The code only: the message can hold a local path.
             logger.warn('MEDIA', `save failed: ${error.code}`);
             return reply({ error });
         }
@@ -160,7 +136,6 @@ export const createMediaExportHandlers = (
         const fail = (error: Failure) => ({ type: 'OnSaveFile' as const, success: false, error });
 
         if (!hasUri(message.data)) return fail({ code: 'INVALID', message: 'uri is required' });
-        // The extension and path separators are the native side's to judge; only presence is checked here.
         if (!isNonEmptyString(message.data.name)) return fail({ code: 'INVALID', message: 'name is required' });
 
         const refused = await askStoragePermission();

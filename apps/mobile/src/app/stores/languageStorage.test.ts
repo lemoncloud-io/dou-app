@@ -4,8 +4,6 @@ const mockGetSync = jest.fn();
 const mockSetSync = jest.fn();
 const mockConfigBag = jest.fn((): Record<string, string> => ({}));
 
-// Stub the services barrel for the same reason themeStorage.test does: the real provider pulls in
-// MMKV, SQLite and Firebase. The value model (languagePreference) is not mocked.
 jest.mock('../services', () => ({
     provider: {
         preferenceService: {
@@ -37,9 +35,6 @@ describe('readLanguagePreference', () => {
         expect(mockSetSync).not.toHaveBeenCalled();
     });
 
-    // The old zustand-persist envelope held the device language from first launch, or the language in
-    // effect an older web mirrored into it — a guess and a pick in the same value, so neither is read
-    // as a choice.
     it('discards the legacy envelope instead of reading its language as a pin', () => {
         mockGetSync.mockReturnValue('{"state":{"language":"ko"},"version":0}');
 
@@ -62,8 +57,6 @@ describe("readLanguagePreference — the web's config value", () => {
         mockConfigBag.mockReset();
     });
 
-    // The web ships before the app: a choice made while an older shell was installed lands in that
-    // shell's zustand envelope (discarded) and in the config bag. The bag has to win after the update.
     it('takes the choice from the config bag over a legacy envelope, and stores it plainly', () => {
         mockConfigBag.mockReturnValue({ 'ui.language': '"en"' });
         mockGetSync.mockReturnValue('{"state":{"language":"en"},"version":0}');

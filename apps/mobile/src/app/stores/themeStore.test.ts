@@ -13,7 +13,6 @@ describe('useThemeStore — 동기 초기화와 저장', () => {
         mockWriteThemeMode.mockReset();
     });
 
-    /** The store reads storage during module evaluation, so each case needs a fresh import. */
     const loadStore = () => require('./themeStore').useThemeStore;
 
     it('스토어 생성 시점에 저장값을 동기로 읽는다', () => {
@@ -21,8 +20,6 @@ describe('useThemeStore — 동기 초기화와 저장', () => {
 
         const store = loadStore();
 
-        // Synchronous — no act(), no flush, no await. This is what keeps the first
-        // frame from painting against a placeholder value.
         expect(store.getState().theme).toBe('dark');
         expect(mockReadThemeMode).toHaveBeenCalledTimes(1);
     });
@@ -38,8 +35,6 @@ describe('useThemeStore — 동기 초기화와 저장', () => {
 
         loadStore();
 
-        // Guards against setTheme being wired into the initializer, which would rewrite MMKV
-        // on every boot. Format migration is readThemeMode's job, not the store's.
         expect(mockWriteThemeMode).not.toHaveBeenCalled();
     });
 

@@ -14,7 +14,6 @@ const createSqliteMock = (): ISqliteDatabase =>
         close: jest.fn(),
     }) as any;
 
-// Minimal profile shape; only the fields the data source serializes matter here.
 const makeProfile = (overrides: Partial<CacheProfileView> = {}): CacheProfileView =>
     ({
         id: 's1@u1',
@@ -62,7 +61,6 @@ describe('ProfileDataSource', () => {
             rows: rows.map(item => ({ data: JSON.stringify(item) })),
         });
 
-        // Pass a sid query to prove it does not reach SQL (web filters sid in memory).
         const result = await dataSource.fetchAll('c1', { sid: 's1' }, 'u1');
 
         expect(result).toEqual(rows);
@@ -76,17 +74,14 @@ describe('ProfileDataSource', () => {
     it('save는 스코프 uid로 프로필 소유자 uid를 덮어쓰지 않고 id만 row key에 맞춰야 한다', async () => {
         const sqlite = createSqliteMock();
         const dataSource = new ProfileDataSource(sqlite, TABLE);
-        // Profile of another member, cached under the logged-in user's ('me') scope.
         const profile = makeProfile({ id: 'stale', sid: 's1', uid: 'u2', userId: 'u2', nick: 'Bob' } as any);
 
         await dataSource.save('s1@u2', profile, 'c1', 'me');
 
         const [query, params] = (sqlite.execute as jest.Mock).mock.calls[0];
         expect(String(query)).toContain(`INSERT OR REPLACE INTO ${TABLE} (cid, uid, id, data)`);
-        // Scope lives in the row columns only.
         expect(params.slice(0, 3)).toEqual(['c1', 'me', 's1@u2']);
         const stored = JSON.parse(params[3]);
-        // The payload keeps the profile OWNER's uid; only `id` is aligned with the row key.
         expect(stored).toMatchObject({ id: 's1@u2', sid: 's1', uid: 'u2', userId: 'u2', nick: 'Bob' });
     });
 
@@ -110,8 +105,6 @@ describe('ProfileDataSource', () => {
         expect(String(commands[0][0])).toContain(`INSERT OR REPLACE INTO ${TABLE}`);
         expect(commands[0][1].slice(0, 3)).toEqual(['c1', 'me', 's1@u1']);
         expect(commands[1][1].slice(0, 3)).toEqual(['c1', 'me', 's1@u2']);
-        // Every row must keep its own owner uid, otherwise the web layer collapses
-        // all member profiles onto the single canonical key `sid@myUid`.
         expect(JSON.parse(commands[0][1][3])).toMatchObject({ id: 's1@u1', uid: 'u1' });
         expect(JSON.parse(commands[1][1][3])).toMatchObject({ id: 's1@u2', uid: 'u2' });
     });

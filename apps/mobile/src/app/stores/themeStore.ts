@@ -7,17 +7,6 @@ interface ThemeStore {
     setTheme: (theme: ThemeMode) => void;
 }
 
-/**
- * Theme mode owned by the native shell. The web app is the only writer (it pushes
- * changes over SavePreference); this store persists, applies, and restores.
- *
- * Unlike its sibling stores this one does NOT use zustand's `persist` middleware.
- * `persist` rehydrates asynchronously through storageAdapter -> preferenceService,
- * so the first frames would render against the initial value instead of the stored
- * one — visible as a wrong-colored status bar and a background flash right after the
- * splash. The theme is a first-paint value, so it is read synchronously here instead.
- * `languageStore` reads synchronously for the same reason: `t()` cannot wait for a rehydrate.
- */
 export const useThemeStore = create<ThemeStore>()(set => ({
     theme: readThemeMode(),
     setTheme: theme => {

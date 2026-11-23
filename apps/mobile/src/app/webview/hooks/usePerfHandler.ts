@@ -7,18 +7,6 @@ import type { PerfTraceName } from '@chatic/perf';
 import { bootMetricsService, logger, perfTraceBackend } from '../../services';
 import { useDebugSettingsStore } from '../../stores';
 
-/**
- * Handles perf/debug bridge messages from the web:
- * - SendBootMetrics: merge the web boot snapshot into the current boot record.
- * - SetDebugMode: persist the unlock flag so the native debug overlay opens in
- *   PROD builds too (single 10-tap unlock covers both layers).
- * - FetchBootRecords / ClearBootRecords: read back and drop what the native side recorded. Added
- *   for ADR-0080 Decision 11 — the Boot Performance screen moves to the web, and `SendBootMetrics`
- *   only goes web → app, so there was no way to read the merged records.
- * - StartPerfTrace / StopPerfTrace: open and close a Firebase Performance trace for the web. The
- *   SDK exists only on this side, and it times a trace itself, so the web forwards the two ends of
- *   a measurement as they happen instead of a finished number.
- */
 export const usePerfHandler = () => {
     const setDebugModeEnabled = useDebugSettingsStore(state => state.setDebugModeEnabled);
 
@@ -87,16 +75,12 @@ export const usePerfHandler = () => {
 
     const handleStartPerfTrace = useCallback(async (message: WebMessageData<'StartPerfTrace'>) => {
         const { id, name } = message.data;
-        // The name is a plain string on the wire so the contracts package does not depend on
-        // `@chatic/perf`. Only its shape is checked: a newer web may send a trace this build has
-        // never heard of, and that is the web deploying first, not an error.
         if (isValidPerfTraceName(name)) perfTraceBackend.start({ id, name: name as PerfTraceName });
         return { type: 'OnStartPerfTrace' as const, success: true, data: {} };
     }, []);
 
     const handleStopPerfTrace = useCallback(async (message: WebMessageData<'StopPerfTrace'>) => {
         const { id, name, attributes, metrics } = message.data;
-        // `durationMs` is the web's own measurement; Firebase timed this trace itself.
         if (isValidPerfTraceName(name)) {
             perfTraceBackend.stop({ id, name: name as PerfTraceName, durationMs: 0, attributes, metrics });
         }

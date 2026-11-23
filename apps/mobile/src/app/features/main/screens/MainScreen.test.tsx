@@ -100,7 +100,6 @@ describe('MainScreen web page load failure', () => {
         mockOnLoadFailed.mockClear();
     });
 
-    // A failed load used to leave the mounted WebView blank with no way to retry.
     it('replaces the WebView with the retry view when the page fails to load', () => {
         renderScreen();
 
@@ -112,7 +111,6 @@ describe('MainScreen web page load failure', () => {
         expect(mockOnLoadFailed).toHaveBeenCalledTimes(1);
     });
 
-    // Nothing is left to spend a back press once the WebView is gone; the press is the app's.
     it('hands Android back to the app while the retry view shows', () => {
         renderScreen();
         mockForgetPageReport.mockClear();
@@ -124,8 +122,6 @@ describe('MainScreen web page load failure', () => {
         expect(mockSetNavCanGoBack).toHaveBeenLastCalledWith(false);
     });
 
-    // Android reports the page's own history moves through `onLoadStart` too, with `loading` false;
-    // only a document load replaces the page whose back report the shell holds.
     it("forgets the page's back report when a document starts loading, not on a history move", () => {
         renderScreen();
         mockForgetPageReport.mockClear();
@@ -157,8 +153,6 @@ describe('MainScreen when crash recovery gives up', () => {
         mockOnLoadFailed.mockClear();
     });
 
-    // A WebView whose content process keeps dying used to end on a cover or a frozen page, with no
-    // way out short of killing the app.
     it('replaces the WebView with the crash retry view and lifts the splash', () => {
         renderScreen();
 
@@ -203,7 +197,6 @@ describe('MainScreen after the app restarted itself', () => {
         expect(mockMarkRestart).not.toHaveBeenCalled();
     });
 
-    // A session the app's runtime held ended: the page boots as one that has just signed out.
     it('opens home with the address the session ended with, and skips the cold-start replay', () => {
         mockRestartNote = { reason: 'session-ended', homeSearch: 'logout=1&reason=logout' };
 
@@ -211,12 +204,9 @@ describe('MainScreen after the app restarted itself', () => {
 
         expect(webViewProps?.source).toEqual({ uri: 'https://app.example?logout=1&reason=logout' });
         expect(mockUseDeepLinkNavigation).toHaveBeenLastCalledWith(expect.anything(), { skipColdStart: true });
-        // Its boot is recorded as a restart, not a cold start.
         expect(mockMarkRestart).toHaveBeenCalledTimes(1);
     });
 
-    // A page booted with `logout=1` empties the vault: a later mount repeating it would sign out a
-    // session started since the restart.
     it('carries the home query on the first load only, not into a later mount', () => {
         mockRestartNote = { reason: 'session-ended', homeSearch: 'logout=1' };
         renderScreen();
@@ -241,7 +231,6 @@ describe('MainScreen after the app restarted itself', () => {
         });
         rerender(<MainScreen {...({ route: { params: {} } } as any)} />);
 
-        // The same object: a changed source would navigate the live WebView a second time.
         expect(webViewProps?.source).toBe(firstSource);
     });
 

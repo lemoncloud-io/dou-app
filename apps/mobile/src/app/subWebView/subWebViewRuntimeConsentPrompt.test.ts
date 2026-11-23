@@ -4,8 +4,6 @@ import { consentQuestion } from './subWebViewRuntimeConsentPrompt';
 
 jest.mock('react-native', () => ({ Alert: { alert: jest.fn() } }));
 jest.mock('react-native-mmkv', () => ({ createMMKV: jest.fn() }));
-// A sentence comes back as its key's last part with the placeholders it was filled with, and a
-// permission as its own name, so a test reads which sentences were chosen, in which order.
 jest.mock('../utils', () => ({
     t: (key: string) => {
         const name = key.split('.').pop();

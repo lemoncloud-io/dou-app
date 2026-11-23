@@ -17,31 +17,18 @@ import { cloudOfSession, grantedSubWebViewRuntime, placeOfSession } from './subW
 
 type Engine = NonNullable<ReturnType<(typeof NativeRuntimeModule)['nativeRuntimeHost']['engine']>>;
 
-/** What one view's runtime requests are answered with, for the life of the view. */
 export interface SubWebViewRuntimeAccess {
     engine: Engine;
     openedCloudId: string;
-    /** The place the session was on as the view opened: a page that sends, sends there only. */
     openedPlaceId: string | null;
     granted: ReadonlySet<SubWebViewRuntimePermission>;
-    /** Per view, so a page cannot reset it by reloading. */
     budget: SubWebViewReadBudget;
-    /** The messages it may send, per view as well. */
     sends: SubWebViewReadBudget;
-    /** Its reads of the device cache, per view as well. */
     cacheReads: SubWebViewReadBudget;
-    /** The reactions it may set, per view as well. */
     reactions: SubWebViewReadBudget;
     consent: SubWebViewRuntimeConsent;
 }
 
-/**
- * Settles, once as the view opens, whether its page may ask the app's runtime anything, and binds it
- * to the cloud selected then. `null` — no runtime requests at all — unless the gate grants something.
- *
- * Checks the cheap conditions before it loads anything: the runtime module is required only on a
- * launch whose session it holds, where it is already loaded.
- */
 export const openSubWebViewRuntime = ({
     trust,
     permissions,

@@ -5,9 +5,6 @@ import type { WebMessageData } from '@chatic/bridge-messages';
 export const useAppUpdateHandler = () => {
     const { versionService, logService: logger } = useServices();
 
-    /**
-     * Checks the current app version against the live store version.
-     */
     const handleCheckAppUpdate = useCallback(
         async (_message: WebMessageData<'CheckAppUpdate'>) => {
             try {
@@ -29,9 +26,6 @@ export const useAppUpdateHandler = () => {
         [versionService, logger]
     );
 
-    /**
-     * Opens the platform app store listing.
-     */
     const handleOpenStore = useCallback(
         async (_message: WebMessageData<'OpenStore'>) => {
             try {

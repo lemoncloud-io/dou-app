@@ -40,27 +40,13 @@ import type { WebMessageData, WebMessageType } from '@chatic/bridge-messages';
 import { useAppStateHandler } from './useAppStateHandler';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
-/**
- * Props for the useWebMessageRouter hook.
- */
 export interface UseWebMessageRouterProps {
-    /** Bridge instance for communicating with the WebView */
     bridge: IAppBridgeHost;
 }
 
-/**
- * Central router for handling messages sent from the Web (WebView) to the Native App.
- * It acts as a Facade, delegating specific tasks to domain-specific handler hooks.
- * Messages are not queued: each is handled as it arrives, so a handler that waits on the user
- * (ShareFile on iOS waits for the share sheet to close) holds up no other message.
- *
- * @param props - Dependencies injected from the MainScreen (bridge, navigation, etc.)
- * @returns An object containing the message handler callback and IAP loading state.
- */
 export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { showResumeOverlay, dismissOverlay, coverReload } = useResumeOverlay();
 
-    // --- Domain-specific Handlers (memoized with useCallback) ---
     const { handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
     const {
         fetchFcmToken,
@@ -176,9 +162,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleFetchUrlMetadata } = useUnfurlHandler();
     const { handleFetchNativeStorageSummary, handleClearNativeCache } = useNativeStorageHandler();
     const { handleStorageGet, handleStorageSave, handleStorageClear } = useSecureStorageHandler();
-    // The runtime requests, on a launch the app's runtime owns; registered on their own.
     useRuntimeBridgeHandler(bridge);
-    // The debug overlay's session owner switch; answered outside production or while debug mode is on.
     useSessionOwnerHandler(bridge);
     const { handleOpenSubWebView, handleCloseSubWebView } = useSubWebViewHandler(bridge);
 
@@ -190,7 +174,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleClearTestRecords,
     } = useTestRecordHandler();
 
-    // --- Keep handlers fresh for async execution without triggering re-renders ---
     const handlersRef = useRef({
         fetchFcmToken,
         handleDeleteFcmToken,
@@ -402,7 +385,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     });
 
     useEffect(() => {
-        // Builds a routing map that fully supports type inference.
         const handlerMap: {
             [K in WebMessageType]?: (message: WebMessageData<K>) => any;
         } = {
@@ -470,8 +452,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             ListFileTransfers: () => handlersRef.current.handleListFileTransfers(),
             AckFileTransfers: message => handlersRef.current.handleAckFileTransfers(message),
             WriteTempFile: message => handlersRef.current.handleWriteTempFile(message),
-            // The web shows save and share only when the handshake lists both names, and the
-            // handshake lists what this table registers.
             SaveToPhotoLibrary: message => handlersRef.current.handleSaveToPhotoLibrary(message),
             ShareFile: message => handlersRef.current.handleShareFile(message),
             CreateDummyFile: message => handlersRef.current.handleCreateDummyFile(message),
@@ -487,7 +467,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),
             FetchNativeStorageSummary: message => handlersRef.current.handleFetchNativeStorageSummary(message),
             ClearNativeCache: message => handlersRef.current.handleClearNativeCache(message),
-            // The device vault. Main WebView only: the sub WebView's host never registers these.
             StorageGet: message => handlersRef.current.handleStorageGet(message),
             StorageSave: message => handlersRef.current.handleStorageSave(message),
             StorageClear: message => handlersRef.current.handleStorageClear(message),
@@ -495,25 +474,17 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
             OpenSubWebView: message => handlersRef.current.handleOpenSubWebView(message),
             CloseSubWebView: message => handlersRef.current.handleCloseSubWebView(message),
-            // Registered only where the native module exists. A build without it leaves the web its
-            // NOT_FOUND, which is the signal to fall back to the page's own file input.
             ...(isPhotoLibraryAvailable && {
                 ListPhotoAlbums: message => handlersRef.current.handleListPhotoAlbums(message),
                 ListPhotos: message => handlersRef.current.handleListPhotos(message),
                 ReadPhoto: message => handlersRef.current.handleReadPhoto(message),
                 ManagePhotoSelection: () => handlersRef.current.handleManagePhotoSelection(),
             }),
-            // The same rule for the attachment picker, and for the two export calls an older
-            // MediaExport module lacks: the web learns from NOT_FOUND that this shell cannot, and
-            // uses its own file input, or offers the share sheet, instead.
             ...(isAttachmentPickerAvailable && {
                 PickAttachments: message => handlersRef.current.handlePickAttachments(message),
                 PrepareVideo: message => handlersRef.current.handlePrepareVideo(message),
                 ReadAttachment: message => handlersRef.current.handleReadAttachment(message),
             }),
-            // Newer than the modules they live on, so registered by method: a build whose module lacks
-            // one leaves the web its NOT_FOUND — the grid then lists photos only, and a received video's
-            // tile is drawn another way or left grey.
             ...(isPhotoLibraryAvailable &&
                 canKeepVideo && {
                     KeepLibraryVideo: message => handlersRef.current.handleKeepLibraryVideo(message),
@@ -522,8 +493,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 canReadVideoFrame && {
                     ReadVideoFrame: message => handlersRef.current.handleReadVideoFrame(message),
                 }),
-            // The web draws its microphone only when the handshake lists `StartAudioRecording`, so a
-            // build without the recorder leaves both unregistered rather than answering with an error.
             ...(isAudioRecorderAvailable && {
                 StartAudioRecording: message => handlersRef.current.handleStartAudioRecording(message),
                 StopAudioRecording: message => handlersRef.current.handleStopAudioRecording(message),
@@ -536,7 +505,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             ...(canSaveFile && { SaveFile: message => handlersRef.current.handleSaveFile(message) }),
         };
 
-        // Register handlers with the bridge
         (Object.keys(handlerMap) as WebMessageType[]).forEach(type => {
             const handler = handlerMap[type];
             if (handler) {

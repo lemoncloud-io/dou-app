@@ -1,7 +1,6 @@
 import { isOpenableUrl, isTrustedBridgeUrl } from './urlTrust';
 
 jest.mock('react-native-config', () => ({ default: { VITE_ENV: 'DEV' } }));
-// deeplinkUtils' invite decoding pulls in the shared UI package, which this pure check never uses.
 jest.mock('@chatic/shared', () => ({ decodeInviteLink: jest.fn(), isEncodedInviteUrl: jest.fn() }));
 
 describe('isTrustedBridgeUrl', () => {
@@ -11,7 +10,6 @@ describe('isTrustedBridgeUrl', () => {
         expect(isTrustedBridgeUrl('http://localhost:5003/channels/1/room', base)).toBe(true);
     });
 
-    // Current Android reports the sender's bare origin, with no path or trailing slash.
     it('trusts the bare origin form', () => {
         expect(isTrustedBridgeUrl('http://localhost:5003', base)).toBe(true);
     });
@@ -48,7 +46,6 @@ describe('isOpenableUrl', () => {
         url => expect(isOpenableUrl(url)).toBe(true)
     );
 
-    // The debug deeplink screen opens the other channel's scheme on purpose.
     it.each(['chatic-dev://push?x=1', 'chatic://s?code=x'])('opens the app scheme %s', url =>
         expect(isOpenableUrl(url)).toBe(true)
     );

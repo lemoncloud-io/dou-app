@@ -5,9 +5,6 @@ import type { WebMessageData } from '@chatic/bridge-messages';
 export const useOAuthHandler = () => {
     const { oauthService: oAuthService, logService: logger } = useServices();
 
-    /**
-     * OAuth login
-     */
     const handleOAuthLogin = useCallback(
         async (message: WebMessageData<'OAuthLogin'>) => {
             const { provider } = message.data;
@@ -30,9 +27,6 @@ export const useOAuthHandler = () => {
         [oAuthService, logger]
     );
 
-    /**
-     * OAuth logout
-     */
     const handleOAuthLogout = useCallback(
         async (message: WebMessageData<'OAuthLogout'>) => {
             const { provider } = message.data;

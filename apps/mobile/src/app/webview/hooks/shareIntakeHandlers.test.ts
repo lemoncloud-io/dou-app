@@ -4,8 +4,6 @@ import type { ILogService } from '../../services';
 
 import { createShareIntakeHandlers } from './shareIntakeHandlers';
 
-// The real bridge barrel loads every native module wrapper; the handlers receive the intake by
-// injection and need nothing else from it at runtime.
 jest.mock('../../bridge', () => ({}));
 
 const createLoggerMock = (): jest.Mocked<ILogService> =>

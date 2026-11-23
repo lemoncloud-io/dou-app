@@ -26,10 +26,6 @@ jest.mock('../services', () => ({
     versionService: { checkForUpdate: (...args: unknown[]) => mockCheckForUpdate(...args) },
 }));
 
-// getVersionCheckResult/onVersionCheckComplete share a module-level singleton cache that is only
-// ever populated (never cleared) once an update is found — mirroring production, where a found
-// update stays "sticky" for the rest of the app session. Tests that must observe an empty cache
-// run BEFORE the "update found" test, which intentionally runs last.
 describe('useAppVersionCheck', () => {
     beforeEach(() => {
         jest.clearAllMocks();

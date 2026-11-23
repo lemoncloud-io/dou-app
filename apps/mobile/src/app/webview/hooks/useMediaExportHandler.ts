@@ -4,8 +4,6 @@ import { MediaExportBridge } from '../../bridge';
 import { useServices } from '../../hooks';
 import { createMediaExportHandlers, type MediaExportPlatform } from './mediaExportHandlers';
 
-// Built when the router mounts rather than at import: nothing in this module may run while the
-// app's module graph is still loading.
 const currentPlatform = (): MediaExportPlatform => ({
     os: Platform.OS,
     apiLevel: typeof Platform.Version === 'number' ? Platform.Version : Number(Platform.Version),

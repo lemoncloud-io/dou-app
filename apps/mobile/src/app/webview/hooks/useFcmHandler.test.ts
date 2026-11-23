@@ -4,7 +4,6 @@ import { pushedEventErrors, pushedEvents } from './appEventContract';
 import { useFcmHandler } from './useFcmHandler';
 import { notificationService, pushEventManager } from '../../services';
 
-// Capture the listeners the hook registers so tests can drive them.
 let mockOnMessageCb: ((msg: any) => void) | undefined;
 let mockOnReceiveCb: ((msg: any) => void) | undefined;
 
@@ -109,8 +108,6 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
     });
 
     describe('안드로이드 네이티브 포그라운드 이벤트 매핑', () => {
-        // The native service resolves title/body/link itself but knows nothing about `ownerId` or
-        // the chat channel — so it hands over the FCM payload as-is and this mapping must keep it.
         const emitNative = () =>
             act(() => {
                 mockForegroundPushCb?.({
@@ -119,7 +116,6 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
                     title: '제목',
                     body: '본문',
                     clickAction: 'chatic://channels/ch1/room',
-                    // The OS notification channel, NOT the chat channel.
                     channelId: 'dou_chat',
                     timestamp: '1700000000000',
                     payload: JSON.stringify({ channelId: 'ch1', ownerId: 'u1', cid: 'c1' }),
@@ -142,8 +138,6 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
             });
         });
 
-        // Overwriting `channelId` with "dou_chat" matched no room route, so the web could never
-        // tell it was already reading the room the push came from.
         it('OS 알림 채널을 chat channelId 자리에 덮어쓰지 않는다', () => {
             renderHook(() => useFcmHandler(bridge as any));
 
@@ -155,7 +149,6 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
         });
     });
 
-    // Both foreground sources meet at PushEventManager, and one subscriber turns them into the event.
     describe('app → web event contract', () => {
         it("pushes 'OnReceiveNotification' for a foreground push the notification library delivers", () => {
             renderHook(() => useFcmHandler(bridge as any));
@@ -206,7 +199,6 @@ describe('useFcmHandler - 포그라운드 푸시 → OnReceiveNotification', () 
     it('알림 탭 라우팅은 더 이상 구독하지 않는다 (useDeepLinkNavigation로 이관)', () => {
         renderHook(() => useFcmHandler(bridge as any));
 
-        // Tap ownership moved out: the push hook must not register tap listeners anymore.
         expect(notificationService.onNotificationOpenedApp).not.toHaveBeenCalled();
         expect(notificationService.getInitialNotification).not.toHaveBeenCalled();
     });
@@ -225,8 +217,6 @@ describe('useFcmHandler — DeleteFcmToken (ADR-0080 결정 11)', () => {
         expect(response).toEqual({ type: 'OnDeleteFcmToken', success: true, data: { success: true } });
     });
 
-    // deleteToken logs and swallows its own errors, so the caller can't tell "deleted" apart from
-    // "there was nothing to delete." Both are the state the caller asked for, so either way we answer success.
     it('토큰이 원래 없었어도 성공으로 답한다', async () => {
         (notificationService.deleteToken as jest.Mock).mockResolvedValue(undefined);
         const bridge = { pushEvent: jest.fn() };

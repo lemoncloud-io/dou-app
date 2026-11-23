@@ -2,7 +2,6 @@ import { toWebViewInsets } from './webViewGeometry';
 
 describe('toWebViewInsets', () => {
     it('pads the WebView by the horizontal insets and reports none of them to the web', () => {
-        // iPhone Duo's outer display: the status bar and Dynamic Island sit on the trailing edge.
         const result = toWebViewInsets({ top: 0, bottom: 20, left: 0, right: 84 });
 
         expect(result.padding).toEqual({ paddingLeft: 0, paddingRight: 84 });

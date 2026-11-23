@@ -1,7 +1,6 @@
 /**
  * @jest-environment node
  */
-// Node, not jsdom: the runtime's socket client needs `TextEncoder`, which jsdom leaves out.
 import type { DataContextProvider } from '@chatic/data';
 import type { RuntimeEngine, StartRuntimeOptions } from '@chatic/runtime-mobile';
 import { NativeRuntimeEnvError, NativeRuntimeNoSessionError } from '@chatic/runtime-mobile';
@@ -11,7 +10,6 @@ import type { ILogService } from '../app/services/log';
 import { mobile, startMobileRuntime } from './mobile';
 import type { StartMobileRuntimeOptions } from './mobile';
 
-// The runtime package reads these at import and when its ports are built; nothing here opens a socket.
 jest.mock('react-native', () => ({
     AppState: { currentState: 'active', addEventListener: jest.fn(() => ({ remove: jest.fn() })) },
     Platform: { OS: 'ios' },
@@ -21,10 +19,8 @@ jest.mock('@react-native-community/netinfo', () => ({
     default: { addEventListener: jest.fn(() => () => undefined), fetch: jest.fn() },
 }));
 
-/** The address a session's end leaves in `plain` for the next launch (`@chatic/runtime-mobile`'s auth). */
 const HOME_SEARCH_KEY = 'chatic-runtime-mobile-home-search';
 
-/** What the boot built before the declaration: one fixed adapter per port. */
 const EXPECTED_DEFAULTS = {
     storage: 'storage.mobile-vault',
     transport: 'transport.mobile',
@@ -44,7 +40,6 @@ const FULL_ENV: Record<string, string> = {
     VITE_DOU_ENDPOINT: 'dou',
 };
 
-/** What the start hands runtime-core's `createRuntime`: the built ports. */
 type RuntimeConfig = Parameters<NonNullable<StartRuntimeOptions['createRuntime']>>[0];
 
 const fakeFile = () => {

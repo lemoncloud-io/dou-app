@@ -5,8 +5,6 @@ import type { WebMessageData } from '@chatic/bridge-messages';
 
 export const useTestRecordHandler = () => {
     const { logService: logger } = useServices();
-    // `provider.testRecordService` is read inside each callback (not at render) so SQLite opens on the
-    // first actual test-record message, off the boot critical path (boot-optimization.md 4.4).
 
     const handleFetchTestRecord = useCallback(
         async (message: WebMessageData<'FetchTestRecord'>) => {
@@ -87,8 +85,6 @@ export const useTestRecordHandler = () => {
                 `SaveAll received raw message keys: ${Object.keys(message ?? {})}, stringified: ${JSON.stringify(message)}`
             );
 
-            // Defensively handle the case where message.data is missing, so items can still be
-            // extracted from message itself or message.payload, etc.
             const data = message?.data ?? (message as any);
             const items = data?.items;
 

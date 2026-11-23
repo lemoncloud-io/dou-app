@@ -225,7 +225,6 @@ describe('createMediaExportHandlers', () => {
             expect(reply).toEqual({ type: 'OnOpenFile', success: true, data: {} });
         });
 
-        // The web answers NO_HANDLER by offering the share sheet, so it has to arrive as itself.
         it('carries NO_HANDLER into the envelope', async () => {
             mediaExport.openFile.mockRejectedValueOnce(rejection('NO_HANDLER', 'nothing opens this file'));
 

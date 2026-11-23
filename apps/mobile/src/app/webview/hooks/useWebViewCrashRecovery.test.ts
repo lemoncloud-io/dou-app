@@ -32,8 +32,6 @@ const moveAppTo = (state: string) =>
 const mockStartReloadSession = jest.fn();
 const mockRevealListeners = new Set<() => void>();
 
-// Stub the services barrel: importing the real one drags in the whole provider
-// (MMKV, SQLite, Firebase, ...) which cannot load under jsdom.
 jest.mock('../../services', () => ({
     bootMetricsService: { startReloadSession: () => mockStartReloadSession() },
     bootSplashService: {
@@ -46,7 +44,6 @@ jest.mock('../../services', () => ({
     pendingReportQueueService: { enqueue: (report: unknown) => mockEnqueue(report) },
 }));
 
-/** What the boot splash service does when a (re)loaded page reports its first screen. */
 const revealWeb = () => act(() => mockRevealListeners.forEach(listener => listener()));
 
 const setup = () => {
@@ -86,8 +83,6 @@ describe('useWebViewCrashRecovery', () => {
         expect(onGiveUp).not.toHaveBeenCalled();
     });
 
-    // Reloading into a page that kills its process again only repeats the crash; past the limit the
-    // reader gets the retry view instead of a cover that never lifts onto anything.
     it('stops reloading and gives up once terminations reach the limit inside the window', () => {
         const { reload, onGiveUp, terminate } = setup();
 
@@ -100,7 +95,6 @@ describe('useWebViewCrashRecovery', () => {
         expect(reload).toHaveBeenCalledTimes(CRASH_LOOP_LIMIT - 1);
         expect(onGiveUp).toHaveBeenCalledTimes(1);
         expect(onGiveUp).toHaveBeenCalledWith('crash-loop');
-        // Every termination is still reported, plus one record of giving up.
         expect(mockEnqueue).toHaveBeenCalledTimes(CRASH_LOOP_LIMIT + 1);
         expect(mockEnqueue).toHaveBeenLastCalledWith(
             expect.objectContaining({ category: 'webview-crash', message: expect.stringContaining('crash-loop') })
@@ -120,8 +114,6 @@ describe('useWebViewCrashRecovery', () => {
         expect(onGiveUp).not.toHaveBeenCalled();
     });
 
-    // The case seen on the iOS simulator: the process launched for the reload died before it could
-    // load anything, and no second termination ever reached the app.
     it('gives up when the reloaded page never reports a first screen', () => {
         const { onGiveUp, terminate } = setup();
 
@@ -161,7 +153,6 @@ describe('useWebViewCrashRecovery', () => {
         expect(onGiveUp).toHaveBeenCalledWith('crash-loop');
     });
 
-    // A callback still in flight while the host swaps in the retry view must not report twice.
     it('ignores terminations after it has given up', () => {
         const { reload, onGiveUp, terminate } = setup();
         for (let i = 0; i < CRASH_LOOP_LIMIT; i += 1) terminate();
@@ -175,8 +166,6 @@ describe('useWebViewCrashRecovery', () => {
         expect(mockEnqueue).not.toHaveBeenCalled();
     });
 
-    // The OS often reclaims the content process of a backgrounded app; the reload cannot paint until
-    // the app is back, and must not be given up on for that.
     it('does not count time in the background against the reload', () => {
         const { onGiveUp, terminate } = setup();
         moveAppTo('background');
@@ -206,8 +195,6 @@ describe('useWebViewCrashRecovery', () => {
         expect(onGiveUp).not.toHaveBeenCalled();
     });
 
-    // Seen on the iOS simulator after "Try again": the new WebView's content process died while
-    // launching, no termination reached the app, and the screen stayed blank.
     it('gives up when a fresh mount never reports a first screen', () => {
         const { reload, onGiveUp } = setup();
 
@@ -228,7 +215,6 @@ describe('useWebViewCrashRecovery', () => {
         expect(onGiveUp).not.toHaveBeenCalled();
     });
 
-    // An app started in the background (a silent push) mounts the WebView before anyone sees it.
     it('starts the mount wait only once the app is in the foreground', () => {
         mockAppState = 'background';
         const { onGiveUp } = setup();

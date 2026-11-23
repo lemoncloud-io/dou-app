@@ -6,8 +6,6 @@ import type { ILogService } from '../../services';
 import { pushedEventErrors, pushedEvents } from './appEventContract';
 import { createFileTransferHandlers } from './fileTransferHandlers';
 
-// The real bridge barrel loads every native module wrapper; the handlers only need `safeHost` from it
-// at runtime, and receive the transfer and file bridges by injection.
 jest.mock('../../bridge', () => ({
     safeHost: (url: string) => new URL(url).host,
 }));
@@ -214,7 +212,6 @@ describe('createFileTransferHandlers', () => {
         });
 
         it('rejects an over-limit payload as TOO_LARGE without touching native', async () => {
-            // Just over the 64MB decoded cap (base64 inflates 4/3; +3 bytes to cross the quantum).
             const big = 'A'.repeat(Math.ceil((64 * 1024 * 1024 + 3) / 3) * 4);
 
             const reply = await handlers().handleWriteTempFile(

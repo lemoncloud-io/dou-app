@@ -11,8 +11,6 @@ const preferenceService = {
 };
 const logService = { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() };
 
-// Only the stores are mocked. `parseThemeMode` is imported from stores/themeMode, which is
-// provider-free, so the value validation below runs against the parser that actually ships.
 jest.mock('../../stores', () => ({
     useThemeStore: { getState: () => ({ setTheme }) },
     useLanguageStore: { getState: () => ({ setPreference }) },
@@ -70,8 +68,6 @@ describe('handleSavePreference — bridge write allowlist', () => {
     });
 
     it("'pushRegistration'는 정상 persist된다 — app-runtime의 등록 기록(ADR-0077)", async () => {
-        // An opaque JSON blob owned by libs/runtime; nothing native reads or acts on it, which is
-        // why it can be web-writable while system keys stay locked.
         const raw = '{"id":"v1:u-1:d-1:ios","token":"tok-1","at":1}';
         const res = await save('pushRegistration', raw);
 
@@ -90,8 +86,6 @@ describe('handleSavePreference — bridge write allowlist', () => {
     it("'theme'에 인식할 수 없는 값이 오면 거부하고 스토어를 건드리지 않는다", async () => {
         const res = await save('theme', 'purple');
 
-        // Persisting a bogus value would degrade the status bar to light on every
-        // boot, with nothing in the app able to explain why.
         expect(setTheme).not.toHaveBeenCalled();
         expect(res.success).toBe(false);
         expect((res as any).error.code).toBe('PREF_INVALID_VALUE');
@@ -99,8 +93,6 @@ describe('handleSavePreference — bridge write allowlist', () => {
     });
 
     it("'theme'에 스크립트 탈출을 노린 값이 오면 거부한다", async () => {
-        // The stored theme is interpolated into an injected WebView script, so this bridge is
-        // the boundary that keeps page-controlled text out of it.
         const res = await save('theme', "light'; window.__pwned=1; //");
 
         expect(setTheme).not.toHaveBeenCalled();
@@ -130,8 +122,6 @@ describe('handleSavePreference — bridge write allowlist', () => {
         expect(res.success).toBe(true);
     });
 
-    // The value is copied into the push services' shared storage and picks the locale file they
-    // open, so an arbitrary blob from the page must not get that far.
     it('rejects a language value outside system/ko/en', async () => {
         const res = await save('language', '../../etc');
 

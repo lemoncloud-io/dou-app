@@ -76,8 +76,6 @@ describe('로그 컨텍스트용 필드', () => {
 
 describe('consoleEnabled — 웹의 debug 릴레이 게이트', () => {
     it('넘겨받은 값을 그대로 옮긴다 — 여기서 __DEV__를 읽지 않는다', () => {
-        // This is the reason this function is pure. Reading a build global internally would make
-        // it untestable without a WebView.
         const on = buildDeviceInfoParams(cached, { ...dynamic, consoleEnabled: true });
         const off = buildDeviceInfoParams(cached, { ...dynamic, consoleEnabled: false });
 

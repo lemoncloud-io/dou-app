@@ -5,7 +5,6 @@ import type { WebMessageData } from '@chatic/bridge-messages';
 import { toErrorMessage } from '../../utils';
 
 export const useAppIconHandler = () => {
-    // Fetches only the name of the currently applied icon
     const handleFetchAppIcon = useCallback(async (_message: WebMessageData<'FetchAppIcon'>) => {
         try {
             const currentIcon = await provider.dynamicAppIconService.fetchCurrentIcon();
@@ -23,7 +22,6 @@ export const useAppIconHandler = () => {
         }
     }, []);
 
-    // Fetches the full list of available icons
     const handleFetchAppIconList = useCallback(async (_message: WebMessageData<'FetchAppIconList'>) => {
         const availableIcons = provider.dynamicAppIconService.getAvailableIcons();
         return {
@@ -33,9 +31,7 @@ export const useAppIconHandler = () => {
         };
     }, []);
 
-    // Executes the app icon change
     const handleChangeAppIcon = useCallback(async (message: WebMessageData<'ChangeAppIcon'>) => {
-        // The request data lives in `data` here, not `payload`.
         const { iconName } = message.data;
 
         try {

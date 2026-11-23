@@ -33,9 +33,9 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
         const dataSource = new ChatDataSource(sqlite, TABLE);
 
         (sqlite.execute as jest.Mock)
-            .mockResolvedValueOnce({ rows: [asRow(makeChat({ id: 'm3', chatNo: 3 }))] }) // committed
-            .mockResolvedValueOnce({ rows: [] }) // pending
-            .mockResolvedValueOnce({ rows: [{ last_no: 5 }] }); // max
+            .mockResolvedValueOnce({ rows: [asRow(makeChat({ id: 'm3', chatNo: 3 }))] })
+            .mockResolvedValueOnce({ rows: [] })
+            .mockResolvedValueOnce({ rows: [{ last_no: 5 }] });
 
         const result = await dataSource.fetchLastPerChannel(['ch-1'], 'c1', 'u1');
 
@@ -50,15 +50,12 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
 
         const calls = (sqlite.execute as jest.Mock).mock.calls;
         expect(calls).toHaveLength(3);
-        // Committed probe: the previewable check (SQL) and "1 latest row" must all be in the query.
         expect(String(calls[0][0])).toContain('chat_no > 0');
-        // The first pair of probes is the activity row, so it must let a thread reply through.
         expect(String(calls[0][0])).not.toContain('parentId');
         expect(String(calls[0][0])).toContain(`<> 'system'`);
         expect(String(calls[0][0])).toContain(`<> 'reaction'`);
         expect(String(calls[0][0])).toContain('ORDER BY chat_no DESC LIMIT 1');
         expect(calls[0][1]).toEqual(['c1', 'u1', 'ch-1']);
-        // The unsent probe and the MAX probe also go out with the same scope.
         expect(String(calls[1][0])).toContain('chat_no = 0');
         expect(String(calls[2][0])).toContain('MAX(chat_no)');
         expect(calls[2][1]).toEqual(['c1', 'u1', 'ch-1']);
@@ -69,11 +66,11 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
         const dataSource = new ChatDataSource(sqlite, TABLE);
 
         (sqlite.execute as jest.Mock)
-            .mockResolvedValueOnce({ rows: [asRow(makeChat({ id: 'reply', chatNo: 6, parentId: '3' } as any))] }) // activity, committed
-            .mockResolvedValueOnce({ rows: [] }) // activity, pending
-            .mockResolvedValueOnce({ rows: [asRow(makeChat({ id: 'top', chatNo: 3 }))] }) // preview, committed
-            .mockResolvedValueOnce({ rows: [] }) // preview, pending
-            .mockResolvedValueOnce({ rows: [{ last_no: 6 }] }); // max
+            .mockResolvedValueOnce({ rows: [asRow(makeChat({ id: 'reply', chatNo: 6, parentId: '3' } as any))] })
+            .mockResolvedValueOnce({ rows: [] })
+            .mockResolvedValueOnce({ rows: [asRow(makeChat({ id: 'top', chatNo: 3 }))] })
+            .mockResolvedValueOnce({ rows: [] })
+            .mockResolvedValueOnce({ rows: [{ last_no: 6 }] });
 
         const [row] = await dataSource.fetchLastPerChannel(['ch-1'], 'c1', 'u1');
 
@@ -81,7 +78,6 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
         expect(row.item).toEqual(expect.objectContaining({ id: 'top' }));
         const calls = (sqlite.execute as jest.Mock).mock.calls;
         expect(calls).toHaveLength(5);
-        // The preview probes are the ones that leave thread replies out.
         expect(String(calls[2][0])).toContain(`'$.parentId'`);
     });
 
@@ -101,7 +97,6 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
 
         const result = await dataSource.fetchLastPerChannel(['ch-1'], 'c1', 'u1');
 
-        // Among unsent messages, the most recent createdAt wins.
         expect(result[0]?.item).toEqual(expect.objectContaining({ id: 'pending-new' }));
         expect(result[0]?.lastNo).toBe(9);
     });
@@ -113,7 +108,6 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
         (sqlite.execute as jest.Mock)
             .mockResolvedValueOnce({ rows: [] })
             .mockResolvedValueOnce({ rows: [] })
-            // SQLite's MAX() returns a single row with NULL when there are no rows.
             .mockResolvedValueOnce({ rows: [{ last_no: null }] });
 
         const result = await dataSource.fetchLastPerChannel(['ch-1'], 'c1', 'u1');
@@ -130,7 +124,6 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
 
         (sqlite.execute as jest.Mock).mockResolvedValue({ rows: [] });
         await dataSource.fetchLastPerChannel(['ch-1', 'ch-1', ''], 'c1', 'u1');
-        // 1 unique channel × 3 probes.
         expect(sqlite.execute).toHaveBeenCalledTimes(3);
     });
 });
@@ -143,9 +136,6 @@ describe('ChatDataSource.clearByChannel (ADR-0067)', () => {
 
         await dataSource.clearByChannel('ch-1', 'c1', 'u1');
 
-        // The room's media entries go in the same batch as its rows.
-        // The same device's other cloud accounts or other users could share the same channel id —
-        // leaving one room shouldn't wipe their history too.
         expect((sqlite.executeBatch as jest.Mock).mock.calls[0][0]).toEqual([
             [`DELETE FROM ${TABLE} WHERE channel_id = ? AND cid = ? AND uid = ?`, ['ch-1', 'c1', 'u1']],
             ['DELETE FROM chat_media WHERE channel_id = ? AND cid = ? AND uid = ?', ['ch-1', 'c1', 'u1']],

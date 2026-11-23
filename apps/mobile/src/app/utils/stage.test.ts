@@ -9,9 +9,6 @@ describe('toEnvStage (VITE_ENV → Env 어휘 변환)', () => {
         expect(toEnvStage(raw)).toBe(expected);
     });
 
-    // The old injection was `Config.VITE_ENV || 'PROD'`: a build that failed to load its env file
-    // presented itself as prod. Keep that polarity — never let a missing value read as a lower
-    // environment, since the value ends up in the push application name.
     it.each([undefined, '', '   ', 'STAGING'])('알 수 없는 값 %p은 prod로 떨어진다', raw => {
         expect(toEnvStage(raw)).toBe('prod');
     });

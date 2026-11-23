@@ -40,59 +40,28 @@ interface SubWebViewProps {
     viewId: string;
     url: string;
     params: Record<string, unknown>;
-    /** The app the web resolved `url` from; the page's share link names it. */
     appId?: string;
-    /** What the page's manifest permits beyond the base set; read once, when the view opens. */
     permissions: ReadonlySet<SubWebViewPermission>;
-    /** What the page's manifest asks to read of the app's runtime; granted only where the gate allows. */
     runtimePermissions: ReadonlySet<SubWebViewRuntimePermission>;
-    /** How far the shell trusts the page: only a `reviewed` one may read the runtime. */
     trust: SubWebViewTrust;
-    /** Close the view as `user`; called once the page's close guard, if any, lets the close through. */
     onRequestClose: () => void;
-    /** The document's own title, each time it changes. */
     onTitleChange?: (title: string) => void;
-    /** A title the page asked for with `SetSubWebViewTitle`; `undefined` when a new page starts loading. */
     onTitleRequest?: (title: string | undefined) => void;
-    /**
-     * The safe-area insets of an `immersive` view, drawn under the system bars, which the page is told as custom properties,
-     * kept current as they change. Absent, the screen keeps the view inside the safe area and the
-     * page is told nothing.
-     */
     insets?: EdgeInsets;
-    /** The display the screen shows the page in, told to the page as the context's `display`. */
     display?: SubWebViewDisplay;
 }
 
-/**
- * How long the safe area has to stay put before a change is pushed: a rotation moves the insets
- * several times on its way, and the page is told once, where they came to rest. The custom
- * properties follow every step; the push carries the last.
- */
 export const SUB_WEBVIEW_SAFE_AREA_SETTLE_MS = 200;
 
 const openExternal = (url: string) => Linking.openURL(url);
 const openShareSheet = (data: { title?: string; message?: string; url?: string }) => deviceService.openShareSheet(data);
-// The id the main WebView is given as `CHATIC_APP_UNIQUE_DEVICE_ID`; only a key derived from it reaches a page.
 const getDeviceId = () => DeviceInfo.getUniqueIdSync();
 const openSettings = () => deviceService.openSettings();
 
-/** What the screen around the view may ask of it. */
 export interface SubWebViewHandle {
-    /** The user asked to close: through the page's close guard when it has one on, else closes. */
     requestClose(trigger: SubWebViewCloseTrigger): void;
 }
 
-/**
- * The second WebView. Built apart from `AppWebView` on purpose: it gets none of the main WebView's
- * injected globals (device and install ids, the bridge handler) and none of its handlers — a page
- * that asks gets a key derived from the device id and its own origin, never the id. Its bridge
- * is a host of its own that answers only the subset a page may use, and only for the origin the view
- * was opened on. Camera, microphone and file pickers are left to the OS and the WebView's own
- * defaults: what may run here is decided by what is allowed to be deployed to the allowlisted
- * domains, not by switching features off. The OS asks the user once under DoU's name; WebKit's own
- * prompt for the same page would be a second question, so iOS does not show it.
- */
 export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function SubWebView(
     {
         viewId,
@@ -112,15 +81,9 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
 ) {
     const webViewRef = useRef<WebView>(null);
     const [canGoBack, setCanGoBack] = useState(false);
-    // One host per page load: a host stays "ready" after its page's first message, so a reloaded
-    // page would get pushes before it listens. A new host buffers them until the new page's handshake.
     const [pageLoad, setPageLoad] = useState(0);
-    // What the current page load claimed. Reset with each load, so a page never inherits the last
-    // one's claim on back or its close guard.
     const backClaimed = useRef(false);
     const closeGuard = useRef(createSubWebViewCloseGuard());
-    // Bumped in the load callback itself, before the state that rebuilds the host, so a late reply
-    // from the old host is already stale by then.
     const loadCount = useRef(pageLoad);
     const { backgroundColor, resolvedTheme } = useResolvedTheme();
     const languagePreference = useLanguageStore(state => state.preference);
@@ -130,17 +93,11 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
     onTitleRequestRef.current = onTitleRequest;
 
     const openedOrigin = useMemo(() => originOf(url), [url]);
-    // The link a page shares to be opened again, naming the app the web opened it as, on the link host
-    // this build's own links use; from a web that names no app, the page's label stands in. Never
-    // from the page, so a page cannot point its link at another.
     const appLink = useMemo(() => {
         if (appId) return subWebViewAppLinkOfId(appId, Config.VITE_ENV === 'PROD' ? 'prod' : 'dev');
         return openedOrigin ? subWebViewAppLinkOfOrigin(openedOrigin) : null;
     }, [appId, openedOrigin]);
 
-    // The bars' reach as the page is told it: the screen's insets for an `immersive` page, which draws
-    // under the bars, and 0 for a padded one, which the screen keeps clear of them. Kept by value, so
-    // insets that come back equal do not count as a change.
     const immersiveInsets = display === 'immersive' ? insets : undefined;
     const measured = immersiveInsets ? subWebViewSafeAreaOf(immersiveInsets) : NO_SUB_WEBVIEW_SAFE_AREA;
     const safeArea = useMemo(
@@ -164,18 +121,12 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         }),
         [viewId, params, locale, resolvedTheme, appLink, display, safeArea]
     );
-    // The handshake reports the context as it is when the page asks, not as it was at load.
     const contextRef = useRef(context);
     contextRef.current = context;
 
-    // Settled once as the view opens: whether its page may read the app's runtime, and the cloud it is
-    // bound to. State, not a memo — React may drop a memo and compute it again, which would rebind the
-    // view to whatever cloud is selected then and start its read budget over.
     const [runtimeAccess] = useState(() => openSubWebViewRuntime({ trust, permissions: runtimePermissions }));
 
     const { host, runtime } = useMemo(() => {
-        // A request from the previous load can be answered after the next one started; its title
-        // and claims must not stick to the new page.
         const load = pageLoad;
         const isCurrent = () => loadCount.current === load;
         const handlers = createSubBridgeHandlers({
@@ -197,8 +148,6 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
                 if (isCurrent()) closeGuard.current.setEnabled(enabled);
             },
             logPageError: report => logger.warn('WEBVIEW', '[sub] page error', report),
-            // The opened origin's own file, on the first request that needs it; one page can never
-            // open another's.
             openStorage: () => {
                 if (!openedOrigin) return null;
                 const storage = openSubWebViewStorage(openedOrigin);
@@ -208,8 +157,6 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
             permissions: permissionService,
             openSettings,
         });
-        // The runtime requests, where the gate opened them: a runtime host of this load's own, so the
-        // page's streams end with the load. Loaded only then — the module brings the whole runtime.
         let runtime: ReturnType<(typeof RuntimeBridgeModule)['createAppSubWebViewRuntimeBridge']> | null = null;
         let pageHost: ReturnType<typeof createSubBridgeHost> | null = null;
         if (runtimeAccess && openedOrigin) {
@@ -230,7 +177,6 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         return { host: pageHost, runtime };
     }, [viewId, openedOrigin, pageLoad, permissions, runtimeAccess]);
 
-    // A load's runtime streams end with it, and with the view.
     useEffect(() => () => runtime?.dispose(), [runtime]);
 
     const requestClose = useCallback(
@@ -256,18 +202,12 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
     useSubWebViewBack(onBack);
 
     const contextScript = useMemo(() => buildSubWebViewContextScript(context, url), [context, url]);
-    // Only for an `immersive` page, from the same insets as `safeArea`, so the two never disagree.
     const insetScript = immersiveInsets ? buildSubWebViewInsetScript(immersiveInsets) : '';
-    // A load runs it with the context script; a change while the page is up (a rotation) is pushed.
     const pageScript = useMemo(() => contextScript + insetScript, [contextScript, insetScript]);
     useEffect(() => {
         if (insetScript) webViewRef.current?.injectJavaScript(insetScript);
     }, [insetScript]);
 
-    // The page read the context once; a change after that arrives as an event, carrying the whole of
-    // what can change so a page that reads only `theme` and `locale` reads them as before. The host
-    // holds it until the page's handshake, so a page still loading misses nothing. A theme or language
-    // change goes at once; a safe-area change only once the insets have settled.
     const announcedContext = useRef({ locale, theme: resolvedTheme, safeArea });
     useEffect(() => {
         const previous = announcedContext.current;
@@ -288,8 +228,6 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         return () => clearTimeout(settled);
     }, [host, locale, resolvedTheme, safeArea]);
 
-    // Only the origin the view was opened on may talk to the app. A page it navigated to — another
-    // allowlisted one included — and any frame on another origin get no answer at all.
     const onMessage = useCallback(
         (event: WebViewMessageEvent) => {
             if (originOf(event.nativeEvent.url) !== openedOrigin) {
@@ -314,7 +252,6 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         [openedOrigin]
     );
 
-    // A new document: a fresh host for it, and the last page's title and claims no longer apply.
     const onLoadStart = useCallback(() => {
         loadCount.current += 1;
         setPageLoad(loadCount.current);
@@ -323,12 +260,6 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         onTitleRequestRef.current?.(undefined);
     }, []);
 
-    // The page's process died — the OS reclaimed its memory (a heavy game), or it crashed. The view
-    // would stay blank, and on Android a WebView whose renderer is gone cannot be used again, so it is
-    // closed as the shell's own close and the opener hears `system`. The page is not reloaded: one
-    // that runs the device out of memory would only do it again. The one exception is iOS ending the
-    // process while the app is in the background, which WebKit does to any page for the system's
-    // memory: the page is reloaded once instead, so the user comes back to it rather than to nothing.
     const reloadedAfterBackgroundKill = useRef(false);
     const closeForProcessGone = useCallback(() => {
         logger.warn('WEBVIEW', '[sub] page process gone; closing the view', { viewId });
@@ -358,34 +289,19 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
             source={{ uri: url }}
             style={[styles.webView, { backgroundColor }]}
             injectedJavaScriptBeforeContentLoaded={pageScript}
-            // Again at load end: on Android the first run does not always precede the page's own
-            // scripts. The script stops when it finds the context already defined.
             injectedJavaScript={pageScript}
-            // Pinned at the library's default: the scroll view does not inset the content, so
-            // WebKit reports the safe area the view overlaps to `env(safe-area-inset-*)` instead —
-            // 0 inside the padded screen, the bars' reach for an `immersive` one.
             contentInsetAdjustmentBehavior="never"
             onLoadStart={onLoadStart}
             onMessage={onMessage}
-            // Everything, so every navigation reaches the decision below: react-native-webview checks
-            // this list first and hands whatever fails it straight to the OS, the app's own schemes
-            // included, without asking `onShouldStartLoadWithRequest`.
             originWhitelist={['*']}
-            // Inspectable from Safari Web Inspector and `chrome://inspect` in a development build,
-            // as the main WebView is; iOS 16.4+ shows no WebView there without it.
             webviewDebuggingEnabled={__DEV__}
             onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
             onNavigationStateChange={onNavigationStateChange}
             onContentProcessDidTerminate={onContentProcessDidTerminate}
             onRenderProcessGone={closeForProcessGone}
-            // `target=_blank` and `window.open` load in this view, through the same check, instead
-            // of opening a window this screen does not manage.
             setSupportMultipleWindows={false}
             allowsBackForwardNavigationGestures
-            // A camera preview in a `<video playsinline>` plays in the page, as in the main WebView;
-            // without it iOS can only play it full screen.
             allowsInlineMediaPlayback
-            // The page's own host only: a frame from elsewhere inside it is denied, not asked.
             mediaCapturePermissionGrantType="grantIfSameHostElseDeny"
         />
     );

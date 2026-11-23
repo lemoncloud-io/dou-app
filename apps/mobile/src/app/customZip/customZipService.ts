@@ -10,13 +10,11 @@ const getCustomZipDir = () => `${FileManagerBridge.DocumentDirectoryPath}/custom
 const getZipDownloadPath = () => `${getCustomZipDir()}/bundle.zip`;
 const getExtractRoot = (zipUrl: string) => `${getCustomZipDir()}/webroot/${hashUrl(zipUrl)}`;
 
-/** Deterministic djb2 (xor) hash — used to isolate the extraction root per zip URL (no crypto dependency) */
 export const hashUrl = (url: string): string => {
     let hash = 5381;
     for (let i = 0; i < url.length; i += 1) {
         hash = (hash * 33) ^ url.charCodeAt(i);
     }
-    // >>> 0: converts int32 → unsigned to avoid a negative hex string
     return (hash >>> 0).toString(16);
 };
 
@@ -31,10 +29,8 @@ export const extractZip = async (zipPath: string, zipUrl: string): Promise<strin
     await unzip(zipPath, extractRoot);
 
     const hasIndexHtml = await FileManagerBridge.exists(`${extractRoot}/index.html`);
-    // Rule: index.html must be located at the zip root (no subdirectory scanning)
     if (!hasIndexHtml) throw new Error('index.html not found at zip root');
 
-    // Delete the original zip after a successful extraction — best-effort, ignore failures
     await FileManagerBridge.unlink(zipPath).catch(() => undefined);
     return extractRoot;
 };
@@ -64,15 +60,9 @@ export const stopCustomZipServer = async (): Promise<void> => {
 };
 
 export const cleanupCustomZipDir = async (): Promise<void> => {
-    // Recursive delete on the native side — best-effort, ignore failures
     await FileManagerBridge.unlink(getCustomZipDir()).catch(() => undefined);
 };
 
-/**
- * Restores the server from the persisted localRoot on app restart.
- * Never throws — a failure (missing root / server start failure) returns null,
- * which the boot gate treats as "fall back to the default web".
- */
 export const restoreCustomZip = async (localRoot: string): Promise<string | null> => {
     try {
         const hasIndexHtml = await FileManagerBridge.exists(`${localRoot}/index.html`);

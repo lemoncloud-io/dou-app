@@ -1,7 +1,6 @@
 /**
  * @jest-environment node
  */
-// Node, not jsdom: the runtime's socket client needs `TextEncoder`, which jsdom leaves out.
 import type { SubWebViewRuntimePermission } from '@chatic/bridge-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import { RUNTIME_CONTRACTS, createRuntimeBridgeHost } from '@chatic/runtime-mobile';
@@ -18,14 +17,12 @@ import { createSubWebViewReadBudget, SUB_WEBVIEW_CACHE_READS } from './subWebVie
 import type { SubWebViewReadBudget } from './subWebViewReadBudget';
 import type { SubWebViewRuntimeConsent } from './subWebViewRuntimeConsent';
 
-// The runtime package reads these at import; nothing here reaches them.
 jest.mock('react-native', () => ({
     AppState: { currentState: 'active', addEventListener: jest.fn() },
     Platform: { OS: 'ios' },
 }));
 jest.mock('@react-native-community/netinfo', () => ({ addEventListener: jest.fn(), fetch: jest.fn() }));
 
-/** An engine with just what these requests reach: the session, two repositories, the session commands. */
 const fakeEngine = () => {
     let cloudId: string | null = 'c1';
     let placeId = 's1';
@@ -41,16 +38,13 @@ const fakeEngine = () => {
         uidByCloud: { c1: 'u1', c9: 'u9' },
         auth: { isAuthenticated: true },
     });
-    // The rooms this device holds: one in the session's place, one in another place of the cloud.
     const rooms: Record<string, { id: string; cid: string; sid: string }> = {
         ch1: { id: 'ch1', cid: 'c1', sid: 's1' },
         ch2: { id: 'ch2', cid: 'c1', sid: 's2' },
     };
-    // Messages this device holds: one in each of those rooms.
     const messages: Record<string, { id: string; channelId: string; chatNo?: number } & Record<string, unknown>> = {
         m1: { id: 'm1', channelId: 'ch1', chatNo: 1 },
         m2: { id: 'm2', channelId: 'ch2', chatNo: 2 },
-        // Rows of the same room a reaction cannot be set on.
         mDeleted: { id: 'mDeleted', channelId: 'ch1', chatNo: 3, hidden: true },
         mSending: { id: 'mSending', channelId: 'ch1', chatNo: 0, isPending: true },
         mReaction: { id: 'mReaction', channelId: 'ch1', chatNo: 4, subType: 'reaction' },
@@ -190,7 +184,6 @@ describe('createSubWebViewRuntimeBridge', () => {
         };
 
         const answer = await hello();
-        // Not the account's other clouds, the relay, the guest id, or the cloud's server addresses.
         expect((answer as { data: { session: unknown } }).data.session).toEqual(forPage);
 
         sessionListeners.forEach(listener => listener());
@@ -261,7 +254,6 @@ describe('createSubWebViewRuntimeBridge', () => {
         await hello();
         await subscribe('s1', 'channel.observeList', [{ sid: 's1' }, { $listener: true }]);
 
-        // Two listener markers: the runtime refuses it before it touches the stream under `s1`.
         await expect(
             subscribe('s1', 'channel.observeList', [{ $listener: true }, { $listener: true }])
         ).resolves.toMatchObject({ success: false });
@@ -522,7 +514,6 @@ describe('createSubWebViewRuntimeBridge', () => {
             .mockImplementationOnce(() => new Promise(resolve => (answer = resolve)));
         const { hello, call, runtime, repositories } = build({ granted: ['chatSend'], consent: { ensure } });
         await hello();
-        // The hello was allowed; the message's own check then waits on a question still on screen.
         const sending = call('data', 'chat.sendChat', [{ channelId: 'ch1', content: '3' }]);
         await flush();
         runtime.dispose();
@@ -607,11 +598,9 @@ describe('createSubWebViewRuntimeBridge', () => {
             success: false,
             error: { code: 'RATE_LIMITED', details: { retryAfterMs: 40 } },
         });
-        // Neither the room check nor the read itself reached the cache.
         expect(repositories.channel.cacheRead).not.toHaveBeenCalled();
         expect(onRefused).toHaveBeenCalledWith({ target: 'data', method: 'channel.cacheRead', code: 'RATE_LIMITED' });
 
-        // A server read spends nothing of it.
         await expect(call('data', 'channel.fetchList', [{ sid: 's1' }])).resolves.toMatchObject({ success: true });
         expect(take).toHaveBeenCalledTimes(1);
     });
@@ -640,7 +629,6 @@ describe('createSubWebViewRuntimeBridge', () => {
         const { hello, call, subscribe } = build({ granted: ['chat', 'chatSend'], cacheReads: { take } });
         await hello();
 
-        // A send to a room the device does not hold: refused, but its room was read, and counted.
         await expect(call('data', 'chat.sendChat', [{ channelId: 'nowhere', content: 'hi' }])).resolves.toMatchObject({
             success: false,
             error: { code: 'RUNTIME_NOT_ALLOWED' },
@@ -649,7 +637,6 @@ describe('createSubWebViewRuntimeBridge', () => {
 
         take.mockClear();
         await subscribe('last', 'chat.observeLastList', [['ch1', 'ch2', 'ch3'], { $listener: true }]);
-        // The stream itself, and each of its three rooms.
         expect(take.mock.calls.length).toBeGreaterThanOrEqual(2);
         expect(take.mock.calls.length).toBeLessThanOrEqual(4);
     });
@@ -716,7 +703,6 @@ describe('createSubWebViewRuntimeBridge', () => {
             ]);
             expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
 
-            // Once in front, events go out as they come.
             emitChannels({ list: [] });
             expect(eventsOf(bridge.pushEvent)).toHaveLength(4);
         });
@@ -805,7 +791,6 @@ describe('createSubWebViewRuntimeBridge', () => {
             success: false,
             error: { code: 'INVALID' },
         });
-        // The same id again replaces its stream rather than adding one.
         await expect(
             subscribe('s0', 'channel.observeList', [{ sid: 's1' }, { $listener: true }])
         ).resolves.toMatchObject({
@@ -837,7 +822,6 @@ describe('createSubWebViewRuntimeBridge', () => {
         emitChannels({ list: [{ id: 'late' }] });
         expect(bridge.pushEvent).not.toHaveBeenCalled();
 
-        // Moving back does not reopen it: the view was bound to the cloud it opened on, once.
         moveTo('c1');
         await expect(call('data', 'channel.cacheReadList', [{}])).resolves.toMatchObject({
             success: false,

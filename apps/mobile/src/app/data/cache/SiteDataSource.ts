@@ -3,9 +3,6 @@ import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 
-/**
- * Data source specific to the Site/Place domain
- */
 export class SiteDataSource implements ICacheDataSource<CacheSiteView, SiteQueryOptions> {
     constructor(
         private readonly database: ISqliteDatabase,

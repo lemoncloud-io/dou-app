@@ -13,10 +13,7 @@ const DEVICE_ID = '6E1C3B0A-9D2F-4C8E-B7A1-2F5D8E3C4B6A';
 
 const setup = () => {
     const storage = new SubWebViewStorage(memoryStorageFile());
-    const service = new SubWebViewService(
-        { warn: jest.fn(), error: jest.fn() } as any,
-        () => 'view-1'
-    );
+    const service = new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any, () => 'view-1');
     service.open({ url: 'https://foo.apps.chatic.io/' });
     const events: SubWebViewEvent[] = [];
     service.subscribe(event => events.push(event));
@@ -78,7 +75,6 @@ describe('createSubBridgeHandlers', () => {
             expect(service.current()).not.toBeNull();
         });
 
-        // The page can only ever finish the view it is in, and only once.
         it('answers NOT_OPEN once its view has closed', async () => {
             const { handlers, service } = setup();
             service.close('view-1', 'user');
@@ -181,8 +177,6 @@ describe('createSubBridgeHandlers', () => {
             expect(deps.openExternal).toHaveBeenCalledWith(url);
         });
 
-        // Unlike the main web's OpenURL: never the app's own routing, never another sub WebView page —
-        // the hub included.
         it.each([
             'chatic://s/home',
             'https://app.chatic.io/s/abc',
@@ -278,7 +272,6 @@ describe('createSubBridgeHandlers', () => {
             expect(deps.openShareSheet).toHaveBeenCalledWith({ title: undefined, message: 'hi', url: undefined });
         });
 
-        // The link is shared, not opened, so the app's own links are text like any other.
         it("shares the app's own link", async () => {
             const { handlers, deps } = setup();
 
@@ -307,7 +300,6 @@ describe('createSubBridgeHandlers', () => {
             expect(deps.openShareSheet).not.toHaveBeenCalled();
         });
 
-        // On iOS a file URL hands the OS the file itself, from the app's container.
         it.each([
             'file:///var/mobile/Containers/Data/x.db',
             'chatic://s/home',
@@ -424,7 +416,6 @@ describe('createSubBridgeHandlers', () => {
             expect(JSON.stringify(reply).toLowerCase()).not.toContain(DEVICE_ID.toLowerCase());
         });
 
-        // The origin is the shell's record; whatever the page writes into the request is ignored.
         it('ignores an origin the page names in the request', async () => {
             const plain = await keyOf({});
             const spoofed = await keyOf(

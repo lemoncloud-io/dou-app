@@ -3,12 +3,6 @@ import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';
 
-/**
- * Data source specific to the Invite Cloud domain.
- * Since this table holds system-wide (global) data, unlike other domains it does not run data
- * isolation queries scoped by cid (cloud ID).
- * (The _cid parameter is accepted only to satisfy the interface contract, and is ignored.)
- */
 export class InviteCloudDataSource implements ICacheDataSource<CacheCloudView, InviteCloudQueryOptions> {
     constructor(
         private readonly database: ISqliteDatabase,
@@ -22,7 +16,6 @@ export class InviteCloudDataSource implements ICacheDataSource<CacheCloudView, I
     }
 
     public async fetchMany(ids: string[], _cid?: string, _uid?: string): Promise<CacheCloudView[]> {
-        // Since this is a global table, cid/uid are not added as conditions — same rule as `fetch`.
         return fetchManyByIds<CacheCloudView>(this.database, this.tableName, ids);
     }
 

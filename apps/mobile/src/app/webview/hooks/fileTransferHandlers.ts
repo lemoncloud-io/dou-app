@@ -4,10 +4,6 @@ import type { IFileManagerBridge, ITransferManagerBridge } from '../../bridge';
 import { safeHost } from '../../bridge';
 import type { ILogService } from '../../services';
 
-/**
- * A native rejection carries a transfer error code; anything else (a missing module, a thrown
- * programming error) is reported as INTERNAL so the web always gets a code it knows.
- */
 const toError = (e: unknown): { code: FileTransferErrorCode; message: string } => {
     const code = (e as { code?: unknown })?.code;
     const known: FileTransferErrorCode[] = ['NETWORK', 'SOURCE', 'INVALID', 'SYSTEM', 'INTERNAL'];
@@ -20,21 +16,9 @@ const toError = (e: unknown): { code: FileTransferErrorCode; message: string } =
     };
 };
 
-/**
- * Bridge-safety cap for one WriteTempFile payload, in decoded bytes. The bytes cross as a single
- * base64 JSON message; past this a WebView postMessage risks an OOM or a dropped message with
- * only a generic error — worse than a fast typed rejection the web can explain. Normal traffic
- * here is a resized image (single-digit MB), so this is a backstop, not a policy.
- */
 const MAX_WRITE_TEMP_FILE_BYTES = 64 * 1024 * 1024;
 const base64LengthFor = (bytes: number): number => Math.ceil(bytes / 3) * 4;
 
-/**
- * Relays the file-transfer messages between the WebView and the native TransferManager.
- *
- * Nothing is held here. The registry lives natively so a transfer that ends while the WebView is
- * suspended, or while React Native is not running at all, is still there for `ListFileTransfers`.
- */
 export const createFileTransferHandlers = (
     bridge: IAppBridgeHost,
     transfer: ITransferManagerBridge,
@@ -43,8 +27,6 @@ export const createFileTransferHandlers = (
 ) => {
     const handleStartFileTransfer = async (message: WebMessageData<'StartFileTransfer'>) => {
         const request = message.data;
-        // Host only: the URL's query string carries the signature. A download names no local file —
-        // the shell picks where it goes — so the request is relayed exactly as it came.
         const way = request.direction === 'download' ? 'from' : 'to';
         logger.info('TRANSFER', `[${request.transferId}] start ${request.direction} ${way} ${safeHost(request.url)}`);
         try {
@@ -87,10 +69,6 @@ export const createFileTransferHandlers = (
 
     const handleWriteTempFile = async (message: WebMessageData<'WriteTempFile'>) => {
         const { base64, fileName } = message.data;
-        // Refuse before the native call: the string is already whole in JS memory, and handing a
-        // larger one across spikes it again natively — there is no chunked path across the bridge.
-        // TOO_LARGE is the same code the native pickers reject with; the web maps unknown codes to a
-        // generic failure, so this degrades to that, fast.
         if (typeof base64 === 'string' && base64.length > base64LengthFor(MAX_WRITE_TEMP_FILE_BYTES)) {
             logger.warn('TRANSFER', 'temp file payload over the bridge limit', {
                 fileName,
@@ -109,7 +87,6 @@ export const createFileTransferHandlers = (
             const uri = await fileManager.writeTempFile(base64, fileName);
             return { type: 'OnWriteTempFile' as const, success: true, data: { uri } };
         } catch (e) {
-            // A failed write is a local-file problem, the same class as an unreadable upload source.
             return {
                 type: 'OnWriteTempFile' as const,
                 success: false,
@@ -118,10 +95,6 @@ export const createFileTransferHandlers = (
         }
     };
 
-    /**
-     * Forwards every native state change to the WebView. Returns the unsubscribe function; the
-     * hook ties it to the router's lifetime.
-     */
     const relayStateEvents = () =>
         transfer.subscribe(state => {
             bridge.pushEvent<'OnFileTransferState'>({ type: 'OnFileTransferState', success: true, data: state });
