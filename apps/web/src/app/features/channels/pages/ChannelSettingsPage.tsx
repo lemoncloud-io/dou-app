@@ -67,7 +67,6 @@ export const ChannelSettingsPage = () => {
     const { t } = useTranslation();
     const setMyPlaceProfile = useSetMyPlaceProfile();
     const { channelId } = useParams<{ channelId: string }>();
-    // Settings is only ever reached from the room, so it's always 1 hop away.
     const roomDistance = getRoomDistance(useLocation().state, 1);
     const [activeDialog, setActiveDialog] = useState<DialogType>(null);
     const [selectedMember, setSelectedMember] = useState<SelectedMember | null>(null);
@@ -75,41 +74,27 @@ export const ChannelSettingsPage = () => {
     const { toast } = useToast();
 
     const { userId } = runtime.session.useSessionIdentity();
-    // Issuing a relay invite takes a main user, so a device user never gets the re-invite CTA.
     const { isGuest } = runtime.session.useRuntimeProfile();
-    // Settings names the same people the room does, from the same place — see `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
-    // A member's profile can open a 1:1 with them — see `canStartDmFromProfile` for where.
     const { startDm, isAvailable: canStartDm } = useStartDm();
 
     const { channel, isError } = useChannel(channelId ?? null);
-    // My uid in the room's own cloud, which can differ from the session's. The start-1:1 row checks
-    // both, so it is never offered on my own row.
     const uidInRoomCloud = runtime.session.useUidInCloud(toCloudId(channel?.cid || selectedCloudId));
-    // Whether a member is me. The room names me by my id in ITS cloud, which can differ from the
-    // session's, so both are checked — the MY badge and the self profile read this.
     const isMe = (memberId: string | null | undefined) =>
         !!memberId && (memberId === userId || memberId === uidInRoomCloud);
     const activePlaceName = useActivePlaceName();
 
-    // The room's place, for the place scope of a member removal: whether I own it (the place row's
-    // `isOwner`, as on every place screen — never the room's owner rule), who does, and its name.
     const { place: placeRepository } = runtime.data.useRuntimeRepositories();
     const roomPlaceId = channel?.sid;
     const [roomPlace, setRoomPlace] = useState<DomainPlace | null>(null);
     useEffect(() => {
-        // Cleared first, so another place's row never answers for this one while the read is out.
         setRoomPlace(null);
         if (!roomPlaceId) return;
         return placeRepository.observeItem(roomPlaceId, setRoomPlace);
     }, [placeRepository, roomPlaceId]);
     const [isRemovingFromPlace, setIsRemovingFromPlace] = useState(false);
 
-    // One join subscription for the screen: the member rows' read-state and my own row (the
-    // notification level, my nick) are two readings of the same cache list — see useChannelJoins.
     const { joins, myJoin } = useChannelJoins(channelId ?? null);
-    // Whether a member owns this room, by their own join's role — the rule the badge, the profile's
-    // owner mark and member removal all read (see isRoomOwner).
     const isMemberRoomOwner = (memberId: string) =>
         isRoomOwner(
             channel,
@@ -120,24 +105,11 @@ export const ChannelSettingsPage = () => {
     const { members, isLoading: isMembersLoading } = useChannelMembers({
         channelId: channelId || '',
         detail: true,
-        // The roster names members before any per-channel sync lands — without it a self-chat shows
-        // an empty "방 친구", since its one member has no user-cache row to be found by.
         memberIds: channel?.memberIds,
         joins,
-        // 1:1 only — "방 친구" keeps the peer with a "대화방 나감" line instead of emptying out
-        // (Figma 4052-12242). Read inline: `isDmChat` is derived after the early returns below.
         keepLeftMembers: channel?.stereo === 'dm',
     });
 
-    // Member divergence (ADR-0099). The roster (`channel.memberIds`) and the join rows should name
-    // the same people. `useChannelMembers` unions the two and only drops a row whose join says the
-    // person LEFT — so a roster id with NO join row at all is still rendered, which is the
-    // "removed member is still listed" report this check exists to evidence.
-    //
-    // Reported on unmount, once per visit, and that timing is load-bearing: the join cache streams
-    // in, so a mid-hydration snapshot would count every member as roster-only. By the time the user
-    // leaves the screen both sides have settled. The ref carries the latest values into the cleanup,
-    // which would otherwise close over the first render's.
     const memberSourcesRef = useRef<{ memberIds?: string[]; joins: typeof joins }>({ joins: [] });
     useEffect(() => {
         memberSourcesRef.current = { memberIds: channel?.memberIds, joins };
@@ -156,9 +128,6 @@ export const ChannelSettingsPage = () => {
             );
             divergenceReporter.member({
                 channelId,
-                // A roster id with no join row of any kind — these are the ones being rendered.
-                // Someone whose join says "left" is excluded: the list already drops them, so that
-                // staleness has no symptom to report.
                 rosterOnly: roster.filter(id => !joinedIds.has(id)).length,
                 joinOnly: [...activeIds].filter(id => !roster.includes(id)).length,
                 joinCount: rows.length,
@@ -171,49 +140,30 @@ export const ChannelSettingsPage = () => {
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
     const { updateJoin } = useJoinMutations();
 
-    // Room notification level backed by join.update. The level lives on my join row (`notify`), not
-    // the channel — so read it from the join cache stream, not the channel's embedded `$join` (a
-    // lagging projection). apps/web has no client-side notifier, so we trust the server value and
-    // keep a local optimistic mirror for instant feedback (updateJoin's optimistic write lands on the
-    // join cache too, so this reconciles from the same source).
-    //
-    // The stereo is read inline because `isDmChat` is derived after the early returns below, and a
-    // 1:1 changes what a stored value means (see notifyLevelOf).
     const serverNotifyLevel = notifyLevelOf(myJoin?.notify, channel?.stereo === 'dm');
     const [notifyLevel, setNotifyLevel] = useState<NotifyLevel>(serverNotifyLevel);
     const [isNotifySheetOpen, setIsNotifySheetOpen] = useState(false);
-    // The Lab's input lock, on this device only — the same answer the room and its threads read.
     const inputLock = useChatInputLock(channelId);
     const handleInputLockChange = (isLocked: boolean) => {
         inputLock.setLocked(isLocked);
         toast({ title: t(isLocked ? 'chat.inputLock.locked' : 'chat.inputLock.unlocked') });
     };
 
-    // Reconcile with the join stream once it hydrates (or changes from another device). myJoin is
-    // null on first render, so this seeds it too. Keyed on the derived level rather than the raw
-    // value so that the channel arriving after the join row still corrects a 1:1 stored as
-    // `mention`, which reads as a group's "Mentions only" until the stereo is known.
     useEffect(() => {
         setNotifyLevel(serverNotifyLevel);
     }, [serverNotifyLevel]);
 
     const handleNotifySelect = async (next: NotifyLevel) => {
-        // Re-picking the level already shown is not a change; writing it anyway would also turn a
-        // 1:1's stored `mention` into `all` without the user having changed anything.
         if (!channelId || next === notifyLevel) return;
 
         const previous = notifyLevel;
-        setNotifyLevel(next); // optimistic — revert on failure below
+        setNotifyLevel(next);
         try {
-            // ChannelUpdateJoinInput types only channelId/notify; the engine resolves
-            // the join row from channelId + userId at write time, so pass userId via a cast.
             const { delivered } = await updateJoin({
                 channelId,
                 userId: myJoin?.userId ?? userId,
                 notify: next,
             } as never);
-            // The outbox sends it when the socket can carry it. A refusal puts the server's setting
-            // back in the join cache, and the effect above follows it; this only says why.
             delivered.catch(() => toast({ title: t('chat.settings.notifyFailed'), variant: 'destructive' }));
         } catch (error) {
             setNotifyLevel(previous);
@@ -227,7 +177,6 @@ export const ChannelSettingsPage = () => {
         setActiveDialog('profile');
     };
 
-    // Room scope: owner-only kick — leaveChannel with a target userId removes that member.
     const handleKickMember = async () => {
         if (!channelId || !selectedMember) return;
 
@@ -244,9 +193,6 @@ export const ChannelSettingsPage = () => {
         }
     };
 
-    // Place scope: the same `place.leave` the place's member screen sends. The repository takes the
-    // member out of the cached roster of every room the server lists, this one included, so this
-    // screen's member list drops them with no work here.
     const handleRemoveFromPlace = async () => {
         if (!roomPlaceId || !selectedMember) return;
 
@@ -266,30 +212,18 @@ export const ChannelSettingsPage = () => {
         }
     };
 
-    // Site profiles (nick/avatar) for the member list; same source as the room.
     const memberUserIds = useMemo(() => members.map(m => m.id).filter((id): id is string => !!id), [members]);
     const profilePlace = profilePlaceOf(channel, selectedSiteId);
     const { profileMap } = useChannelProfiles(profilePlace, memberUserIds);
-    // Whether I have no profile in the ACTIVE place, as the server answers it (`profile.get-mine`),
-    // never as the local cache happens to hold it — see `needsProfileSetup` below.
     const { absent: myProfileAbsent, markPresent: markMyProfilePresent } = usePlaceProfileAbsent();
-    // A profile is saved to the place the session is in, whatever place the request names, so the
-    // prompt is only offered where acting on it can work: a room read in the active place.
     const isRoomInActivePlace = !!profilePlace && profilePlace === selectedSiteId;
 
-    // Hooks must run before the `isError` early return below. DM peer (header/name display) and the
-    // room title are resolved here; the plain type flags derived from them stay past the return.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
-    // The same chain the room header and the home list use — settings must not invent a third one.
     const roomTitle = useChannelTitle(channel, {
         joinNick: myJoin?.nick,
         peerNick: dmPeer?.profileNick,
         peerCloudName: dmPeer?.cloudName,
     });
-    // The same derivation the room's footer runs, so the friend sheet's "대화방 나감" line and its
-    // re-invite prefill cannot disagree with what the room just said. It reads the same lineage the
-    // room does, for the same reason: a cloud 1:1 has no invite to prefill and no number to send one
-    // to, so offering the CTA here would open a form its user cannot complete.
     const { state: dmInviteState, resolveReinvitePrefill } = useDmInviteState({
         channelId: channelId ?? null,
         hasInviteFlow: hasDmInviteFlow(channel),
@@ -345,29 +279,16 @@ export const ChannelSettingsPage = () => {
 
     const isSelfChat = !!channel?.isSelfChat;
     const isOwner = !!channel?.isOwner;
-    // 1:1 DM (stereo).
     const isDmChat = channel?.stereo === 'dm';
-    // A cloud 1:1 does not read `join.nick` for its title (see resolveChannelTitle), so the
-    // editor below is closed for it — see the row's own note.
     const isCloudDm = dmLineageOf(channel) === 'cloud';
-    // The editor the room-name row opens, or none — see the row's own note.
     const nameEditor: DialogType = isSelfChat || isDmChat ? (isCloudDm ? null : 'joinNick') : isOwner ? 'update' : null;
-    // What "remove this room" means here, from the one place that answers it for every surface —
-    // the place-level bulk remove reads the same function, so the two cannot drift again.
     const removal = removalActionFor(channelKindOf(channel?.stereo), isOwner);
-    // Whether the open profile's member may be removed at all, by either scope: only from a group,
-    // and never me or this room's owner. Which scopes I hold is decided beside the profile below.
     const canRemoveTarget =
         channelKindOf(channel?.stereo) === 'group' &&
         !!selectedMember &&
         !isMe(selectedMember.id) &&
         !isMemberRoomOwner(selectedMember.id);
 
-    // One shared rule with the room header and the home list (resolveChannelAvatar): self → MY
-    // place-profile photo, DM → the peer's, else the channel photo. Both self and DM ignore
-    // channel.thumbnail. The same rule picks the placeholder glyph — a group room without a photo is
-    // the navy circle with the two-person glyph (Figma 3164-12515), NOT the chat-bubble placeholder
-    // this screen used to draw.
     const { src: roomAvatarSrc, glyph } = resolveChannelAvatar({
         channel: channel ?? {},
         myThumbnail: userId ? profileMap.get(userId)?.thumbnail : undefined,
@@ -385,8 +306,6 @@ export const ChannelSettingsPage = () => {
         return map;
     }, [members]);
 
-    // The one naming chain (see resolveUserName) — this list and the room it belongs to have to
-    // reach the same name for the same person.
     const nameSources: DisplayNameSources = useMemo(
         () => ({
             profileMap,
@@ -398,40 +317,18 @@ export const ChannelSettingsPage = () => {
         [profileMap, memberById, userId, t]
     );
 
-    // Member rows — shared by the group section and the self-chat "방 친구" section
-    // (where the only member is me/the owner).
     const memberList = isMembersLoading ? (
         <div className="py-4 text-center text-sm text-muted-foreground">{t('chat.settings.loading')}</div>
     ) : members.length > 0 ? (
         members.map(member => {
             const memberId = member.id ?? '';
-            // Site profile (nick/avatar) takes precedence over the user-cache name.
             const memberProfile = memberId ? profileMap.get(memberId) : undefined;
-            // My own row with no place profile: prompt instead of naming me. The user-cache `name` is
-            // NOT a usable fallback here — it is `***<last 4>` for a phone signup (ADR-0089 D10) or a
-            // raw UUID, the very values ADR-0039 kept out of the title chain. Every stereo shares this
-            // list, so the nudge is not gated on self-chat (ADR-0040).
-            //
-            // "No profile" is the SERVER's verdict, never the cache's. An empty `profileMap` means only
-            // that this device has not got my row yet — a cold cache, a new device, a fetch still in
-            // flight or one that failed — and reading that as absence nudged users who do have a
-            // profile (reproduced: with my row missing from IndexedDB the prompt showed until the
-            // fetch landed, and for as long as it stayed away). The row is tappable, so a mistaken
-            // prompt opens a blank create form whose save overwrites the real nick. `myProfileAbsent`
-            // is `true` only once `profile.get-mine` has answered with no profile; pending or failed
-            // reads leave it unset, and no prompt is drawn. The cached nick still wins when present,
-            // so a save made here clears the prompt as soon as the cache updates.
             const needsProfileSetup =
                 !!memberId &&
                 memberId === userId &&
                 isRoomInActivePlace &&
                 myProfileAbsent === true &&
                 !memberProfile?.nick?.trim();
-            // The id is NOT a rung in this chain — it used to sit before the label, so an
-            // unresolved member showed a raw UUID and the label was unreachable. This now CALLS the
-            // shared chain rather than restating it: the copy that lived here re-read `member.name`
-            // without the raw-id guard, so a member whose cached `name` is their account UUID (what
-            // the server seeds an unnamed user with) still rendered as one.
             const memberName = needsProfileSetup
                 ? t('chat.settings.profileSetupRequired')
                 : resolveUserName(memberId, nameSources);
@@ -443,22 +340,13 @@ export const ChannelSettingsPage = () => {
             };
 
             return (
-                // No `isPendingInvite`: nothing in the payload can prove one. The join counter is
-                // `0` for "invited, hasn't come in" AND for "left" alike (see utils/membership), so
-                // badging on it labelled departed members as pending invites. Rather than guess, the
-                // badge is not drawn — a missing badge on a real invitee costs far less than a wrong
-                // one on someone who left. Restore it the moment the server can tell the two apart.
                 <MemberListItem
                     key={memberId}
                     member={memberView}
                     isMe={isMe(memberId)}
                     isOwner={isMemberRoomOwner(memberId)}
                     needsProfileSetup={needsProfileSetup}
-                    // Only a DM keeps departed members in this list at all (see useChannelMembers),
-                    // so this reads false everywhere else without needing the stereo here.
                     hasLeft={hasLeftChannel(member.$join)}
-                    // With no profile, skip the member-profile sheet and go straight to creating one —
-                    // that sheet's only self action is "프로필 설정" anyway, so it would be a dead tap.
                     onClick={() => (needsProfileSetup ? openDialog('profileCreate') : openMemberProfile(memberView))}
                 />
             );
@@ -473,20 +361,7 @@ export const ChannelSettingsPage = () => {
         <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('chat.settings.title')} />
 
-            {/* Content — scrolls when the member list grows past the viewport. */}
             <div className="flex flex-1 flex-col overflow-y-auto pb-safe-bottom">
-                {/* Room name — tap opens the name/info dialog. Self-chat and DM edit MY join nick
-                    (JoinNickDialog, private to me); a group's owner edits channel.name
-                    (UpdateChannelDialog). DM naming is open again — the join nick is the top of its
-                    title chain, so with no way to write it that tier would be dead (ADR-0039,
-                    reversing ADR-0032).
-
-                    Where no name I could write would ever be shown, the row stays and stops being a
-                    button — an editor that saves a name no screen will ever show is worse than no
-                    editor. Two cases. A CLOUD 1:1's title skips the join nick, because the server
-                    seeds that field and nothing in the value says whether a person wrote it; it opens
-                    again when the field can be trusted. And a group member: a group is titled by its
-                    shared name for everyone, matching its push, and only the owner sets that. */}
                 <ListRow
                     leading={roomAvatar}
                     title={roomTitle}
@@ -494,19 +369,15 @@ export const ChannelSettingsPage = () => {
                     onClick={nameEditor ? () => openDialog(nameEditor) : undefined}
                 />
 
-                {/* The room's files, found in this device's cache — above everything else, as the design has it. */}
                 {channelId && <RoomFilesEntry cid={toCloudId(channel?.cid || selectedCloudId)} channelId={channelId} />}
 
                 {isSelfChat ? (
-                    /* Self-chat: only the "방 친구" section (just me/the owner). No
-                       notification, friend-add, or leave/delete. */
                     <>
                         <GroupLabel label={t('chat.settings.roomMembers')} />
                         {memberList}
                     </>
                 ) : (
                     <>
-                        {/* Chat settings */}
                         <GroupLabel label={t('chat.settings.roomSettingsGroup')} />
                         <ListRow
                             title={t('chat.settings.roomNotification')}
@@ -520,8 +391,6 @@ export const ChannelSettingsPage = () => {
                             }
                             onClick={() => setIsNotifySheetOpen(true)}
                         />
-                        {/* Offered only while the Lab switch is on. A self chat has no settings group
-                            and goes without: what is sent there reaches nobody but me. */}
                         {inputLock.isAvailable && (
                             <ListRow
                                 title={t('chat.inputLock.settingsRow')}
@@ -535,9 +404,7 @@ export const ChannelSettingsPage = () => {
                             />
                         )}
 
-                        {/* Room members */}
                         <GroupLabel label={t('chat.settings.roomMembers')} />
-                        {/* Add-friend is group-only — a DM is a fixed 1:1, so it never invites (ADR-0032). */}
                         {isOwner && !isDmChat && (
                             <ListRow
                                 leading={
@@ -556,15 +423,8 @@ export const ChannelSettingsPage = () => {
                         )}
                         {memberList}
 
-                        {/* Owner-only. A 1:1 has no webhook (a self chat never reaches this branch). */}
                         {isOwner && !isDmChat && channelId && <ChannelWebhooksSection channelId={channelId} />}
 
-                        {/* Destructive action — owner deletes the room, members leave it. A DM has no
-                            delete at ALL, not even for the inviter: re-inviting needs the room to
-                            still be there, and letting one side erase it takes that away (ADR-0068
-                            decision 7, reversing ADR-0032's reuse of the ownership branch here).
-                            The branch itself lives in `removalActionFor` — this screen and the
-                            place's bulk remove read the same answer. */}
                         <Divider variant="block" className="my-2" />
                         <ListRow
                             destructive
@@ -575,7 +435,6 @@ export const ChannelSettingsPage = () => {
                 )}
             </div>
 
-            {/* Dialogs */}
             <NotifyModeSheet
                 open={isNotifySheetOpen}
                 onOpenChange={setIsNotifySheetOpen}
@@ -588,10 +447,6 @@ export const ChannelSettingsPage = () => {
                 onOpenChange={open => (open ? openDialog('update') : closeDialog())}
                 channelId={channelId}
             />
-            {/* One mount, not one per variant: the dialog fetches my profile on mount, so two
-                instances cost two round-trips and only ever one of them can be open. The placeholder
-                is the name the room falls back to right now, so clearing the field visibly returns
-                to it — for a DM that is the title chain minus my own nick. */}
             <JoinNickDialog
                 open={activeDialog === 'joinNick'}
                 onOpenChange={open => (open ? openDialog('joinNick') : closeDialog())}
@@ -600,10 +455,6 @@ export const ChannelSettingsPage = () => {
                 fallbackName={isSelfChat ? undefined : dmPeer?.profileNick || channel?.name || t('chat.dm.unnamedPeer')}
                 peerThumbnail={dmPeer?.thumbnail}
                 peerHasLeft={dmInviteState.kind !== 'present'}
-                // Two gates, both shared with the room's footer so the two surfaces cannot offer
-                // different things: issuing takes a main user (the server answers 403 for anyone
-                // else, ADR-0034), and there is nothing to re-invite while the peer is here or a
-                // live code is already out (`canReinviteDm`).
                 onReinvite={
                     isDmChat && !isGuest && channelId && canReinviteDm(dmInviteState)
                         ? () => {
@@ -631,9 +482,6 @@ export const ChannelSettingsPage = () => {
                 isPending={isPending.delete}
                 variant="danger"
             />
-            {/* A 1:1 says so, and says what leaving costs in its own terms (Figma 4068-16586) — the
-                group copy talks about needing a new invite, which is not the point when the room is
-                one other person. */}
             <ConfirmDialog
                 open={activeDialog === 'leave'}
                 onOpenChange={open => (open ? openDialog('leave') : closeDialog())}
@@ -652,17 +500,10 @@ export const ChannelSettingsPage = () => {
                 member={selectedMember}
                 memberIsOwner={!!selectedMember && isMemberRoomOwner(selectedMember.id)}
                 isSelf={!!selectedMember && isMe(selectedMember.id)}
-                // A 1:1 offers no removal at all — it ends by leaving, never by removing the peer
-                // into a lone-member room — and neither scope reaches me or this room's owner.
                 canKick={canRemoveTarget && isOwner}
                 onKick={handleKickMember}
                 roomName={roomTitle}
-                canRemoveFromPlace={
-                    canRemoveTarget &&
-                    !!roomPlace?.isOwner &&
-                    // The place's owner cannot be removed from it.
-                    selectedMember?.id !== roomPlace.ownerId
-                }
+                canRemoveFromPlace={canRemoveTarget && !!roomPlace?.isOwner && selectedMember?.id !== roomPlace.ownerId}
                 onRemoveFromPlace={handleRemoveFromPlace}
                 placeName={roomPlace?.name}
                 isKicking={isPending.leave || isRemovingFromPlace}
@@ -691,9 +532,6 @@ export const ChannelSettingsPage = () => {
                 onClose={closeDialog}
                 profileAbsent={myProfileAbsent}
             />
-            {/* Reached from my own member row when it has no profile yet. `exit` is supplied so a
-                half-typed name still gets the unsaved-changes guard — unlike the invite paths, backing
-                out here costs nothing, so there is no reason to leave silently (ADR-0040 / ADR-0041). */}
             <PlaceProfileCreateDialog
                 onSubmit={setMyPlaceProfile}
                 open={activeDialog === 'profileCreate'}

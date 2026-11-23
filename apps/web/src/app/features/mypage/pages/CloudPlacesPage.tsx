@@ -22,15 +22,6 @@ import { SectionLabel } from '../components/SectionLabel';
 import { useEnsureCloudSession } from '../hooks/useEnsureCloudSession';
 import { useOwnedCloud } from '../hooks/useOwnedCloud';
 
-/**
- * "플레이스 관리" — the places one cloud holds (Figma 4992-49725).
- *
- * A place list is the cloud's own cache, filled by that cloud's sync: the relay has no listing of
- * another cloud's sites. So the screen enters the cloud first (`useEnsureCloudSession`) and then
- * reads the same list home reads (`useActiveCloudPlaces`). A row opens the place's settings hub,
- * which likewise addresses the active cloud. The figure is against the app's places-per-cloud
- * limit, the one home enforces when creating a place.
- */
 const PlacesBody = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -87,8 +78,6 @@ export const CloudPlacesPage = () => {
 
     useEffect(() => {
         if (isResolved && !cloud) navigate(ROUTES.mypage.cloud.manage, { replace: true });
-        // The hub disables this row for a cloud with no session to switch to; a typed URL
-        // bypasses the hub, so the screen sends it back there rather than attempting the switch.
         if (cloud && cloudId && !isCloudEnterable(resolveCloudRowState(cloud))) {
             navigate(ROUTES.mypage.cloud.hub(cloudId), { replace: true });
         }

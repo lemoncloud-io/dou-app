@@ -3,30 +3,18 @@ import { GUEST } from './guest';
 import { MINA } from './rooms';
 import { signedInMember } from './subscription';
 
-/**
- * A cloud the guest is invited into: its backend and socket, and the one place and room the invites
- * lead to. Every value is invented. The rule the fake socket keeps is the server's own: **a session
- * sits on one place at a time** — the place its token names when it signs in (`auth.update`), and
- * whichever place it last switched to (`auth.switch`) — and a place profile is read and written on
- * that place, whatever the request names.
- */
-
 export const CLOUD = {
     id: '1000099',
     name: 'E2E Cloud',
     backend: 'https://c1.e2e.test/api',
     wss: 'wss://c1-ws.e2e.test/cht',
-    /** The place every cloud has, and the one an invite login's token is signed for. */
     defaultSite: '0000',
 } as const;
 
-/** The place the invites lead into. */
 export const CLOUD_PLACE = { id: '10001', name: 'Design Team' } as const;
 
-/** The guest's name in that place. */
 export const CLOUD_NICK = 'Kim in Design';
 
-/** The room both invites name. */
 export const CLOUD_ROOM = {
     id: 'e2e-cloud-room',
     name: 'Design Review',
@@ -40,13 +28,8 @@ export const CLOUD_ROOM = {
     updatedAt: GUEST.createdAt,
 };
 
-/**
- * A second place in the same cloud, opt-in (`secondPlace`), for switching between places. The guest
- * has a profile there, so entering it asks for nothing.
- */
 export const SECOND_PLACE = { id: '10002', name: 'Marketing' } as const;
 
-/** The one room in the second place. */
 export const SECOND_PLACE_ROOM = {
     ...CLOUD_ROOM,
     id: 'e2e-cloud-room-2',
@@ -55,12 +38,10 @@ export const SECOND_PLACE_ROOM = {
     $: { sid: SECOND_PLACE.id },
 };
 
-/** The guest's user inside the cloud, which the invite login creates. */
 export const CLOUD_USER = { uid: '2000001', accountId: 'C.e2e.invitee' } as const;
 
 const base64Url = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString('base64url');
 
-/** The invitee's identity token in the cloud, signed for `sid`. Unsigned: nothing here verifies it. */
 const cloudIdentityToken = (sid: string): string =>
     [
         base64Url({ alg: 'none', typ: 'JWT' }),
@@ -81,7 +62,6 @@ const cloudIdentityToken = (sid: string): string =>
         'e2e-unsigned',
     ].join('.');
 
-/** The place a token names — read back out of the token the page signs in with. */
 const siteOfToken = (token: string): string | undefined => {
     try {
         const claims = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString()) as { sid?: string };
@@ -91,7 +71,6 @@ const siteOfToken = (token: string): string | undefined => {
     }
 };
 
-/** A cloud token view for the invitee on `sid` — the invite login's answer, and `auth.switch`'s. */
 export const cloudTokenView = (sid: string) => ({
     id: CLOUD_USER.uid,
     createdAt: GUEST.createdAt,
@@ -122,10 +101,6 @@ export const cloudTokenView = (sid: string) => ({
 const placeName = (sid: string): string =>
     sid === CLOUD_PLACE.id ? CLOUD_PLACE.name : sid === SECOND_PLACE.id ? SECOND_PLACE.name : 'default';
 
-/**
- * A cloud room invite as the cloud's backend answers `hello/invite-code`: who sent it, which cloud,
- * place and room it leads into, and where that cloud lives.
- */
 export const cloudInviteView = (code: string) => ({
     id: `invite-${code}`,
     state: 'pending',
@@ -141,43 +116,24 @@ export const cloudInviteView = (code: string) => ({
     $envs: { backend: CLOUD.backend, wss: CLOUD.wss },
 });
 
-/**
- * The path the app hands the web for a cloud invite link (`/s?code=…&backend=…`), after its
- * converter: the home route with the invite markers and the cloud's backend.
- */
 export const cloudInvitePath = (code: string): string =>
     `/?code=${encodeURIComponent(code)}&provider=invite&version=2&_backend=${encodeURIComponent(CLOUD.backend)}`;
 
-/** What the fake cloud knows about the session, for a scenario to assert on. */
 export interface CloudState {
-    /** Whether the guest has a place profile in `CLOUD_PLACE`. A save there creates it. */
     profileInPlace: boolean;
-    /** The place the session sits on now. */
     sessionSite: string;
-    /** Every place the session switched to, in order. */
     switches: string[];
-    /** The place each profile read was answered on, in order. */
     profileReads: string[];
-    /** Every place profile write, with the place it landed on. */
     profileWrites: { site: string; data: unknown }[];
-    /** A place `auth.switch` refuses to move the session into, as the cloud refuses a place it cannot open. */
     refuseSwitchInto?: string;
-    /** Holds that refusal until it settles, so a scenario can see what the page does while it waits. */
     refusalHeld?: Promise<void>;
 }
 
 export interface CloudOptions {
-    /** Whether the guest already has a place profile in `CLOUD_PLACE`. */
     profileInPlace: boolean;
-    /** Adds `SECOND_PLACE` and its room beside `CLOUD_PLACE`. */
     secondPlace?: boolean;
 }
 
-/**
- * The cloud's backend and socket. Answers for any invite code. A place profile can exist only on
- * `CLOUD_PLACE` (`profileInPlace`); reading one anywhere else finds the empty, inactive row the
- * server's get-or-create hands back.
- */
 export const installCloud = (
     backend: FakeBackend,
     { profileInPlace, secondPlace = false }: CloudOptions
@@ -193,7 +149,6 @@ export const installCloud = (
 
     const http: Record<string, HttpHandler> = {
         [`GET ${CLOUD.backend}/hello/invite-code`]: request => cloudInviteView(codeOf(request.url())),
-        // An invite login answers with the invitee's own token, signed for the cloud's default place.
         [`POST ${CLOUD.backend}/oauth/login-invite`]: () => cloudTokenView(CLOUD.defaultSite),
     };
     backend.useHttp(http);
@@ -219,7 +174,6 @@ export const installCloud = (
         'device.save': data => ({ ...(data as object), status: 'green' }),
         'device.sync': () => undefined,
         'auth.update': data => {
-            // The socket signs in on the place its token names (`{ token }`, as the socket SDK sends it).
             const site = siteOfToken((data as { token?: string } | null)?.token ?? '');
             if (site) state.sessionSite = site;
             return {
@@ -236,7 +190,6 @@ export const installCloud = (
             };
         },
         'auth.switch': data => {
-            // `target` is `<uid>@<sid>`, as the socket SDK's `auth.switch` sends it.
             const target = (data as { target?: string } | null)?.target;
             if (!target?.includes('@')) throw new SocketRefusal(`400 BAD REQUEST - @target is required`);
             if (target.split('@')[1] === state.refuseSwitchInto) {
@@ -248,7 +201,6 @@ export const installCloud = (
             state.switches.push(state.sessionSite);
             return cloudTokenView(state.sessionSite);
         },
-        // Leaving the session the page is about to re-enter with another token.
         'auth.logout': () => ({}),
         'user.profile': () => ({
             sid: state.sessionSite,
@@ -280,7 +232,6 @@ export const installCloud = (
             return { ...profileOn(state.sessionSite), ...(data as object), siteId: state.sessionSite, active: true };
         },
         'profile.sync': () => ({ profiles: {}, syncedAt: GUEST.createdAt }),
-        // Cloud-wide: every place's rooms in one answer, which the page sorts into places by `sid`.
         'channel.sync': () => ({ list: rooms, ids: rooms.map(room => room.id), syncedAt: GUEST.createdAt }),
         'channel.get': data => rooms.find(room => room.id === (data as { id?: string } | null)?.id) ?? CLOUD_ROOM,
         'channel.sync-users': () => ({
@@ -304,7 +255,6 @@ export const installCloud = (
     return state;
 };
 
-/** The cloud as the relay's catalog lists it for its owner: live, with an email bound. */
 export const ownedCloudRow = () => ({
     id: CLOUD.id,
     name: CLOUD.name,
@@ -316,23 +266,11 @@ export const ownedCloudRow = () => ({
     updatedAt: GUEST.createdAt,
 });
 
-/** What the relay and the cloud saw of entering the cloud as its owner. */
 export interface OwnedCloudState {
-    /** `delegate-cloud` requests the relay had, refused or not. */
     delegations: number;
-    /** Whether the relay issues the delegation; a refusal is the cloud failing to be entered at all. */
     issue: boolean;
 }
 
-/**
- * The account owns the cloud: the relay's catalog lists it, and entering it goes the owner's way — a
- * delegation from the relay (`delegate-cloud`), traded on the cloud's backend for the owner's own
- * token there (`exchange-token`), signed for the cloud's default place like an invite login's.
- * `issue: false` refuses the delegation, which no retry gets past.
- *
- * The scenario's guest is signed in first (`signedInMember`): the relay never lets a guest own a
- * cloud, and the page does not ask the relay's catalog for a guest account at all.
- */
 export const ownCloud = (backend: FakeBackend, { issue = true }: { issue?: boolean } = {}): OwnedCloudState => {
     const owned: OwnedCloudState = { delegations: 0, issue };
     signedInMember(backend);

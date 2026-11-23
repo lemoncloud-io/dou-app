@@ -36,33 +36,15 @@ import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled'
 interface CloudSessionSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /**
-     * Opens the subscribe-a-cloud flow. Owned by the host (HomePage) via `useAddCloudFlow` so the
-     * 1-cloud cap guard and the plan-picker dialog exist exactly once in the tree.
-     */
     onAddCloud: () => void;
-    /**
-     * Lifted to HomePage so the switcher-button dot and this sheet's row dots read the same
-     * cross-cloud observation.
-     */
     cloudUnread: Record<string, number>;
 }
 
-/**
- * Cloud switcher — a fixed-height bottom sheet holding three collapsible sections: `Home` (relay),
- * `My Cloud` (owned) and `Invited Cloud` (invited). Replaced the earlier two-tab layout so all
- * three groups can be scanned at once (Figma 3477-23611 / 3486-25407 / 3486-25889).
- *
- * The "add cloud" button lives in the owned section's FOOTER, outside the collapsible body, so it
- * stays reachable while that section is collapsed.
- */
 export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread }: CloudSessionSheetProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const navigate = useNavigateWithTransition();
 
-    // Owned clouds come from the relay catalog; invited clouds live in the local cloud cache
-    // (cloudType === 'invited') and are NOT in the catalog, so they are observed separately.
     const {
         clouds: catalogClouds,
         isCloudsError,
@@ -71,28 +53,19 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
         refetchClouds,
     } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();
-    // Locally cached names (written first by cloud.update/get) override the relay catalog name so a
-    // just-edited subscription-cloud name shows immediately in the switcher.
     const cachedCloudNames = useCachedCloudNames();
     const { switchCloud, isPending: isSwitching } = runtime.session.useSwitchCloudSession();
     const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
     const logoutSession = useSessionLogout();
     const { selectedCloudId } = runtime.session.useSessionSelection();
-    // A guest browser's clouds come from pairings, not from a catalog (a guest's is empty). An account
-    // — a relay pairing included — has its catalog and never shows this section.
     const isAccountGuest = useIsAccountGuest();
     const pairedCloudIds = runtime.session.usePairedCloudIds();
-    // A paired cloud's name, read from inside it; a cached name still wins, as everywhere else here.
     const pairedCloudNames = runtime.session.usePairedCloudNames();
     const pairingEnabled = useDevicePairingEnabled();
     const showPairedClouds = isAccountGuest && (pairingEnabled || pairedCloudIds.length > 0);
 
-    // Active selection is derived from the session; relay mode reads as 'default'.
     const selectedId = selectedCloudId;
 
-    // Cross-cloud push marks (ADR-0056 decision 2) — the other half of the dot, for pushes that arrived
-    // while away. Filtered to clouds actually in this account's catalog (owned + invited + relay)
-    // and never the active one, so a stale/foreign mark can't paint a dot nothing else corroborates.
     const badged = useCloudPushMarkStore(s => s.badged);
     const joinedCloudIds = useJoinedCloudIds(catalogClouds, invitedClouds);
     const catalogCloudIds = useMemo(() => new Set<string>([RELAY_CLOUD_ID, ...joinedCloudIds]), [joinedCloudIds]);
@@ -102,7 +75,6 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
     const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
     const prevCloudStatusesRef = useRef<Map<string, NonNullable<CloudView['status']>>>(new Map());
 
-    // Owned clouds = catalog minus anything already surfaced as an invited cloud.
     const invitedCloudIds = new Set(invitedClouds.map(c => c.id ?? ''));
     const clouds = catalogClouds.filter(c => !invitedCloudIds.has(c.id ?? ''));
 
@@ -110,7 +82,6 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
         if (open) refetchClouds();
     }, [open]);
 
-    // Detect reserved/init → active transition and show "cloud ready" toast.
     useEffect(() => {
         const prev = prevCloudStatusesRef.current;
         const next = new Map<string, NonNullable<CloudView['status']>>();
@@ -126,24 +97,14 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
         prevCloudStatusesRef.current = next;
     }, [clouds]);
 
-    // Poll every 30s while the sheet is open and there are provisioning clouds.
     useInterval(() => refetchClouds(), open && clouds.some(c => isProvisioning(c.status)) ? 30_000 : null);
 
     const handleSelectCloud = async (cloudId: string) => {
         handleClose();
-        // Optimistic switch + rollback-on-failure live inside switchCloud (session service).
-        // Invited clouds enter via the same path — the cache holds the real target cid.
         try {
             await switchCloud(cloudId);
             logger.info('CLOUD', 'cloud switch succeeded', { cloudId });
         } catch (error) {
-            // Deliberately not logged here: the session service already records the failure and does
-            // the cid/sid rollback. A second entry would double the error count — and `error` advances
-            // the upload flush, so it would double that too.
-            // A refusal over a revoked approval ends the sign-in that approval gave: a paired cloud the
-            // relay no longer delegates leaves the list, and either way the device signs out. The relay
-            // holds the revoked pairing against this auth session and refuses even the session's own
-            // invite into that cloud until a new session replaces it.
             const pairedCloudEnded = runtime.session.forgetRefusedPairedCloud(cloudId, error);
             if (pairedCloudEnded || runtime.session.isRefusedForEndedPairing(error)) {
                 toast({ title: t('pairing.cloud.ended') });
@@ -152,21 +113,15 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
         }
     };
 
-    // Disconnect cloud == log out the cloud session and fall back to relay (relay auth kept).
     const handleDisconnect = async () => {
         handleClose();
         try {
             await logoutCloudSession();
         } catch (error) {
-            // Unlike the switch above, nothing downstream records this — `logoutCloudSession` has no
-            // try/catch of its own, so without this line a failed disconnect leaves no trace at all.
             logger.error('CLOUD', 'cloud session disconnect failed', { error });
         }
     };
 
-    // A row that cannot be entered — provisioning, failed, held — opens its management hub, where
-    // the state is explained and a failed or held cloud is released. A failed row's raw `error` is
-    // a server trace; it goes to the log, where support can read it, and never on screen.
     const handleInspectCloud = (cloudId: string) => {
         const cloud = clouds.find(c => c.id === cloudId);
         if (cloud?.status === 'error') {
@@ -177,21 +132,13 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
     };
 
     const isDefaultSelected = !selectedId || selectedId === 'default';
-    // Skeleton on the FIRST load only. Keying it off `isFetching` made every background refetch
-    // (the sheet refetches on open, and `useClouds` is `refetchOnMount: 'always'`) replace the list —
-    // and for a zero-cloud account it replaced the promo banner, which never stopped shimmering.
-    // `isPending` is true only while there is no data yet; the extra `isFetching` guard keeps a
-    // disabled query (unauthenticated) from pinning the skeleton on.
     const isLoading = isPendingClouds && isFetchingClouds;
 
-    // Overlay the cached name first so the switcher shows the freshest subscription-cloud name.
     const cloudsWithCachedNames = clouds.map(cloud => {
         const cachedName = cloud.id ? cachedCloudNames[cloud.id] : undefined;
         return cachedName ? { ...cloud, name: cachedName } : cloud;
     });
 
-    // Display order (spec 2-3 / 5-2): selected cloud pinned to top, then creation order (newest
-    // first). View-only — logic/polling keeps using the unsorted `clouds`.
     const sortedClouds = sortCloudsForSwitcher(cloudsWithCachedNames, selectedId);
     const sortedInvited = sortCloudsForSwitcher(invitedClouds, selectedId);
 
@@ -215,13 +162,8 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
             </button>
         </div>
     ) : clouds.length === 0 ? (
-        // No cloud yet: pitch one. The banner hides itself once dismissed, leaving just the footer
-        // button — see useCloudPromo.
-        // This branch IS the zero-owned-cloud case, so the banner's own gate is satisfied.
         <CloudPromoBanner hasOwnedCloud={false} className="pb-1" />
     ) : (
-        // Rows butt up against each other (Figma 3486:25641 — 61px rows at y=55/116/177/…): the
-        // row's own py-2 IS the spacing, so no gap between them.
         <div className="flex flex-col px-2">
             {sortedClouds.map(cloud => (
                 <CloudItem
@@ -245,12 +187,8 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
                 title={t('cloudSessionSheet.title')}
                 onClose={handleClose}
                 closeLabel={t('cloudSessionSheet.close')}
-                // Fixed height (spec 1): the sheet always opens at its maximum height (matching the
-                // BottomSheet's max-h-[90vh] cap) regardless of list length — default height IS the
-                // max height, so it never grows/shrinks with content.
                 className="h-[90vh]"
             >
-                {/* Sections stack here; BottomSheet's own body is the scroller. */}
                 <div className="flex flex-col">
                     <CollapsibleSection
                         title={t('cloudSessionSheet.sectionHome')}
@@ -266,16 +204,12 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
                         </div>
                     </CollapsibleSection>
 
-                    {/* Section separator: the Figma sheet uses the 4px `block` band (Rectangle 1037/1038,
-                        375×4) with 14px of air on each side — not the 1px row hairline. */}
                     <Divider variant="block" className="my-[14px]" />
 
                     <CollapsibleSection
                         title={t('cloudSessionSheet.sectionMy')}
                         toggleLabel={t('cloudSessionSheet.toggleSection')}
                         count={clouds.length}
-                        // The caption only makes sense once there is a list; with zero clouds the
-                        // promo banner in the body carries the message instead.
                         description={clouds.length > 0 ? t('cloudSessionSheet.myCloudsDescription') : undefined}
                         footer={<AddAccountButton onClick={onAddCloud} />}
                     >

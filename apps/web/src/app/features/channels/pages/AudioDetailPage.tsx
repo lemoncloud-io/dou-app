@@ -30,20 +30,9 @@ import { useRoomSenderName } from '../hooks/useRoomSenderName';
 import { useAudioTrack, useRoomAudioStore } from '../stores/roomAudioStore';
 import { audioTrackOf, isVoiceMessageName } from '../utils/audioPlayback';
 
-/** The sent time in the header — date and minute, in the reader's language. */
 const formatSentAt = (ms: number | undefined, locale: string): string =>
     ms ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(ms)) : '';
 
-/**
- * One audio upload, full screen (Figma 6066:21958 · 6066:22076): who sent it and when, a waveform
- * computed from the file on this device, the player, and save · share · more.
- *
- * It plays through the room's one player, so opening it does not interrupt what plays and leaving it
- * lets the file play on in the room — the bubble and the mini player pick it up. The sent time and
- * "View in chat" go back to the message the way a search result does (`useMessageJumpStore`); a
- * message deleted since has neither. "Forward to DoU" and "Copy link" from the design are not here:
- * the server cannot attach someone else's upload to another message, and messages have no links.
- */
 export const AudioDetailPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();

@@ -4,13 +4,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { PlaceProfileCreateDialog } from './PlaceProfileCreateDialog';
 
-// The dialog no longer knows the repository: saving arrives as the `onSubmit` prop.
 const onSubmitMock = jest.fn();
 
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/shared', () => ({ prepareImage: jest.fn() }));
 jest.mock('react-i18next', () => ({
-    // Echo the key (with the interpolated place appended) so assertions can target keys.
     useTranslation: () => ({ t: (k: string, o?: { place?: string }) => (o?.place ? `${k}|${o.place}` : k) }),
 }));
 
@@ -18,7 +16,6 @@ const noop = () => undefined;
 const done = () => screen.getByRole('button', { name: 'placeProfileCreate.done' });
 const close = () => screen.getByRole('button', { name: 'placeProfileCreate.close' });
 
-// The nudge path (ADR-0040) keeps the guard, so it supplies exit copy; the invite paths omit it.
 const exitCopy = {
     title: 'placeProfileCreate.exitTitle',
     description: 'placeProfileCreate.exitDescription',
@@ -63,7 +60,6 @@ describe('PlaceProfileCreateDialog', () => {
             <PlaceProfileCreateDialog open onSubmit={onSubmitMock} placeName="두유 홈" onDone={noop} onExit={noop} />
         );
 
-        // Rendered twice: the in-body heading and the sr-only DialogTitle.
         expect(screen.getAllByText('placeProfileCreate.title|두유 홈').length).toBeGreaterThan(0);
     });
 

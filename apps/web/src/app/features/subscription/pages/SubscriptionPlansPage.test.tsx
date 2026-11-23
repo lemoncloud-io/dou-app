@@ -141,7 +141,6 @@ describe('Subscription picker — scenarios', () => {
         fireEvent.click(screen.getByRole('button', { name: /DoU Cloud 3/ }));
 
         expect(screen.getByText(`${K}.refusal.tierJump.title`)).toBeInTheDocument();
-        // The dialog hides the page behind it from the accessibility tree; the button is still off.
         expect(screen.getByRole('button', { name: `${K}.picker.next`, hidden: true })).toBeDisabled();
     });
 

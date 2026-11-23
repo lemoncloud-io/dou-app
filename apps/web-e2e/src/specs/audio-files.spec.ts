@@ -6,13 +6,6 @@ import { chatView, DM_CHANNEL, dmRoom, MINA, roomsSocket } from '../fixtures/roo
 import { composer, roomRow } from '../support/app';
 import { expect, test } from '../support/test';
 
-/**
- * Audio files in a room (apps/web/docs/feature/channels/audio-files.md and room-files.md): audio picked
- * on its own is confirmed in a send sheet and goes as one message; a sent audio file plays in place,
- * opens its detail screen, is listed in the room's files, and is hidden on this device with an undo.
- */
-
-/** Eight seconds of a tone as a WAV — what the media host serves for the sent file. */
 const toneWav = (): Buffer => {
     const rate = 8000;
     const samples = rate * 8;
@@ -37,7 +30,6 @@ const toneWav = (): Buffer => {
 
 const AUDIO_URL = 'https://media.test/e2e/meeting.wav';
 
-/** Mina's message carrying one sent audio file, as the relay's feed lists it. */
 const audioMessage = () => ({
     ...chatView(DM_CHANNEL.id, 2, ''),
     upload$$: [
@@ -80,7 +72,6 @@ test('audio picked on its own is confirmed in a sheet, and goes as one message',
     await page.getByText('Files', { exact: true }).click();
     await page.getByText('Choose from files').click();
 
-    // Not the files tray: the sheet lists both, and nothing has been sent yet.
     const sheet = page.getByRole('dialog', { name: 'Send 2 audio files' });
     await expect(sheet).toBeVisible();
     await expect(page.getByRole('group', { name: 'Files to send' })).toHaveCount(0);
@@ -95,7 +86,6 @@ test('audio picked on its own is confirmed in a sheet, and goes as one message',
     const asked = JSON.stringify(backend.sent('upload.start')[0]?.data);
     expect(asked).toContain('take-1.m4a');
     expect(asked).not.toContain('take-2.m4a');
-    // The message is in the room as an audio bubble on its way, which its ✕ can cancel.
     await expect(page.getByRole('button', { name: 'Cancel uploading take-1.m4a' })).toBeVisible();
 });
 
@@ -118,23 +108,18 @@ test('a sent audio file plays in place, opens its detail, is in the room files, 
 
     await openRoom(page, MINA.nick);
 
-    // Plays where it is: the bubble turns into its playing state with the seek bar and the speed chip.
     await page.getByRole('button', { name: 'Play meeting.wav' }).click();
     await expect(page.getByRole('slider', { name: 'Playback position of meeting.wav' })).toBeVisible();
     await expect(page.getByRole('button', { name: /^Playback speed 1x$/ })).toBeVisible();
 
-    // The bubble's body opens the detail, named for its sender; the file plays on behind it. Its name
-    // line, not its middle: while it plays, the middle is the seek bar.
     await page.getByRole('button', { name: 'Open meeting.wav' }).click({ position: { x: 80, y: 18 } });
     await expect(page).toHaveURL(new RegExp(`/channels/${DM_CHANNEL.id}/audio/2/0$`));
     await expect(page.getByText(MINA.nick, { exact: true })).toBeVisible();
 
-    // The header's collect button opens the room's files on the audio tab.
     await page.getByRole('button', { name: 'Room files' }).click();
     await expect(page).toHaveURL(new RegExp(`/channels/${DM_CHANNEL.id}/files\\?tab=audio$`));
     await expect(page.getByText('meeting.wav', { exact: true })).toBeVisible();
 
-    // Delete hides it on this device, behind a confirmation; Undo brings it back.
     await page.getByRole('button', { name: 'Select', exact: true }).click();
     await page.getByRole('checkbox', { name: /meeting\.wav/ }).click();
     await page.getByRole('toolbar').getByRole('button', { name: 'Delete' }).click();

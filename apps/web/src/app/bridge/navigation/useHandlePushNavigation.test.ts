@@ -23,8 +23,6 @@ jest.mock('@chatic/runtime', () =>
         },
         data: {
             recoverInvitedCloudIfMissing: jest.fn(),
-            // `chat` backs the thread-hop leg (usePushNavigate.hopToThread); the mock functions are
-            // hoisted above this factory so the suite can drive them.
             useRuntimeRepositories: jest.fn(() => ({
                 cloud: {},
                 chat: { cacheRead, getChat },
@@ -36,9 +34,6 @@ jest.mock('@chatic/runtime', () =>
             useSessionSelection: jest.fn(),
             useSwitchCloudSession: jest.fn(),
         },
-        // The invited-cloud recovery step added to usePushNavigate pulls more runtime exports, and asks the
-        // `push` port whether the app hands the page its notifications. The recovery runs only where it
-        // does, so it never runs here unless a test plays the app; a browser has no notifications.
         push: {
             get notifications() {
                 return mockIsNativeApp() ? { onReceive: jest.fn(() => () => undefined) } : null;
@@ -57,7 +52,6 @@ jest.mock('react-router-dom', () => ({ useNavigate: jest.fn() }));
 jest.mock('./pendingNavigationStore', () => ({ pendingNavigationStore: { register: jest.fn() } }));
 jest.mock('./resolvePushNavigation', () => ({ resolvePushNavigation: jest.fn() }));
 const mockOpenSubWebView = jest.fn();
-// `import.meta` is out of reach of the CommonJS transform; the stage is the test's to choose.
 jest.mock('../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 jest.mock('../subWebView', () => ({ openSubWebView: (...args: unknown[]) => mockOpenSubWebView(...args) }));
 const mockResolveSubWebViewAppUrl = jest.fn();
@@ -95,7 +89,6 @@ const setResolved = (value: { target: string; cid: string | null; sid: string | 
     (resolvePushNavigation as jest.Mock).mockReturnValue({ chatId: null, ...value });
 const setSelection = (selectedCloudId: string | null, selectedSiteId: string | null) =>
     (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId, selectedSiteId });
-// The relay-return branch reads the committed context kind, not the selection (see usePushNavigate).
 const setActiveServerKind = (kind: 'relay' | 'cloud') =>
     (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({ activeServer: { kind } });
 
@@ -104,8 +97,6 @@ const invoke = async (path = '/x', replace = false) => {
     await captured!({ data: { path, replace } });
 };
 
-// Normalization reads the live pathname+search from window.location (jsdom), so tests
-// drive the "current screen" through the history API rather than a router mock.
 const setCurrentPath = (path: string) => window.history.replaceState({}, '', path);
 
 beforeEach(() => {
@@ -142,8 +133,6 @@ describe('useHandlePushNavigation', () => {
         expect(unregister).toHaveBeenCalledTimes(1);
     });
 
-    // A 1:1 belongs to the place it was opened in, and its push names the place its sender wrote
-    // from. B wrote from P1; the room lives in P2.
     describe("a 1:1's push", () => {
         it("switches to the room's cached place, not the place its sender was in", async () => {
             setSelection('c1', 's1');
@@ -167,7 +156,6 @@ describe('useHandlePushNavigation', () => {
             expect(navigate).toHaveBeenCalled();
         });
 
-        // Another cloud's cache is not this one's; the place-keyed id still names the room's place.
         it("switches to the place its id names after a cloud switch, without reading this cloud's cache", async () => {
             setSelection('c1', 's1');
             setResolved({ target: '/channels/P2@me@peer/room', cid: 'c2', sid: 'P1' });
@@ -179,7 +167,6 @@ describe('useHandlePushNavigation', () => {
             expect(switchSite).toHaveBeenCalledWith('P2');
         });
 
-        // The read runs under the one-at-a-time guard, so it must not be able to hold it.
         it("lands on the push's place when the row read never answers", async () => {
             setSelection('c1', 's1');
             setResolved({ target: '/channels/me@peer/room', cid: null, sid: 'P1' });
@@ -291,7 +278,6 @@ describe('useHandlePushNavigation', () => {
         expect(navigate).toHaveBeenCalledWith('/room');
     });
 
-    // The cloud-ready push lands on the cloud's main screen and nothing else: `/?cid=<cid>`.
     describe("a push into another cloud's main screen", () => {
         it('switches to that cloud and lands on its main screen', async () => {
             setCurrentPath('/mypage');
@@ -386,7 +372,6 @@ describe('useHandlePushNavigation', () => {
         });
 
         it("'#'는 native여도 invited-cloud 복구 대상이 아니다", async () => {
-            // clearAllMocks doesn't clear mockReturnValue, so restore it within the test.
             mockIsNativeApp.mockReturnValue(true);
             try {
                 setCloudActive();
@@ -450,12 +435,10 @@ describe('useHandlePushNavigation', () => {
             setResolved({ target: '/channels/roomB/room', cid: null, sid: null });
             await invoke();
 
-            // Second push: from the room reached via the earlier replace, to yet another room.
             setCurrentPath('/channels/roomB/room');
             setResolved({ target: '/channels/roomC/room', cid: null, sid: null });
             await invoke();
 
-            // There must be no rebase (push) back to home — the current entry is replaced every time.
             expect(navigate).not.toHaveBeenCalledWith('/', { replace: true });
             expect(navigate).toHaveBeenCalledWith('/channels/roomB/room', { replace: true });
             expect(navigate).toHaveBeenCalledWith('/channels/roomC/room', { replace: true });
@@ -472,8 +455,6 @@ describe('useHandlePushNavigation', () => {
         });
 
         it('방이 아닌 화면에서 받은 푸시는 그 화면을 남기고 push한다 (뒤로가기가 돌아올 자리)', async () => {
-            // Regression: tapping an in-app message from My Page used to replace My Page, so back
-            // would skip over it — and if My Page was the only entry, there was nowhere to go back to at all.
             setCurrentPath('/mypage');
             setResolved({ target: '/channels/roomA/room', cid: null, sid: null });
 
@@ -521,8 +502,6 @@ describe('useHandlePushNavigation', () => {
         });
 
         it('홈에서 초대 딥링크(쿼리만 다른 홈 타겟)를 받으면 rebase 없이 target을 push한다', async () => {
-            // Regression: the invite deeplink shares the home pathname, so the old
-            // pathname-only skip dropped its query and the invite popup never showed.
             setCurrentPath('/');
             setResolved({
                 target: '/?code=abc&provider=invite&version=2&_backend=https%3A%2F%2Fapi',
@@ -537,7 +516,6 @@ describe('useHandlePushNavigation', () => {
         });
 
         it('네이티브 replace 플래그와 무관하게 정규화 규칙대로 네비게이션한다', async () => {
-            // Even when native requests replace, the rule wins — this isn't a room screen, so it's a push.
             setCurrentPath('/mypage');
             setResolved({ target: '/channels/roomA/room', cid: null, sid: null });
 
@@ -552,7 +530,6 @@ describe('useHandlePushNavigation', () => {
         it('처리 중 겹쳐 들어온 푸시는 드롭한다', async () => {
             setSelection('c1', 's1');
             setResolved({ target: '/channels/roomA/room', cid: 'c2', sid: 's1' });
-            // Hold the handshake so the first push stays in flight while the second arrives.
             let releaseHandshake!: () => void;
             waitUntilVerified.mockImplementation(
                 () => new Promise<boolean>(resolve => (releaseHandshake = () => resolve(true)))
@@ -560,16 +537,15 @@ describe('useHandlePushNavigation', () => {
 
             renderHook(() => useHandlePushNavigation());
             const first = captured!({ data: { path: '/x', replace: false } });
-            await Promise.resolve(); // let the first reach the awaited handshake
+            await Promise.resolve();
             const second = captured!({ data: { path: '/x', replace: false } });
-            await second; // dropped immediately while the first is in flight
+            await second;
 
-            expect(switchCloud).not.toHaveBeenCalled(); // first still awaiting the handshake
+            expect(switchCloud).not.toHaveBeenCalled();
 
             releaseHandshake();
             await first;
 
-            // Only the first push proceeded through the switch + navigation.
             expect(switchCloud).toHaveBeenCalledTimes(1);
             expect(navigate).toHaveBeenCalledTimes(1);
         });
@@ -584,21 +560,15 @@ describe('useHandlePushNavigation', () => {
             navigate.mockClear();
             setResolved({ target: '/settings', cid: null, sid: null });
             await captured!({ data: { path: '/settings', replace: false } });
-            expect(navigate).toHaveBeenCalledWith('/settings'); // not dropped → guard reset
+            expect(navigate).toHaveBeenCalledWith('/settings');
         });
     });
 
-    // A reply raises a push of its own but is hidden from the main feed (ADR-0093), so a
-    // channel-level tap would show everything except the message that was notified. The fix is
-    // staged: land on the room, then hop to the thread only if the notified chat is a reply.
     describe('스레드 답글 푸시 — 채널방 → 스레드 2단 이동', () => {
         const REPLY = { id: 'C1:42', channelId: 'C1', chatNo: 42, parentId: '7' };
         const ROOT = { id: 'C1:42', channelId: 'C1', chatNo: 42 };
         const ROOM = '/channels/C1/room';
 
-        // The real router's navigate() writes to the History API synchronously, so
-        // window.location is already the room by the time the thread leg reads it. The shared
-        // navigate mock does not, so mirror that here — hopToThread guards on the live location.
         beforeEach(() => {
             navigate.mockImplementation((target: unknown) => {
                 if (typeof target === 'string') window.history.replaceState({}, '', target);
@@ -617,13 +587,9 @@ describe('useHandlePushNavigation', () => {
 
             await invoke();
 
-            // The thread leg must PUSH, not replace: routing it through navigateNormalized would
-            // replace the room (its room-to-room rule) and send "back" past the channel to home.
             expect(navigate.mock.calls).toEqual([[ROOM], ['/channels/C1/thread/7']]);
         });
 
-        // The room leg behaves differently depending on where the reader was, but the back stack
-        // must come out the same in every case: back from the thread lands on the channel.
         it('다른 방에 있었으면 그 방을 대체하고 스레드를 올린다 (뒤로가기 → 대상 채널방)', async () => {
             setCurrentPath('/channels/OTHER/room');
             cacheRead.mockResolvedValue(REPLY);
@@ -631,7 +597,6 @@ describe('useHandlePushNavigation', () => {
 
             await invoke();
 
-            // Room leg replaces the disposable peer room; the thread leg still pushes on top of it.
             expect(navigate.mock.calls).toEqual([[ROOM, { replace: true }], ['/channels/C1/thread/7']]);
         });
 
@@ -642,8 +607,6 @@ describe('useHandlePushNavigation', () => {
 
             await invoke();
 
-            // Re-navigating to the screen already shown would remount it; the room is already the
-            // current history entry, so pushing the thread on top still leaves back pointing at it.
             expect(navigate.mock.calls).toEqual([['/channels/C1/thread/7']]);
         });
 
@@ -667,7 +630,6 @@ describe('useHandlePushNavigation', () => {
             expect(navigate).toHaveBeenLastCalledWith('/channels/C1/thread/7');
         });
 
-        // Offline / cold cache: the reader is already on a screen that makes sense.
         it('조회가 실패하면 채널방에 그대로 머문다', async () => {
             cacheRead.mockRejectedValue(new Error('offline'));
             setResolved({ target: ROOM, cid: null, sid: null, chatId: 'C1:42' });
@@ -686,8 +648,6 @@ describe('useHandlePushNavigation', () => {
             expect(navigate.mock.calls).toEqual([[ROOM]]);
         });
 
-        // The lookup is awaited, which gives the reader time to move on. Hijacking a screen they
-        // chose would be worse than skipping the hop.
         it('조회 중 사용자가 방을 떠났으면 스레드로 끌고 가지 않는다', async () => {
             cacheRead.mockImplementation(async () => {
                 window.history.replaceState({}, '', '/mypage');
@@ -733,7 +693,6 @@ describe('useHandlePushNavigation', () => {
                 },
             });
 
-            // Adopted, not started again.
             expect(backend.start).not.toHaveBeenCalled();
             const result = finish();
             expect(result).toMatchObject({ id: 'native-1', attributes: { entry: 'push_tap', start: 'cold' } });
@@ -745,7 +704,6 @@ describe('useHandlePushNavigation', () => {
 
             await invoke('/channels/roomA/room');
 
-            // The open and the sync trace, both started by the web.
             expect(backend.start).toHaveBeenCalledTimes(2);
             expect(finish()).toMatchObject({ attributes: { entry: 'navigate' } });
         });
@@ -771,7 +729,6 @@ describe('useHandlePushNavigation', () => {
             expect(metrics).toHaveProperty('handshake_done');
             expect(metrics).toHaveProperty('cloud_done');
             expect(metrics).toHaveProperty('switch_done');
-            // The invited-cloud recovery is native-only, and this suite runs as the browser.
             expect(metrics).not.toHaveProperty('recover_done');
         });
 
@@ -799,8 +756,6 @@ describe('useHandlePushNavigation', () => {
         });
 
         it('marks each step after it finishes, on the sync trace as well', async () => {
-            // A clock only the switch steps move, so each mark's gap from the one before is the time
-            // its own step took — a mark set before its await would show a zero gap.
             let now = 0;
             const clock = jest.spyOn(performance, 'now').mockImplementation(() => now);
             switchCloud.mockImplementation(async () => {
@@ -846,12 +801,10 @@ describe('useHandlePushNavigation', () => {
         });
     });
 
-    // A sub WebView page's link is not a route: the page opens over whatever is showing.
     describe("a sub WebView page's link", () => {
         const page = 'https://quiz.apps.chatic.io/level?x=1';
         const path = `/sub-webview?url=${encodeURIComponent(page)}`;
 
-        // The handler still reads the path for a room trace; a page link is not one.
         beforeEach(() => {
             mockSupportsSubWebView = true;
             setResolved({ target: '/', cid: null, sid: null });
@@ -867,7 +820,6 @@ describe('useHandlePushNavigation', () => {
             expect(switchCloud).not.toHaveBeenCalled();
         });
 
-        // The link's own path names an app; the web resolves where it is hosted for this build's stage.
         it("opens the app a link names, at its root with the link's query", async () => {
             mockResolveSubWebViewAppUrl.mockResolvedValue('https://quiz.apps.chatic.io/?level=3');
             mockOpenSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'v1' });
@@ -882,7 +834,6 @@ describe('useHandlePushNavigation', () => {
             expect(navigate).not.toHaveBeenCalled();
         });
 
-        // The fallback would be the OS browser, where a page link must never open.
         it('opens nothing in an app without the sub WebView', async () => {
             mockSupportsSubWebView = false;
             mockResolveSubWebViewAppUrl.mockResolvedValue('https://quiz.apps.chatic.io/');

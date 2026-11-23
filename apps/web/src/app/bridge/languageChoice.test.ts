@@ -2,7 +2,6 @@ import { syncLanguageChoiceToShell } from './languageChoice';
 
 const save = jest.fn();
 let mockPreferences = true;
-// The frame's own preference store, as the host's `appShell` port offers it; a browser has none.
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({

@@ -14,21 +14,10 @@ import {
 } from '../hooks/useMiniAppLauncher';
 
 type MiniAppCardProps = {
-    /**
-     * DoU's own pages, as rows: listed wherever the card is drawn, under the hub row when there is one.
-     * An array of rows (or nothing): an empty array means no pages, while a `false` or fragment child counts as one.
-     */
     children?: ReactNode;
-    /** False while the mini app tab is on: the cloud's mini apps live there, and only DoU's pages stay. */
     withLauncher: boolean;
 };
 
-/**
- * The Lab's mini app card. DoU's own pages (`children`) are rows in it for everyone. The launcher —
- * the hub row and an owner's links — joins them only in an app whose handshake says it opens any https
- * page (`subWebViewOpenScope: 'anyHttps'`): an older app and a browser tab would refuse the owner's
- * link. The launcher's own hooks run only past that check. With neither, nothing is drawn.
- */
 export const MiniAppCard = ({ children, withLauncher }: MiniAppCardProps) => {
     const scope = useSubWebViewOpenScope();
     if (withLauncher && scope === 'anyHttps') return <MiniAppSection>{children}</MiniAppSection>;
@@ -52,14 +41,12 @@ const MiniAppSection = ({ children }: { children?: ReactNode }) => {
             if (outcome === 'outside') toast({ title: t('mypage.lab.miniApp.openedOutside') });
         },
     });
-    // The Default Cloud (Home) has no launcher, but DoU's own pages still open from there.
     if (!launcher.available) return <PagesOnlyCard>{children}</PagesOnlyCard>;
     const count = launcher.links.length;
 
     return (
         <>
             <MenuCard title={t('mypage.lab.miniApp.title')}>
-                {/* The hub is the way in for everyone: it lists this cloud's mini apps and opens the one chosen. */}
                 <ListRow
                     title={t('mypage.lab.miniApp.open')}
                     subtitle={
@@ -117,8 +104,6 @@ type MiniAppLinkFormProps = {
 
 const MiniAppLinkSheet = ({ editing, ...props }: { editing: MiniAppLinkEditing | null } & MiniAppLinkFormProps) => {
     const { t } = useTranslation();
-    // What the sheet last showed. Its content stays mounted while it slides away, so it keeps that
-    // mini app (or the blank add form) until then rather than turning into another form on its way out.
     const [shown, setShown] = useState<MiniAppLinkEditing>('new');
     if (editing !== null && editing !== shown) setShown(editing);
     const target = editing ?? shown;
@@ -131,7 +116,6 @@ const MiniAppLinkSheet = ({ editing, ...props }: { editing: MiniAppLinkEditing |
             description={t('mypage.lab.miniApp.linkHint')}
             closeLabel={t('common.close')}
         >
-            {/* Keyed by what it edits, so each opening starts from that mini app (or blank) on its first paint. */}
             <MiniAppLinkForm key={existing?.id ?? 'new'} existing={existing} {...props} />
         </BottomSheet>
     );
@@ -212,7 +196,6 @@ const MiniAppLinkForm = ({
     );
 };
 
-/** A yes/no that blocks until answered: closing it any other way is a no. */
 const MiniAppConsentDialog = ({ host, onAnswer }: { host: string | null; onAnswer: (agreed: boolean) => void }) => {
     const { t } = useTranslation();
     return (

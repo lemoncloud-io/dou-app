@@ -2,7 +2,6 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
-// The `emoji` namespace answers with a fixed name table; every other key comes back as itself.
 const EMOJI_NAMES: Record<string, string> = { '😀': 'grinning face' };
 jest.mock('react-i18next', () => ({
     useTranslation: (ns?: string) => ({
@@ -26,10 +25,7 @@ const setup = () => {
 };
 
 const bubble = () => screen.queryByTestId('emoji-name-bubble');
-// A pointer click carries a click count; a keyboard or switch-control activation carries 0.
 const tap = (element: HTMLElement) => fireEvent.click(element, { detail: 1 });
-// jsdom has no PointerEvent, so testing-library builds a plain Event and drops the coordinates
-// off the init; they have to be hung on the native event by hand.
 const pointerAt = (element: HTMLElement, type: 'pointerdown' | 'pointermove', x: number, y: number) =>
     fireEvent(element, Object.assign(new Event(type, { bubbles: true }), { clientX: x, clientY: y }));
 const hold = (element: HTMLElement) => {
@@ -86,7 +82,6 @@ describe('EmojiPickerSheet — emoji names on long press', () => {
         expect(bubble()).not.toBeInTheDocument();
     });
 
-    // The pointer stays captured during a scroll, so drift is the only sign of one.
     it('a press that drifts like a scroll shows nothing', () => {
         const { emoji } = setup();
 
@@ -157,7 +152,6 @@ describe('EmojiPickerSheet — emoji names on long press', () => {
     it('holding an emoji with no name shows nothing and still lets a release pick', () => {
         const onPick = jest.fn();
         renderSheet(true, onPick);
-        // Named only in the test table above, so this one has no name.
         const unnamed = screen.getByText('😃');
 
         hold(unnamed);

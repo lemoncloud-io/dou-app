@@ -19,7 +19,6 @@ const edit = (overrides: Partial<ComposerEditState> = {}): ComposerEditState => 
     ...overrides,
 });
 
-// The field the bar steers is the composer's own, rendered by the page; a plain textarea stands in.
 const renderWithField = (state: ComposerEditState, value = state.draft) => {
     const inputRef = createRef<HTMLTextAreaElement>();
     const view = render(
@@ -40,7 +39,6 @@ describe('ComposerEditBar', () => {
         expect(bar).toHaveTextContent('원래 메시지');
     });
 
-    // The draft is still in the field and the send button is live, so the bar says it can be retried.
     it('shows the failure in place of the quote after a rejected save', () => {
         renderWithField(edit({ hasFailed: true }));
 
@@ -58,14 +56,12 @@ describe('ComposerEditBar', () => {
         expect(state.onCancel).toHaveBeenCalledTimes(1);
     });
 
-    // Cancelling mid-save would leave the save landing on a closed edit.
     it('does not offer cancel while the save is in flight', () => {
         renderWithField(edit({ isSaving: true }));
 
         expect(screen.getByRole('button', { name: 'chat.room.editCancel' })).toBeDisabled();
     });
 
-    // Selecting the whole body would let the first keystroke destroy it.
     it('puts the caret at the end of the field when the edit opens', () => {
         renderWithField(edit(), 'abc');
 
@@ -100,7 +96,6 @@ describe('ComposerEditBar', () => {
         expect(bar).not.toHaveTextContent('원래 메시지');
     });
 
-    // Disabling the field for the save takes the focus and the keyboard; the retry belongs in the field.
     it('puts the caret back in the field when a save fails', () => {
         const { rerender, inputRef } = renderWithField(edit(), 'abc');
         const field = screen.getByTestId('field') as HTMLTextAreaElement;

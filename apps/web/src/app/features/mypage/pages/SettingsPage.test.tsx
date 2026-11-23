@@ -10,8 +10,6 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
 }));
-// A browser tab by default: the frame checks no store, as the `appShell` port says there. A test that
-// needs the phone app's store lays `storeUpdate` on it.
 const mockOpenStore = jest.fn();
 let mockStoreUpdate = false;
 jest.mock('@chatic/runtime', () => {

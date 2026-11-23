@@ -8,8 +8,6 @@ const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
 const mockWeb = { kind: 'web', open: jest.fn() };
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
-        // The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
-        // in a browser.
         get checkout() {
             return mockNative ? mockStore : mockWeb;
         },
@@ -39,7 +37,6 @@ const webTier = (sort: number) => ({
 const STORE_PLANS = [storeTier(1, 'apple'), storeTier(2, 'apple'), storeTier(1, 'google'), storeTier(2, 'google')];
 const STRIPE_PLANS = [webTier(1), webTier(2)];
 
-/** The relay as it answers today: the unfiltered list leaves the website's products out. */
 const answerPlans = () =>
     (useProductPlans as jest.Mock).mockImplementation(
         (params: { platform?: string }, options?: { enabled?: boolean }) => {

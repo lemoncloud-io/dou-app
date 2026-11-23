@@ -20,7 +20,6 @@ import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
 import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
 
-/** A relay code (the virtual shell's relay sign-in) rather than a native provider token. */
 const isRelayCode = (result: OAuthLoginResult): result is OAuthCodeResult =>
     typeof (result as Partial<OAuthCodeResult>).code === 'string';
 
@@ -32,61 +31,28 @@ export const LoginPage = () => {
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
     const [isPhoneOpen, setIsPhoneOpen] = useState(false);
-    // The relay-code exchange is a plain call, not a mutation, so its pending state is kept here.
     const [isCodeExchangePending, setIsCodeExchangePending] = useState(false);
     const pairingEnabled = useDevicePairingEnabled();
-    // Development stages only (see the registry) — a way to switch between seeded test accounts.
     const emailLoginEnabled = runtime.settings.useConfigValue<boolean>('feature.auth.emailLogin') === true;
 
-    // Social sign-in is offered where the app has its own provider sign-in (`runtime.signIn`), with the
-    // providers it lists — Apple's only on iOS.
     const providerSignIn = runtime.signIn.providerSignIn;
     const offersSocial = providerSignIn !== null;
     const offersApple = providerSignIn?.providers.includes('apple') ?? false;
     const { mutateAsync: loginRelaySocial, isPending: isLoginRelaySocialPending } =
         runtime.session.useLoginRelaySocial();
 
-    /**
-     * Leave the login screen for wherever the user came from.
-     *
-     * `history.back()`, not a replace. The entry point PUSHED this screen (see useNavigateToLogin),
-     * so the previous entry is already the screen to return to — going back lands on it and takes
-     * the login entry out of the backward path in one move. Replacing instead would overwrite login
-     * with a second copy of that screen, leaving two identical adjacent entries: the first back
-     * press would appear to do nothing, which reads as broken navigation.
-     *
-     * A useful side effect: `returnTo` is read as a FLAG (did we get here from inside the app?),
-     * never handed to the router as a destination, so there is no path for it to become a redirect
-     * target at all.
-     *
-     * The old implementation rewound the whole history stack and did a full-page
-     * `location.replace('/')`. Neither is needed: both sign-in paths install the new identity before
-     * this runs (phone via `confirmPhoneLogin`, social via `loginRelaySocial` or, for the virtual
-     * shell's relay code, `createCredentialsByProvider`), so a reload fixes nothing and only costs a
-     * white flash.
-     */
     const leaveForReturnTo = () => {
         const { returnTo } = (location.state ?? {}) as LoginLocationState;
         const cameFromInsideTheApp = !!returnTo && canGoBackInApp();
-        // "I signed in and it took me to home instead of where I was" is a report about THIS branch,
-        // and its two causes are indistinguishable from the outside: no `returnTo` (an entry point
-        // bypassed useNavigateToLogin) or nothing behind this screen in the app's own stack (a fresh
-        // WebView load, a deep link, a reload). Recording both inputs beside the branch turns that
-        // report into an answer, and marks login completion for whoever is reading the log.
         logger.info('AUTH', `leaving login — ${cameFromInsideTheApp ? 'back to origin' : 'fallback to home'}`, {
             hadReturnTo: !!returnTo,
-            // The depth this branch actually read. Logged instead of `history.length`, which is a
-            // WebView-global count and so could not explain the branch it used to sit beside.
             depth: readHistoryIndex(),
             wentBack: cameFromInsideTheApp,
         });
         const leaving = cameFromInsideTheApp
             ? navigate(-1)
-            : // Deep link or refresh landed here directly, so there is nothing to go back to.
-              navigate(ROUTES.home, { replace: true, transition: true, direction: 'back' });
+            : navigate(ROUTES.home, { replace: true, transition: true, direction: 'back' });
         void Promise.resolve(leaving).catch(error =>
-            // The session is already promoted by this point, so a silent failure would strand a
-            // signed-in user on the login screen with no feedback.
             logger.error('AUTH', '[LoginPage] Failed to leave the login screen', { error })
         );
     };
@@ -100,19 +66,6 @@ export const LoginPage = () => {
         });
     };
 
-    /**
-     * The credential comes back HERE, not from the call that started the flow.
-     *
-     * `providerSignIn.start` only fires the request; the provider's UI then belongs to the user for as
-     * long as they need (account chooser, password, 2FA, consent). The request/response pair this
-     * replaces gave that a 15s budget and abandoned anything slower — so a user who really did sign
-     * in came back to an error toast and the login screen, because their credential arrived to a
-     * request that had already been given up on and was dropped.
-     *
-     * Every outcome lands on this one channel: success carries the credential, a cancel carries
-     * `result: null`, and a native failure carries `success: false`. The credential is a provider
-     * token from a native app, or a relay code from the virtual shell's relay sign-in.
-     */
     const handleOAuthResult = (message: AppMessageData<'OnOAuthLogin'>) => {
         setIsOAuthPending(false);
         setActiveProvider(null);
@@ -123,7 +76,6 @@ export const LoginPage = () => {
         }
 
         const result = message.data.result;
-        // null result means the user cancelled the native OAuth flow
         if (!result) {
             logger.warn('AUTH', '[LoginPage] native oauth returned no credential');
             toast({ title: t('mypageLogin.oauthFailed'), variant: 'destructive' });
@@ -133,9 +85,6 @@ export const LoginPage = () => {
         void (async () => {
             try {
                 if (isRelayCode(result)) {
-                    // The virtual shell signs in through the OAuth relay and hands back its code, not a
-                    // provider token. Exchanged the way desktop does: signed with this device's (guest)
-                    // session, so the backend links that guest to the account, as the native login does.
                     setIsCodeExchangePending(true);
                     try {
                         await runtime.session.createCredentialsByProvider(result.provider, result.code, {
@@ -145,7 +94,6 @@ export const LoginPage = () => {
                         setIsCodeExchangePending(false);
                     }
                 } else {
-                    // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
                     await loginRelaySocial({ body: result, provider: result.provider });
                 }
                 logger.info('AUTH', '[LoginPage] social login succeeded', {
@@ -160,8 +108,6 @@ export const LoginPage = () => {
         })();
     };
 
-    // Subscribed once for the screen's lifetime and reading the latest handler through a ref, so a
-    // re-render neither drops an answer in flight nor re-subscribes; unmounting unsubscribes.
     const handleOAuthResultRef = useRef(handleOAuthResult);
     useEffect(() => {
         handleOAuthResultRef.current = handleOAuthResult;
@@ -169,7 +115,6 @@ export const LoginPage = () => {
     useEffect(() => providerSignIn?.onResult(message => handleOAuthResultRef.current(message)), [providerSignIn]);
 
     const handleOAuthLogin = (provider: 'google' | 'apple') => {
-        // Only reachable from the social buttons, which render only where `providerSignIn` exists.
         if (!providerSignIn) return;
         setIsOAuthPending(true);
         setActiveProvider(provider);
@@ -178,7 +123,6 @@ export const LoginPage = () => {
 
     const isLoading = isOAuthPending || isLoginRelaySocialPending || isCodeExchangePending;
 
-    // Pushed, so the policy page's back button lands here again with this entry's `returnTo` intact.
     const openPolicy = (path: string) => navigate(path);
 
     const policyLinkClass = 'font-medium text-foreground underline underline-offset-2 disabled:opacity-50';
@@ -227,21 +171,6 @@ export const LoginPage = () => {
                     </div>
                 )}
 
-                {/*
-                 * Phone sits BELOW social on purpose. This screen is where `PhoneVerifyBanner` sends a
-                 * user who might already have a social account, and the account-split hazard is one-way:
-                 * proving a number on a fresh device mints a SEPARATE user that can never be merged.
-                 * Seeing social first, with the warning directly above the number, is the whole
-                 * defense — the server cannot prevent this.
-                 *
-                 * A phone-only user cannot hold a subscription (it attaches to a cloud, and cloud
-                 * ownership follows the social account). That is enforced where it costs money — the
-                 * purchase refuses before opening the store — so it does not need to gate sign-in here.
-                 *
-                 * It needs no `runtime.signIn` gate either: the verification is a socket call, so in a
-                 * browser it is the one way in. There the warning is also the only mention of social,
-                 * which is why the browser drops the divider and folds "social is app-only" into it.
-                 */}
                 <div className={cn('flex flex-col gap-3', offersSocial && 'mt-8')}>
                     {offersSocial && (
                         <div className="flex items-center gap-3">
@@ -277,9 +206,6 @@ export const LoginPage = () => {
                         </button>
                     )}
 
-                    {/* Signing in with another, already signed-in device: this screen shows a code and
-                        that device approves it. The login state rides along so the code screen can
-                        leave the same way this one would. */}
                     {pairingEnabled && (
                         <button
                             onClick={() => navigate(ROUTES.mypage.pairing.code, { state: location.state })}
@@ -293,13 +219,6 @@ export const LoginPage = () => {
                     )}
                 </div>
 
-                {/* The translation marks which words are the links, since they sit in a different
-                    place in each language's sentence. It is a new key rather than new text under
-                    `termsAgreement`: a bundle already running in a WebView refetches the locale file
-                    after its cache expires, and would print the tags literally through `t()`.
-
-                    Disabled during OAuth like every other control: the credential is delivered to this
-                    screen's subscriber, and leaving would unmount it and drop a completed sign-in. */}
                 <p className="mt-6 text-center text-[12px] leading-[1.5] text-description">
                     <Trans
                         i18nKey="mypageLogin.termsAgreementLinks"
@@ -328,8 +247,6 @@ export const LoginPage = () => {
                 </p>
             </div>
 
-            {/* `login`: this is a device session proving a number to become that number's main user, so
-                the runtime switches the session to it (`confirmPhoneLogin`) before `onVerified` fires. */}
             {isPhoneOpen && (
                 <PhoneVerifySheet mode="login" onVerified={leaveForReturnTo} onClose={() => setIsPhoneOpen(false)} />
             )}

@@ -16,8 +16,6 @@ jest.mock('@chatic/runtime', () =>
         connection: { RELAY_SLOT: 'default', onServerEvent: jest.fn() },
     })
 );
-// Echo keys so assertions target the key. `t` is here for the CARD (it translates its own "now"
-// label); the runner itself reads copy through `i18n.t` to keep the effect off `t`'s identity.
 const echo = (key: string, opts?: Record<string, unknown>) => (opts?.name ? `${key}:${opts.name}` : key);
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: echo, i18n: { exists: mockExists, t: echo } }),
@@ -33,14 +31,12 @@ type Handler = (message: { data: { id?: string; name?: string } | null }) => voi
 
 let lastUnmount: (() => void) | undefined;
 
-/** Mounts the runner and returns the listener it registered on the relay slot. */
 const mount = (): Handler => {
     const { unmount } = render(<CloudActivatedRunner />);
     lastUnmount = unmount;
     return onServerEvent.mock.calls[onServerEvent.mock.calls.length - 1][1];
 };
 
-/** Renders the JSX the runner handed to `toast.custom`. */
 const renderToastContent = () => {
     const [renderContent] = toastCustom.mock.calls[toastCustom.mock.calls.length - 1];
     return render(renderContent('cloud-activated'));
@@ -53,8 +49,6 @@ beforeEach(() => {
 });
 
 describe('CloudActivatedRunner', () => {
-    // Pinning to relay is the whole point: the unicast is delivered by the relay deployment, so an
-    // active-slot subscription misses it while the user sits inside another cloud.
     it('relay 슬롯에 cloud.activated를 구독한다', () => {
         mount();
 
@@ -81,7 +75,6 @@ describe('CloudActivatedRunner', () => {
         expect(screen.getByText('notifications.cloudActivated.title:DoU')).toBeTruthy();
     });
 
-    // Clouds created without a name really do exist — use the same fallback as the push copy.
     it('이름이 비면 식별자로 대체한다', () => {
         mount()({ data: { id: 'cloud_1', name: '  ' } });
 
@@ -89,8 +82,6 @@ describe('CloudActivatedRunner', () => {
         expect(screen.getByText('notifications.cloudActivated.title:cloud_1')).toBeTruthy();
     });
 
-    // Web i18n is a remote resource, so some clients don't have this key yet. No banner is better
-    // than a banner showing the literal key, and the list refresh must happen regardless.
     it('번역 키가 없으면 배너를 띄우지 않되 캐시는 무효화한다', () => {
         mockExists.mockReturnValue(false);
 
@@ -107,7 +98,6 @@ describe('CloudActivatedRunner', () => {
         expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: runtime.data.cloudsKeys.all });
     });
 
-    // The banner reaches an owner already in the app; only the push tap moves into the cloud.
     it('배너에 클릭 동작이 없다', () => {
         mount()({ data: { id: 'cloud_1', name: 'DoU' } });
 
@@ -115,8 +105,6 @@ describe('CloudActivatedRunner', () => {
         expect(screen.queryByRole('button')).toBeNull();
     });
 
-    // The banner is skipped while its key is missing, and it was missing from both bundles for as long
-    // as the runner existed — so the event never showed a banner at all.
     it.each(['ko', 'en'])('ships the banner title in the %s bundle with the cloud name in it', lang => {
         const bundle = JSON.parse(
             readFileSync(join(__dirname, '../../../../public/locales', lang, 'translation.json'), 'utf-8')

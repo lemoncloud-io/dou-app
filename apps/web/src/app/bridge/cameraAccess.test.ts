@@ -1,7 +1,6 @@
 import { cameraAccess } from './cameraAccess';
 
 const requestPermission = jest.fn();
-// The host's camera permission, swapped per test; `null` is a host that does not ask for the camera itself.
 let mockCameraPermission: { request: () => Promise<unknown> } | null = null;
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
@@ -62,7 +61,6 @@ describe('cameraAccess', () => {
         expect(cameraAccess.isGranted()).toBe(true);
     });
 
-    // The person may allow the camera in Settings and come back, so a refusal is asked again next time.
     it('does not remember a refusal or a missing answer', async () => {
         answer('BLOCKED');
         await cameraAccess.request();

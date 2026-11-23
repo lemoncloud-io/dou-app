@@ -11,7 +11,6 @@ import { useRestoredSignal } from '../stores/useRestoredSignal';
 import { WEB_SUBSCRIPTION_URL } from '../consts';
 import type { SubscriptionSummary } from '../lib';
 
-// Echo the key, plus the values a scenario cares about, so assertions can name both.
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
         t: (key: string, opts?: Record<string, unknown>) => (opts && 'days' in opts ? `${key}:${opts.days}` : key),
@@ -24,8 +23,6 @@ const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
 const mockWeb = { kind: 'web', open: jest.fn() };
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
-        // The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
-        // in a browser.
         get checkout() {
             return mockNative ? mockStore : mockWeb;
         },
@@ -141,7 +138,6 @@ describe('Subscription detail — scenarios', () => {
         expect(screen.getByText(`${K}.banner.ending.chip:3`)).toBeInTheDocument();
         expect(screen.getByText(`${K}.info.endsOn`)).toBeInTheDocument();
         expect(screen.queryByText(`${K}.info.nextPayment`)).not.toBeInTheDocument();
-        // The plan itself is still running — only the status row says it is ending.
         expect(screen.getByText(`${K}.state.active`)).toBeInTheDocument();
         expect(screen.getByText(`${K}.state.ending`)).toBeInTheDocument();
     });
@@ -184,7 +180,6 @@ describe('Subscription detail — scenarios', () => {
 
         expect(screen.getByText(`${K}.detail.pendingTitle`)).toBeInTheDocument();
         expect(screen.getByText(`${K}.state.scheduled`)).toBeInTheDocument();
-        // A queued change hides the renewal reminder — the pending card states the next charge.
         expect(screen.queryByText(`${K}.banner.autoRenew.title`)).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: `${K}.detail.keepPick` }));
@@ -255,7 +250,6 @@ describe('Subscription detail — scenarios', () => {
         expect(mockWeb.open).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.list);
         expect(screen.getByText(`${K}.notice.manageAt.web`)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
-        // How a store applies a tier change says nothing about the website's.
         expect(screen.queryByText(`${K}.notice.upgradeImmediate`)).not.toBeInTheDocument();
         expect(screen.queryByText(`${K}.notice.downgradeNextRenewal`)).not.toBeInTheDocument();
     });
@@ -272,10 +266,8 @@ describe('Subscription detail — scenarios', () => {
         expect(screen.queryByRole('button', { name: `${K}.detail.manageOnWeb` })).not.toBeInTheDocument();
         expect(mockStore.openManagement).not.toHaveBeenCalled();
         expect(mockWeb.open).not.toHaveBeenCalled();
-        // Nor names it: no "manage it at …" line for the website, and none for a store either.
         expect(screen.queryByText(`${K}.notice.manageAt.web`)).not.toBeInTheDocument();
         expect(screen.queryByText(new RegExp(`${K}.notice.manageAt`))).not.toBeInTheDocument();
-        // And no tier-change rules for a change it cannot make: with nothing left, no notice block.
         expect(screen.queryByText(`${K}.notice.upgradeImmediate`)).not.toBeInTheDocument();
         expect(screen.queryByText(`${K}.notice.title`)).not.toBeInTheDocument();
     });

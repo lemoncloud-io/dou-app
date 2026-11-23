@@ -45,7 +45,6 @@ describe('MentionSuggestions', () => {
         expect(onPick).toHaveBeenCalledWith(MINSU);
     });
 
-    // A tap must not take focus off the composer's field, or the keyboard drops before the pick.
     it('cancels mousedown so the field keeps focus', () => {
         render(<MentionSuggestions candidates={[MINSU]} onPick={jest.fn()} />);
         const option = screen.getByRole('option');
@@ -56,9 +55,6 @@ describe('MentionSuggestions', () => {
         expect(event.defaultPrevented).toBe(true);
     });
 
-    // On touch, cancelling pointerdown would also stop the list panning under the finger. jsdom has
-    // no PointerEvent, so the type is hung on a plain event by hand; fireEvent answers false when a
-    // listener cancelled it.
     it.each([
         ['mouse', false],
         ['touch', true],

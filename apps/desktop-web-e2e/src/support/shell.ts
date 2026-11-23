@@ -1,6 +1,5 @@
 import type { BrowserContext, Page } from '@playwright/test';
 
-/** A banner the app asked the desktop shell to raise (`ShowNotification`). */
 export interface Banner {
     title: string;
     body: string;
@@ -15,16 +14,8 @@ declare global {
     }
 }
 
-/**
- * Stands in for the desktop shell's bridge, so the app raises its OS banners here. The app only
- * raises them inside the shell (`isNative()`), which it detects by the `ChaticMessageHandler` global
- * the shell's preload exposes. This one records every `ShowNotification` request and answers it; any
- * other request is answered the way a shell without that handler answers (`NOT_FOUND`), which every
- * caller already treats as an older shell.
- */
 export const installShell = (context: BrowserContext, session: string) =>
     context.addInitScript(saved => {
-        // Inside the shell the app keeps its session in localStorage, not sessionStorage.
         try {
             for (const [key, value] of Object.entries(JSON.parse(saved) as Record<string, string>)) {
                 if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
@@ -68,5 +59,4 @@ export const installShell = (context: BrowserContext, session: string) =>
         };
     }, session);
 
-/** The banners raised so far. */
 export const banners = (page: Page): Promise<Banner[]> => page.evaluate(() => window.__e2eBanners ?? []);

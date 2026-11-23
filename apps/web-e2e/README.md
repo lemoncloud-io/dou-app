@@ -482,3 +482,25 @@ What a passing run does **not** say:
    before trusting it.
 5. Tag it if it is one of the kinds (`test('…', { tag: '@chaos' }, …)` — or `@load`, `@visual`), and
    add it to `feature-map.json` under the feature it exercises; `feature-coverage` fails until it is.
+
+### Why the fixtures and helpers are written this way
+
+- **Match a name from its start, not as a substring.** A file message is a button whose name starts
+  with the file's name; a plain substring also finds the tray's "Remove <name>" button, which once let
+  a scenario pass with the file never sent (`roomFile` in `attachment-picker.spec.ts`). Room rows on
+  home are anchored the same way.
+- **Match toast text exactly.** The toaster repeats a toast's text, prefixed, in a live region, so a
+  non-exact match trips strict mode.
+- **The catch-all routes use a `RegExp`, not a predicate.** Playwright can pass only a serializable
+  pattern to the browser. With a function it intercepts every request and asks the test process about
+  each one, which is every module Vite serves the app as (`FakeBackend.install`).
+- **Key a "lost on the first socket" fixture on `frame.connection`, not on a count.** The dev server
+  mounts the page twice (React StrictMode), so the first socket sees the read twice
+  (`relay-invite-entry.spec.ts`).
+- **A signed-in member must not be turned back into a guest.** In `signedInMember`
+  (`fixtures/subscription.ts`) the place switch answers with a new token that replaces the session's;
+  if that token is the guest's, a switch landing after the profile makes the member a guest again and
+  MY loses its subscription entry on a slow run.
+- **The pairing relay answers `auth.logout`.** Applying a relay approval re-registers the socket on
+  the same connection: it signs the guest out and back in as the account. The page does not wait for
+  the logout's answer, but an unanswered one would land on the unanswered list.

@@ -21,9 +21,6 @@ const done = () => screen.getByRole('button', { name: 'createChannel.done' });
 const close = () => screen.getByRole('button', { name: 'createChannel.close' });
 const type = (value: string) => fireEvent.change(screen.getByRole('textbox'), { target: { value } });
 const nameField = () => screen.getByRole('textbox');
-// The decorative header is not unmounted while typing, only collapsed behind `aria-hidden` — which
-// is exactly what `*ByRole` ignores, so its absence here is the compact layout being in effect.
-// `level: 1` picks the visible heading over the dialog's own sr-only <h2> of the same name.
 const header = () => screen.queryByRole('heading', { name: 'createChannel.title', level: 1 });
 
 beforeEach(() => jest.clearAllMocks());
@@ -92,8 +89,6 @@ describe('CreateChannelDialog', () => {
         expect(header()).toBeInTheDocument();
     });
 
-    // Folding the text alone frees the room; a photo that shrank on every focus read as the screen
-    // changing under the user.
     it('keeps the photo at full size while the name field has focus', () => {
         render(<CreateChannelDialog open onOpenChange={jest.fn()} />);
         const photo = () => screen.getByRole('button', { name: 'createChannel.photoLabel' });

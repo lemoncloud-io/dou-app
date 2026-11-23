@@ -14,7 +14,6 @@ export const PolicyListPage = () => {
         <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('mypage.policy.title')} />
 
-            {/* Menu Cards */}
             <div className="flex flex-col gap-[18px] px-4 pt-4">
                 <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                     <button

@@ -8,54 +8,29 @@ import { Evidence } from './evidence';
 import { FakeShell, type FakeShellOptions, type ShellPlatform } from './fake-shell/fakeShell';
 
 interface Fixtures {
-    /**
-     * The native shell the page runs inside. Installed before the page loads anything — unless the
-     * scenario runs in a plain browser (`inApp: false`), where there is no shell and this is not set.
-     */
     shell: FakeShell;
-    /** The relay, answered from fixtures. */
     backend: FakeBackend;
     chaos: Chaos;
     evidence: Evidence;
 }
 
 export interface E2EOptions {
-    /** Set per browser project in `playwright.config.ts`: WebKit stands in for iOS, Chromium for Android. */
     shellPlatform: ShellPlatform;
-    /**
-     * `false` opens the web app as a browser tab rather than inside the app: no shell is installed, so
-     * the page finds no bridge and takes its browser paths. Set with `test.use({ inApp: false })`.
-     */
     inApp: boolean;
-    /** The installed app's version the fake shell injects. Set with `test.use({ shellAppVersion })`. */
     shellAppVersion: string | undefined;
-    /**
-     * What the fake shell declares it can do; `undefined` for what the current app declares. Set with
-     * `test.use({ shellCapabilities })` for a scenario about what an older, installed build declares.
-     */
     shellCapabilities: FakeShellOptions['capabilities'];
 }
 
-/**
- * The browser's start, matching the shell's (`DEFAULT_CONFIG_BAG` in `fakeShell.ts`): onboarding done,
- * and the debug overlay the suite's `LOCAL` stage would turn on kept off.
- */
 const BROWSER_CONFIG_BAG: Record<string, string> = {
     'ui.onboardingCompleted': 'true',
     'debug.overlayEnabled': 'false',
 };
 
-/**
- * `test` with a fake shell and a fake relay already in place. A scenario opens the app with
- * `page.goto('/')` and finds it inside the app, signed in as a fresh guest, with nothing real behind
- * either side.
- */
 export const test = base.extend<Fixtures & E2EOptions>({
     shellPlatform: ['ios', { option: true }],
     inApp: [true, { option: true }],
     shellAppVersion: [undefined, { option: true }],
     shellCapabilities: [undefined, { option: true }],
-    // Automatic, so a scenario that never names the relay still cannot reach a real one.
     backend: [
         async ({ page }, use, testInfo) => {
             const backend = await FakeBackend.install(page);
@@ -77,14 +52,9 @@ export const test = base.extend<Fixtures & E2EOptions>({
         await use(evidence);
         await evidence.attach();
     },
-    // Automatic too: a scenario that never names the shell still runs inside one, as the app would.
     shell: [
         async ({ page, shellPlatform, inApp, shellAppVersion, shellCapabilities }, use, testInfo) => {
             if (!inApp) {
-                // A browser tab has no shell to fake. A browser scenario that names `shell` is asking
-                // for something its page cannot have, and fails on the first use. What the shell lane
-                // would have started the page with goes into the browser's own storage instead, where
-                // `@chatic/config` keeps that lane without a shell (`@chatic/config.<key>`, JSON).
                 await page.addInitScript((bag: Record<string, string>) => {
                     for (const [key, value] of Object.entries(bag)) {
                         localStorage.setItem(`@chatic/config.${key}`, value);
@@ -107,11 +77,6 @@ export const test = base.extend<Fixtures & E2EOptions>({
     ],
 });
 
-/**
- * What the fakes were asked and had no answer for, written beside the test's trace and attached to its
- * report. Not a failure: see `FakeBackend` for why. Next to the trace, a failing scenario shows it
- * beside the cause.
- */
 const attachList = async (testInfo: TestInfo, name: string, entries: string[]): Promise<void> => {
     if (entries.length === 0) return;
     const path = testInfo.outputPath(`${name}.txt`);

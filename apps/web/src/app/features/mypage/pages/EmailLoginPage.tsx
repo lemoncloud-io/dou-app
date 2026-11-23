@@ -19,15 +19,6 @@ import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
 
 const FORM_ID = 'email-login-form';
 
-/**
- * Email + password sign-in on its own screen, reached from the login screen on development stages
- * (`feature.auth.emailLogin`). Laid out like the account screens: back chevron, logo, labelled
- * fields, and the action pinned to the bottom.
- *
- * It sits one entry above the login screen, so leaving goes back TWO entries to land where the user
- * started — going back one would just show the login screen again. Without a `returnTo` or a deep
- * enough stack (reload, deep link) it falls back to home. The password never reaches a log line.
- */
 export const EmailLoginPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();

@@ -3,11 +3,6 @@ import type { ReactNode } from 'react';
 
 import { useReturnKeyFlow } from './useReturnKeyFlow';
 
-/**
- * jsdom lays nothing out, so every element reports no client rects and would read as hidden. Stub
- * it so an element counts as laid out unless it sits under `[hidden]` — the one way these fixtures
- * hide a field.
- */
 beforeAll(() => {
     jest.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function (this: HTMLElement) {
         return (this.closest('[hidden]') ? [] : [{}]) as unknown as DOMRectList;
@@ -25,7 +20,6 @@ const DESKTOP_UA =
 
 let userAgent = PHONE_UA;
 
-// The flow is for the soft keyboard, so every case runs as a touch phone unless it says otherwise.
 beforeAll(() => {
     jest.spyOn(navigator, 'userAgent', 'get').mockImplementation(() => userAgent);
 });
@@ -43,7 +37,6 @@ const field = (name: string) => screen.getByLabelText(name) as HTMLInputElement 
 
 const hint = (name: string) => field(name).getAttribute('enterkeyhint');
 
-/** Focuses `name` and presses return on it; returns whether the press was default-prevented. */
 const pressReturn = (name: string, init: KeyboardEventInit = {}) => {
     const el = field(name);
     el.focus();
@@ -265,7 +258,6 @@ describe('useReturnKeyFlow', () => {
         field('phone').focus();
         expect(hint('phone')).toBe('done');
 
-        // "Send code" enables the code field while the phone field keeps focus and its "done" key.
         rerender(
             <Host>
                 <input aria-label="phone" />

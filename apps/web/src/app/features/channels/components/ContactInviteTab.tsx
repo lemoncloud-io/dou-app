@@ -27,37 +27,16 @@ import {
 } from '../utils/deviceContact';
 
 interface ContactInviteTabProps {
-    /**
-     * Whether the tab is on screen. The tab stays mounted while hidden, so its contacts and selection
-     * survive a trip to another tab; this only decides whether it renders and whether contacts have
-     * been asked for yet.
-     */
     active: boolean;
     maxSelection: number;
-    /**
-     * Says why a pick past `maxSelection` was refused. Without it the tab toasts its own batch-cap
-     * line; a host whose cap is something else (a room's remaining seats) explains it instead.
-     */
     onLimitReached?: () => void;
-    /** Invite one person — a text to that number (app) or the clipboard (web). */
     sendSingle: (recipient: { name: string; phone: string }) => Promise<InviteMessageChannel | false>;
-    /** Invite several at once — the server fans the batch out over SMS itself. */
     sendBatch: (phones: string[]) => Promise<unknown>;
-    /** Called once an invite went out, so the host can leave the flow. */
     onSent: () => void;
-    /** Opens the host's name-and-number link sheet — the web's only path, and native's way past the list. */
     onRequestLink: () => void;
-    /** The web guide's body; defaults to the room invite's, which speaks of inviting to a conversation. */
     webGuideDescription?: string;
 }
 
-/**
- * Invite by device contact: the picker, its permission states, and the send. Shared by the group
- * room's invite page and the place invite, which differ only in what an invite is FOR — so what to
- * send is the host's (`sendSingle` / `sendBatch`), and everything a person sees here is the same.
- *
- * Native: multi-select device contacts. Web: no contacts access → funneled into the link sheet.
- */
 export const ContactInviteTab = ({
     active,
     maxSelection,
@@ -71,7 +50,6 @@ export const ContactInviteTab = ({
     const { t } = useTranslation();
     const { toast } = useToast();
 
-    // The picker needs the device's address book, which only an app has (`runtime.links.contacts`).
     const isOnMobileApp = runtime.links.contacts !== null;
     const [search, setSearch] = useState('');
     const [contacts, setContacts] = useState<ContactInfo[]>([]);
@@ -80,27 +58,11 @@ export const ContactInviteTab = ({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isBatchInviting, setIsBatchInviting] = useState(false);
 
-    // Bound here because the chain's last resort is a translated label: a contact with no name, no
-    // company and no number would otherwise render as an empty row (see resolveContactName).
     const nameOf = useCallback(
         (contact: ContactInfo) => resolveContactName(contact, t('inviteFriends.unnamedContact')),
         [t]
     );
 
-    /**
-     * Loads contacts only where the host has an address book. The page has no contacts access →
-     * funneled into the invite link.
-     *
-     * Only called once the tab is actually shown. `getContacts()` raises the OS permission popup,
-     * and a host that opens on another tab would otherwise **prompt for permission even from a user
-     * with no intention of using contacts.**
-     *
-     * The trigger is **has it ever been shown** (`contactsRequested`), not `active` directly.
-     * Depending directly on `active` would run cleanup when the tab is flipped away, which cancels
-     * the in-flight request — and if the response arrives in that window, no state ever gets set
-     * and only the re-request guard remains, leaving the contacts tab permanently blank. This flag
-     * only ever flips false→true once, so the effect runs once too, and cleanup only runs on unmount.
-     */
     const [contactsRequested, setContactsRequested] = useState(false);
     useEffect(() => {
         if (active) setContactsRequested(true);
@@ -119,14 +81,11 @@ export const ContactInviteTab = ({
                 const permission = answer?.permission;
                 setIsWaitingForContacts(false);
                 setContacts(received);
-                // The shell states the permission, so an empty address book is an empty list rather
-                // than a denial.
                 setPermissionDenied(permission === 'denied');
             })
             .catch(() => {
                 if (cancelled) return;
                 setIsWaitingForContacts(false);
-                // A failed read or a timeout lands on the permission banner rather than a blank tab.
                 setPermissionDenied(true);
             });
         return () => {
@@ -134,26 +93,10 @@ export const ContactInviteTab = ({
         };
     }, [contactsRequested]);
 
-    /**
-     * A contact with no stored number at all is kept out of the list.
-     *
-     * Since an invite goes out by number, such a row can't be invited and can't even be
-     * identified by a number instead of a name — better to leave it out entirely than to leave a
-     * row in the list that can't be tapped. The check uses **the same function** that builds the
-     * label (`resolveContactDisplayPhone`), so "no number to show" and "excluded from the list"
-     * never disagree.
-     *
-     * A number that isn't a valid Korean mobile (landline, overseas) is **not** filtered out
-     * here. That row is still identified by its number — only the invite is disabled. "It's
-     * stored but not shown" and "it can't be invited" are different stories.
-     */
     const listedContacts = useMemo(
         () =>
             contacts
                 .filter(c => resolveContactDisplayPhone(c) !== '')
-                // Sorted here because neither platform sorts: iOS fetches with no sort order and
-                // Android reads rows in storage order, so the same address book arrived in two
-                // different orders. The key is the label the row shows, not a raw field.
                 .map(contact => ({ contact, label: nameOf(contact) }))
                 .sort((a, b) => compareContactLabels(a.label, b.label))
                 .map(({ contact }) => contact),
@@ -167,7 +110,6 @@ export const ContactInviteTab = ({
         [listedContacts, query]
     );
 
-    // Selected contacts stay at the top regardless of the filter; the rest get the search filter applied.
     const filteredContacts = useMemo(
         () => [
             ...listedContacts.filter(c => selectedIds.has(c.recordID)),
@@ -176,8 +118,6 @@ export const ContactInviteTab = ({
         [listedContacts, matchedContacts, selectedIds]
     );
 
-    // The count above the list is the matches alone — a selected row stays pinned on top even when it
-    // does not match, and counting it would claim a result the search did not find.
     const listedCount = matchedContacts.length;
 
     const selectedItems = useMemo(
@@ -188,8 +128,6 @@ export const ContactInviteTab = ({
     const handleToggle = useCallback(
         (contact: ContactInfo, next: boolean) => {
             if (isBatchInviting) return;
-            // Judged on the rendered selection, outside the updater: the host's explanation is a state
-            // change of its own, which an updater must not make.
             if (next && selectedIds.size >= maxSelection && !selectedIds.has(contact.recordID)) {
                 if (onLimitReached) onLimitReached();
                 else toast({ title: t('inviteFriends.limitToast', { max: maxSelection }) });
@@ -233,8 +171,6 @@ export const ContactInviteTab = ({
         setIsBatchInviting(true);
         try {
             if (recipients.length === 1) {
-                // One recipient goes out as a text to that number, so the toast has to say what
-                // actually happened — on web the link only reached the clipboard.
                 const channel = await sendSingle(recipients[0]);
                 toast({
                     title: t(
@@ -248,7 +184,6 @@ export const ContactInviteTab = ({
                 });
             } else {
                 await sendBatch(recipients.map(r => r.phone));
-                // The server fans the batch out over SMS itself, so there is nothing to hand off here.
                 toast({ title: t('inviteFriends.batchSuccess', { count: recipients.length }) });
             }
             onSent();
@@ -263,13 +198,8 @@ export const ContactInviteTab = ({
 
     if (!active) return null;
 
-    // Not gated on the list having entries: a granted but empty address book is the list's own empty
-    // state, not the permission banner.
     const showContactList = isOnMobileApp && !isWaitingForContacts && !permissionDenied;
     const showGuide = !isOnMobileApp || (permissionDenied && !isWaitingForContacts);
-    // The list can now come out empty without a search term — every contact received may lack a
-    // number. The screen still belongs to the picker (search + link invite), so say why instead of
-    // rendering a blank panel.
     const isListEmpty = showContactList && filteredContacts.length === 0;
     const hasSelection = selectedIds.size > 0;
 
@@ -284,12 +214,6 @@ export const ContactInviteTab = ({
                         label={t('inviteFriends.searchPlaceholder')}
                         trailing={
                             <div className="flex shrink-0 items-center gap-2">
-                                {/* Invite by link. This is also the way out of a truncated list:
-                                    partial contacts access returns a short list with nothing in the
-                                    payload saying so, and a name + number typed here reaches someone
-                                    the picker never showed. (The OS settings route stays on the
-                                    denied banner; a granted but empty list shows the empty-list
-                                    message instead.) */}
                                 <button
                                     type="button"
                                     aria-label={t('inviteFriends.sendLink')}
@@ -393,8 +317,6 @@ export const ContactInviteTab = ({
 
             {showContactList && (
                 <>
-                    {/* Docked from the moment the list appears (disabled until something is picked),
-                        matching the Figma "완료" CTA. */}
                     <FloatingButton
                         label={t('inviteFriends.done')}
                         loading={isBatchInviting}
@@ -402,8 +324,6 @@ export const ContactInviteTab = ({
                         onClick={handleBatchInvite}
                         wrapperClassName="shrink-0"
                     />
-                    {/* The CTA panel above only pads itself by `pb-4`; this reserves the home-indicator
-                        inset and lifts it above the keyboard raised by the search field. */}
                     <KeyboardSafeAreaSpacer />
                 </>
             )}

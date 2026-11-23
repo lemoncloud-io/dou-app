@@ -126,7 +126,6 @@ describe('AddCloudFlowHost — creating the cloud', () => {
 
         expect(addCloudMock).not.toHaveBeenCalled();
 
-        // The fresh answer: another device used the last slot meanwhile.
         (useCloudQuota as jest.Mock).mockReturnValue({
             used: 3,
             limit: 3,
@@ -155,7 +154,6 @@ describe('AddCloudFlowHost — creating the cloud', () => {
         addCloudMock.mockReturnValue(new Promise<void>(resolve => (resolveMake = resolve)));
         const { rerender } = open({ used: 2, limit: 3, canAdd: true }, tier(3));
 
-        // `make` invalidates the quota mid-request; the re-read now counts the new cloud.
         (useCloudQuota as jest.Mock).mockReturnValue({
             used: 3,
             limit: 3,

@@ -13,7 +13,6 @@ let scene = { isLoading: false, hasSubscription: true, banner: undefined as stri
 let quota = { used: 0, limit: 2 as number | null };
 let onNative = true;
 
-// How the host sells, as the `checkout` port says: the store's in the app, the website's in a browser.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         get checkout() {
@@ -28,7 +27,6 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => navigate,
 }));
-// The app barrel behind `PageHeader` drags the runtime in; the header is a title here.
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('../../../hooks/useCachedCloudNames', () => ({ useCachedCloudNames: () => ({}) }));
@@ -38,8 +36,6 @@ jest.mock('../../../hooks/useCloudCatalog', () => ({
 jest.mock('../../../stores/useAddCloudRequest', () => ({
     useAddCloudRequest: (select: (state: { requestAddCloud: unknown }) => unknown) => select({ requestAddCloud }),
 }));
-// The subscription's say — banner, plan card, scene, quota — is owned by `features/subscription`;
-// this screen only mounts it.
 jest.mock('../../subscription', () => ({
     CloudManageBanner: () => <div data-testid="manage-banner" />,
     CurrentPlanCard: () => <div data-testid="plan-card" />,

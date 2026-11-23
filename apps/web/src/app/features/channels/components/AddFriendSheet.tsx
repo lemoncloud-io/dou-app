@@ -7,8 +7,6 @@ import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { CountrySelect } from '../../../ui/components/CountrySelect';
-// Direct path for `phoneNumber`: it is deliberately kept out of the `utils` barrel (libphonenumber's
-// metadata — see that barrel's comment).
 import {
     isValidMobileNumber,
     readInternationalInput,
@@ -21,16 +19,8 @@ import {
 interface AddFriendSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /**
-     * Issues an invite for this name and number (E.164, `+821012345678`) and answers its link,
-     * without sharing it. The host decides what the invite is for — a room, or a place — so the
-     * sheet never names either. Absent while the host has nothing to invite into yet; the button
-     * stays disabled.
-     */
     requestLink?: (recipient: { name: string; phone: string }) => Promise<string>;
-    /** Receives the link once the sheet has closed, to hand it to the host's link screen. */
     onLinkReady: (inviteLink: string) => void;
-    /** The two-line heading; defaults to the room invite's ("the friend to invite to the chat room"). */
     heading?: [string, string];
 }
 
@@ -64,16 +54,7 @@ const InputField = ({ label, value, onChange, placeholder, maxLength, type = 'te
 );
 
 const NAME_MAX = 20;
-/**
- * Raw entry is kept as typed, so a cap on characters rather than digits: the right digit count
- * depends on the country, and validation is what rejects a wrong one.
- */
 const PHONE_INPUT_MAX = 20;
-/**
- * Bidi and other invisible format marks (`U+202D` … `U+202C`). A number copied out of another app
- * can carry them, and the strict parser rejects a number that has them — the Korean-only check this
- * replaced dropped every non-digit, so the same paste used to pass.
- */
 const FORMAT_MARKS = /\p{Cf}/gu;
 
 export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, heading }: AddFriendSheetProps) => {
@@ -81,17 +62,12 @@ export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, h
     const { toast } = useToast();
     const [name, setName] = useState('');
     const [phoneInput, setPhoneInput] = useState('');
-    // The last explicit pick, else the device locale's region — the same opening rule as the relay
-    // invite's field. Korea when neither answers: this sheet took Korean numbers alone until now, and
-    // a region-less locale (`ko`) must not turn the default case into "pick a country first".
     const [country, setCountry] = useState<PhoneCountry>(() => resolveDefaultCountry() ?? 'KR');
     const [phoneError, setPhoneError] = useState('');
     const [isPending, setIsPending] = useState(false);
 
     const handlePhoneChange = (value: string) => {
         const next = value.replace(FORMAT_MARKS, '').slice(0, PHONE_INPUT_MAX);
-        // A pasted `+81…` declares its own country, so the picker follows it and the field is
-        // rewritten to the local form — the two never point at different countries.
         const international = readInternationalInput(next);
         if (international) {
             setCountry(international.country);
@@ -100,7 +76,6 @@ export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, h
         } else {
             setPhoneInput(next);
         }
-        // Clear error when user starts typing again
         if (phoneError) setPhoneError('');
     };
 
@@ -110,10 +85,6 @@ export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, h
         if (phoneError) setPhoneError('');
     };
 
-    /**
-     * The number as the invite carries it, or `null` after showing the error. Mobile only: the
-     * invite reaches the recipient as a text.
-     */
     const validatePhone = (): string | null => {
         if (!isValidMobileNumber(phoneInput, country)) {
             setPhoneError(t('addFriend.phoneInvalidFormat'));
@@ -136,7 +107,6 @@ export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, h
 
         setIsPending(true);
         try {
-            // Obtain the invite link (no auto-share) and hand it to the host's link page.
             const inviteLink = await requestLink({ name: name.trim(), phone });
 
             resetAndClose();

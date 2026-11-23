@@ -7,30 +7,15 @@ import type {
     PhotoLibraryMediaType,
 } from '@chatic/bridge-messages';
 
-/**
- * The device photo library, as the in-app picker reads it — or `null` where the host has none
- * (`runtime.media.photoLibrary`), which the picker takes as "use the page's own file input".
- *
- * Every phone app this page runs in answers these messages, lists videos beside photos when asked
- * (`mediaTypes`), keeps a picked video, and pages by `offset`, echoing it. `thumbSize` sizes the
- * previews.
- */
 export interface PhotoLibrary {
-    /** Albums, or null in a browser. `thumbSize` sizes the covers. */
     albums(input?: { thumbSize?: number }): Promise<OnListPhotoAlbumsPayload | null>;
-    /** One page, or null in a browser. */
     photos(input: PhotoPageRequest): Promise<OnListPhotosPayload | null>;
-    /** A picked photo as a `File`, ready for the send. */
     read(item: Pick<PhotoLibraryItem, 'id'>): Promise<File>;
-    /** A picked video, kept by the shell and ready for the send as a shell file. Rejects with the shell's code (`KeepLibraryVideoErrorCode`). */
     keepVideo(item: Pick<PhotoLibraryItem, 'id'>): Promise<ShellFileRef>;
-    /** Opens the iOS "choose more photos" sheet; resolves with the access afterwards. */
     manageSelection(): Promise<PhotoLibraryAccess | null>;
-    /** Whether there is no picker here — a browser. */
     isUnsupported(): boolean;
 }
 
-/** What a page is asked for by: a cursor (`after`) or a position (`offset`), and the preview size. */
 export interface PhotoPageRequest {
     albumId?: string;
     after?: string;
@@ -39,7 +24,6 @@ export interface PhotoPageRequest {
     thumbSize?: number;
 }
 
-/** Decodes base64 into a File. `atob` is fine at photo sizes; the send prepares one file at a time. */
 export const base64ToFile = (base64: string, fileName: string, mimeType: string): File => {
     const binary = atob(base64);
     const bytes = new Uint8Array(binary.length);
@@ -47,16 +31,13 @@ export const base64ToFile = (base64: string, fileName: string, mimeType: string)
     return new File([bytes], fileName, { type: mimeType });
 };
 
-/** A preview the picker can put straight into an `<img src>`. */
 export const photoPreviewSrc = (thumbBase64: string): string => `data:image/jpeg;base64,${thumbBase64}`;
 
-/** The request without its unset fields, so the message carries only what was asked. */
 const withoutUndefined = <T extends object>(input: T): T =>
     Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as T;
 
 const MEDIA_TYPES: PhotoLibraryMediaType[] = ['image', 'video'];
 
-/** The library as the host's `media` port carries it: the app's answers, unmapped. */
 type HostPhotoLibrary = NonNullable<typeof runtime.media.photoLibrary>;
 
 class ShellPhotoLibrary implements PhotoLibrary {
@@ -64,7 +45,6 @@ class ShellPhotoLibrary implements PhotoLibrary {
         return runtime.media.photoLibrary === null;
     }
 
-    /** Runs a request in the app; `null` where there is no library. Failures surface to the caller. */
     private async ask<T>(request: (library: HostPhotoLibrary) => Promise<T>): Promise<T | null> {
         const library = runtime.media.photoLibrary;
         if (!library) return null;
@@ -104,5 +84,4 @@ class ShellPhotoLibrary implements PhotoLibrary {
     }
 }
 
-/** One per page. */
 export const photoLibrary: PhotoLibrary = new ShellPhotoLibrary();

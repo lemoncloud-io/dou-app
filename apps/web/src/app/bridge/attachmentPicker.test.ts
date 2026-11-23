@@ -4,8 +4,6 @@ let mockNative = true;
 const mockPick = jest.fn();
 const mockRead = jest.fn();
 const mockPrepare = jest.fn();
-// The host's media port: the app's picker and video conversion when the case runs in the app, none
-// of them in a browser.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
@@ -178,7 +176,6 @@ describe('attachmentPicker.pick', () => {
     });
 
     it('reads a photo the album answered as a file at the pick, as an album pick goes out at once', async () => {
-        // Android's documents picker stands in for the Photo Picker on devices without one.
         mockPick.mockResolvedValueOnce({
             items: [
                 {

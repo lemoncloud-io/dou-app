@@ -3,17 +3,11 @@ import { persist } from 'zustand/middleware';
 import { deviceStore, persistStorageOver } from '../../../storage';
 
 interface CloudPushMarkState {
-    /** Clouds with a push received while not active — shown as a dot (ADR-0056). */
     badged: Record<string, true>;
     mark: (cloudId: string) => void;
     clear: (cloudId: string) => void;
 }
 
-/**
- * Ported from apps/desktop-web `useCloudPushBadgeStore` (ADR-0056) — a boolean presence set, not a
- * count. `mark`/`clear` return the same state reference on a no-op so consumers reading `badged`
- * don't re-render for a mark that was already there (or already gone).
- */
 export const useCloudPushMarkStore = create<CloudPushMarkState>()(
     persist(
         set => ({

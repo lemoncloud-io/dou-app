@@ -7,7 +7,6 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) =>
 
 const mockIsNative = jest.fn();
 const mockCredential = jest.fn();
-// The app's own provider sign-in, as the host's `signIn` port carries it; a browser tab has none.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         get signIn() {
@@ -32,9 +31,7 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 
 const verifySocialMock = jest.fn();
 const confirmSocialMock = jest.fn();
-/** Whether a link call is in flight — the hook forwards this as `isLinking`. */
 let mockIsLinkingSocial = false;
-/** What the server says this account has proved (`link$`), as `useLinkedAccounts` reads it. */
 let mockLinked: LinkedAccounts = { phone: 'absent', social: 'absent' };
 
 jest.mock('../../../hooks', () => ({
@@ -79,7 +76,6 @@ describe('useSocialLinks — 연동 상태 (link$가 원본)', () => {
         const { result } = renderHook(() => useSocialLinks());
 
         expect(result.current.isLinked('google')).toBe(true);
-        // A different provider reads as not linked — the server enforces the same with `type-linked`.
         expect(result.current.isLinked('apple')).toBe(false);
     });
 
@@ -126,8 +122,6 @@ describe('useSocialLinks — 연동 (verify → confirm)', () => {
         );
     });
 
-    // The virtual shell's relay sign-in answers with a relay code instead of a provider token.
-    // `link-account` takes the code too, so both steps carry it unchanged.
     it('links with a relay code from the virtual shell, sending the code to verify and confirm', async () => {
         mockCredential.mockResolvedValue({ provider: 'google', platform: 'ios', code: 'c-1' });
 

@@ -25,6 +25,14 @@ with the `kill <pid>` its "Holding…" line prints.
   Late screen → run once more; a second identical failure is not timing. Home screen → app crashed, report it
   even if a rerun passes. OS dialog on top → environment.
 
+## Show what it saw
+
+The shots that show the change — `final.png` and the relevant `checkpoint-*.png` from the scenario folder under
+`tmp/mobile-verify/<timestamp>-<platform>/` — go into the session's completion report, each with a caption, iOS
+and Android side by side when both ran. The same shots go into the PR body through `pr-assets/pr-<n>`
+([`dou-ship/references/pr.md`](../../dou-ship/references/pr.md) § Visuals) as they are when the run used the dev
+backend, whose data is all fictional; a run against production stays in the session report.
+
 ## Limits to say
 
 A simulator pass does not prove a compositor or WebKit-on-device bug; push delivery and remote video frames do

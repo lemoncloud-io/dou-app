@@ -4,13 +4,9 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { DomainChat } from '../types';
 
-// Opening a person from the thread: the subject's author and a reply's sender, on the room's terms
-// (view and report, never my own profile). Hooks are mocked as in ThreadPage.test.tsx.
-
 let mockChats: DomainChat[] = [];
 let mockDialogProps: Record<string, any> = {};
 
-// The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
 const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
 
 jest.mock('react-router-dom', () => ({
@@ -21,7 +17,6 @@ jest.mock('react-router-dom', () => ({
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn() },
-    // The debug gate (useDebugMode) reads the shell's debug flag; no shell wrote one here.
     liveShellValue: () => undefined,
 }));
 jest.mock('@chatic/shared', () => ({
@@ -44,7 +39,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ImageAvatar: () => <img alt="" />,
     DefaultAvatar: () => <div />,
 }));
-// The row stand-in hands the page a sender the way the real row does — what it drew.
 jest.mock('../components/ChannelMessageRow', () => ({
     ChannelMessageRow: ({ message, onOpenProfile, ownerDisplayName, ownerAvatar }: any) => (
         <button
@@ -68,7 +62,6 @@ jest.mock('../components/EmojiPickerSheet', () => ({ EmojiPickerSheet: () => nul
 jest.mock('../hooks/useSendImages', () => ({
     useSendImages: () => ({ sendImages: jest.fn(), retry: jest.fn(), canRetry: () => false, discard: jest.fn() }),
 }));
-// The voice message's own behaviour is its hook's test; here only where its pieces go.
 jest.mock('../hooks/useVoiceMessage', () => ({
     useVoiceMessage: () => ({ canRecord: true, open: jest.fn(), sheet: null }),
 }));

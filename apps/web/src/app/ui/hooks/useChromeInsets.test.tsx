@@ -2,15 +2,6 @@ import { act, render } from '@testing-library/react';
 
 import { useChromeInsets } from './useChromeInsets';
 
-/**
- * jsdom has no layout engine and no ResizeObserver, so both are stubbed: `offsetHeight` is
- * defined per element, and the observer records what it was told to watch without ever firing.
- *
- * That stub is the point of this suite. If the hook only ever learns its heights from the
- * observer, every assertion below reads 0 — which is exactly the bug these tests exist to hold
- * shut: in a real browser the observer's first callback lands a frame late, so the body paints
- * once with no insets and then jumps.
- */
 const observed: Element[] = [];
 beforeAll(() => {
     (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
@@ -34,7 +25,6 @@ const withHeight = (el: HTMLElement | null, height: number) => {
     if (el) Object.defineProperty(el, 'offsetHeight', { value: height, configurable: true });
 };
 
-/** Renders a chrome layout and reports the insets seen on each commit. */
 const Harness = ({ withFooter, onRender }: { withFooter: boolean; onRender: (insets: number[]) => void }) => {
     const { headerRef, footerRef, headerHeight, footerHeight } = useChromeInsets();
     onRender([headerHeight, footerHeight]);
@@ -51,14 +41,10 @@ describe('useChromeInsets', () => {
         const commits: number[][] = [];
         render(<Harness withFooter={false} onRender={insets => commits.push(insets)} />);
 
-        // The point isn't the last value — it's "never painted at 0". Calling setState inside a layout
-        // effect makes React re-render before paint, so the first frame the user sees is 60.
         expect(commits[commits.length - 1][0]).toBe(60);
         expect(observed).toContain(document.querySelector('[data-testid="header"]'));
     });
 
-    // A conditionally mounted footer (KeyboardAwareLayout) needs the same treatment — measuring the
-    // header synchronously while leaving the footer to the observer would reproduce the same jump for a CTA that appears later.
     it('나중에 붙는 footer도 붙는 커밋에서 잰다', () => {
         const commits: number[][] = [];
         const { rerender } = render(<Harness withFooter={false} onRender={insets => commits.push(insets)} />);
@@ -69,8 +55,6 @@ describe('useChromeInsets', () => {
         expect(commits[commits.length - 1][1]).toBe(80);
     });
 
-    // A synchronous measurement is a forced layout read. Repeating it on every re-render of a
-    // 100-message list would be more expensive than the problem it was meant to fix — it has to be capped at once per element.
     it('요소당 한 번만 동기 측정한다 — 리렌더마다 다시 재지 않는다', () => {
         const commits: number[][] = [];
         const { rerender } = render(<Harness withFooter={false} onRender={insets => commits.push(insets)} />);
@@ -93,8 +77,6 @@ describe('useChromeInsets', () => {
 });
 
 describe('useChromeInsets — following the footer without a render', () => {
-    // An observer the test fires, as a browser does after layout. The hook makes a new one on every
-    // commit and disconnects the last, so only the live ones are kept.
     const live = new Set<{ callback: ResizeObserverCallback; targets: Element[] }>();
     const fire = (target: Element, blockSize: number) => {
         for (const observer of [...live]) {
@@ -127,7 +109,6 @@ describe('useChromeInsets — following the footer without a render', () => {
         (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = stub;
     });
 
-    /** A page with a footer, reporting each render's footer height and handing out `followFooter`. */
     const setup = () => {
         const renders: number[] = [];
         let follow: ReturnType<typeof useChromeInsets>['followFooter'] = () => undefined;
@@ -169,8 +150,6 @@ describe('useChromeInsets — following the footer without a render', () => {
 
         followFooter(null);
 
-        // The last frame moved it on after the observer had last spoken: the follower and the page
-        // both land on where it ended, not on the last size reported.
         expect(follower.mock.calls).toEqual([[140], [150]]);
         expect(renders.at(-1)).toBe(150);
         act(() => fire(footer, 160));

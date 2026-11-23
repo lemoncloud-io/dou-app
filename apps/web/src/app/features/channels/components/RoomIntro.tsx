@@ -5,29 +5,12 @@ import { IconChevronRight, SystemMessage } from '@chatic/web-ui-kit';
 export type RoomIntroVariant = 'self' | 'dm' | 'group';
 
 interface RoomIntroProps {
-    /** Channel stereo — self / dm / group each get their own copy. */
     variant: RoomIntroVariant;
-    /** DM only: the peer's name from `resolveDmPeerName`. Absent → the unnamed line. */
     peerNick?: string | null;
-    /** Group only: the copy is written in the creator's voice, so a member gets no intro. */
     isGroupOwner?: boolean;
-    /** Group owner only: opens the invite screen. Omitted for a guest or an inactive cloud. */
     onInvite?: () => void;
 }
 
-/**
- * The description block pinned at the start of a chat thread, one per channel stereo:
- * self (Figma 3565-30751), 1:1 (2948-27537) and group (3209-26754).
- *
- * Unlike an empty state it is not a placeholder — it stays at the top of the thread once messages
- * exist, reading as the room's own first entry above the oldest message. The caller renders it
- * directly under the oldest date divider.
- *
- * The DM line names the peer by `resolveDmPeerName` — their place profile, and for a cloud 1:1 their
- * cloud profile after it — and never by my private alias for the room, since it states who joined.
- * With neither it says it without a name. The stream's own join notice (SystemNotice pill) is left
- * in place: the repeated sentence is intended.
- */
 export const RoomIntro = ({ variant, peerNick, isGroupOwner = false, onInvite }: RoomIntroProps) => {
     const { t } = useTranslation();
 
@@ -49,7 +32,6 @@ export const RoomIntro = ({ variant, peerNick, isGroupOwner = false, onInvite }:
         );
     }
 
-    // "You created the group chat" is the creator's own line, so a member who merely joined sees nothing.
     if (!isGroupOwner) return null;
 
     return (

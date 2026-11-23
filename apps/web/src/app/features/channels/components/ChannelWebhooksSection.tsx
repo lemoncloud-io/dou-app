@@ -17,14 +17,6 @@ interface ChannelWebhooksSectionProps {
 
 const formatDate = (ms: number, language: string): string => new Date(ms).toLocaleDateString(language);
 
-/**
- * The room owner's webhook management in the room settings: the list (name, last use, paused /
- * expired), issuing, and a per-row sheet for pause/resume, expiry and delete (behind a confirm). The
- * page mounts this only for the owner of a group room, so the hook never reads the list otherwise.
- *
- * Not drawn at all where the installed app owns the session and cannot answer the webhook methods yet:
- * a missing section reads better than one that can only fail.
- */
 export const ChannelWebhooksSection = ({ channelId }: ChannelWebhooksSectionProps) => {
     const { t, i18n } = useTranslation();
     const { toast } = useToast();

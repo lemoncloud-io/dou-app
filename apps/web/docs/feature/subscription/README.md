@@ -433,6 +433,8 @@ fastest way to exercise a purchase path without a real charge → [debug/](../de
 
 ## Further reading
 
+- [purchase-and-restore.md](./purchase-and-restore.md) — the store price, the purchase handshake, restore,
+  the keep-clouds choice and what is measured against the device clock.
 - [bridge/](../../bridge/README.md) — the single native ↔ web message seam.
 - [landing](../../../../landing/README.md) — the website's checkout a browser is handed to (§ 6), and
   which of its pages are open on which host.

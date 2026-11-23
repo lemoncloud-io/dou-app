@@ -7,20 +7,9 @@ import {
     type NotificationTab,
 } from './notificationModel';
 
-/**
- * Reads over the inbox's items, as pure functions. Screens compose them: scope first (`inScope`),
- * then a tab, a filter, a grouping. None sorts unless it says so; {@link newestFirst} does.
- */
-
-/** The items, newest first. */
 export const newestFirst = (items: readonly NotificationItem[]): NotificationItem[] =>
     [...items].sort((a, b) => b.createdAt - a.createdAt);
 
-/**
- * The items of one cloud and place. The cloud is checked first because every cloud numbers its
- * places from the same start. An item with no place cannot say where in its cloud it happened, so it
- * shows in every place of that cloud rather than in none.
- */
 export const inScope = (
     items: readonly NotificationItem[],
     cloudId: string,
@@ -42,14 +31,9 @@ const isInTab = (item: NotificationItem, tab: NotificationTab): boolean => {
     }
 };
 
-/**
- * The items one tab lists. `group` and `dm` split by the room; `thread` and `mention` by the kind,
- * so a mention in a 1:1 is in both `dm` and `mention`.
- */
 export const byTab = (items: readonly NotificationItem[], tab: NotificationTab): NotificationItem[] =>
     items.filter(item => isInTab(item, tab));
 
-/** The unread count of every tab. A screen hides a zero. */
 export const unreadCounts = (items: readonly NotificationItem[]): Record<NotificationTab, number> => {
     const counts = Object.fromEntries(NOTIFICATION_TABS.map(tab => [tab, 0])) as Record<NotificationTab, number>;
     for (const item of items) {
@@ -59,14 +43,11 @@ export const unreadCounts = (items: readonly NotificationItem[]): Record<Notific
     return counts;
 };
 
-/** The unread items when `on`, else all of them — the "unread only" filter. */
 export const unreadOnly = (items: readonly NotificationItem[], on: boolean): NotificationItem[] =>
     on ? items.filter(item => !item.read) : [...items];
 
-/** One day's items. A screen labels `today` and `yesterday` itself, and a `date` from `dayStart`. */
 export interface NotificationDayGroup {
     day: 'today' | 'yesterday' | 'date';
-    /** Local midnight of the day (epoch ms) — the key, and what a `date` label is formatted from. */
     dayStart: number;
     items: NotificationItem[];
 }
@@ -77,11 +58,6 @@ const startOfLocalDay = (time: number): number => {
     return date.getTime();
 };
 
-/**
- * The items grouped by the local day they were sent, newest day first and newest item first inside
- * each. Days are compared as calendar dates in the device's time zone, not as 24-hour spans, so a
- * message from 23:59 yesterday is "yesterday" at 00:01.
- */
 export const groupByDay = (items: readonly NotificationItem[], now: number): NotificationDayGroup[] => {
     const today = startOfLocalDay(now);
     const yesterdayDate = new Date(today);
@@ -104,28 +80,16 @@ export const groupByDay = (items: readonly NotificationItem[], now: number): Not
         }));
 };
 
-/**
- * What is looking for me: unread mentions, thread mentions and replies to my messages, newest first.
- * Reactions, plain 1:1 messages and replies in threads I only joined stay in the full inbox.
- */
 export const findMe = (items: readonly NotificationItem[]): NotificationItem[] =>
     newestFirst(items.filter(item => !item.read && FIND_ME_KINDS.has(item.kind)));
 
-/** Whether anything is unread — the dot on the bottom navigation's inbox tab. Pass scoped items. */
 export const hasUnreadInScope = (items: readonly NotificationItem[]): boolean => items.some(item => !item.read);
 
-/** The unread marks one room's home row shows. */
 export interface ChannelBadges {
-    /** Unread `mention` and `threadMention` items. */
     mentions: number;
-    /** Unread `replyToMine` and `participatedThread` items. */
     threads: number;
 }
 
-/**
- * One room's unread mention and thread counts. Channel ids repeat across clouds, so pass items
- * already scoped to the cloud (`inScope`).
- */
 export const channelBadges = (items: readonly NotificationItem[], channelId: string): ChannelBadges => {
     const badges: ChannelBadges = { mentions: 0, threads: 0 };
     for (const item of items) {

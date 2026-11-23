@@ -11,8 +11,6 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 
 const updateChannel = jest.fn().mockResolvedValue({});
 
-// Stable channel reference — the real useChannel returns a memoized cache view, so the
-// seed effect (`useEffect([channel])`) must not re-run on every render.
 let mockChannel: Record<string, unknown> = {};
 jest.mock('../hooks', () => ({
     useChannel: () => ({ channel: mockChannel }),
@@ -29,10 +27,8 @@ describe('UpdateChannelDialog — owner only', () => {
         render(<UpdateChannelDialog open onOpenChange={() => undefined} channelId="c1" />);
 
         expect(screen.getByText('updateChannel.heading')).toBeInTheDocument();
-        // Owner avatar exposes the photo-select affordance.
         expect(screen.getByLabelText('updateChannel.selectPhoto')).toBeInTheDocument();
 
-        // Field starts empty; the current room name (channel.name) is the placeholder for both roles.
         const input = screen.getByPlaceholderText('방');
         expect(input).toHaveValue('');
         fireEvent.change(input, { target: { value: '새 방 이름' } });
@@ -41,9 +37,6 @@ describe('UpdateChannelDialog — owner only', () => {
         await waitFor(() => expect(updateChannel).toHaveBeenCalledWith({ channelId: 'c1', name: '새 방 이름' }));
     });
 
-    // A group is titled by its shared name for everyone, so a member has no name of their own to
-    // save here. The settings row does not open this dialog for one; if it is opened anyway, it shows
-    // the room as it is and saves nothing.
     it('saves nothing for a member who reaches it anyway', () => {
         mockChannel = { name: '소유자방', thumbnail: 'data:img', isOwner: false, $join: { nick: '내닉' } };
         render(<UpdateChannelDialog open onOpenChange={() => undefined} channelId="c1" />);

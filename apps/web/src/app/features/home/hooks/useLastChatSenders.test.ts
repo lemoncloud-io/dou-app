@@ -6,7 +6,6 @@ import { useChannelProfiles } from '../../channels/hooks/useChannelProfiles';
 import { useLastChatSenders } from './useLastChatSenders';
 
 jest.mock('../../channels/hooks/useChannelProfiles', () => ({ useChannelProfiles: jest.fn() }));
-// The list cadence lives beside useDmPeers; importing that module for real pulls the cloud-name hook.
 jest.mock('../../channels/hooks/useDmPeers', () => ({ LIST_PROFILE_SYNC_INTERVAL_MS: 60_000 }));
 
 const useChannelProfilesMock = useChannelProfiles as jest.Mock;

@@ -19,12 +19,12 @@ shape of `apps/web-e2e/src/specs/room-mute.spec.ts`: fixtures from `src/fixtures
    scenario is about with `shell.handle(...)`, `backend.useHttp(...)`, `backend.useSocket(...)`; assert what a
    user sees by role and text, and what crossed with `shell.received(...)` / `backend.sent(...)`. A new spec gets
    its `feature-map.json` entry in the same change. A "nothing happened" assertion needs something observable after it.
-3. **Break it on purpose.** Revert the app change or the fixture and watch it fail on both projects
+3. **Break it on purpose.** Revert the app change or the fixture and watch the spec fail on both projects
    (`webkit-ios`, `chromium-android`). A scenario that passes either way is deleted, not kept.
-4. **Run it.** `yarn web:e2e:headed <spec> --project=webkit-ios` while writing, then `npx nx run web-e2e:e2e`.
-   In a worktree, use the main checkout's Playwright binary if the local one is missing. A changed screen also
-   runs `npx nx run web-e2e:e2e-visual:docker` from a Mac; a baseline change is `:update`, for a person to review.
-5. **Evidence.** `await evidence.shot(caption)` at each state the change is about. Attach the run's
-   `dist/.playwright/apps/web-e2e/evidence/index.html` (or its `summary.json`) to the verification report.
+4. **Run only that spec** locally: `yarn web:e2e:headed <spec> --project=webkit-ios` while writing, then
+   `npx playwright test <spec>` (in `apps/web-e2e`; a worktree may need the main checkout's binary). Never the
+   full suite: CI runs it on both projects and comments the results with screenshots. `e2e-visual:docker` / `:update` only to redo a baseline.
+5. **Evidence.** `await evidence.shot(caption)` at each state the change is about; that spec run's
+   `dist/.playwright/apps/web-e2e/evidence/index.html` goes in the verification report, CI's comment in the PR.
 
 What a scenario cannot show (real WKWebView, native code, device traits) goes to the report's "Not checked".

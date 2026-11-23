@@ -47,21 +47,11 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
         setIsOpen(false);
     };
 
-    /**
-     * Positioned against the trigger, not against the viewport. The panel used to be portalled to
-     * `document.body` and placed with `right: window.innerWidth - rect.right`, measured once when
-     * it opened — a number that is stale the moment the viewport changes width, which on a
-     * foldable is a gesture away, and which put the panel somewhere the button no longer was.
-     * `absolute right-0 top-full` expresses the same intent as a relationship rather than a
-     * reading, so there is nothing to keep up to date. The backdrop stays viewport-sized because
-     * that is genuinely what it covers.
-     */
     const DropdownPanel = () => {
         if (!isOpen) return null;
 
         return (
             <>
-                {/* Backdrop */}
                 <div
                     className="fixed inset-0 bg-transparent"
                     style={{
@@ -71,7 +61,6 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
                     onClick={closePanel}
                 />
 
-                {/* Settings Panel */}
                 <Card
                     className="absolute right-0 top-full mt-2 border-0 p-4 space-y-3"
                     style={{
@@ -84,7 +73,6 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
                         pointerEvents: 'auto',
                     }}
                 >
-                    {/* Theme Toggle */}
                     <div className="flex items-center justify-between">
                         <span className="text-sm text-foreground/80 font-medium">{t('settings.theme', 'Theme')}</span>
                         <Button
@@ -98,7 +86,6 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
                         </Button>
                     </div>
 
-                    {/* Language Toggle */}
                     <div className="flex items-center justify-between">
                         <span className="text-sm text-foreground/80 font-medium">
                             {t('settings.language', 'Language')}
@@ -120,7 +107,6 @@ export const SettingsControl = ({ className = '' }: SettingsControlProps) => {
 
     return (
         <div className={`relative ${className}`}>
-            {/* Settings Button */}
             <Button
                 variant="ghost"
                 size="sm"

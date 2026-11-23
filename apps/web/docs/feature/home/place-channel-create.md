@@ -81,7 +81,10 @@ active place goes away while it is open.
 `PlaceLimitDialog` is a dialog rather than a toast because there are two ways out of the cap and
 both are actions: free a slot (open the active place's settings hub) or get another cloud (raise the
 subscribe flow). `onManagePlaces` is omitted when no place is active, and the action renders disabled
-rather than navigating nowhere.
+rather than navigating nowhere. It is built on the shared `Dialog` rather than the kit's `AlertDialog`
+composite: the design has a close (X) button, and an alert dialog deliberately has no dismiss
+affordance. Both actions close it first, since each one leaves the screen or mounts its own dialogs
+and an overlay left open would sit on top of them.
 
 ## The two overlays
 
@@ -97,6 +100,26 @@ until the whole action, including the move, has succeeded.
 The place overlay calls `createPlace`, switches to the new site, and then asks for the creator's
 profile there before closing; the room overlay calls `createChannel` with `stereo: 'private'` and
 navigates into the room. Rule 2 is why the move happens before the close.
+
+**While the name field has focus the overlay folds its title and subtitle away** (compact mode, a
+`0fr`/`1fr` grid row faded alongside), and the avatar block tightens its spacing and drops its caption.
+The keyboard rises over a WebView that is never resized, so the field can only be kept readable by
+moving it up; folding the decorative header lands it just under the top bar, above any keyboard, and
+does not depend on the keyboard height being reported or on the scroller having room to scroll — the
+two things that fail on the devices where the field stayed buried. The avatar itself keeps its size,
+because a photo that shrank on every focus read as the screen changing under the user. The folded
+header stays mounted and is hidden with `aria-hidden`. A tap on the avatar cancels the mousedown
+default so the input keeps focus: blurring would expand the layout between pointerdown and click,
+and the tap would land on whatever moved into its place.
+
+**The safe-area insets belong to the children, not the dialog.** The slide-up variant bakes in top
+and bottom padding, and both are zeroed inline on the dialog. The top bar carries the status-bar inset
+itself, so the whole band sits inside its translucent, blurred surface instead of an opaque strip above
+it. At the bottom, `KeyboardSafeAreaSpacer` already reserves the larger of the home-indicator inset and
+the keyboard height, so keeping the dialog's padding too would apply the inset twice and float the
+button a full inset above the keyboard. The padding is zeroed inline rather than with `pt-0`/`pb-0`
+classes because those safe-area keys are custom spacing that class merging does not recognise: both
+classes would survive and utility order would pick the winner.
 
 `useCreatePlace` and `useCreateChannel` are app-level hooks (`app/hooks` and
 `features/channels/hooks`), not home's — the onboarding wizard creates a place through the same

@@ -9,7 +9,7 @@ description: >-
 
 # dou-plan
 
-No code before the person agrees to the plan. The plan is an HTML artifact, not a file in the repo.
+No code before the person agrees to the plan. The plan is an HTML artifact shown to the person in the session, never a repo file.
 
 1. **Read first**: the touched modules' `README.md`/`docs/` and the pattern's exemplar (AGENTS.md); copy its shape.
 2. **State three things**, each in a sentence or a short list:

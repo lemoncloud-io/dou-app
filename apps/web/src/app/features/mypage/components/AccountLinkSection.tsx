@@ -11,7 +11,6 @@ import { AppleIcon, GoogleIcon } from './SocialProviderIcons';
 interface CredentialRowProps {
     label: string;
     icon?: ReactNode;
-    /** Rendered instead of the link button once the credential is on the account. */
     linkedLabel?: string;
     isLinked: boolean;
     isBusy: boolean;
@@ -44,20 +43,6 @@ const CredentialRow = ({ label, icon, linkedLabel, isLinked, isBusy, onLink }: C
     );
 };
 
-/**
- * Account-linking section for AccountInfoPage — which credentials (phone, social) prove this account.
- *
- * Reuses AccountInfoPage's own card/row classes (no Figma node for this area — see
- * apps/web/docs/feature/account/social-links.md "design principles").
- *
- * **The section stays silent until the server has spoken.** `link$` is what makes this screen honest
- * (ADR-0042 §7), and while it reads `'unknown'` — the profile has not landed, or the server never built
- * the slot — neither "linked" nor "link it" is a claim we can back. Rendering nothing is the only
- * answer that cannot mislead about an account-security control.
- *
- * Renders nothing for a guest either: linking requires an already-main-user session, and MyPage already
- * hides the entry point, so this is a defensive guard for direct navigation.
- */
 export const AccountLinkSection = () => {
     const { t } = useTranslation();
     const { isGuest } = runtime.session.useRuntimeProfile();
@@ -66,20 +51,13 @@ export const AccountLinkSection = () => {
     const [isPhoneSheetOpen, setIsPhoneSheetOpen] = useState(false);
 
     if (isGuest) return null;
-    // Both slots ride on the same read, so one unknown means the whole section is guessing.
     if (socialState === 'unknown' || linked.phone === 'unknown') return null;
 
-    // Apple is offered where the app's own provider sign-in lists it (`runtime.signIn`) — on iOS — as on
-    // the login screen.
     const offersApple = runtime.signIn.providerSignIn?.providers.includes('apple') ?? false;
-    // Server truth now, not a per-device guess: an account with neither credential is one device wipe
-    // away from being unrecoverable, which is what the nudge is about.
     const hasNoCredential = linked.phone === 'absent' && linked.social === 'absent';
 
     return (
         <div className="flex flex-col gap-2">
-            {/* Account-split defense (client-guide.md §constraints to know): nudge toward a second credential
-                before a future device creates a separate, unmergeable account. */}
             {hasNoCredential && (
                 <p className="px-1 text-[13px] text-muted-foreground">{t('mypage.accountInfo.social.bannerTitle')}</p>
             )}
@@ -87,7 +65,6 @@ export const AccountLinkSection = () => {
             <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                 <CredentialRow
                     label={t('mypage.accountInfo.social.phone')}
-                    // The masked tail is the only form of the number the server will hand back.
                     linkedLabel={
                         linked.phoneHint
                             ? t('mypage.accountInfo.social.phoneMasked', { last4: linked.phoneHint })
@@ -115,8 +92,6 @@ export const AccountLinkSection = () => {
                 )}
             </div>
 
-            {/* `link`, never `login`: this session is already a main user, so proving a number hangs it
-                on the session instead of opening a new one. No token comes back (ADR-0042 §3). */}
             {isPhoneSheetOpen && (
                 <PhoneVerifySheet
                     mode="link"

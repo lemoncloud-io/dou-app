@@ -39,7 +39,6 @@ test.describe('nav rail shell', () => {
         await rail.getByRole('button', { name: 'Switch cloud: Home' }).click();
         const menu = app.getByRole('menu');
         await expect(menu.getByRole('menuitem', { name: 'Home', exact: true })).toBeVisible();
-        // The default cloud and at least one more: what the account belongs to.
         expect(await menu.getByRole('menuitem').count()).toBeGreaterThan(1);
         await app.keyboard.press('Escape');
         await expect(menu).toBeHidden();

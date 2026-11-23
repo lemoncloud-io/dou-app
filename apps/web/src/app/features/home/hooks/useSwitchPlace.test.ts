@@ -10,7 +10,6 @@ jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
-            // The key constants the hook reads — mocking the module makes the real exports disappear.
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
             SWITCH_CLOUD_MUTATION_KEY: ['session', 'switch-cloud'],
             useSessionSelection: jest.fn(),
@@ -30,7 +29,6 @@ const setSession = (selectedSiteId: string | null, isSwitching = false, selected
     (useSiteSwitch as jest.Mock).mockReturnValue({ switchSite: switchSiteMock, isSwitching });
 };
 
-/** Global in-flight switch count, as `useIsMutating` reports it for either key. */
 const setSwitchesInFlight = (count: number) => {
     (useIsMutating as jest.Mock).mockReturnValue(count);
 };
@@ -76,10 +74,6 @@ describe('useSwitchPlace — 플레이스 전환', () => {
     });
 });
 
-// A selection persists across launches (localStorage inside the native shell), so it can name a
-// place the account no longer has — deleted or left while the app was closed. Its cached row
-// survives until the next full list refresh prunes it; these lock the fallback that reacts to
-// that prune, and the cases that must NOT read as one.
 describe('useSwitchPlace — stale stored selection', () => {
     type Props = { places: DomainPlace[]; isPlacesLoading: boolean };
     const render = (props: Props) =>
@@ -98,8 +92,6 @@ describe('useSwitchPlace — stale stored selection', () => {
         expect(switchSiteMock).toHaveBeenCalledWith('p1');
     });
 
-    // Leaving the place on screen drops its row once the server has answered — the same shape as a
-    // prune, so the same fallback carries the user to a place they are still in.
     it('moves to the first remaining place after the place on screen is left', () => {
         setSession('left', false, 'cloud-a');
         const { rerender } = render({ places: [place('a'), place('left'), place('b')], isPlacesLoading: false });
@@ -122,15 +114,12 @@ describe('useSwitchPlace — stale stored selection', () => {
         expect(switchSiteMock).not.toHaveBeenCalled();
     });
 
-    // The last place of the cloud was left: nothing to switch to, so the selection is emptied
-    // and no switch is asked for.
     it('empties the selection without a switch once the last place has gone', () => {
         setSession('stale', false, 'cloud-a');
         const { rerender } = render(withStale);
         rerender({ places: [], isPlacesLoading: false });
         expect(switchSiteMock).not.toHaveBeenCalled();
         expect(runtime.session.clearSiteSelection).toHaveBeenCalledTimes(1);
-        // Once per stale id, as for the switch.
         rerender({ places: [], isPlacesLoading: false });
         expect(runtime.session.clearSiteSelection).toHaveBeenCalledTimes(1);
     });
@@ -169,8 +158,6 @@ describe('useSwitchPlace — stale stored selection', () => {
         setSession('stale', false, 'cloud-a');
         const { rerender } = render(withStale);
         rerender(pruned);
-        // A rejected switch rolls the selection back to the stale id; a fresh list reference
-        // re-runs the effect exactly as a mutation settling would.
         rerender({ places: [place('p1')], isPlacesLoading: false });
         expect(switchSiteMock).toHaveBeenCalledTimes(1);
     });

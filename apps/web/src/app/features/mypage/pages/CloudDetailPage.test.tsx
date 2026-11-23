@@ -30,7 +30,6 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigate,
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
-// The app barrel behind `PageHeader` drags the runtime in; the header is a title here.
 const mockHaptic = jest.fn();
 jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
@@ -62,10 +61,8 @@ const cloud = {
     createdAt: 1_700_000_000_000,
 } satisfies Partial<CloudView>;
 
-/** Opens the confirm dialog from the destructive row and presses its confirm button. */
 const releaseCloud = () => {
     fireEvent.click(screen.getByText(`${K}.delete`));
-    // The row keeps its label while the dialog is open; the dialog's confirm is the second one.
     fireEvent.click(screen.getAllByText(`${K}.delete`)[1]);
 };
 
@@ -143,12 +140,9 @@ describe('CloudDetailPage — releasing', () => {
             expect(logger.info).toHaveBeenCalledWith('CLOUD', 'cloud released', { cloudId: 'CL2', wasActive: false })
         );
         expect(setQueriesData).toHaveBeenCalled();
-        // Once, from the release itself — not a second time from the not-mine redirect, which
-        // the emptied catalog would otherwise trigger mid-release.
         expect(navigate).toHaveBeenCalledTimes(1);
         expect(navigate).toHaveBeenCalledWith('/mypage/cloud-manage', { replace: true });
         expect(logoutCloudSession).not.toHaveBeenCalled();
-        // A warning as the irreversible confirm opens, then the release's own outcome.
         expect(mockHaptic.mock.calls).toEqual([['warning'], ['success']]);
     });
 
@@ -167,14 +161,12 @@ describe('CloudDetailPage — releasing', () => {
 
         render(<CloudDetailPage leaveForLogin={leaveForLogin} />);
         fireEvent.click(screen.getByText(`${K}.delete`));
-        // The confirm names the consequence before the irreversible step.
         expect(screen.getByText(/deleteSelectedCloudWarning/)).toBeInTheDocument();
         fireEvent.click(screen.getAllByText(`${K}.delete`)[1]);
 
         await waitFor(() => expect(logoutCloudSession).toHaveBeenCalledTimes(1));
         expect(logger.info).toHaveBeenCalledWith('CLOUD', 'cloud released', { cloudId: 'CL2', wasActive: true });
         expect(leaveForLogin).toHaveBeenCalledTimes(1);
-        // The reload replaces the list; nothing navigates there first.
         expect(navigate).not.toHaveBeenCalled();
     });
 

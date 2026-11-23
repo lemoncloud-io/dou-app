@@ -56,9 +56,7 @@ const setActive = (selectedCloudId: string | null) =>
 const setVerified = (isVerified: boolean) =>
     (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
 
-/** The runtime's delta announcements, delivered by the test. */
 let deltaListeners: Array<(delta: { cid: string; requestedAt: number }) => void> = [];
-/** Delivers an answered delta and lets the runner's clear grace run out. */
 const answerDelta = (cid: string, requestedAt: number) =>
     act(() => {
         for (const listener of deltaListeners) listener({ cid, requestedAt });
