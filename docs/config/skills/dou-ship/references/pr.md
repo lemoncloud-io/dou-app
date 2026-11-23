@@ -38,8 +38,9 @@ Every PR body opens with the visuals that make it quick to read — a diagram, s
   (`https://raw.githubusercontent.com/lemoncloud-io/dou-app/pr-assets/pr-<number>/<file>`); open the PR first,
   then `gh pr edit <number> --body-file …`. Take the screenshot from the single spec you ran (`evidence.shot`),
   the fake shell, a component harness or the dev server. Never name a file `web-e2e-*`: CI's e2e results replace those on
-  every run. The branch also holds those CI screenshots and `pr-assets-cleanup.yml` handles it, so never run
-  `--remove` on an open PR; other `pr-assets/*` branches are never touched.
+  every run. The branch also holds those CI screenshots. `pr-assets-cleanup.yml` deletes it only when the PR
+  closes without merging, so a merged PR's images keep loading; never run `--remove` on an open or merged PR.
+  Other `pr-assets/*` branches are never touched.
 - **A device check ran** (`yarn mobile:verify`, [`dou-verify/references/device.md`](../../dou-verify/references/device.md)):
   the shots that show the change — `final.png` and the relevant `checkpoint-*.png` from
   `tmp/mobile-verify/<timestamp>-<platform>/<scenario>/` — pushed the same way, iOS and Android side by side in a

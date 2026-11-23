@@ -390,7 +390,7 @@ as the images a pull request body links — and creates or updates one comment, 
 what failed, the visual diffs side by side, the chaos scenarios with their end states, the load
 medians, and every scenario's result. Image addresses carry `?run=<id>` so GitHub does not show a
 cached image from an earlier run. `--dry-run` prints the picked files and the comment instead.
-`cleanup` deletes the branch, for when the pull request closes. The token is `GITHUB_TOKEN` (or
+`cleanup` deletes the branch, for a pull request closed without merging. The token is `GITHUB_TOKEN` (or
 `GH_TOKEN`), which needs `contents: write` and `pull-requests: write`.
 
 The images come from fake-data runs only, which is all this suite has: the repository is public, and
@@ -400,7 +400,8 @@ script's own tests (`node --test`), one of which pushes to and deletes from a lo
 In CI, every `web e2e` job in `.github/workflows/verify.yml` uploads its evidence folder as the artifact
 `web-e2e-evidence-<entry>` whatever the result, and the `web e2e · results in the pull request` job runs
 `publish` with one `--evidence` per artifact once they are all done. `.github/workflows/pr-assets-cleanup.yml`
-runs `cleanup` when the pull request closes. A pull request from a fork has no token that can write, so
+runs `cleanup` when a pull request closes without merging; a merged one keeps its branch, because its body
+and comment still link the images. A pull request from a fork has no token that can write, so
 `publish` and the visual status skip it.
 
 ## The scenarios
