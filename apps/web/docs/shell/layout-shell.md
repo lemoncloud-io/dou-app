@@ -183,6 +183,12 @@ Unlike `BottomNavSpacer`, the offset is one `calc()` — the keyframes need the 
 `--snackbar-offset`. A malformed inset collapses it to `0`, which leaves the snackbar flush with
 the bottom edge: worse-placed, still visible.
 
+The snackbar's keyframes are declared in this app's Tailwind config, and the toaster's classes only mean
+anything against it. Reduced motion has to name each state (`motion-reduce:data-[state=open]:animate-none`
+and the `closed` twin): a bare `motion-reduce:animate-none` loses to the state rules on specificity. Top
+positioned toasts (the in-app push banner) clear the notch with `--safe-top`, which the native WebView injects
+and which falls back to 0 in a browser; only `top` is set, so bottom toasts keep the toaster's defaults.
+
 On screens with a bottom composer (the chat room) nothing else publishes a lift, so the snackbar sits
 over the composer until it times out or is swiped away — above the attach panel while that is open, as
 it rides above the keyboard. The decision and its alternatives are ADR-0160.

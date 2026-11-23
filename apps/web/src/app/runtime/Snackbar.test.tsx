@@ -3,9 +3,6 @@ import { act, render, screen } from '@testing-library/react';
 import { SNACKBAR_OFFSET, TOAST_MIN_LIFT_PX, Toaster, useToastLift } from '@chatic/ui-kit/components/ui/toaster';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-// The kit's Toaster as apps/web mounts it in AppRuntime. The kit has no test runner of its own, and
-// the classes asserted here only mean anything against this app's Tailwind config, which is where
-// the snackbar keyframes are declared.
 describe('snackbar (ui-kit Toaster in apps/web)', () => {
     const raise = () => act(() => void toast({ title: 'Place notifications are off.' }));
 
@@ -39,11 +36,7 @@ describe('snackbar (ui-kit Toaster in apps/web)', () => {
                 'touch-none',
             ])
         );
-        // Left alongside, the stylesheet's declaration order — not the toaster — would pick the
-        // animation that runs.
         expect(item?.className).not.toMatch(/animate-(slide-in-from-top|slide-out-to-top|fade-in|fade-out)\b/);
-        // Reduced motion has to name each state: a bare `motion-reduce:animate-none` loses to the
-        // state rules on specificity.
         expect(Array.from(item?.classList ?? [])).toEqual(
             expect.arrayContaining([
                 'motion-reduce:data-[state=open]:animate-none',
@@ -72,7 +65,6 @@ describe('snackbar (ui-kit Toaster in apps/web)', () => {
         });
 
         it('keeps a bar that is still showing lifted when one opened before it leaves first', () => {
-            // A dialog's CTA opens over the tab bar, then the tab bar steps aside for the keyboard.
             const tabBar = render(<Bar px={80} />);
             const cta = render(<Bar px={120} />);
 

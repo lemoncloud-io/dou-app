@@ -6,12 +6,6 @@ import { startLogUploader } from './logUploader';
 import type { LogEntry } from '@chatic/bridges';
 import type { LogUploaderHandle } from './logUploader';
 
-/**
- * Boundaries are mocked; the queue, the scheduler and the hub are real. The
- * thing under test here is the wiring — which source answers, when a charge
- * happens, what the opt-out clears — and a mocked queue would assert the mock.
- */
-
 let mockIsNative = false;
 
 jest.mock('../../../config/diagnosticsKind', () => ({
@@ -122,8 +116,6 @@ describe('startLogUploader — 하이브리드', () => {
     });
 
     it('앱이 답하면 부팅 창 사본을 버린다 — 저장의 주인은 앱이다', async () => {
-        // The per-entry relay already handed the entry to the app at dispatch time, so once the app
-        // is confirmed to be serving storage, the web's copy is a duplicate. It's only held until then.
         handle = startLogUploader();
         logger.info('TEST', 'hybrid');
 
@@ -211,10 +203,6 @@ describe('startLogUploader — 기기 opt-out', () => {
         expect(stored).toEqual([]);
     });
 
-    // This spot used to say "the ring buffer is left alone". When there were two stores, it was
-    // correct for opt-out to clear only the upload copy and keep the diagnostic one, but now there's
-    // a single store and that distinction no longer exists — opt-out is replaced by the stronger
-    // property that no copy may remain.
     it('적재분이 어디에도 남지 않는다 — 저장소가 하나이므로 예외가 없다', async () => {
         handle = startLogUploader();
         logger.info('TEST', 'collected');
@@ -227,11 +215,6 @@ describe('startLogUploader — 기기 opt-out', () => {
     });
 });
 
-/**
- * The monitor reads the queue through a registered view rather than holding it,
- * so the uploader stays its only writer. What matters is that the view is live —
- * a stale copy would show a debugging session logs that already shipped.
- */
 describe('startLogUploader — 큐 뷰 등록', () => {
     it('실행 중에는 큐를 비파괴로 읽을 수 있다', () => {
         handle = startLogUploader();
@@ -242,7 +225,6 @@ describe('startLogUploader — 큐 뷰 등록', () => {
                 ?.snapshot()
                 .map(entry => entry.message)
         ).toContain('visible');
-        // Reading must not consume — the uploader still has to ship it.
         expect(
             getLogQueueView()
                 ?.snapshot()
@@ -291,12 +273,6 @@ describe('startLogUploader — 큐 뷰 등록', () => {
     });
 });
 
-/**
- * The hold toggle is the lever that turns the queue into a monitoring view, so
- * what has to hold is the *pair* of properties: nothing is sent, and nothing is
- * lost. A hold that also drained would show an empty screen; a hold that stopped
- * collecting would show one too, for a different reason.
- */
 describe('startLogUploader — 전송 보류', () => {
     it('전송하지 않지만 큐는 유지된다 — 비워지면 모니터링할 것이 없다', async () => {
         handle = startLogUploader();
@@ -324,8 +300,6 @@ describe('startLogUploader — 전송 보류', () => {
     });
 
     it('하이브리드에서 보류를 켜면 앱 저장소가 유지된다 — 모니터링이 읽는 곳이 거기다', async () => {
-        // A hold means "buffer it, but don't send it", so no ack should happen.
-        // Buffering itself keeps happening via the relay regardless of this lever (principle 14).
         mockIsNative = true;
         uploadHeld = true;
         appQueue.push({ id: 'held', level: 'info', tag: 'APP', message: 'still here', timestamp: 1 });

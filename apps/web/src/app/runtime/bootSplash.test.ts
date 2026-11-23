@@ -2,7 +2,6 @@ jest.mock('../bridge/appBridge', () => ({ appBridge: { notifyFirstScreenReady: j
 
 import { createBootSplash } from './bootSplash';
 
-/** A boot cover whose frames and timers the test advances by hand. */
 const setup = () => {
     const frames: Array<() => void> = [];
     const timers: Array<{ callback: () => void; ms: number }> = [];
@@ -14,7 +13,6 @@ const setup = () => {
         requestFrame: callback => frames.push(callback),
         setTimer: (callback, ms) => timers.push({ callback, ms }),
     });
-    /** Runs the frames queued so far, one at a time, as the browser would. */
     const nextFrame = () => frames.splice(0).forEach(run => run());
     return { splash, frames, timers, removeCover, notifyShell, nextFrame };
 };
@@ -58,8 +56,6 @@ describe('bootSplash', () => {
         expect(removeCover).toHaveBeenCalledTimes(1);
     });
 
-    // A cold-start deep link can replay into a lazy route right after home mounts: the route's
-    // fallback takes a hold inside the two-frame window, and the cover must not come down onto it.
     it('cancels a pending release when a hold is taken inside the two-frame window', () => {
         const { splash, removeCover, nextFrame } = setup();
 

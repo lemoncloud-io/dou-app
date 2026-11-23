@@ -28,7 +28,6 @@ const join = (fields: Partial<DomainJoin>): DomainJoin => fields as DomainJoin;
 const observeListMock = jest.fn();
 const registerJoinMock = jest.fn();
 
-// Per-channel observeList that synchronously emits the rows mapped for that channelId.
 const emitJoins = (byChannel: Record<string, DomainJoin[]>) => {
     observeListMock.mockImplementation((query: { channelId: string }, cb: (r: unknown) => void) => {
         cb({ list: byChannel[query.channelId] ?? [] });
@@ -40,7 +39,6 @@ beforeEach(() => {
     jest.clearAllMocks();
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ join: { observeList: observeListMock } });
     (runtime.connection.useCloudVerified as jest.Mock).mockReturnValue(true);
-    // Every cloud gives the account its own uid; 'u1' is mine in cloud-a.
     (runtime.session.useUidInCloud as jest.Mock).mockImplementation((cid: string) =>
         cid === 'cloud-a' ? 'u1' : cid === 'cloud-b' ? 'u9' : null
     );
@@ -58,7 +56,7 @@ describe('useMyJoins — 구독 join 목록', () => {
                 join({ userId: 'u1', channelId: 'c1', chatNo: 3 }),
                 join({ userId: 'u2', channelId: 'c1', chatNo: 9 }),
             ],
-            c2: [join({ userId: 'u2', channelId: 'c2', chatNo: 5 })], // no row for me
+            c2: [join({ userId: 'u2', channelId: 'c2', chatNo: 5 })],
         });
 
         const { result } = renderHook(() => useMyJoins([channel('c1'), channel('c2')]));
@@ -90,7 +88,6 @@ describe('useMyJoins — 구독 join 목록', () => {
 
         const { result } = renderHook(() => useMyJoins([channel('c1')], { sync: false }));
 
-        // Registration is skipped, but the observed map is still populated.
         expect(registerJoinMock).not.toHaveBeenCalled();
         expect(result.current.get('c1')?.chatNo).toBe(7);
     });

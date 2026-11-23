@@ -15,7 +15,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 
-// Echo the key so the branded-label branch is identifiable without loading i18n resources.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
 const useRuntimeRepositoriesMock = runtime.data.useRuntimeRepositories as jest.Mock;
@@ -59,8 +58,6 @@ describe('useActivePlaceName — 활성 플레이스명 관측', () => {
         expect(unsubscribe).toHaveBeenCalledTimes(1);
     });
 
-    // ADR-0040: on the relay, the personal place's backend name is 'default'/'#default'. That raw
-    // name must not leak into the profile dialog title.
     describe('홈 플레이스 브랜딩', () => {
         it('기본 클라우드에서는 백엔드 원문 대신 브랜드 라벨을 낸다', () => {
             useSessionSelectionMock.mockReturnValue({ selectedSiteId: '0000', selectedCloudId: 'default' });
@@ -88,8 +85,6 @@ describe('useActivePlaceName — 활성 플레이스명 관측', () => {
         });
     });
 
-    // Once branding applies, a stale row isn't merely outdated — it gives a "wrong" answer. Because
-    // the retained relay row's id is '0000', it keeps answering "DoU Home" even in another cloud.
     it('사이트가 바뀌면 이전 행을 즉시 버린다', () => {
         useSessionSelectionMock.mockReturnValue({ selectedSiteId: '0000', selectedCloudId: 'default' });
         const { result, rerender } = renderHook(() => useActivePlaceName());
@@ -97,7 +92,6 @@ describe('useActivePlaceName — 활성 플레이스명 관측', () => {
         act(() => observeItem.mock.calls[0][1]({ id: '0000', name: '#default' }));
         expect(result.current).toBe('placeList.defaultPlace');
 
-        // Switch to a place in another cloud — the state before the new subscription emits.
         useSessionSelectionMock.mockReturnValue({ selectedSiteId: 's2', selectedCloudId: 'cloud-1' });
         rerender();
 
@@ -118,10 +112,6 @@ describe('useActivePlaceName — 활성 플레이스명 관측', () => {
         const after = renders;
         expect(result.current).toBe('우리 팀');
 
-        // place-sync hands back a new object on every tick. The ceiling is set to +1 because React is
-        // documented to potentially render once more right before bailing out for an updater that
-        // returns the same value — what this test guards is that 3 identical emits don't turn into 3
-        // renders.
         emit();
         emit();
         emit();

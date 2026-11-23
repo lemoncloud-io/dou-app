@@ -5,7 +5,6 @@ import { useTheme } from './useTheme';
 
 const mockIsNative = jest.fn(() => false);
 const mockSavePreference = jest.fn();
-// The frame's own preference store, as the host's `appShell` port offers it; a browser has none.
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({
@@ -24,11 +23,6 @@ const mockUseConfigValue = runtime.settings.useConfigValue as jest.MockedFunctio
 >;
 const mockSet = runtime.settings.set as jest.Mock;
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
-
-// ---------------------------------------------------------------------------
-// matchMedia mock — jsdom does not implement it. setOsPrefersDark() simulates
-// a live OS scheme toggle firing the 'change' listeners.
-// ---------------------------------------------------------------------------
 
 const listeners = new Set<() => void>();
 let osPrefersDark = false;

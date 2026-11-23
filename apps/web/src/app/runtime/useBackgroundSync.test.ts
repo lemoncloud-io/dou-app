@@ -12,7 +12,6 @@ jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
 jest.mock('@chatic/runtime', () => ({
     runtime: {
         session: {
-            // The key constant the hook uses — mocking the module makes the real export disappear.
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
             useRuntimeProfile: jest.fn(),
             useGlobalSession: jest.fn(),
@@ -28,7 +27,6 @@ jest.mock('@chatic/runtime', () => ({
     },
 }));
 
-// Capture the foreground handler so tests can fire the signal directly.
 jest.mock('../bridge', () => ({ useAppForeground: jest.fn() }));
 jest.mock('./logging/syncStreakReporter', () => ({
     syncStreakReporter: { fail: jest.fn(), succeed: jest.fn(), reset: jest.fn() },
@@ -46,7 +44,6 @@ const setSyncedAt = jest.fn();
 const inviteList = jest.fn();
 const inviteCacheReadList = jest.fn();
 
-/** A sent-invite cache holding rows in the given states (only `state` is read here). */
 const cachedInvites = (...states: string[]) => ({
     list: states.map((state, index) => ({ id: `invt-${index}`, state })),
     meta: { total: states.length, source: 'local' as const },
@@ -54,7 +51,6 @@ const cachedInvites = (...states: string[]) => ({
 
 const setVerified = (isVerified: boolean) =>
     (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
-// The latest registered foreground handler (useAppForeground keeps handlers fresh via ref).
 const fireForeground = async () => {
     const handler = (useAppForeground as jest.Mock).mock.calls.at(-1)?.[0];
     await act(async () => {
@@ -65,7 +61,6 @@ const setSwitching = (switching: boolean) => (useIsMutating as jest.Mock).mockRe
 const setSession = (cid: string, selectedSiteId: string | null, userId: string | null = 'u1') => {
     (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({
         activeServer: cid === 'default' ? { kind: 'relay' } : { kind: 'cloud', cloudId: cid },
-        // The uid half of the first-answer scope the sync marks (see useFirstSyncStore).
         identity: { userId },
     });
     (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedSiteId });
@@ -100,7 +95,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     it('verified 상승 엣지(false→true)에서 1회 동기화한다', async () => {
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
-        expect(refreshList).not.toHaveBeenCalled(); // not executed while it stays false
+        expect(refreshList).not.toHaveBeenCalled();
 
         setVerified(true);
         await act(async () => {
@@ -116,7 +111,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         setVerified(true);
         renderHook(() => useBackgroundSync());
 
-        await act(async () => undefined); // mount rising-edge flush
+        await act(async () => undefined);
         expect(syncChannels).toHaveBeenCalledTimes(1);
 
         await act(async () => {
@@ -139,7 +134,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         await act(async () => {
             jest.advanceTimersByTime(60_000);
         });
-        expect(syncChannels).toHaveBeenCalledTimes(afterMount); // timer adds no call
+        expect(syncChannels).toHaveBeenCalledTimes(afterMount);
 
         jest.useRealTimers();
     });
@@ -157,8 +152,6 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(syncChannels).toHaveBeenCalledWith(50);
         expect(setSyncedAt).toHaveBeenCalledWith('channel-sync:default', 100);
         expect(getSyncedAt).toHaveBeenCalledWith('profile-sync:default:s1');
-        // syncProfiles is scoped to the active site — the watermark key is {cid, sid}, so the
-        // call must carry the same sid the key was built from.
         expect(syncProfiles).toHaveBeenCalledWith(50, 's1');
         expect(setSyncedAt).toHaveBeenCalledWith('profile-sync:default:s1', 200);
     });
@@ -194,13 +187,12 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         setVerified(true);
         renderHook(() => useBackgroundSync());
 
-        await act(async () => undefined); // mount rising edge
+        await act(async () => undefined);
         expect(getSelfChannel).toHaveBeenCalledTimes(1);
 
         await act(async () => {
             jest.advanceTimersByTime(60_000);
         });
-        // The tick only runs delta syncs; loading the self channel is place-entry-only.
         expect(getSelfChannel).toHaveBeenCalledTimes(1);
         expect(syncChannels).toHaveBeenCalledTimes(2);
 
@@ -235,13 +227,12 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     it('포그라운드 복귀 신호에서 목록 델타만 갱신하고 self 채널은 재조회하지 않는다', async () => {
         setVerified(true);
         renderHook(() => useBackgroundSync());
-        await act(async () => undefined); // flush the mount rising edge
+        await act(async () => undefined);
         syncChannels.mockClear();
         getSelfChannel.mockClear();
 
         await fireForeground();
 
-        // Foreground is not a place entry — only the delta re-syncs; self channel is place-entry-only.
         expect(syncChannels).toHaveBeenCalledTimes(1);
         expect(getSelfChannel).not.toHaveBeenCalled();
     });
@@ -249,15 +240,13 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     it('미인증이면 포그라운드 복귀에서 쏘지 않고, 재인증 상승 엣지(Trigger 1)가 대신 동기화한다', async () => {
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
-        await act(async () => undefined); // unauthenticated, so no rising edge (Trigger 1) fires
+        await act(async () => undefined);
         expect(syncChannels).not.toHaveBeenCalled();
 
         await fireForeground();
-        // Doesn't fire on an unauthenticated socket — avoids a wasted round trip and defers until re-auth
         expect(syncChannels).not.toHaveBeenCalled();
         expect(getSelfChannel).not.toHaveBeenCalled();
 
-        // SDK re-authenticates -> isVerified false->true rising edge, followed by sync
         setVerified(true);
         await act(async () => {
             rerender();
@@ -270,13 +259,12 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         setVerified(true);
         setSwitching(true);
         renderHook(() => useBackgroundSync());
-        // Mounting with verified+switching fires Trigger 1 (rising edge) once, so that's taken as the baseline.
         await act(async () => undefined);
         const baseline = syncChannels.mock.calls.length;
 
         await fireForeground();
 
-        expect(syncChannels).toHaveBeenCalledTimes(baseline); // foreground doesn't produce an extra call
+        expect(syncChannels).toHaveBeenCalledTimes(baseline);
     });
 
     it('sync 실패 시 해당 워터마크를 전진시키지 않는다', async () => {
@@ -289,18 +277,16 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         });
 
         expect(setSyncedAt).not.toHaveBeenCalledWith('channel-sync:default', expect.anything());
-        // A channel failure does not block profile sync
         expect(syncProfiles).toHaveBeenCalledTimes(1);
     });
 
     it('사이트(sid) 변경 시 새 사이트 채널을 갱신한다 (auth.switch는 상승 엣지를 만들지 않으므로 Trigger 4)', async () => {
         setVerified(true);
         const { rerender } = renderHook(() => useBackgroundSync());
-        await act(async () => undefined); // flush the mount rising edge (s1)
+        await act(async () => undefined);
         syncChannels.mockClear();
         getSelfChannel.mockClear();
 
-        // Site switch: s1 -> s2. verified stays true (auth.switch keeps authenticated -> no rising edge).
         setSession('default', 's2');
         await act(async () => {
             rerender();
@@ -311,8 +297,6 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     });
 
     it('클라우드 서버에서는 self 채널을 불러오지 않는다 (렐리 서버 전용)', async () => {
-        // channel.get-self is a relay-only capability; on a cloud server the fetch is skipped even
-        // though a place is selected. The rest of the sync (channel delta) still runs.
         setVerified(false);
         setSession('cloud-a', 's1');
         const { rerender } = renderHook(() => useBackgroundSync());
@@ -327,8 +311,6 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
     });
 
     it('클라우드 전환(상승 엣지 + sid 변경)에서도 self 채널을 불러오지 않는다 (렐리 전용, #7)', async () => {
-        // A cloud switch reboots the socket (verified false→true) AND lands on a new sid. Since the
-        // target is a cloud server, the self-channel fetch is skipped regardless of trigger fan-out.
         setVerified(false);
         setSession('cloud-a', 's1');
         const { rerender } = renderHook(() => useBackgroundSync());
@@ -343,12 +325,6 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         expect(syncChannels).toHaveBeenCalledTimes(1);
     });
 
-    /**
-     * The sent-invite lane. Home only ever draws from the invite cache (`useRelayInvites`'s `remote`
-     * defaults off), and this is the only regular path that fills that cache — the reason it moved
-     * here is that home used to fire a relay-pinned `invite.list` on every mount and focus for every
-     * user, and that was the packet that surfaced connection-auth desync as a 401.
-     */
     it('상승 엣지에서 보낸 초대 목록도 함께 갱신한다', async () => {
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
@@ -360,15 +336,13 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
 
         expect(inviteList).toHaveBeenCalledWith({ limit: 100 });
         expect(inviteList).toHaveBeenCalledTimes(1);
-        // The edge doesn't consult the cache — it's the only place that can discover a card this
-        // device has never seen (issued on another device, or after a cache reset), so it fires unconditionally.
         expect(inviteCacheReadList).not.toHaveBeenCalled();
     });
 
     it('포그라운드 복귀에서도 초대 목록을 갱신한다', async () => {
         setVerified(true);
         renderHook(() => useBackgroundSync());
-        await act(async () => undefined); // mount rising-edge flush
+        await act(async () => undefined);
         inviteList.mockClear();
 
         await fireForeground();
@@ -381,15 +355,15 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         setVerified(true);
         renderHook(() => useBackgroundSync());
         await act(async () => undefined);
-        expect(inviteList).toHaveBeenCalledTimes(1); // fires once, on the edge
+        expect(inviteList).toHaveBeenCalledTimes(1);
 
         await act(async () => {
             jest.advanceTimersByTime(60_000);
         });
 
-        expect(inviteCacheReadList).toHaveBeenCalled(); // decided from cache
-        expect(inviteList).toHaveBeenCalledTimes(1); // adds no fetch
-        expect(syncChannels).toHaveBeenCalledTimes(2); // other domains still run as usual
+        expect(inviteCacheReadList).toHaveBeenCalled();
+        expect(inviteList).toHaveBeenCalledTimes(1);
+        expect(syncChannels).toHaveBeenCalledTimes(2);
 
         jest.useRealTimers();
     });
@@ -453,7 +427,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         });
 
         expect(inviteList).not.toHaveBeenCalled();
-        expect(syncChannels).toHaveBeenCalledTimes(1); // the rest of the lane still runs
+        expect(syncChannels).toHaveBeenCalledTimes(1);
     });
 
     it('클라우드 세션에서는 초대 목록을 갱신하지 않는다 — relay-pinned이고 default 클라우드에서만 렌더된다', async () => {
@@ -467,7 +441,7 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         });
 
         expect(inviteList).not.toHaveBeenCalled();
-        expect(syncChannels).toHaveBeenCalledTimes(1); // the rest of the lane still runs
+        expect(syncChannels).toHaveBeenCalledTimes(1);
     });
 
     it('초대 목록 조회 실패가 다른 동기화를 막지 않는다', async () => {
@@ -491,14 +465,12 @@ describe('useBackgroundSync — 백그라운드 동기화', () => {
         await act(async () => undefined);
         getSelfChannel.mockClear();
 
-        // sid optimistically becomes s2 first, but no fetch happens while still switching.
         setSession('default', 's2');
         await act(async () => {
             rerender();
         });
         expect(getSelfChannel).not.toHaveBeenCalled();
 
-        // Switch settles -> fires.
         setSwitching(false);
         await act(async () => {
             rerender();
@@ -511,7 +483,6 @@ describe('useBackgroundSync — 실패 스트릭 통지 (ADR-0099)', () => {
     const fail = syncStreakReporter.fail as jest.Mock;
     const succeed = syncStreakReporter.succeed as jest.Mock;
 
-    /** Runs every path through once via a single verified rising edge. */
     const runOnce = async () => {
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
@@ -538,7 +509,6 @@ describe('useBackgroundSync — 실패 스트릭 통지 (ADR-0099)', () => {
         expect(fail).not.toHaveBeenCalled();
     });
 
-    // The exact path where the watermark doesn't advance — a growing streak is the signal of stagnation.
     it('채널 델타 동기화가 실패하면 그 경로로 실패를 통지한다', async () => {
         syncChannels.mockRejectedValue(new Error('boom'));
 
@@ -575,10 +545,7 @@ describe('useBackgroundSync — 실패 스트릭 통지 (ADR-0099)', () => {
     });
 });
 
-// The chat section renders off a cache that answers an unvisited cloud with nothing. This sync is
-// the only place that knows the delta behind it was asked for, so it is where "answered" is recorded.
 describe('useBackgroundSync — first channel delta per cloud (useChannelSyncMarkStore)', () => {
-    /** Runs every path through once via a single verified rising edge. */
     const runOnce = async () => {
         setVerified(false);
         const { rerender } = renderHook(() => useBackgroundSync());
@@ -624,9 +591,6 @@ describe('useBackgroundSync — first channel delta per cloud (useChannelSyncMar
     });
 
     it('never marks the place list — a completed refresh cannot testify that a cloud has none', async () => {
-        // `PlaceRepository` drops an empty snapshot without writing it (a session answering empty
-        // right after a switch would otherwise wipe the real rows), so "the call finished" says
-        // nothing there. Only rows arriving, or the cold window, may open that gate.
         setSession('cloud-A', 's1', 'u9');
 
         await runOnce();
@@ -637,7 +601,6 @@ describe('useBackgroundSync — first channel delta per cloud (useChannelSyncMar
 });
 
 describe('useBackgroundSync — on request (pull-to-refresh)', () => {
-    /** Mounts verified, lets the rising edge run, and clears it so only the request is counted. */
     const mountSettled = async () => {
         setVerified(true);
         const view = renderHook(() => useBackgroundSync());
@@ -688,7 +651,6 @@ describe('useBackgroundSync — on request (pull-to-refresh)', () => {
         expect(syncChannels).toHaveBeenCalledTimes(1);
 
         await act(async () => answerPlaces());
-        // Once settled, the next request is a fresh pass.
         await act(async () => requestBackgroundRefresh());
         expect(syncChannels).toHaveBeenCalledTimes(2);
     });

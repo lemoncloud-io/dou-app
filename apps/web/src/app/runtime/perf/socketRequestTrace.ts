@@ -4,35 +4,14 @@ import type { runtime } from '@chatic/runtime';
 
 type SocketRequestSample = runtime.connection.SocketRequestSample;
 
-/**
- * At most this many `socket_request` samples per minute, across every type.
- *
- * Every trace a device records shares one Firebase Performance budget (300 per ten minutes in the
- * foreground). A busy room makes far more socket requests than that, so an uncapped trace would
- * starve the traces with targets. Ten — a third of the budget, as `bridge_request` takes in its own
- * runs — still holds three or four types a minute at the per-type cap.
- */
 export const SOCKET_REQUEST_SAMPLES_PER_MINUTE = 10;
 
-/**
- * At most this many samples per minute of any one type.
- *
- * The total cap alone would be spent on the most frequent types — `chat.feed`, `join.read` — and a
- * rare one such as `chat.send` would hardly ever be kept. Capping each type keeps every type visible
- * in the console's per-`type` breakdown.
- */
 export const SOCKET_REQUEST_SAMPLES_PER_TYPE_PER_MINUTE = 3;
 
-/** At most this many samples while traces are still held for the WebAppReady report (see `bridgeRequestTrace`). */
 export const SOCKET_REQUEST_SAMPLES_WHILE_HELD = 3;
 
 const MINUTE_MS = 60_000;
 
-/**
- * Whether this run's socket requests are sampled: one run in ten, but a different tenth from the
- * one `bridge_request` samples (`isSampledRun`). The two traces are each capped per minute, and
- * sampling them in the same runs would stack both caps on one run's share of the shared budget.
- */
 export const isSocketRequestSampledRun = (runId: string | undefined): boolean => {
     if (!runId) return false;
     const bucket = hashRunId(runId) % 100;
@@ -40,30 +19,14 @@ export const isSocketRequestSampledRun = (runId: string | undefined): boolean =>
 };
 
 interface ObserveSocketRequestsOptions {
-    /** Hands every settled socket request to the observer until the returned function stops it (`runtime.connection.observeSocketRequests`). */
     observe: (observer: (sample: SocketRequestSample) => void) => () => void;
     runId: string | undefined;
-    /** Overridable for tests; production records through the process-wide perf slot. */
     record?: typeof recordPerfSample;
     now?: () => number;
     isHidden?: () => boolean;
-    /** Whether traces are still held for the WebAppReady report (`configureWebPerfTraces().isHeld`). */
     isHeld?: () => boolean;
 }
 
-/**
- * Records the socket requests of a sampled run as `socket_request` samples: one request's round
- * trip, broken down in the console by `type` (`chat.send`, `chat.feed`…), `kind` (relay / cloud) and
- * `outcome` (`ok`, or the status it was rejected with), and for a 499 by `close_reason` — what closed
- * the socket under it.
- *
- * It is the server's answer time per request type, which the screen-level traces cannot isolate:
- * `chat_room_sync`'s feed phase includes the cache write, `chat_send` the optimistic row. A request
- * from a hidden page is not recorded — the background budget is a tenth, and a page the OS suspended
- * mid-request would time the suspension.
- *
- * @returns Stops observing.
- */
 export const observeSocketRequests = ({
     observe,
     runId,
@@ -97,7 +60,6 @@ export const observeSocketRequests = ({
         recordedInWindow += 1;
         recordedByType.set(sample.type, ofType + 1);
         const attributes: Record<string, string> = { type: sample.type, kind: sample.kind, outcome: sample.outcome };
-        // Only a 499 carries one: it is the SDK rejecting everything in flight as a socket closes.
         if (sample.closeReason) attributes.close_reason = sample.closeReason;
         record('socket_request', { attributes, metrics: { rtt_ms: sample.roundTripMs } });
     });

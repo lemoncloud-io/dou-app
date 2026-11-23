@@ -38,7 +38,6 @@ describe('useColdListWindowElapsed — the bound on waiting for a list', () => {
     });
 
     it('restarts the window when the scope changes', () => {
-        // A cloud switch must get the whole wait again, not inherit the previous cloud's expired one.
         const { result, rerender } = renderHook(({ scope }) => useColdListWindowElapsed(scope), {
             initialProps: { scope: 'place:cloud-A:u1' },
         });

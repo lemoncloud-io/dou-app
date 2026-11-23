@@ -8,7 +8,6 @@ import { useInAppPushMessage } from './useInAppPushMessage';
 import { roomOpenTrace } from '../runtime/perf';
 
 jest.mock('sonner', () => ({ toast: { custom: jest.fn(), dismiss: jest.fn() } }));
-// The banner card translates its "now" label; echo keys so assertions target the key.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
@@ -34,14 +33,11 @@ const invoke = (notification: { title?: string; body?: string; data?: Record<str
     captured!({ data: { notification } });
 };
 
-/** Renders the JSX the hook handed to `toast.custom` so click behavior can be asserted. */
 const renderToastContent = () => {
     const [renderContent] = toastCustom.mock.calls[toastCustom.mock.calls.length - 1];
     return render(renderContent('in-app-push-message'));
 };
 
-// Current-channel suppression reads the live pathname (jsdom), so tests drive
-// the "current screen" through the history API, same as the navigation tests.
 const setCurrentPath = (path: string) => window.history.replaceState({}, '', path);
 
 beforeEach(() => {
@@ -94,8 +90,6 @@ describe('useInAppPushMessage', () => {
         expect(toastCustom).toHaveBeenCalledTimes(1);
     });
 
-    // A thread is just another screen of that room — if a banner suppressed in the room pops up in
-    // the thread, my own send round-trip while writing a reply comes right back as a banner.
     it('같은 채널의 스레드를 보고 있어도 배너를 띄우지 않는다', () => {
         setCurrentPath('/channels/abc/thread/42');
 
@@ -112,9 +106,6 @@ describe('useInAppPushMessage', () => {
         expect(toastCustom).toHaveBeenCalledTimes(1);
     });
 
-    // Depending on the sender, these fields arrive inside the `payload` JSON rather than top-level.
-    // Reading them raw as before silently kills both suppression rules — which is why the banner
-    // showed up when it shouldn't have.
     it('payload에 중첩된 ownerId로도 내 메시지를 알아본다', () => {
         invoke({ title: 'T', body: 'B', data: { payload: JSON.stringify({ channelId: 'abc', ownerId: 'me' }) } });
 
@@ -129,8 +120,6 @@ describe('useInAppPushMessage', () => {
         expect(toastCustom).not.toHaveBeenCalled();
     });
 
-    // The Android foreground path sent the OS notification channel ("dou_chat") in the top-level
-    // `channelId`. payload has to win over top-level for the real room id to be used in the route comparison.
     it('top-level channelId가 OS 알림 채널이어도 payload의 채널 id로 비교한다', () => {
         setCurrentPath('/channels/abc/room');
 
@@ -181,8 +170,6 @@ describe('useInAppPushMessage', () => {
         expect(navigateToPush).not.toHaveBeenCalled();
     });
 
-    // The room name is used as-is — `#` is a public-channel convention, and attaching it to 1:1s and
-    // self-chats too looked awkward.
     it('shows a fallback channel name as-is, with no # prefix', () => {
         invoke({ body: 'B', data: { channelId: 'abc', channelName: 'general' } });
 
@@ -193,9 +180,6 @@ describe('useInAppPushMessage', () => {
         expect(screen.getByText('B')).toBeTruthy();
     });
 
-    // A 1:1 push's title is the sender as this reader knows them (their alias for the peer, else the
-    // peer's place nick), while `channelName` is the room record's name at send time — not necessarily
-    // the person. The title is the headline the lock screen shows, so the banner shows it too.
     it('heads a 1:1 banner with the push title, not the room snapshot name', () => {
         invoke({ title: 'Sunny', body: 'hi', data: { channelId: 'abc', channelName: 'Room 1000001' } });
 
@@ -205,8 +189,6 @@ describe('useInAppPushMessage', () => {
         expect(screen.queryByText('Room 1000001')).toBeNull();
     });
 
-    // A group push's title is the room name and its body names the sender, so the banner reads the
-    // same as the lock screen.
     it('heads a group banner with the room name the push titles it with', () => {
         invoke({ title: 'Design', body: 'Sunny : hi', data: { channelId: 'abc', channelName: 'Design' } });
 
@@ -224,7 +206,6 @@ describe('useInAppPushMessage', () => {
         expect(screen.getByText('general')).toBeTruthy();
     });
 
-    // The banner only ever shows a push that just arrived, so the time label is always the fixed string, with no computation.
     it('배너에는 항상 "지금" 라벨이 붙는다', () => {
         invoke({ title: 'T', body: 'B', data: { channelId: 'abc' } });
 

@@ -12,15 +12,17 @@ goes through this folder's hooks.
 grep -rln "from '@chatic/bridges'" apps/web/src/app/features --include='*.ts' --include='*.tsx'
 ```
 
-This document is also the index for the category. Three subjects are large enough to own their own
+This document is also the index for the category. Four subjects are large enough to own their own
 file. Two are bridge code rather than feature code — there is no `features/notifications/` folder —
-and the third is the host ports this app's declarations choose (`src/config/`):
+the third is the host ports this app's declarations choose (`src/config/`), and the fourth is the native
+transfer senders in `app/runtime/`:
 
-| Document                                   | Owns                                                                               |
-| ------------------------------------------ | ---------------------------------------------------------------------------------- |
-| [push-navigation.md](./push-navigation.md) | Where a tapped push lands — path handover, session state, and the back stack       |
-| [device-token.md](./device-token.md)       | The shell adapter that hands a push token to `runtime.push`, and its native mirror |
-| [host-ports.md](./host-ports.md)           | The host's ports the declarations choose at boot, and checkout's implementations   |
+| Document                                     | Owns                                                                                   |
+| -------------------------------------------- | -------------------------------------------------------------------------------------- |
+| [push-navigation.md](./push-navigation.md)   | Where a tapped push lands — path handover, session state, and the back stack           |
+| [device-token.md](./device-token.md)         | The shell adapter that hands a push token to `runtime.push`, and its native mirror     |
+| [host-ports.md](./host-ports.md)             | The host's ports the declarations choose at boot, and checkout's implementations       |
+| [native-transfers.md](./native-transfers.md) | Why native uploads and downloads are sent, caught up and acknowledged the way they are |
 
 ## Outbound: `appBridge`
 

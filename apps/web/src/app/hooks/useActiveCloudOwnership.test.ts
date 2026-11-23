@@ -22,7 +22,6 @@ const setup = (opts: {
     clouds?: Array<{ id: string; name?: string }>;
     isPendingClouds?: boolean;
 }) => {
-    // `in` rather than `??`: a deliberate `null` must survive the default.
     const selectedCloudId = 'selectedCloudId' in opts ? opts.selectedCloudId : 'cloud-a';
     (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId });
     (runtime.session.useRuntimeProfile as jest.Mock).mockReturnValue({ isCloudActive: opts.isCloudActive ?? true });
@@ -51,7 +50,6 @@ describe('useActiveCloudOwnership', () => {
         const { result } = renderHook(() => useActiveCloudOwnership());
 
         expect(result.current.isOwner).toBe(false);
-        // The session is still live — only ownership fails, which is what separates the two flags.
         expect(result.current.isCloudSessionReady).toBe(true);
         expect(result.current.activeCloud).toBeUndefined();
     });

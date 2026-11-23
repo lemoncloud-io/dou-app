@@ -31,7 +31,6 @@ describe('useUpdateCloudProfile', () => {
         const { result } = renderHook(() => useUpdateCloudProfile(), { wrapper });
         await result.current.mutateAsync({ id: 'cloud-a', name: 'My Cloud' });
 
-        // Edits the cloud itself (cloud.update), not the connected user's profile.
         expect(updateCloudMock).toHaveBeenCalledWith({ id: 'cloud-a', name: 'My Cloud' });
     });
 
