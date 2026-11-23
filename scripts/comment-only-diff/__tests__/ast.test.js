@@ -85,3 +85,23 @@ test('cleanJsxText trims indentation and drops blank lines', () => {
     assert.equal(cleanJsxText('\n   \n'), '');
     assert.equal(cleanJsxText(' a '), ' a ');
 });
+
+test('a block, array or object that only loses its comment may collapse onto one line', () => {
+    assert.equal(prove('try {\n    f();\n} catch {\n    // ignore\n}\n', 'try {\n    f();\n} catch {}\n').ok, true);
+    assert.equal(prove('const a = [\n    1, // one\n    2,\n];\n', 'const a = [1, 2];\n').ok, true);
+    assert.equal(prove('const o = {\n    a: 1, // one\n};\n', 'const o = { a: 1 };\n').ok, true);
+});
+
+test('parentheses a formatter drops after a comment goes are not a change, those that carry meaning are', () => {
+    assert.equal(
+        prove(
+            'function f() {\n    return ( // why\n        a.b()\n    );\n}\n',
+            'function f() {\n    return a.b();\n}\n'
+        ).ok,
+        true
+    );
+    assert.equal(prove('x = (a?.b).c; // c\n', 'x = a?.b.c;\n').ok, false);
+    assert.equal(prove('x = (a + b) * c; // c\n', 'x = a + b * c;\n').ok, false);
+    assert.equal(prove('(0, obj.fn)(); // c\n', '0, obj.fn();\n').ok, false);
+    assert.equal(prove("('use strict'); // c\nf();\n", "'use strict';\nf();\n").ok, false);
+});

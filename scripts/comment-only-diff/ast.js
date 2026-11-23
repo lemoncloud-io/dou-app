@@ -29,6 +29,7 @@ const SKIPPED_KEYS = new Set([
     'endFlowNode',
     'returnFlowNode',
     'original',
+    'multiLine',
 ]);
 
 const DIRECTIVE =
@@ -64,6 +65,10 @@ function cleanJsxText(text) {
 function fingerprint(sf) {
     const out = [];
     const visit = node => {
+        if (ts.isParenthesizedExpression(node)) {
+            const standaloneString = ts.isExpressionStatement(node.parent) && ts.isStringLiteral(node.expression);
+            if (!standaloneString) return visit(node.expression);
+        }
         if (ts.isJsxExpression(node) && !node.expression && !node.dotDotDotToken) return;
         if (node.kind === ts.SyntaxKind.JsxText) {
             const text = cleanJsxText(node.text);
