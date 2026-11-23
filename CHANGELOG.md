@@ -2,6 +2,12 @@
 
 ## [2026-11-23] - No version updates
 
+### Chores
+
+- (comments) remove comments from libs/web-ui-kit
+
+## [2026-11-23] - No version updates
+
 ### Bug Fixes
 
 - (test) compile import.meta and fail on what jsdom cannot do in jest
