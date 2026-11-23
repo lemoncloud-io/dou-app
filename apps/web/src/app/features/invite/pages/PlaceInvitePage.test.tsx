@@ -8,27 +8,19 @@ const createBatchInvite = jest.fn();
 const requestInviteLink = jest.fn();
 
 type PlaceRow = { id: string; name?: string; isOwner?: boolean } | null;
-/**
- * The cache's first answer for the routed place — `'pending'` answers nothing yet, as a cold cache
- * would — and `emitPlace` pushes a later one, as a place sync would.
- */
 let placeRow: PlaceRow | 'pending' = { id: 'site-1', name: '레몬', isOwner: true };
 let placeListener: ((row: PlaceRow) => void) | null = null;
 const emitPlace = (row: PlaceRow) => act(() => placeListener?.(row));
 
 let selectedCloudId = 'cloud-1';
 let selectedSiteId: string | null = 'site-1';
-// The place the session's token names — what the server files the invite under.
 let sessionSiteId: string | null = 'site-1';
 let isExperimentEnabled = true;
 
-/** The props the page handed the shared contact tab and link sheet, captured on each render. */
 let tab: any = null;
 let sheet: any = null;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-// One repository object for the whole suite, as the runtime hands out: a fresh one per render would
-// re-run the page's subscription effect on every render and reset the row it just received.
 const mockRepositories = {
     place: {
         observeItem: (_id: string, callback: (row: PlaceRow) => void) => {
@@ -53,7 +45,6 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigate,
 }));
 jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'site-1' }) }));
-// The real barrel also exports CloudLogo, which needs `@chatic/assets` (not resolvable under jest).
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 jest.mock('../../../hooks/usePlaceInviteExperiment', () => ({
     usePlaceInviteExperiment: () => ({ isEnabled: isExperimentEnabled, setEnabled: jest.fn() }),
@@ -61,7 +52,6 @@ jest.mock('../../../hooks/usePlaceInviteExperiment', () => ({
 jest.mock('../../channels/hooks/useCreateInviteBatch', () => ({
     useCreateInviteBatch: () => ({ createPlaceInvite, createBatchInvite, requestInviteLink }),
 }));
-// The picker and the sheet have their own suites; here only what this page binds them to matters.
 jest.mock('../../channels/components/ContactInviteTab', () => ({
     ContactInviteTab: (p: any) => {
         tab = p;
@@ -187,7 +177,6 @@ describe('PlaceInvitePage', () => {
         placeRow = 'pending';
         render(<PlaceInvitePage />);
 
-        // Ownership waits for the row; the switch is already known, so there is nothing to wait for.
         expect(navigate).toHaveBeenCalledWith('/', { replace: true });
     });
 
@@ -214,7 +203,6 @@ describe('PlaceInvitePage', () => {
         placeRow = 'pending';
         render(<PlaceInvitePage />);
 
-        // An unloaded row is not a non-owner: bouncing here would throw the owner out on a cold cache.
         expect(navigate).not.toHaveBeenCalled();
         await expect(tab.sendBatch(['p'])).rejects.toThrow('placeInvite.placeChanged');
 

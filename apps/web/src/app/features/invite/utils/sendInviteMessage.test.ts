@@ -2,7 +2,6 @@ const isNativeMock = jest.fn();
 const sendSmsMock = jest.fn();
 const copyMessageToClipboardMock = jest.fn();
 
-// The app's text composer where the host has one; a browser has none.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
@@ -43,7 +42,6 @@ describe('sendInviteMessage', () => {
     });
 
     it('returns sms for the reply an installed shell actually sends, with no data field', async () => {
-        // Shells up to 0.28.4 answer `{ type: 'OnSendSms', success: true }` — no `data`.
         isNativeMock.mockReturnValue(true);
         sendSmsMock.mockResolvedValue(undefined);
 
@@ -104,8 +102,6 @@ describe('sendInviteMessage', () => {
     });
 
     it('answers false instead of rejecting when the browser refuses the clipboard write', async () => {
-        // The web path throws `NotAllowedError` on a denied permission; the invite is already issued
-        // by then, so the caller must hear "not handed off", not "failed".
         isNativeMock.mockReturnValue(false);
         copyMessageToClipboardMock.mockRejectedValue(new Error('NotAllowedError: Write permission denied.'));
 

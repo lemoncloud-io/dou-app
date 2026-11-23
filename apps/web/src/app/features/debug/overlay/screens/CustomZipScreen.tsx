@@ -6,18 +6,6 @@ import { useDebugOperation } from '../../hooks';
 import { appBridge } from '../../../../bridge';
 import { useCustomZipScreenStrings } from '../../i18n/screens/CustomZipScreen';
 
-/**
- * Point the app's WebView at a custom web build — the app's Settings screen, moved here
- * (ADR-0080 decision 11 · open question 4).
- *
- * **PROD builds refuse, and the app decides that.** A zip URL chooses the code the WebView runs, so
- * it is the same production security surface decision 13 removed the web-address switcher for. The guard
- * lives natively on the baked `VITE_ENV` (`useCustomZipHandler`) precisely so a compromised web
- * bundle cannot unlock it — this screen only reports what the app says.
- *
- * Turning it OFF is never refused: a device that flipped to a PROD build while a zip was active
- * still needs a way back.
- */
 interface Status {
     allowed: boolean;
     localRoot: string | null;
@@ -39,8 +27,6 @@ export const CustomZipScreen = () => {
                 serverUrl: res.data?.serverUrl ?? null,
             });
         } catch {
-            // No shell, or an app build without the handler. The apply button reports that properly
-            // through `run`; a status read failing just means "nothing to show".
             setStatus(null);
         }
     }, []);

@@ -5,18 +5,6 @@ import { webClient } from '@chatic/bridges';
 
 import { useUploadTestScreenStrings } from '../../i18n/screens/UploadTestScreen';
 
-/**
- * Drives the native file-transfer module against the local S3 stand-in
- * (`node scripts/upload-test-server.js`). The scenario is part of the URL, so each run only changes
- * where the transfer points: success, an expired signature, an existing key, a slow link, or a
- * dropped connection.
- *
- * `signed` is the one run against a real signature check: the test server hands out a SigV4
- * presigned PUT for a local MinIO (its `/s3/_presign`), signed over `content-length`,
- * `content-type` and `host`. A 200 there is the evidence that the header filtering keeps a real
- * signature valid; a short expiry turns it into the store's own expired-signature 403.
- */
-
 type LogLevel = 'info' | 'success' | 'warning' | 'error';
 
 interface LogEntry {
@@ -38,7 +26,6 @@ type Scenario = 'ok' | 'expired' | 'exists' | 'slow' | 'drop' | 'signed';
 
 const SCENARIOS: Scenario[] = ['ok', 'expired', 'exists', 'slow', 'drop', 'signed'];
 
-/** A presigned PUT from the test server's `/s3/_presign`, for one file's exact length and type. */
 const fetchPresigned = async (root: string, file: StagedFile, expires: number) => {
     const query = new URLSearchParams({
         length: String(file.size),
@@ -112,7 +99,6 @@ const formatBytes = (bytes: number) => {
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 };
 
-/** The error code and message a rejected bridge request carries. */
 const errorOf = (e: unknown) => {
     const code = (e as { code?: string })?.code ?? 'UNKNOWN';
     const message = (e as { message?: string })?.message ?? String(e);
@@ -125,17 +111,8 @@ const summarize = (t: OnFileTransferStatePayload) => {
     return t.state;
 };
 
-/**
- * The test server runs beside the web dev server, so the host this page was loaded from reaches
- * it: `localhost` on a simulator or an emulator (through `adb reverse`), the machine's LAN address
- * on a real device.
- */
 const defaultTestServer = () => `http://${window.location.hostname || 'localhost'}:8080`;
 
-/**
- * Not `crypto.randomUUID`: it exists only in a secure context, and a real device loads the dev
- * server over plain http from a LAN address. `getRandomValues` has no such limit.
- */
 const newTransferId = () =>
     Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
 
@@ -172,7 +149,6 @@ export const UploadTestScreen = () => {
         setTransfers(prev => ({ ...prev, [state.transferId]: state }));
     }, []);
 
-    // Every state change arrives as one event; terminal ones are logged, running ones only update the row.
     useEffect(() => {
         const unsubscribe = webClient.onEvent('OnFileTransferState', message => {
             const state = message.data;
@@ -245,7 +221,6 @@ export const UploadTestScreen = () => {
         [addLog, strings]
     );
 
-    // Exercises the path a resized image takes: bytes that exist only in web memory become a file first.
     const stageFromMemory = useCallback(async () => {
         const bytes = new Uint8Array(32 * 1024).map((_, i) => i % 256);
         const base64 = btoa(String.fromCharCode(...bytes));
@@ -281,8 +256,6 @@ export const UploadTestScreen = () => {
                         direction: 'upload',
                         url: signed?.url ?? targetUrl,
                         method: 'PUT',
-                        // content-length is included on purpose: a presigned PUT lists it among the signed
-                        // headers, and the shell has to drop it rather than set it twice.
                         headers: signed?.headers ?? { 'content-type': file.type, 'content-length': String(file.size) },
                         file: { uri: file.uri, contentType: file.type, contentLength: file.size },
                         title: file.name,

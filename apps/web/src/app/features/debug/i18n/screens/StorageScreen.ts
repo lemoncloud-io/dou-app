@@ -18,7 +18,8 @@ const en = {
         media: { vault: 'Device vault', localStorage: 'localStorage', sessionStorage: 'sessionStorage' },
         notRecorded: 'Not recorded — the entry point did not run in this page.',
         vaultBlocked: {
-            nativeOwned: 'The app holds the session this launch; the page never opens the vault, so its keys cannot be read here.',
+            nativeOwned:
+                'The app holds the session this launch; the page never opens the vault, so its keys cannot be read here.',
             unavailable: 'The app could not read the vault this run; session secrets fell back to sessionStorage.',
         },
     },
@@ -84,13 +85,11 @@ const en = {
     clearBoth: 'Clear both',
     keyCount: (count: number) => (count === 1 ? '1 key' : `${count} keys`),
     rowCount: (count: number) => (count === 1 ? '1 row' : `${count} rows`),
-    /** Labels passed to `run` — shown as the operation name in the result line. */
     operations: {
         load: 'Read native storage',
         clearNative: 'Clear app cache',
         clearWeb: 'Clear web cache',
     },
-    /** Result-line text for a partial clear, which does not reload so the reader can see it. */
     nativeFailed: (tables: string) => `Some tables did not clear: ${tables}`,
 };
 
@@ -112,7 +111,8 @@ const ko: typeof en = {
         media: { vault: '기기 보관함 (vault)', localStorage: 'localStorage', sessionStorage: 'sessionStorage' },
         notRecorded: '기록 없음 — 이 페이지에서는 엔트리 포인트가 실행되지 않았습니다.',
         vaultBlocked: {
-            nativeOwned: '이번 실행은 앱이 세션을 갖고 있어 페이지가 vault를 열지 않습니다. 여기서는 키를 읽을 수 없습니다.',
+            nativeOwned:
+                '이번 실행은 앱이 세션을 갖고 있어 페이지가 vault를 열지 않습니다. 여기서는 키를 읽을 수 없습니다.',
             unavailable: '이번 실행에 앱이 vault를 읽지 못해 세션 비밀값이 sessionStorage로 대체되었습니다.',
         },
     },

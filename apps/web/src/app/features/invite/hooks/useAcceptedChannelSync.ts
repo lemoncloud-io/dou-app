@@ -2,31 +2,10 @@ import { useEffect, useState } from 'react';
 
 import { runtime } from '@chatic/runtime';
 
-/**
- * How long the waiting screen waits for a locally-synced channel record before giving up and
- * falling back to a home redirect.
- */
 const SYNC_TIMEOUT_MS = 8_000;
 
-export type AcceptedChannelSyncStatus =
-    /** No `channelId` to watch yet (backend timing not confirmed — ADR-0089 request #5). */
-    | 'unknown'
-    /** Watching `channel.observeItem` for the record to sync locally. */
-    | 'waiting'
-    /** The channel synced — safe to navigate to the room. */
-    | 'ready'
-    /** It did not sync within `SYNC_TIMEOUT_MS` — fall back to a home redirect. */
-    | 'timeout';
+export type AcceptedChannelSyncStatus = 'unknown' | 'waiting' | 'ready' | 'timeout';
 
-/**
- * Waits for an accepted invite's channel to become available locally.
- *
- * `invite.accept`'s response never carries a `channelId` (the room is created asynchronously),
- * and whether/when `invite.list` later denormalizes one back onto the invite view is an open
- * backend question (roadmap backend request #5). So this only ever has something to watch when the
- * view already happens to carry a `channelId`; otherwise it reports `unknown` immediately so the
- * caller can show a "check back from home" fallback instead of spinning forever.
- */
 export const useAcceptedChannelSync = (channelId: string | undefined): { status: AcceptedChannelSyncStatus } => {
     const { channel } = runtime.data.useRuntimeRepositories();
     const [status, setStatus] = useState<AcceptedChannelSyncStatus>(channelId ? 'waiting' : 'unknown');

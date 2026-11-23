@@ -9,11 +9,6 @@ const en = {
     redirectDomainLabel: 'Redirect domain',
     conversionResultLabel: 'Conversion result',
     convertAndGo: 'Convert and go',
-    /**
-     * `buildInviteRedirectUrl`/`buildInviteEntryParams` throw plain `Error`s in English (they stay
-     * English — see lib/buildInviteRedirectUrl.ts). The screen matches the thrown message against
-     * these keys to show table text instead; `unknown` covers anything unrecognised.
-     */
     errors: {
         invalidUrl: 'Not a valid URL.',
         missingCode: 'Input link is missing the code parameter.',
@@ -43,10 +38,6 @@ const ko: typeof en = {
 
 export const useInviteRedirectStrings = defineDebugStrings({ ko, en });
 
-/**
- * Maps the English message a thrown `Error` carries to the matching table key — see the `errors`
- * doc comment above for why the source messages are English.
- */
 const ERROR_MESSAGE_TO_KEY: Record<string, keyof typeof en.errors> = {
     'Not a valid URL.': 'invalidUrl',
     'Input link is missing the code parameter.': 'missingCode',

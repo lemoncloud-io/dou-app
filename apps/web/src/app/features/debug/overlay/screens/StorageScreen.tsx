@@ -39,18 +39,10 @@ type NativeState =
 type ClearTarget = 'native' | 'web' | 'both';
 
 export interface StorageScreenProps {
-    /** Test seam; the browser's own storage otherwise. */
     env?: WebStorageEnv;
-    /**
-     * Test seam. `reload` keeps the URL (a native clear leaves the session alone); `root` starts over
-     * at `/`, because after a web clear the route the page was on belongs to a session that is gone.
-     */
     navigate?: (to: 'reload' | 'root') => void;
-    /** Test seam; the stores `main.tsx` recorded otherwise. */
     active?: ActiveStores | null;
-    /** Test seam; the adapter ids `main.tsx` recorded otherwise. */
     choices?: ActivePortChoices;
-    /** Test seam; who holds the session this launch, as the entry point settled it. */
     sessionOwner?: 'web' | 'native';
 }
 
@@ -61,7 +53,6 @@ const defaultNavigate = (to: 'reload' | 'root') => {
     else window.location.reload();
 };
 
-/** One name with its size, wrapping a long key instead of pushing the size off the panel. */
 const SizeLine = ({ name, detail, tag }: { name: string; detail: string; tag?: string }) => (
     <div className="flex items-start justify-between gap-2 text-xs">
         <span className="break-all font-mono">
@@ -72,27 +63,6 @@ const SizeLine = ({ name, detail, tag }: { name: string; detail: string; tag?: s
     </div>
 );
 
-/**
- * The key-value stores this run keeps state in — which ones, what each holds, and an editor over their
- * keys — and below that, both halves of what the device keeps with a clear for each.
- *
- * The top half reads the stores `main.tsx` resolved and recorded (`activeStorage`): only the media this
- * run actually uses are listed, each with the roles it plays (session secrets, session state, app and
- * tab state), and edits go through those very store objects. A key browser that read
- * `window.localStorage` instead would miss the vault entirely and, where site data is blocked, read a
- * different object from the one the app writes.
- *
- * Inside the app the WebView's storage holds the session — sign-in, the per-cloud token cache, the
- * selected cloud — while the chat cache and the invited-cloud list live in the native shell's SQLite.
- * The Settings clear empties only the chat cache, and a WebView reset leaves the native half, so a
- * stale entry on either side survived the clear people reached for. This screen shows both and clears
- * either or both.
- *
- * Every clear reloads afterwards, because screens and react-query still hold what they already read.
- * A partial native clear does not, so the failure stays on screen. Each successful clear also asks the
- * next boot to retire every sync cursor saved before it: a sync in flight during the clear can land
- * afterwards and record "synced up to now" over an emptied store, and the gap would never fill.
- */
 export const StorageScreen = ({
     env: envProp,
     navigate = defaultNavigate,
@@ -103,7 +73,6 @@ export const StorageScreen = ({
     const t = useStorageScreenStrings();
     const [active] = useState(() => (activeProp === undefined ? readActiveStores() : activeProp));
     const choices = choicesProp ?? readPortChoices();
-    // Undefined outside the app shell, where only the page can hold the session.
     const sessionOwner = ownerProp ?? readLaunchSessionOwner() ?? 'web';
     const media = useMemo(() => (active ? activeKeyValueMedia(active, sessionOwner) : []), [active, sessionOwner]);
     const roles = active ? describeStoreRoles(active) : null;
@@ -112,12 +81,10 @@ export const StorageScreen = ({
     const [web, setWeb] = useState<WebStorageSummary | null>(null);
     const [native, setNative] = useState<NativeState>({ status: 'loading' });
     const [includeInvitedClouds, setIncludeInvitedClouds] = useState(false);
-    // Clears take two taps: the first arms the button, the second runs it.
     const [armed, setArmed] = useState<ClearTarget | null>(null);
     const [busy, setBusy] = useState(false);
     const { result, run } = useDebugOperation();
     const warningId = useId();
-    // Refresh can be pressed while a slow native scan is still out; only the latest load may land.
     const loadSeq = useRef(0);
 
     const load = useCallback(async () => {
@@ -147,13 +114,11 @@ export const StorageScreen = ({
         void load();
     }, [load]);
 
-    /** True when the native tables all cleared. */
     const clearNative = async (): Promise<boolean> => {
         let cleared = false;
         await run(t.operations.clearNative, async () => {
             const res = await appBridge.clearNativeCache(includeInvitedClouds);
             const failed = res.data?.failed ?? [];
-            // Thrown so the result line reports it as a failure, not as a response to read.
             if (failed.length > 0) throw new Error(t.nativeFailed(failed.join(', ')));
             cleared = true;
             return res;
@@ -161,11 +126,6 @@ export const StorageScreen = ({
         return cleared;
     };
 
-    /**
-     * The databases go first because deleting them awaits; the storages go last, synchronously, and the
-     * page leaves in the same task. The app keeps running until then, and a token refresh or a store
-     * write that slipped in after the storages emptied would put session state straight back.
-     */
     const clearWebAndLeave = async () => {
         let databases: Awaited<ReturnType<typeof clearWebDatabases>>;
         try {
@@ -176,9 +136,6 @@ export const StorageScreen = ({
             });
             return false;
         }
-        // The vault too, where the shell keeps one: the session's tokens are there, not in the two web
-        // storages, and a wipe has to leave the next load signed out. Awaited before the synchronous
-        // part, which must not be split by a wait.
         if (env.clearVault && !(await env.clearVault())) {
             await run(t.operations.clearWeb, async () => {
                 throw new Error('the device vault was not cleared');
@@ -187,10 +144,7 @@ export const StorageScreen = ({
         }
         try {
             const stores = clearWebStores(env);
-            // Written after the wipe so it survives it; read by the next boot — so waited for, before
-            // the page goes.
             await runtime.data.requestSyncCursorReset();
-            // The result line is gone with the page, so the outcome goes to the logs, which the wipe keeps.
             logger.info('APP', 'debug storage: web cache cleared', { data: { ...databases, ...stores } });
         } catch (e) {
             await run(t.operations.clearWeb, async () => {
@@ -205,7 +159,6 @@ export const StorageScreen = ({
     const execute = async (target: ClearTarget) => {
         setArmed(null);
         setBusy(true);
-        // Native first: if it fails, the person is still signed in to see why and retry.
         if (target !== 'web' && !(await clearNative())) {
             setBusy(false);
             void load();
@@ -243,7 +196,13 @@ export const StorageScreen = ({
                 {roles ? (
                     ROLE_ORDER.map(role => {
                         const medium = roles[role];
-                        return <Row key={role} label={t.active.roles[role]} value={medium ? t.active.media[medium] : '—'} />;
+                        return (
+                            <Row
+                                key={role}
+                                label={t.active.roles[role]}
+                                value={medium ? t.active.media[medium] : '—'}
+                            />
+                        );
                     })
                 ) : (
                     <p className="text-xs text-muted-foreground">{t.active.notRecorded}</p>
@@ -296,7 +255,6 @@ export const StorageScreen = ({
                                 aria-describedby={warningId}
                                 onChange={e => {
                                     setIncludeInvitedClouds(e.target.checked);
-                                    // A confirmation given before the box changed does not cover what it adds.
                                     setArmed(null);
                                 }}
                                 className="mt-0.5"

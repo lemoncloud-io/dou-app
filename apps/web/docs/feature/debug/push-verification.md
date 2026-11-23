@@ -42,6 +42,14 @@ server state; it cannot corrupt it.
 
 It also uses the same identity production uses: `useDynamicDeviceId()` supplies `deviceId` and
 `firebaseInstallationId`, so the record this confirms is the record the app actually writes.
+The verdict is read defensively. The live `register-device` response is flatter than its published
+type (`endpoint`, `status`, `updatedAt` and `deviceId` come back at the top level), and an older
+nested `User.*` shape is read too. The device counts as registered when `status` is `active`, or an SNS
+endpoint or device record is present. `Registered` is shown as a local date; the backend may send epoch
+seconds or milliseconds depending on the record, so a value below about 1e10 is scaled up as seconds,
+and a value that is not a date is echoed raw. The Log Buffer screen applies the same seconds-or-milliseconds
+rule to log timestamps, because the native buffers stamp seconds and the web buffer milliseconds.
+
 The `state` line reports where the run stopped:
 
 | `state`     | Meaning                                                       |

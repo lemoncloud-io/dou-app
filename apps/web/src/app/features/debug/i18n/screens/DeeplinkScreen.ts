@@ -9,7 +9,6 @@ const en = {
     willSend: (url: string) => `Will send: ${url}`,
     sendToApp: 'Send to app',
     commonOnes: 'Common ones',
-    /** Keyed by `PRESET_INPUTS`' `key` — the component looks the label up per preset. */
     presets: {
         home: 'Home',
         chatList: 'Chat list',
@@ -18,7 +17,6 @@ const en = {
     },
     sentLogTitle: 'Sent log',
     nothingSentYet: 'Nothing sent yet',
-    /** Prefixed in the component with the send timestamp. */
     sentLine: (url: string) => `sent → ${url}`,
 };
 

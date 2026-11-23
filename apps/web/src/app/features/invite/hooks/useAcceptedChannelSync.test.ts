@@ -2,8 +2,6 @@ import { act, renderHook } from '@testing-library/react';
 
 const observeItemMock = jest.fn();
 const unsubscribeMock = jest.fn();
-// Stable across renders, like the real useRuntimeRepositories() (a cached singleton) — a fresh
-// object per call would make the effect's `[channel, channelId]` deps "change" every render.
 const repositories = { channel: { observeItem: observeItemMock } };
 
 jest.mock('@chatic/runtime', () =>

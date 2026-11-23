@@ -7,8 +7,6 @@ import { setDebugLanguageForTests } from '../../i18n';
 import { clearDebugObservation, publishDebugObservation } from '../sharedObservationStore';
 import type { ActiveCloudData, OtherCloudUnread } from '../../../../hooks';
 
-// The tab is mounted OUTSIDE the providers (see DebugOverlayHost), so what this suite pins is the
-// contract that replaced the crash: read the mirror, and say so when nothing is mirrored yet.
 const ACTIVE_CLOUD = {
     channels: [{ id: 'ch-1', name: '채널1', sid: 'site-1', chatNo: 10, metaNo: 10 }],
     isLoaded: true,
@@ -29,7 +27,6 @@ describe('UnreadScreen — 오버레이 안읽음 인스펙터', () => {
     afterEach(() => restoreLanguage());
 
     it('공유 관측이 없으면 던지지 않고 아직 게시되지 않았다고 알린다', () => {
-        // The provider-missing throw used to reach the app-wide boundary and blank the whole UI.
         expect(() => render(<UnreadScreen />)).not.toThrow();
         expect(screen.getByText(/hasn't been published yet/)).toBeInTheDocument();
     });
@@ -38,14 +35,12 @@ describe('UnreadScreen — 오버레이 안읽음 인스펙터', () => {
         publishDebugObservation({ activeCloud: ACTIVE_CLOUD, otherCloud: OTHER_CLOUD });
         render(<UnreadScreen />);
 
-        // active 3 + inactive 2 = app badge 5.
         expect(screen.getByText('5')).toBeInTheDocument();
         expect(screen.getByText('head 10/10 · cursor 7/7 = 3')).toBeInTheDocument();
         expect(screen.getByText('cloud-b')).toBeInTheDocument();
     });
 
     it('비활성 클라우드 절반이 없어도 활성 숫자는 계속 보여준다', () => {
-        // The two halves come from separate providers; a missing one must not hide the other.
         publishDebugObservation({ activeCloud: ACTIVE_CLOUD });
         render(<UnreadScreen />);
 

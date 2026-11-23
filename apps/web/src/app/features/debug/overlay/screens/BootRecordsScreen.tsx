@@ -10,22 +10,8 @@ import { appBridge } from '../../../../bridge';
 
 type BootRecordsScreenStrings = ReturnType<typeof useBootRecordsScreenStrings>;
 
-/**
- * What the NATIVE side recorded about past boots — moved here from the app's own Boot Performance
- * screen (ADR-0080 decision 11).
- *
- * Not the same thing as the Boot tab. That one measures the CURRENT web session live (navigation
- * timing, paint vitals, asset cache hits) and is web-only; this one is the persisted history of
- * merged records, one per boot, where the native milestones and the web snapshot sit side by side.
- * A record only exists after a boot finished, so this list answers "how did the last N launches
- * go", which is the question the live tab cannot.
- *
- * The two counters come back with the same request because the app reports them together: they
- * describe the running app, not any one record.
- */
 const ms = (value: number | null | undefined) => (value != null ? `${value} ms` : null);
 
-/** Native milestones in timeline order, so rows read top to bottom as the boot happened. */
 const NATIVE_MARK_KEYS = [
     'provider-ready',
     'app-mount',
@@ -35,7 +21,6 @@ const NATIVE_MARK_KEYS = [
     'web-app-ready',
 ] as const;
 
-/** Maps each native mark key to its label in the `t.nativeMarks` table above. */
 const NATIVE_MARK_LABEL_KEYS: Record<(typeof NATIVE_MARK_KEYS)[number], keyof BootRecordsScreenStrings['nativeMarks']> =
     {
         'provider-ready': 'providerReady',
@@ -56,7 +41,6 @@ export const BootRecordsScreen = () => {
     const t = useBootRecordsScreenStrings();
     const [loaded, setLoaded] = useState<Loaded | null>(null);
     const [busy, setBusy] = useState(false);
-    // Shared so the result wording is the same here as on every other screen.
     const { result, run } = useDebugOperation();
 
     const load = useCallback(async () => {

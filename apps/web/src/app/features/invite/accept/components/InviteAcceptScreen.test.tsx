@@ -66,8 +66,6 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
     });
 
     it('shows the place card for a 1:1 invite too', () => {
-        // The gate is the data, not the room kind: a 1:1 invite is still an invite INTO a place, and
-        // the 1:1 design node draws the card (reversing ADR-0037 decision 1).
         setup({ targetKind: 'oneToOne', placeName: '레몬클라우드', placeIntro: '함께 일하는 공간' });
 
         expect(screen.getByTestId('invite-place-card')).toBeTruthy();
@@ -81,8 +79,6 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
     });
 
     it('folds the place card away for a group invite with nothing to show', () => {
-        // Asserts on the card, not its copy: with no place props passed, a copy-only assertion would
-        // hold even if the gate were removed entirely.
         setup({ targetKind: 'group' });
 
         expect(screen.queryByTestId('invite-place-card')).toBeNull();
@@ -154,13 +150,6 @@ describe('InviteAcceptScreen — shared chrome', () => {
         expect(screen.queryByText('Sunny')).toBeNull();
     });
 
-    // jsdom has no layout, so this asserts the rule rather than the pixels it prevents. It earns its
-    // keep because the pair is load-bearing and non-obvious: the name is free text, `break-keep`
-    // makes an unbroken Korean run the heading's min-content width, and the heading sits under
-    // `items-center` where it is sized to content — so a long name grew the block past the surface
-    // (measured 398px inside a 343px column) and got clipped off-screen. `break-words` was measured
-    // and does NOT fix it: `overflow-wrap: break-word` leaves intrinsic sizing alone. Only
-    // `anywhere` shrinks min-content, and only when the text would otherwise spill.
     it('국제/장문 이름이 넘치지 않도록 heading이 break-keep과 anywhere를 함께 건다', () => {
         setup({ inviterName: '아주아주아주긴이름을가진사용자님' });
 
@@ -189,9 +178,6 @@ describe('InviteAcceptScreen — shared chrome', () => {
         expect(onClose).not.toHaveBeenCalled();
     });
 
-    // A freshly mounted backdrop layer composites late on an iOS device, and this screen mounts
-    // full-viewport ones as it opens — which showed as a black flash down the right edge. Every
-    // backdrop here is a soft gradient a blur cannot visibly change, so the screen carries none.
     it('opens without any backdrop-filter layer', () => {
         const { container } = setup({ targetKind: 'group', placeName: '레몬클라우드' });
 

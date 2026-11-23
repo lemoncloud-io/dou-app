@@ -14,14 +14,6 @@ import {
 } from '../../lib/roomInspector';
 import { useDebugObservation, type DebugRoomObservation } from '../sharedObservationStore';
 
-// Room inspector: the open room's (or thread's) channel and messages as raw JSON, next to the cache
-// row and a fresh server copy of the same record. Tracing a wrong bubble means telling apart three
-// copies — what the screen holds, what the cache holds, what the server says — and the DB browser
-// reaches only the cache, and only by typing a channel id.
-//
-// The page publishes what it holds into the mirror (`useDebugRoomMirror`); this screen never opens
-// its own observation, for the same reason the Unread screen does not: a second read could disagree
-// with the screen in exactly the case being traced.
 export const RoomScreen = () => {
     const t = useRoomScreenStrings();
     const { room: current, roomFocus } = useDebugObservation();
@@ -33,9 +25,6 @@ export const RoomScreen = () => {
             ? roomFocus.messageId
             : null;
 
-    // Keyed by what is open, so a page moving to another channel without unmounting (a push tap while
-    // already in a room) drops the lookups fetched for the previous one instead of showing them beside
-    // the new channel.
     return (
         <div key={`${current.surface}:${current.channelId}`} className="space-y-3 p-4">
             <div className="flex items-center gap-2">
@@ -68,7 +57,6 @@ const FocusSection = ({ observation, focusId }: { observation: DebugRoomObservat
     const row = findInspectorRow(observation, focusId);
     const ref = useRef<HTMLDivElement>(null);
 
-    // A new long-press brings its message into view; the panel may have been scrolled down the list.
     useEffect(() => {
         ref.current?.scrollIntoView?.({ block: 'nearest' });
     }, [focusId]);
@@ -133,7 +121,6 @@ const MessageItem = ({ chat, isFocused }: { chat: DomainChat; isFocused: boolean
     const t = useRoomScreenStrings();
     const [expanded, setExpanded] = useState(false);
     const { label, flags, stereo } = summarizeChat(chat);
-    // The stereo is the server's own value, shown as data rather than translated.
     const badges = [...flags.map(flag => t.flags[flag]), ...(stereo ? [stereo] : [])];
 
     return (
@@ -165,7 +152,6 @@ const ChatRecord = ({ chat }: { chat: DomainChat }) => (
     <RawRecord
         value={chat}
         readCache={() => runtime.data.getCloudRepositories(chat.cid ?? '').chat.cacheRead(chat.id)}
-        // A row with no chat number exists only on this device; the server has nothing to answer with.
         readServer={
             chat.chatNo ? () => runtime.data.getCloudRepositories(chat.cid ?? '').chat.getChat({ id: chat.id }) : null
         }
@@ -186,11 +172,6 @@ const ChannelRecord = ({ channel }: { channel: DomainChannel }) => (
 
 type Lookup = { state: 'loading' } | { state: 'done'; value: unknown } | { state: 'failed'; message: string };
 
-/**
- * One record three ways: the value the screen holds, always shown, and the cache and server copies,
- * each fetched only when asked for — a server read is a real request, and the panel stays quiet
- * until someone wants it.
- */
 const RawRecord = ({
     value,
     readCache,
@@ -219,7 +200,6 @@ const RawRecord = ({
             <div className="flex flex-wrap gap-1">
                 <button
                     type="button"
-                    // Disabled while in flight, so a slower earlier answer cannot land over a newer one.
                     disabled={cache?.state === 'loading'}
                     onClick={() => run(readCache, setCache)}
                     className="rounded-full bg-muted px-2.5 py-1 text-[12px] text-muted-foreground disabled:opacity-50"

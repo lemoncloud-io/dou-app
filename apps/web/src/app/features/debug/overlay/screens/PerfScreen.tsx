@@ -10,15 +10,11 @@ import { useRuntimeMetrics } from '../../metrics/useRuntimeMetrics';
 import { getLongTaskStats, isLongTaskSupported, type LongTaskStats } from '../../metrics/longTasks';
 import { getVitals, type VitalSample } from '../../../../utils/webVitalsStore';
 
-// performance.memory is Chrome/Android-WebView only (absent in WKWebView).
 const readUsedHeapMb = (): number | null => {
     const memory = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
     return memory ? Math.round(memory.usedJSHeapSize / 1024 / 1024) : null;
 };
 
-// All values are computed web-side by the MetricsCollector; this tab only renders
-// the snapshot plus a 1s poll of the live sync target registry. The registry is read
-// asynchronously, so the list starts empty and fills in with the first answer.
 export const PerfScreen = () => {
     const strings = usePerfScreenStrings();
     const metrics = useRuntimeMetrics();
@@ -32,8 +28,6 @@ export const PerfScreen = () => {
         let latest = 0;
         let active = true;
         const poll = () => {
-            // An answer that lands after a newer poll started, or after unmount, is dropped; a failed
-            // read keeps the last list.
             const seq = ++latest;
             runtime.sync.listSyncTargets().then(
                 next => {

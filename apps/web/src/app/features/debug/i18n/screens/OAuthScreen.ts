@@ -5,7 +5,6 @@ const en = {
     subtitle: "Opens the app's native sign-in sheet — a separate path from the web relay",
     login: 'Login',
     logout: 'Logout',
-    /** Passed to `useDebugOperation().run()` — `provider` is a technical id (`google`/`apple`), left as-is. */
     operationLabels: {
         login: (provider: string) => `${provider} login`,
         logout: (provider: string) => `${provider} logout`,

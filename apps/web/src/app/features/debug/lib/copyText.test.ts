@@ -1,5 +1,3 @@
-// The host's port, so the test controls the app/page side directly: the app's copy is watched, the
-// page's is the real Clipboard API over a mocked `navigator.clipboard`.
 const mockIsNative = jest.fn();
 const mockAppCopy = jest.fn();
 jest.mock('@chatic/runtime', () => {
@@ -24,7 +22,6 @@ describe('copyText', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         writeTextMock = jest.fn();
-        // jsdom has no navigator.clipboard by default — define it per test.
         Object.defineProperty(navigator, 'clipboard', {
             value: { writeText: writeTextMock },
             configurable: true,
@@ -54,11 +51,6 @@ describe('copyText', () => {
     });
 });
 
-/**
- * `copyTextWithResult` is the path `CopyButton` renders an outcome from, so what matters here is
- * that the boolean is EARNED. Both sides can answer — `CopyToClipboard` is a `webClient.request`,
- * and `writeText` returns a promise — so "Copied" must never be a guess.
- */
 describe('copyTextWithResult', () => {
     let writeTextMock: jest.Mock;
 
@@ -84,7 +76,6 @@ describe('copyTextWithResult', () => {
         expect(writeTextMock).toHaveBeenCalledWith('hello');
     });
 
-    // An insecure context or an old WebView. The old implementation silently passed through and looked like success.
     it('Clipboard API가 아예 없으면 실패로 답한다', async () => {
         Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true });
 

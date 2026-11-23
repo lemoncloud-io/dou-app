@@ -7,15 +7,6 @@ import { setDebugModeEnabled } from './useDebugMode';
 const TAP_THRESHOLD = 10;
 const TAP_RESET_MS = 3000;
 
-/**
- * Owns the two-step unlock gate: tap the app version 10 times within 3s to open the
- * entry-code challenge, then match `expectedCode` to actually flip debug mode on.
- *
- * Tap count and challenge state are component-local (unlike `useDebugMode`'s shared
- * signal) — only the screen driving the unlock attempt needs to know about them.
- *
- * `expectedCode` unset means fail-closed: tapping never opens the challenge.
- */
 export const useDebugUnlock = (expectedCode: string | undefined) => {
     const [isChallengeOpen, setChallengeOpen] = useState(false);
     const [hasError, setHasError] = useState(false);
@@ -45,7 +36,6 @@ export const useDebugUnlock = (expectedCode: string | undefined) => {
 
         if (tapCountRef.current >= TAP_THRESHOLD) {
             tapCountRef.current = 0;
-            // No code configured — stay silent rather than opening a challenge nothing can pass.
             if (expectedCode) setChallengeOpen(true);
         }
     }, [expectedCode]);

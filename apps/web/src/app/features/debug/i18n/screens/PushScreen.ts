@@ -16,7 +16,6 @@ const en = {
         registeredAtLabel: 'Registered',
         statusLabel: 'Status',
     },
-    /** Passed into `usePushRegistration` — the hook stays free of user-visible text. */
     errors: {
         noNative: 'Push token is only available inside the native app shell.',
         noToken: 'No push token — permission denied or not issued yet.',
@@ -33,7 +32,6 @@ const en = {
         badgeToZero: 'Badge to 0',
         reproducePushTap: 'Reproduce push tap',
     },
-    /** Labels passed to `run`/`fire` — shown as the operation name in the result line. */
     operations: {
         deleteToken: 'Delete token',
         requestPermission: 'Request notification permission',

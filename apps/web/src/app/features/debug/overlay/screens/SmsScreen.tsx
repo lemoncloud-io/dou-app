@@ -4,13 +4,6 @@ import { useDebugOperation } from '../../hooks';
 import { useSmsScreenStrings } from '../../i18n/screens/SmsScreen';
 import { appBridge } from '../../../../bridge';
 
-/**
- * SMS compose — the app's SMS Test screen, moved here (ADR-0080 decision 11).
- *
- * `SendSms` hands the OS a prefilled compose sheet; the person still presses send, so nothing is
- * sent without a human. `GetContacts` is here for the same reason the app's screen had it: picking
- * a real number beats typing one.
- */
 export const SmsScreen = () => {
     const strings = useSmsScreenStrings();
     const { result, run } = useDebugOperation();

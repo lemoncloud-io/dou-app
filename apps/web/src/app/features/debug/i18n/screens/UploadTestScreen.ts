@@ -1,13 +1,5 @@
 import { defineDebugStrings } from '../define';
 
-/**
- * This screen was English at HEAD, so `ko` below is freshly written rather than pulled from
- * history.
- *
- * Left out on purpose (technical, identical in both languages): the scenario names (`ok`,
- * `expired`, …, which double as `/s3/<scenario>` URL segments), the `1 MB`/`100 MB` size labels,
- * `formatBytes`'s unit letters, transfer/error codes, and `summarize`'s raw `t.state` fallback.
- */
 const en = {
     mobileOnlyNotice: 'File transfer runs in the native shell only. Open this screen inside the mobile app.',
     sections: {
@@ -31,7 +23,6 @@ const en = {
         cancel: 'Cancel',
         clear: 'Clear',
     },
-    /** Tags shown next to each log line, one per call site of `addLog`. */
     logTags: {
         picker: 'Picker',
         generator: 'Generator',

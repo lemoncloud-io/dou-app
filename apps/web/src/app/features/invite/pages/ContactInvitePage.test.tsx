@@ -11,24 +11,16 @@ const findByPhone = jest.fn();
 const sendInviteMessage = jest.fn();
 let mockInvites: Array<{ id: string; state?: string }> = [];
 let mockIsGuest = false;
-/**
- * What the server says about this user's own number. `'unknown'` (no profile yet / no `link$` slot)
- * must NOT gate — see ADR-0042 §5.
- */
 let mockLinkedPhone: 'linked' | 'absent' | 'unknown' = 'linked';
-/** The profile gate's verdict: undefined = read in flight, true = must create one first. */
 let mockProfileAbsent: boolean | undefined = false;
-/** Stateful, like the real hook: marking present must actually flip the verdict. */
 const markPresent = jest.fn(() => {
     mockProfileAbsent = false;
 });
-/** Route state — carries the `reinvite` entry when the 1:1 room sent us here (ADR-0068). */
 let mockRouteState: unknown = null;
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
-// Only the role gate is read here; the sheet itself is stubbed below.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
@@ -40,11 +32,7 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => navigate,
 }));
-// Only `useLocation` is read (the re-invite entry rides in route state); rendering without a Router
-// would otherwise throw its "may be used only in the context of a Router" invariant.
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ state: mockRouteState }) }));
-// The real barrel also exports CloudLogo, which needs `@chatic/assets` (not resolvable under
-// jest) — mocked the same way InvitePage.test.tsx does, since only PageHeader is used here.
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
@@ -58,8 +46,6 @@ jest.mock('../../../hooks', () => ({
     usePlaceProfileAbsent: () => ({ absent: mockProfileAbsent, markPresent }),
     useSetMyPlaceProfile: () => jest.fn(),
 }));
-// Stubbed like PhoneVerifySheet — the real dialog imports @chatic/runtime. `exit` is surfaced
-// because omitting it is what makes X leave at once (ADR-0041 decision 2).
 jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
     PlaceProfileCreateDialog: ({ placeName, onDone, onExit, exit }: any) => (
         <div>
@@ -70,18 +56,11 @@ jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
         </div>
     ),
 }));
-// The retire policy is covered by useRetireInvite.test.ts — here it is a seam, so each reissue
-// path can assert "retired first, then issued" without staging the mutations underneath.
 jest.mock('../hooks/useRetireInvite', () => ({ useRetireInvite: () => ({ retire }) }));
 jest.mock('../utils/sendInviteMessage', () => ({
     sendInviteMessage: (...args: unknown[]) => sendInviteMessage(...args),
 }));
-// Stubbed like ReinviteDialog: the sheet's own rendering is covered by PhoneVerifySheet.test.tsx and
-// its behaviour by PhoneVerifyScreen.test.tsx (same hook), and the real one pulls
-// @chatic/runtime's confirmPhoneLogin plus the Radix Sheet primitives.
 jest.mock('../../auth/components/PhoneVerifySheet', () => ({
-    // `mode` is surfaced because it is this page's decision: a guest opens a session (`login`), a main
-    // user without a number hangs one on the session they already have (`link`) — ADR-0042 §3.
     PhoneVerifySheet: ({ mode, onVerified, onClose }: any) => (
         <div>
             <span>verify-sheet:{mode}</span>
@@ -103,11 +82,6 @@ jest.mock('../components/ReinviteDialog', () => ({
 import { ContactInvitePage } from './ContactInvitePage';
 import { seedPhoneCountry } from '../../../../testing/phoneCountry';
 
-/**
- * jsdom reports `navigator.language` as `en-US`, which would open the picker on US and reject every
- * Korean number below. Seeding the remembered pick uses the production "last explicit pick wins"
- * path rather than stubbing around it (ADR-0044 §4).
- */
 const seedCountry = (code = 'KR') => {
     seedPhoneCountry(code);
 };
@@ -154,7 +128,6 @@ describe('ContactInvitePage', () => {
         const { rerender } = render(<ContactInvitePage />);
         fireEvent.click(screen.getByText('contactInvite.verifyPrompt.cta'));
 
-        // Once applySessionToken promotes the session, useRuntimeProfile reactively flips isGuest to false.
         mockIsGuest = false;
         fireEvent.click(screen.getByText('sheet-verified'));
         rerender(<ContactInvitePage />);
@@ -191,8 +164,6 @@ describe('ContactInvitePage', () => {
         await waitFor(() =>
             expect(createInvite).toHaveBeenCalledWith({ phone: '+821012345678', name: '홍길동', countryCode: 'KR' })
         );
-        // E.164 on both: the log key must not collide across countries, and the SMS composer needs
-        // a number the sender's own carrier can route (ADR-0044 §6).
         expect(record).toHaveBeenCalledWith(
             { id: 'invite-1', deeplink: 'https://dou.chatic.io/s?code=abc' },
             { phone: '+821012345678', name: '홍길동' }
@@ -236,7 +207,6 @@ describe('ContactInvitePage', () => {
             expect(createInvite).toHaveBeenCalledWith({ phone: '+821012345678', name: '홍길동', countryCode: 'KR' })
         );
         await waitFor(() => expect(navigate).toHaveBeenCalledWith('/invite/invite-new/waiting', { replace: true }));
-        // Best-effort ordering: the retire settled before the new code was issued.
         expect(retire.mock.invocationCallOrder[0]).toBeLessThan(createInvite.mock.invocationCallOrder[0]);
     });
 
@@ -287,7 +257,6 @@ describe('ContactInvitePage', () => {
         await waitFor(() => expect(screen.getByText(/^verify-sheet:/)).toBeInTheDocument());
         expect(navigate).not.toHaveBeenCalled();
 
-        // After verifying, only the sheet closes — the form input is still there, so the user resubmits (no auto-reissue).
         fireEvent.click(screen.getByText('sheet-verified'));
         expect(screen.queryByText(/^verify-sheet:/)).not.toBeInTheDocument();
         expect(createInvite).toHaveBeenCalledTimes(1);
@@ -303,7 +272,6 @@ describe('ContactInvitePage', () => {
         await waitFor(() => expect(screen.getByText(/^verify-sheet:/)).toBeInTheDocument());
         fireEvent.click(screen.getByText('sheet-verified'));
 
-        // A second 403 — since it comes back as the same user, reopening the sheet would be an infinite loop.
         fireEvent.click(screen.getByText('contactInvite.submit'));
         await waitFor(() =>
             expect(toast).toHaveBeenCalledWith({ title: 'contactInvite.issueForbidden', variant: 'destructive' })
@@ -312,7 +280,6 @@ describe('ContactInvitePage', () => {
     });
 
     it('403 폴백은 게이트 모드와 무관하게 항상 login이다 (ADR-0042 §3)', async () => {
-        // A main user with a number already linked — if the gate had opened, this would have been link mode.
         mockLinkedPhone = 'linked';
         createInvite.mockRejectedValue(new Error('403 FORBIDDEN - not a main user'));
 
@@ -320,7 +287,6 @@ describe('ContactInvitePage', () => {
         fillForm('홍길동', '01012345678');
         fireEvent.click(screen.getByText('contactInvite.submit'));
 
-        // The server doesn't see this session as a main user, so it has to be opened again — sending link would just come back with the same 403.
         await waitFor(() => expect(screen.getByText('verify-sheet:login')).toBeInTheDocument());
         expect(screen.queryByText('verify-sheet:link')).not.toBeInTheDocument();
     });
@@ -333,7 +299,6 @@ describe('ContactInvitePage', () => {
         fireEvent.click(screen.getByText('contactInvite.submit'));
         await waitFor(() => expect(screen.getByText('verify-sheet:login')).toBeInTheDocument());
 
-        // Closed with X — verification was never done.
         fireEvent.click(screen.getByText('sheet-close'));
         expect(screen.queryByText(/^verify-sheet:/)).not.toBeInTheDocument();
 
@@ -457,7 +422,6 @@ describe('ContactInvitePage — 번호 연결 전제조건 게이트 (ADR-0042)'
         const { rerender } = render(<ContactInvitePage />);
         fireEvent.click(screen.getByText('contactInvite.verifyPrompt.cta'));
 
-        // Once the server fills in link$.phone, useLinkedAccounts reactively lowers the gate.
         mockLinkedPhone = 'linked';
         fireEvent.click(screen.getByText('sheet-verified'));
         rerender(<ContactInvitePage />);
@@ -561,7 +525,6 @@ describe('ContactInvitePage — 프로필 전제조건 게이트 (ADR-0041)', ()
         rerender(<ContactInvitePage />);
 
         expect(markPresent).toHaveBeenCalledTimes(1);
-        // The gate actually closes and moves on to the form — pin down even the back half of the title.
         expect(screen.queryByText(/^profile-dialog:/)).not.toBeInTheDocument();
         expect(screen.getByPlaceholderText('contactInvite.namePlaceholder')).toBeInTheDocument();
     });
@@ -574,11 +537,6 @@ describe('ContactInvitePage — 프로필 전제조건 게이트 (ADR-0041)', ()
     });
 });
 
-/**
- * Re-invite from the room (ADR-0068 decision 2·3). Reuses the same form but with a channel
- * specified, ends right at the number input with no confirmation screen, and returns to the room
- * instead of the waiting screen.
- */
 describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -602,7 +560,6 @@ describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
         expect(screen.getByPlaceholderText('contactInvite.phonePlaceholder')).toHaveValue('01012345678');
     });
 
-    // If this device never sent that invite, it doesn't know the number — instead of blocking, it just asks with a blank field.
     it('번호를 모르면 이름만 채운 빈 폼으로 시작한다', () => {
         mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬' } };
 
@@ -627,12 +584,9 @@ describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
                 channelId: 'ch-1',
             })
         );
-        // Not the waiting screen — the room's footer already tells the same state.
         await waitFor(() => expect(navigate).toHaveBeenCalledWith('/channels/ch-1/room', { replace: true }));
     });
 
-    // Tapping "다시 초대하기" itself already means send again, and the room footer already showed the
-    // prior invite's state. The retire is not skipped though — two live codes for the same person must never happen.
     it('같은 번호 다이얼로그를 띄우지 않고, 이 방의 이전 초대를 거둔 뒤 발급한다', async () => {
         mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
         mockInvites = [{ id: 'invite-old', state: 'rejected', channelId: 'ch-1' } as never];
@@ -660,13 +614,10 @@ describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
         expect(retire).not.toHaveBeenCalled();
     });
 
-    // The submit button stays on screen during the retire round trip — without locking it, two taps
-    // would issue two codes (exactly the state retire was meant to prevent).
     it('retire가 도는 동안 두 번 탭해도 한 번만 발급한다', async () => {
         mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
         mockInvites = [{ id: 'invite-old', state: 'pending', channelId: 'ch-1' } as never];
         createInvite.mockResolvedValue({ id: 'invite-new', deeplink: 'https://dou.chatic.io/s?code=abc' });
-        // Holds the cancel open instead of letting it finish immediately — creates the same window as a real round trip.
         let releaseRetire: (value: string) => void = () => undefined;
         retire.mockReturnValue(
             new Promise<string>(resolve => {
@@ -687,7 +638,6 @@ describe('ContactInvitePage — 재초대 모드 (ADR-0068)', () => {
         expect(retire).toHaveBeenCalledTimes(1);
     });
 
-    // 409 = the other side accepted while this screen was still open. Show the room instead of handing out an unnecessary code.
     it('retire가 409면 발급하지 않고 방으로 보낸다', async () => {
         mockRouteState = { reinvite: { channelId: 'ch-1', name: '레몬', phone: '+821012345678' } };
         mockInvites = [{ id: 'invite-old', state: 'pending', channelId: 'ch-1' } as never];

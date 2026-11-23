@@ -22,11 +22,6 @@ export const EmailLoginScreen = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            // loginRelayUser builds credentials and hydrates the session internally, and the app
-            // re-renders off that session — so there is nothing to navigate to. Staying put also
-            // keeps the debug overlay open, which is the point of logging in from here: switch
-            // accounts and keep inspecting, instead of a full reload that drops the overlay and
-            // every metric collected so far.
             await login({ uid, pwd });
             setPwd('');
             toast({ title: strings.loggedInToast, description: uid });
@@ -93,8 +88,6 @@ export const EmailLoginScreen = () => {
                 </form>
 
                 <div className="mt-6 flex items-center justify-center gap-6">
-                    {/* Full-page navigation: the overlay lives outside the Router,
-                        so account routes are reached by leaving the debug session. */}
                     <button
                         type="button"
                         onClick={() => (window.location.href = ROUTES.account.signup.root)}
