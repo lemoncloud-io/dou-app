@@ -1,7 +1,6 @@
 import type { StorageLike } from '../jsonSlot';
 import type { IRawSlot } from './types';
 
-/** A single key of a port, as a raw string. */
 export class RawSlot implements IRawSlot {
     constructor(
         private readonly port: StorageLike,

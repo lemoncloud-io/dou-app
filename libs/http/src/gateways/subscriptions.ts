@@ -15,135 +15,55 @@ import type {
 import type { ReceiptModel } from '@lemoncloud/chatic-iap-api/dist/modules/in-app-pay/model';
 import type { HttpGatewayExecutor } from './types';
 
-/** `/products` · `/memberships` · `/subscriptions` · IAP `/validate` wire vocabulary. */
 export interface SubscriptionHttpGateway {
-    /** GET {relay}/products/plans. */
     plans(params?: Record<string, unknown>): Promise<ListResult<ProductView>>;
-    /** POST {iap}/validate/google. */
     validateGoogle(body: ValidateAPIBody, params?: Record<string, unknown>): Promise<ValidateAPIResponse>;
-    /** POST {iap}/validate/apple. */
     validateApple(body: ValidateAPIBody, params?: Record<string, unknown>): Promise<ValidateAPIResponse>;
-    /** GET {iap}/validate?active=1 — `active: 1` is fixed. */
     receipts(params: ListValidateParam): Promise<ListResult<ReceiptModel>>;
-    /** GET {iap}/validate/{receiptId}. */
     receiptDetail(receiptId: string, params?: Record<string, unknown>): Promise<ValidateAPIResponse>;
-    /** GET {relay}/memberships/0/mine. */
     membership(): Promise<MembershipView>;
-    /** POST {relay}/memberships/0. */
     validateMembership(body: CreateMembershipBody, params?: Record<string, unknown>): Promise<MembershipView>;
-    /**
-     * POST {relay}/memberships/0/drops — marks which owned clouds go when the cloud quota shrinks.
-     *
-     * `cloudIds` is the final state, not a delta: an owned cloud left out has its mark cleared, and
-     * an empty list clears every mark. Scoped to the current session (`0`); the relay answers 403
-     * when a listed cloud is not the caller's.
-     */
     markDrops(body: MembershipDropsBody): Promise<MembershipDropsResult>;
 
-    /**
-     * GET {relay}/memberships/0/list — the admin console's membership list.
-     *
-     * Admin-only on the relay (`hasAdminRole`), and the plain `GET /memberships` routes here too,
-     * so there is no unguarded way to read someone else's membership.
-     */
     adminMemberships(
         params?: Record<string, unknown>,
         options?: AdminEndpointOptions
     ): Promise<ListResult<MembershipView>>;
-    /** PUT {relay}/memberships/{userId}/admin — the admin override (grant/block/release). */
     updateMembershipByAdmin(
         userId: string,
         body: MembershipBody,
         params?: Record<string, unknown>,
         options?: AdminEndpointOptions
     ): Promise<MembershipView>;
-    /**
-     * POST {relay}/subscriptions/{userId}/refund — the admin refund of a web (payments-side) subscription.
-     *
-     * Full refund of the last paid charge, and the subscription expires at once; there is no partial
-     * refund and no undo. Admin-only on the relay (`hasAdminRole`). The relay answers 409 when there is
-     * no paid charge to refund — a trial, a first charge still pending, or one already refunded — and
-     * 404 when the user has no web subscription at all.
-     */
     refundSubscriptionByAdmin(
         userId: string,
         body: SubscriptionRefundBody,
         params?: Record<string, unknown>,
         options?: AdminEndpointOptions
     ): Promise<AdminSubscriptionView>;
-    /**
-     * GET {relay}/clouds/0/list?view=admin&valid=0 — one user's clouds, with a status aggregation.
-     *
-     * Separate from `CloudHttpGateway.list` rather than a looser version of it: that one pins
-     * `view: 'mine'` and answers a different question. `valid: 0` overrides a server default of `1`
-     * that hides expired clouds, which an operator reviewing the fallout of a block needs to see.
-     *
-     * The filter is `ownerId`. **Not `userId`** — outside the relay's `mine` branch `userId` is not
-     * read at all, so passing it instead would list every user's clouds.
-     *
-     * **This endpoint is NOT gated by the relay** (`api-clouds.ts` `doGetList`, verified
-     * 2026-09-10). It computes `hasAdmin` and then never authorizes on it, and it pins an owner
-     * only inside the `view === 'mine'` branch — so any authenticated session can read anyone's
-     * clouds, `view=mine&userId=<victim>` included. Nothing in this file changes that; the console's
-     * admin gate is the only check in the stack today, and a client gate is not a check. Fixing it
-     * belongs in the backend service. Named here so the next reader does not mistake the pinned
-     * `view: 'admin'` for an authorization boundary — it is not one.
-     *
-     * The two membership calls above are different: the relay really does enforce `hasAdminRole`
-     * on both before doing any work.
-     */
     adminClouds(
         ownerId: string,
         params?: Record<string, unknown>,
         options?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>>;
 
-    // The web subscription — the one billed through the payment provider rather than a store, kept per
-    // account (one at most) on the relay. Every call is scoped to the current session (`0`). The
-    // subscription itself is read off the membership (`membership`), which carries its record as
-    // `$subscription` — a field the server package's `MembershipView` does not declare yet, so its
-    // reader (the landing site) types it on its own side.
-    // The six payer-scoped calls below take `SubscriptionSandboxParams` (`start` its wider
-    // `SubscriptionStartParams`); the calls on the subscription itself take none — the relay follows
-    // the subscription record there.
-    /** GET {relay}/subscriptions/0/cards — the cards the payment provider holds for the account. */
     subscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]>;
-    /** POST {relay}/subscriptions/0/issue — what the provider's card window opens with, for a product. */
     issueBillingKey(body: { productId: string }, params?: SubscriptionSandboxParams): Promise<BillingIssueParams>;
-    /**
-     * POST {relay}/subscriptions/0/start — starts the subscription (a trial when the account may have
-     * one). A charge the card company declines answers 403 `INVALID PAYMENT`, with nothing saved.
-     */
     startSubscription(body: SubscriptionStartBody, params?: SubscriptionStartParams): Promise<WebSubscriptionView>;
-    /** POST {relay}/subscriptions/0/change — an upgrade charges the difference now; a downgrade waits. */
     changeSubscription(body: { productId: string }): Promise<WebSubscriptionView>;
-    /** POST {relay}/subscriptions/0/cancel — stops renewing; the paid period runs to its end. */
     cancelSubscription(): Promise<WebSubscriptionView>;
-    /** POST {relay}/subscriptions/0/card — adds a card; the default card stays as it was. */
     addCard(body: SubscriptionCardBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
-    /** POST {relay}/subscriptions/0/card-default — makes a card the one charged, and answers it. */
     setDefaultCard(body: SubscriptionCardIdBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
-    /**
-     * POST {relay}/subscriptions/0/card-delete — removes a card and answers it. The payment service
-     * refuses the default card and the card a subscription in use is charged to.
-     */
     removeCard(body: SubscriptionCardIdBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
 }
 
-/*
- * The web subscription's shapes. The server's package does not carry this module yet, so they are
- * declared here from its contract, and only the fields a caller reads.
- */
-
 export type WebSubscriptionStatus = 'pending' | 'trial' | 'active' | 'canceling' | 'expired';
 
-/** `SubscriptionView`. Times are epoch milliseconds. */
 export interface WebSubscriptionView {
     id?: string;
     platform?: string;
     status?: WebSubscriptionStatus;
     productId?: string;
-    /** A downgrade waiting for the next renewal. */
     pendingProductId?: string;
     validFrom?: number;
     validUntil?: number;
@@ -151,20 +71,16 @@ export interface WebSubscriptionView {
     trialUsed?: boolean;
 }
 
-/** `BillkeyView` — a card the payment provider holds. It carries no expiry. */
 export interface BillkeyView {
     id?: string;
     provider?: string;
     status?: string;
     cardIssuer?: string;
-    /** Masked: `123412******5678`. */
     cardNumber?: string;
-    /** The card the payment provider charges. */
     isDefault?: boolean;
     issuedAt?: number;
 }
 
-/** `IssueParams` — the store, channel and issue the card window opens with. */
 export interface BillingIssueParams {
     provider?: string;
     storeId: string;
@@ -174,14 +90,12 @@ export interface BillingIssueParams {
     issueName: string;
 }
 
-/** The card holder the card company requires with every card. */
 export interface SubscriptionPayer {
     name: string;
     phone: string;
     email: string;
 }
 
-/** A start with a card just registered carries its key and holder; without one, the card on file pays. */
 export interface SubscriptionStartBody extends Partial<SubscriptionPayer> {
     productId: string;
     billingKey?: string;
@@ -191,50 +105,22 @@ export interface SubscriptionCardBody extends SubscriptionPayer {
     billingKey: string;
 }
 
-/** A card by its id — `BillkeyView.id`. */
 export interface SubscriptionCardIdBody {
     billkeyId: string;
 }
 
-/**
- * `?sandbox` on a payer-scoped call sends it to the payment server's mock provider: any card is
- * accepted, nothing is charged, and the subscription it starts is marked as a mock one. A development
- * tool — the relay does not refuse it on production, so a caller sends it only where it means to. The
- * card calls read it per call, not from a record, so every card call of a sandboxed payer needs it.
- */
 export interface SubscriptionSandboxParams {
     sandbox?: 1;
 }
 
-/**
- * `start` also takes `?interval` — the renewal period of a sandboxed subscription (`10m`, `1h`, `1d`;
- * a month when absent). The relay reads it only together with `sandbox`.
- */
 export interface SubscriptionStartParams extends SubscriptionSandboxParams {
     interval?: string;
 }
 
-/**
- * Lets the admin console aim these calls at a relay other than the configured one.
- *
- * Only the admin calls take it. The app's own calls must never leave the relay they were
- * authenticated against, and the console needs to compare stages the way the log console does —
- * so the override is opt-in per call rather than a mode on the client.
- */
 export interface AdminEndpointOptions {
-    /** Full relay base, e.g. `https://api.example.com/v1`. Falls back to the configured one. */
     endpoint?: string;
 }
 
-/**
- * Response of `POST {relay}/memberships/0/drops`.
- *
- * The server does not publish this type, so it is declared here from the observed contract:
- * - `cloudIds` — the clouds now marked to go (the list that was just written).
- * - `owned` — how many clouds the caller owns.
- * - `maxClouds` — the cloud quota of the current membership, when there is one.
- * - `excess` — how many more clouds still have to be picked before the marks cover the overflow.
- */
 export interface MembershipDropsResult {
     cloudIds: string[];
     owned: number;
@@ -242,22 +128,10 @@ export interface MembershipDropsResult {
     excess?: number;
 }
 
-/**
- * Body of `POST {relay}/subscriptions/{userId}/refund`. The relay refuses an empty `reason` (400).
- *
- * Declared here because the installed backend package predates the web subscription and publishes
- * neither this nor the response below. Once that package is bumped, both give way to its own
- * `SubscriptionRefundBody` / `SubscriptionView`.
- */
 export interface SubscriptionRefundBody {
     reason: string;
 }
 
-/**
- * The relay's view of a web subscription, as returned by the admin refund — only the fields the
- * console reads. `status` is the payments-side one (`pending` / `trial` / `active` / `canceling` /
- * `expired`), not the membership's; after a refund it is `expired`.
- */
 export interface AdminSubscriptionView {
     id?: string;
     userId?: string;
@@ -396,8 +270,6 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
                 body,
             }),
 
-        // The relay's gateway refuses a POST with no body at all — the browser sees it as a failed
-        // cross-origin check — so a command that takes nothing sends an empty object.
         cancelSubscription: () =>
             exec.executeSignedRelayRequest<WebSubscriptionView, Record<string, never>>({
                 method: 'POST',
@@ -431,10 +303,6 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
     };
 };
 
-/**
- * The query of a payer-scoped call: only the values given, and no `params` at all without one, so a
- * call that sends none is the same request it always was.
- */
 const queryOf = <T extends object>(params: T | undefined): { params?: T } => {
     const given = Object.fromEntries(
         Object.entries(params ?? {}).filter(([, value]) => value !== undefined && value !== '')

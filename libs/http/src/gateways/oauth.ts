@@ -11,8 +11,6 @@ import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/
 import type { AdminEndpointOptions } from './subscriptions';
 import type { HttpGatewayExecutor } from './types';
 
-/** Mirrors web-core's `api/types/auth.ts` — declared locally since this lib cannot import from an
- * app-layer package (`@chatic/web-core`), only external npm packages. */
 export interface FindAliasBody {
     type: 'email';
     alias: string;
@@ -31,8 +29,6 @@ export interface VerifyAliasBody {
 }
 export type VerifyAliasView = Record<string, never>;
 
-/** Body of `POST /users/0/verify-oauth-code`. The backend's `VerifyOAuthCodeBody` is not in a
- * published package yet, so the two fields are declared here. */
 export interface VerifyOAuthCodeBody {
     provider: string;
     code: string;
@@ -40,40 +36,18 @@ export interface VerifyOAuthCodeBody {
 
 export const isAwsAccountNo = (value: string): boolean => /^\d{12}$/.test(value);
 
-/**
- * Token/account issuance wire vocabulary — `POST /oauth/*` and the two relay resources
- * (`delegate-cloud`, `invite-code`) that hand out session material. Full surface lives here; the
- * data-layer `HttpGatewayBundle` (`libs/data/src/remote/gateways/http.ts`) deliberately
- * `Pick<>`s only the non-session actions out of it — `login`/`exchangeToken`/`delegateCloud`/
- * `registerDevice` stay reachable only through this gateway directly (stage 3 `session/auth`).
- */
 export interface OAuthHttpGateway {
     registerDevice(deviceId: string): Promise<UserTokenView>;
     registerUser(body: UserBody): Promise<UserTokenView>;
-    /** `options.endpoint` registers on another stage's relay — the admin console's user screen only. */
     registerUserV2(body: RegisterUserV2Body, email?: boolean, options?: AdminEndpointOptions): Promise<UserTokenView>;
     login(body: LoginUserBody, email?: boolean): Promise<UserTokenView>;
-    /** `POST {input.baseURL}/oauth/exchange-token` — baseURL is the caller's override (the target
-     * cloud's backend, not yet the active session's own host). Destination and signing are
-     * independent; see the README's "signed request that lands on somebody else's host". */
     exchangeToken(input: { baseURL: string; body: CloudExchangeTokenBody }): Promise<UserTokenView>;
     findAlias(body: FindAliasBody): Promise<FindAliasView>;
     verifyAlias(body: VerifyAliasBody): Promise<VerifyAliasView>;
     loginInvite(input: { code: string; delegatorId: string; backend?: string }): Promise<UserTokenView>;
     delegateCloud(target: string): Promise<CloudDelegationTokenView>;
-    /** `POST /users/0/verify-native-token` — promotes the relay session with a verified native social
-     * token. Session-material-producing (returns a `Token`), so it is deliberately absent from
-     * `data`'s `AuthHttpDomainGateway` Pick and reachable only from `session/auth`. */
     verifyNativeToken(body: VerifyNativeTokenBody): Promise<UserTokenView>;
-    /** `POST {oauth}/oauth/{provider}/token` — exchanges an OAuth authorization code for relay
-     * credentials. It's the only path that produces session material (refresh only renews, so
-     * it can't mint a token that doesn't exist yet), so it's deliberately excluded from `data`'s
-     * Pick and reachable only from `session/auth`. It's the oauth host, not relay. */
     exchangeCode(input: { provider: string; code: string }): Promise<UserTokenView>;
-    /** `POST {relay}/users/0/verify-oauth-code?token=1` — exchanges the same OAuth code, but signed
-     * with the caller's session: the backend records that (guest) user as the new session's link and
-     * picks the user the way `verifyNativeToken` does. Without a session it answers 403. Session
-     * material, so reachable only from `session/auth`. */
     verifyOAuthCode(body: VerifyOAuthCodeBody): Promise<UserTokenView>;
     inviteInfo(input: { code: string; backend: string }): Promise<MyInviteView>;
 }

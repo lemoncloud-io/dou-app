@@ -26,7 +26,6 @@ describe('recordNativeCacheOperation', () => {
         expect(operations['load:channel']).toEqual({ count: 1, avgMs: 4, maxMs: 4 });
     });
 
-    // Logging every call would quickly push the ring buffer (500) out, so only slow calls are kept.
     it('임계치 미만은 로그를 남기지 않는다', () => {
         recordNativeCacheOperation('load', 'chat', 49);
 
@@ -42,15 +41,10 @@ describe('recordNativeCacheOperation', () => {
         expect(meta.data).toMatchObject({ operation: 'loadAll', type: 'chat', elapsedMs: 120 });
     });
 
-    // A guard so instrumentation doesn't inflate the very congestion it's trying to measure. On
-    // native, one log entry is one bridge round trip, and once congestion starts, every call
-    // crosses the threshold — so a threshold alone would attach one extra log round trip to
-    // every cache request.
     it('같은 연산·타입의 느린 호출이 이어져도 스로틀 간격 안에서는 한 줄만 남긴다', () => {
         for (let i = 0; i < 50; i += 1) recordNativeCacheOperation('loadAll', 'chat', 200);
 
         expect(warn).toHaveBeenCalledTimes(1);
-        // Even though the log is collapsed, the cumulative stats keep every one — the distribution is read from here.
         expect(getNativeCacheMetrics().operations['loadAll:chat'].count).toBe(50);
     });
 
@@ -76,9 +70,6 @@ describe('recordNativeCacheOperation', () => {
         nowSpy.mockRestore();
     });
 
-    // Even with zero slow calls, "how often is this called" still needs to be visible — a high
-    // call count calls for a different remedy even when latency is low (the observer
-    // re-fetching pattern).
     it('100회마다 누적 요약을 남긴다', () => {
         for (let i = 0; i < 99; i += 1) recordNativeCacheOperation('load', 'chat', 1);
         expect(info).not.toHaveBeenCalled();

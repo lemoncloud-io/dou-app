@@ -1,8 +1,3 @@
-/**
- * The request-builder surface this lib drives: build a request, give it its query and body, send
- * it. `createRequestTransport` (`transport/requestTransport.ts`) implements it; tests hand in a fake.
- * Declared here as a consumer-owned shape so the client never depends on how a request is signed.
- */
 export interface RequestBuilder {
     setBody: (body: unknown) => RequestBuilder;
     setParams: (params: Record<string, unknown>) => RequestBuilder;
@@ -21,10 +16,6 @@ export interface ExecutorRequest {
     params?: Record<string, unknown>;
 }
 
-/**
- * Executes a request through the injected surface — signed or unsigned, chosen at construction. Two
- * instances (signed=false, signed=true) back `executeRelayRequest` and `executeSignedRelayRequest`.
- */
 export class HttpExecutor {
     constructor(
         private readonly surface: RequestSurface,

@@ -3,12 +3,6 @@ import { transportPlatform } from '../platform';
 import type { DevicePlatform } from '@lemoncloud/chatic-sockets-lib';
 import type { DeviceEnvironment } from '../platform';
 
-/**
- * What a socket says about its device on `device.save`. The server derives the device's kind
- * (mobile · desktop · web) from `platform`, so this is what decides how the device shows up in my
- * device list. `name` is the human label on that row; left out, the server falls back to the user
- * agent.
- */
 export interface SocketDeviceIdentity {
     platform: Extract<DevicePlatform, 'ios' | 'android' | 'macos' | 'windows' | 'linux' | 'web'>;
     name?: string;
@@ -16,7 +10,6 @@ export interface SocketDeviceIdentity {
 
 type OsName = 'iOS' | 'Android' | 'ChromeOS' | 'macOS' | 'Windows' | 'Linux';
 
-// Order matters: iPadOS and Android user agents also carry the words the later rows look for.
 const OS_PATTERNS: ReadonlyArray<[RegExp, OsName]> = [
     [/iPhone|iPad|iPod/, 'iOS'],
     [/Android/, 'Android'],
@@ -26,7 +19,6 @@ const OS_PATTERNS: ReadonlyArray<[RegExp, OsName]> = [
     [/Linux|X11/, 'Linux'],
 ];
 
-// Order matters: every Chromium browser also says `Chrome/`, and every iOS/Chromium one `Safari/`.
 const BROWSER_PATTERNS: ReadonlyArray<[RegExp, string]> = [
     [/Edg(?:e|A|iOS)?\//, 'Edge'],
     [/SamsungBrowser\//, 'Samsung Internet'],
@@ -47,7 +39,6 @@ const DESKTOP_PLATFORM: Partial<Record<OsName, SocketDeviceIdentity['platform']>
     ChromeOS: 'linux',
 };
 
-/** `<browser> · <OS>` for a user agent, the OS alone when the browser is not recognised, else nothing. */
 export const userAgentLabel = (userAgent: string): string | undefined => {
     const os = match(OS_PATTERNS, userAgent);
     const browser = match(BROWSER_PATTERNS, userAgent);
@@ -55,16 +46,6 @@ export const userAgentLabel = (userAgent: string): string | undefined => {
     return os;
 };
 
-/**
- * Decides `platform` (and `name`) for `device.save`:
- * - mobile shell — `ios` · `android` as injected. Not named: the only model global the shell injects,
- *   `CHATIC_APP_DEVICE_MODEL`, is `DeviceInfo.getDeviceId()` — `iPhone17,1` on iOS, the board codename
- *   (`panther`) on Android — and the server writes `name` over the row on every save, so sending it
- *   would replace the user-agent label with a code no one recognises.
- * - desktop shell — the operating system from the user agent (`macos` · `windows` · `linux`). Not
- *   named either: its `CHATIC_APP_DEVICE_MODEL` is Node's `process.platform`, not a model.
- * - anything else — a browser, so `web`, named `<browser> · <OS>` when both are recognised.
- */
 export const resolveSocketDevice = (
     environment: DeviceEnvironment = transportPlatform.ports().device()
 ): SocketDeviceIdentity => {
@@ -75,8 +56,6 @@ export const resolveSocketDevice = (
 
     const os = match(OS_PATTERNS, userAgent);
     if (appPlatform === 'desktop') {
-        // Electron only runs on the three desktop systems; an unreadable user agent falls back to the
-        // browser value rather than inventing an OS.
         return { platform: (os && DESKTOP_PLATFORM[os]) ?? 'web' };
     }
 

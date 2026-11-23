@@ -33,7 +33,6 @@ import { BaseDbAdapter } from '../base/BaseDbAdapter';
 import type { CacheBridgeClient } from './cacheBridge';
 import { type NativeCacheOperation, recordNativeCacheOperation } from './nativeCacheMetrics';
 
-/** Bridge message → instrumentation operation name. These are all 13 kinds this adapter sends. */
 const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
     SaveCacheData: 'save',
     SaveAllCacheData: 'saveAll',
@@ -50,13 +49,11 @@ const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
     SaveChatMediaCacheData: 'saveMedia',
 };
 
-/** The requests a shell may not have a handler for, which this adapter asks about before sending. */
 export type OptionalNativeCacheMessage =
     | 'FetchChatMediaCacheData'
     | 'CountChatMediaCacheData'
     | 'SaveChatMediaCacheData';
 
-/** The room media index needs all three: its two reads, and the fill that makes them complete. */
 const CHAT_MEDIA_MESSAGES: readonly OptionalNativeCacheMessage[] = [
     'FetchChatMediaCacheData',
     'CountChatMediaCacheData',
@@ -64,37 +61,10 @@ const CHAT_MEDIA_MESSAGES: readonly OptionalNativeCacheMessage[] = [
 ];
 
 export interface NativeDBAdapterOptions {
-    /**
-     * Whether the shell on the far side answers `message`. Called on every query, never captured: a
-     * page learns what its shell handles from the handshake, whose reply can land after this adapter
-     * was built. Absent, the answer is no — the caller reads plain rows instead.
-     */
     handlesMessage?: (message: OptionalNativeCacheMessage) => boolean;
 }
 
-/**
- * A cache storage adapter class that communicates over WebBridge with the local DB in the
- * native app environment (SQLite, etc).
- *
- * @template TType the cache domain type
- */
 export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TType> {
-    /**
-     * Read requests currently awaiting a response (key: the payload actually sent over the bridge).
-     *
-     * If the same payload is requested twice at the same time, the second call gets back the
-     * first call's Promise as-is. This is needed separate from deduping at the logical layer
-     * because **different logical keys often resolve to the same physical query** — `user`,
-     * `channel`, `profile`, and `place`'s `cacheReadList` fetch the whole table with an argless
-     * `loadAll()` and filter in JS, so two subscribers with different observer keys can send out
-     * byte-for-byte identical `FetchAllCacheData` calls at the same time. Observer grouping only
-     * merges "the same key", so it can't catch this.
-     *
-     * Read-only. Never merge writes here — doing so would make the second caller believe its own
-     * write took effect. A read is safe to share because the same query at the same moment must
-     * have the same answer, and it's removed from the map the instant it settles, so the window
-     * is limited to "while actually in flight" — this is not a cache.
-     */
     private readonly inflightReads = new Map<string, Promise<unknown>>();
 
     constructor(
@@ -106,15 +76,6 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         super(type, contextProvider);
     }
 
-    /**
-     * The single point where a bridge round trip is made. Since duration is measured here,
-     * instrumentation automatically covers any new operation added (calling `bridge.request`
-     * directly would skip it).
-     *
-     * Uses `finally` so failures get recorded too — a timeout is the slowest call of all, and
-     * excluding it would make the distribution look better than it actually is. The
-     * instrumentation cost is two `Date.now()` calls per call, negligible next to the round trip.
-     */
     private async send<K extends WebMessageType>(message: WebMessageData<K>): Promise<WebMessageResponse<K>> {
         const startedAt = Date.now();
         try {
@@ -124,13 +85,6 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         }
     }
 
-    /**
-     * A read-only `send`. If the same payload is already in flight, shares that Promise.
-     *
-     * Failures are shared too — the same query at the same moment must have the same result,
-     * and that applies to failures as well. It's removed via `finally`, so the next call goes
-     * out fresh (a failure is never cached).
-     */
     private sendRead<K extends WebMessageType>(message: WebMessageData<K>): Promise<WebMessageResponse<K>> {
         const key = stableHash(message);
         const existing = this.inflightReads.get(key);
@@ -155,7 +109,6 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
                 uid: scope.uid,
                 id,
                 item: withCacheMeta(this.type, item),
-                // Double cast: the generic TType cannot narrow the discriminated payload union.
             } as unknown as Extract<SaveCacheDataPayload, { type: TType }>,
         });
         return item;
@@ -173,7 +126,6 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
                 cid: scope.cid,
                 uid: scope.uid,
                 items: items.map(item => withCacheMeta(this.type, item)),
-                // Double cast: the generic TType cannot narrow the discriminated payload union.
             } as unknown as Extract<SaveAllCacheDataPayload, { type: TType }>,
         });
         return items;
@@ -197,14 +149,6 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         return (data?.item ?? null) as CacheModelOf<TType> | null;
     }
 
-    /**
-     * Reads a list of ids in a single round trip.
-     *
-     * The default implementation (`BaseDbAdapter.loadMany`) calls `load` N times, which on
-     * native means N round trips — merge-saving 50 chat messages meant 50 round trips just to
-     * read the existing rows. This folds it into one `FetchManyCacheData` call. Every phone
-     * shell the web still runs in answers it, so a failure is rethrown as-is.
-     */
     override async loadMany(ids: string[]): Promise<CacheModelOf<TType>[]> {
         if (ids.length === 0) return [];
 
@@ -248,24 +192,11 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         return (data?.items ?? []) as CacheModelOf<TType>[];
     }
 
-    /**
-     * Reads the latest preview per channel plus the max chatNo in a single round trip
-     * (chat-only, ADR-0057).
-     *
-     * `null` always means "fall back" — a non-chat type, a native processing error
-     * (`items: null`), or a bridge failure (timeout, etc). Each applies only to this read. Why
-     * no error is thrown: whenever this lookup fails, the correct answer
-     * is always "today's behavior" (a per-channel window read), and it's simpler for the caller
-     * (`ChatLocalDataSource`) to make that call in one fallback spot.
-     */
     async loadLastPerChannel(channelIds: string[]): Promise<LastChatItem[] | null> {
         if (this.type !== 'chat') return null;
         if (channelIds.length === 0) return [];
 
         const scope = this.getScope();
-        // `[]`, not `null` — `null` means "fall back to a per-channel window read", and that path
-        // is skipped for the same reason, so it would only add one more round trip. With no
-        // session, the answer is an empty list.
         if (!scope) return [];
         try {
             const response = await this.sendRead({
@@ -280,21 +211,11 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         }
     }
 
-    /**
-     * Whether the shell answers all three room media index messages. A shell built before the index
-     * has no handlers for them, and is never sent them — the caller pages through plain rows.
-     */
     canQueryChatMedia(): boolean {
         const handles = this.options.handlesMessage;
         return this.type === 'chat' && !!handles && CHAT_MEDIA_MESSAGES.every(message => handles(message));
     }
 
-    /**
-     * A room fill's entries in one round trip. The shell applies each only while the message's row is
-     * still there at an older rules version, in the same batch. Throws when it was not written — never
-     * sent to a shell without the handler, a `success: false` answer, a bridge failure — so the caller
-     * leaves the room unmarked and reads plain rows instead.
-     */
     async saveChatMediaEntries(items: ChatMediaFillItem[], version: number): Promise<void> {
         if (!this.canQueryChatMedia()) throw new Error('[NativeDBAdapter] the shell has no room media index');
         if (items.length === 0) return;
@@ -308,11 +229,6 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         if (!data?.success) throw new Error('[NativeDBAdapter] the shell did not write the room media fill');
     }
 
-    /**
-     * One page of a room's media index in one round trip. `null` — "read this one the plain-row way" —
-     * for a shell that does not handle it, a native processing error (`items: null`) or a bridge
-     * failure, each for this read only.
-     */
     async loadChatMedia(query: ChatMediaQuery): Promise<ChatMediaPage | null> {
         if (!this.canQueryChatMedia()) return null;
         const scope = this.getScope();
@@ -339,7 +255,6 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         }
     }
 
-    /** A room's media index counted per kind in one round trip. `null` as for `loadChatMedia`. */
     async countChatMedia(channelId: string): Promise<ChatMediaCounts | null> {
         if (!this.canQueryChatMedia()) return null;
         const scope = this.getScope();
@@ -402,18 +317,6 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
         });
     }
 
-    /**
-     * Deletes one channel's rows directly on native (ADR-0067) — a single-condition
-     * `channel_id` DELETE, so it's one round trip with zero payload.
-     *
-     * A failure (timeout, etc) is thrown — unlike a read, a delete must not silently swallow
-     * "it didn't happen this time"; the caller decides how to handle that failure.
-     *
-     * One thing not distinguished here, though, is native answering with **`success: false`
-     * instead of a rejection** (a SQL error) — the same is true of this adapter's other write
-     * paths. The leftover row is hidden from the screen by `isInJoinWindow`, so the user-visible
-     * result is the same.
-     */
     override async clearByChannelId(channelId: string): Promise<void> {
         const scope = this.getScope();
         if (!scope) return;

@@ -17,14 +17,11 @@ export {
 export type { SessionKey } from './sessionKeys';
 export type { IRawSlot, ISessionStores, PortName, SessionStoragePorts, StoragePortPair } from './types';
 
-/** The session's one record of which store backs each port. */
 export const sessionStores: ISessionStores = new SessionStores();
 
 export const secretPort: StorageLike = new ForwardingPort(sessionStores, 'secret');
 export const plainPort: StorageLike = new ForwardingPort(sessionStores, 'plain');
 
-/** The paired-cloud list's one key, for `@chatic/auth`'s `PairedCloudStore` — not the whole plain port. */
 export const pairedCloudsSlot: IRawSlot = new RawSlot(plainPort, PAIRED_CLOUDS_KEY);
 
-/** The paired clouds' names, the same store's second key. */
 export const pairedCloudNamesSlot: IRawSlot = new RawSlot(plainPort, PAIRED_CLOUD_NAMES_KEY);

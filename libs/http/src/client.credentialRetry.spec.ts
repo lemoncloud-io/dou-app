@@ -3,12 +3,6 @@ import { createHttpClient } from './client';
 import type { RequestBuilder, RequestSurface } from './adapters/requestExecutor';
 import type { HttpRoute, HttpRuntimePorts } from './ports';
 
-/**
- * Recover-and-retry-once. The failure being recovered from is an API Gateway IAM rejection, which
- * never reaches a handler — so replaying is safe, and that safety is exactly what the gating rules
- * below protect: only a stale-credential verdict retries, only once, and only to the route that
- * failed.
- */
 const execute = jest.fn();
 const builder: RequestBuilder = {
     setBody: jest.fn(() => builder),

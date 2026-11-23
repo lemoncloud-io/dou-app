@@ -248,3 +248,61 @@ is reported against the adapter it was meant to be:
 [console] cache → cache.web-storage (default, fell back: local asked for 'cache.memory', not one of this runtime's cache adapters (cache.web-storage, cache.indexeddb))
 [console] engine → engine.core (default)
 ```
+
+## Why it works this way
+
+- **Connectivity.** `deriveConnectivity` treats `navigator.onLine` asymmetrically. `false` outranks the
+  active socket's transport state (a dropped link can sit in `connected` until the next frame fails), but
+  a verified socket on any slot overrules it, because Chromium can latch `false` while requests succeed.
+  `true` only proves an interface is up, so it never reports `online` by itself; only a socket that is
+  connected and verified does. With the browser online, a `closed` socket therefore reads as reconnecting,
+  not offline: the fault is ours or the server's, and telling the user to check their wifi would be wrong.
+- **Cloud hold.** `withCloudHold` works against the room's own cloud's repository, never the current
+  selection's. An upload takes seconds, and a cloud switch in that time would otherwise put the finished
+  message on the next cloud's socket.
+- **Page device id.** It is read and made on the first call only. A page that was given the shell's id
+  never touches the session's store, which matters when the session runs in the app's process and the page
+  has no store of its own to read.
+- **Log upload.** The upload request must not be logged and the uploader never calls `logger` (failures go
+  to `console`): an upload failure that became a log entry would join the queue being drained and make the
+  next flush fail the same way. The opt-out is the report gateway's network-log bypass; this package must
+  not build a request of its own.
+- **Log upload outcomes.** A 4xx discards the batch (it will never be accepted as is); 5xx, offline and
+  timeout retry. 401 and 403 are the exception and are retried: signing out and in as someone else is
+  ordinary, and the queue deliberately survives logout, so discarding on "not signed in right now" would
+  lose the entries a session problem leaves behind.
+- **Issue reports and Slack.** The report payload rides as a JSON string in `message`, which is also the
+  Slack message text. One base64 screenshot exceeds Slack's ~40k-character limit, and the backend stores
+  only `message` (a separate `meta` field is dropped), so a report with images is sent `silent`: stored,
+  not announced. Reports without images keep their Slack ping.
+- **Issue report fields.** The environment is sent lower-cased (`local`, `dev`, `prod`) so the outgoing
+  value stays byte-identical to what the admin console may already filter on. The app name is `mobile` for
+  any page with a shell bridge at boot, desktop shell included; otherwise `admin` when the project name
+  contains `admin`, and `web` for everything else.
+- **Report URLs.** `reportUrl` masks every query value wholesale and drops the fragment. The report is
+  stored and may be relayed to a shared channel, and this app keeps secrets in queries (OAuth callbacks,
+  verify and reset links) and fragments. Masking by key name would be a guess, since which parameter holds
+  the secret depends on the link; the set of parameter names that were present is the diagnostic value and
+  survives. `code` is deliberately kept: an invite failure cannot be traced without knowing which invite,
+  and the report is internal. Logs get a similar policy from `@chatic/logger` but never keep `code`
+  (uploaded logs are read more widely), so a change to query masking should be weighed for both. The URL
+  is cut as a string rather than parsed with `URL`, so relative hrefs and schemes without an origin take
+  the same path.
+- **Host ports: links.** `openUrl` hands a URL to the OS browser in the phone app, because loading an
+  arbitrary site in its WebView would strand the person on a page with no way back and the session's
+  cookies attached. A link's preview is app-only because the page cannot read another origin's HTML.
+- **Host ports: sign-in.** The provider sign-in has no timeout on `start`: the provider's screens belong to
+  the person for as long as they need, and a credential arriving after a deadline would be dropped while
+  they were already signed in there.
+- **Host ports: app shell.** `ownsWindow` is true only where the app opened the window for this page alone,
+  so the page may force-close a dead socket or reload itself; in a browser tab a reload or dropped socket
+  the person did not ask for would lose their work. A badge read is `null` when unknown, never 0, since 0 is
+  a real badge. WebKit has no `navigator.vibrate`, so haptics need the frame.
+- **Host ports: store checkout.** On Android a tier change must carry the base plan being replaced
+  (`oldPlanId`), because the replacement mode is derived from old versus new plan rank; without it the
+  change is booked as a brand-new subscription.
+- **Host holder.** It is a module holder, not a React context, because logging, the boot sequence and other
+  plain modules read ports too. An unpublished port answers `then`, `toJSON` and similar probes with
+  `undefined` so a failed assertion or a logger printing it does not throw a second error.
+- **One port set per start.** `core()` builds the runtime ports once however often the engine asks, because
+  a second set would open a second session over the same stores.

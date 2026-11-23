@@ -32,18 +32,18 @@ chat view satisfies the shape. It has no i18n of its own either — see [Labels]
 
 ## What is in it
 
-| File                     | Holds                                                                                                                                                                                                 |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `blockKit.ts`            | The block types (`section`, `header`, `divider`, `context`, and `unknown`), `parseBlocks` and `toBlocks`, `hasDrawableBlocks`, `decodeSlackEntities`, the mark grammar (`SLACK_MARKS`, `markPattern`) |
-| `resolveChatBlocks.ts`   | The read priority for one chat: `blocks$` from the server, then a parse of `content`, then plain text                                                                                                 |
-| `BlockKitMessage.tsx`    | The card: one component per block type, heading levels, the source link on the heading                                                                                                                |
-| `renderMrkdwn.tsx`       | Slack's mrkdwn as React nodes — bold, italic, strike, links, mentions, inline code chips, fenced blocks                                                                                               |
-| `CollapsibleCode.tsx`    | A fenced block that folds to three lines when folding saves at least two                                                                                                                              |
-| `blocksToPlainText.ts`   | `blocksToPlainText` and `mrkdwnToPlainText`, for sidebar previews, notifications, search and the clipboard                                                                                            |
-| `sourceLink.ts`          | `takeSourceLink`: moves the server's "full report" link from the card's last line up to its heading, found by the server's fixed label; `linkableHeaderIndex`, `isWebUrl`                             |
-| `messageClasses.ts`      | The `MSG_*` Tailwind classes message bodies are drawn with, shared with desktop-web's composer                                                                                                        |
-| `blockKitLabels.ts`      | The few words the renderer itself shows, and the context a caller fills them through                                                                                                                  |
-| `sampleWebhookBlocks.ts` | One reference webhook message — the send body and the `blocks$` the server derives from it — for specs                                                                                                |
+| File                     | Holds                                                                                                                                                                                                            |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `blockKit.ts`            | The block types (`section`, `header`, `divider`, `context`, and `unknown`), `parseBlocks` and `toBlocks`, `hasDrawableBlocks`, `decodeSlackEntities`, the mark grammar (`SLACK_MARKS`, `markPattern`)            |
+| `resolveChatBlocks.ts`   | The read priority for one chat: `blocks$` from the server, then a parse of `content`, then plain text                                                                                                            |
+| `BlockKitMessage.tsx`    | The card: one component per block type, heading levels, the type badge, the source link on the last line                                                                                                         |
+| `renderMrkdwn.tsx`       | Slack's mrkdwn as React nodes — bold, italic, strike, links, mentions, inline code chips, fenced blocks                                                                                                          |
+| `CollapsibleCode.tsx`    | A fenced block that folds to three lines when folding saves at least two                                                                                                                                         |
+| `blocksToPlainText.ts`   | `blocksToPlainText` and `mrkdwnToPlainText`, for sidebar previews, notifications, search and the clipboard                                                                                                       |
+| `sourceLink.ts`          | `takeSourceLink`: finds the message's "full report" link (`source$.url`, else the server's fixed-label context element) and takes that element off the last line, so the card does not show it twice; `isWebUrl` |
+| `messageClasses.ts`      | The `MSG_*` Tailwind classes message bodies are drawn with, shared with desktop-web's composer                                                                                                                   |
+| `blockKitLabels.ts`      | The few words the renderer itself shows, and the context a caller fills them through                                                                                                                             |
+| `sampleWebhookBlocks.ts` | One reference webhook message — the send body and the `blocks$` the server derives from it — for specs                                                                                                           |
 
 ## Rules
 
@@ -68,9 +68,61 @@ chat view satisfies the shape. It has no i18n of its own either — see [Labels]
 5. **The flattened line drops what it cannot say.** In one line of preview, raw JSON is noise, so
    `blocksToPlainText` leaves `unknown` blocks out whenever anything else has text, and falls back to
    their source only when nothing does.
-6. **Only a web address becomes a link on the heading.** The source link is webhook input the server
+6. **Only a web address becomes the source link.** The source link is webhook input the server
    stores without reading; `isWebUrl` lets `http` and `https` through and nothing else, because a
    caller hands that link to the OS browser.
+
+## Why it works this way
+
+- **Only webhook messages become cards.** `resolveChatBlocks` reads Block Kit only when
+  `stereo === 'webhook'`. A person who pastes Block Kit JSON into the composer wrote text; drawing it
+  as a card would let anyone post something indistinguishable from an integration's alert.
+- **`blocks$` is typed `unknown` here.** The published socials API types do not declare it yet, and
+  declaring it loosely lets callers pass a `DomainChat` that has no such field. An empty array falls
+  through to the `content` parse, so a server that ever sends one still never produces an empty bubble.
+- **The sender's `source$.color` and channel name are untrusted.** The server checks neither shape
+  nor length, so they are only matched or parsed, never printed as markup or written into a style;
+  the page gets only a computed `#RRGGBB`. The name table, hex shape and grey cut match the server's
+  (case-insensitive), so the title's emoji and the badge colour cannot disagree. The table is a `Map`
+  so a sender's `constructor` or `__proto__` gets no answer. Results are cached per value, bounded.
+- **Accent contrast is measured on a stand-in ground.** Colours are walked in lightness only (hue
+  kept) until they clear 4.5:1 against a ground just past the lightest dark card and the darkest
+  light card of any caller, so one result is safe in all three apps. A caller whose `--card` goes
+  beyond those bounds breaks that guarantee and has to be kept inside by hand.
+- **Sizes are written out, not read from app tokens.** The callers name type tokens alike but size
+  them differently (`text-body` is 16px in `apps/web`, 15px elsewhere), so tokens would draw a
+  different card in each and the builder's preview would not match a channel. The `desktop` scale
+  is one step larger than `phone` for the wider column.
+- **Newlines are significant** in every Slack text object, so text keeps `white-space: pre-wrap`.
+  A field written `*Label*\nvalue` is drawn as a small caption over its value, because two bold
+  first lines side by side in a grid compete with the card's title.
+- **Long values must not push the card wider.** Field values use `min-w-0` and
+  `overflow-wrap: anywhere`, since a flex item will not shrink below its longest word (a hash, a URL).
+  Fields flow as content-width columns capped in width, so a maximised window does not put a label a
+  screen away from its value.
+- **A context block's elements are joined with a space**, the same as `blocksToPlainText`, so the
+  sidebar preview and the message read the same.
+- **Fenced runs wrap, they do not scroll.** In a card a fence is nearly always a stack trace, and a
+  sideways scroll on a phone hides the end of each frame line, which holds the file and line number.
+  The composer's fenced block keeps its well; it is code a person pasted.
+- **Folding drops lines instead of clamping them.** A CSS line clamp counts wrapped lines and a
+  `max-height` assumes a line height, so a narrow card would fold differently from a wide one. The
+  cost is that browser find skips the folded lines; the flattened copy still holds all of them. A fold
+  needs at least two lines saved for one line of chrome, and keeps three visible (the first line of a
+  trace is the error, the next two say where it came from). The fold is a local control, not an
+  `actions` block, which the server contract does not carry.
+- **Inline code is a bordered chip in the text's own face**, not monospace: in a webhook card it is a
+  value (service, version, status). `font-family: inherit` undoes preflight's monospace and
+  `box-decoration-clone` keeps the chip's edges when it wraps.
+- **Entities decode after link parsing** in the flattener, and the character in front of a mark is
+  decoded with the run before it. Decoding first would turn an escaped `&lt;` into a link that was
+  never in the message, or split an `&amp;` in half.
+- **Compiled patterns are built once at module load**, since the flattener runs over every cached row
+  of a search.
+- **The type badge text is the channel name as words** (`ci-deploy` becomes `ci deploy`); the capitals
+  are CSS, so a copied badge and a screen reader get the words. It is cut to one line.
+- **The caller's `labels` and `renderFallback` stay props** because the lib has no i18n and does not
+  know the app's message dialect.
 
 ## Usage
 
@@ -100,8 +152,8 @@ if (blocks) {
 - **`onLinkClick`** opens a link in place of the anchor's default `target="_blank"`. Inside the
   phone app's WebView a `_blank` anchor replaces the app's own page, so `apps/web` passes its handler
   that opens the URL outside the app.
-- **`sourceUrl`** turns the first heading into a link to the full message. It is ignored unless it is
-  `http(s)` and the first heading is plain text.
+- **`sourceUrl`** is drawn as a labelled link on the card's last line, in the card's link colour. It is
+  ignored unless it is `http(s)`.
 
 ## Labels
 

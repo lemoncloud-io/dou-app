@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { deviceStore } from '../storage';
 
-/** How wide the two sized panes are. The message pane takes what is left. */
 export interface PaneSizes {
     rail: number;
     payload: number;
@@ -23,20 +22,6 @@ const isSizes = (value: unknown): value is PaneSizes =>
     typeof (value as PaneSizes).rail === 'number' &&
     typeof (value as PaneSizes).payload === 'number';
 
-/**
- * The widths the reader dragged the panes to, remembered.
- *
- * Persisted because the choice outlives the session that made it: someone who
- * widened the editor to read a pasted payload is reading payloads, and asking
- * them to drag it back every visit is asking them to re-answer a question they
- * already answered.
- *
- * Read once at mount rather than in the initialiser. The layout has a correct
- * default and storage can be unreadable — a locked-down browser, a private
- * window — so a first paint at the default that settles into the saved width is
- * the honest failure mode. The alternative is a builder that will not draw
- * because it could not remember a number.
- */
 export const usePaneSizes = () => {
     const [sizes, setSizes] = useState<PaneSizes>(DEFAULTS);
 
@@ -52,7 +37,6 @@ export const usePaneSizes = () => {
     const setSize = useCallback((pane: keyof PaneSizes, value: number) => {
         setSizes(current => {
             const next = { ...current, [pane]: value };
-            // The store drops a write a full or blocked storage refuses; the drag still works for this session.
             deviceStore.set(STORAGE_KEY, JSON.stringify(next));
             return next;
         });

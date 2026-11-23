@@ -14,8 +14,6 @@ describe('TEMPLATES', () => {
         expect(template(id).blocks.some(block => block.type === 'unknown')).toBe(false);
     });
 
-    // A template is a starting point for editing, so it has to survive the trip
-    // through the payload pane the reader will inevitably make.
     it.each(TEMPLATES.map(entry => [entry.id] as const))('round-trips %s through the payload pane', id => {
         const blocks = template(id).blocks;
         expect(payloadJsonToBlocks(blocksToPayloadJson(blocks))).toEqual({ ok: true, blocks });

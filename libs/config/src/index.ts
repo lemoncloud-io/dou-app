@@ -30,27 +30,14 @@ export type { ConfigRuntimePorts, IConfigEnvAdapter, IShellKvAdapter, StorageLik
 export type { IRemoteConfigAdapter, RemotePayload } from './lanes/RemoteCache';
 export { createWebEnvAdapter } from './adapters/webEnvAdapter';
 export { UNLOCK_KEY } from './resolve/ConfigResolver';
-/**
- * The storage-boundary encoding and the key an override lives under — exported so an app that seeds
- * a local-lane value before `init` (`apps/web` mirrors a theme key other apps share) writes the exact
- * same format `hydrateStorage()` reads back, without guessing at or duplicating this lib's encoding.
- */
 export { encodeValue, storageKeyFor } from './utils/serialize';
 
-/** Which lane a writer fills. */
 const LANE_OF: Readonly<Record<Writer, Lane>> = { shell: 'shell', local: 'local', server: 'serverDefault' };
 
 export interface SetOptions {
     lane: Writer;
 }
 
-/**
- * The one public surface.
- *
- * Shaped like `runtime.<group>.*` in `@chatic/runtime`: a facade over classes, not a bag of
- * loose exported functions. The internals stay off the barrel on purpose — a consumer holding
- * `ConfigResolver` directly could sidestep the lane policy (ADR-0079 decision 12).
- */
 export class ConfigFacade {
     private ports: ConfigRuntimePorts | null = null;
     private registry: ConfigRegistry;
@@ -62,12 +49,6 @@ export class ConfigFacade {
         this.registry = ConfigRegistry.merge(this.modules);
     }
 
-    /**
-     * Plugs in the adapters. Called once by the app's composition root.
-     *
-     * Everything the old `web-config` did as an import side effect happens here instead, by an
-     * explicit call the app controls (ADR-0079 decision 11).
-     */
     init(ports: ConfigRuntimePorts): void {
         this.ports = ports;
         this.registry = ConfigRegistry.merge(this.modules, ports.onDuplicateKey);
@@ -82,20 +63,14 @@ export class ConfigFacade {
         this.hydrateStorage();
     }
 
-    /**
-     * Whether `init` has run. Asked by a caller that must not initialise twice and cannot tell from a
-     * key — a facade made over its own modules may hold none of the keys the caller knows.
-     */
     isInitialized(): boolean {
         return this.resolver !== null;
     }
 
-    /** Combinations the registry cannot satisfy. A test asserts this is empty. */
     policyViolations(): readonly string[] {
         return findPolicyViolations(this.registry);
     }
 
-    /** Synchronous, and always an answer — `defaultValue` is the floor. */
     get<T>(key: string): T | undefined {
         return this.snapshot<T>(key)?.value;
     }
@@ -113,18 +88,10 @@ export class ConfigFacade {
             .filter((snapshot): snapshot is ConfigSnapshot => !!snapshot);
     }
 
-    /** Keys whose resolved value differs from what the registry alone would give. */
     overriddenSnapshots(): readonly ConfigSnapshot[] {
         return this.snapshotAll().filter(snapshot => snapshot.isOverridden);
     }
 
-    /**
-     * Writes one lane.
-     *
-     * Refusals come back as a reason instead of an exception: a debug panel should say why the
-     * control did nothing, not crash. Observers hear about it only when the RESOLVED value moved —
-     * a change under a row that is already losing tells a watcher nothing true.
-     */
     set(key: string, value: unknown, options: SetOptions): SetResult {
         const resolver = this.resolver;
         const ports = this.ports;
@@ -134,7 +101,6 @@ export class ConfigFacade {
         if (!entry) return { ok: false, reason: 'unknownKey' };
         if (!entry.writableBy.includes(options.lane)) return { ok: false, reason: 'laneNotAllowed' };
         if (!isValidValue(entry, value)) return { ok: false, reason: 'invalidValue' };
-        // Only a `dev`-surface key is gated — see ConfigLanePolicy.canSupply for why.
         if (options.lane === 'local' && !entry.meta && entry.surface === 'dev' && !resolver.isUnlocked()) {
             return { ok: false, reason: 'locked' };
         }
@@ -147,26 +113,10 @@ export class ConfigFacade {
         return { ok: true };
     }
 
-    /**
-     * Pass no keys to hear about every change.
-     *
-     * The listener is told which of the keys it asked about moved (`ConfigChangeListener`), so an
-     * observer that logs the change does not have to keep its own copy of every value to work out
-     * what happened.
-     */
     subscribe(keys: readonly string[] | undefined, listener: ConfigChangeListener): () => void {
         return this.store.subscribe(keys, listener);
     }
 
-    /**
-     * Removes an override so resolution falls through to whatever is below it.
-     *
-     * Not the same as `set(key, defaultValue, ...)` — writing the default is itself a value that
-     * would win the lane, while clearing removes the lane's entry so a lower row (a server default,
-     * a stage rule) can show through again. This is what replaces `clearRelayTransportOverrides` —
-     * logout clearing the deeplinked `?_backend`/`?_wss` override is exactly "stop shadowing
-     * whatever the build would otherwise resolve to".
-     */
     clear(key: string, options: SetOptions): SetResult {
         const resolver = this.resolver;
         const ports = this.ports;
@@ -175,7 +125,6 @@ export class ConfigFacade {
         const entry = this.registry.get(key);
         if (!entry) return { ok: false, reason: 'unknownKey' };
         if (!entry.writableBy.includes(options.lane)) return { ok: false, reason: 'laneNotAllowed' };
-        // Only a `dev`-surface key is gated — see ConfigLanePolicy.canSupply for why.
         if (options.lane === 'local' && !entry.meta && entry.surface === 'dev' && !resolver.isUnlocked()) {
             return { ok: false, reason: 'locked' };
         }
@@ -189,19 +138,8 @@ export class ConfigFacade {
         return { ok: true };
     }
 
-    /**
-     * Hands the cache a remote payload.
-     *
-     * No fetcher lives here — this lib knows nothing about the network (ADR-0079 decision 1). The app
-     * builds one from `@chatic/http` and calls this. Until then a fake adapter in the tests is the
-     * only caller, which is exactly what keeps the two server rows from rotting.
-     */
     applyRemotePayload(payload: RemotePayload): boolean {
         const keys = Object.keys(payload.entries);
-        // Diffed for the same reason `set` and `clear` diff: `subscribe` promises the RESOLVED value
-        // moved. A payload carries whatever the server sent, including keys a higher row is already
-        // winning — notifying on those would tell a watcher its value changed when nothing it can
-        // see did, and would make the state log report a change that never reached the app.
         const before = new Map(keys.map(key => [key, this.snapshot(key)?.value]));
         const accepted = this.remote.accept(payload);
         if (accepted) this.store.notify(keys.filter(key => before.get(key) !== this.snapshot(key)?.value));
@@ -215,7 +153,6 @@ export class ConfigFacade {
         try {
             return this.applyRemotePayload(await adapter.fetch());
         } catch {
-            // Keep the last known good payload, tell nobody, let the caller back off.
             return false;
         }
     }
@@ -224,8 +161,6 @@ export class ConfigFacade {
         return {
             shell: !!this.ports?.shell,
             local: !!this.ports?.storage,
-            // Both server rows stay unwired until an adapter arrives AND the switch is on. Two
-            // switches on purpose: merging the adapter and turning it on are separate decisions.
             server: !!this.ports?.remote,
         };
     }
@@ -253,19 +188,6 @@ export class ConfigFacade {
         }
     }
 
-    /**
-     * The browser storage backing a persist strategy, if any.
-     *
-     * `shell` resolves to the SAME `local` storage a `persist: 'local'` key uses. The bridge is the
-     * source of truth there, but a plain browser (no shell wired at all) has no bridge to be a
-     * source of truth — without a browser-side copy, a value only the shell would ever hold is lost
-     * on every reload. `theme`/`blurLastMessage`/`onboardingCompleted` are exactly this: a real
-     * standalone-web user (not wrapped in the native shell) still needs their choice to survive a
-     * refresh. `hydrateStorage()` reads this mirror into the `local` LANE, which the shell lane
-     * already outranks when the shell import is populated — so a native device's answer is untouched
-     * (it already wins on its `shell` lane and never reads this fallback), and only a shell-less
-     * browser ever resolves from it.
-     */
     private storageFor(persist: string): StorageLike | undefined {
         if (persist === 'local' || persist === 'shell') return this.ports?.storage?.local;
         if (persist === 'session') return this.ports?.storage?.session;
@@ -284,13 +206,6 @@ export class ConfigFacade {
         }
     }
 
-    /**
-     * A confirmed write with one retry.
-     *
-     * Fire-and-forget would let a panel claim it saved something that never landed. The realistic
-     * failure is a transient drop or a shell router that was not listening yet, not a rejected
-     * value — hence exactly one retry, then an honest report (ADR-0080 decision 10).
-     */
     private async writeShellConfirmed(key: string, raw: string): Promise<void> {
         const shell = this.ports?.shell;
         if (!shell) return;
@@ -306,10 +221,8 @@ export class ConfigFacade {
     }
 }
 
-/** Factory, for tests that need their own registry. */
 export const createConfig = (modules?: readonly ConfigRegistryModule[]): ConfigFacade => new ConfigFacade(modules);
 
-/** The instance apps use. */
 export const config = new ConfigFacade();
 
 export { UNLOCK_KEY as CONFIG_UNLOCK_KEY };

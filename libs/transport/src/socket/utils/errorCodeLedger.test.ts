@@ -4,7 +4,6 @@ import type { SocketLike, SocketMessage } from '@lemoncloud/chatic-sockets-lib';
 import { createErrorCodeLedger } from './errorCodeLedger';
 import { getSocketErrorCode } from './socketErrorCode';
 
-/** The frame the dev relay answered an overflowing `chat.read` with (2026-10-13). */
 const OVERFLOW_FRAME: SocketMessage = {
     type: 'chat.read:error',
     mid: 'm-1',
@@ -13,7 +12,6 @@ const OVERFLOW_FRAME: SocketMessage = {
     errorCode: 400,
 };
 
-/** What chatic-sockets-lib rejects the request with for that frame. */
 const overflowRejection = (): Error => new Error('@chatNo[999] is invalid - overflow[5] - chat.read:error');
 
 describe('createErrorCodeLedger', () => {
@@ -55,7 +53,6 @@ describe('createErrorCodeLedger', () => {
 
     it('keeps only frames that can have rejected a request with a code', () => {
         const ledger = createErrorCodeLedger();
-        // An ok answer, an error with no `mid` to settle, and an error with no numeric code.
         ledger.observe({ type: 'chat.read:ok', mid: 'm-3', data: null, error: 'x', errorCode: 400 });
         ledger.observe({ type: 'chat.read:error', data: null, error: 'no mid', errorCode: 400 });
         ledger.observe({ type: 'chat.read:error', mid: 'm-4', data: null, error: 'no code' });
@@ -99,12 +96,6 @@ describe('createErrorCodeLedger', () => {
     });
 });
 
-/**
- * The ledger leans on two things the SDK does but does not promise: the exact text it rejects with,
- * and running `onMessage` listeners before the rejection reaches a `catch`. This drives the real
- * client over a fake socket, so an SDK upgrade that changes either fails here rather than silently
- * turning server refusals back into unclassified failures.
- */
 describe('createErrorCodeLedger against chatic-sockets-lib', () => {
     const OPEN = 1;
 

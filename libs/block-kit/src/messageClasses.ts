@@ -1,19 +1,4 @@
-/**
- * Message body styles, shared with desktop-web's composer theme
- * (`editor/editorConfig`) and `MentionNode` so what you type is exactly what
- * readers see.
- *
- * They live in this lib rather than beside `RichText` because the block
- * renderer needs them and the block renderer is what got shared. The dependency
- * therefore points the other way now: `RichText` re-exports these, and the
- * composer keeps importing them from there.
- *
- * Every app that renders them defines the colour tokens they name (`hairline`, `well`,
- * `code-inline`) in its own Tailwind config and stylesheet.
- */
 export const MSG_BOLD_CLASS = 'font-semibold';
-// A border and its own colour, not a tint alone: the well sits within ~1.2:1 of the page in both
-// themes, so a tinted chip with body-coloured text read as part of the sentence.
 export const MSG_CODE_INLINE_CLASS =
     'rounded border border-hairline bg-well px-1 py-0.5 font-mono text-[0.85em] text-code-inline';
 export const MSG_CODE_BLOCK_CLASS =

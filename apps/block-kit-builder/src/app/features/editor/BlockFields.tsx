@@ -3,24 +3,11 @@ import { useLayoutEffect, useRef } from 'react';
 import type { BlockTextObject, KnownBlock } from '@chatic/block-kit';
 import { cn } from '@chatic/ui-kit';
 
-// 16px on a phone, the design size once there is a pointer: iOS Safari zooms the
-// page when a focused field's text is smaller than 16px, and it does not zoom back.
-// No border: the card already draws one, and a box inside a box reads as two
-// things when it is one. The well is what separates the field from the card.
-// No resize handle either — the field sizes itself.
 const INPUT = cn(
     'focus-ring block w-full resize-none overflow-hidden rounded bg-well px-2 py-1.5',
     'font-mono text-[16px] leading-relaxed text-foreground lg:text-caption'
 );
 
-/**
- * Tall enough for what is in it.
- *
- * A stack trace and a one-word label are both legitimate contents of the same
- * field, so any fixed height is wrong for one of them — and a clipped field in a
- * tool whose whole job is showing you what you wrote is the wrong thing to clip.
- * Capped, because a rail that scrolls past the message it is editing is no better.
- */
 const MAX_HEIGHT = 220;
 
 const useAutoHeight = (value: string) => {
@@ -37,14 +24,6 @@ const useAutoHeight = (value: string) => {
         };
         fit();
 
-        // The text is not the only thing that decides how tall it needs to be.
-        // The rail is 20rem beside the panes and the full viewport under `lg`, so
-        // crossing that breakpoint rewraps every line without `value` moving —
-        // and a field still holding its old height clips what the reader typed,
-        // in a tool whose whole job is showing you what you wrote.
-        //
-        // Width only. `fit` sets the height, so reacting to a height change would
-        // be reacting to this observer's own last move.
         let width = node.clientWidth;
         const observer = new ResizeObserver(() => {
             if (node.clientWidth === width) return;
@@ -66,13 +45,6 @@ interface TextInputProps {
     onValue: (value: string) => void;
 }
 
-/**
- * One text object.
- *
- * A textarea rather than an input everywhere: newlines are significant in every
- * Slack text object — a grid cell is routinely `*Label*\nvalue` — so a control
- * that swallowed Enter would put half the contract out of reach.
- */
 const TextInput = ({ label, value, onValue }: TextInputProps) => (
     <textarea
         ref={useAutoHeight(value)}
@@ -90,7 +62,6 @@ interface TextListProps {
     onItems: (items: BlockTextObject[]) => void;
 }
 
-/** A block's repeated text objects — `section.fields` and `context.elements`. */
 const TextList = ({ label, items, onItems }: TextListProps) => (
     <div className="flex flex-col gap-1">
         {items.map((item, index) => (
@@ -109,7 +80,6 @@ interface BlockFieldsProps {
     onChange: (block: KnownBlock) => void;
 }
 
-/** The inputs for one block. A divider has none; an undrawable block shows its source. */
 export const BlockFields = ({ block, onChange }: BlockFieldsProps) => {
     switch (block.type) {
         case 'header':
@@ -145,8 +115,6 @@ export const BlockFields = ({ block, onChange }: BlockFieldsProps) => {
             return null;
 
         default:
-            // Arrived through the payload editor as something the renderer cannot
-            // draw. Editing it here would need a schema we do not have.
             return <p className="break-all font-mono text-micro text-muted-foreground">{block.raw}</p>;
     }
 };

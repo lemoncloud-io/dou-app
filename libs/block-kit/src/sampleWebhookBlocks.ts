@@ -1,22 +1,3 @@
-/**
- * A reference webhook message, modeled on what the server stores for one: a webhook post that
- * carries a plain-text `content` summary and a derived `blocks$` list. The values are made up
- * (service name, ids, URL), the shape is the point.
- *
- * `WEBHOOK_SEND_ERROR_REPORT` is the request body a webhook sender posts; `WEBHOOK_BLOCKS_ERROR_REPORT`
- * is the `blocks$` the server derives from its `meta` and stores on the chat. Together they make a
- * ChatView with `stereo: 'webhook'`, `content` from the send body and `blocks$` from the blocks.
- *
- * Each sample also has the `source$` the server stores beside the blocks — the sender's channel name,
- * the report's address and the sender's `color` as sent — which is where the card's type badge, accent
- * colour and source link come from. The error, deployment and attendance samples are the three cards
- * the design draws.
- *
- * It lives in the lib so that desktop-web's render specs and this lib's own specs read one copy
- * rather than each keeping a sample of their own. Nothing here is checked against the server, so a
- * change to the server's shape shows up only when someone updates this sample.
- */
-
 export const WEBHOOK_SEND_ERROR_REPORT = {
     content:
         "error-report: `example-api/production#1.0.0`\nTypeError: Cannot read properties of undefined (reading 'channelId')",
@@ -76,14 +57,12 @@ export const WEBHOOK_BLOCKS_ERROR_REPORT = [
     },
 ] as const;
 
-/** The `source$` the server stores for the error report: `meta.channel`, `meta.sourceUrl`, `meta.color`. */
 export const WEBHOOK_SOURCE_ERROR_REPORT = {
     key: 'error',
     url: 'https://example.com/reports/2026-09-07/report.json',
     color: '#FFB71B',
 } as const;
 
-/** A deploy notice as a CI job posts it: a `good` colour, a few fields, the run as its source. */
 export const WEBHOOK_SEND_DEPLOYMENT = {
     content: 'example-web dev 배포 완료',
     stereo: 'webhook',
@@ -127,7 +106,6 @@ export const WEBHOOK_SOURCE_DEPLOYMENT = {
     color: 'good',
 } as const;
 
-/** The day's attendance summary: no source to link, chips for who is away. Names are made up. */
 export const WEBHOOK_SEND_ATTENDANCE = {
     content: '오늘 근태 · 2026.11.16',
     stereo: 'webhook',

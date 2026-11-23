@@ -8,7 +8,6 @@ jest.mock('@chatic/logger', () => ({
     ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-// The defaults reach the data runtime and the session store; every test injects its own instead.
 jest.mock('./dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
 jest.mock('@chatic/session/store', () => ({ getUidInCloud: jest.fn() }));
 
@@ -20,11 +19,6 @@ const INTERVAL = 60_000;
 const DEBOUNCE = 300;
 const PLACE = 600_000;
 
-/**
- * The part of the socket manager the receiver reads, with the slot lifecycle driven by the test:
- * `bind` announces a slot, `activate` moves the active pointer, `verify` flips a slot's handshake,
- * `push` delivers a frame on one slot.
- */
 const createManager = () => {
     const slotListeners = new Set<(key: SlotKey, client: unknown) => void>();
     const activeListeners = new Set<() => void>();
@@ -88,7 +82,6 @@ const createManager = () => {
     };
 };
 
-/** One cloud's scoped graph: a cursor store of its own and a delta that answers with the next cursor. */
 const createGraph = () => {
     const cursors = new Map<string, number>();
     let next = 1_000;
@@ -112,7 +105,6 @@ const createGraph = () => {
 
 type Graph = ReturnType<typeof createGraph>;
 
-/** Lets every pending promise chain run, without moving the fake clock. */
 const flush = async () => {
     for (let i = 0; i < 10; i += 1) await Promise.resolve();
 };
@@ -160,7 +152,6 @@ describe('BackgroundReceiver', () => {
         jest.useRealTimers();
     });
 
-    /** Relay active, A bound in the background and verified — the common starting point. */
     const startWithBackgroundA = async () => {
         socket.bind(RELAY);
         socket.activate(RELAY);
@@ -179,7 +170,6 @@ describe('BackgroundReceiver', () => {
         expect(graph.channel.syncChannels).toHaveBeenCalledTimes(1);
         expect(graph.channel.syncChannels).toHaveBeenCalledWith(0);
         expect(graph.cursors.get('channel-sync:cloud-a')).toBe(1_001);
-        // The active slot is the app's to keep current.
         expect(graphs.has(RELAY)).toBe(false);
     });
 
@@ -208,7 +198,6 @@ describe('BackgroundReceiver', () => {
         jest.advanceTimersByTime(1);
         await flush();
         expect(graph.channel.syncChannels).toHaveBeenCalledTimes(1);
-        // From the cursor the first delta left, not from zero again.
         expect(graph.channel.syncChannels).toHaveBeenCalledWith(1_001);
     });
 
@@ -226,7 +215,6 @@ describe('BackgroundReceiver', () => {
         await flush();
         expect(graph.channel.syncChannels).toHaveBeenCalledTimes(1);
 
-        // Coming back is its own edge.
         socket.verify(A);
         await flush();
         expect(graph.channel.syncChannels).toHaveBeenCalledTimes(2);
@@ -237,7 +225,6 @@ describe('BackgroundReceiver', () => {
         const graph = graphOf(A);
         graph.channel.syncChannels.mockClear();
 
-        // A switch onto A, with a push pending: neither the pending debounce nor the timer runs.
         socket.push(A);
         socket.activate(A);
         jest.advanceTimersByTime(INTERVAL * 2);
@@ -245,8 +232,6 @@ describe('BackgroundReceiver', () => {
         await flush();
         expect(graph.channel.syncChannels).not.toHaveBeenCalled();
 
-        // Back to the relay a minute or more after A last received: A asks straight away — after
-        // the debounce, not in the same pass as the pointer move.
         socket.activate(RELAY);
         await flush();
         expect(graph.channel.syncChannels).not.toHaveBeenCalled();
@@ -256,8 +241,6 @@ describe('BackgroundReceiver', () => {
     });
 
     it('asks nothing of a cloud the user leaves when its slot goes in the same pass', async () => {
-        // A cloud that is not kept: the binder moves the pointer off it and tears its slot down
-        // together. The loop it gets for that instant must not send on a socket that is going.
         socket.bind(RELAY);
         socket.bind(A);
         socket.activate(A);
@@ -292,9 +275,6 @@ describe('BackgroundReceiver', () => {
     });
 
     it('a cloud the user entered and leaves within an interval waits for its tick', async () => {
-        // The binder binds a slot, then moves the pointer onto it. From then on the app keeps that
-        // cloud current, so leaving it is not a reason to ask again at once — not even when this
-        // loop has never received for it.
         socket.bind(RELAY);
         socket.activate(RELAY);
         socket.verify(RELAY);
@@ -314,7 +294,6 @@ describe('BackgroundReceiver', () => {
         jest.advanceTimersByTime(INTERVAL);
         await flush();
         expect(graphOf(A).channel.syncChannels).toHaveBeenCalledTimes(1);
-        // Its places were the app's to keep current too.
         expect(graphOf(A).place.refreshList).not.toHaveBeenCalled();
     });
 
@@ -555,7 +534,6 @@ describe('BackgroundReceiver', () => {
             start({ onDelta });
             socket.bind(A);
             const graph = graphOf(A);
-            // The answer comes back a second after the request, so the two moments are told apart.
             graph.channel.syncChannels.mockImplementationOnce(async () => {
                 jest.setSystemTime(Date.now() + 1_000);
                 return { syncedAt: 2_000, removedCount: 0 };
@@ -645,10 +623,8 @@ describe('BackgroundReceiver', () => {
                     })
             );
 
-            // A tick is on its way when the kick's debounce ends.
             jest.advanceTimersByTime(INTERVAL);
             await flush();
-            // The tick read places on its own (a new loop's first delta); only the kick's read counts here.
             graph.place.refreshList.mockClear();
             receiver?.receiveNow(A);
             jest.advanceTimersByTime(DEBOUNCE);
@@ -717,14 +693,12 @@ describe('BackgroundReceiver', () => {
 
         jest.advanceTimersByTime(INTERVAL);
         await flush();
-        // The manager rebuilds a slot as a teardown followed by a new bind.
         socket.teardown(A);
         socket.bind(A);
         readCursor(1_001);
         await flush();
         expect(graph.channel.syncChannels).not.toHaveBeenCalled();
 
-        // The new connection verifies and its own loop asks.
         socket.verify(A);
         await flush();
         expect(graph.channel.syncChannels).toHaveBeenCalledTimes(1);

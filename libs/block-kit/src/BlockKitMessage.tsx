@@ -21,20 +21,11 @@ import { resolveCardAccent, type CardAccent } from './cardAccent';
 import { BLOCK_KIT_LINK_COLOR_CLASS, BlockKitLinkContext, renderMrkdwn } from './renderMrkdwn';
 import { isWebUrl } from './sourceLink';
 
-// Newlines are significant in every Slack text object — a field is routinely
-// "*Label*\nvalue" — and nothing else in the block reinstates them.
 const TEXT_FLOW = 'whitespace-pre-wrap';
 
 const textOf = (text: BlockTextObject): ReactNode =>
     text.type === 'mrkdwn' ? renderMrkdwn(text.text) : decodeSlackEntities(text.text);
 
-// The heading is the only line in the card that speaks at full ink; everything under
-// it is the same quieter secondary text, so the title is found first. Sizes come from
-// the scale (`blockKitScale`); colour and weight are the same at both.
-//
-// Body text of a section, a field value, and the stack under an error all read in
-// the label grey, not the foreground: the card's title is the message, the rest is
-// what supports it.
 const BODY_CLASS = 'font-medium text-label';
 
 const Header = ({ text, level }: { text: BlockTextObject; level?: number }) => {
@@ -44,13 +35,6 @@ const Header = ({ text, level }: { text: BlockTextObject; level?: number }) => {
     return <Tag className={cn('text-foreground', TEXT_FLOW, scale.heading[depth - 1])}>{textOf(text)}</Tag>;
 };
 
-/**
- * The way to the message's full source — a webhook's report — as a labelled link on the card's last
- * line, where the design puts it: after everything the card says, as the way to read more of it.
- * The title stays plain text: a reader looking for "the original" finds a word that says so, which a
- * heading that is secretly a link does not offer. In the card's link colour, like every other link
- * inside it.
- */
 const SourceLink = ({ url }: { url: string }) => {
     const onLinkClick = useContext(BlockKitLinkContext);
     const labels = useBlockKitLabels();
@@ -78,15 +62,6 @@ const SourceLink = ({ url }: { url: string }) => {
     );
 };
 
-/**
- * The type badge's words: the sender's channel name (`source$.key`) as plain text, with its hyphens
- * and underscores read as spaces (`ci-deploy` → `ci deploy`, drawn CI DEPLOY). Null when there is
- * none. The capitals are the badge's style, not its text, so a copied badge and a screen reader get
- * the words rather than a run of letters.
- *
- * The name is untrusted and unbounded, so it is never read as markup — React prints it as text — and
- * the badge cuts it to one line.
- */
 export const cardBadgeText = (key: unknown): string | null => {
     if (typeof key !== 'string') return null;
     const words = key.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -100,8 +75,6 @@ const Badge = ({ text, accented }: { text: string; accented: boolean }) => {
             className={cn(
                 'inline-flex min-w-0 max-w-full self-start rounded-full px-2.5 py-1 font-bold uppercase',
                 scale.badge,
-                // The accent's colours are CSS variables the card root sets per theme; without one the
-                // badge is the design's grey.
                 accented
                     ? 'bg-[var(--block-kit-badge-bg)] text-[color:var(--block-kit-badge-text)]'
                     : 'bg-well text-label'
@@ -112,7 +85,6 @@ const Badge = ({ text, accented }: { text: string; accented: boolean }) => {
     );
 };
 
-/** The accent as CSS variables: both themes' values, picked by the classes below. Computed colours only. */
 const accentStyle = (accent: CardAccent): CSSProperties =>
     ({
         '--block-kit-link-light': accent.light.link,
@@ -123,25 +95,18 @@ const accentStyle = (accent: CardAccent): CSSProperties =>
         '--block-kit-badge-bg-dark': accent.dark.badgeBackground,
     }) as CSSProperties;
 
-// Every caller marks its dark theme with a `.dark` class on the document, which is what `dark:` reads.
 const ACCENT_CLASS = cn(
     '[--block-kit-link:var(--block-kit-link-light)] dark:[--block-kit-link:var(--block-kit-link-dark)]',
     '[--block-kit-badge-text:var(--block-kit-badge-text-light)] dark:[--block-kit-badge-text:var(--block-kit-badge-text-dark)]',
     '[--block-kit-badge-bg:var(--block-kit-badge-bg-light)] dark:[--block-kit-badge-bg:var(--block-kit-badge-bg-dark)]'
 );
 
-// Slack's convention for a field is "*Label*\nvalue" — bold first line, value under
-// it. Read that shape as what it means, a small caption over its value, rather than
-// as a bold line followed by a plain one: in a two-column grid, two bold lines side
-// by side compete with the card's own title. Anything else stays one text object.
 const FIELD_LABEL = /^\*([^*\n]+)\*\n/;
 const FIELD_FIT = 'min-w-0 max-w-full [overflow-wrap:anywhere]';
 
 const Field = ({ field }: { field: BlockTextObject }): ReactNode => {
     const scale = useBlockKitScale();
     const label = field.type === 'mrkdwn' ? FIELD_LABEL.exec(field.text) : null;
-    // `min-w-0` and `overflow-wrap: anywhere`: a flex item will not shrink below its
-    // longest word, so a long hash or URL in a value would push past the card's edge.
     if (!label) return <span className={cn(BODY_CLASS, scale.body, FIELD_FIT)}>{textOf(field)}</span>;
     return (
         <span className={cn('flex flex-col gap-0.5', FIELD_FIT)}>
@@ -158,18 +123,11 @@ const drawBlock = (block: KnownBlock, key: number, scale: BlockKitScaleClasses):
         case 'header':
             return <Header key={key} text={block.text} level={block.level} />;
         case 'divider':
-            // Capped rather than full-bleed: in a wide pane the card can stretch, and a
-            // rule that runs its whole width reads as a separator between messages.
             return <hr key={key} className="max-w-2xl border-hairline" />;
         case 'section':
             return (
                 <div key={key} className="flex flex-col gap-2">
                     {block.text && <span className={cn(BODY_CLASS, scale.body, TEXT_FLOW)}>{textOf(block.text)}</span>}
-                    {/* Columns as wide as their content, wrapping when the card runs
-                        out of room — a phone card fits two short fields side by side,
-                        which a fixed two-column grid only allowed from `sm` up. Capped,
-                        because fields spread across a maximised window put the label
-                        and its value a screen apart. */}
                     {block.fields && (
                         <div className={cn('flex max-w-2xl flex-wrap gap-x-12 gap-y-2', TEXT_FLOW)}>
                             {block.fields.map((field, i) => (
@@ -180,9 +138,6 @@ const drawBlock = (block: KnownBlock, key: number, scale: BlockKitScaleClasses):
                 </div>
             );
         case 'context':
-            // A space between elements, not a gap: `blocksToPlainText` joins them with
-            // one, and a context line that reads differently in the sidebar preview than
-            // in the message is the same value disagreeing with itself.
             return (
                 <div key={key} className={cn(scale.context, 'font-medium text-description', TEXT_FLOW)}>
                     {block.elements.map((element, i) => (
@@ -194,9 +149,6 @@ const drawBlock = (block: KnownBlock, key: number, scale: BlockKitScaleClasses):
                 </div>
             );
         default:
-            // Kept verbatim so an unsupported block is visible rather than absent —
-            // labelled, because unannounced JSON in the middle of a message reads as
-            // something the sender wrote rather than something we could not draw.
             return (
                 <div key={key} className="flex max-w-2xl flex-col gap-1">
                     <span className="text-overline uppercase text-muted-foreground">
@@ -210,56 +162,15 @@ const drawBlock = (block: KnownBlock, key: number, scale: BlockKitScaleClasses):
 
 interface BlockKitMessageProps {
     blocks: KnownBlock[];
-    /** The original message body — what to show when none of the blocks can be drawn. */
     raw: string;
-    /**
-     * How to draw `raw` when nothing is drawable.
-     *
-     * A prop rather than an import because the two callers disagree about what a
-     * message body means. desktop-web passes its `RichText`, which reads the
-     * composer's markdown dialect and highlights the reader's own mentions —
-     * neither of which the builder has, and neither of which belongs in a lib
-     * that only knows Block Kit. Absent, the body renders as literal text, which
-     * is what a preview wants.
-     */
     renderFallback?: (raw: string) => ReactNode;
-    /** The caller's translation of the renderer's own words; see `BlockKitLabels`. Missing ones read in English. */
     labels?: Partial<BlockKitLabels>;
-    /**
-     * Opens a link in place of the anchor's default; see `BlockKitLinkContext`.
-     * Absent, a link behaves as a plain `target="_blank"` anchor.
-     */
     onLinkClick?: (url: string) => void;
-    /**
-     * Which of the design's two card sizes to draw; see `BlockKitScale`. Defaults to `phone`.
-     * Only the blocks scale — the all-undrawable fallback is the caller's own message text.
-     */
     scale?: BlockKitScale;
-    /**
-     * Where the whole message can be read in full — a webhook's report, say — drawn as
-     * a labelled link (`labels.openSource`) on the card's last line. Not a block: Slack's `header` carries no URL, so the caller finds it
-     * (`takeSourceLink`). Ignored unless it is `http(s)`.
-     */
     sourceUrl?: string;
-    /**
-     * The message's `source$` as the server stored it: `key` (the sender's channel
-     * name) becomes the type badge over the title, `color` the card's accent — the
-     * badge's colours and every link inside the card (`resolveCardAccent`). Both are
-     * the sender's raw values; neither reaches the page as markup or as a style.
-     * `null` (a hidden message) and absent both mean no badge and no accent.
-     */
     source?: { key?: unknown; color?: unknown } | null;
 }
 
-/**
- * A structured message the server sent as Block Kit.
- *
- * Failure has two shapes and they render differently. One unsupported block
- * among drawable ones shows its own source in place, which keeps the rest of the
- * message readable. But a message where *nothing* is drawable would come out as
- * a stack of JSON fragments, so it falls back to the original body instead —
- * one unreadable thing beats several.
- */
 export const BlockKitMessage = ({
     blocks,
     raw,
@@ -293,9 +204,6 @@ export const BlockKitMessage = ({
                         style={accent ? accentStyle(accent) : undefined}
                     >
                         {badge && <Badge text={badge} accented={!!accent} />}
-                        {/* Nothing left to draw once the server's source line moved out — the
-                            caller judged the card on the blocks before `takeSourceLink` — so the
-                            body is the message's own text, with the link still under it. */}
                         {drawable ? blocks.map((block, i) => drawBlock(block, i, classes)) : fallback}
                         {link}
                     </div>

@@ -1,10 +1,5 @@
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * Cache TTLs, declared so one can change as a value rather than as a code change, a build and a
- * deploy. Nothing reads them yet: the caches still take their TTLs from `libs/data`'s cache policy,
- * and the two TTL defaults here mirror it — 30 minutes for general caches and for the sync cursor.
- */
 export const cacheModule: ConfigRegistryModule = {
     'cache.ttl.defaultMs': {
         title: 'Default cache TTL',

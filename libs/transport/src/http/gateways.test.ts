@@ -92,7 +92,6 @@ describe('configuredArchiveEndpoint', () => {
         expect(configuredArchiveEndpoint()).toBe('');
     });
 
-    // A configured archive belongs to the build's relay; a deep-linked relay must keep its own stage.
     it('returns empty while a deep link has replaced the relay', () => {
         configValues['net.archive.endpoint'] = 'https://api.example.com/arc-v1';
         relayOverridden = true;

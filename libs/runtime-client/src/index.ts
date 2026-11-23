@@ -1,22 +1,6 @@
-// @chatic/runtime-client — the side of the React surface that calls the core.
-//
-// `@chatic/runtime` is what apps render against; this package is the half of it that needs no UI
-// library: the engine holder an app's entry point fills, the host ports it publishes, the commands
-// and reads that go through that engine, and the plain functions @chatic/runtime's hooks wrap. No
-// `react`, `@tanstack/*` or `zustand` here — the root lint's `layer:client` constraint refuses them —
-// so every hook, component and query key stays in @chatic/runtime, and what is left is code that
-// would run unchanged under another UI.
-//
-// Apps never import this package. They reach every name below through `runtime` from
-// `@chatic/runtime`, which re-exports the ones it sells; the rest are @chatic/runtime's own wiring.
-
-// --- the engine holder ---------------------------------------------------------------------------
 export { initAppRuntime, resetRuntimeEngine, runtimeEngine } from './init';
 export { discardWebSessionCopy, hasWebSessionCopy, prepareSecretStorage } from './sessionStorageBoot';
 
-// --- the declaration: an app names its adapters per port, and the start builds the runtime from them ---
-// Unlike the rest of this barrel, apps do reach these — through `@chatic/runtime-web` or
-// `@chatic/runtime-mobile`, which hand them on beside their own adapters.
 export {
     PORT_NAMES,
     RUNTIME_PORT_LOG_TAG,
@@ -68,7 +52,6 @@ export type {
     StartedRuntime,
 } from './declare';
 
-// --- connection: the sockets through the engine ------------------------------------------------------
 export {
     getRuntimeSocketState,
     getSlotStatuses,
@@ -86,7 +69,6 @@ export {
 export { deriveConnectivity, readOnlineSignal } from './connection/connectivity';
 export type { ConnectivitySignals, ConnectivityStatus } from './connection/connectivity';
 
-// --- data: repositories, the cache and its writes through the engine ---------------------------------
 export {
     clearLocalCaches,
     getAcceptorId,
@@ -108,7 +90,6 @@ export { withCloudHold } from './data/cloudHold';
 export { createInvitedCloudNameSync, createPairedCloudNameSync } from './data/cloudNameSync';
 export type { CloudNameSyncPass } from './data/cloudNameSync';
 
-// --- session: reads, commands, lookups --------------------------------------------------------------
 export {
     getActiveServerContext,
     getActiveSessionUser,
@@ -143,7 +124,6 @@ export { lazySessionDeviceId, readSessionDeviceId } from './session/deviceId';
 export { createPairedCloudCheck, createPairingRequestFlow } from './session/pairing';
 export type { PairingRequestScreen } from './session/pairing';
 
-// --- sync: the sync engine as the app drives it -----------------------------------------------------
 export {
     fetchRoomFeed,
     isChannelRefused,
@@ -159,16 +139,10 @@ export {
     updateSyncSnapshot,
 } from './sync/syncCommands';
 
-// --- diagnostics: the user's issue report and the log-batch upload ---------------------------------
 export { submitIssueReport } from './diagnostics/reportIssue';
 export { uploadLogBatch } from './diagnostics/logBatch';
 export type { AppType, IssueReportExtras, IssueReportOrigin } from './diagnostics/types';
 
-// --- the host: the capability ports the entry point publishes and features read ---------------------
-// The contracts, and the one holder `host` that the entry point publishes into. `@chatic/runtime` hands
-// the published ports out as `runtime.<port>` through the bindings below, which are live: each reads
-// what `host.publish` assigned, so `runtime.checkout` and `host.ports.checkout` are the same object.
-// The reading of the shell's declaration that chooses them is a web page's, in `@chatic/runtime-web`.
 export {
     appShellPort,
     checkoutPort,
@@ -241,7 +215,6 @@ export type {
     WebCheckout,
 } from './host';
 
-// --- settings: the config facade's values, snapshots and writes, as the call part reads them ---------
 export {
     clearSetting,
     getSetting,
@@ -253,9 +226,6 @@ export {
     subscribeSettings,
 } from './settings/settings';
 
-// --- the core's names @chatic/runtime's hooks use ------------------------------------------------------
-// Handed on unchanged, so a hook takes the core through this package alone. Constants and pure
-// helpers only: anything that drives the runtime is one of the functions above.
 export { RELAY_SLOT, slotKeyOf } from '@chatic/transport';
 export type { SlotKey, SocketState } from '@chatic/transport';
 export {

@@ -4,16 +4,8 @@ export default [
     ...baseConfig,
     {
         files: ['**/*.ts'],
-        // Override or add rules here
         rules: {},
     },
-    // ---------------------------------------------------------------------------------------------
-    // `@chatic/session` and `@chatic/transport` are open to this package, through their barrels.
-    //
-    // The root config closes them to everything else; these two blocks set the same rule again for
-    // this package's files, keeping the root's `@chatic/data/*` ban. Tests may also name a file as
-    // `@chatic/<package>/<path>`, so that mocking it reaches that package's own importers.
-    // ---------------------------------------------------------------------------------------------
     {
         files: ['src/**/*.ts'],
         ignores: ['src/**/*.test.ts', 'src/**/*.spec.ts'],

@@ -42,7 +42,7 @@ describe('SessionSignal — batch', () => {
 
         sessionSignal.batch(() => {
             sessionSignal.batch(() => sessionSignal.emit('selection'));
-            expect(listener).not.toHaveBeenCalled(); // not yet, while still inside
+            expect(listener).not.toHaveBeenCalled();
             sessionSignal.emit('selection');
         });
 
@@ -73,8 +73,6 @@ describe('SessionSignal — batch', () => {
 
         sessionSignal.batch(() => {
             sessionSignal.emit('selection');
-            // A12 (getCloudSessionSnapshot) goes through the cache, so the cache must already be
-            // invalidated by this point.
             expect(invalidate).toHaveBeenCalled();
             expect(listener).not.toHaveBeenCalled();
         });
@@ -84,9 +82,6 @@ describe('SessionSignal — batch', () => {
     });
 });
 
-// `subscribeSessionSignal` is the all-kinds wrapper the three reader hooks use (`useGlobalSession` ·
-// `useSessionAuth` · `useSessionIdentity`). It used to be covered only through the deprecated
-// `notifySessionStateChanged` shim; that shim is gone, so the wrapper gets its own case.
 describe('subscribeSessionSignal — 전 종류 구독 래퍼', () => {
     it('어느 종류가 움직여도 받는다', () => {
         const listener = jest.fn();

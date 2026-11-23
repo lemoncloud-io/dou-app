@@ -1,18 +1,5 @@
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * Log collection and upload — five levers collapsed into three keys, plus the upload tuning
- * discovered in the tunables sweep.
- *
- * `LOG_UPLOAD_FORCED_KEY` used to be a second key that existed only because there was no override
- * layer: the build flag became `log.upload.enabled`'s default and forcing became its local
- * override, so one key now does both jobs. `collection.enabled` stays excluded from `server` —
- * it is a privacy opt-out, and privacy opt-outs must not be something the server can undo.
- *
- * `upload.batchSize`/`intervalMs`/`backoffMs`/`maxAttempts` are `'restart'`:
- * `LogUploadScheduler`'s constructor captures them into instance fields, so a changed value has no
- * effect until the scheduler is rebuilt.
- */
 export const logModule: ConfigRegistryModule = {
     'log.collection.enabled': {
         title: 'Log collection',

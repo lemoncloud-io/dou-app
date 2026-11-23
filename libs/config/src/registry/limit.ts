@@ -1,14 +1,5 @@
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * Operational guardrails only — capped at what has no product-tier meaning and no server
- * enforcement elsewhere (image size, resend attempts, search results). Product entitlements
- * (place/channel counts) are deliberately absent; ADR-0060 already gave the server product
- * catalogue ownership of those, and putting them here would give them two owners.
- *
- * `auth.resendLimit` includes `'server'` on purpose — an SMS cost spike is exactly the day this
- * needs to be tightened without a deploy.
- */
 export const limitModule: ConfigRegistryModule = {
     'limit.image.maxBytes': {
         title: 'Max image upload size',

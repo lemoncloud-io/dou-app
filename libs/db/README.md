@@ -454,6 +454,19 @@ behaviour — anything that needs TTL enforcement has to build the judgement poi
 told the batch saved and one row simply is not there. The items themselves are not logged; they are
 domain content.
 
+**`WebStorageAdapter` is for rows that must not outlive the tab.** Its one user is the plain-browser
+`invitecloud` domain, kept in `sessionStorage`: a tab's guest identity lives there, and an invited
+cloud is entered on that guest's grant, so a row that outlived the tab would name a cloud nobody left
+can enter. Each partition is one key holding every row as one JSON object, read and rewritten whole,
+so it only suits a handful of rows with no paging; query options are not interpreted. It announces
+writes to no other tab, since a `sessionStorage` area has none. A partition it cannot read (a value
+another build wrote in a different shape, or storage refused by the browser) reads as empty and the
+next write replaces it, rather than taking the domain's read path down.
+
+**A media write batch aborts as a whole.** A `put` that throws (a value that cannot be cloned) would
+otherwise let the requests queued before it commit: the old entries deleted and the new row never
+written. If one message appears twice in a batch, the last copy wins, for its entries as for its row.
+
 ## How to verify
 
 ```bash

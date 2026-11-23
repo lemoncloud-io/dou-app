@@ -373,6 +373,57 @@ is a new room entry no fetch has taken — a second tap on the same room while i
 It waits on that fetch too, so it takes the trace for it. A new entry is never answered by a fetch
 that finished before it began; it sends its own.
 
+## Constraints worth knowing
+
+- **A stop is a deletion.** After two consecutive 403/404 answers the scheduler declares a target gone
+  and calls the plan's `onStopped`, which every library plan implements by calling the `onRemove` we
+  passed: that tombstones the cache row, and for the account's own `join` also clears that room's
+  cached messages. A removed join is also how a kick, or a leave made on another device, reaches this
+  one. `plans.ts` wraps `onStopped` once for all plans and logs it (with `kind` and `goneStreak`) before
+  the original runs, so if the removal throws or the app dies partway, the reason is already in the
+  log; `gone` (the server said 403/404) and `transient` (anything else) are different bugs.
+- **The channel plan restates the stop rule so a refusal can be seen on the first answer.** `onStopped`
+  comes a poll interval after the first `gone`, by which time a screen has already shown a load failure
+  for something that was a refusal. The plan supplies `decide`, records the channel in `refusedChannels`
+  on the first `gone`, and returns the library's own verdict unchanged (stop at `gone` twice in a row,
+  otherwise retry). Supplying `decide` replaces the library default, so the default is reproduced
+  beside `stopAfter`. A plan-level policy also wins over a scheduler-level one: if a scheduler-level
+  failure policy is ever added, the channel plan would silently ignore it. Only `gone` is recorded; a
+  dead socket says nothing about membership. A refusal is cleared when the channel answers (a re-invite
+  makes the room readable again) and on a session uid change, and the snapshot array it publishes is
+  the same instance until the set changes so it can serve as a `useSyncExternalStore` snapshot.
+- **An incoming delete is a write, not a removal.** `hidden: true` is what a delete is, matching what
+  the user's own delete does: removing the row would let it return on the next sync and the screen
+  would show the message as gone and then as a tombstone a second time. The same change can arrive
+  twice or for a message outside the window, so the write is keyed on id and repeats are harmless.
+- **Polling plans keep their snapshot across a reconnect.** The library default resets it, so the first
+  poll after a reconnect counts as changed and `onUpdate` fires. A reconnect happens on every
+  foreground return, and that cost one identical-data cache write per registered target, then a rate
+  limit and a refetch chain. Session boundaries are still covered because `stopAllSync` clears snapshots
+  with everything else.
+- **A slot that gets a new runtime drops its grace-period targets instead of starting them.** Starting
+  one would poll for a screen that already left, on a socket it never ran on; keeping it is worse,
+  because a re-registration would take the merge path, which does not start, and the target would
+  never run on the new runtime. Dropped, the re-registration creates and starts it afresh.
+- **An untagged target is not a wildcard.** A target registered with no uid in its cloud is never
+  treated as matching the live account: its ids were built from whatever the store held then, and
+  replaying them onto a real session is the 403.
+- **A receive run can outlive its loop.** When a slot is rebuilt or torn down mid-request the run
+  checks that its loop is still the slot's current one; past that point it must neither ask again (the
+  next request would share the new connection with the new loop's own) nor move the cursor. A cloud
+  that was never on screen since its slot bound asks soon rather than at once, because the binder moves
+  the pointer off a cloud and tears down a slot it does not keep in one pass, and a request sent in
+  between would go out on a socket that is going away. Everything in a run, the synchronous lookups
+  included, is inside the `try`: the run is fire-and-forget, so an escaped throw would become an
+  unhandled rejection.
+- **Delta announcements outlive the receiver.** `backgroundDeltas` is separate from the receiver
+  because the connection host restarts the receiver on a remount while an app runner that subscribed
+  once must keep hearing from whichever one is running. A listener that throws is caught there: it is
+  the subscriber's bug and must not reach the delta.
+- **The data graph is read on every call.** It is built lazily and installed at boot, so a captured
+  instance could pin one that does not exist yet; an uninstalled graph is a loud failure naming the
+  call that was skipped.
+
 ## What not to do
 
 - **Do not call `createDeviceRuntime` outside this package.** One runtime per slot is the contract, and a second one means two schedulers polling the same targets.
@@ -390,6 +441,7 @@ that finished before it began; it sends its own.
 - The grace window uses real timers, wrapped in `unrefTimer` so a pending stop cannot keep a Node process (or a jest run) alive.
 - `getSyncManager()` is a lazy singleton over `getSocketManager()`, with no reset seam. Construct `new SyncManager(fakeManager, deps)` in a test.
 - `SyncManager` subscribes to two things in its constructor — slot clients and the session signal — and each has a matching unsubscribe held for `destroy()`. A third subscription needs the same treatment.
+- Jest needs `TextEncoder`/`TextDecoder` polyfilled before any import (`jest.setup.ts`), because `@chatic/data` pulls the socket lib in. `__mocks__/assetsMock.js` stubs `@chatic/assets`, whose real module uses `import.meta.url`, which the CommonJS test transform cannot parse; it is a recursive proxy so any key of its growing maps answers with a usable placeholder. `uuid` is ESM-only and is transformed.
 - The uids and the selected cid are read per call and never captured. The whole job of those readers is to notice a change.
 
 ## Documents

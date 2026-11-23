@@ -3,9 +3,6 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 import react from '@vitejs/plugin-react';
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 
-// No `define` shims here, unlike the other apps: the builder talks to nothing.
-// It composes a payload and renders it, so the socket and backend libraries that
-// need `process.env`/`global` never get imported.
 export default defineConfig({
     root: import.meta.dirname,
     cacheDir: '../../node_modules/.vite/apps/block-kit-builder',
@@ -23,7 +20,6 @@ export default defineConfig({
         host: 'localhost',
     },
 
-    // nxViteTsPaths maps @chatic/* to libs/<name>/src per tsconfig.base paths.
     plugins: [react(), nxViteTsPaths()],
 
     build: {
