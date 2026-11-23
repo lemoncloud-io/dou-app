@@ -1,19 +1,12 @@
-/**
- * The one person every scenario signs in as: a guest on the relay, in its default place (`0000`),
- * which is what a first launch of the app is. Every value is invented; nothing here was issued by a
- * server.
- */
 export const GUEST = {
     uid: '900001',
     sid: '0000',
     accountId: 'D.e2e.guest',
     authId: 'e2e-auth-0001',
     code: 'E2EGUEST',
-    /** Fixed so every row keyed by time sorts the same on every run. */
     createdAt: 1_790_000_000_000,
 } as const;
 
-/** The relay's default place, as the server embeds it in the login and profile answers. */
 export const RELAY_SITE = {
     id: GUEST.sid,
     createdAt: GUEST.createdAt,
@@ -26,11 +19,6 @@ export const RELAY_SITE = {
 
 const base64Url = (value: unknown): string => Buffer.from(JSON.stringify(value)).toString('base64url');
 
-/**
- * An identity token with the claims the web reads, and a signature nobody checks. The web never
- * verifies it — the server is the only party that does, and in these scenarios the server is the
- * fixture — so a placeholder signature is enough, and it makes plain that the token is not real.
- */
 export const guestIdentityToken = (deviceId: string): string =>
     [
         base64Url({ alg: 'none', typ: 'JWT' }),
@@ -46,13 +34,11 @@ export const guestIdentityToken = (deviceId: string): string =>
             User: { name: deviceId, stereo: '', nick: '', login: '' },
             iss: 'e2e',
             iat: Math.floor(GUEST.createdAt / 1000),
-            // Far ahead, so no run is ever old enough for the web to try a refresh.
             exp: 4_102_444_800,
         }),
         'e2e-unsigned',
     ].join('.');
 
-/** `POST /oauth/register-device` — a fresh guest, as the relay answers a device it has not seen. */
 export const registerDeviceAnswer = (deviceId: string) => ({
     id: GUEST.uid,
     createdAt: GUEST.createdAt,
@@ -100,7 +86,6 @@ export const registerDeviceAnswer = (deviceId: string) => ({
     expiresIn: 2_592_000_000,
 });
 
-/** `user.profile` on the socket — the guest's place profile in the relay place. */
 export const guestProfile = (deviceId: string) => ({
     sid: GUEST.sid,
     uid: GUEST.uid,
@@ -130,7 +115,6 @@ export const guestProfile = (deviceId: string) => ({
     },
 });
 
-/** The guest's display profile in the relay place — the name the room header and home row show. */
 export const GUEST_NICK = 'E2E Guest';
 
 export const guestRelayProfile = {
@@ -141,7 +125,6 @@ export const guestRelayProfile = {
     updatedAt: GUEST.createdAt,
 };
 
-/** A new guest's one room: the self chat, which on the relay lives in its default place. */
 export const SELF_CHANNEL = {
     id: 'e2e-self',
     name: '',
@@ -155,7 +138,6 @@ export const SELF_CHANNEL = {
     updatedAt: GUEST.createdAt,
 };
 
-/** The guest's membership of that room, read up to nothing. */
 export const selfJoin = {
     id: `${SELF_CHANNEL.id}@${GUEST.uid}`,
     channelId: SELF_CHANNEL.id,
