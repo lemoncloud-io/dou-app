@@ -7,20 +7,11 @@ import type {
     ChatMediaPage,
 } from '../types/model/cache';
 
-/**
- * The room media index contract, as one table both stores run: IndexedDB in `libs/db` and the
- * shell's SQLite in `apps/mobile`. Test support only — nothing at runtime imports it.
- *
- * The rows carry their `mediaEntries` already decided, as the web sends them: the stores only store
- * and index, so the table is plain data and either store must give exactly the answers below.
- */
-
 export interface ChatMediaContractScope {
     cid: string;
     uid: string;
 }
 
-/** What a suite wires each store to. `namespace` keeps one case's rows from another's in a shared store. */
 export interface ChatMediaContractStore {
     saveAll(scope: ChatMediaContractScope, rows: CacheChatView[]): Promise<void>;
     deleteAll(scope: ChatMediaContractScope, ids: string[]): Promise<void>;
@@ -31,7 +22,6 @@ export interface ChatMediaContractStore {
         query: { channelId: string; kind: ChatMediaKind; cursorNo?: number; limit: number }
     ): Promise<ChatMediaPage>;
     count(scope: ChatMediaContractScope, channelId: string): Promise<ChatMediaCounts>;
-    /** A room fill's entries (`SaveChatMediaCacheData` / `saveChatMediaEntries`). */
     fill(scope: ChatMediaContractScope, items: ChatMediaFillItem[], version: number): Promise<void>;
 }
 
@@ -42,7 +32,6 @@ export type ChatMediaContractStep =
     | { clearAll: true; scope?: ChatMediaContractScope }
     | { fill: ChatMediaFillItem[]; version: number; scope?: ChatMediaContractScope };
 
-/** One entry of an expected page: `[chatId, chatNo, idx, ref]`. */
 export type ChatMediaContractItem = [string, number, number, string];
 
 export type ChatMediaContractExpectation =
@@ -70,7 +59,6 @@ const file = (idx: number, ref: string): ChatMediaEntry => ({ kind: 'file', idx,
 const audio = (idx: number, ref: string): ChatMediaEntry => ({ kind: 'audio', idx, ref });
 const link = (idx: number, ref: string): ChatMediaEntry => ({ kind: 'link', idx, ref });
 
-/** A chat row as the web hands it to a store. Leaving `mediaEntries` out means "written by an older bundle". */
 export const contractRow = (
     channelId: string,
     chatNo: number,
@@ -94,7 +82,6 @@ export const contractRow = (
 
 const ZERO: ChatMediaCounts = { image: 0, video: 0, file: 0, audio: 0, link: 0 };
 
-/** A row as the current write path stores it: entries and the rules version they were decided under. */
 const current = (
     channelId: string,
     chatNo: number,
@@ -102,7 +89,6 @@ const current = (
     fields: Partial<CacheChatView> = {}
 ) => contractRow(channelId, chatNo, mediaEntries, { mediaEntriesVersion: 1, ...fields });
 
-/** A fill item, as a fill computes it from the row it read. */
 const fillItem = (channelId: string, chatNo: number, entries: ChatMediaEntry[]): ChatMediaFillItem => ({
     chatId: `${channelId}:${chatNo}`,
     channelId,
@@ -110,11 +96,6 @@ const fillItem = (channelId: string, chatNo: number, entries: ChatMediaEntry[]):
     entries,
 });
 
-/**
- * Room `r1`: messages 1..9, images spread so a limit can land inside a message.
- * - 9: images a,b,c   - 8: text   - 7: image d + link   - 6: images e,f
- * - 5: video + file   - 4: audio  - 3: image g          - 2: text   - 1: images h,i
- */
 const room = (): CacheChatView[] => [
     contractRow('r1', 1, [img(0, 'h'), img(1, 'i')]),
     contractRow('r1', 2, []),
@@ -399,10 +380,6 @@ export const CHAT_MEDIA_CONTRACT_CASES: ChatMediaContractCase[] = [
     },
 ];
 
-/**
- * Runs one case against a store and returns what it saw, shaped like the expectations — a suite
- * compares the two with `toEqual`, so a failure shows the whole difference at once.
- */
 export const runChatMediaContractCase = async (
     store: ChatMediaContractStore,
     contractCase: ChatMediaContractCase
@@ -425,7 +402,6 @@ export const runChatMediaContractCase = async (
             actual.push({
                 items: page.items.map((item): ChatMediaContractItem => [item.chatId, item.chatNo, item.idx, item.ref]),
                 nextCursorNo: page.nextCursorNo,
-                // Each entry carries its own message's row.
                 rowsMatch: page.items.every(
                     item => item.chat?.id === item.chatId && item.kind === expectation.list.kind
                 ),

@@ -7,15 +7,6 @@ type Decision = { emittedBy: string[]; test: string } | { notEmitted: string };
 
 const STORE_IAP = 'Store purchases happen on the phones only';
 
-/**
- * Every app → web event the desktop shell could send on its own initiative, decided: either the
- * file that pushes it and the test that triggers it, or the reason it never does. Paths are relative
- * to `apps/desktop/src`. A new push-only message in `@chatic/bridge-messages`, or a new `pushEvent`
- * call here, fails this suite until it has a line.
- *
- * A reply type is listed too when the shell also pushes it unprompted — `OnFetchFcmToken` answers
- * `FetchFcmToken`, and is pushed again whenever the token is re-minted.
- */
 const DESKTOP_APP_EVENTS = {
     OnReceiveNotification: { emittedBy: ['main/shellEvents.ts'], test: 'main/shellEvents.test.ts' },
     OnFetchFcmToken: { emittedBy: ['main/shellEvents.ts'], test: 'main/shellEvents.test.ts' },
@@ -56,12 +47,9 @@ const EMITTED = Object.entries(DECIDED).filter(
 );
 
 describe('desktop app → web event inventory', () => {
-    // Computed once: each read compiles the vocabulary.
     const vocabulary = appMessageTypes();
     const initiated = appInitiatedTypes();
 
-    // Guards the guards: an unresolved vocabulary reads as an empty list, and every check below
-    // would then pass on nothing.
     it('reads the push-only messages out of the vocabulary', () => {
         expect(initiated).toEqual(expect.arrayContaining(['OnBackPressed', 'OnNavigate', 'OnReceiveNotification']));
         expect(vocabulary.length).toBeGreaterThan(initiated.length);
@@ -79,8 +67,6 @@ describe('desktop app → web event inventory', () => {
         expect(stale).toEqual([]);
     });
 
-    // Read off the source, so an event pushed from a file nobody listed, a listed one that stopped
-    // pushing, and a `pushEvent` whose type is computed all show up as a difference.
     it('names exactly the files that push each event', () => {
         const declared = Object.fromEntries(
             EMITTED.map(([type, { emittedBy }]) => [type, [...emittedBy].sort()]).sort(([a], [b]) =>
@@ -91,8 +77,6 @@ describe('desktop app → web event inventory', () => {
         expect(pushEventSites(SRC)).toEqual(declared);
     });
 
-    // A pointer, not proof: it finds the test and the helper's name in it. That the test really
-    // triggers the event is the colocated test's own assertion.
     it.each(EMITTED)('triggers %s from a colocated test', (type, { test }) => {
         const file = join(SRC, test);
 

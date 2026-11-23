@@ -1,15 +1,3 @@
-/**
- * The bundle lifecycle, with electron mocked away.
- *
- * This module is the one place the PoC destroys and replaces a directory the shell is
- * actively serving, so its failure paths are the ones worth pinning: a failed swap must put
- * the previous bundle back, and two applies must not interleave. Neither is observable from
- * the pure helpers in customUi.ts, and both were introduced as fixes — which is exactly the
- * code most likely to be wrong.
- *
- * `app.getPath` is the only electron surface reached here; the protocol registration is
- * mocked because it needs a live app. The filesystem is real.
- */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import type * as FsPromises from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -50,19 +38,9 @@ const crc32 = (buf: Buffer): number => {
 interface ZipEntry {
     name: string;
     body: string;
-    /** High word is the unix mode; 0o100644 for a regular file, 0o120777 for a symlink. */
     unixMode?: number;
 }
 
-/**
- * Minimal stored (uncompressed) ZIP writer.
- *
- * Hand-rolled rather than pulling in a zip library: the only one already present is a
- * transitive dependency of the packager, so depending on it here would make these tests
- * hostage to someone else's hoisting. It also gives exact control of externalFileAttributes,
- * which is the whole point of the symlink case — extract-zip reads nothing else to decide
- * whether to call fs.symlink.
- */
 const buildZip = (entries: ZipEntry[]): Buffer => {
     const locals: Buffer[] = [];
     const centrals: Buffer[] = [];
@@ -74,26 +52,26 @@ const buildZip = (entries: ZipEntry[]): Buffer => {
         const crc = crc32(data);
 
         const local = Buffer.alloc(30);
-        local.writeUInt32LE(0x04034b50, 0); // local file header signature
-        local.writeUInt16LE(20, 4); // version needed
-        local.writeUInt16LE(0, 8); // method: stored
+        local.writeUInt32LE(0x04034b50, 0);
+        local.writeUInt16LE(20, 4);
+        local.writeUInt16LE(0, 8);
         local.writeUInt32LE(crc, 14);
-        local.writeUInt32LE(data.length, 18); // compressed size
-        local.writeUInt32LE(data.length, 22); // uncompressed size
+        local.writeUInt32LE(data.length, 18);
+        local.writeUInt32LE(data.length, 22);
         local.writeUInt16LE(nameBuf.length, 26);
         locals.push(local, nameBuf, data);
 
         const central = Buffer.alloc(46);
-        central.writeUInt32LE(0x02014b50, 0); // central directory signature
-        central.writeUInt16LE((3 << 8) | 20, 4); // version made by: unix
-        central.writeUInt16LE(20, 6); // version needed
-        central.writeUInt16LE(0, 10); // method: stored
+        central.writeUInt32LE(0x02014b50, 0);
+        central.writeUInt16LE((3 << 8) | 20, 4);
+        central.writeUInt16LE(20, 6);
+        central.writeUInt16LE(0, 10);
         central.writeUInt32LE(crc, 16);
         central.writeUInt32LE(data.length, 20);
         central.writeUInt32LE(data.length, 24);
         central.writeUInt16LE(nameBuf.length, 28);
-        central.writeUInt32LE((unixMode << 16) >>> 0, 38); // external file attributes
-        central.writeUInt32LE(offset, 42); // offset of local header
+        central.writeUInt32LE((unixMode << 16) >>> 0, 38);
+        central.writeUInt32LE(offset, 42);
         centrals.push(central, nameBuf);
 
         offset += local.length + nameBuf.length + data.length;
@@ -101,7 +79,7 @@ const buildZip = (entries: ZipEntry[]): Buffer => {
 
     const centralDir = Buffer.concat(centrals);
     const end = Buffer.alloc(22);
-    end.writeUInt32LE(0x06054b50, 0); // end of central directory signature
+    end.writeUInt32LE(0x06054b50, 0);
     end.writeUInt16LE(entries.length, 8);
     end.writeUInt16LE(entries.length, 10);
     end.writeUInt32LE(centralDir.length, 12);
@@ -112,7 +90,6 @@ const buildZip = (entries: ZipEntry[]): Buffer => {
 const zipOf = (files: Record<string, string>): Buffer =>
     buildZip(Object.entries(files).map(([name, body]) => ({ name, body })));
 
-/** Stub the global fetch with a queue of per-URL responses. */
 const serve = (bodies: Record<string, Buffer | { status: number } | 'redirect'>): void => {
     global.fetch = jest.fn(async (input: RequestInfo | URL) => {
         const answer = bodies[String(input)];
@@ -164,8 +141,6 @@ describe('applyCustomUi', () => {
     });
 
     it('rejects a symlink entry before it can be created', async () => {
-        // The escape the lexical confinement in resolveEntryPath cannot see: a link to `/`
-        // lands inside the root, so every path under it passes the prefix check.
         serve({
             [URL_A]: buildZip([
                 { name: 'index.html', body: '<h1>a</h1>' },
@@ -183,15 +158,12 @@ describe('applyCustomUi', () => {
         await applyCustomUi(URL_A);
 
         await expect(applyCustomUi(URL_B)).rejects.toThrow('HTTP 503');
-        // The whole reason the IPC handler does not disable on failure.
         expect(isCustomUiActive()).toBe(true);
         expect(getActiveCustomUiRoot()).toBe(bundleRootFor(BASE, URL_A));
         expect(existsSync(join(bundleRootFor(BASE, URL_A), 'index.html'))).toBe(true);
     });
 
     it('does not leave the served root half-replaced when the SAME url is re-applied and fails', async () => {
-        // Re-applying a URL targets the directory currently being served, so this is the case
-        // where extracting in place would have destroyed a working bundle.
         serve({ [URL_A]: zipOf({ 'index.html': '<h1>a</h1>', 'keep.txt': 'keep' }) });
         await applyCustomUi(URL_A);
 
@@ -207,11 +179,9 @@ describe('applyCustomUi', () => {
             [URL_A]: zipOf({ 'index.html': '<h1>a</h1>', 'who.txt': 'a' }),
             [URL_B]: zipOf({ 'index.html': '<h1>b</h1>', 'who.txt': 'b' }),
         });
-        // Started together, without awaiting the first — the tray's Apply has no busy flag.
         const [first, second] = [applyCustomUi(URL_A), applyCustomUi(URL_B)];
         await Promise.all([first, second]);
 
-        // Last one wins, and both roots are whole rather than a mix of the two archives.
         expect(getActiveCustomUiRoot()).toBe(bundleRootFor(BASE, URL_B));
         expect(readFileSync(join(bundleRootFor(BASE, URL_B), 'who.txt'), 'utf8')).toBe('b');
     });
@@ -227,20 +197,13 @@ describe('applyCustomUi', () => {
     });
 
     it('puts the previous bundle back when the swap itself fails', async () => {
-        // The one claim the other tests cannot reach: everything up to the rename is
-        // non-destructive, so this is the only window where a failure could lose a working
-        // bundle. Forced, because a real EPERM/EBUSY needs Windows.
         serve({ [URL_A]: zipOf({ 'index.html': '<h1>a</h1>', 'who.txt': 'a' }) });
         await applyCustomUi(URL_A);
 
         const root = bundleRootFor(BASE, URL_A);
         const fsp = jest.requireActual<typeof FsPromises>('node:fs/promises');
-        // Capture the real one BEFORE spying: reading `fsp.rename` afterwards yields the spy,
-        // and feeding a spy its own implementation makes the first call consume the second
-        // mock — which fails the move-aside instead of the swap and tests nothing.
         const realRename = fsp.rename;
         const rename = jest.spyOn(fsp, 'rename');
-        // First call moves root aside; the second is the swap we want to fail.
         rename.mockImplementationOnce(realRename).mockImplementationOnce(() => Promise.reject(new Error('EPERM')));
 
         serve({ [URL_A]: zipOf({ 'index.html': '<h1>b</h1>', 'who.txt': 'b' }) });
@@ -267,7 +230,6 @@ describe('restoreCustomUi', () => {
         serve({ [URL_A]: zipOf({ 'index.html': '<h1>a</h1>' }) });
         await applyCustomUi(URL_A);
         disableCustomUi();
-        // disable clears the record, so put it back the way a quit-then-relaunch would leave it.
         writeFileSync(join(userData, 'chatic-custom-ui.json'), JSON.stringify({ root: bundleRootFor(BASE, URL_A) }));
 
         expect(restoreCustomUi()).toBe(true);
@@ -312,7 +274,6 @@ describe('disableCustomUi', () => {
         await applyCustomUi(URL_A);
         const record = readFileSync(join(userData, 'chatic-custom-ui.json'), 'utf8');
 
-        // What the MAIN_VITE_CUSTOM_UI_ROOT branch does: serve a root that was never persisted.
         const override = join(userData, 'override');
         mkdirSync(override, { recursive: true });
         writeFileSync(join(override, 'index.html'), '<h1>o</h1>');

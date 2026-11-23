@@ -8,7 +8,6 @@ describe('main-process app → web events', () => {
         host = { pushEvent: jest.fn() };
     });
 
-    // A protocol link, a tray or menu item, and a notification click all arrive this way.
     it("pushes a deeplink as 'OnReceiveNotification' carrying data.deeplink", () => {
         pushDeeplink(host, 'chatic://channels/ch1/room');
 
@@ -22,7 +21,6 @@ describe('main-process app → web events', () => {
         expect(pushedEventErrors(pushedEvents(host.pushEvent))).toEqual([]);
     });
 
-    // An FcmPush as fcm.ts parses it. Its `deeplink` stays behind: the web routes from `data`.
     it("pushes a cross-cloud push as 'OnReceiveNotification'", () => {
         const push = {
             title: 'title',
@@ -43,7 +41,6 @@ describe('main-process app → web events', () => {
         expect(pushedEventErrors(pushedEvents(host.pushEvent))).toEqual([]);
     });
 
-    // A data-only push has no title or body; the optional fields are left out on the wire.
     it("pushes a data-only push as 'OnReceiveNotification'", () => {
         pushFcmMessage(host, { data: { type: 'mark' } });
 

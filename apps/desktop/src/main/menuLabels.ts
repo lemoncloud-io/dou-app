@@ -1,10 +1,3 @@
-/**
- * Labels for the application menu's own items (role items are localized by the OS).
- *
- * Picked from the OS locale, like the load-error page: the renderer's in-app
- * language choice never reaches main, so a user who picked Korean on an English
- * system still sees these in English. Electron-free so it is testable.
- */
 const MENU_LABELS = {
     en: {
         settings: 'Settings',
@@ -32,7 +25,6 @@ const MENU_LABELS = {
     },
 } as const;
 
-/** @param locale what `app.getLocale()` returns, e.g. `ko-KR`. */
 type MenuLabels = (typeof MENU_LABELS)[keyof typeof MENU_LABELS];
 
 export const menuLabels = (locale: string): MenuLabels =>

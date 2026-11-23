@@ -22,8 +22,6 @@ describe('fromTrustedFrame', () => {
         });
     });
 
-    // Any page the window navigates to — or an iframe inside a trusted one — can reach
-    // ipcRenderer through the preload; the handler must never see its message.
     it.each([
         ['another origin', frame('https://evil.example.com/')],
         ['a lookalike host', frame('https://desktop.chatic.io.evil.com/')],

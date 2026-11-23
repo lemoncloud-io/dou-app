@@ -26,8 +26,6 @@ import { attachDesktopSubWebView } from './desktopSubWebViewWindow';
 import { chromeTitleScript } from './subWebViewChrome';
 import { SUB_WEBVIEW_BOOT_CHANNEL, SUB_WEBVIEW_CLOSE_URL, SUB_WEBVIEW_TO_APP_CHANNEL } from './subWebViewContract';
 
-// Electron cannot load under jest. The window code is exercised against these fakes, which record
-// what it asked electron to do; `__state` hands the records to the tests.
 jest.mock('electron', () => {
     const { EventEmitter: Emitter } = jest.requireActual('node:events');
     const state = {
@@ -261,11 +259,9 @@ describe('the sub view policy', () => {
         });
         expect(readDesktopSubWebViewManifest({ manifestVersion: 1, name: 'x'.repeat(101), display: 'tv' })).toEqual({});
         expect(readDesktopSubWebViewManifest({ manifestVersion: 2, name: 'Hub' })).toEqual({});
-        // A window has no system bars to draw under: the page fills it as `clean` does.
         expect(readDesktopSubWebViewManifest({ manifestVersion: 1, display: 'immersive' })).toEqual({
             display: 'clean',
         });
-        // A page deployed before the rename keeps its look.
         expect(readDesktopSubWebViewManifest({ manifestVersion: 1, display: 'standard' })).toEqual({
             display: 'titled',
         });
@@ -469,9 +465,7 @@ describe('the sub view window', () => {
         const ses = mocked.__state.sessions.get('persist:sub-webview:https://example.com');
         expect(ses.fetch).not.toHaveBeenCalled();
         expect(ses.setPermissionRequestHandler).toHaveBeenCalled();
-        // The page takes the keys once it is shown.
         expect(page().webContents.focus).toHaveBeenCalled();
-        // The bar shows the host, even after the page titles itself as something else.
         page().webContents.emit('page-title-updated', {}, 'DoU — Sign in');
         expect(chrome().webContents.executeJavaScript).toHaveBeenLastCalledWith(chromeTitleScript('example.com'));
     });
@@ -479,7 +473,6 @@ describe('the sub view window', () => {
     it('hands an external site no device: every chooser is answered with none, and device access is refused', async () => {
         const { service, page } = setup();
 
-        // An origin no other test opens: a session is prepared once, on its first view.
         service.open({ url: 'https://devices.example/app' });
         await flush();
 
@@ -627,8 +620,6 @@ describe('the sub view window', () => {
         service.open({ url: 'https://apps.chatic.io/' });
         await flush();
         const contents = page().webContents;
-        // Electron sends the reply the moment `returnValue` is first set; a later assignment never
-        // reaches the renderer. The fake answers with the first value, as the real one does.
         const ask = (event: any) => {
             const replies: unknown[] = [];
             Object.defineProperty(event, 'returnValue', { set: (value: unknown) => replies.push(value) });
@@ -694,7 +685,6 @@ describe('the sub view window', () => {
         page().webContents.emit('did-fail-load', {}, -105, 'NAME_NOT_RESOLVED', 'https://example.com/', true);
 
         expect(page().setVisible).toHaveBeenCalledWith(false);
-        // The hidden page cannot take Esc; the card holds the keys instead.
         expect(chrome().webContents.focus).toHaveBeenCalled();
         expect(
             chrome().webContents.executeJavaScript.mock.calls.some((call: string[]) =>
