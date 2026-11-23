@@ -72,7 +72,7 @@ function proofFor(file, baselines) {
     return { cls: null, ok: false, why: 'no proof class covers this file type' };
 }
 
-const BASELINE_MAY_LIVE_IN = new Set(['lint rules']);
+const BASELINE_MAY_LIVE_IN = new Set(['lint rules', 'repository scripts CI runs']);
 
 function gates(input, baselines) {
     const blocks = [];

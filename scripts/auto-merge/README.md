@@ -137,7 +137,8 @@ request — the misfire rate to watch once auto-merge is on.
 
 Ratchet baselines are matched by `AUTO_MERGE_BASELINE_PATTERNS` (comma-separated regular
 expressions); the defaults in `rules.js` match `*ratchet*baseline*.json`, `.ratchet/**/*.json` and
-`tools/ratchet/**/*.json`. A baseline may sit under `tools/eslint-rules/` despite that directory's
-exclusion, because lowering a count can only tighten a rule. A key that disappears counts as lowered
-to zero. A renamed file moves its entry to a new key, which reads as an added entry and goes to a
-reviewer.
+`tools/ratchet/**/*.json`. A baseline may sit under `scripts/` or `tools/eslint-rules/` despite
+those directories' exclusion, because lowering a count can only tighten a rule. The ratchet's own
+scripts and its `scripts/ratchet/modes.json` (which switches each check between off, observe and
+enforce) stay excluded. A key that disappears counts as lowered to zero. A renamed file moves its
+entry to a new key, which reads as an added entry and goes to a reviewer.

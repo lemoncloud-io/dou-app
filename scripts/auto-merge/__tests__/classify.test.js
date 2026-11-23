@@ -194,3 +194,15 @@ test('untrusted text cannot break out of code spans in the reasons', () => {
     assert.match(r.fix.fails.join(), /@\u200beveryone/);
     assert.ok(text.length > 0);
 });
+
+test('ratchet baselines under scripts/ratchet are provable; the judge and its modes are always reviewed', () => {
+    const baseline = file('scripts/ratchet/source-ratchet-baseline.json', {
+        before: '{"apps/web/src/a.ts": {"comments": 41}}',
+        after: '{"apps/web/src/a.ts": {"comments": 39}}',
+    });
+    assert.deepEqual(run([baseline]).classes, ['A2']);
+    for (const path of ['scripts/ratchet/modes.json', 'scripts/ratchet.js', 'scripts/ratchet/judge.js']) {
+        const judge = file(path, { before: '{"a": "enforce"}', after: '{"a": "observe"}' });
+        assert.match(run([judge]).blocks.join(), /repository scripts CI runs\) is always reviewed/, path);
+    }
+});
