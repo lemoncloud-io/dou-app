@@ -50,7 +50,6 @@ describe('useComposerDraftStore', () => {
 
     it('keeps the newest drafts past the cap, a write moving a conversation to the newest end', () => {
         for (let i = 0; i < COMPOSER_DRAFT_MAX; i += 1) useComposerDraftStore.getState().setText(`c${i}`, 'x');
-        // Written again, so it is the newest and survives the next one.
         useComposerDraftStore.getState().setText('c0', 'again');
 
         useComposerDraftStore.getState().setText('new', 'y');

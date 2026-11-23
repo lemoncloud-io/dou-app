@@ -20,7 +20,6 @@ const channels = [{ id: 'c1', sid: 's1' }] as unknown as DomainChannel[];
 const joins = new Map();
 const unreads = { byChannel: { c1: 2 }, byPlace: { s1: 4 }, total: 4 };
 
-// Reads the context the provider publishes and prints it, so one render asserts the whole value.
 const Probe = () => {
     const { channels: rows, isLoaded, myJoins, unreads: aggregated } = useActiveCloudData();
     return (
@@ -48,7 +47,6 @@ describe('ActiveCloudDataProvider — 앱 전체가 공유하는 단 하나의 �
             </ActiveCloudDataProvider>
         );
 
-        // sync: false — merely mounting the app does not register any per-channel join sync (ADR-0056).
         expect(myJoinsMock).toHaveBeenCalledWith(channels, { sync: false });
         expect(unreadsMock).toHaveBeenCalledWith(channels, joins);
         expect(screen.getByTestId('ids').textContent).toBe('c1');
@@ -57,7 +55,6 @@ describe('ActiveCloudDataProvider — 앱 전체가 공유하는 단 하나의 �
         expect(screen.getByTestId('total').textContent).toBe('4');
     });
 
-    // The signal that distinguishes an empty list before the first response from "no channels" — it must pass through unchanged.
     it('isLoaded는 관측의 답을 그대로 전달한다', () => {
         channelsMock.mockReturnValue({ channels: [], isLoaded: false });
 

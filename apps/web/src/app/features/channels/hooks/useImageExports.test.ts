@@ -34,7 +34,6 @@ jest.mock('../../../bridge/shellDownload', () => ({
     }),
 }));
 const getChat = jest.fn();
-/** Who moves files, as the host's `files` port says: the app's transfer module unless a test is in a browser. */
 let filesKind: 'shell' | 'browser' = 'shell';
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
@@ -68,7 +67,6 @@ const image = { uploadId: 'u-1', url: 'https://bucket.s3.amazonaws.com/k', name:
 const clip = { uploadId: 'v-1', url: 'https://bucket.s3.amazonaws.com/v', name: 'clip.mp4', kind: 'video' as const };
 const second = { uploadId: 'u-2', url: 'https://bucket.s3.amazonaws.com/k2', name: 'two.jpg', kind: 'image' as const };
 const sending = { uploadId: 'local-2', url: 'blob:https://app/3', kind: 'image' as const };
-/** Every download answers at once with the file, and records its address. */
 const instant =
     (urls: string[]): Start =>
     input => {

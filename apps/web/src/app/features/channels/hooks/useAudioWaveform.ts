@@ -8,7 +8,6 @@ interface AudioWaveformInput {
     uploadId: string | undefined;
     url: string | undefined;
     sizeBytes?: number;
-    /** The length when the player already knows it. */
     durationSeconds?: number;
 }
 
@@ -17,12 +16,6 @@ const browserDeps: WaveformDeps = {
     decode: decodeWithOfflineContext,
 };
 
-/**
- * The bars the audio detail draws for one upload: kept ones at once, else computed from the file once
- * the screen is open (`computeWaveform`) and kept. `undefined` means "draw the decorative shape" — still
- * computing, over the limits, or failed. A file over the limits or one that does not decode is kept as
- * `decorative`, so it is not tried again; a failed download and leaving the screen keep nothing.
- */
 export const useAudioWaveform = (
     { scope, uploadId, url, sizeBytes, durationSeconds }: AudioWaveformInput,
     deps: WaveformDeps = browserDeps
@@ -49,13 +42,9 @@ export const useAudioWaveform = (
                 setBars(outcome.bars);
                 return;
             }
-            // A failed download may only be an expired address (the cached row's, before the server's copy
-            // arrives) or a moment offline: it is tried again next time rather than remembered.
             if (outcome.reason !== 'download') writeWaveform(owner, uploadId, 'decorative');
         });
         return () => controller.abort();
-        // A new address for the same upload (the server's copy replacing the cached row's) starts over;
-        // kept bars answer it at once.
     }, [cid, uid, uploadId, url]);
 
     return bars;

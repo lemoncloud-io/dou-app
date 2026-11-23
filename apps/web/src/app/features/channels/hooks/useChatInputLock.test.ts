@@ -7,8 +7,6 @@ import { setChatInputLockExperiment } from '../../../hooks/useChatInputLockExper
 import { useInputLockStore } from '../stores/useInputLockStore';
 import { useChatInputLock } from './useChatInputLock';
 
-// The real registry and store: what this hook decides is how the Lab switch and the stored lock
-// combine, so neither half is stubbed.
 const memoryStorage = (): StorageLike => {
     const map = new Map<string, string>();
     return {
@@ -68,7 +66,6 @@ describe('useChatInputLock', () => {
         expect(result.current.isLocked).toBe(false);
     });
 
-    // The route can render before its params resolve; there is no room to lock yet.
     it('neither reads nor writes a lock without a room', () => {
         setChatInputLockExperiment(true);
         const { result } = renderHook(() => useChatInputLock(undefined));

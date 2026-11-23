@@ -6,36 +6,16 @@ import { deviceStore } from '../../storage';
 
 import { APP_VERSION_FLOOR } from '../../features/appUpdate/lib/appVersionFloor';
 
-/**
- * Where the sampling policy comes from.
- *
- * The server has no route for it yet, so the app ships its own: {@link builtInTelemetryPolicySource}
- * answers the policy below. When the route exists, the source becomes the `@chatic/http` policy
- * gateway and nothing else here changes.
- */
 export type TelemetryPolicySource = () => Promise<unknown>;
 
-/** Statistics off — what a run that never received a policy uses, and the kill switch's answer. */
 export const disabledTelemetryPolicySource: TelemetryPolicySource = async () => ({ version: 0, enabled: false });
 
-/**
- * Where statistics are collected: the two mobile apps and the web in a browser tab. A mobile app is
- * held to the version floor: every app at or above it has a statistics share in its native log queue,
- * and an app below it still boots the web up to the update screen, where its queue would store a
- * statistic as a plain log. The desktop app also runs the web as `host: 'app'` (`platform: 'web'`) on
- * a version line of its own, so it matches none of these and stays off.
- */
 const COLLECTED: TelemetryPolicyMatch[] = [
     { host: 'app', platform: 'ios', minAppVersion: APP_VERSION_FLOOR },
     { host: 'app', platform: 'android', minAppVersion: APP_VERSION_FLOOR },
     { host: 'browser' },
 ];
 
-/**
- * Records kept from every run: the ones with a performance target (boot, the first screen, cloud
- * and place switches, the web vitals) and the room open, whose slow tail is the question. A sample
- * misses that tail, which is what reading a target needs.
- */
 export const FULL_RATE_PERF_TAGS = [
     'perf.boot',
     'perf.first_screen',
@@ -45,10 +25,8 @@ export const FULL_RATE_PERF_TAGS = [
     'perf.chat_room_open',
 ] as const;
 
-/** Every other performance record, from one run in five. */
 export const DEFAULT_PERF_RATE = 0.2;
 
-/** Usage events from every run: a sampled count of users is not a count of users. */
 export const USAGE_RATE = 1;
 
 const rulesFor = (where: TelemetryPolicyMatch): TelemetryPolicyRule[] => [
@@ -57,15 +35,6 @@ const rulesFor = (where: TelemetryPolicyMatch): TelemetryPolicyRule[] => [
     { match: { ...where, stream: 'usage' }, rate: USAGE_RATE },
 ];
 
-/**
- * The policy the app serves itself until the server serves one. No `defaults`: a run that matches
- * no rule — the desktop app — collects nothing.
- *
- * A week of `ttlSec`, not an hour: a run starts from the stored policy only while it is that fresh,
- * and an hour would leave most cold starts — a user opening the app once a day — with statistics
- * off. A long reuse costs nothing in safety: the policy is fetched again as each run starts, and the
- * kill switch in a newer one applies at once.
- */
 export const BUILT_IN_TELEMETRY_POLICY: TelemetryPolicy = {
     version: 1,
     ttlSec: 7 * 24 * 3_600,
@@ -77,21 +46,10 @@ export const builtInTelemetryPolicySource: TelemetryPolicySource = async () => B
 
 const STORAGE_KEY = '@chatic/web.telemetry.policy';
 
-/**
- * The prefix of every key this module writes — the stored policy and the development override. A
- * sign-out takes them; the app's runtime declaration hands it over (`signedOutKeyPrefixes`, in
- * `src/config/policies.ts`).
- */
 export const TELEMETRY_POLICY_KEY_PREFIX = STORAGE_KEY;
 
-/** How long a stored policy may start a run when the document gave no `ttlSec`. */
 const DEFAULT_TTL_SEC = 3_600;
 
-/**
- * A development-only override, for checking statistics end to end before the server serves a
- * policy: a policy document stored under this key wins over everything else. Never read in a
- * production build.
- */
 export const TELEMETRY_POLICY_OVERRIDE_KEY = '@chatic/web.telemetry.policy.override';
 
 interface StoredPolicy {
@@ -108,15 +66,6 @@ const readJson = (key: string): unknown => {
     }
 };
 
-/**
- * The policy a run starts with, read synchronously so the first records of the run — the boot-time
- * vitals — are decided at once instead of waiting on the network.
- *
- * In order: the development override; the last fetched policy while its `ttlSec` holds; the default,
- * statistics off. So the first run after an install starts with statistics off and turns them on
- * from the next run, once a fetch has stored the policy. A newly fetched policy is saved for the **next** run: this run keeps the one it
- * started with (only its kill switch and overrides follow a fetch — see `TelemetrySampler`).
- */
 export const loadStartingPolicy = (now: number, allowOverride: boolean): TelemetryPolicy => {
     if (allowOverride) {
         const override = parseTelemetryPolicy(readJson(TELEMETRY_POLICY_OVERRIDE_KEY));
@@ -131,11 +80,6 @@ export const loadStartingPolicy = (now: number, allowOverride: boolean): Telemet
     return now - stored.savedAt <= ttlMs ? policy : DEFAULT_TELEMETRY_POLICY;
 };
 
-/**
- * Fetches the policy and keeps it for the next run. Resolves to the parsed policy, or `undefined`
- * when the fetch failed or the document was not a policy — in which case nothing is stored and the
- * caller must not treat it as "switched off".
- */
 export const refreshPolicy = async (
     source: TelemetryPolicySource,
     now: () => number,
@@ -156,8 +100,6 @@ export const refreshPolicy = async (
     const policy = parseTelemetryPolicy(raw);
     if (!policy) return undefined;
 
-    // Storage full or blocked: the device store drops the write, and the next run starts from the
-    // default, which is safe.
     deviceStore.set(STORAGE_KEY, JSON.stringify({ raw, savedAt: now() } satisfies StoredPolicy));
     return policy;
 };

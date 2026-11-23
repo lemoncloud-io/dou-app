@@ -17,7 +17,6 @@ const setup = (chatNo?: number): { current: HTMLDivElement } => {
     if (chatNo !== undefined) {
         const node = document.createElement('div');
         node.setAttribute('data-chat-no', String(chatNo));
-        // jsdom doesn't implement scrollIntoView.
         node.scrollIntoView = jest.fn();
         container.appendChild(node);
     }
@@ -26,7 +25,6 @@ const setup = (chatNo?: number): { current: HTMLDivElement } => {
 };
 
 const loadMore = jest.fn();
-// Default: the window already reaches that far, so the jump falls through to paging.
 const loadUntil = jest.fn(() => false);
 
 beforeEach(() => {
@@ -174,7 +172,7 @@ describe('useMessageJump', () => {
     });
 
     it('pages older when the target is not yet loaded, up to the budget', () => {
-        const containerRef = setup(); // target chatNo never appears
+        const containerRef = setup();
         useMessageJumpStore.getState().request('ch-1', 999);
 
         const { rerender } = renderHook(
@@ -193,13 +191,11 @@ describe('useMessageJump', () => {
 
         expect(loadMore).toHaveBeenCalledTimes(1);
 
-        // Simulate 7 more pages landing (budget = 8 total) without ever finding the node.
         for (let i = 0; i < 7; i += 1) {
             rerender({ hasMore: true, isLoadingMore: false });
         }
         expect(loadMore).toHaveBeenCalledTimes(8);
 
-        // Budget exhausted: no further loadMore calls, a failure toast fires, store clears.
         rerender({ hasMore: true, isLoadingMore: false });
         expect(loadMore).toHaveBeenCalledTimes(8);
         expect(toast).toHaveBeenCalledWith({ title: expect.any(String) });
@@ -226,7 +222,6 @@ describe('useMessageJump', () => {
         for (let i = 0; i < 7; i += 1) rerender({ hasMore: true, isLoadingMore: false });
         expect(loadMore).toHaveBeenCalledTimes(8);
 
-        // The eighth page is still landing: its rows may hold the target.
         rerender({ hasMore: true, isLoadingMore: true });
         expect(toast).not.toHaveBeenCalled();
 
@@ -280,13 +275,10 @@ describe('useMessageJump', () => {
 
         rerender({ canLoadMore: true });
         expect(loadMore).toHaveBeenCalledTimes(1);
-        // Someone asked to see this message: a failed page's retry wait does not hold it.
         expect(loadMore).toHaveBeenCalledWith({ immediate: true });
     });
 
     it('widens the cache window before paging, and waits for it', () => {
-        // The target normally came from a cache search, so it is already stored locally — only the
-        // observe window was too narrow. Paging the server for it wasted the jump budget.
         const containerRef = setup();
         loadUntil.mockReturnValue(true);
         useMessageJumpStore.getState().request('ch-1', 999);
@@ -401,7 +393,6 @@ describe('useMessageJump', () => {
 
     describe('a target from before my current membership', () => {
         it('gives up without paging, and says why rather than claiming a deletion', () => {
-            // The row is not rendered, so without the window check this would page for it.
             const containerRef = setup();
             useMessageJumpStore.getState().request('ch-1', 5);
 
@@ -421,8 +412,6 @@ describe('useMessageJump', () => {
             expect(loadMore).not.toHaveBeenCalled();
             expect(loadUntil).not.toHaveBeenCalled();
             expect(toast).toHaveBeenCalledTimes(1);
-            // The copy this names says the message is from before the rejoin, NOT that it was
-            // deleted — see the locale entry and the reasoning in the hook.
             const [{ title }] = toast.mock.calls[0] as [{ title: string }];
             expect(title).toBe('chat.jumpOutsideJoinWindow');
             expect(useMessageJumpStore.getState().target).toBeNull();
@@ -492,7 +481,6 @@ describe('useMessageJump', () => {
             expect(fetchThrough).toHaveBeenCalledWith(500);
             expect(loadMore).not.toHaveBeenCalled();
 
-            // The page landed without the target: paging below is still tried, and the page not again.
             rerender({ ...params, messages: [...onScreen] });
             expect(fetchThrough).toHaveBeenCalledTimes(1);
             expect(loadMore).toHaveBeenCalled();
@@ -602,11 +590,9 @@ describe('useMessageJump', () => {
                 loadUntil,
             };
 
-            // The room unmounting leaves the thread's target alone…
             renderHook(() => useMessageJump(params)).unmount();
             expect(useMessageJumpStore.getState().target).not.toBeNull();
 
-            // …and the thread unmounting drops it.
             renderHook(() => useMessageJump({ ...params, threadRootNo: '3' })).unmount();
             expect(useMessageJumpStore.getState().target).toBeNull();
         });

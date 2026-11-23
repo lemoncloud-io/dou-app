@@ -79,7 +79,6 @@ describe('useMembershipInfo', () => {
 
         const { result } = renderHook(() => useMembershipInfo(), { wrapper });
 
-        // A read that succeeded, not one left pending — the website hand-off waits for `isSuccess`.
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
         expect(result.current.data).toEqual({ isValid: false });
         await act(async () => void (await result.current.refetch()));

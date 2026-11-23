@@ -4,8 +4,6 @@ const isPlaceProfileAbsent = jest.fn();
 let mockSid: string | null = 'site-1';
 let mockUid: string | null = 'user-1';
 
-// One shared object, like the real DataManager (`getRepositories` returns a stored field). A fresh
-// object per call would change the effect's dependency every render and reset the verdict forever.
 const repositories = { profile: { id: 'profile-repo' } };
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
@@ -19,7 +17,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 
-// The judgement itself is covered by utils/placeProfile.test.ts; here it is a controllable promise.
 jest.mock('../utils/placeProfile', () => ({
     isPlaceProfileAbsent: (...args: unknown[]) => isPlaceProfileAbsent(...args),
 }));
@@ -51,8 +48,6 @@ describe('usePlaceProfileAbsent', () => {
         await waitFor(() => expect(result.current.absent).toBe(verdict));
     });
 
-    // Fails open rather than pending: without a site the answer never comes, and a caller holding its
-    // render on `undefined` would wait forever (a blank screen). Nothing to require, so nothing to gate.
     it.each([
         ['no active site', () => (mockSid = null)],
         ['no identity', () => (mockUid = null)],
@@ -71,8 +66,6 @@ describe('usePlaceProfileAbsent', () => {
         expect(isPlaceProfileAbsent).toHaveBeenCalledWith(repositories.profile);
     });
 
-    // Guest→main promotion swaps uid while the relay site stays put. A verdict computed as the device
-    // user must not carry over, or the promoted user (who has no profile) skips the gate.
     it('re-judges when the identity changes even though the site does not', async () => {
         const { result, rerender } = renderHook(() => usePlaceProfileAbsent());
         await waitFor(() => expect(result.current.absent).toBe(false));
@@ -108,8 +101,6 @@ describe('usePlaceProfileAbsent', () => {
         expect(isPlaceProfileAbsent).toHaveBeenCalledTimes(2);
     });
 
-    // The `alive` guard's real job: a slow verdict for the PREVIOUS key must not land on the new one.
-    // Deleting the guard makes this fail (site-1's late `true` would overwrite site-2's `false`).
     it('drops a verdict that resolves after the key moved on', async () => {
         let settleFirst: (v: boolean) => void = () => undefined;
         isPlaceProfileAbsent.mockReturnValueOnce(new Promise<boolean>(resolve => (settleFirst = resolve)));
@@ -127,12 +118,8 @@ describe('usePlaceProfileAbsent', () => {
         expect(result.current.absent).toBe(false);
     });
 
-    // The effect that starts the next read runs after the render that moved the key. Without the key
-    // kept beside the verdict, that render answered with the previous place's verdict.
     it('answers pending, not the previous place, on the render that moves the key', async () => {
         isPlaceProfileAbsent.mockResolvedValue(true);
-        // Every render's answer, tagged with the site it was rendered for: `rerender` flushes the
-        // effect before returning, so only a per-render record can see the render in between.
         const answers: Array<[string | null, boolean | undefined]> = [];
         const { result, rerender } = renderHook(() => {
             const gate = usePlaceProfileAbsent();

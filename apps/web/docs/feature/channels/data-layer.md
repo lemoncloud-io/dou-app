@@ -396,9 +396,27 @@ Worth knowing before you call them:
   else, and nothing server-side pushes a join update for the target, so the hook marks their row
   `joined: 0, reason: 'kicked'` in the same local join cache the member list observes. Without it
   the removed member keeps rendering.
+- **`deleteServerMessage` is not optimistic, so it has a visible in-flight state.** The repository
+  waits for the server before hiding anything. `isPending.deleteServer` (like the edit flag) is kept
+  per message id, so two messages can be in flight at once, and a button that reads it stops the
+  press from being repeated while nothing on screen has changed yet.
+- **Failures are logged where the write runs.** Every channel write goes through one runner in
+  `useChannelMutations` that logs a failure (`channel <action> failed`) and rethrows, because these
+  are socket-path writes and nothing else records them; `useJoinMutations` does the same, and also
+  logs a join update the server refused after the local write. A kick whose server call succeeded
+  but whose local join mark failed logs its own line before rethrowing: that is the "removed member
+  still listed" case, and the runner's generic line cannot tell it from a failed kick.
+- **An invite names its room by the presence of a key.** `useCreateInviteBatch` puts `channelId` on
+  the packet only for an invite into a room; a place invite leaves the key out (not `undefined`),
+  which the server reads as "the place alone", and carries no site field. A batch sends `to` as an
+  array of trimmed, de-duplicated numbers: joined into one alias, the server parsed the whole string
+  as a single phone and rejected it. The sender's name in the invite text is my place-profile nick,
+  with a default label when there is none.
 
 `useCreateChannel` and `useCreateInviteBatch` are thin wrappers over the two below them
 (`createChannel`, and `requestInvite` plus the SMS/clipboard hand-off).
+`useCreateChannel`'s payload adds `thumbnail` (the room photo) to the socket type, which does not declare
+it: the field goes out as-is, on the gateway forwarding the whole body unmodified.
 
 ## Usage
 
@@ -482,6 +500,21 @@ observer per cache per screen, not a convenience.
   the active one, and on the next mount otherwise. Any other bootstrap failure — a timeout, no
   socket, or a 403, which a re-auth of the same socket answers for a moment — still registers,
   because the poll is what recovers from that.
+  A registration is async, so each one checks that the effect was not disposed first. And when the
+  selected cloud has moved during the read, the uncached members are registered without it: the
+  app graph reads through whichever cloud is selected when a call starts, so a refresh would ask
+  the next cloud about this cloud's members, and the re-run for that cloud does its own bootstrap.
+- `useUserRecords` reads the user cache one id at a time (`cacheRead`) instead of observing a list,
+  because `observeList` is keyed by `channelId` and these ids are gathered across many channels. It
+  is the middle rung of the display-name chain, a fallback behind the place profile, and keeps the
+  whole row because the shared chain reads `nick` first and needs the id to recognise the raw id the
+  server seeds an unnamed user's `name` with.
+- `useForegroundChatRefresh` gates the entry refresh on `isVerified`, but not the foreground-return
+  one. A socket that resumed verified-but-dead has no false-to-true edge to re-fire the entry
+  effect, so gating the return left the room stale for good, which is the missed-push gap the hook
+  exists to close. A fire on a dead session only logs, and the entry effect refetches on the next
+  verified edge. The return passes `fresh`, because a fetch still in flight may have been sent
+  before the app was suspended and could answer with a page from before the pushes being recovered.
 - `useChannelMembers` reaches `syncChannelUsers` through a narrow cast, because the published
   `@chatic/data` types do not surface it on `IUserRepository` yet.
 - Jest runs the channels suites with the app config:

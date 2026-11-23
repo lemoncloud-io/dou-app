@@ -15,24 +15,11 @@ type PendingState = Record<PendingKey, boolean>;
 
 const INITIAL_PENDING: PendingState = { start: false, update: false, delete: false, leave: false, invite: false };
 
-/**
- * Channel write operations backed by the engine's channel repository. Each
- * action tracks its own pending flag so independent buttons (create/update/
- * delete/leave/invite) reflect only their own in-flight state.
- */
 export const useChannelMutations = () => {
     const { channel: channelRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
-    // The optimistic row created below is tagged with this. The repository used to take it off the
-    // ambient data context, which disagrees with the session during a site switch (ADR-0085).
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const [isPending, setIsPending] = useState<PendingState>(INITIAL_PENDING);
 
-    // Toggle one action's pending flag around its promise, and log the failure on the way out.
-    //
-    // Logging belongs on this shared runner rather than in each action: every channel write already
-    // funnels through it, so a new action cannot forget the entry. These are socket-path writes, so
-    // the "HTTP failures are logged by the transport alone" rule does not apply — nothing else
-    // records them today, which is why a failed leave left no trace at all.
     const run = useCallback(<T>(key: PendingKey, op: () => Promise<T>): Promise<T> => {
         setIsPending(prev => ({ ...prev, [key]: true }));
         return op()
@@ -65,10 +52,6 @@ export const useChannelMutations = () => {
         (payload: ChatLeaveInput): Promise<DomainChannel> =>
             run('leave', async () => {
                 const domain = await channelRepository.leaveChannel(payload);
-                // A kick (userId set) removes someone ELSE — nothing server-side ever pushes a
-                // join-cache update for the target, so their row would otherwise sit at its old
-                // `joined` value forever and useChannelMembers keeps rendering them. Mark it left
-                // here, in the same local join cache the member list observes.
                 if (payload.userId && payload.channelId) {
                     try {
                         await joinRepository.cacheWrite({
@@ -79,10 +62,6 @@ export const useChannelMutations = () => {
                             reason: 'kicked',
                         });
                     } catch (error) {
-                        // Distinct from a failed leave: the server DID remove them, but the local
-                        // mark that stops the member list rendering them did not land — which is
-                        // exactly the "removed member still listed" report. The runner's generic
-                        // entry cannot tell the two apart, so name this one before rethrowing.
                         logger.error('CHANNEL', 'kick succeeded but local join mark failed', {
                             error,
                             data: { channelId: payload.channelId },

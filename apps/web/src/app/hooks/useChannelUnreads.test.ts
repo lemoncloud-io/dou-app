@@ -4,18 +4,15 @@ import type { DomainChannel, DomainJoin } from '@chatic/runtime';
 
 import { useChannelUnreads } from './useChannelUnreads';
 
-// Build a channel head. `chatNo` is the unified user+system sequence; `metaNo` the system count.
 const channel = (id: string, fields: Partial<DomainChannel>): DomainChannel =>
     ({ id, ...fields }) as unknown as DomainChannel;
 
-// My read cursor for a channel, as it arrives from the subscribed join list.
 const join = (fields: Partial<DomainJoin>): DomainJoin => fields as DomainJoin;
 
 const joinMap = (entries: Record<string, DomainJoin>): Map<string, DomainJoin> => new Map(Object.entries(entries));
 
 describe('useChannelUnreads — 채널 안읽음 계산', () => {
     it('unread = countUnread(head, read cursor) 이고 음수는 0으로 보정한다', () => {
-        // c1: userHead = 7, cursor 3 → 4. c2: userHead 8, cursor 10 → 0.
         const channels = [channel('c1', { chatNo: 7 }), channel('c2', { chatNo: 8 })];
         const joins = joinMap({ c1: join({ chatNo: 3 }), c2: join({ chatNo: 10 }) });
 
@@ -26,7 +23,6 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
     });
 
     it('시스템 메시지(metaNo)는 head와 join 둘 다에서 빠진다 (ADR-0048)', () => {
-        // userHead = 10 - 3 = 7. join.chatNo 3, join.metaNo 1 → unread 5.
         const channels = [channel('c1', { chatNo: 10, metaNo: 3 })];
         const joins = joinMap({ c1: join({ chatNo: 3, metaNo: 1 }) });
 
@@ -35,7 +31,7 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
 
     it('join 행이 없는 채널은 읽음 기준이 없어 배지를 띄우지 않는다 (0)', () => {
         const channels = [channel('c1', { chatNo: 7 }), channel('c2', { chatNo: 5 })];
-        const joins = joinMap({ c1: join({ chatNo: 3 }) }); // c2 has no synced join yet
+        const joins = joinMap({ c1: join({ chatNo: 3 }) });
 
         const { result } = renderHook(() => useChannelUnreads(channels, joins));
 
@@ -50,7 +46,6 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
     });
 
     it('join.readNo와 join.chatNo 중 더 최신 읽음 경계를 사용한다', () => {
-        // userHead 8; readNo 6 vs chatNo 2 → cursor 6 → 2.
         const channels = [channel('c1', { chatNo: 8 })];
         const joins = joinMap({ c1: join({ readNo: 6, chatNo: 2 }) });
 
@@ -66,9 +61,9 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
 
     it('byPlace는 사이트(sid)별로 안읽음을 합산한다', () => {
         const channels = [
-            channel('c1', { sid: 's1', chatNo: 10 }), // cursor 7 → 3
-            channel('c2', { sid: 's1', chatNo: 5 }), // cursor 1 → 4
-            channel('c3', { sid: 's2', chatNo: 8 }), // cursor 6 → 2
+            channel('c1', { sid: 's1', chatNo: 10 }),
+            channel('c2', { sid: 's1', chatNo: 5 }),
+            channel('c3', { sid: 's2', chatNo: 8 }),
         ];
         const joins = joinMap({ c1: join({ chatNo: 7 }), c2: join({ chatNo: 1 }), c3: join({ chatNo: 6 }) });
 
@@ -79,7 +74,6 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
     });
 
     it("counts from the channel's embedded $join when it is further along than my join row", () => {
-        // Read to 9 on another device: only the channel delta carried it here.
         const channels = [channel('c1', { chatNo: 12, $join: { channelId: 'c1', chatNo: 9 } })];
         const joins = joinMap({ c1: join({ chatNo: 4 }) });
 
@@ -96,7 +90,6 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
     });
 });
 
-// Home lists a cloud 1:1 in the place it lives in, so its unread counts there like a group room's.
 describe('useChannelUnreads — cloud 1:1', () => {
     it('counts a cloud 1:1 in its own place and in the total', () => {
         const channels = [
@@ -125,7 +118,6 @@ describe('useChannelUnreads — cloud 1:1', () => {
         expect(result.current.total).toBe(3);
     });
 
-    // No place lists it on mobile, so a count anywhere but its own row is a mark nothing can clear.
     it('keeps a cloud 1:1 that names no place out of the place and total sums', () => {
         const channels = [
             channel('me@peer', { chatNo: 9, sid: '', stereo: 'dm', cid: '1000001' }),
@@ -140,7 +132,6 @@ describe('useChannelUnreads — cloud 1:1', () => {
         expect(result.current.total).toBe(0);
     });
 
-    // The relay's 1:1s live in its one place and are listed there, so they still count.
     it('still counts a relay 1:1', () => {
         const channels = [channel('relay-dm', { chatNo: 4, sid: '0000', stereo: 'dm', cid: 'default' })];
         const joins = joinMap({ 'relay-dm': join({ chatNo: 1 }) });

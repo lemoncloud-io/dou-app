@@ -4,15 +4,11 @@ import type { DomainChannel, DomainProfile } from '@chatic/runtime';
 
 import { LIST_PROFILE_SYNC_INTERVAL_MS, useDmPeers } from './useDmPeers';
 
-// The list-level profile subscription is the collaborator under contract here: we assert what ids it
-// is asked for (exactly once, deduped) and feed its map back through.
 const useChannelProfiles = jest.fn();
 jest.mock('./useChannelProfiles', () => ({
     useChannelProfiles: (...args: unknown[]) => useChannelProfiles(...args),
 }));
 
-// The cloud-profile reader is its own unit (usePeerCloudNames.test); here we assert which rows it is
-// handed and that its names land on the peers.
 const usePeerCloudNames = jest.fn();
 jest.mock('./usePeerCloudNames', () => ({
     usePeerCloudNames: (...args: unknown[]) => usePeerCloudNames(...args),
@@ -103,9 +99,6 @@ describe('useDmPeers', () => {
         expect(result.current.get('c1')?.profileNick).toBeUndefined();
     });
 
-    // Without a userId guard, `id !== userId` is vacuously true and the first roster entry — usually
-    // me, since the inviter owns the channel — becomes the "peer": my own name and avatar as the
-    // person I am talking to. Reachable on a cold render before the session token is restored.
     it('resolves no peers while my own user id is unknown', () => {
         const { result } = renderHook(() =>
             useDmPeers('sid', [channel('c1', { stereo: 'dm', memberIds: ['me', 'peer'] })], null)
@@ -115,9 +108,6 @@ describe('useDmPeers', () => {
         expect(useChannelProfiles).toHaveBeenCalledWith('sid', [], LIST_PROFILE_SYNC_INTERVAL_MS);
     });
 
-    // The design claim is ONE subscription with no churn: a re-render with an equal-but-new channels
-    // array must not hand useChannelProfiles a different id list (which would dispose and
-    // re-register every profile sync target). Dropping either useMemo makes this fail.
     it('keeps the subscribed id list stable across re-renders with equal input', () => {
         const channels = () => [
             channel('c1', { stereo: 'dm', memberIds: ['me', 'peer2'] }),
@@ -131,7 +121,6 @@ describe('useDmPeers', () => {
         rerender({ list: channels() });
         const second = useChannelProfiles.mock.calls.at(-1)?.[1];
 
-        // Sorted, so roster/channel order can never reshuffle the order-sensitive registration key.
         expect(first).toEqual(['peer1', 'peer2']);
         expect(second).toEqual(first);
     });

@@ -2,7 +2,6 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { injectedLength, useKeyboardMemory } from './useKeyboardMemory';
 
-/** What the native shell does when the keyboard moves: a write to the root's inline style. */
 const inject = (name: string, value: string) =>
     act(() => {
         document.documentElement.style.setProperty(name, value);
@@ -13,7 +12,6 @@ afterEach(() => {
     document.documentElement.style.removeProperty('--safe-bottom');
 });
 
-// The memory lasts for the page's life, so these run in order: the first sees a page with no keyboard.
 describe('useKeyboardMemory', () => {
     it('remembers nothing where no keyboard height is injected — a browser', () => {
         const { result } = renderHook(() => useKeyboardMemory());
@@ -47,17 +45,14 @@ describe('useKeyboardMemory', () => {
         document.documentElement.style.setProperty('--keyboard-height', '310px');
 
         const { result } = renderHook(() => useKeyboardMemory());
-        // Gone before anything asks: only the read at mount can have kept it.
         document.documentElement.style.setProperty('--keyboard-height', '0px');
 
         expect(result.current()).toBe(310);
     });
 
-    // A height seen in one room is the right guess in the next: one keyboard per device.
     it('carries the height to the next screen that asks', async () => {
         const first = renderHook(() => useKeyboardMemory());
         inject('--keyboard-height', '320px');
-        // The observer hears it a microtask later.
         await act(async () => undefined);
         first.unmount();
         inject('--keyboard-height', '0px');

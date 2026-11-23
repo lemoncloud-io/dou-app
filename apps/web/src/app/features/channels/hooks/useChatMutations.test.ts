@@ -20,7 +20,6 @@ jest.mock('../../../runtime/perf', () => ({ beginChatSendTrace: jest.fn() }));
 const sendChatInCloud = runtime.data.sendChatInCloud as jest.Mock;
 const endSendTrace = jest.fn();
 const getCloudRepositories = runtime.data.getCloudRepositories as jest.Mock;
-// The app graph's chat repository — a send or an unsent-row delete must never reach it.
 const appSendChat = jest.fn();
 const appCacheDelete = jest.fn();
 const cloudCacheDelete = jest.fn();
@@ -180,7 +179,6 @@ describe('toResendPayload', () => {
         expect(toResendPayload(chat({ channelId: 'c1', content: 'hi', parentId: '4' })).parentId).toBe('c1:4');
     });
 
-    // A resend that dropped the mention would reach "mentions only" members as a message calling no one.
     it('carries the mention across, turning a chat.sync 1 for everyone back into true', () => {
         const row = chat({ channelId: 'c1', content: '@Min hi', mention$: { userIds: ['u2'], all: 1 as never } });
 

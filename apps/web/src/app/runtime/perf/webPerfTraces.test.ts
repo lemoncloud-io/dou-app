@@ -7,7 +7,6 @@ import { configureWebPerfTraces, setPerfTelemetryRecorder } from './webPerfTrace
 import type { Logger } from '@chatic/logger';
 import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 
-/** Whether the `diagnostics` port sends through the app, which decides whether the session owner is stamped. */
 let mockInsideTheApp = false;
 jest.mock('../../../config/diagnosticsKind', () => ({
     diagnosticsKind: () => (mockInsideTheApp ? 'shell' : 'browser'),

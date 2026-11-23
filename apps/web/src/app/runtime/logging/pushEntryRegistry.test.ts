@@ -28,7 +28,6 @@ describe('pushEntryRegistry — 푸시 탭에서 방 진입까지의 인수인�
         expect(pushEntryRegistry.consume('ch_other')).toBeUndefined();
     });
 
-    // If it was tapped but the user went elsewhere, a later-opened unrelated room must not get the latency figure attached.
     it('TTL을 넘긴 인수인계는 버린다', () => {
         pushEntryRegistry.begin('ch_1', 'msg_1');
         jest.advanceTimersByTime(30_001);

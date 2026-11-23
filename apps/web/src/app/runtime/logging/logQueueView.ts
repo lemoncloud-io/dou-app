@@ -1,67 +1,19 @@
 import type { LogEntry } from '@chatic/bridges';
 
-/**
- * Read-only window onto the running uploader's queue, for the debug monitor.
- *
- * The queue lives in `startLogUploader`'s closure and is deliberately not
- * exported: it is the uploader's to mutate, and a second writer would break the
- * at-least-once contract. But once the queue is the only log store, the debug
- * view has nowhere else to read from — so the uploader registers a reader here
- * and the monitor asks through it.
- *
- * Registration rather than a shared singleton: the monitor must not be able to
- * bring a queue into existence, and it has to be able to tell that no uploader
- * is running (during boot, or after teardown) instead of quietly showing an
- * empty list that looks like "no logs".
- *
- * `clear` is here because holding is only half the workflow — an engineer
- * reproducing something wants a clean slate for the next attempt, and the
- * alternatives are releasing the hold (which ships everything) or reloading.
- * It discards; that is the point, and the label says so.
- *
- * `flush` is the opposite end of the same workflow and the reason it was added
- * (ADR-0080 decision 14): the uploader only sends on its own schedule or on a
- * lifecycle cue, so someone who has just reproduced a bug had no way to send
- * what they produced without closing the app. `main.tsx` drops the uploader
- * handle that owns `flush`, so registration is the only way to reach it — the
- * same reason `snapshot` lives here.
- */
-
 export interface LogQueueView {
-    /** Everything held right now, oldest first. Non-destructive. */
     snapshot(): LogEntry[];
-    /** Drops what is held. Discards — nothing is sent. */
     clear(): void;
-    /**
-     * Sends what is pending right now, off-schedule.
-     *
-     * Resolves when the attempt finishes, not when the server accepted — the
-     * queue's at-least-once contract already covers a failed send, so the
-     * caller learns "it was tried", which is what a button can honestly claim.
-     */
     flush(): Promise<void>;
-    /**
-     * How many entries the queue has evicted since it was created, cumulative.
-     *
-     * Exposed through the view for the same reason `snapshot` is: the queue must stay the
-     * uploader's to mutate, and the observer that reports this loss has to be a third party — the
-     * queue and the uploader cannot log their own failures without re-entering the pipeline
-     * (ADR-0099). Reading it here also lets a reader tell "no uploader running" from "nothing
-     * dropped", which a bare number could not.
-     */
     droppedCount(): number;
 }
 
 let view: LogQueueView | undefined;
 
-/** Publishes the running uploader's queue. Returns the unregister function. */
 export const registerLogQueueView = (registered: LogQueueView): (() => void) => {
     view = registered;
     return () => {
-        // Guarded so a late teardown cannot unregister a newer uploader's view.
         if (view === registered) view = undefined;
     };
 };
 
-/** The queue view, or undefined when no uploader is running. */
 export const getLogQueueView = (): LogQueueView | undefined => view;

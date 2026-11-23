@@ -19,7 +19,6 @@ jest.mock('@chatic/runtime', () =>
 
 const observeListMock = jest.fn();
 
-/** Wire observeList to immediately emit places with the given ids. */
 const emit = (ids: string[]) =>
     observeListMock.mockImplementation((_query, cb) => {
         cb({ list: ids.map(id => ({ id })) });
@@ -51,8 +50,6 @@ describe('useAccessiblePlaceIds — reachable places of the active cloud', () =>
     });
 
     it('answers null for an empty cache nothing has explained yet', () => {
-        // A cloud this device has never opened. Handing back a real (empty) set here filtered every
-        // channel out of the lists and the badge for the length of a cold cloud switch.
         emit([]);
 
         const { result } = renderHook(() => useAccessiblePlaceIds());
@@ -61,8 +58,6 @@ describe('useAccessiblePlaceIds — reachable places of the active cloud', () =>
     });
 
     it('settles back on the empty set once the window elapses', () => {
-        // `null` means "do not filter", so it cannot be held forever: a cloud whose places really
-        // did all go away has to let the filter drop their orphaned channels off the badge again.
         jest.useFakeTimers();
         emit([]);
 

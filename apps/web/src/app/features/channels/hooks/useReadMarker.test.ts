@@ -39,14 +39,12 @@ describe('useReadMarker', () => {
     });
 
     it('does not hand over a chatNo at or below one already marked in this room', () => {
-        // After reading up to 10 on entry, a lower lastChatNo (5) is ignored.
         setup({ channelChatNo: 10, lastChatNo: 5 });
         expect(markRead).toHaveBeenCalledTimes(1);
         expect(markRead).toHaveBeenCalledWith('cloud-a', { channelId: 'c1', chatNo: 10 });
     });
 
     it('marks the next room even when its head is below the last room’s', () => {
-        // The route keeps the page mounted from one room to the next.
         const { rerender } = setup({ channelChatNo: 50 });
 
         rerender({ cid: 'cloud-a', channelId: 'c2', channelChatNo: 7, lastChatNo: undefined, markRead });

@@ -27,7 +27,6 @@ describe('useImageAddressRefresh', () => {
         expect(getChat).toHaveBeenCalledWith({ id: 'ch1:5' });
     });
 
-    // A fresh address that fails too must leave a placeholder, not start a loop of re-reads.
     it('asks once per dead address', async () => {
         const { result } = renderHook(() => useImageAddressRefresh());
 
@@ -37,7 +36,6 @@ describe('useImageAddressRefresh', () => {
         expect(getChat).toHaveBeenCalledTimes(1);
     });
 
-    // Hours later the fresh address expires in turn; that is a different address and gets its own re-read.
     it('asks again for a different address of the same message', async () => {
         const { result } = renderHook(() => useImageAddressRefresh());
 

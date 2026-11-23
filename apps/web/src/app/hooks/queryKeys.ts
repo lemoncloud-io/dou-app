@@ -1,19 +1,6 @@
 import { createQueryKeys } from '@chatic/shared';
 
-/**
- * react-query cache keys owned by THIS app.
- *
- * These used to live in `@chatic/runtime`'s `data/hooks/queryKeys.ts` together with the REST
- * hooks. The hooks came down to the app layer (ADR-0070 decision 5, direction ②) and the keys followed —
- * a cache key is part of a cache policy, and the cache is the app's.
- *
- * `cloudsKeys` deliberately did NOT move: `useLogin` (still in the runtime) invalidates the cloud
- * catalog right after a relay login, so that one key is shared vocabulary between the lib and the
- * apps and stays exported from `@chatic/runtime`.
- */
 export const subscriptionKeys = createQueryKeys('subscriptions');
 export const productPlansKeys = createQueryKeys('productPlans');
-/** My devices on the active slot's server — keyed by the cloud, since each answers for its own. */
 export const devicesKeys = createQueryKeys('devices');
-/** The web sign-ins this account approved (`GET /pairings`, relay). */
 export const pairingsKeys = createQueryKeys('pairings');
