@@ -3,15 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { cn } from '@chatic/ui-kit';
 
 interface StepDotsProps {
-    /** 1-based position of the step on screen. */
     current: number;
     total: number;
 }
 
-/**
- * Where the person is in a short, fixed sequence. The dots carry no label of their own, so the list
- * is named with the position ("Step 2 of 3") — otherwise a screen reader announces three empty items.
- */
 export const StepDots = ({ current, total }: StepDotsProps) => {
     const { t } = useTranslation();
 

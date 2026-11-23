@@ -73,7 +73,6 @@ describe('CloudPlacesPage', () => {
         selectedCloud.id = 'c1';
         renderAt();
 
-        // No silent session yank: the reader's cloud stays theirs until they say so.
         expect(screen.queryByText('Studio')).toBeNull();
         expect(screen.getByText('Switch to this cloud to see its places.')).toBeTruthy();
 
@@ -88,7 +87,6 @@ describe('CloudPlacesPage', () => {
         expect(screen.getByRole('button', { name: 'Acme' })).toBeTruthy();
     });
 
-    // The empty state used to hug the top of the body.
     it('centres its empty state instead of hugging the top', () => {
         renderAt();
 

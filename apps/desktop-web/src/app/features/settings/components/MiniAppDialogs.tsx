@@ -25,11 +25,6 @@ import { FormError, FormField } from '../../../shared';
 
 import type { MiniAppUrlSave, useMiniAppLauncher } from '../hooks/useMiniAppLauncher';
 
-/**
- * The dialogs a mini app launcher draws wherever it is placed — the settings section and the nav
- * rail button share them: the owner's link dialog, and the consent asked before a site DoU does not
- * run is handed the user's names.
- */
 export const MiniAppDialogs = ({ launcher }: { launcher: ReturnType<typeof useMiniAppLauncher> }) => (
     <>
         <MiniAppLinkDialog
@@ -49,7 +44,6 @@ const saveError: Record<Exclude<MiniAppUrlSave, 'saved'>, string> = {
 };
 
 type MiniAppLinkFormProps = {
-    /** The link as the relay holds it, `''` for none. */
     stored: string;
     onClose: () => void;
     onSave: (url: string) => Promise<MiniAppUrlSave>;
@@ -62,7 +56,6 @@ const MiniAppLinkDialog = ({ open, ...props }: { open: boolean } & MiniAppLinkFo
             <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
                 <DialogTitle>{t('settings.miniApp.link')}</DialogTitle>
                 <DialogDescription>{t('settings.miniApp.linkHint')}</DialogDescription>
-                {/* The content unmounts once closed, so each opening starts from the stored link. */}
                 <MiniAppLinkForm {...props} />
             </DialogContent>
         </Dialog>
@@ -75,7 +68,6 @@ const MiniAppLinkForm = ({ stored, onClose, onSave }: MiniAppLinkFormProps) => {
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
 
-    /** Save `next` — `''` clears the link — and close on success, else keep the dialog with the reason. */
     const submit = async (next: string) => {
         if (saving) {
             return;
@@ -145,7 +137,6 @@ const MiniAppLinkForm = ({ stored, onClose, onSave }: MiniAppLinkFormProps) => {
     );
 };
 
-/** A yes/no that blocks until answered: closing it any other way is a no. */
 const MiniAppConsentDialog = ({ host, onAnswer }: { host: string | null; onAnswer: (agreed: boolean) => void }) => {
     const { t } = useTranslation();
     return (

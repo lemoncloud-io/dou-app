@@ -13,7 +13,6 @@ describe('useChannelSettingsStore', () => {
         expect(useChannelSettingsStore.getState()).toMatchObject({ openChannelId: null, focus: null });
     });
 
-    // A delete from the panel answers after the reader may have opened another channel's settings.
     it("closes a channel's panel only while it is that channel's panel that is open", () => {
         useChannelSettingsStore.getState().open('b');
         useChannelSettingsStore.getState().closeIfOpenFor('a');

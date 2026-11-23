@@ -41,12 +41,10 @@ vi.mock('@chatic/runtime', async () =>
     })
 );
 
-// Author names resolve off-device; the owner row is about layout, not lookup.
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({
     useAuthorNames: () => new Map([['u9', 'June']]),
 }));
 
-// The place's notification level reads the channel list and writes joins; its hook has its own spec.
 const placeNotify = vi.hoisted(() => ({
     mode: null as string | null,
     exceptions: 0,
@@ -55,7 +53,6 @@ const placeNotify = vi.hoisted(() => ({
 }));
 vi.mock('../../../shared/hooks/usePlaceNotify', () => ({ usePlaceNotify: () => placeNotify }));
 
-// The dialogs bring their own runtime wiring; here only whether this route mounts them matters.
 vi.mock('../../chat/components/EditPlaceDialog', () => ({
     EditPlaceDialog: () => <div data-testid="edit-place-dialog" />,
 }));
@@ -71,7 +68,6 @@ import { PlaceSettingsPage } from './PlaceSettingsPage';
 
 const navProbe = vi.hoisted(() => ({ path: '' }));
 
-// MemoryRouter keeps history in memory, so navigation is read here instead of window.location.
 const NavProbe = () => {
     navProbe.path = useLocation().pathname;
     return null;
@@ -128,7 +124,6 @@ describe('PlaceSettingsPage', () => {
         sessionSel.siteId = 'p2';
         renderAt('p1');
 
-        // The dialog edits the ACTIVE place — offering it here would edit the wrong one.
         expect(screen.queryByText('My profile in this place')).toBeNull();
     });
 
@@ -138,7 +133,6 @@ describe('PlaceSettingsPage', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Edit this place' }));
 
         expect(useEditPlaceDialogStore.getState().placeId).toBe('p1');
-        // The flag alone opens nothing unless this route mounts the dialog it drives.
         expect(screen.getByTestId('edit-place-dialog')).toBeTruthy();
         act(() => useEditPlaceDialogStore.getState().close());
     });

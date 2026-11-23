@@ -21,11 +21,6 @@ import {
     phoneSignupNoteKey,
 } from '../utils';
 
-/**
- * The social sign-in is out in the system browser. Said here, with the ways out, rather than leaving
- * the person on a page that looks like nothing happened: open the browser again, sign in with the
- * phone number instead, or cancel, which undoes the device registration the start made.
- */
 const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed: boolean }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -40,8 +35,6 @@ const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed
         void cancel();
     };
     const usePhone = () => {
-        // Navigate first: the cancel releases the held Welcome route, and phone sign-in needs the
-        // device session this start registered, so it stays.
         navigate('/auth/phone', { state: { from: '/auth/welcome', signOutOnBack: attempt.signedOutAtStart } });
         void cancel({ keepSession: true });
     };
@@ -91,11 +84,6 @@ const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed
     );
 };
 
-/**
- * First-run landing. Leads with the invite link, then offers a one-tap guest start
- * (device-register into the Default Cloud's Self Channel) and the sign-in paths. Replaces the
- * invite-only gate as the default unauthenticated screen.
- */
 export const WelcomePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -105,15 +93,12 @@ export const WelcomePage = () => {
     const attempt = useOAuthAttemptStore(s => (s.attempt?.intent === 'login' ? s.attempt : null));
     const attemptFailed = useOAuthAttemptStore(s => s.failed);
     const isBusy = isSubmitting || isStarting;
-    // Which social button was pressed, so only that one says it is starting. Google until one is.
     const [pressed, setPressed] = useState<OAuthProvider>('google');
     const startWith = (provider: OAuthProvider) => {
         setPressed(provider);
         void startSocialLogin(provider);
     };
 
-    // From the moment the start begins, retries included: a second start from the buttons below would
-    // write a second record over the first one's nonce.
     if (attempt) return <SocialLoginWaiting attempt={attempt} failed={attemptFailed} />;
 
     return (
@@ -124,8 +109,6 @@ export const WelcomePage = () => {
                 </p>
             )}
 
-            {/* One filled primary leads and it is the invite link: someone who installed the app without
-                a link is here to join something, and the other ways in sit under it. */}
             <div className="flex flex-col gap-2">
                 <Button size="lg" onClick={() => navigate('/auth/login')} disabled={isBusy}>
                     {t('welcome.haveInvite')}
@@ -139,17 +122,12 @@ export const WelcomePage = () => {
                 >
                     {isSubmitting ? t('welcome.starting') : isError ? t('welcome.retry') : t('welcome.start')}
                 </Button>
-                {/* The button mints a guest account. Saying so here, not only in the
-                    logout confirmation, is the difference between a choice and a surprise. */}
                 <p
                     id="welcome-guest-note"
                     className="-mt-0.5 break-keep text-center text-caption text-muted-foreground"
                 >
                     {t('welcome.guestNote')}
                 </p>
-                {/* Phone before Google and Apple, and weighted above them: someone who signed up on mobile
-                    with a number gets a second, empty account from either until it is linked to theirs. The
-                    order steers them; nothing stops someone who signed up with Google or Apple. */}
                 {isPhoneLoginEnabled() && (
                     <Button
                         variant="secondary"
@@ -174,8 +152,6 @@ export const WelcomePage = () => {
                             <GoogleIcon />
                             {isStarting && pressed === 'google' ? t('welcome.starting') : t('auth.social.google')}
                         </Button>
-                        {/* Outline and a mark in the text colour, like Google beside it: one of the
-                            button styles Apple allows, at the same size, so neither provider leads. */}
                         <Button
                             variant="outline"
                             size="lg"
@@ -186,24 +162,17 @@ export const WelcomePage = () => {
                             <AppleIcon />
                             {isStarting && pressed === 'apple' ? t('welcome.starting') : t('auth.social.apple')}
                         </Button>
-                        {/* Said before the tap: someone who signed up on mobile with a phone number
-                            and never linked Google or Apple there gets a new, empty account from these. */}
                         <p id={noteId} className="-mt-0.5 break-keep text-center text-caption text-muted-foreground">
                             {t(phoneSignupNoteKey())}
                         </p>
                     </>
                 )}
-                {/* A browser can borrow the session of an app that is already signed in, by showing a code
-                    that app approves. Not in the desktop app, which is the approving side. */}
                 {canRequestPairing() && (
                     <Button variant="outline" size="lg" onClick={() => navigate('/auth/pair')} disabled={isBusy}>
                         <QrCode className="h-4 w-4" />
                         {t('pairing.welcome.start')}
                     </Button>
                 )}
-                {/* Dev-only email/password sign-in. Gated on import.meta.env.DEV so it's
-                    dead-code-eliminated from production builds — mirrors the /auth/debug
-                    route guard in routes.tsx; never ships in the installed app. */}
                 {import.meta.env.DEV && (
                     <Button
                         variant="ghost"

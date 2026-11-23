@@ -4,7 +4,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 
 import type { LaunchAtLoginState } from '../../../shared/utils/electronApi';
 
-// The section reads the OS through the preload bridge; each test answers as the OS would.
 const api = vi.hoisted(() => ({
     get: vi.fn(async (): Promise<LaunchAtLoginState> => ({ enabled: false, supported: true })),
     set: vi.fn(async (enabled: boolean): Promise<LaunchAtLoginState> => ({ enabled, supported: true })),
@@ -40,7 +39,6 @@ describe('LaunchAtLoginSection', () => {
     });
 
     it('applies the OS answer after a toggle, not the request', async () => {
-        // macOS 13+ can answer `requires-approval` and leave the app unregistered.
         api.set.mockResolvedValueOnce({ enabled: false, supported: true });
         await renderSection();
 
@@ -51,7 +49,6 @@ describe('LaunchAtLoginSection', () => {
         expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    // A failed write used to flip the switch back with nothing said — a flicker.
     it('names a failed write and falls back to the previous position', async () => {
         api.set.mockRejectedValueOnce(new Error('denied'));
         await renderSection();

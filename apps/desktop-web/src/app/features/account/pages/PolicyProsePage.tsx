@@ -4,10 +4,6 @@ import type { PolicyContent, SupportedLanguage } from '@chatic/policy-content';
 
 import { PageShell } from '../../../shared';
 
-/**
- * Versioned policy prose (terms / privacy share this shape): effective date
- * plus titled sections in the app language.
- */
 export const PolicyProsePage = ({
     backTo,
     backLabel,
@@ -15,7 +11,6 @@ export const PolicyProsePage = ({
     contents,
 }: {
     backTo: string;
-    /** Defaults to the policies hub title — both callers return there. */
     backLabel?: string;
     titleKey: string;
     contents: Record<SupportedLanguage, PolicyContent>;

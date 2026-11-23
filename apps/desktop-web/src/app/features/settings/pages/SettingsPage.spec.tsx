@@ -7,7 +7,6 @@ import type * as SharedModule from '../../../shared';
 
 const pairingEnv = vi.hoisted(() => ({ native: false, paired: false }));
 
-// The sub web view's launcher asks the links port; the page takes its own links, as in a browser.
 vi.mock('@chatic/runtime', async () => {
     const testing = await import('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
@@ -15,7 +14,6 @@ vi.mock('@chatic/runtime', async () => {
         links: testing.browserLinks(),
     });
 });
-// The flag and the platform, as `canApprovePairing` reads them; the paired session is the page's to pass.
 vi.mock('../../pairing/utils/devicePairing', () => ({
     canApprovePairing: (isPairedSession: boolean) => pairingEnv.native && !isPairedSession,
 }));
@@ -59,7 +57,6 @@ describe('SettingsPage notifications', () => {
         });
     });
 
-    // The label text next to a switch is its name: clicking it flips the switch.
     it('toggles the desktop switch by its label text', () => {
         renderPage();
 
@@ -68,7 +65,6 @@ describe('SettingsPage notifications', () => {
         expect(useNotificationPrefsStore.getState().desktopEnabled).toBe(false);
     });
 
-    // Snooze lived in the sidebar only; the section that owns muting links it.
     it('links snooze from the notifications section', () => {
         renderPage();
 
@@ -76,8 +72,6 @@ describe('SettingsPage notifications', () => {
         expect(snooze.closest('section')?.textContent).toContain('Notifications');
     });
 
-    // Start = end silences nothing: the empty window is explained in a live
-    // region both time inputs point at, instead of an alert that toggles.
     it('announces the empty quiet window off both time inputs', () => {
         useNotificationPrefsStore.setState({ quietHours: { start: '22:00', end: '22:00' } });
         renderPage();
@@ -92,7 +86,6 @@ describe('SettingsPage notifications', () => {
         }
     });
 
-    // The two time inputs are one group with one name, not two stray fields.
     it('groups the quiet-hours times under one name', () => {
         useNotificationPrefsStore.setState({ quietHours: { start: '22:00', end: '07:00' } });
         renderPage();
@@ -101,7 +94,6 @@ describe('SettingsPage notifications', () => {
         expect(group.querySelectorAll('input[type="time"]')).toHaveLength(2);
     });
 
-    // The window prints the locale clock, the same clock the snooze label uses.
     it('prints the quiet window on the locale clock', () => {
         useNotificationPrefsStore.setState({ quietHours: { start: '22:00', end: '07:00' } });
         renderPage();

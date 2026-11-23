@@ -38,11 +38,6 @@ const CopyRow = ({ label, value }: { label: string; value: string }) => {
     );
 };
 
-/**
- * Issues a webhook in two steps: a short form, then the one-time result. The token and endpoint live
- * in this component's state only — closing the dialog (by any path) drops them, so the secret is not
- * kept anywhere a later render, store or log could reach it.
- */
 export const IssueWebhookDialog = ({ open, onOpenChange, onIssue }: IssueWebhookDialogProps) => {
     const { t } = useTranslation();
     const [name, setName] = useState('');
@@ -50,7 +45,6 @@ export const IssueWebhookDialog = ({ open, onOpenChange, onIssue }: IssueWebhook
     const [pending, setPending] = useState(false);
     const [issued, setIssued] = useState<DomainIssuedWebhook | null>(null);
 
-    // Every open starts clean, and a close leaves nothing behind.
     useEffect(() => {
         if (!open) {
             setName('');

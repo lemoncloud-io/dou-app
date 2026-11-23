@@ -6,43 +6,24 @@ import { messagePlainText } from '../../../shared';
 
 export interface ChannelSearchResult {
     channel: DomainChannel;
-    /** Newest matches first, capped at {@link MAX_MATCHES_PER_CHANNEL}. */
     matches: DomainChat[];
-    /** Total cached matches in this channel (may exceed matches.length). */
     matchCount: number;
 }
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
-/** Cached page scanned per channel — bounds work on big channels. */
 const PER_CHANNEL_LIMIT = 200;
 const MAX_MATCHES_PER_CHANNEL = 3;
 export const SEARCH_MAX_CHANNELS = 30;
 
-/**
- * A row a search may return. Reaction events are chats too, and a deleted
- * message keeps its text in the cache while the feed shows a tombstone, so
- * neither may surface as a hit. Thread replies stay: the dialog opens their
- * thread rather than scrolling the main feed, which never renders them.
- */
 const isSearchable = (q: string) => (chat: DomainChat) =>
     !isEventChat(chat) && !chat.hidden && messagePlainText(chat.content).toLowerCase().includes(q);
 
-/**
- * Local message search over the engine's chat cache (no search endpoint exists
- * server-side — same approach as apps/web). Each channel's most recent cached
- * page is read with `cacheReadList` (local only), so typing never fans out
- * network feeds. Results are best-effort: bounded by what's already cached.
- */
 export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();
     const [results, setResults] = useState<ChannelSearchResult[]>([]);
     const [isSearching, setIsSearching] = useState(false);
-    // Cached rows the last search read, matching or not. Zero means the device has nothing loaded
-    // for these channels yet (a cold start), which is a different empty result from "no match".
     const [scannedCount, setScannedCount] = useState<number | null>(null);
-    // Channels whose cache read failed. Their rows are missing from both results
-    // and scannedCount, so a "no match" over them is unreliable — callers say so.
     const [failedCount, setFailedCount] = useState(0);
 
     useEffect(() => {
@@ -64,7 +45,6 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
                     try {
                         page = await chatRepository.cacheReadList({ channelId: channel.id, limit: PER_CHANNEL_LIMIT });
                     } catch {
-                        // A channel that cannot be read is not a channel with no match.
                         return { scanned: 0, result: null, failed: true };
                     }
                     const rows = page?.list ?? [];
@@ -98,8 +78,6 @@ export const useMessageSearch = (query: string, channels: DomainChannel[]) => {
         };
     }, [query, channels, chatRepository]);
 
-    // The search silently covered only the first SEARCH_MAX_CHANNELS channels, and
-    // the empty state never said so. Callers state the scope when it binds.
     const isTruncated = channels.length > SEARCH_MAX_CHANNELS;
 
     return { results, isSearching, isTruncated, scannedCount, failedCount };

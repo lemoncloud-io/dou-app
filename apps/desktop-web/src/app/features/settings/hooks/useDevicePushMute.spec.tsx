@@ -8,10 +8,6 @@ import { resetHostProfileForTests } from '@chatic/bridges';
 
 const updateRemotePushMute = vi.fn();
 
-// A minimal, synchronously-reactive fake of `ui.pushMuted` — real `useConfigValue` notifies
-// subscribers on `runtime.settings.set` within the same tick (useSyncExternalStore), which the
-// optimistic same-tick-flip test below depends on. A plain closure return value would only pick up the
-// new value on whatever later re-render another state change happens to cause.
 let mutedState = false;
 const listeners = new Set<() => void>();
 const setPushMutedMock = vi.fn((value: boolean) => {
@@ -19,8 +15,6 @@ const setPushMutedMock = vi.fn((value: boolean) => {
     listeners.forEach(listener => listener());
 });
 
-// The hook's other collaborator is the device repository; faking the runtime lets the
-// test drive what the server "answered" without standing up a socket.
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
@@ -43,7 +37,6 @@ vi.mock('@chatic/runtime', async () =>
 import { useDevicePushMute } from './useDevicePushMute';
 
 const wrapper = ({ children }: { children: ReactNode }) => {
-    // Retries would make a rejected write take several seconds to surface as an error.
     const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 };
@@ -55,8 +48,6 @@ describe('useDevicePushMute', () => {
         mutedState = false;
         listeners.clear();
         window.CHATIC_APP_PLATFORM = 'desktop';
-        // The shell injects its platform before the page boots; the host profile is built from `window`
-        // at its first read, in the render.
         resetHostProfileForTests();
     });
 
@@ -80,14 +71,11 @@ describe('useDevicePushMute', () => {
         const { result } = renderHook(() => useDevicePushMute(), { wrapper });
         act(() => result.current.setPushEnabled(false));
 
-        // The flip lands in the same tick as the click; TanStack Query starts the
-        // mutation a tick later, which is exactly what makes this optimistic.
         expect(result.current.pushEnabled).toBe(false);
         await waitFor(() => expect(updateRemotePushMute).toHaveBeenCalledWith(true));
         await act(async () => resolve(true));
     });
 
-    // The write doubles as the read: what the server echoes wins over what we sent.
     it('reconciles to the server echo rather than the value it sent', async () => {
         updateRemotePushMute.mockResolvedValue(false);
 

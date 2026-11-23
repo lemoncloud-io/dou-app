@@ -20,7 +20,6 @@ const KIND_KEYS = {
     cli: 'pairing.devices.kind.cli',
 } as const;
 
-/** The label for a device's kind; a kind the server left empty, or one this build does not know, is "unknown". */
 export const deviceKindKey = (kind: string) =>
     KIND_KEYS[kind as keyof typeof KIND_KEYS] ?? ('pairing.devices.kind.unknown' as const);
 
@@ -60,15 +59,6 @@ const SectionLoading = () => {
 const ROW = 'flex items-center gap-3 px-5 py-4';
 const GROUP = 'overflow-hidden rounded-xl border border-border bg-card divide-y divide-border';
 
-/**
- * The account's devices and, in the desktop app, the browser sign-ins it approved.
- *
- * The device list is read on the active slot: on the relay it is the account's devices, inside a cloud
- * that cloud's. A browser let into one cloud by a pairing has a device there but none on the relay, so
- * ending its sign-in takes the approval list as well — the confirmations say so.
- *
- * A guest has neither: its devices are this one, and it cannot approve for its relay account.
- */
 export const DevicesPage = () => {
     const { t } = useTranslation();
     const isPaired = runtime.session.useIsPairedSession();
@@ -99,8 +89,6 @@ const DeviceSection = () => {
     const devices = useQuery({
         queryKey: devicesKeys.list({ cloudId: selectedCloudId ?? 'default' }),
         queryFn: () => user.listDevices(),
-        // A cloud that does not serve the list answers with an error that a retry will not change; the
-        // section says so at once and leaves the retry to the person.
         retry: false,
         refetchOnWindowFocus: false,
     });
@@ -157,7 +145,6 @@ const DeviceSection = () => {
                                               : t('pairing.devices.offline')}
                                     </span>
                                 </div>
-                                {/* The device in use is signed out with logout, never from this list. */}
                                 {!device.current && (
                                     <Button
                                         variant="outline"
@@ -216,7 +203,6 @@ const ApprovedSection = () => {
         },
     });
 
-    // Only what is still in force: a declined, expired or withdrawn pairing has nothing left to end.
     const list = (pairings.data?.list ?? []).filter(item => item.status === 'approved');
     const cloudName = (cloudId: string | undefined) =>
         clouds.find(cloud => cloud.id === cloudId)?.name || cloudId || '';
@@ -249,8 +235,6 @@ const ApprovedSection = () => {
                 <ul className={GROUP}>
                     {list.map(item => {
                         const name = item.client.name || t('pairing.approve.unknownClient');
-                        // A relay approval that was never claimed is a session waiting for whoever holds the
-                        // code's browser. A cloud approval has no claim to wait for, so it never shows this.
                         const unclaimed = item.target.type === 'relay' && !item.claimedAt;
                         return (
                             <li key={item.pairingId} className={ROW} data-testid="pairing-row">

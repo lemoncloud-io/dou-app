@@ -21,7 +21,6 @@ describe('parseInviteInput', () => {
     });
 });
 
-// The server issues `/i?t=<base64url JSON>` by default; `c` is the code, `a` + `s` the backend, `r` the relay flag.
 const encodedLink = (payload: unknown, origin = 'https://app-dev.chatic.io'): string =>
     `${origin}/i?t=${Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url')}`;
 
@@ -113,7 +112,6 @@ describe('isTrustedInviteBackend', () => {
 
     it('rejects any other server named by a backend param', () => {
         expect(isTrustedInviteBackend('https://evil.example/d1', CONFIGURED)).toBe(false);
-        // Same host, different deployment path: not one this build talks to.
         expect(isTrustedInviteBackend('https://api.eureka.codes/v1', CONFIGURED)).toBe(false);
         expect(isTrustedInviteBackend('http://uzjpiaey7a.execute-api.ap-northeast-2.amazonaws.com/dev', [])).toBe(
             false

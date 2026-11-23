@@ -5,12 +5,6 @@ import { runtime } from '@chatic/runtime';
 
 import { toError } from '../../../shared';
 
-/**
- * Debug-only email/password sign-in (mirrors apps/web DebugLoginPage): exchange
- * credentials for a token via `runtime.session.useLogin`, which builds relay credentials and
- * hydrates the session internally. Bypasses the invite-code flow — intended for
- * local development, surfaced only in dev builds.
- */
 export const useDebugLogin = () => {
     const { mutateAsync: login, isPending } = runtime.session.useLogin();
     const [isError, setIsError] = useState(false);
@@ -19,7 +13,6 @@ export const useDebugLogin = () => {
         async (uid: string, pwd: string): Promise<boolean> => {
             setIsError(false);
             try {
-                // loginRelayUser builds credentials and hydrates the session internally.
                 await login({ uid, pwd });
                 return true;
             } catch (error) {

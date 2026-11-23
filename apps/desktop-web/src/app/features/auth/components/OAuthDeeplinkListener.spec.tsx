@@ -28,7 +28,6 @@ vi.mock('@chatic/runtime', async () => {
         settings: {
             get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined),
         },
-        // The desktop app's relay sign-in: the system browser out, the deeplinks it forwards back in.
         signIn: {
             ...browserSignIn(),
             relayOAuth: {
@@ -67,7 +66,6 @@ const deliver = async (deeplink: string) => {
     });
 };
 
-// Starts a login the way the Welcome and Profile buttons do.
 const Starter = () => {
     const { start } = useSocialLogin();
     return (
@@ -81,8 +79,6 @@ describe('OAuthDeeplinkListener', () => {
     beforeEach(() => {
         vi.useFakeTimers({ toFake: ['Date'] });
         vi.setSystemTime(NOW);
-        // The shell's persistent backing, as main.tsx wires it.
-        // As in the desktop shell, where the session's plain store is localStorage.
         configureAppStores({ device: WebStore.local(), tab: WebStore.session(), plain: WebStore.local() });
         localStorage.clear();
         session.isAuthenticated = false;
@@ -160,7 +156,6 @@ describe('OAuthDeeplinkListener', () => {
             expect.objectContaining({ variant: 'destructive', title: i18n.t('auth.social.failed') })
         );
 
-        // Every start draws a new nonce.
         started({ nonce: 'n2' });
         await deliver('chatic://oauth?provider=google&code=good&nonce=n2');
 
@@ -238,7 +233,6 @@ describe('OAuthDeeplinkListener', () => {
         expect(takeOAuthLoginStart()).not.toBeNull();
     });
 
-    // A Guest Session linking to Google from Profile starts the login itself, so it has a record.
     it('still swaps the session of a signed-in guest who started the login', async () => {
         session.isAuthenticated = true;
         const replace = vi.fn();

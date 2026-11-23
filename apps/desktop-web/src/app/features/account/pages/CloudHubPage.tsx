@@ -27,12 +27,6 @@ import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 import { PairingLogoutDialog } from '../../pairing/components/PairingLogoutDialog';
 import { isDevicePairingEnabled } from '../../pairing/utils/devicePairing';
 
-/**
- * One owned cloud: rename inline, read-only facts, cascade release behind a
- * confirm. A cloud the catalog does not name is not owned (or a stale link)
- * and routes back to the list. Releasing the ACTIVE cloud logs out, as there
- * is no session left to stand in.
- */
 export const CloudHubPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -45,9 +39,6 @@ export const CloudHubPage = () => {
     const { resetAccount } = useAccountResetOnLogout();
     const signOut = () => void resetAccount().finally(() => logout());
     const pairingLogout = runtime.session.usePairingAwareLogout(signOut);
-    // Releasing the cloud the session stands in leaves nothing to stand in, so here the sign-out is not
-    // the person's to cancel: cancelling the confirm only keeps the approvals standing. The dialog also
-    // closes (and calls `cancel`) when its confirm is pressed, so a confirm under way is told apart.
     const approvalsConfirmed = useRef(false);
     const releaseLogout: runtime.session.PairingAwareLogout = {
         ...pairingLogout,
@@ -76,8 +67,6 @@ export const CloudHubPage = () => {
     }, [resolved, cloudId, cloud, navigate]);
 
     if (!cloud) {
-        // The shell stays up while the catalog resolves: a bare spinner names
-        // nowhere, and back must work before the cloud it returns from is known.
         return (
             <PageShell
                 title={cloudId ?? ''}
@@ -116,8 +105,6 @@ export const CloudHubPage = () => {
             const result = await deleteOwnedCloud(cloud.id);
             setConfirmingRelease(false);
             if (cloud.id === selectedCloudId) {
-                // The session stood in this cloud: release the account state with it — and, on an
-                // approving app, the web sign-ins it approved.
                 if (isDevicePairingEnabled()) void pairingLogout.start();
                 else signOut();
                 return;

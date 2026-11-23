@@ -22,8 +22,6 @@ const TABS: { id: TabId; label: string }[] = [
     { id: 'images', label: 'Images' },
     { id: 'badge', label: 'OS badge' },
     { id: 'customUi', label: 'Custom UI' },
-    // Dev-only account switcher — tree-shaken from production builds so it never
-    // surfaces in the installed app even when debug mode is toggled on.
     ...(import.meta.env.DEV ? [{ id: 'auth' as const, label: 'Login' }] : []),
 ];
 
@@ -38,20 +36,10 @@ const PAGES: Record<TabId, () => JSX.Element> = {
     auth: DebugAuthPage,
 };
 
-/**
- * Debug panel docked into the right trailing-panel slot of the chat shell — same
- * mechanism as the profile / thread panes. On wide (xl) screens it sits in flow
- * (`xl:relative`), so the chat pane shrinks beside it instead of being covered;
- * below xl it overlays. Because it renders in the same window as the app it
- * shares every store + the IndexedDB cache, so it shows the *actual* live app
- * state and you can keep chatting while watching it update. Width drag-resizes
- * (left edge, persisted); closes on Esc (through ResizablePanel), ✕, or Exit.
- */
 export const DebugPanel = () => {
     const setOverlayOpen = useDebugModeStore(s => s.setOverlayOpen);
     const [active, setActive] = useState<TabId>('state');
 
-    // Handed to ResizablePanel, which owns Escape and, in a narrow window, the scrim.
     const close = useCallback(() => setOverlayOpen(false), [setOverlayOpen]);
 
     const ActivePage = PAGES[active];

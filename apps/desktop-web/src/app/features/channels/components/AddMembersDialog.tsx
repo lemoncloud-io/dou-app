@@ -30,24 +30,11 @@ interface AddMembersDialogProps {
     channelId: string;
 }
 
-/**
- * Add members of this place to this channel. The server call (`channel.invite` via
- * channelRepository.inviteChannel) adds the picked users immediately — there is no link and no
- * accept step, and no way to reach someone who has no account yet.
- *
- * Each person is drawn the way the 1:1 picker draws them: this place's profile (nick and photo)
- * over the user record, so somebody who shares no channel with me still reads by the name they
- * chose here.
- *
- * Mounted only while open (see ChannelActionDialogs): the candidate hook reads the place's member
- * list, which must not run on every panel mount.
- */
 export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDialogProps) => {
     const { t } = useTranslation();
     const { addMembers, isAdding } = useAddMembers(channelId);
     const { candidates, isLoading, error } = useInviteCandidates(channelId);
 
-    // The dialog is mounted only while open, so unmounting is what resets the picked set.
     const [query, setQuery] = useState('');
     const [selected, setSelected] = useState<string[]>([]);
 
@@ -82,10 +69,6 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
 
     return (
         <Dialog open={open} onOpenChange={next => !isAdding && onOpenChange(next)}>
-            {/* The opener can leave the page while this is open — the intro's actions go once the
-                channel has messages, a menu item goes with its menu. A flex column, not the kit's
-                grid, so that in a short window the candidate list gives way first and the title,
-                search and buttons stay on screen. */}
             <DialogContent
                 closeLabel={t('common.close')}
                 className="flex flex-col sm:max-w-md"
@@ -103,15 +86,12 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
                             value={query}
                             onChange={e => setQuery(e.target.value)}
                             placeholder={t('channels.addMembers.searchPlaceholder')}
-                            // The placeholder was its only name, and it is gone once you type.
                             aria-label={t('channels.addMembers.searchPlaceholder')}
                             className="focus-ring h-9 border-hairline bg-well pl-8 text-callout shadow-well"
                             disabled={isAdding}
                         />
                     </div>
 
-                    {/* 18rem on a roomy window; below that it shrinks with the dialog's height cap,
-                        down to about two rows. */}
                     <div className="scrollbar-thin flex max-h-72 min-h-24 flex-col overflow-y-auto">
                         <CandidateList
                             candidates={filtered}
@@ -152,14 +132,12 @@ interface CandidateListProps {
     candidates: InviteCandidate[];
     isLoading: boolean;
     error: Error | null;
-    /** True when the pool itself is empty, as opposed to the search filtering it down to nothing. */
     hasNoCandidates: boolean;
     selected: string[];
     onToggle: (userId: string) => void;
     disabled: boolean;
 }
 
-/** Body of the picker — early returns per state, matching MemberList. */
 const CandidateList = ({
     candidates,
     isLoading,
@@ -177,9 +155,6 @@ const CandidateList = ({
     if (error) {
         return <p className="px-2 py-2 text-callout text-destructive">{t('channels.addMembers.loadFailed')}</p>;
     }
-    // An empty pool cannot tell "everyone is already here" from "there is nobody yet", and the old
-    // line said the first to an owner who had nobody. It now says who can be added here, and that
-    // someone new is invited from the mobile app, which is true either way.
     if (hasNoCandidates) {
         return (
             <div className="flex flex-col gap-1 px-2 py-2">

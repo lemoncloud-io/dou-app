@@ -19,11 +19,6 @@ interface ChannelWebhooksSectionProps {
 
 const formatWhen = (ms: number, language: string): string => new Date(ms).toLocaleDateString(language);
 
-/**
- * Channel owner's webhook management inside the settings panel: the list (name, last use, paused /
- * expired badges), issuing, pause/resume, expiry and delete behind a confirm. The host renders this
- * only for the owner of a group channel — the hook never reads the list otherwise.
- */
 export const ChannelWebhooksSection = ({ channelId }: ChannelWebhooksSectionProps) => {
     const { t, i18n } = useTranslation();
     const { webhooks, status, retry, issue, setPaused, setExpiresAt, remove } = useChannelWebhooks(channelId);

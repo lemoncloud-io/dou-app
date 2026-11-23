@@ -7,8 +7,6 @@ vi.mock('../../../shared', async importOriginal => ({
     ...(await importOriginal<object>()),
 }));
 
-// The notify writer reaches the mutations through its own leaf import, not the
-// barrel above — mock the leaf so the panel renders without a runtime.
 vi.mock('../../../shared/hooks/useChannelMutations', () => ({
     useDesktopChannelMutations: () => ({ setChannelNotify: vi.fn(), updateChannel: vi.fn(), isMutating: false }),
 }));
@@ -17,10 +15,8 @@ vi.mock('../hooks', () => ({
     useChannelActions: () => ({ openDialog: vi.fn(), openKick: vi.fn(), kickTarget: null }),
 }));
 
-// The webhook section reaches the runtime for its list; the gate that mounts it is what these tests check.
 vi.mock('./ChannelWebhooksSection', () => ({ ChannelWebhooksSection: () => <div>webhooks-section</div> }));
 
-// The dialogs are not what these tests are about, and they reach for hooks of their own.
 vi.mock('./ChannelActionDialogs', () => ({ ChannelActionDialogs: () => null }));
 
 import i18n from '../../../../i18n';
@@ -46,8 +42,6 @@ describe('ChannelSettingsPanel channel ID', () => {
     });
     afterEach(() => writeText.mockReset());
 
-    // The desktop app has no address bar, so this is the only place to read a channel's id from —
-    // which is what pointing a service's webhook at the channel needs.
     it('shows the id of a channel and copies it', async () => {
         renderPanel({ name: 'general', stereo: 'public', memberNo: 3 } as Partial<DomainChannel>);
 
@@ -74,7 +68,6 @@ describe('ChannelSettingsPanel channel ID', () => {
         }
     });
 
-    // Neither a 1:1 nor my notes-to-self is somewhere a service posts to.
     it.each([
         ['a 1:1', { stereo: 'dm', memberNo: 2 }],
         ['my self channel', { stereo: 'self', memberNo: 1 }],
@@ -95,7 +88,6 @@ describe('ChannelSettingsPanel notification level', () => {
         expect(levels()).toEqual(['All messages', 'Mentions only', 'Off']);
     });
 
-    // The server delivers everything in a 1:1 whatever the level says, short of off.
     it('does not offer mentions only in a 1:1', () => {
         renderPanel({ stereo: 'dm', memberNo: 2 } as Partial<DomainChannel>);
 

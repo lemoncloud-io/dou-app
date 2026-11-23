@@ -7,12 +7,6 @@ import { Dialog, DialogContent, DialogTitle } from '@chatic/ui-kit/components/ui
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
 
-/**
- * The kit-level floor of the account-area backlog: every tappable surface is
- * at least 36px, and control edges read the 3:1 control-border token the
- * contrast spec already pins (tokenContrast.spec.ts). Class-level on purpose:
- * jsdom does no layout, so what these guard is the revert, not the pixels.
- */
 describe('kit target sizes and control edges', () => {
     it('draws the small button at the 36px floor', () => {
         expect(buttonVariants({ size: 'sm' })).toContain('h-9');

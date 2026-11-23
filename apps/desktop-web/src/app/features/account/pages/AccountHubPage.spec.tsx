@@ -107,7 +107,6 @@ describe('AccountHubPage', () => {
         expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
     });
 
-    // A guest has a relay user too — its role is what says it is a guest.
     it('treats a relay user whose role is guest as a guest, and offers Google sign-in', () => {
         tokenUser.value = { name: 'Guest', userRole: 'guest' } as typeof tokenUser.value;
         renderAt();
@@ -163,8 +162,6 @@ describe('AccountHubPage', () => {
         expect(screen.queryByRole('button', { name: /^Devices/ })).toBeNull();
     });
 
-    // Settings → Account → back used to land in chat: the hub names its parent
-    // and returns to it.
     it('goes back to Settings, naming it, instead of landing in chat', () => {
         tokenUser.value = { name: 'Ada' };
         renderAt();
@@ -174,8 +171,6 @@ describe('AccountHubPage', () => {
         expect(screen.getByTestId('settings')).toBeTruthy();
     });
 
-    // The hub linked into Settings and back again with no new information: the
-    // card is gone, and Settings is reached from the account menu instead.
     it('shows no notifications card back into Settings', () => {
         tokenUser.value = { name: 'Ada' };
         renderAt();

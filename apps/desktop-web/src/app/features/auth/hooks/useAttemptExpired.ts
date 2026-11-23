@@ -3,10 +3,6 @@ import { useEffect, useState } from 'react';
 import type { OAuthAttempt } from '../stores/useOAuthAttemptStore';
 import { OAUTH_LOGIN_START_TTL_MS } from '../utils/oauthLoginStart';
 
-/**
- * Whether the attempt's start record has run out, re-read when it does. An expired start refuses the
- * browser's return, so opening the browser again would only lead to a refusal.
- */
 export const useAttemptExpired = (attempt: OAuthAttempt | null): boolean => {
     const [expired, setExpired] = useState(false);
     useEffect(() => {

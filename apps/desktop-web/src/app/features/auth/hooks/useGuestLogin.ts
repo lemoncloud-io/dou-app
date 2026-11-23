@@ -6,14 +6,6 @@ import { runtime } from '@chatic/runtime';
 import { toError } from '../../../shared';
 import { ensureDeviceSession } from '../utils';
 
-/**
- * Guest-session bootstrap — mirrors apps/web's relay guest login: register the
- * device against the broker (no Invite Code, no email) via
- * `runtime.session.useLoginRelayGuestByDevice`, which builds credentials, persists the device id
- * and hydrates the relay identity. Lands the user in the Default Cloud's Self
- * Channel. Distinct from useInviteLogin, which additionally exchanges an Invite
- * Code for a cloud-scoped token.
- */
 export const useGuestLogin = () => {
     const { deviceId } = runtime.session.useDynamicDeviceId();
     const { mutateAsync: loginGuest, isPending } = runtime.session.useLoginRelayGuestByDevice();

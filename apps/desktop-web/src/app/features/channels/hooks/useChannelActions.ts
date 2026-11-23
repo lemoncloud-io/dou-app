@@ -10,28 +10,16 @@ import { channelActionErrorKey } from '../utils';
 export type ChannelDialogKind = 'rename' | 'add-members' | 'delete' | 'leave' | 'kick' | null;
 
 interface UseChannelActionsOptions {
-    /** Called after a successful delete or self-leave (e.g. clear selection). */
     onRemoved?: () => void;
-    /**
-     * Resolve a member id to a display name, for the removal toast. A resolver
-     * rather than a name because the kick target is this hook's own state.
-     */
     resolveMemberName?: (userId: string) => string;
 }
 
-/**
- * Owns every channel action + its dialog state for the desktop UI: the open
- * dialog kind, the pending kick target, the delete/leave/kick mutations (via
- * useDesktopChannelMutations) and their teardown. Both ChannelHeaderMenu and
- * ChannelSettingsPanel consume this so the wiring lives in exactly one place.
- */
 export const useChannelActions = (
     channelId: string | null,
     { onRemoved, resolveMemberName }: UseChannelActionsOptions = {}
 ) => {
     const { t } = useTranslation();
     const { deleteChannel, leaveChannel, inviteChannel, isMutating } = useDesktopChannelMutations();
-    // Whatever held focus went with the removed room or its menu; the room shown next picks it up.
     const requestComposerFocus = useComposerFocusStore(s => s.request);
 
     const [dialog, setDialog] = useState<ChannelDialogKind>(null);
@@ -81,10 +69,6 @@ export const useChannelActions = (
         if (!channelId || !kickTarget) return;
         try {
             await leaveChannel({ channelId, userId: kickTarget });
-            // Removing someone is invisible from the roster alone if the list has
-            // not caught up yet, so say it happened — delete and leave both do —
-            // and offer the way back: re-adding is the same invite the Add
-            // Members dialog sends, so a mis-click costs one more click, not a hunt.
             const removedId = kickTarget;
             const undo = () =>
                 void inviteChannel({ channelId, userIds: [removedId] }).catch(e =>
@@ -92,8 +76,6 @@ export const useChannelActions = (
                 );
             toast({
                 description: t('toast.memberRemoved', { name: resolveMemberName?.(removedId) ?? '' }),
-                // The kit types its action as `ReactElement<typeof ToastAction>` (the
-                // component, not its props), which no created element satisfies.
                 action: createElement(
                     ToastAction,
                     { altText: t('toast.undoRemove'), onClick: undo },

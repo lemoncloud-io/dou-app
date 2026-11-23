@@ -20,8 +20,6 @@ export const InviteLoginPage = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const { preview: lookUp, enter } = useInviteLogin();
     const signOutGuest = useSignOutGuest();
-    // Page state lives in a store: the guest session the preview makes flips the router to its
-    // signed-in branch, which can remount this page before the lookup or the exchange settles.
     const {
         code,
         step,
@@ -39,13 +37,8 @@ export const InviteLoginPage = () => {
         release,
     } = useInviteLoginPageStore();
 
-    // Authenticated (in-app /join) → back to chat; unauthenticated (/auth/login)
-    // → back to the welcome landing. Explicit targets stay correct even with no
-    // history (refresh / deep link), unlike navigate(-1).
     const leave = () => {
         release();
-        // A guest this page registered is signed out (which reloads to Welcome); a session that was
-        // there before the page opened is not ours to end.
         if (createdGuest) {
             void signOutGuest();
             return;
@@ -53,9 +46,6 @@ export const InviteLoginPage = () => {
         navigate(isAuthenticated ? '/' : '/auth/welcome');
     };
 
-    // `done` is set once login resolves; the navigate waits for the session to actually
-    // flip. Navigating on the promise alone raced the flip, and the router's
-    // unauthenticated catch-all then bounced a successful login back to Welcome.
     useEffect(() => {
         if (!done || !isAuthenticated) return;
         release();
@@ -84,12 +74,6 @@ export const InviteLoginPage = () => {
         </div>
     );
 
-    // The body is keyed by screen so a new screen mounts fresh and slides in while the card around it
-    // stays put. Preview and entering share one screen: remounting on Join would drop focus from the
-    // button that was just pressed.
-    // There is no way out of the paste step while the lookup runs: it is registering the device
-    // guest, and leaving now would release the hold before that guest is known, so nothing could
-    // sign it out. It is seconds long and ends on its own.
     return (
         <AuthCard
             title={step === 'paste' ? t('auth.invite.title') : t('auth.invite.preview.title')}
@@ -123,7 +107,6 @@ export const InviteLoginPage = () => {
                                 'border-control-border focus:border-focus-border disabled:opacity-50'
                             )}
                         />
-                        {/* role="alert" so a rejected code is announced, not just drawn. */}
                         {errorBlock}
                         <Button type="submit" size="lg" disabled={isSubmitting || !code.trim()}>
                             {isSubmitting ? t('auth.invite.checking') : t('auth.invite.continue')}

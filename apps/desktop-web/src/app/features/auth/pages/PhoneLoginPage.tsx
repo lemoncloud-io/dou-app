@@ -11,10 +11,6 @@ import { AuthCard, NewAccountName } from '../components';
 import { PHONE_CODE_LENGTH, usePhoneLogin } from '../hooks/usePhoneLogin';
 import { useSignOutGuest } from '../hooks/useSignOutGuest';
 
-/**
- * Where the page was opened from, set by the button that opened it. `signOutOnBack`: the device session
- * was registered on the way here (a Google start left for phone) and is not the person's choice to keep.
- */
 export interface PhoneLoginEntry {
     from?: string;
     signOutOnBack?: boolean;
@@ -27,34 +23,19 @@ const fieldClass = cn(
 
 const mmss = (seconds: number): string => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
-/**
- * Only a device session may log in by number; a signed-in account would be refused (400). A session whose
- * relay user has not loaded yet is let through, as the account hub reads it: the server's 400 on the send
- * is the backstop.
- */
 const isGuestSession = (): boolean => {
     if (!runtime.session.getIdentityContext().isAuthenticated) return true;
     const user = runtime.session.getRelaySessionUser() as { userRole?: string } | null;
     return !user || user.userRole === 'guest';
 };
 
-/** Replacing the session reloads, so the socket, caches and cloud rail start over as the new account. */
 const enterApp = () => window.location.replace('/');
 
-/**
- * Sign in with the phone number an account was made with on mobile. Reached from Welcome and, for a
- * guest, from the account hub. Registered on both sides of the router's signed-in switch: sending a
- * code registers the device first, which flips that switch mid-flow, and the page has to survive it.
- *
- * When the number turns out to have no account yet, the server makes one; that is said here before
- * the app opens, because someone expecting their mobile account would otherwise not notice.
- */
 export const PhoneLoginPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const entry = (useLocation().state ?? {}) as PhoneLoginEntry;
     const signOutGuest = useSignOutGuest();
-    // Judged once, on arrival: the sign-in itself turns the session into an account.
     const [allowed] = useState(isGuestSession);
     const [arrivedSignedOut] = useState(() => !runtime.session.getIdentityContext().isAuthenticated);
     const [leaving, setLeaving] = useState(false);
@@ -76,10 +57,6 @@ export const PhoneLoginPage = () => {
 
     const isSending = login.busy === 'sending';
     const isConfirming = login.busy === 'confirming';
-    // Back goes where the page was opened from. A guest this visit registered (sending the first code, or
-    // the Google start that led here) is signed out on the way, which reloads to Welcome: backing out
-    // is not choosing to be a guest. Asked again at the press: a sign-in that went through on this page
-    // (the confirm answered, the app not yet reloaded) is an account now, and is not signed out.
     const onBack = () => {
         const signedIn = runtime.session.getIdentityContext().isAuthenticated;
         if (signedIn && (arrivedSignedOut || entry.signOutOnBack) && isGuestSession()) {
@@ -103,9 +80,6 @@ export const PhoneLoginPage = () => {
                 className="flex flex-col gap-3"
                 onSubmit={e => {
                     e.preventDefault();
-                    // Always through validation: a bad number with Enter used to do
-                    // nothing visible, because submit was gated on canRequestCode
-                    // and the invalidNumber message never showed.
                     void login.requestCode();
                 }}
             >
@@ -123,7 +97,6 @@ export const PhoneLoginPage = () => {
                         {!login.country && <option value="">{t('auth.phone.country')}</option>}
                         {countries.map(c => (
                             <option key={c.code} value={c.code}>
-                                {/* Dial code first: the closed field is narrow, and the code is what the number is read with. */}
                                 {`${c.dialCode} ${c.name}`}
                             </option>
                         ))}
@@ -152,9 +125,6 @@ export const PhoneLoginPage = () => {
                     </p>
                 )}
                 {!login.codeSent && (
-                    // Always enabled (outside a send): a bad or empty number with
-                    // Enter must run validation and show its message, not sit
-                    // behind a disabled button whose submit never fires.
                     <Button type="submit" size="lg" disabled={login.busy !== 'idle'}>
                         {isSending ? t('auth.phone.sending') : t('auth.phone.sendCode')}
                     </Button>

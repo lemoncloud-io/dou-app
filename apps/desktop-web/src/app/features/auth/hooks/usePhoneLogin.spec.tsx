@@ -42,7 +42,6 @@ vi.mock('@chatic/runtime', async () =>
 
 import { PHONE_CODE_LENGTH, PHONE_RESEND_COOLDOWN_MS, usePhoneLogin } from './usePhoneLogin';
 
-/** A phone login failure the runtime throws, by its code. */
 const loginFailure = (code: string) => Object.assign(new Error(code), { code });
 const CODE = '123456';
 
@@ -52,7 +51,6 @@ const setup = () => {
     return { ...hook, onSignedIn };
 };
 
-/** Types a Korean mobile number and asks for a code. */
 const sendCode = async (result: ReturnType<typeof setup>['result']) => {
     act(() => result.current.changeCountry('KR'));
     act(() => result.current.changePhone('01012345678'));
@@ -139,7 +137,6 @@ describe('usePhoneLogin', () => {
         await sendCode(result);
 
         expect(rt.loginGuest).toHaveBeenCalledWith('device-1');
-        // The send waits for the relay socket to authenticate the new device, or the first one fails.
         expect(order).toEqual(['register', 'verified', 'send']);
         expect(rt.waitUntilVerified).toHaveBeenCalledWith('relay', expect.any(Number));
     });

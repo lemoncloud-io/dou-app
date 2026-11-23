@@ -7,11 +7,6 @@ interface PlaceChipProps {
     className?: string;
 }
 
-/**
- * Names the active place as a compact pill. Used wherever a per-place identity is
- * shown or edited so "this place" is never abstract — the user reads the actual
- * place name and knows the scope of the profile they're viewing/editing.
- */
 export const PlaceChip = ({ name, className }: PlaceChipProps) => (
     <span
         className={cn(

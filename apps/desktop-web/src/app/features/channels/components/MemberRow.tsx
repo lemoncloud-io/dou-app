@@ -17,14 +17,12 @@ import { UserProfilePopover, avatarStyle, displayName, useDisplayProfile } from 
 interface MemberRowProps {
     member: ChannelMember;
     isMe: boolean;
-    /** Whether the current user can remove (kick) other members. */
     canKick: boolean;
     onKick: (userId: string) => void;
 }
 
 export const MemberRow = ({ member, isMe, canKick, onKick }: MemberRowProps) => {
     const { t } = useTranslation();
-    // Display Profile: a Place nick/thumbnail overrides the global member identity.
     const { name, thumbnail } = useDisplayProfile(member.id, displayName(member), member.thumbnail);
     const initial = name.charAt(0).toUpperCase() || '?';
     const showKebab = canKick && !isMe;

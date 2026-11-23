@@ -29,12 +29,6 @@ import {
 import { PlaceChip } from './PlaceChip';
 import { useEditPlaceProfileDialogStore } from '../stores';
 
-/**
- * Edit my Place Profile (nick / thumbnail / active) for the current place. The
- * save is optimistic in the repository, so my own name + avatar flip instantly
- * across messages, roster and self surfaces. Seeds from the loaded Place Profile,
- * falling back to my Global Profile when none exists (or load fails — fail-soft).
- */
 export const EditPlaceProfileDialog = () => {
     const { t } = useTranslation();
     const isOpen = useEditPlaceProfileDialogStore(s => s.isOpen);
@@ -47,8 +41,6 @@ export const EditPlaceProfileDialog = () => {
     const { userId } = runtime.session.useSessionIdentity();
     const { userName, photo } = runtime.session.useRuntimeProfile();
     const myUid = userId ?? '';
-    // Seeds the nick field: a real account name only. A guest's "Guest" is how the app names
-    // them, not a nick they chose, so it only shows as the placeholder.
     const globalName = isPlaceholderName(userName) ? '' : userName;
     const accountName = useAccountName();
     const globalPhoto = photo ?? '';
@@ -58,15 +50,8 @@ export const EditPlaceProfileDialog = () => {
     const [isError, setIsError] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
     const nickRef = useRef<HTMLInputElement>(null);
-    // Whether an active place override already exists — gates the "use account
-    // profile" reset (there's nothing to revert until one is set).
     const hasActiveProfile = useSiteProfilesStore(s => (myUid ? !!s.profiles[myUid] : false));
 
-    // Seed the form when the dialog opens. Seed SYNCHRONOUSLY from the locally
-    // cached override first (useSiteProfiles mirrors my own entry under the account
-    // uid) so the form shows my nick/photo immediately — no empty flash while the
-    // network self read is in flight. Then refine from the freshly-loaded Place
-    // Profile. Precedence end-state: loaded → cached → Global.
     useEffect(() => {
         if (!isOpen) return;
         setIsError(false);
@@ -79,10 +64,6 @@ export const EditPlaceProfileDialog = () => {
         });
     }, [isOpen, load, myUid, globalName, globalPhoto]);
 
-    // A save disables the field and the buttons, so whichever held focus went dead and focus fell
-    // to the page — and the autofocused field is disabled while the opening read loads, so its
-    // autofocus lands nowhere either. Whenever the form comes back, hand focus to the field the
-    // person is about to correct. A disabled input cannot take focus, so only on the idle edge.
     const wasBusy = useRef(busy);
     useEffect(() => {
         if (wasBusy.current && !busy) nickRef.current?.focus();
@@ -99,7 +80,6 @@ export const EditPlaceProfileDialog = () => {
         if (!file) return;
         try {
             const { avatar } = await prepareImage(file, AVATAR_IMAGE);
-            // A record field has nothing to fall back to, so a failure is an error, not a gap.
             if (!avatar) throw new Error('Failed to prepare avatar image');
             setThumbnail(avatar);
         } catch (error) {
@@ -107,7 +87,6 @@ export const EditPlaceProfileDialog = () => {
         }
     };
 
-    // Saving a nick/photo means you want it used here — no separate "active" toggle.
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const trimmed = nick.trim();
@@ -122,9 +101,6 @@ export const EditPlaceProfileDialog = () => {
         }
     };
 
-    // Revert to the account identity: deactivate the place profile (the server
-    // keeps the nick, display falls back to the account). Only offered when one
-    // is active, so it never reads as "delete something I haven't set".
     const handleUseAccount = async () => {
         if (isSaving) return;
         setIsError(false);
@@ -196,10 +172,6 @@ export const EditPlaceProfileDialog = () => {
 
                     {isError && <FormError id="place-nick-error">{t('profile.place.failed')}</FormError>}
 
-                    {/* Reverting to the account identity changes how you appear to everyone
-                        in this place, so it does not sit in the Cancel/Save row where it
-                        reads as a third way to close the dialog. It gets its own block,
-                        with the consequence stated. */}
                     {hasActiveProfile && (
                         <div className="flex items-center justify-between gap-3 border-t border-hairline pt-3">
                             <p className="text-micro text-muted-foreground">{t('profile.place.useAccountHint')}</p>

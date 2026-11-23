@@ -13,14 +13,9 @@ interface ChannelNameFieldProps {
     value: string;
     onChange: (value: string) => void;
     disabled?: boolean;
-    /**
-     * The form was submitted with a name out of range. Enter on a one-character
-     * name used to do nothing at all; the length rule now turns into the error.
-     */
     showInvalid: boolean;
 }
 
-/** Name input shared by the create and rename dialogs: length rule, counter, error state. */
 export const ChannelNameField = ({
     id,
     label,
@@ -54,8 +49,6 @@ export const ChannelNameField = ({
                 >
                     {t('channels.rename.lengthHint')}
                 </p>
-                {/* The input truncates silently at the maximum; a counter is
-                    what tells someone their last keystrokes went nowhere. */}
                 <p className="shrink-0 text-micro tabular-nums text-muted-foreground">
                     {t('channels.nameCount', { count: value.trim().length, max: CHANNEL_NAME_MAX })}
                 </p>

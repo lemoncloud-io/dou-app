@@ -4,7 +4,6 @@ import type { WebHostFacts } from '@chatic/runtime-web';
 
 import { desktopMedia } from './media';
 
-// Neither side reads the facts; the implementations decide from the side alone.
 const facts = {} as WebHostFacts;
 
 describe('desktopMedia', () => {

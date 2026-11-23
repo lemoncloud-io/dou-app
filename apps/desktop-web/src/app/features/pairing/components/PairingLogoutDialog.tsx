@@ -6,17 +6,10 @@ import { useCloudSessionCatalog } from '../../../shared';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 
 interface PairingLogoutDialogProps {
-    /** The confirm from `runtime.session.usePairingAwareLogout`. */
     logout: runtime.session.PairingAwareLogout;
 }
 
-/**
- * "The sign-ins this app approved end too." Open while an approving desktop app is signing out with
- * approvals still standing: each one with its requester and scope, and the caveat about cloud screens
- * already open when a cloud approval is among them.
- */
 export const PairingLogoutDialog = ({ logout }: PairingLogoutDialogProps) =>
-    // Mounted only while a confirm is open, so a menu that never signs out never reads the catalog.
     logout.pending ? <OpenPairingLogoutDialog logout={logout} /> : null;
 
 const OpenPairingLogoutDialog = ({ logout }: PairingLogoutDialogProps) => {

@@ -85,6 +85,12 @@ shell uses for its own scheme — the dev channel registers `chatic-dev:`, the p
 disagree is an unpackaged dev shell pointed at the production web: the shell registers `chatic-dev:`
 and the page opens `chatic:`.
 
+The scheme is read when it is needed, never once at module load: the runtime's settings answer
+nothing until its start has run, and a read taken before that would fall back to the production
+scheme and hand a dev build off to the production app, the one direction this rule exists to
+prevent. Receiving is looser than launching: a link of either scheme parses, since opening one is
+harmless.
+
 The device is registered first. The backend's sign-in contract expects a device session,
 so tapping Google with no session registers the device (the same registration as the guest start)
 before the browser opens, and a registration that fails stops there with the Welcome page's
@@ -245,6 +251,64 @@ the next start finds the guest the preview registered and opens the app as that 
 The in-app "Join with invite" dialog is a different path: it already has a session, shows no preview,
 and still goes straight to the exchange.
 
+### What a pasted link may be
+
+`parseInviteInput` finds the invite anywhere in the pasted text (an SMS body, a chat message), with
+or without a scheme. When the text holds several links it takes the first one on an invite path
+(`/i` or `/s`), else the first link at all, so a message that mentions another site first does not
+hide the invite; sentence punctuation after a link is not part of it. Three forms are read:
+
+- **The encoded link** the server issues by default, `/i?t=<base64url JSON>`, opened by the decoder
+  web and mobile share.
+- **A legacy link**, `/s?code=invt:<id>:<uuid>` with `api` and `stage` (or a `backend` address). Half
+  an address (one of the two) is a format error, since it would compose a host that does not exist.
+- **A bare code**, `invt:<id>:<uuid>`. It names no backend, so the exchange goes to the runtime's default one.
+
+Three refusals are made before anything is sent: `relay` for a phone-to-phone invite (a link that
+names no address is a relay link whether or not it says so, and this screen has no phone or email
+login to accept one, so sending it would only fail with a misleading "code isn't valid"), `unmarked`
+for an encoded link that names no server (it is never assumed to be a relay link; the issuer uses
+the separate `/i` path so an old client does not make that mistake), and `format` for the rest.
+
+**A link's backend is trusted by shape, not by who wrote it.** The exchange is signed with the
+device's guest delegation, so following a pasted link to any server would hand that delegation to
+whoever runs it. `isTrustedInviteBackend` allows only an API Gateway address of the shape real
+invite links carry (`https://<id>.execute-api.ap-northeast-2.amazonaws.com/<stage>`, anchored so a
+crafted `api=` value cannot move the host) or one of the backends this build is configured with
+(`net.relay.backend`, `net.admin.backend`). Anything else is refused as `backend` and no session is
+made for it.
+
+An invite already used (`used`) has its own sentence, not the "you're already in this cloud" line of
+a server conflict, which is about the person and not the link.
+
+**After the exchange**, the app writes the joined cloud down itself, because invited clouds are not in
+the relay catalog and the broker's cloud list is eventually consistent: a cloud-cache row (name,
+backend and wss from the lookup, `acceptedBy`) and a joined-clouds entry, so the rail shows the cloud
+at once. The name goes in too, since that row is the cloud's only durable record and a rail rebuilt
+from the cache would otherwise label the tile with nothing but its id. The acceptor's id is read
+before the exchange, which can replace the relay session. Then the app enters the cloud and the
+invited place, and refetches the catalog.
+
+## The auth card and the development sign-in
+
+`AuthCard` is the shell of the pre-sign-in screens (Welcome, the invite page, phone sign-in).
+
+- **The language switch is on it** because it is the one screen before Settings exists: someone
+  whose system language is not the one they read could not otherwise change it until after
+  signing in.
+- **It scrolls rather than clips.** At the minimum window size, zoomed in, or with an error line, the
+  card is taller than the window. It is centred with an auto margin, not `justify-center`:
+  centring overflows both ways and puts the card's top above the scroll origin where nothing can
+  scroll to it, while an auto margin falls to zero once the card no longer fits.
+- **A screen whose title and subtitle are its state** (the browser hand-off moving from signing in to
+  open the app or failed) makes them a polite live region, so a screen reader hears the change.
+
+In development builds only, Welcome links to `/auth/debug`, an email and password form
+(`useDebugLogin`) that bypasses the invite flow. The button and the route are both behind
+`import.meta.env.DEV`, so they are dead-code-eliminated from a production build and never ship in the
+installed app. The Debug panel's Login tab uses the same hook directly: `/auth/*` redirects home once
+signed in, so the page cannot be reached to switch accounts, and the hook swaps the profile in place.
+
 ## Linking Google or Apple
 
 A signed-in account (not a guest) with no social account linked gets **Link Google** and **Link Apple**
@@ -301,7 +365,9 @@ the code in it.
   names the same provider, and the link carries the nonce the record holds. A link without a nonce
   is refused, even with a fresh record waiting.
 - **A record is good once.** It is deleted when a deeplink reads it, whether the link is accepted,
-  refused or expired.
+  refused or expired. Completing is also guarded against running twice (a strict-mode re-run, or the
+  deeplink and the hand-off page racing): a login would exchange the code twice, a link would send it
+  to the server twice.
 - **A refusal says so.** Nothing is exchanged; the app logs the reason (never the code or the nonce)
   and shows a message that the link was ignored, or that the login expired and should be started again.
 - **The link has to look right.** The scheme and host are compared as a parsed URL, not as a prefix
@@ -361,7 +427,11 @@ only steers; nobody is stopped from using Google. The page
 runs `usePhoneLogin` over the `auth.link-account` packet in `login` mode, the same packet the mobile
 app's phone sign-in uses:
 
-1. **Send** — the number goes out in E.164 with its country. Sending registers the device first when
+1. **Send** — the number goes out in E.164 with its country (the server's phone hasher ignores the
+   country once the number starts with `+`, so E.164 is right either way). The confirm that follows
+   sends the number and country the code was sent with, pinned at send time rather than whatever the
+   field holds by then, because the server needs the same pair on both calls; editing either field
+   drops the outstanding code. Sending registers the device first when
    there is no session, because the server takes a login only from a device session. The code goes
    over the relay socket, so the send then waits (up to 10 seconds) for that socket to authenticate the
    new device; sent before the handshake ends, the first send failed and only a second press got a text.

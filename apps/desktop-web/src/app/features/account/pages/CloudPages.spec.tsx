@@ -26,7 +26,6 @@ vi.mock('../../../shared/hooks/useRemoveCloud', () => ({
     useRemoveCloud: () => ({ deleteOwnedCloud, isDeleting: false }),
 }));
 
-// The cloud's notification level lists the cloud's channels and writes joins; its hook has its own spec.
 const cloudNotify = vi.hoisted(() => ({ isActive: true, mode: null as string | null, setMode: vi.fn() }));
 vi.mock('../../../shared/hooks/useCloudNotify', () => ({ useCloudNotify: () => cloudNotify }));
 
@@ -36,7 +35,6 @@ vi.mock('../../../shared/hooks/useAccountResetOnLogout', () => ({
 }));
 
 const logout = vi.hoisted(() => vi.fn());
-// What the approving app has standing when it signs out; none by default, so the logout runs at once.
 const pairing = vi.hoisted(() => ({ enabled: false, standing: [] as unknown[], revoke: vi.fn() }));
 vi.mock('../../pairing/utils/devicePairing', () => ({ isDevicePairingEnabled: () => pairing.enabled }));
 vi.mock('@chatic/runtime', async () => {
@@ -45,7 +43,6 @@ vi.mock('@chatic/runtime', async () => {
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1' }),
             useSessionLogout: () => logout,
-            // The pairing-aware logout, reduced to its contract: a confirm while approvals stand.
             usePairingAwareLogout: (onLogout: () => void) => {
                 const [pending, setPending] = useState<unknown[] | null>(null);
                 return {
@@ -118,7 +115,6 @@ describe('CloudListPage', () => {
         expect(screen.getByText('No clouds yet.')).toBeTruthy();
     });
 
-    // Empty, loading and error states used to hug the top of the body.
     it('centres its states instead of hugging the top', () => {
         renderAt('/account/clouds');
 
@@ -170,7 +166,6 @@ describe('CloudHubPage', () => {
         expect(navProbe.path).toBe('/account/clouds');
     });
 
-    // The loading branch used to drop the header: a bare spinner names nowhere.
     it('keeps its header while the catalog loads', () => {
         catalog.clouds = [];
         catalog.isPendingClouds = true;

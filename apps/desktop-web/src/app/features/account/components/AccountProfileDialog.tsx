@@ -18,9 +18,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useRelayAccount, type RelayAccount, FormError, FormField, toastFailure } from '../../../shared';
 
-/** The longest account name the form accepts, matching the web edit page. */
 export const ACCOUNT_NAME_MAX = 30;
-/** The largest photo the form takes, checked before the file is read at all. */
 const ACCOUNT_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 
 interface AccountProfileDialogProps {
@@ -29,11 +27,6 @@ interface AccountProfileDialogProps {
     initial: RelayAccount;
 }
 
-/**
- * Relay account name + photo edit. Saves through the relay-pinned gateway
- * (the token patch is the update path); a refused save stays open with its
- * error instead of stranding it on a closed dialog.
- */
 export const AccountProfileDialog = ({ open, onOpenChange, initial }: AccountProfileDialogProps) => {
     const { t } = useTranslation();
     const { updateAccount } = useRelayAccount();
@@ -44,8 +37,6 @@ export const AccountProfileDialog = ({ open, onOpenChange, initial }: AccountPro
     const [failure, setFailure] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
-    // Seed on the opening edge only: the relay user object is rebuilt on every
-    // session notify, and reseeding off it wipes a half-typed name and photo.
     const wasOpen = useRef(false);
     useEffect(() => {
         if (open && !wasOpen.current) {
@@ -64,8 +55,6 @@ export const AccountProfileDialog = ({ open, onOpenChange, initial }: AccountPro
     const canSave = !!trimmed && (nameChanged || photoChanged) && !submitting && !encoding;
 
     const handleOpenChange = (next: boolean) => {
-        // Escape, the X and the backdrop are ignored while the save runs: a
-        // closed dialog has nowhere to show the failure.
         if (next || submitting) return;
         onOpenChange(next);
     };

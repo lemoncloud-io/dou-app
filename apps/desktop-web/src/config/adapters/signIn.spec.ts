@@ -14,7 +14,6 @@ vi.mock('@chatic/bridges', () => ({
 
 import { desktopSignIn } from './signIn';
 
-// Neither side reads the facts; the implementations decide from the side alone.
 const facts = {} as WebHostFacts;
 const shell = () => desktopSignIn.shell({ kind: 'shell', os: null }, facts);
 const browser = () => desktopSignIn.browser({ kind: 'browser', os: null }, facts);
