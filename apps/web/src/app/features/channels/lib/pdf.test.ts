@@ -1,4 +1,3 @@
-// jsdom's Blob has no `arrayBuffer`; a browser's and Node's do.
 import { Blob as NodeBlob } from 'buffer';
 
 import { loadPdf } from './pdf';
@@ -25,7 +24,6 @@ const page = () => {
 };
 
 const opening = (promise: Promise<unknown>) => {
-    // A rejection the test means to see is not an unhandled one.
     promise.catch(() => undefined);
     const task = { promise, destroy: jest.fn(async () => undefined) };
     getDocument.mockReturnValue(task);
@@ -50,7 +48,6 @@ describe('loadPdf', () => {
         expect(String(options.wasmUrl)).toMatch(/\/pdfjs\/wasm\/$/);
     });
 
-    // pdf.js keeps the worker of a document it could not open until told otherwise.
     it('lets go of the worker when the file will not open', async () => {
         const task = opening(Promise.reject(new Error('PasswordException')));
 

@@ -23,7 +23,6 @@ describe('unreadEntryOf', () => {
     it('cannot tell while the window starts past the cursor and older history exists', () => {
         const messages = [row(40), row(41)];
         expect(unreadEntryOf(messages, 12, true)).toEqual({ kind: 'unknown' });
-        // Asked again once the window cannot grow, it takes what is drawn.
         expect(unreadEntryOf(messages, 12, false)).toEqual({ kind: 'at', chatNo: 40 });
     });
 });

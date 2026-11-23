@@ -21,7 +21,6 @@ describe('findMentionQuery', () => {
         expect(findMentionQuery('hi @minsu there', 6)).toEqual({ start: 3, query: 'mi' });
     });
 
-    // An e-mail address is not a lookup: the @ has to start a word.
     it('ignores an @ inside a word', () => {
         expect(findMentionQuery('ops@here', 8)).toBeNull();
     });
@@ -51,7 +50,6 @@ describe('applyMentionPick', () => {
         });
     });
 
-    // Picking with the caret inside `@Mi|nsu` must not leave `nsu` behind.
     it('replaces the whole @ word, not only what is before the caret', () => {
         expect(applyMentionPick('@Minsu look', { start: 0, query: 'Mi' }, 3, '레인')).toEqual({
             text: '@레인 look',
@@ -72,7 +70,6 @@ describe('mentionedLabels', () => {
         expect(mentionedLabels('ops@Min', ['Min'])).toEqual(new Set());
     });
 
-    // A particle or honorific written straight after a Korean name is still that name.
     it('finds a name with a Korean particle or honorific after it', () => {
         expect(mentionedLabels('@민수님 확인 부탁드려요', ['민수'])).toEqual(new Set(['민수']));
         expect(mentionedLabels('@민수가 올렸어요', ['민수'])).toEqual(new Set(['민수']));
@@ -112,7 +109,6 @@ describe('removeWholeMention', () => {
         });
     });
 
-    // A Korean keyboard can break the last syllable back into its consonant instead of deleting it.
     it('takes it when the last syllable breaks into its consonant', () => {
         expect(removeWholeMention('@민수', '@민ㅅ', ['민수'])?.text).toBe('');
     });
@@ -128,7 +124,6 @@ describe('removeWholeMention', () => {
         expect(removeWholeMention('@Minsu ok', '@Min', ['Minsu'])).toBeNull();
     });
 
-    // With both in the room, `@민수` ends after `수`; deleting it is not a backspace at the end of `민`.
     it("measures the name by the room's longest one", () => {
         expect(removeWholeMention('@민수', '@민', ['민'], ['민', '민수'])).toBeNull();
     });
@@ -142,7 +137,6 @@ describe('collectMention', () => {
         expect(collectMention('@Minsu @전체 look', [minsu, everyone])).toEqual({ userIds: ['u2'], all: true });
     });
 
-    // A pick whose name was deleted, or an @name typed by hand, mentions nobody.
     it('drops a pick whose name was deleted, and sends nothing when none is left', () => {
         expect(collectMention('@전체 look', [minsu, everyone])).toEqual({ all: true });
         expect(collectMention('@Minsu typed by hand', [])).toBeUndefined();
@@ -153,7 +147,6 @@ describe('collectMention', () => {
         expect(collectMention('@Minsu @Minsu', [minsu, minsu])).toEqual({ userIds: ['u2'] });
     });
 
-    // With `민` and `민수` both in the room, `@민수` names `민수`, even if only `민` was picked.
     it("does not count a pick inside a longer name the room's list offers", () => {
         const min = { label: '민', userId: 'u4' };
         expect(collectMention('@민수 안녕', [min], ['민', '민수'])).toBeUndefined();
@@ -177,13 +170,11 @@ describe('filterMentionCandidates', () => {
         expect(filterMentionCandidates(rows, '레').map(row => row.id)).toEqual(['u3']);
     });
 
-    // On a Korean keyboard each syllable starts as a lone consonant; matching it would empty the list.
     it('leaves a trailing lone jamo out of the match', () => {
         expect(filterMentionCandidates(rows, '레ㅇ').map(row => row.id)).toEqual(['u3']);
         expect(filterMentionCandidates(rows, 'ㄹ').map(row => row.id)).toEqual(['@everyone', 'u2', 'u3']);
     });
 
-    // The row writes one language's word, but the other language's word and the older ones still find it.
     it('finds the everyone row by any of its names, the localized one included', () => {
         expect(filterMentionCandidates(rows, 'here').map(row => row.id)).toEqual(['@everyone']);
         expect(filterMentionCandidates(rows, 'channel').map(row => row.id)).toEqual(['@everyone']);
@@ -205,7 +196,6 @@ describe('buildMentionCandidates', () => {
             everyoneLabel: '전체',
         });
 
-    // My name sorts before `u3`'s here, so this also checks I go last rather than by name.
     it('puts everyone first, then the other members by name, then me', () => {
         expect(build(['u3', 'me', 'u2']).map(row => row.id)).toEqual([EVERYONE_CANDIDATE_ID, 'u2', 'u3', 'me']);
     });
@@ -218,7 +208,6 @@ describe('buildMentionCandidates', () => {
         expect(build(['u2'])[1]).toEqual({ id: 'u2', label: 'Minsu', thumbnail: 'https://example.test/u2.png' });
     });
 
-    // A person shown as "unknown user" cannot be written into the text as a name.
     it('leaves out a member with no name yet', () => {
         expect(build(['u4']).map(row => row.id)).toEqual([EVERYONE_CANDIDATE_ID]);
     });

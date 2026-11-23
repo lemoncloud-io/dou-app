@@ -1,7 +1,6 @@
 import { copyMessageToClipboard } from './copyMessageToClipboard';
 
 const mockCopyText = jest.fn();
-// The host's copy, watched: what each side does is the port's own test.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
@@ -24,7 +23,6 @@ describe('copyMessageToClipboard', () => {
         await expect(copyMessageToClipboard('hello')).resolves.toBe(true);
         expect(mockCopyText).toHaveBeenCalledWith('hello');
 
-        // The app answers a failed copy with false.
         mockCopyText.mockResolvedValueOnce(false);
         await expect(copyMessageToClipboard('hello')).resolves.toBe(false);
     });

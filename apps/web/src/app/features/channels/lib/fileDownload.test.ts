@@ -1,7 +1,6 @@
 import type { BrowserSaveResult } from './browserSave';
 import { downloadInBrowser, fetchInBrowser, type BrowserDownloadDeps } from './fileDownload';
 
-// jsdom has no `Response`; the download reads only these three members.
 const respond = (status: number, body = 'bytes') =>
     ({ status, ok: status >= 200 && status < 300, blob: async () => new Blob([body]) }) as unknown as Response;
 
@@ -55,7 +54,6 @@ describe('downloadInBrowser', () => {
     });
 });
 
-/** A response whose body arrives in `chunks`, with a length header when `length` is given. */
 const streamed = (chunks: string[], length?: number) => {
     const encoded = chunks.map(chunk => new TextEncoder().encode(chunk));
     let at = 0;
@@ -133,7 +131,6 @@ describe('fetchInBrowser', () => {
 
     it('reports once per whole percent, however many chunks arrive', async () => {
         const progress: number[] = [];
-        // 1,000 one-byte chunks: a thousand reads, and the whole percents 0 through 100.
         await fetchInBrowser('u', {
             onProgress: fraction => progress.push(fraction),
             deps: {

@@ -17,9 +17,6 @@ describe('buildThreadIndex', () => {
         expect(index.get('1')?.count).toBe(2);
     });
 
-    // A deleted reply still occupies a row on the thread page, as a tombstone. The
-    // footer counts rows, so it counts that one — the alternative is "1 reply" over a
-    // thread showing two.
     it('counts a deleted reply, because the thread still shows it', () => {
         const index = buildThreadIndex([
             ROOT,
@@ -36,8 +33,6 @@ describe('buildThreadIndex', () => {
         expect(index.get('1')?.count).toBe(1);
     });
 
-    // Reaction events arrive as replies to the message they are on. Counting them
-    // would turn every reacted-to message into a thread.
     it('never counts a reaction event as a reply', () => {
         const index = buildThreadIndex([
             ROOT,
@@ -48,8 +43,6 @@ describe('buildThreadIndex', () => {
         expect(index.get('1')?.count).toBe(1);
     });
 
-    // An optimistic reply carries the parent's FULL id until the persisted swap; the
-    // index normalises it onto the root's chatNo so the footer shows ONE thread, not two.
     it('collapses an optimistic full-id reply and a persisted chatNo reply into one entry', () => {
         const index = buildThreadIndex([
             ROOT,
@@ -61,8 +54,6 @@ describe('buildThreadIndex', () => {
         expect(index.get('1')?.count).toBe(2);
     });
 
-    // The unseen-reply dot compares the read cursor against the newest loaded reply's
-    // chatNo; a pending reply (chatNo 0) must not drag it back down.
     it('tracks the highest loaded reply chatNo for the read-cursor comparison', () => {
         const index = buildThreadIndex([
             ROOT,
@@ -127,8 +118,6 @@ describe('unseenReplies', () => {
 });
 
 describe('buildThread', () => {
-    // An event row carrying the root's id is not a reply: a reaction is folded from the raw window, and a
-    // revision notice only says which message changed.
     it('lists no event rows among the replies', () => {
         const { replies } = buildThread(
             [
@@ -171,8 +160,6 @@ describe('buildThread', () => {
         expect(replies.map(r => r.id)).toEqual(['C1:2', 'C1:3', 'optimistic-1']);
     });
 
-    // ADR 0008: the root can be paged out of the local cache while its replies are
-    // loaded. chatNo-encoded replies still match on the bare rootId.
     it('degrades to replies-only when the root is paged out', () => {
         const { root, replies } = buildThread([chat({ id: 'C1:2', chatNo: 2, parentId: '1' })], '1');
 

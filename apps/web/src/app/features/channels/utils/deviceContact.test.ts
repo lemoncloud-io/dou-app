@@ -10,16 +10,10 @@ import {
 } from './deviceContact';
 import { seedPhoneCountry } from '../../../../testing/phoneCountry';
 
-/**
- * iOS omits a key entirely where Android sends an empty string, so the fixture takes a PARTIAL
- * contact and casts: the platform payload really is narrower than `ContactInfo` promises, and a
- * test that filled every field would only prove the Android case.
- */
 const contact = (partial: Partial<ContactInfo>): ContactInfo => ({ recordID: 'c1', ...partial }) as ContactInfo;
 
 const FALLBACK = '이름 없음';
 
-/** jsdom fixes `navigator.language` at `en-US`; the locale-guess cases need to move it. */
 const setLanguage = (value: string) => {
     Object.defineProperty(window.navigator, 'language', { value, configurable: true });
 };
@@ -106,7 +100,6 @@ describe('resolveContactDisplayPhone', () => {
         expect(resolveContactDisplayPhone(withNumbers('+81 3-1234-5678', '+1 415 555 0123'))).toBe('+1 415 555 0123');
     });
 
-    // No matter how varied the stored format, the screen must always show one consistent shape.
     it.each([
         ['010-1234-5678', '010-1234-5678'],
         ['01012345678', '010-1234-5678'],
@@ -115,9 +108,7 @@ describe('resolveContactDisplayPhone', () => {
         ['010.1234.5678', '010-1234-5678'],
         ['+82 10-1234-5678', '010-1234-5678'],
         ['+821012345678', '010-1234-5678'],
-        // Common form where the local leading 0 is kept after the country code.
         ['+82 010-1234-5678', '010-1234-5678'],
-        // Old numbers with a short exchange code use 3-3-4. Applying the input-side 3-4-4 as-is would give 011-2345-678.
         ['011-234-5678', '011-234-5678'],
         ['+82 11-234-5678', '011-234-5678'],
     ])('shows %s as %s', (stored, shown) => {
@@ -155,7 +146,6 @@ describe('resolveContactPhone', () => {
         expect(resolveContactPhone(contact({}))).toBeNull();
     });
 
-    // An invite must always go out as the same E.164 regardless of the stored format.
     it.each([
         '010-1234-5678',
         '01012345678',
@@ -317,7 +307,6 @@ describe('resolveContactPhone — numbers outside Korea', () => {
     });
 
     it('ignores the country last picked in a phone field', () => {
-        // That pick names the last person invited by hand, not the owner's address book.
         seedPhoneCountry('JP');
         setLanguage('ko-KR');
         expect(resolveContactPhone(withNumbers('010-1234-5678'))).toBe('+821012345678');
@@ -331,7 +320,6 @@ describe('resolveContactPhone — numbers outside Korea', () => {
 });
 
 describe('a number Korea and the locale would both read', () => {
-    // `0171 2345678` is a German mobile and, read as Korean, `017-1234-5678`.
     const german = () => withNumbers('0171 2345678');
 
     it('still invites it as Korean, so nothing invitable before changes', () => {

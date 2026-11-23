@@ -19,7 +19,6 @@ const answer = (
         arrayBuffer: async () => new ArrayBuffer(bytes),
     }) as unknown as Response;
 
-/** A store in a map, so a test can see what was kept and fail an operation on demand. */
 const memoryStore = () => {
     const records = new Map<string, ImageCacheRecord>();
     const store: jest.Mocked<ImageCacheStore> = {
@@ -54,7 +53,6 @@ const setup = (overrides: Partial<ImageCacheDeps> = {}) => {
     return { cache: new ImageCache(deps), deps, store, records, defaultFetch };
 };
 
-// Stored writes are fire-and-forget; let their promise chain settle.
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('imageCacheKey', () => {
@@ -78,7 +76,6 @@ describe('ImageCache', () => {
         expect(records.get('k')).toMatchObject({ variant: 'thumb', type: 'image/jpeg', size: 10 });
     });
 
-    // The point of the cache: a new signed address for a kept image is not a new download.
     it('answers from the store on a fresh page, without fetching', async () => {
         const { cache: before, records } = setup();
         await before.load('k', 'thumb', 'https://s3/k?sig=1');
@@ -112,8 +109,6 @@ describe('ImageCache', () => {
         expect(deps.createObjectURL).not.toHaveBeenCalled();
     });
 
-    // No CORS on the bucket, or offline: the caller draws the signed address as before, and the next
-    // images do not each wait for the same failure.
     it('answers null when the fetch gets no answer, and skips fetching for a minute', async () => {
         let clock = 0;
         const fetch = jest.fn().mockRejectedValueOnce(new TypeError('Failed to fetch'));
@@ -128,7 +123,6 @@ describe('ImageCache', () => {
         expect(await cache.load('b', 'thumb', 'u')).toBe('blob:1');
     });
 
-    // A 403 is an answer about one address, not about the bucket.
     it('keeps fetching after an address is refused', async () => {
         const fetch = jest.fn().mockResolvedValueOnce(answer(10, { ok: false }));
         fetch.mockResolvedValue(answer(10));
@@ -138,7 +132,6 @@ describe('ImageCache', () => {
         expect(await cache.load('b', 'thumb', 'u')).toBe('blob:1');
     });
 
-    // The refreshed address arrives while the expired one is still on its way.
     it('tries its own address when the load it joined answers null', async () => {
         const fetch = jest.fn(async (url: string) => (url === 'old' ? answer(10, { ok: false }) : answer(10)));
         const { cache } = setup({ fetch });
@@ -149,7 +142,6 @@ describe('ImageCache', () => {
         expect(fresh).toBe('blob:1');
     });
 
-    // A hung IndexedDB open would otherwise hold every tile blank.
     it('treats a store read slower than a second as a miss', async () => {
         jest.useFakeTimers();
         try {
@@ -205,7 +197,6 @@ describe('ImageCache', () => {
             const { cache, store } = setup({ budgets: { thumb: 100, org: 1000, frame: 1000 } });
             await cache.load('a', 'thumb', 'u');
             await cache.load('b', 'thumb', 'u');
-            // Let the fire-and-forget puts land before the timer is checked.
             await jest.advanceTimersByTimeAsync(0);
             expect(store.trim).not.toHaveBeenCalled();
 
@@ -220,7 +211,6 @@ describe('ImageCache', () => {
 
     describe('memory', () => {
         let clock: number;
-        // Each image is 10 bytes; the budget holds two. The clock moves per load, so the order is clear.
         const small = () => setup({ memoryMaxBytes: 20, store: null, now: () => ++clock });
         const sweep = () => jest.advanceTimersByTimeAsync(1000);
 
@@ -235,7 +225,6 @@ describe('ImageCache', () => {
             await cache.load('a', 'thumb', 'u');
             await cache.load('b', 'thumb', 'u');
             await cache.load('c', 'thumb', 'u');
-            // Not at the load: only once the sweep runs.
             expect(deps.revokeObjectURL).not.toHaveBeenCalled();
 
             await sweep();
@@ -245,7 +234,6 @@ describe('ImageCache', () => {
             expect(cache.peek('c')).toBe('blob:3');
         });
 
-        // An <img> holding a revoked object URL would go blank under the user.
         it('never revokes an image that is drawn', async () => {
             const { cache, deps } = small();
             cache.retain('a');
@@ -257,7 +245,6 @@ describe('ImageCache', () => {
             expect(cache.peek('a')).toBe('blob:1');
             expect(deps.revokeObjectURL).toHaveBeenCalledWith('blob:2');
 
-            // Let go, it is evictable like any other: two drawn images fill the budget on their own.
             cache.release('a');
             cache.retain('d');
             cache.retain('e');
@@ -267,7 +254,6 @@ describe('ImageCache', () => {
             expect(cache.peek('a')).toBeUndefined();
         });
 
-        // A redraw with new addresses lets go of its images and takes them again in the same commit.
         it('keeps an image released and retained again before the sweep', async () => {
             const { cache, deps } = small();
             await cache.load('a', 'thumb', 'u');
@@ -285,7 +271,6 @@ describe('ImageCache', () => {
             expect(deps.revokeObjectURL).not.toHaveBeenCalledWith('blob:1');
         });
 
-        // Loaded first, drawn longest: its place in the order is when it was last drawn.
         it('orders by the last draw, not by the load', async () => {
             const { cache, deps } = small();
             await cache.load('a', 'thumb', 'u');
@@ -332,10 +317,7 @@ describe('ImageCache', () => {
             expect(deps.fetch).toHaveBeenCalledTimes(2);
         });
 
-        // Swiping past photos on a slow network: their originals held every connection to the bucket,
-        // and the photo on screen waited behind them.
         describe('a download nobody draws', () => {
-            // A fetch that answers only when its signal aborts, as the browser's does.
             const hanging = () =>
                 jest.fn(
                     (_url: string, signal: AbortSignal) =>
@@ -388,7 +370,6 @@ describe('ImageCache', () => {
                 expect(fetch.mock.calls[0][1].aborted).toBe(false);
             });
 
-            // The re-read handed the image a new address while its first download was running.
             it('does not retry a cancelled download for the address that joined it', async () => {
                 const fetch = hanging();
                 const { cache } = setup({ store: null, fetch });
@@ -405,7 +386,6 @@ describe('ImageCache', () => {
                 expect(fetch).toHaveBeenCalledTimes(1);
             });
 
-            // Swiped away and straight back, before the cancelled download has settled.
             it('starts a fresh download for a load that arrives after the cancel', async () => {
                 const fetch = hanging();
                 const { cache } = setup({ store: null, fetch });
@@ -424,7 +404,6 @@ describe('ImageCache', () => {
                 expect(fetch).toHaveBeenCalledTimes(2);
             });
 
-            // A cancellation is not the bucket failing; the next image must still be fetched.
             it('does not stop the next loads from fetching', async () => {
                 const fetch = hanging();
                 const { cache } = setup({ store: null, fetch, now: () => 0 });
@@ -440,7 +419,6 @@ describe('ImageCache', () => {
             });
         });
 
-        // The room and its thread draw the same image; one rejecting it must not unhold the other.
         it('keeps other holders counted through an invalidate', async () => {
             const { cache, deps } = small();
             cache.retain('k');
@@ -537,7 +515,6 @@ describe('ImageCache — frames made on this device', () => {
 });
 
 describe('ImageCache — load reports', () => {
-    /** A cache whose monotonic clock moves only when a test says so, and whose reports are collected. */
     const observed = (overrides: Partial<ImageCacheDeps> = {}) => {
         let elapsed = 0;
         const reports: ImageLoadReport[] = [];
@@ -582,7 +559,6 @@ describe('ImageCache — load reports', () => {
         expect(reports).toEqual([{ variant: 'org', source: 'store', store: 'hit', storeMs: 30, totalMs: 30 }]);
     });
 
-    // The refreshed address arrives while the expired one is still on its way: two real resolves.
     it('reports a joined load that retries with its own address after the running one answered nothing', async () => {
         const fetch = jest.fn(async (url: string) => (url === 'old' ? answer(10, { ok: false }) : answer(10)));
         const { cache, reports } = observed({ fetch });
@@ -654,7 +630,6 @@ describe('ImageCache — load reports', () => {
         expect(reports[0]?.store).toBe(outcome);
     });
 
-    // The one that matters for a slow WebView store: the tile waited the whole second before fetching.
     it('reports a store read that timed out apart from a miss', async () => {
         jest.useFakeTimers();
         try {

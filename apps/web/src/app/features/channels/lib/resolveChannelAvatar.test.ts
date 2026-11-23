@@ -8,7 +8,6 @@ describe('resolveChannelAvatar', () => {
         expect(call('self', undefined, { myThumbnail: 'me.png' })).toEqual({ src: 'me.png', glyph: 'user' });
     });
 
-    // The self chat's name dialog sets the room's own photo; until then it is mine.
     it("uses a self chat's own photo once one is set", () => {
         expect(call('self', 'room.png', { myThumbnail: 'me.png' })).toEqual({ src: 'room.png', glyph: 'user' });
         expect(call('self', 'room.png').src).toBe('room.png');

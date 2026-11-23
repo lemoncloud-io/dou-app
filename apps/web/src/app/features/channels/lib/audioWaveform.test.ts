@@ -8,7 +8,6 @@ import {
 
 describe('waveformBars', () => {
     it('takes the RMS of each stretch and scales the loudest to 1', () => {
-        // Four stretches of two samples: silent, quiet, loud, half.
         const pcm = Float32Array.from([0, 0, 0.1, -0.1, 0.8, -0.8, 0.4, -0.4]);
         expect(waveformBars(pcm, 4).map(bar => Number(bar.toFixed(3)))).toEqual([0.04, 0.125, 1, 0.5]);
     });

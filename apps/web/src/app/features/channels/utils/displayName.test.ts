@@ -28,8 +28,6 @@ describe('resolveUserName — 사용자 id로 이름 해석', () => {
         );
     });
 
-    // An empty string or a nick that's only whitespace does not count as "having a name" — the
-    // old chain used `??`, which let an empty nick through and produced a blank, nameless row.
     it('공백뿐인 닉은 다음 단계로 넘긴다', () => {
         const s = sources({
             profileMap: new Map([['ada', { nick: '   ' }]]),
@@ -39,8 +37,6 @@ describe('resolveUserName — 사용자 id로 이름 해석', () => {
         expect(resolveUserName('ada', s)).toBe('멤버이름');
     });
 
-    // A raw id is not a name — it's unreadable, it leaks an internal identifier into the UI, and
-    // it looks like data corruption rather than a person.
     it('아무것도 못 찾으면 라벨을 쓰고 절대 id를 보여주지 않는다', () => {
         const name = resolveUserName('f7fa3ac3-50e9-425c-b8d5-a6214b9dee00', sources());
 
@@ -48,9 +44,6 @@ describe('resolveUserName — 사용자 id로 이름 해석', () => {
         expect(name).not.toContain('f7fa3ac3');
     });
 
-    // The server embeds the account UUID in `name` for a nameless user (that flow lives in
-    // nick.ts). It satisfies "has a name" while not being a person's name, so it must fall
-    // through rather than pass.
     it('UUID 모양의 name은 이름으로 인정하지 않는다', () => {
         const s = sources({
             memberById: new Map([['ada', { name: 'f7fa3ac3-50e9-425c-b8d5-a6214b9dee50' }]]),
@@ -81,14 +74,10 @@ describe('resolveChatOwnerName — 채팅 행의 작성자 이름', () => {
         expect(resolveChatOwnerName({ ownerId: 'ada', owner$: { name: '옛이름' } }, s)).toBe('프로필닉');
     });
 
-    // The embed is a snapshot taken when the row was written — placing it above the cache would
-    // resurrect a name change that happened after that.
     it('캐시에 없을 때만 임베드로 떨어진다', () => {
         expect(resolveChatOwnerName({ ownerId: 'ada', owner$: { name: '임베드이름' } }, sources())).toBe('임베드이름');
     });
 
-    // The shape actually seen in a guest's self-chat: ownerId is a short numeric id, but
-    // owner$.name holds a different account UUID. Comparing ids alone can't filter this out.
     it('임베드 owner$.name이 UUID면 무시한다', () => {
         const chat = { ownerId: '1001648', owner$: { name: 'f7fa3ac3-50e9-425c-b8d5-a6214b9dee50' } };
 

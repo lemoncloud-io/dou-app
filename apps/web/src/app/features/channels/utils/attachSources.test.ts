@@ -31,7 +31,6 @@ describe('page input accept lists', () => {
         expect(documentAccept(true)).not.toContain('image/');
     });
 
-    // The shell saves a received archive too, so the phone sends one like desktop does.
     it('offers a ZIP archive from files, by type and extension, on either system', () => {
         for (const accept of [documentAccept(true), documentAccept(false)]) {
             expect(accept.split(',')).toEqual(expect.arrayContaining(['application/zip', '.zip']));
@@ -54,7 +53,6 @@ describe('page input accept lists', () => {
         expect(accept.some(type => type.includes('*'))).toBe(false);
     });
 
-    // The server's HTML format is sent from desktop only; the phone neither offers nor sends one.
     it('offers no HTML page from files or the album, on either system', () => {
         for (const accept of [documentAccept(false), documentAccept(true), albumAccept(false), albumAccept(true)]) {
             expect(accept.split(',')).not.toEqual(expect.arrayContaining(['text/html']));
@@ -76,8 +74,6 @@ describe('page input accept lists', () => {
         expect(chatAttachmentAccept(['file']).split(',')).toContain('text/html');
     });
 
-    // The four audio formats go from files on either system; the album offers none, and formats the
-    // server does not take (AAC, WebM) are offered nowhere.
     it('offers the server audio formats from files only', () => {
         for (const accept of [documentAccept(false), documentAccept(true)]) {
             expect(accept.split(',')).toEqual(

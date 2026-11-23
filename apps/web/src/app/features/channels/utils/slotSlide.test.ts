@@ -2,7 +2,6 @@ import { SLIDE_MS, slideEase } from '@chatic/web-ui-kit';
 
 import { createSlotSlide } from './slotSlide';
 
-/** One frame of the fake clock: jest's fake `requestAnimationFrame` runs every 16 ms. */
 const FRAME_MS = 16;
 
 const setup = (initial = 0) => {
@@ -35,7 +34,6 @@ describe('createSlotSlide', () => {
 
         slot.slide(1);
 
-        // Drawn before anything could be painted, and already moving things.
         expect(drawn).toEqual([{ at: startedAt, position: 0 }]);
         expect(events).toEqual(['start']);
         expect(slot.sliding).toBe(true);
@@ -43,7 +41,6 @@ describe('createSlotSlide', () => {
         jest.advanceTimersByTime(SLIDE_MS + FRAME_MS);
 
         const frames = drawn.slice(1);
-        // Every frame is the curve at the time elapsed, and they only rise.
         for (const { at, position } of frames.slice(0, -1)) {
             expect(position).toBeCloseTo(slideEase((at - startedAt) / SLIDE_MS), 10);
         }
@@ -80,7 +77,6 @@ describe('createSlotSlide', () => {
 
         slot.slide(0);
 
-        // No jump: the first position drawn for the way back is the one the slide had reached.
         expect(drawn[before].position).toBe(reached);
         jest.advanceTimersByTime(SLIDE_MS * reached + FRAME_MS);
         const back = drawn.slice(before + 1);
@@ -88,7 +84,6 @@ describe('createSlotSlide', () => {
             expect(position).toBeCloseTo(reached * (1 - slideEase((at - turnedAt) / (SLIDE_MS * reached))), 10);
         }
         expect(slot.position).toBe(0);
-        // One movement from rest to rest: the slide turned around is not reported as arriving anywhere.
         expect(events).toEqual(['start', 'stop', 'arrive 0']);
     });
 

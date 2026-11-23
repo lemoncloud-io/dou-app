@@ -10,15 +10,12 @@ describe('isRawIdNick', () => {
         expect(isRawIdNick('fc15f271-31b4-4043-9edf-8ec7bbbdab2b')).toBe(true);
     });
 
-    // Unchanged on purpose: `displayName` still uses this narrower guard.
     it('does not reject a generated account name', () => {
         expect(isRawIdNick('User_0101')).toBe(false);
     });
 });
 
 describe('isServerSeededNick', () => {
-    // The 1:1 case, measured 2026-09-18: the server puts the inviter's auto-generated ACCOUNT name
-    // into the recipient's `join.nick`, and the title chain trusts step 1 above everything else.
     it.each(['User_0101', 'user_1234', 'USER-9876', '***0101', '****1234'])('rejects %p', nick => {
         expect(isServerSeededNick(nick)).toBe(true);
     });
@@ -28,7 +25,6 @@ describe('isServerSeededNick', () => {
         expect(isServerSeededNick('fc15f271-31b4-4043-9edf-8ec7bbbdab2b')).toBe(true);
     });
 
-    // The sender's side must survive: their join nick holds the friend name they typed.
     it.each(['BOB-FRIENDNAME', 'User Research', 'Userboard', '사용자', 'user'])('keeps %p', nick => {
         expect(isServerSeededNick(nick)).toBe(false);
     });

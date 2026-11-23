@@ -24,7 +24,6 @@ describe('saveFileInBrowser', () => {
         expect(deps.share).not.toHaveBeenCalled();
     });
 
-    // A home-screen web app and in-app browsers show a downloaded blob in place of the page.
     it('puts the file on the share sheet on iOS, never on an anchor', async () => {
         const deps = depsWith({ appleTouch: () => true });
 

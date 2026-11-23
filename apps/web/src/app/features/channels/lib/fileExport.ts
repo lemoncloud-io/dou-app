@@ -3,27 +3,16 @@ import { chatAttachmentFormat } from '@chatic/runtime';
 
 import type { DownloadProgress, DownloadResult, NativeDownload } from '../../../runtime/transfer';
 
-/** What a document card asks of the shell once the file is on the device. */
 export type FileUse = 'open' | 'save' | 'share';
 
-/** How one open, save or share ended — all the hook needs to pick a toast and the card's state. */
 export type FileExportOutcome =
     | { kind: 'opened' }
-    /** The share sheet was shown — asked for, or offered because nothing on the device opens the format. */
     | { kind: 'shared' }
     | { kind: 'saved'; location: string }
-    /** The iOS export sheet was dismissed. Not a failure, and nothing to say. */
     | { kind: 'save-dismissed' }
-    /** Android 7–9 refused the storage permission `SaveFile` asks for. */
     | { kind: 'permission' }
-    /**
-     * `SaveFile` refused an audio file, from an app built before the phone kept them. Only this card is
-     * affected: the same app saves every other document, so nothing is learned about the shell.
-     */
     | { kind: 'save-update-required' }
-    /** Stopped on purpose while downloading. Silent. */
     | { kind: 'cancelled' }
-    /** The shell never answered within the long wait. Silent. */
     | { kind: 'timed-out' }
     | { kind: 'failed' };
 
@@ -33,31 +22,23 @@ export interface FileExportDeps {
     open(uri: string): Promise<unknown>;
     save(uri: string, name: string): Promise<{ data?: OnSaveFilePayload } | undefined>;
     share(uri: string, title?: string): Promise<unknown>;
-    /** Reads the message again and returns this upload's fresh address, if any. */
     freshUrl(): Promise<string | undefined>;
-    /** The `file://` URI an earlier download of this file left this session, if any. */
     kept(): string | undefined;
-    /** Remembers the downloaded file for the session, so the next use skips the download. */
     keep(uri: string): void;
-    /** The OS cleared the kept file. */
     forget(): void;
-    /** Reports what is a bug rather than a condition — the shell refusing a file it handed out. */
     log?(message: string, data?: Record<string, unknown>): void;
 }
 
 export interface FileExportInput {
     use: FileUse;
     url: string;
-    /** The upload's own name: what `SaveFile` keeps it under and what the share sheet is titled. */
     name: string;
-    /** Aborting it cancels the download. Once the file is here, the use carries on. */
     signal?: AbortSignal;
     onProgress?: (progress: DownloadProgress) => void;
 }
 
 const codeOf = (error: unknown) => (error as { code?: string } | null)?.code;
 
-/** A failure while a step runs, tagged with the step: the same code means different things per message. */
 class StepError extends Error {
     constructor(
         readonly step: FileUse,
@@ -82,10 +63,6 @@ const fromStepError = ({ step, cause }: StepError): FileExportOutcome => {
     }
 };
 
-/**
- * Whether the name is one an app from before audio refuses to save: one of the four audio formats, by
- * its extension and the same rule the upload judged it by.
- */
 const isNewlySavedFormat = (name: string): boolean =>
     !!chatAttachmentFormat({ name, type: '' })?.type.startsWith('audio/');
 
@@ -97,7 +74,6 @@ const run = async (step: FileUse, call: () => Promise<unknown>): Promise<unknown
     }
 };
 
-/** Hands the file on the device to the OS surface the use asks for. */
 const handOver = async (use: FileUse, uri: string, name: string, deps: FileExportDeps): Promise<FileExportOutcome> => {
     if (use === 'save') {
         const reply = (await run('save', () => deps.save(uri, name))) as { data?: OnSaveFilePayload } | undefined;
@@ -108,8 +84,6 @@ const handOver = async (use: FileUse, uri: string, name: string, deps: FileExpor
             await run('open', () => deps.open(uri));
             return { kind: 'opened' };
         } catch (error) {
-            // Nothing on the device shows this format (an HWP, usually): the share sheet can still hand
-            // it to an app that takes it.
             if (!(error instanceof StepError) || codeOf(error.cause) !== 'NO_HANDLER') throw error;
         }
     }
@@ -117,22 +91,6 @@ const handOver = async (use: FileUse, uri: string, name: string, deps: FileExpor
     return { kind: 'shared' };
 };
 
-/**
- * Opens, saves or shares one chat document inside the app: the shell downloads it once, the URI it
- * kept is remembered for the session, and every later use hands that same file over. The shell
- * never judges an HTTP status, so the recoveries live here:
- *
- * - **403, once.** The signed address expired. The message is read again for the upload's new
- *   address and the download runs once more; a second 403 is a failure.
- * - **`SOURCE` from the use, once.** The OS cleared the file — the kept one or a fresh one — so it is
- *   forgotten and the flow runs again from the download.
- * - **`NO_HANDLER` from an open.** Nothing on the device opens the format; the share sheet is offered.
- * - **`INVALID` from saving an audio file.** An app built before the phone kept audio; it is told to
- *   update.
- *
- * A download this flow started is acknowledged once its file has been used. Acknowledging drops only
- * the shell's record, never the file, so the kept URI stays good.
- */
 export const exportFile = async (input: FileExportInput, deps: FileExportDeps): Promise<FileExportOutcome> => {
     const { use, name, signal, onProgress } = input;
     let url = input.url;
@@ -180,10 +138,6 @@ export const exportFile = async (input: FileExportInput, deps: FileExportDeps): 
                 }
             }
             if (codeOf(error.cause) === 'INVALID') {
-                // A shell from before audio was sent from the phone saves only a document's extension and
-                // refuses a `.m4a`, `.mp3`, `.wav` or `.ogg` as `INVALID`. Expected of an old app, so it is
-                // said, not reported as a bug. A URI outside the shell's download folder is
-                // `INVALID` too, but this URI is always its own.
                 if (error.step === 'save' && isNewlySavedFormat(name)) return { kind: 'save-update-required' };
                 deps.log?.('file export: the shell refused its own file', { use });
             }

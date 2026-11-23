@@ -1,15 +1,5 @@
 import type { ImageCacheRecord, ImageCacheStore, ImageVariant } from './imageCache';
 
-/**
- * `ImageCacheStore` over IndexedDB, in a database of its own.
- *
- * Not in `ChaticWebCacheDB`: that one is `libs/db`'s, versioned with the chat model, and an image blob
- * store has nothing to migrate with it. Dropping this database loses nothing but downloads.
- *
- * Two stores, so eviction never reads a byte of image: `meta` holds what the LRU needs (size, last
- * use, variant) and is walked in use order through its index; `blobs` holds the bytes and is read
- * only on a hit.
- */
 export const IMAGE_CACHE_DB_NAME = 'ChaticImageCacheDB';
 const DB_VERSION = 1;
 const META = 'meta';
@@ -48,13 +38,10 @@ const open = (factory: IDBFactory, name: string, version: number): Promise<IDBDa
         };
         let gaveUp = false;
         request.onsuccess = () => {
-            // A blocked open still completes once the other connection goes; nobody is waiting for it.
             if (gaveUp) request.result.close();
             else resolve(request.result);
         };
         request.onerror = () => reject(request.error);
-        // Another page holds an older version open. Waiting would hold every image with it; a rejected
-        // open is a miss, and the next call tries again.
         request.onblocked = () => {
             gaveUp = true;
             reject(new Error('image cache database open is blocked'));
@@ -76,7 +63,6 @@ export class IndexedDbImageCacheStore implements ImageCacheStore {
             promised<Meta | undefined>(tx.objectStore(META).get(key)),
             promised<BlobRow | undefined>(tx.objectStore(BLOBS).get(key)),
         ]);
-        // Half a record — a write torn by a crash — is a miss, not an image.
         if (!meta || !blob) return undefined;
         return { ...meta, type: blob.type, bytes: blob.bytes };
     }
@@ -104,12 +90,10 @@ export class IndexedDbImageCacheStore implements ImageCacheStore {
     }
 
     async trim(variant: ImageVariant, maxBytes: number): Promise<void> {
-        // One transaction, so a record put or touched while this runs is not deleted on a stale order.
         const tx = (await this.connect()).transaction([META, BLOBS], 'readwrite');
         const range = IDBKeyRange.bound([variant, -Infinity], [variant, Infinity]);
         const newestFirst = await promised<Meta[]>(tx.objectStore(META).index(BY_VARIANT_USED).getAll(range));
         newestFirst.reverse();
-        // Newest first: everything past the point where the running total leaves the budget goes.
         let total = 0;
         for (const meta of newestFirst) {
             total += meta.size;
@@ -123,8 +107,6 @@ export class IndexedDbImageCacheStore implements ImageCacheStore {
     private connect(): Promise<IDBDatabase> {
         if (!this.db) {
             const opening = open(this.factory, this.name, this.version).then(db => {
-                // A newer version elsewhere, or the browser closing the connection under storage
-                // pressure: let go of it, so the next call opens a live one instead of failing forever.
                 const forget = () => {
                     if (this.db === opening) this.db = null;
                 };
@@ -135,7 +117,6 @@ export class IndexedDbImageCacheStore implements ImageCacheStore {
                 db.onclose = forget;
                 return db;
             });
-            // A failed open is retried on the next call rather than remembered for the page's life.
             opening.catch(() => {
                 if (this.db === opening) this.db = null;
             });

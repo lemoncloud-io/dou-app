@@ -29,7 +29,6 @@ describe('splitMentionRuns', () => {
         ]);
     });
 
-    // The everyone pick writes `@all` or `@전체` by the sender's language; a reader in either marks both.
     it('marks the everyone word of either language, and not a longer word starting with it', () => {
         expect(
             splitMentionRuns('@all @전체님 @allison', tokens)
@@ -45,13 +44,11 @@ describe('splitMentionRuns', () => {
         ]);
     });
 
-    // A longer name that starts with mine, and an @ inside a word, are somebody else's text.
     it('leaves a longer name and an @ inside a word alone', () => {
         expect(splitMentionRuns('@Minsu ops@Min', tokens)).toEqual([{ value: '@Minsu ops@Min', mention: false }]);
         expect(splitMentionRuns('@Min-jun', tokens)).toEqual([{ value: '@Min-jun', mention: false }]);
     });
 
-    // The composer counts a pick the same way: a particle or honorific after the name is still the name.
     it('marks my name with a Korean particle or honorific written straight after it', () => {
         expect(splitMentionRuns('@레인님 확인요', tokens)).toEqual([
             { value: '@레인', mention: true },
@@ -95,7 +92,6 @@ describe('mentionViewerOf', () => {
         expect(mentionViewerOf({ roomUid: null, sessionUid: 'acct-1', names: [] }).ids).toEqual(['acct-1']);
     });
 
-    // A group room draws every member's mention; mine are among them.
     it("turns a group room's members and my names into the room's words", () => {
         expect(
             mentionViewerOf({ roomUid: 'me', sessionUid: 'me', names: ['레인'], memberNames: ['Minsu', '레인'] })
@@ -110,7 +106,6 @@ describe('mentionViewerOf', () => {
         expect(viewer.people.get('@minsu')).toBe(minsu);
     });
 
-    // `@All` in the text calls everyone; it cannot also be a tap on a member who happens to be named so.
     it('opens no member for a name that is an everyone word', () => {
         const people = [
             { id: 'u5', name: 'All' },
@@ -137,7 +132,6 @@ describe('mentionMarksFor', () => {
         expect(mentionMarksFor({ mention$: { userIds: ['u2'] } }, viewer)?.self).toEqual([]);
     });
 
-    // A message with no record is read by its text, in a group room only.
     it('falls back to the text for a message with no record', () => {
         expect(mentionMarksFor({}, viewer)?.self).toEqual(['@레인']);
         expect(mentionMarksFor({}, { ...viewer, roomTokens: [] })).toBeUndefined();
