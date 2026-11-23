@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-23] - root@0.173.0, @chatic/web@0.101.0
+
+### Features
+
+- (web) show the stores this run uses in the debug storage and db screens
+
 ## [2026-11-20] - root@0.172.1, @chatic/desktop-web@0.60.7
 
 ### Bug Fixes
