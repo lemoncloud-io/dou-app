@@ -31,7 +31,6 @@ const page = (ids: string[], next?: string): OnListPhotosPayload => ({
     next,
 });
 
-/** A page from an app that pages by offset: the ids from `offset`, of a list `total` long. */
 const offsetPage = (
     offset: number,
     total: number,
@@ -65,7 +64,6 @@ const fakeLibrary = (over: Partial<PhotoLibrary> = {}): PhotoLibrary => ({
 const setup = (library: PhotoLibrary, max = 10) =>
     renderHook(() => usePhotoPicker({ max, allTitle: '최근 항목', library }));
 
-/** The ids the grid lays out, `undefined` where a position has not loaded. */
 const gridIds = (picker: { count: number; photoAt(index: number): { id: string } | undefined }) =>
     Array.from({ length: picker.count }, (_, i) => picker.photoAt(i)?.id);
 
@@ -97,7 +95,6 @@ describe('usePhotoPicker', () => {
         expect(result.current.recent[0].src).toBe('data:a');
     });
 
-    // The panel's recent row and the grid pick into one list: "see all" opens the grid on it.
     it('opens the grid on the pick already made in the panel, and loads the first page and the albums', async () => {
         const library = fakeLibrary();
         const { result } = setup(library);
@@ -110,7 +107,6 @@ describe('usePhotoPicker', () => {
         expect(result.current.gridOpen).toBe(true);
         expect(result.current.picked).toEqual([{ id: 'b', src: 'data:b' }]);
         await waitFor(() => expect(result.current.albums).toHaveLength(1));
-        // Picked on in the grid, after it in order.
         act(() => result.current.toggle({ id: 'c', src: 'data:c' }));
         expect(result.current.picked.map(p => p.id)).toEqual(['b', 'c']);
     });
@@ -150,7 +146,6 @@ describe('usePhotoPicker', () => {
         expect(result.current.picked.map(p => p.id)).toEqual(['a']);
     });
 
-    // Two requests for the same cursor would append the same page twice.
     it('pages by cursor on an answer that does not echo the offset, one page at a time', async () => {
         let release: (value: OnListPhotosPayload) => void = () => undefined;
         const photos = jest
@@ -161,7 +156,6 @@ describe('usePhotoPicker', () => {
 
         act(() => result.current.openGrid());
         await waitFor(() => expect(result.current.count).toBe(1));
-        // The short first page, then — the end already in view — the next page by its cursor, full size.
         expect(photos).toHaveBeenNthCalledWith(1, expect.objectContaining({ offset: 0, limit: FIRST_PAGE_SIZE }));
         expect(photos).toHaveBeenNthCalledWith(2, expect.objectContaining({ after: 'c1', limit: PAGE_SIZE }));
 
@@ -171,7 +165,6 @@ describe('usePhotoPicker', () => {
 
         await act(async () => release(page(['b'])));
         expect(gridIds(result.current)).toEqual(['a', 'b']);
-        // The last page had no cursor: nothing more to ask for.
         act(() => result.current.setVisibleRange({ start: 0, end: 2 }));
         expect(photos).toHaveBeenCalledTimes(2);
     });
@@ -189,7 +182,6 @@ describe('usePhotoPicker', () => {
         expect(library.albums).toHaveBeenCalledWith({ thumbSize: expect.any(Number) });
     });
 
-    // A fast-scroll to the far end of a long album asks for that stretch, not for everything before it.
     it('jumps straight to the page a far range needs', async () => {
         const photos = jest.fn(async ({ offset = 0, limit }: { offset?: number; limit: number }) =>
             offsetPage(offset, 5000, Math.min(limit, 5000 - offset))
@@ -201,8 +193,6 @@ describe('usePhotoPicker', () => {
         await act(async () => result.current.setVisibleRange({ start: 4950, end: 4990, thumbSize: 400 }));
 
         await waitFor(() => expect(result.current.photoAt(4989)?.id).toBe('p4989'));
-        // The short first page, the rest of page 0 and page 1 ahead of it; then the two pages the far range
-        // straddles, the one holding more of it first — and none of the 80 pages between.
         expect(photos.mock.calls.map(([request]) => request.offset)).toEqual([0, FIRST_PAGE_SIZE, 60, 4920, 4980]);
         expect(photos).toHaveBeenLastCalledWith(expect.objectContaining({ thumbSize: 400 }));
         expect(result.current.photoAt(3000)).toBeUndefined();
@@ -218,7 +208,6 @@ describe('usePhotoPicker', () => {
         );
         const { result } = setup(fakeLibrary({ photos }));
         act(() => result.current.openGrid());
-        // The short first page, then the rest of page 0 from where it stopped.
         await act(async () => releases.shift()?.());
         expect(photos).toHaveBeenLastCalledWith(expect.objectContaining({ offset: FIRST_PAGE_SIZE, limit: 36 }));
         act(() => result.current.setVisibleRange({ start: 70, end: 250, thumbSize: 400 }));
@@ -230,7 +219,6 @@ describe('usePhotoPicker', () => {
         await act(async () => releases.shift()?.());
         await act(async () => releases.shift()?.());
         await act(async () => releases.shift()?.());
-        // Range pages nearest the middle first, then the one past its end, the way it scrolled.
         await act(async () => releases.shift()?.());
         expect(photos.mock.calls.map(([request]) => request.offset)).toEqual([0, 24, 120, 180, 60, 240, 300]);
     });
@@ -247,9 +235,7 @@ describe('usePhotoPicker', () => {
         expect(result.current.photoAt(1)?.id).toBe('p1');
     });
 
-    // A photo taken while the grid is open shifts every index after it by one.
     it('lays out again when the library count changes, and asks for the visible pages again', async () => {
-        // The library gains a photo between the short first page and the rest of page 0.
         let total = 200;
         const photos = jest.fn(async ({ offset = 0, limit }: { offset?: number; limit: number }) => {
             if (offset === FIRST_PAGE_SIZE) total = 201;
@@ -261,7 +247,6 @@ describe('usePhotoPicker', () => {
         await waitFor(() => expect(result.current.count).toBe(201));
         await act(async () => result.current.setVisibleRange({ start: 30, end: 90, thumbSize: 400 }));
 
-        // The rest of page 0 came back at a new count: page 0 is asked for again, whole.
         expect(photos.mock.calls.map(([request]) => request.offset).slice(0, 3)).toEqual([0, FIRST_PAGE_SIZE, 0]);
         await waitFor(() => expect(result.current.photoAt(60)?.id).toBe('p60'));
         expect(result.current.photoAt(0)?.id).toBe('p0');
@@ -279,16 +264,13 @@ describe('usePhotoPicker', () => {
         await act(async () => result.current.setVisibleRange({ start: 0, end: 30, thumbSize: 500 }));
         await waitFor(() => expect(asked(500)).toEqual([0, 60]));
 
-        // A little larger (five columns to four): not worth a refetch.
         await act(async () => result.current.setVisibleRange({ start: 0, end: 30, thumbSize: 592 }));
         expect(asked(592)).toEqual([]);
 
-        // Well past what was fetched (three columns to two): the page on screen first, then the one ahead.
         await act(async () => result.current.setVisibleRange({ start: 0, end: 30, thumbSize: 752 }));
         await waitFor(() => expect(asked(752)).toEqual([0, 60]));
     });
 
-    // A page for the album just left must not land in the one now on screen.
     it('drops a page that lands after the album changed, and keeps the picks', async () => {
         let releaseOld: (value: OnListPhotosPayload) => void = () => undefined;
         const photos = jest
@@ -309,7 +291,6 @@ describe('usePhotoPicker', () => {
         expect(result.current.picked.map(p => p.id)).toEqual(['x']);
     });
 
-    // A failure that repeats must not turn into a loop: the same page would be picked again at once.
     it('does not ask again at once when a page fails, and asks again when the range moves', async () => {
         const photos = jest.fn().mockRejectedValue(Object.assign(new Error('x'), { code: 'INTERNAL' }));
         const { result } = setup(fakeLibrary({ photos }));
@@ -334,10 +315,7 @@ describe('usePhotoPicker', () => {
         expect(photos).toHaveBeenCalledTimes(1);
     });
 
-    // Photos deleted while the grid is open: a page asked past the new end comes back clamped to it.
     it('does not mark a page loaded from an answer clamped to a shrunken list', async () => {
-        // Ten photos are deleted while the grid is open; the page asked for past the new end comes back
-        // clamped to it.
         let total = 125;
         const photos = jest.fn(async ({ offset = 0, limit }: { offset?: number; limit: number }) => {
             if (offset === 120) {
@@ -356,11 +334,9 @@ describe('usePhotoPicker', () => {
         await act(async () => result.current.setVisibleRange({ start: 70, end: 115, thumbSize: 400 }));
         await waitFor(() => expect(result.current.photoAt(100)?.id).toBe('p100'));
         const calls = photos.mock.calls.map(([request]) => request.offset);
-        // Page 1 is asked for again after the clamped answer rather than taken as loaded.
         expect(calls.lastIndexOf(60)).toBeGreaterThan(calls.indexOf(120));
     });
 
-    // A long scroll must not keep every preview it passed: far pages let theirs go and come back on view.
     it('lets go of previews far from the screen and asks for them again when they come back', async () => {
         const photos = jest.fn(async ({ offset = 0, limit }: { offset?: number; limit: number }) =>
             offsetPage(offset, 3000, Math.min(limit, 3000 - offset))
@@ -372,15 +348,12 @@ describe('usePhotoPicker', () => {
         await act(async () => result.current.setVisibleRange({ start: 2400, end: 2430, thumbSize: 400 }));
         await waitFor(() => expect(result.current.photoAt(2400)?.src).toBe('data:t2400'));
 
-        // Page 0 is far from page 40: its photos keep their place, their previews on their way back.
         expect(result.current.count).toBe(3000);
         expect(result.current.photoAt(0)).toBeUndefined();
 
         await act(async () => result.current.setVisibleRange({ start: 0, end: 30, thumbSize: 400 }));
         await waitFor(() => expect(result.current.photoAt(0)?.src).toBe('data:t0'));
-        // The short first page and the rest of page 0, page 1 ahead, page 40 and the one past it, page 0 again.
         expect(photos.mock.calls.map(([request]) => request.offset)).toEqual([0, FIRST_PAGE_SIZE, 60, 2400, 2460, 0]);
-        // And page 40 has gone in its turn.
         expect(result.current.photoAt(2400)).toBeUndefined();
     });
 
@@ -486,7 +459,6 @@ describe('usePhotoPicker', () => {
         }
     });
 
-    // A failed rest of page 0, then a jump far away: the first 24 previews are let go with page 0.
     it('asks for page 0 whole on the way back when its short first page was let go', async () => {
         const photos = jest.fn(async ({ offset = 0, limit }: { offset?: number; limit: number }) => {
             if (offset === FIRST_PAGE_SIZE) throw new Error('timeout');
@@ -505,7 +477,6 @@ describe('usePhotoPicker', () => {
         expect(photos).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 0, limit: PAGE_SIZE }));
     });
 
-    // A pinch to two columns while the short first page is out: the rest of page 0 goes at the new size.
     it('asks page 0 again when its first previews came at a smaller size than the rest', async () => {
         let releaseFirst: () => void = () => undefined;
         const photos = jest.fn(
@@ -524,7 +495,6 @@ describe('usePhotoPicker', () => {
         await waitFor(() =>
             expect(photos).toHaveBeenCalledWith(expect.objectContaining({ offset: FIRST_PAGE_SIZE, thumbSize: 752 }))
         );
-        // Page 0's first 24 came at the earlier size: the whole page is asked for again at the new one.
         await waitFor(() =>
             expect(photos).toHaveBeenCalledWith(
                 expect.objectContaining({ offset: 0, limit: PAGE_SIZE, thumbSize: 752 })
@@ -532,7 +502,6 @@ describe('usePhotoPicker', () => {
         );
     });
 
-    // A shell that answers some other offset than the one asked for, at the same count, moves nothing on.
     it('does not ask again at once for a page answered at another offset', async () => {
         const photos = jest.fn().mockResolvedValue(offsetPage(0, 500));
         const { result } = setup(fakeLibrary({ photos }));
@@ -542,7 +511,6 @@ describe('usePhotoPicker', () => {
         await act(async () => undefined);
         await act(async () => undefined);
 
-        // The short first page, then the rest of page 0 — answered at offset 0 again, which stops there.
         expect(photos).toHaveBeenCalledTimes(2);
     });
 
@@ -693,7 +661,6 @@ describe('usePhotoPicker', () => {
         });
         expect(result.current.gridOpen).toBe(true);
         expect(result.current.preparing).toBe(true);
-        // Frozen meanwhile: a pick changed now would be cleared, unsent, when the read ends.
         act(() => result.current.toggle({ id: 'p', src: '' }));
         act(() => result.current.closeGrid());
         act(() => result.current.clearPicked());
@@ -719,7 +686,6 @@ describe('usePhotoPicker', () => {
         expect(library.manageSelection).toHaveBeenCalledTimes(1);
         expect(library.photos).toHaveBeenCalledTimes(2);
         expect(library.photos).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 0, limit: FIRST_PAGE_SIZE }));
-        // The fresh page's own answer wins over what the sheet reported a moment earlier.
         await waitFor(() => expect(result.current.access).toBe('granted'));
     });
 
@@ -739,7 +705,6 @@ describe('usePhotoPicker — editing before the send', () => {
     const turned: PhotoEdit = { ...IDENTITY_PHOTO_EDIT, rotation: 90 };
     const cropped: PhotoEdit = { ...IDENTITY_PHOTO_EDIT, crop: { x: 0.1, y: 0.1, width: 0.5, height: 0.5 } };
 
-    /** Reads that wait until a test lets them land, so what happens meanwhile can be checked. */
     const heldReads = () => {
         const waiting = new Map<string, { resolve: (file: File) => void; reject: (error: unknown) => void }>();
         const read = jest.fn(
@@ -767,7 +732,6 @@ describe('usePhotoPicker — editing before the send', () => {
     const setupEditing = (library: PhotoLibrary) =>
         renderHook(() => usePhotoPicker({ max: 10, allTitle: '최근 항목', library, bake, rendition }));
 
-    /** Opens the grid and picks these, in order. */
     const pickAll = (
         result: { current: ReturnType<typeof usePhotoPicker> },
         items: Array<{ id: string; kind?: 'video' }>
@@ -806,7 +770,6 @@ describe('usePhotoPicker — editing before the send', () => {
         expect(reads.read).toHaveBeenLastCalledWith({ id: 'a' });
     });
 
-    // A quick swipe through the pick reads where it stopped, not every photo it passed.
     it('lets newer asks replace what was still waiting, and lets the read under way finish', async () => {
         const reads = heldReads();
         const { result } = setupEditing(fakeLibrary({ read: reads.read }));
@@ -862,7 +825,6 @@ describe('usePhotoPicker — editing before the send', () => {
         await reads.land('b');
         await waitFor(() => expect(result.current.editAssets.get('b')).toEqual({ status: 'failed', editable: true }));
 
-        // The send reads `a` again; `b` was read and is not.
         let taking: Promise<PickedFromGrid> = Promise.resolve({ items: [], refused: [] });
         act(() => {
             taking = result.current.takePicked();
@@ -901,7 +863,6 @@ describe('usePhotoPicker — editing before the send', () => {
         expect(result.current.edits.size).toBe(0);
         expect(result.current.editAssets.size).toBe(0);
         expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:a.jpg');
-        // Picked again, it starts unedited and is read afresh.
         act(() => result.current.toggle({ id: 'a', src: 'data:a' }));
         act(() => result.current.loadForEdit('a'));
         expect(reads.read).toHaveBeenCalledTimes(2);
@@ -1023,7 +984,6 @@ describe('usePhotoPicker — editing before the send', () => {
         act(() => {
             taking = result.current.takePicked();
         });
-        // Nothing more for the editor once the send has started.
         act(() => result.current.loadForEdit('b'));
         expect(reads.read).toHaveBeenCalledTimes(1);
 
@@ -1033,7 +993,6 @@ describe('usePhotoPicker — editing before the send', () => {
         const picked = await taking;
 
         expect(reads.read.mock.calls.map(([item]) => item.id)).toEqual(['a', 'b']);
-        // The send needs the bytes, not a copy for an editor that has closed.
         expect(rendition).not.toHaveBeenCalled();
         expect(picked.items.map(item => item.name)).toEqual(['a.jpg', 'b.jpg']);
     });
@@ -1049,7 +1008,6 @@ describe('usePhotoPicker — editing before the send', () => {
             taking = result.current.takePicked();
         });
         await act(async () => undefined);
-        // `a` waits: reading it beside `b` would hold two photos' base64 at once.
         expect(reads.read).toHaveBeenCalledTimes(1);
 
         await reads.land('b');
@@ -1061,7 +1019,6 @@ describe('usePhotoPicker — editing before the send', () => {
         expect(picked.items.map(item => item.name)).toEqual(['a.jpg', 'b.jpg']);
     });
 
-    // An iCloud original can take the shell's whole read timeout; the send has no use for it.
     it('does not wait for the editor’s read of a photo unpicked since', async () => {
         const read = jest.fn(({ id }: { id: string }) =>
             id === 'a'
@@ -1104,7 +1061,6 @@ describe('usePhotoPicker — editing before the send', () => {
         await waitFor(() => expect(result.current.preparing).toBe(false));
 
         expect((await taking).items.map(item => item.name)).toEqual(['a.jpg', 'b.jpg']);
-        // `a` was read once, for the editor; the send used those bytes.
         expect((library.read as jest.Mock).mock.calls.map(([item]) => item.id)).toEqual(['a', 'b']);
         await act(async () => finishCopy({ src: 'blob:late', width: 400, height: 300 }));
         expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:late');
@@ -1117,7 +1073,6 @@ describe('usePhotoPicker — editing before the send', () => {
         pickAll(result, [{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
         act(() => result.current.loadForEdit('a', 'b', 'c'));
 
-        // What the editor asks once it has closed.
         act(() => result.current.loadForEdit());
         await reads.land('a');
         await waitFor(() => expect(result.current.editAssets.get('a')?.status).toBe('ready'));
@@ -1127,8 +1082,6 @@ describe('usePhotoPicker — editing before the send', () => {
         expect(result.current.editAssets.has('b')).toBe(false);
     });
 
-    // The old read is dropped when it lands — its pick is gone — so waiting on it would leave the photo
-    // without a copy for good.
     it('reads a photo again for a new pick while an earlier pick’s read of it is still out', async () => {
         const reads = heldReads();
         const { result } = setupEditing(fakeLibrary({ read: reads.read }));
@@ -1156,7 +1109,6 @@ describe('usePhotoPicker — editing before the send', () => {
         act(() => result.current.setEdit('a', turned));
 
         act(() => result.current.clearPicked());
-        // `b` was on its way; it lands for a pick that is gone.
         await reads.land('b');
         await act(async () => undefined);
 
@@ -1166,7 +1118,6 @@ describe('usePhotoPicker — editing before the send', () => {
         expect(rendition).toHaveBeenCalledTimes(1);
     });
 
-    // The pick goes back to the panel, where the composer's send can still send it as edited.
     it('keeps the pick, its edits and copies when the grid closes, and reads the photos again at the send', async () => {
         const reads = heldReads();
         const { result } = setupEditing(fakeLibrary({ read: reads.read }));
@@ -1189,7 +1140,6 @@ describe('usePhotoPicker — editing before the send', () => {
         act(() => {
             taking = result.current.takePicked();
         });
-        // The bytes went with the grid: `a` is read again, then `b`, and `a` is drawn with its edit.
         await waitFor(() => expect(reads.read).toHaveBeenCalledTimes(2));
         expect(reads.read).toHaveBeenLastCalledWith({ id: 'a', src: 'data:a' });
         await reads.land('a');
@@ -1204,8 +1154,6 @@ describe('usePhotoPicker — editing before the send', () => {
         expect(picked.items.map(item => item.name)).toEqual(['a-edit.jpg', 'b.jpg']);
     });
 
-    // An editor opened from the composer's row, with the grid closed, reads as the grid's does; the
-    // bytes then go as it closes, and the pick waits on as edited.
     it('reads for an editor with the grid closed, and lets only the bytes go when they are released', async () => {
         const reads = heldReads();
         const { result } = setupEditing(fakeLibrary({ read: reads.read }));
@@ -1213,7 +1161,6 @@ describe('usePhotoPicker — editing before the send', () => {
         act(() => result.current.closeGrid());
 
         act(() => result.current.loadForEdit('a', 'b'));
-        // Released with `a` under way and `b` waiting: `a` finishes, `b` is not read.
         act(() => result.current.releaseBytes());
         await reads.land('a');
         await waitFor(() => expect(result.current.editAssets.get('a')?.status).toBe('ready'));
@@ -1221,7 +1168,6 @@ describe('usePhotoPicker — editing before the send', () => {
         expect(reads.read).toHaveBeenCalledTimes(1);
         act(() => result.current.setEdit('a', turned));
 
-        // And released again once `a` is in: its bytes go, its copy and its edit stay.
         act(() => result.current.releaseBytes());
         expect(result.current.picked.map(p => p.id)).toEqual(['a', 'b']);
         expect(result.current.picked[0].edited?.edit).toEqual(turned);
@@ -1262,7 +1208,6 @@ describe('usePhotoPicker — editing before the send', () => {
             picked = await taking;
         });
 
-        // `b` went from the editor's read: it was not read a second time.
         expect(reads.read).toHaveBeenCalledTimes(2);
         expect(picked.items.map(item => item.name)).toEqual(['a.jpg', 'b.jpg']);
     });
@@ -1323,7 +1268,6 @@ describe('pageToLoad', () => {
 
     it('picks the unloaded page nearest the middle of the range', () => {
         expect(pageToLoad({ range: { start: 70, end: 250 }, total: 1000, loaded: loaded([]) })).toBe(2);
-        // Page 3 (180–239) holds more of the range's middle than page 1 (60–119).
         expect(pageToLoad({ range: { start: 70, end: 250 }, total: 1000, loaded: loaded([[2, 400]]) })).toBe(3);
     });
 

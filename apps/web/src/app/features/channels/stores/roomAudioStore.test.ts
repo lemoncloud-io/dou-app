@@ -8,12 +8,10 @@ import {
     type AudioTrack,
 } from './roomAudioStore';
 
-/** A media element as the store drives it: what was set, and whether `play`/`pause` ran. */
 const fakeAudio = () => {
     const element = {
         src: '',
         currentTime: 0,
-        // HAVE_NOTHING until a test says the header was read.
         readyState: 0,
         playbackRate: 1,
         defaultPlaybackRate: 1,
@@ -77,7 +75,6 @@ describe('roomAudioStore', () => {
 
         act(() => store().play(track(1)));
         expect(store().position).toBe(42);
-        // The element has not read the header yet: the position is applied once it has.
         expect(audio.currentTime).toBe(0);
         act(() => store().onLoadedMetadata());
         expect(audio.currentTime).toBe(42);
@@ -201,7 +198,6 @@ describe('roomAudioStore', () => {
         expect(audio.src).toBe('https://cdn/1-fresh.m4a');
         act(() => store().onLoadedMetadata());
         expect(audio.currentTime).toBe(20);
-        // Another track's new address is the bubble's business, not the player's.
         act(() => store().updateUrl('c1/up-2', 'https://cdn/2-fresh.m4a'));
         expect(audio.src).toBe('https://cdn/1-fresh.m4a');
     });

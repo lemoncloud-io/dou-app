@@ -5,10 +5,6 @@ import { useChatScroll } from './useChatScroll';
 import { stashScroll } from '../../../hooks/useScrollRestoration';
 import type { ClientChatView } from '../types';
 
-/**
- * `scrollToBottom` defers the real scroll to a `requestAnimationFrame`, so every assertion here
- * has to flush the queued frames. rAF is stubbed (jsdom has no frame loop) into a manual queue.
- */
 let frames: FrameRequestCallback[] = [];
 const flushFrames = () => {
     const queued = frames;
@@ -18,7 +14,6 @@ const flushFrames = () => {
 
 const message = (id: string): ClientChatView => ({ id }) as ClientChatView;
 
-// jsdom does no layout, so a container's sizes are whatever a test says they are.
 const sizeContainer = (container: HTMLElement, sizes: { scrollHeight: number; clientHeight: number }) => {
     Object.defineProperty(container, 'scrollHeight', { value: sizes.scrollHeight, configurable: true });
     Object.defineProperty(container, 'clientHeight', { value: sizes.clientHeight, configurable: true });
@@ -31,7 +26,6 @@ const setup = (messages: ClientChatView[], suppressAutoScroll = false) => {
         initialProps: { messages, hasMore: true, isLoadingMore: false, loadMore, inputRef, suppressAutoScroll },
     });
 
-    // Attach a real scroll container so scrollTo/scrollTop are observable.
     const container = document.createElement('div');
     container.scrollTo = jest.fn();
     (view.result.current.containerRef as React.MutableRefObject<HTMLDivElement | null>).current = container;
@@ -85,11 +79,8 @@ describe('useChatScroll', () => {
         expect(container.scrollTo).not.toHaveBeenCalled();
     });
 
-    // The resize and focus pin share one handler. A message edit focuses the composer while it holds
-    // the view on the message being edited, so the pin has to respect the same suppression.
     describe('the resize and focus pin', () => {
         const fire = (suppressAutoScroll: boolean, holdBottomPin = false) => {
-            // The frame queue above stands in for rAF; only the 150ms delay is faked here.
             jest.useFakeTimers({ doNotFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
             const textarea = document.createElement('textarea');
             const inputRef = { current: textarea };
@@ -131,8 +122,6 @@ describe('useChatScroll', () => {
         });
     });
 
-    // The edit's hold answers the composer only: the field focusing and the composer growing. New rows
-    // are still handled as usual — a reader at the bottom still follows them.
     describe('the edit hold (holdBottomPin)', () => {
         const props = (overrides: Record<string, unknown>) => ({
             messages: [message('m1')],
@@ -175,8 +164,6 @@ describe('useChatScroll', () => {
     });
 
     it('does not retroactively scroll for messages that landed while suppressed', () => {
-        // The jump case: messages arrive during the jump, then the jump finishes and clears the
-        // store. Lifting suppression must not scroll for those already-counted messages.
         const { view, container } = setup([message('m1')], true);
         const rerenderWith = (messages: ClientChatView[], suppressAutoScroll: boolean) =>
             view.rerender({
@@ -196,7 +183,6 @@ describe('useChatScroll', () => {
         act(() => flushFrames());
         expect(container.scrollTo).not.toHaveBeenCalled();
 
-        // A genuinely new message after suppression lifts still pins to the bottom.
         rerenderWith([message('m1'), message('m2'), message('m3')], false);
         act(() => flushFrames());
         expect(container.scrollTo).toHaveBeenCalledTimes(1);
@@ -209,9 +195,6 @@ describe('useChatScroll', () => {
         act(() => view.result.current.handleScroll());
         expect(loadMore).toHaveBeenCalled();
 
-        // The reader keeps scrolling while the page is in flight. Rows added at the top of a reversed
-        // list leave the view where it is in both engines, so the page must not put the reader back
-        // where they were when it was asked for.
         container.scrollTop = -4200;
         view.rerender({
             messages: [message('m1'), message('m2')],
@@ -248,7 +231,6 @@ describe('useChatScroll — asking for older pages', () => {
 
     it('asks while two viewports of history are still above, without waiting for the scroll to stop', () => {
         const initial = props();
-        // 5000 − 500 − 3600 = 900px left above: less than two 500px viewports.
         const { view } = mountAt({ scrollHeight: 5000, clientHeight: 500, scrollTop: -3600 }, initial);
 
         act(() => view.result.current.handleScroll());
@@ -269,7 +251,6 @@ describe('useChatScroll — asking for older pages', () => {
         const initial = props();
         const { view } = mountAt({ scrollHeight: 5000, clientHeight: 500, scrollTop: -3600 }, initial);
 
-        // No scroll event: the commit that brought the page in is what checks again.
         view.rerender({ ...initial, messages: [message('m1'), message('m2')] });
 
         expect(initial.loadMore).toHaveBeenCalledTimes(1);
@@ -299,7 +280,6 @@ describe('useChatScroll — asking for older pages', () => {
 });
 
 describe('useChatScroll — a new message while reading history', () => {
-    // Someone reading history; messages land below them, one `arrive` at a time.
     const readingHistory = (onReadingRow?: (chatNo: number) => void) => {
         const inputRef = createRef<HTMLTextAreaElement>();
         const loadMore = jest.fn();
@@ -310,7 +290,6 @@ describe('useChatScroll — a new message while reading history', () => {
         container.scrollTo = jest.fn();
         sizeContainer(container, { scrollHeight: 4000, clientHeight: 500 });
         (view.result.current.containerRef as React.MutableRefObject<HTMLDivElement | null>).current = container;
-        // The first page pinned to the bottom; start counting from here.
         act(() => flushFrames());
         (container.scrollTo as jest.Mock).mockClear();
 
@@ -324,7 +303,6 @@ describe('useChatScroll — a new message while reading history', () => {
             view.rerender({ ...props, messages: shown });
             act(() => flushFrames());
         };
-        // Any other change to the list, the newest row staying the same.
         const show = (next: ClientChatView[]) => {
             shown = next;
             view.rerender({ ...props, messages: shown });
@@ -364,8 +342,6 @@ describe('useChatScroll — a new message while reading history', () => {
         expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
     });
 
-    // jsdom has no layout, so the row the reader looks at is stood in for: `elementFromPoint` hands
-    // back one row inside the list, and its rect answers where it sits — each reading in turn.
     const anchorIn = (container: HTMLElement, tops: number[]) => {
         const row = document.createElement('div');
         row.setAttribute('data-chat-no', '42');
@@ -380,7 +356,6 @@ describe('useChatScroll — a new message while reading history', () => {
     it('takes back the shift a new row causes where the engine does not anchor (WebKit)', () => {
         const { container, scrollTo, arrive } = readingHistory();
         const now = jest.spyOn(performance, 'now').mockReturnValue(0);
-        // Seen at 300 when the reader stopped; 72px higher once a 60px row and its gap land below.
         anchorIn(container, [300, 228]);
         scrollTo(-800);
 
@@ -409,7 +384,6 @@ describe('useChatScroll — a new message while reading history', () => {
         anchorIn(container, [300, 228]);
         scrollTo(-800);
 
-        // 50ms after the last scroll event: mid-fling, where assigning scrollTop would stop it dead.
         now.mockReturnValue(50);
         arrive(message('m2'));
 
@@ -419,8 +393,6 @@ describe('useChatScroll — a new message while reading history', () => {
     it('anchors on a row, not on the date group a hit in the gap between rows lands in', () => {
         const { container, scrollTo, arrive } = readingHistory();
         jest.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(1000);
-        // The group's top stays put — a row arrived at its bottom while another left its top — so
-        // measured on the group, the shift would read 0 while the reader's rows moved up by 72px.
         const group = document.createElement('div');
         group.setAttribute('data-date-label', '10. 02');
         jest.spyOn(group, 'getBoundingClientRect').mockReturnValue({ top: 120 } as DOMRect);
@@ -433,7 +405,6 @@ describe('useChatScroll — a new message while reading history', () => {
             } as DOMRect);
         group.appendChild(row);
         container.appendChild(group);
-        // The centre lands in the gap; 16px lower is the row.
         (document as { elementFromPoint?: unknown }).elementFromPoint = jest.fn((_x: number, y: number) =>
             y === 0 ? group : row
         );
@@ -450,8 +421,6 @@ describe('useChatScroll — a new message while reading history', () => {
         anchorIn(container, [300, 228]);
         scrollTo(-800);
 
-        // Blink's scroll anchoring has already moved the offset by the new row's height by the time
-        // the commit is looked at; a correction on top would move the reader again.
         container.scrollTop = -872;
         arrive(message('m2'));
 
@@ -461,17 +430,12 @@ describe('useChatScroll — a new message while reading history', () => {
     it('does not take its own correction for the reader scrolling', () => {
         const { container, scrollTo, arrive } = readingHistory();
         const now = jest.spyOn(performance, 'now').mockReturnValue(0);
-        // Read at 300; 72px higher after the first arrival; back at 300 once corrected; 72px higher
-        // again after the second arrival.
         anchorIn(container, [300, 228, 300, 300, 228]);
         scrollTo(-800);
         now.mockReturnValue(1000);
         arrive(message('m2'));
         expect(container.scrollTop).toBe(-872);
 
-        // The correction's own scroll event, 50ms before the next message, at the offset the hook
-        // itself assigned. Stamped as the reader moving the list, it would make that message look
-        // mid-fling and leave it uncorrected.
         now.mockReturnValue(1050);
         scrollTo(container.scrollTop);
         arrive(message('m3'));
@@ -482,7 +446,6 @@ describe('useChatScroll — a new message while reading history', () => {
     it('keeps the reader on their row when rows land below them in the middle of the list (a gap filled)', () => {
         const { container, scrollTo, show } = readingHistory();
         const now = jest.spyOn(performance, 'now').mockReturnValue(0);
-        // Seen at 300; 72px higher once a filled page lands between the reader and the newest rows.
         anchorIn(container, [300, 228]);
         scrollTo(-800);
 
@@ -527,12 +490,7 @@ describe('useChatScroll — a new message while reading history', () => {
     });
 });
 
-// Leaving the room unmounts this page, and the reversed list starts back at scrollTop 0 (=
-// bottom) on remount. Whether someone reading history opened a thread or went back home, they
-// must not be dropped onto the latest message.
 describe('useChatScroll — 방 재진입 스크롤 복원', () => {
-    // The container must be attached from mount time so the restore layout effect can observe
-    // it (the `setup` above attaches it after renderHook, so a self-contained install is used here).
     const mount = (channelId?: string) => {
         const inputRef = createRef<HTMLTextAreaElement>();
         const container = document.createElement('div');
@@ -558,9 +516,6 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         return { view, container, land };
     };
 
-    // Each test uses a different channel id: the stashed position lives in a module-level map
-    // that unmount repopulates (RTL's auto cleanup included), so reusing the same id would leak
-    // an earlier test into a later one.
     it('맡긴 위치로 되돌리고, 바닥 고정이 그것을 덮어쓰지 않는다', () => {
         stashScroll('ch-restore', -640);
         const { container, land } = mount('ch-restore');
@@ -579,8 +534,6 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
     });
 
-    // Restores only once. Afterwards the restored place is an ordinary place in history: someone
-    // else's message leaves it alone, and the reader's own send follows down as it would anywhere.
     it('restores only once, after which a new message is handled like anywhere else in history', () => {
         stashScroll('ch-once', -640);
         const { container, land } = mount('ch-once');
@@ -605,13 +558,9 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
     });
 
-    // Whatever the exit path is (including navigating back home), unmount stashes the position —
-    // so no caller ever needs to save it directly.
     it('언마운트가 위치를 맡아두어 다음 진입이 그 자리로 돌아온다', () => {
         const first = mount('ch-unmount');
         first.land([message('m1')]);
-        // Just as the real list does: a scroll event records the position. By unmount time,
-        // React has already detached the host ref, so it can't be read directly from the container.
         first.container.scrollTop = -820;
         act(() => first.view.result.current.handleScroll());
 
@@ -624,9 +573,6 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         expect(second.container.scrollTo).not.toHaveBeenCalled();
     });
 
-    // The list is still empty right after mount. If unmount happens in that window (StrictMode's
-    // mount/unmount/mount cuts in exactly here), the stashed position that hasn't been written
-    // yet must not be overwritten with the bottom (0).
     it('복원 전에 언마운트돼도 맡긴 위치를 잃지 않는다', () => {
         stashScroll('ch-strict', -300);
 
@@ -639,7 +585,6 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         expect(second.container.scrollTop).toBe(-300);
     });
 
-    // Left from the bottom, so open at the bottom — a room that was never scrolled must not suddenly open differently.
     it('바닥에서 나가면 다음 진입도 바닥이다', () => {
         const first = mount('ch-bottom');
         first.land([message('m1')]);
@@ -648,8 +593,6 @@ describe('useChatScroll — 방 재진입 스크롤 복원', () => {
         const second = mount('ch-bottom');
         second.land([message('m1')]);
 
-        // Reached not via the bottom-pin (scrollTo) but via the restore writing 0 as-is — in a
-        // reversed list, 0 is the bottom, so the resulting position is the same either way.
         expect(second.container.scrollTop).toBe(0);
     });
 });

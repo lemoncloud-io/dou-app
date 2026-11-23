@@ -8,7 +8,6 @@ import { resetFileDownloads, useFileDownloads } from './useFileDownloads';
 
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
-// Records what was asked of it, so a batch's count can be read; it still answers with the key alone.
 const mockTranslate = jest.fn((key: string, _vars?: Record<string, unknown>) => key);
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (key: string, vars?: Record<string, unknown>) => mockTranslate(key, vars) }),
@@ -38,7 +37,6 @@ interface Started {
 const started: Started[] = [];
 const cancel = jest.fn();
 const acknowledge = jest.fn(async (_ids: string[]) => undefined);
-/** Downloads finish at once with `autoResult` unless it is `null`; then the test finishes them. */
 let autoResult: DownloadResult | null;
 jest.mock('../../../bridge/shellDownload', () => ({
     getShellDownloads: () => ({
@@ -54,10 +52,6 @@ jest.mock('../../../bridge/shellDownload', () => ({
 }));
 
 const getChat = jest.fn();
-/**
- * The app's transfer module as the `files` port holds it, opening and keeping a file with the same
- * `OpenFile` and `SaveFile` requests the app adapter sends, so a test reads them off `request`.
- */
 const mockAppTransfers = {
     openFile: async (uri: string) => {
         await request({ type: 'OpenFile', data: { uri } }, undefined);
@@ -69,7 +63,6 @@ jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
         data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) },
-        // Who moves files, as the host's `files` port says: the app's transfer module, or none.
         get files() {
             const files = testing.browserFiles();
             return native ? { ...files, kind: 'shell', transfers: mockAppTransfers } : files;
@@ -93,7 +86,6 @@ const doc: ChatFileSlot = {
 const other: ChatFileSlot = { ...doc, key: 'c/u-2', uploadId: 'u-2', name: 'b.pdf' };
 
 const failure = (code: string) => Object.assign(new Error(code), { code });
-/** Answers the page's `OpenFile` / `SaveFile` requests by type. */
 const answer = (handlers: Partial<Record<'OpenFile' | 'SaveFile', () => Promise<unknown>>>) =>
     request.mockImplementation((message: { type: 'OpenFile' | 'SaveFile' }) =>
         (handlers[message.type] ?? (async () => ({ data: {} })))()
@@ -342,7 +334,6 @@ describe('useFileDownloads inside the app', () => {
 
         expect(toast).toHaveBeenCalledTimes(1);
         expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.fileCard.saveNeedsUpdate' });
-        // Downloaded all the same, so pressing the card opens it — or offers the share sheet.
         expect(result.current.stateOf(archive)).toBe('done');
         expect(result.current.stateOf(other)).toBe('idle');
 
@@ -521,7 +512,6 @@ describe('useFileDownloads — several files at once', () => {
 describe('useFileDownloads — a file from another message', () => {
     const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
-    /** Runs a use whose first download meets an expired address, then lets the re-signed one through. */
     const expireOnce = async (run: () => Promise<unknown>) => {
         autoResult = null;
         getChat.mockResolvedValue({ upload$$: [{ id: 'u-1', status: 'stored', orgUrl: 'https://bucket/fresh' }] });
@@ -642,7 +632,6 @@ describe('useFileDownloads — the document viewer', () => {
         await act(() => result.current.open({ ...doc, name: 'notes.docx' }));
         await act(() => result.current.open({ ...doc, state: 'sending' }));
         expect(onPreview).not.toHaveBeenCalled();
-        // Both take the card's old path, a download, as they did before the viewer.
         expect(downloadInBrowser).toHaveBeenCalledTimes(2);
 
         const { result: plain } = render();

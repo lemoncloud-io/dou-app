@@ -709,6 +709,12 @@ recoveries:
 "Share file" appears only inside an app whose handshake lists `ShareFile` (the check the viewer's photo
 share uses), and never in a browser, where the button already saves the file.
 
+Download state is page-level, keyed by the card, so a row that scrolls out and back, or the same message in
+the room and in its thread, shows the same download and finds the file the other one already fetched. In a
+browser the card's download is the page's own fetch. On iOS the share sheet it ends in can refuse a press
+that came too far behind the fetch (`needs-gesture`): the fetched bytes are then held by the card's key, the
+toast says to tap again, and the next press saves them without fetching and drops them.
+
 ### Audio
 
 An audio upload is drawn as an audio bubble in every state — on its way, failed, broken, unsupported and

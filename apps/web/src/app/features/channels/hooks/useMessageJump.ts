@@ -9,12 +9,8 @@ import { isJumpTargetFor, useMessageJumpStore } from '../../../stores/useMessage
 import type { ClientChatView } from '../types';
 import type { LoadMoreOptions } from './useChats';
 
-/** Matches desktop-web's MessageList jump budget. */
 const MAX_JUMP_PAGES = 8;
 const HIGHLIGHT_MS = 2000;
-// The design's highlight (Figma 6002:40741): a rounded light-lime box 8px in from either edge,
-// drawn as a pseudo-element behind the row so nothing in the row moves; the bubble reads the
-// `data-highlight` attribute set beside these and outlines itself in lime.
 const HIGHLIGHT_CLASSNAMES = [
     'relative',
     'isolate',
@@ -28,8 +24,6 @@ const HIGHLIGHT_CLASSNAMES = [
     'before:pointer-events-none',
 ];
 
-// What a highlight added, per node, so taking it off leaves any class the row already had —
-// `relative` above all — where it was.
 const added = new WeakMap<HTMLElement, string[]>();
 
 const highlight = (node: HTMLElement, on: boolean) => {
@@ -51,47 +45,15 @@ interface UseMessageJumpParams {
     hasMore: boolean;
     isLoadingMore: boolean;
     loadMore: (options?: LoadMoreOptions) => void;
-    /**
-     * Whether an older page can be sent right now (see useChats). Omitted, it can. A call that sends
-     * nothing would still spend a unit of the paging budget, so the jump waits instead.
-     */
     canLoadMore?: boolean;
-    /** Widens the cache window to reach a target without a server round trip (see useChats). */
     loadUntil: (targetNo: number) => boolean;
-    /**
-     * My join cursor. A target at or below it predates my current membership and can never be
-     * reached from this screen (see the effect).
-     */
     joinedNo?: number;
-    /**
-     * The thread this surface shows, as its root's chatNo string; omitted for the room. A reply is
-     * rendered only on its thread page, so each surface takes only the targets aimed at it — a room
-     * that picked up a reply's target would page its whole budget for a row it never draws.
-     */
     threadRootNo?: string;
-    /** Called when the jump gives up (either toast), so the surface can settle as if none was asked. */
     onGiveUp?: () => void;
-    /**
-     * For a target in a stretch of the conversation the cache never held (see useChats' gaps): whether
-     * a page has answered for a number this run, and a fetch of the page starting at one. Older pages
-     * cannot reach such a target — they only ask below the oldest cached row — so it is asked for by
-     * its own page, once, before paging.
-     */
     isFetched?: (chatNo: number) => boolean;
     fetchThrough?: (chatNo: number) => Promise<boolean>;
 }
 
-/**
- * Drives a pending `useMessageJumpStore` request for this channel's room or, given `threadRootNo`,
- * one of its threads: finds the target message's `[data-chat-no]` DOM node and centers + flashes it.
- *
- * When it isn't rendered yet the cache comes first (`loadUntil`) — the target normally arrived from
- * a cache search, so it is already stored locally and only the observe window was too narrow.
- * Server paging (`loadMore`, bounded by `MAX_JUMP_PAGES`) is the fallback for a target the cache
- * doesn't hold; the `messages` dependency re-runs this as each step lands. Ported from desktop-web's
- * MessageList jump effect; here as a standalone hook since apps/web has no ChatPane/MessageList
- * split.
- */
 export const useMessageJump = ({
     channelId,
     containerRef,
@@ -112,7 +74,6 @@ export const useMessageJump = ({
     const { t } = useTranslation();
     const progressRef = useRef<{ nonce: number; pages: number; done: boolean; askedOwnPage?: boolean } | null>(null);
     const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-    // Read at the moment of giving up, so a new callback each render does not re-run the jump.
     const onGiveUpRef = useRef(onGiveUp);
     onGiveUpRef.current = onGiveUp;
 
@@ -121,28 +82,11 @@ export const useMessageJump = ({
         const container = containerRef.current;
         if (!container) return;
 
-        // New request (or a repeat jump to the same message) → reset the paging budget.
         if (progressRef.current?.nonce !== target.nonce) {
             progressRef.current = { nonce: target.nonce, pages: 0, done: false };
         }
-        // Already handled (landed or abandoned) — don't re-scroll on unrelated re-renders
-        // that fire before the store clears the target.
         if (progressRef.current.done) return;
 
-        // Outside my join window → abandon before looking for the node. Every entry point that
-        // names an older message — a push tap, a notification-centre row, a reply that points at
-        // its root, a search result — funnels through this one request, so the rule that decides
-        // them is applied here once instead of at each door. The room still opens; only the jump
-        // is given up.
-        //
-        // Giving up is not a courtesy, it is the truth: `useChats` windows the cache by this same
-        // cursor and the server stops serving anything at or below it after a re-join, so paging
-        // would spend the whole budget on requests that cannot come back with the target.
-        //
-        // The copy says WHY, and deliberately does not say the message was deleted: it still
-        // exists and is still on the other participant's screen, and it is invisible here only
-        // because I left and came back. Copy that blurs those two teaches the reader that the
-        // other side erased their history.
         if (!isInJoinWindow({ chatNo: target.chatNo }, joinedNo)) {
             progressRef.current.done = true;
             if (!target.quiet) toast({ title: t('chat.jumpOutsideJoinWindow') });
@@ -164,14 +108,8 @@ export const useMessageJump = ({
             return;
         }
 
-        // Not rendered yet. First try the cache: the target usually came from a cache search, so
-        // widening the observe window reveals it with no network at all. Paging is the fallback for
-        // a target that genuinely isn't cached.
         if (loadUntil(target.chatNo)) return;
 
-        // Not cached, and no page has answered for its number: it sits in a gap. Its own page, once;
-        // when that fails or brings nothing, paging below is still tried. Only once rows are on
-        // screen: before the cache's first read every target looks uncached.
         if (
             fetchThrough &&
             isFetched &&
@@ -185,21 +123,12 @@ export const useMessageJump = ({
             return;
         }
 
-        // Still missing → page older until found or the budget/history runs out. Only when a page can
-        // actually be sent (the effect re-runs when that changes), and as a person's request: someone
-        // asked to see this message, so a failed page's retry wait — kept for the room's own prefetch —
-        // does not hold the jump.
         if (hasMore && !isLoadingMore && canLoadMore && progressRef.current.pages < MAX_JUMP_PAGES) {
             progressRef.current.pages += 1;
             loadMore({ immediate: true });
             return;
         }
 
-        // Exhausted: no older history left or the budget was hit — stop re-firing and
-        // tell the user rather than leaving them on an unrelated scroll position silently. Never
-        // while a page is still landing: its rows may hold the target, and giving up the render
-        // before they appear is how a jump into the oldest page, or the last page of the budget,
-        // used to fail.
         if (!isLoadingMore && (!hasMore || progressRef.current.pages >= MAX_JUMP_PAGES)) {
             progressRef.current.done = true;
             if (!target.quiet) toast({ title: t('search.messageJumpFailed') });
@@ -224,9 +153,6 @@ export const useMessageJump = ({
         fetchThrough,
     ]);
 
-    // A target this surface never got to — the reader left while it was still loading — is dropped
-    // with the surface. Left in the store, it fired the next time the same room or thread opened,
-    // flashing an old message nobody had asked for this time.
     useEffect(
         () => () => {
             if (isJumpTargetFor(useMessageJumpStore.getState().target, channelId, threadRootNo)) clear();

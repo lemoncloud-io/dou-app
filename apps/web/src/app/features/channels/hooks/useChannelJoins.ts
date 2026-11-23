@@ -3,51 +3,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { runtime, type DomainJoin } from '@chatic/runtime';
 
 export interface ChannelJoins {
-    /** Every join row cached for this channel, departures included (`activeOnly: false`). */
     joins: DomainJoin[];
-    /** My row, or null while nothing has synced. Per-channel settings live here, not on the channel. */
     myJoin: DomainJoin | null;
-    /** Members still joined (`joined !== 0`) — the read-count denominator and sync-registration set. */
     activeMemberIds: string[];
-    /** userId → read cursor, `max(readNo, chatNo)`. Drives the per-message read receipts. */
     cursorByUser: Map<string, number>;
 }
 
-/** One empty list for every "nothing yet", so the hook's derived memos keep their identity. */
 const NO_JOINS: DomainJoin[] = [];
 
-/**
- * The join (membership + read-state) rows for one channel — ONE subscription, four readings.
- *
- * A room screen wants all four, and it used to open a separate observer for each consumer:
- * `useChannelMembers` for the roster's read-state, `useJoinPositions` for the read cursors, and
- * `useMyJoin` for my own row (nick / notify / read boundary). All three asked the same question of
- * the same cache, and while the data source shares the storage read between observers on one key
- * (their keys DO match — `activeOnly` is falsy for all three), it does not share the React state:
- * every join write produced three callbacks, three `setState`s and three independent derivations of
- * overlapping values.
- *
- * `activeOnly: false` is load-bearing rather than a default: departed members keep a `joined: 0` row,
- * and both the roster (which must drop them) and the active-member set (which must not count them)
- * need to SEE that row to make the distinction.
- *
- * Read cursor: the API join model stores the last-read number in `chatNo`, with my own row also
- * carrying an explicit `readNo` from readChat's optimistic patch, so a member's position is
- * `max(readNo, chatNo)` taken straight off the latest observed row. The row itself never goes
- * backwards: the join cache keeps the stored cursor when a write carries an older one.
- *
- * Cache observation only — no sync registration. That belongs to the screen (see
- * {@link useJoinPositions}, which registers every member's cursor while the room is open).
- */
 export const useChannelJoins = (channelId: string | null): ChannelJoins => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const { userId } = runtime.session.useSessionIdentity();
 
-    // The rows are kept with the channel they were observed for. When the id changes, the previous
-    // room's rows used to stay in place until the new room's observer first emitted — from the
-    // render carrying the new id onwards. Read under the new id they made "my join" and the read
-    // cursors of another room, and the screen registered join targets for members this room does
-    // not have. A late callback from the old subscription cannot overwrite the new room either.
     const [observed, setObserved] = useState<{ channelId: string | null; list: DomainJoin[] }>({
         channelId,
         list: NO_JOINS,

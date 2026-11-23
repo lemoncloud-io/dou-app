@@ -48,7 +48,6 @@ describe('useRoomOpenTrace', () => {
         const { rerender } = render(loading);
 
         rerender({ ...loading, isChatLoading: false, messageCount: 5 });
-        // The channel half of the skeleton gate is still loading: not shown yet.
         expect(backend.stop).not.toHaveBeenCalled();
 
         rerender({ ...loading, isRoomLoading: false, isChatLoading: false, messageCount: 5 });
@@ -69,7 +68,6 @@ describe('useRoomOpenTrace', () => {
         roomOpenTrace.begin('ch_1', 'list');
         const { rerender } = render(loading);
 
-        // The cache answered with nothing; the page shows an empty room while it fetches.
         rerender({ ...loading, isRoomLoading: false, isChatLoading: false, messageCount: 0 });
         expect(backend.stop).not.toHaveBeenCalled();
 

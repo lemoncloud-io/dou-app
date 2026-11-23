@@ -91,7 +91,6 @@ describe('useRoomJumpPills', () => {
         );
         expect(result.current.pill).toBeNull();
 
-        // By the time the inbox reads the room, entering it has already moved the cursor past both.
         act(() =>
             useNotificationStore
                 .getState()
@@ -134,7 +133,6 @@ describe('useRoomJumpPills', () => {
                 scrollToBottom,
             })
         );
-        // The room's cursor passes both: the feed works them out again, read.
         act(() =>
             useNotificationStore
                 .getState()
