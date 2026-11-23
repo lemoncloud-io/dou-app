@@ -12,11 +12,18 @@ const clickSave = (href: string, name: string): void => {
     anchor.remove();
 };
 
+export const saveBlob = (blob: Blob, name: string): void => {
+    const href = URL.createObjectURL(blob);
+    clickSave(href, name);
+    // After the click has handed the bytes to the download, not before it.
+    setTimeout(() => URL.revokeObjectURL(href), 0);
+};
+
 /**
  * An image sent before the server kept names is named by its place in the message, and such a
  * document is "file"; give the saved file the extension its bytes have.
  */
-const withExtension = (name: string, type: string): string => {
+export const withExtension = (name: string, type: string): string => {
     const extension = chatAttachmentExtension(type);
     return !extension || /\.[a-z0-9]+$/i.test(name) ? name : `${name}.${extension}`;
 };
@@ -68,10 +75,7 @@ export const downloadImage = async (image: Pick<ChatImage, 'url' | 'name'>): Pro
         return;
     }
     const blob = await fetchImage(image.url);
-    const href = URL.createObjectURL(blob);
-    clickSave(href, withExtension(image.name, blob.type));
-    // After the click has handed the bytes to the download, not before it.
-    setTimeout(() => URL.revokeObjectURL(href), 0);
+    saveBlob(blob, withExtension(image.name, blob.type));
 };
 
 /**
