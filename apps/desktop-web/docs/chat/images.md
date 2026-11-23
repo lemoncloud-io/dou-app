@@ -154,6 +154,20 @@ images opened six dialogs. Only a PNG, JPEG, GIF or WebP whose name has the matc
 the dialog; any other file still asks, so a script in the page cannot drop an executable unseen. In
 a browser, Chrome may ask once whether the site may download several files.
 
+"Download all" over a message's videos and documents (`MessageFiles`) saves one zip instead,
+`attachments_<YYYY-MM-DD>.zip` (`첨부파일_…` in Korean; `downloadAsZip`, `features/chat/utils/zipDownload.ts`). Those files
+are not images, so one save each meant one dialog each: nine PDFs started nine downloads that all sat
+waiting on a dialog, and nothing landed. A zip is one file, so the shell asks once, where to put it,
+and the dialog rule above stays as it is. Each file is fetched the way a single save fetches it,
+including the second try on a fresh address, and named the way a single save names it (a nameless
+document gets the extension its bytes have). The entries are stored, not compressed (PDFs and videos
+already are), and named in NFC UTF-8 with the flag set, so Finder and Explorer show Korean names;
+characters Windows refuses in a name become `_`, and a repeated name gets a number ("report (1).pdf"). A file that cannot be fetched is left out and a toast
+says some were; when none can be, the save fails as before. The zip is built in the page's memory, one
+file at a time, so files over 300 MB together are saved one by one as before (a file whose size the
+message does not give counts as nothing). The button reads "Preparing…" and is off
+while the zip is being built.
+
 When a save ends, the desktop app says so (`useDownloadNotices`, mounted once at the app root, so a save that ends on Settings or Profile is told too):
 "Saved song.mp3" with "Show in Finder" ("Show in Explorer" on Windows), and saves that end within a
 few seconds of each other — Download all — share one notice that counts them ("Saved 6 files"), its
@@ -191,8 +205,8 @@ lists them under the images:
   file offers the same things whatever kind it is. A PDF, text file or HTML page's name also opens it
   in the document viewer (below).
 - **Two or more** videos, documents or voice files are headed "2 attachments ▾ | Download all". The
-  count folds the list away and back; Download all saves each file there is something to load for,
-  one after another, as the image grid's does.
+  count folds the list away and back; Download all saves the files there is something to load for
+  as one zip (see "Download all" above).
 - **A voice file** (M4A, MP3, WAV, OGG) plays in its card (`VoiceCard`,
   Figma "음성 파일 · 데스크탑 ③④"): a round play button, the name, and under it `2:05 · 17 MB` until it is played — the size
   alone while the header names no length, and `h:mm:ss` from an hour. Once played the line is a

@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { format } from 'date-fns';
+
 import { AlertCircle, ChevronDown, Download, FileText, Film } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/runtime';
@@ -9,8 +11,11 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     canPreview,
+    downloadAsZip,
     downloadImage,
     downloadImages,
+    fetchFileBytes,
+    fitsInZip,
     formatFileSize,
     isVoiceFile,
     toChatFiles,
@@ -58,7 +63,7 @@ interface MessageFilesProps {
  * plays in its card. Neither is drawn as an image tile: a PDF in an `<img>` is a broken picture.
  *
  * Two or more are headed "n attachments ▾ | Download all" (Figma "음성 파일 · 데스크탑 ③"): the count folds
- * the list away, and the download saves every file there is something to load for, one after another.
+ * the list away, and the download saves every file there is something to load for in one zip.
  */
 export const MessageFiles = ({
     message,
@@ -74,18 +79,38 @@ export const MessageFiles = ({
     const files = useMemo(() => (id && upload$$?.length ? toChatFiles(id, upload$$) : []), [id, upload$$]);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const [isFolded, setFolded] = useState(false);
+    const [isZipping, setZipping] = useState(false);
     const requestDelete = canDelete && onDeleteMessage ? () => setConfirmingDelete(true) : undefined;
     const copyLink = useCopyMessageLink(message);
     const runWithFreshAddress = useRunWithFreshAddress();
     if (files.length === 0) return null;
     const listId = `files-${id}`;
-    const downloadAll = () =>
-        downloadImages(
-            files.filter(file => file.url).map(file => ({ id: file.id, url: file.url, name: file.name ?? 'file' })),
-            () => toast({ variant: 'destructive', description: t('chat.file.saveFailed') }),
-            file =>
-                runWithFreshAddress({ chatId: id, id: file.id, url: file.url }, url => downloadImage({ ...file, url }))
-        );
+    const saveFailed = () => toast({ variant: 'destructive', description: t('chat.file.saveFailed') });
+    const withFreshUrl = <T,>(file: { id: string; url: string }, run: (url: string) => Promise<T>) =>
+        runWithFreshAddress({ chatId: id, id: file.id, url: file.url }, run);
+    const downloadAll = async () => {
+        const loadable = files
+            .filter(file => file.url)
+            .map(file => ({ id: file.id, url: file.url, name: file.name ?? 'file', size: file.size }));
+        if (!fitsInZip(loadable)) {
+            downloadImages(loadable, saveFailed, file => withFreshUrl(file, url => downloadImage({ ...file, url })));
+            return;
+        }
+        setZipping(true);
+        try {
+            const { saved, failed } = await downloadAsZip(
+                loadable,
+                t('chat.file.zipName', { date: format(new Date(), 'yyyy-MM-dd') }),
+                file => withFreshUrl(file, fetchFileBytes)
+            );
+            if (saved === 0) saveFailed();
+            else if (failed > 0) toast({ variant: 'destructive', description: t('chat.file.zipPartial') });
+        } catch {
+            saveFailed();
+        } finally {
+            setZipping(false);
+        }
+    };
     return (
         <>
             {files.length > 1 && (
@@ -107,11 +132,13 @@ export const MessageFiles = ({
                     <span aria-hidden className="h-3 w-px bg-hairline" />
                     <button
                         type="button"
-                        onClick={downloadAll}
-                        className="focus-ring tactile flex items-center gap-1 rounded-sm hover:text-foreground"
+                        onClick={() => void downloadAll()}
+                        disabled={isZipping}
+                        aria-busy={isZipping}
+                        className="focus-ring tactile flex items-center gap-1 rounded-sm hover:text-foreground disabled:opacity-60"
                     >
                         <Download size={13} aria-hidden />
-                        {t('chat.image.downloadAll')}
+                        {t(isZipping ? 'chat.file.zipping' : 'chat.image.downloadAll')}
                     </button>
                 </div>
             )}
