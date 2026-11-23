@@ -6,19 +6,9 @@ import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from '../main/loginItemCo
 import { DESKTOP_STORAGE_MEDIA } from '../main/secureStorage/constants';
 import { utf8ToBase64 } from './base64';
 
-/** IPC channel for App(main) → Web(renderer) bridge messages. */
 const TO_WEB_CHANNEL = 'chatic-bridge:to-web';
-/** IPC channel for Web(renderer) → App(main) bridge messages. */
 const TO_APP_CHANNEL = 'chatic-bridge:to-app';
 
-/**
- * Device/app globals injected into the page's main world.
- * Mirrors the keys the mobile native side injects via getDeviceInfoScript()
- * (apps/mobile/src/app/webview/utils/injectionScripts.ts). Platform is 'desktop'.
- */
-// Values injected by main via additionalArguments — the preload has no shell env, and
-// npm_package_version is undefined in a packaged app (it used to fall back to '0.0.1'
-// and stage to 'dev' in production).
 const argValue = (name: string): string => {
     const prefix = `--${name}=`;
     const arg = process.argv.find(a => a.startsWith(prefix));
@@ -41,40 +31,18 @@ const deviceInfo = {
     CHATIC_APP_INSTALLATION_ID: deviceId,
     CHATIC_APP_LATEST_VERSION: appVersion,
     CHATIC_APP_SHOULD_UPDATE: 'false',
-    // The storage media main keeps for the web (the device vault). Set before the page runs, so the
-    // web can choose its storage synchronously at boot.
     CHATIC_APP_STORAGE_MEDIA: DESKTOP_STORAGE_MEDIA,
-    // What this app can do, for the web to choose its host ports from before its first render. The
-    // desktop app sells no subscription: without this the web's rule for an app that declares nothing
-    // would read its bridge as a phone's and pick Google's store.
     CHATIC_APP_CAPABILITIES: { version: 1, checkout: [] },
 } as const;
 
-/**
- * Web → App: NativeBridgeAdapter.postMessage prefers window.ChaticMessageHandler.postMessage,
- * and provider.isNative() returns true when this global exists. Exposing it to the main world
- * via contextBridge therefore both satisfies isNative() and routes requests to the host.
- */
 contextBridge.exposeInMainWorld('ChaticMessageHandler', {
     postMessage: (message: string) => ipcRenderer.send(TO_APP_CHANNEL, message),
 });
 
-/**
- * Expose app version and platform information for the renderer process.
- * Used by desktop-web to display version info in settings and debug pages.
- *
- * `customUi` drives the custom-web-bundle PoC from the debug panel, and `loginItem` backs the
- * launch-at-login setting. Both deliberately not routed through the AppBridge message map:
- * that wire contract is shared with mobile, and a desktop-only feature has no business
- * bumping BRIDGE_VERSION (ADR-0001).
- */
 contextBridge.exposeInMainWorld('electronAPI', {
     appVersion,
     platform: process.platform,
     customUi: {
-        // Absent off the dev channel, so a production page has no way to even send `apply`;
-        // main refuses it too (customUiRefusal). Compared to 'dev' exactly rather than reusing
-        // `stage`, whose fallback is 'dev' — a missing argument must close this, not open it.
         ...(argValue('chatic-stage') === 'dev' && {
             apply: (zipUrl: string): Promise<CustomUiStatus> =>
                 ipcRenderer.invoke(CUSTOM_UI_CHANNEL, { action: 'apply', zipUrl }),
@@ -88,20 +56,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
             ipcRenderer.invoke(LOGIN_ITEM_CHANNEL, { action: 'set', enabled }),
     },
     downloads: {
-        /** Calls `listener` whenever a download the page started ends; returns the unsubscribe. */
         onDone: (listener: (done: DownloadDone) => void): (() => void) => {
             const handler = (_event: unknown, done: DownloadDone) => listener(done);
             ipcRenderer.on(DOWNLOAD_DONE_CHANNEL, handler);
             return () => ipcRenderer.removeListener(DOWNLOAD_DONE_CHANNEL, handler);
         },
-        /** Shows a finished download in the file manager; false when the shell no longer has it. */
         reveal: (id: string): Promise<boolean> => ipcRenderer.invoke(DOWNLOAD_REVEAL_CHANNEL, id),
     },
 });
 
-// Inject the CHATIC_APP_* globals into the page's main world. Values come from outside this
-// file, so we base64-encode the JSON (charset [A-Za-z0-9+/=], injection-safe) and decode it
-// inside the snippet — JSON.stringify alone would not escape </script>/U+2028/U+2029.
 const deviceInfoBase64 = utf8ToBase64(JSON.stringify(deviceInfo));
 
 webFrame.executeJavaScript(
@@ -111,15 +74,6 @@ webFrame.executeJavaScript(
         `})();`
 );
 
-/**
- * App → Web: NativeBridgeAdapter listens via window.addEventListener('message', ...) and reads
- * event.data (a string). executeJavaScript runs in the page's main world, so the adapter fires.
- *
- * SECURITY: never interpolate message data into the code string — JSON.stringify does not escape
- * </script>, U+2028, or U+2029, so any user-derived field (channel name, message body) could break
- * out and execute arbitrary JS. We base64-encode the payload (charset [A-Za-z0-9+/=], injection-safe)
- * and decode it inside the snippet, so the data never participates in the JS grammar.
- */
 ipcRenderer.on(TO_WEB_CHANNEL, (_event, data: string) => {
     if (typeof data !== 'string') return;
     const base64 = utf8ToBase64(data);

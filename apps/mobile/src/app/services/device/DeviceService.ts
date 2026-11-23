@@ -61,22 +61,6 @@ export class DeviceService implements IDeviceService {
         }
     }
 
-    /**
-     * Reads the address book and says whether it was denied, so the web can tell a denial from an
-     * empty address book — on the wire the two used to look the same.
-     *
-     * On iOS the fetch itself raises the system prompt, and `Contacts.checkPermission()` is never
-     * called. In react-native-contacts 8.0.10 its new-architecture implementation never settles on
-     * iOS 18+ while the status is not-yet-determined or limited: the iOS 18 branch compares against
-     * `Restricted` (already handled above it) instead of `Limited`, so neither case resolves. Called
-     * before the fetch it hung the request before any prompt appeared; called after a fetch that
-     * followed partial access it never returned. A refusal is read from the fetch's own rejection
-     * instead — the library rejects with the message `denied` exactly when the status is denied or
-     * restricted.
-     *
-     * Partial access is therefore reported as `granted`: the list is real, only shorter, and telling
-     * the two apart would need that same broken call.
-     */
     async getContacts(): Promise<ContactsReadResult> {
         const isAndroid = Platform.OS === 'android';
         if (isAndroid && !(await this.grantAndroidContacts())) {
@@ -85,12 +69,8 @@ export class DeviceService implements IDeviceService {
 
         let contacts: Contact[];
         try {
-            // Without photos: `getAll` makes iOS write a PNG into Caches for every contact that has
-            // one, and the web cannot show those paths anyway — it only reads names, company, job
-            // title and numbers.
             contacts = await Contacts.getAllWithoutPhotos();
         } catch (error: any) {
-            // A refusal at the prompt the fetch raised arrives as a rejection, not as a status.
             if (!isAndroid && error?.message === 'denied') return this.deniedContacts();
             this.logger.error('DEVICE', 'Failed to get contacts', error);
             throw error;
@@ -107,22 +87,10 @@ export class DeviceService implements IDeviceService {
     }
 
     private deniedContacts(): ContactsReadResult {
-        // The user's choice, not a fault — the catalog puts permission denial at `warn` so `error`
-        // stays a signal that something broke.
         this.logger.warn('DEVICE', 'Read contacts permission denied');
         return { contacts: [], permission: 'denied' };
     }
 
-    /**
-     * Records how many of the fetched contacts have a usable name.
-     *
-     * "Some contacts show up with no name" is a successful read, not a failure — nothing throws, so
-     * no failure trigger can see it. What separates the possible causes is the SHAPE: none named
-     * points at permissions or the account the contacts live in, some named points at that device's
-     * contact data (ADR-0099).
-     *
-     * Counts only. Names and numbers are content, and the diagnosis does not need them.
-     */
     private reportContactShape(contacts: Contact[]): void {
         const named = contacts.filter(
             contact => !!(contact.displayName || contact.givenName || contact.familyName)
@@ -176,9 +144,6 @@ export class DeviceService implements IDeviceService {
                         this.logger.info('DEVICE', 'Photo library cancelled');
                         resolve([]);
                     } else if (response.errorCode === 'permission') {
-                        // Cancel stays an empty pick, but a denial must not: [] is
-                        // indistinguishable from "chose nothing", so the web cannot react to it.
-                        // The camera path already rejects here; match it.
                         this.logger.error('DEVICE', 'Photo library permission denied');
                         reject(new Error(response.errorMessage ?? 'Photo library permission denied'));
                     } else if (response.errorCode) {

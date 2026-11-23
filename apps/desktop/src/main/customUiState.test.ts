@@ -24,7 +24,6 @@ describe('readPersistedRoot', () => {
     });
 
     it('returns null for a corrupt or half-written state file', () => {
-        // A crash mid-write must not brick the next launch.
         writeFileSync(stateFile, '{"root": "/tmp/cus', 'utf8');
         expect(readPersistedRoot(stateFile)).toBeNull();
     });
@@ -58,17 +57,12 @@ describe('hasEntryPoint', () => {
     });
 
     it('rejects a root left behind without an index.html', () => {
-        // An extraction killed halfway leaves the directory but not necessarily the entry
-        // point; restoring it would load a blank window with no way back.
         const root = join(dir, 'webroot', 'half');
         mkdirSync(root, { recursive: true });
         expect(hasEntryPoint(root)).toBe(false);
     });
 
     it('rejects an index.html that is a directory, not a file', () => {
-        // A zip carrying DOS-only entry attributes makes extract-zip create it as a directory.
-        // An existence check accepts that, and the bundle then 404s with a body — which is a
-        // completed navigation, so nothing recovers and the record restores it every launch.
         const root = join(dir, 'webroot', 'dirindex');
         mkdirSync(join(root, 'index.html'), { recursive: true });
         expect(hasEntryPoint(root)).toBe(false);

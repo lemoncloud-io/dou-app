@@ -1,6 +1,5 @@
 import { createUpdateCheckGate, isBusy, MIN_CHECK_GAP_MS } from './updateCadence';
 
-/** A gate whose clock the test moves by hand. */
 const gateAt = (start = 1_000_000) => {
     let time = start;
     const gate = createUpdateCheckGate({ minGapMs: MIN_CHECK_GAP_MS, now: () => time });
@@ -25,7 +24,7 @@ describe('createUpdateCheckGate', () => {
         const { gate, advance } = gateAt();
         gate.shouldCheck();
         advance(MIN_CHECK_GAP_MS / 2);
-        gate.shouldCheck(); // refused — must not restart the gap
+        gate.shouldCheck();
         advance(MIN_CHECK_GAP_MS / 2);
         expect(gate.shouldCheck()).toBe(true);
     });

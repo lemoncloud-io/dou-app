@@ -31,10 +31,6 @@ const setup = () => {
 
 const message = <K extends 'FetchAllCacheData'>(type: K, data: unknown) => ({ type, data }) as WebMessageData<K>;
 
-/**
- * Each message's answer when its service resolves and when it throws — the answers the WebView's
- * handlers gave before they were moved here, so a page sees no change.
- */
 const CASES = [
     {
         type: 'FetchAllCacheData',

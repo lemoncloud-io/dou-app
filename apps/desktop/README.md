@@ -164,3 +164,136 @@ The preload (`src/preload/index.ts`) sets these on `window` before the page runs
 
 A request for a medium other than `nativeSecure`, or a `StorageSave` whose `set` is not a string
 record or whose `remove` is not a string list, is answered with error code `INVALID`.
+
+## Why it works this way
+
+Constraints behind choices that look arbitrary.
+
+### Custom UI bundle (dev channel)
+
+A downloaded ZIP replaces the remote web, so every step assumes the archive is hostile.
+
+- **Dev channel only.** `apply` is refused off the dev channel in the renderer-facing channel, not only in the
+  UI: a script injected into the production web could otherwise replace the app's UI for good. `status` and
+  `disable` stay available everywhere (they only move back to the deployed web), and a production install that
+  once took a bundle is still reset by them. Launch also ignores a recorded bundle or the
+  `MAIN_VITE_CUSTOM_UI_ROOT` override off the dev channel, without deleting either.
+- **A way out that the bundle cannot hide.** The bundle owns the whole renderer, so Reset lives in the tray and in
+  the application menu (with a shortcut), both of which main owns, and appears whenever a bundle is being served.
+  A bundle may switch itself off but not apply the next one, so bundles cannot chain.
+- **Archive handling.** Only `https` URLs, with redirects refused (checking only the first hop would let a
+  redirect reach an internal host). Symlink entries are rejected, because the extractor creates them without
+  checking their target and the served files would then expose anything the user can read. `index.html` must be
+  a real file at the archive root: a ZIP with DOS-only entry attributes makes the extractor create it as a
+  directory, which an existence check accepts and then serves as a 404 with a body, which Chromium counts as a
+  completed navigation, so no recovery fires. The archive is buffered whole before it is written, so a dropped
+  connection never leaves a truncated zip.
+- **Applying is non-destructive until the final rename.** Extraction goes beside the live root, the live root is
+  moved aside rather than deleted, and a failed swap puts it back. Re-applying a URL targets the directory
+  being served, so extracting in place would destroy a working bundle. Applies are serialized (the same archive
+  is the default for the tray and the debug panel), and a failed apply leaves whatever was serving untouched.
+- **What survives a restart** is the extraction root alone; the scheme registration and "active" flag are rebuilt
+  at boot from it. A root without a servable `index.html`, or anything unusable, clears the record instead of
+  retrying, so it costs one launch on the remote web, not a failure every start.
+- **Serving.** The scheme `chatic-local` has a fixed host so storage written by one bundle survives the next one;
+  it is registered `standard` (real origin and storage partition), `secure` (IndexedDB, crypto and service
+  workers need it) and with fetch and CORS enabled (without CORS enabled every API call fails). A request that
+  finds no file gets `index.html` only when it is a document navigation (judged by `Accept`, not by a missing
+  file extension, since invite codes and tokens contain dots), so a missing asset stays a 404 instead of arriving
+  as HTML. A path that leaves the root is a 404, never the fallback. The root check is `startsWith(root + sep)`:
+  the decoded path can hold `..` after encoded slashes and backslashes that URL parsing does not resolve, so it
+  is the real defence and not a backstop.
+- **Failure falls back.** A bundle that fails to load, crashes or hangs is not a network blip: the shell drops
+  back to the remote web and forgets the bundle, instead of retrying local files or reloading a hung bundle
+  into itself. Crash and hang budgets are not refilled by a bundle that loads and dies a second later.
+
+### Loading, recovery and navigation
+
+- **One answer for the web URL.** `webUrl.ts` is the only source for the URL the shell loads and the origins it
+  trusts (first load, retry, post-sleep recovery, the error page's retry link, the IPC gate and the navigation
+  gates), so a change cannot be applied to some sites and not others. The custom bundle's origin is in the
+  trusted set exactly while a bundle is served, and the remote origin stays trusted either way so the fallback
+  load is not refused.
+- **Retry and recovery are bounded.** Connection failures (offline, DNS, refused) retry on a backoff ladder before
+  the branded error page, since a cold launch after boot or wake often precedes the network, or desktop-web's
+  dev server. A crash that reproduces would otherwise reload forever with no error page (the aborted
+  navigation is filtered), so crash reloads are capped and then show the error page with the reason. A renderer
+  that stays unresponsive for 15 s is reloaded; shorter bursts recover on their own. Waking from sleep retries
+  once if the window ended on the error page.
+- **Navigation is locked to trusted origins.** The shell never opens another Electron window (it would keep the
+  preload bridge); external links go to the system browser. `will-frame-navigate` is the real gate, since it also
+  covers subframes (a downloaded bundle can iframe anything); `will-navigate` is a redundant main-frame guard and
+  `will-redirect` covers server redirects, which neither of the others see.
+- **Permissions.** The page is remote content, so everything the app does not use is denied rather than
+  Electron's allow-all default. Notifications and sanitized clipboard writes are granted; fullscreen only to
+  trusted origins (without it a video's fullscreen button silently does nothing).
+- **Sandbox.** The renderer is sandboxed with context isolation and the preload uses no Node: values arrive as
+  `additionalArguments` and base64 goes through `src/preload/base64.ts` (`btoa` throws on non-Latin-1 text and
+  there is no `Buffer`). Everything injected into the page is base64 and decoded inside the snippet, because
+  `JSON.stringify` does not escape `</script>`, U+2028 or U+2029. Run `yarn test:sandbox` after touching the
+  preload: it boots the real built preload under `sandbox: true`, asserts values rather than presence, and runs
+  a control without the arguments that must fail, so the gate cannot go vacuous.
+- **Channel-scoped settings stay off the bridge.** Custom UI and launch-at-login have their own IPC channels (and
+  `electronAPI` entries) because the bridge vocabulary is shared with the phone, and a desktop-only setting must
+  not bump the bridge version. Launch-at-login is read back from the OS rather than echoed: macOS 13+ can answer
+  `requires-approval` and leave it off.
+- **Dev channel isolation.** An unpackaged or dev-channel shell gets its own app name, `userData`, single-instance
+  lock and deep-link scheme (`chatic-dev`), otherwise it collides with the installed app (the second instance
+  quits silently, and OAuth hand-offs relaunch the production app instead of the one under test).
+
+### Push and notifications
+
+- **Cross-cloud push** rides an in-process mtalk socket (an Android-style FCM registration through
+  `push-receiver`), not an OS push daemon. A `prevent-app-suspension` assertion keeps it alive through macOS App
+  Nap; it is started only when FCM is configured, so unconfigured builds do not pay the battery cost.
+- **Staying connected.** The library has no heartbeat and a half-open socket fires no `close`, with TCP
+  keepalive taking about two hours. The shell therefore reconnects on a watchdog timer, on system resume and on
+  window focus (throttled). Queued pushes replay on login and persistent ids dedupe them; the saved id list is
+  capped at 100, since only unacknowledged pushes can replay and the list is re-sent on every connect.
+- **Token freshness.** Google expires tokens minted through the unofficial endpoint, and the broker's endpoint
+  bound to a dead token is disabled on its first rejected delivery. The token is re-minted every launch and on a
+  12 hour cadence, reusing the saved GCM identity (a full register churns the Android id and the socket) and
+  pushing the new token to the web to re-register. With no usable credentials the socket still comes up from the
+  cached ones. The push is flattened from the backend's nested `data.payload` and loc args; the renderer decides
+  presentation, as it does for same-cloud banners.
+- **No coalescing of OS notifications.** Closing the previous toast for a channel raced the new `show()` on macOS
+  and dropped bursts, so each call shows its own banner; the renderer already emits one per cache snapshot.
+- **macOS first launch** posts one silent notification (once per install) so the bundle appears in Notification
+  Center and in System Settings; the main process has no permission-request API.
+- **Badge.** macOS and Linux use the dock badge; Windows has none, so the renderer draws a PNG overlay (Electron
+  cannot rasterize SVG).
+- **Tray.** The macOS tray icon is a template image so the OS re-tints it; a dark glyph would vanish on a dark
+  menu bar, and an invisible tray is an invisible escape hatch. The window hides instead of closing so the
+  socket stays alive for background notifications.
+
+### Updates, downloads, link previews
+
+- **Update checks** run at launch, about every 30 minutes, on wake and on focus, gated to one per 10 minutes, so
+  a release reaches an app left open all day. The feed is a small `no-cache` file. No check runs while an update
+  is downloading or ready (a check re-emits "available" and would drop the banner back), and only a failure the
+  user started is reported; a failed background check stays silent and retries. The installer runs with default
+  arguments on Windows (one-click, with a window, restarts the app), because silent mode would hide a failed
+  install. The updater log writes synchronously because its most important lines are written while quitting.
+- **Image downloads skip the save dialog** only when the file name agrees with its type (an allowlist of image
+  extensions): the dialog is where the user saw a file before it landed, and without it a script in the page
+  could drop an executable into Downloads. Names in flight count as taken, since `will-download` asks for a path
+  before any byte is written. The origin check reads the top-level page, which is fine while the app embeds no
+  other origin.
+- **Link previews (`FetchUrlMetadata`)** run in main (CORS), and anyone can make a message contain any URL, so the
+  fetch is guarded against reaching the internal network: http(s) only, private, loopback and link-local hosts
+  (IPv4, IPv6, mapped and compatible forms, single-label names, `.local`/`.internal`) refused before every request,
+  redirects followed by hand (at most five) so each hop is checked first, a 3 s total timeout, a 256 KB read cap,
+  and only an https image URL returned. Not covered: a public name that resolves to a private address (DNS
+  rebinding), since the check sees the name.
+- **Language** is the OS locale's bare language subtag (`ja`, `zh`), as the phone injects it, not a `PageLanguage`
+  value (`jp`, `cn`); inventing the mapping here would make the two clients disagree. Menu labels follow the OS
+  locale too, since the in-app language choice never reaches main.
+- **Menu shortcuts shown but not registered** (Back, Forward, shortcuts sheet, zoom reset) are the keys the page
+  binds itself; a registered accelerator would swallow the key before the page sees it.
+
+### Packaging
+
+- **Apple Silicon** kills an unsigned arm64 binary with no crash log, so `afterPack` ad-hoc signs the app unless a
+  real Developer ID (`CSC_LINK`) is provided. `afterAllArtifactBuild` signs, notarizes and staples each dmg
+  (electron-builder leaves the dmg unsigned, so Gatekeeper rejects the downloaded file); it does nothing without
+  notarization credentials.

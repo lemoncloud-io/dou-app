@@ -1,14 +1,12 @@
 /**
  * @jest-environment node
  */
-// Node, not jsdom: the runtime's socket client needs `TextEncoder`, which jsdom leaves out.
 import type { IAppBridgeHost } from '@chatic/bridges';
 import { RUNTIME_CONTRACTS } from '@chatic/runtime-mobile';
 
 import { pushedEventErrors, pushedEvents } from '../../webview/hooks/appEventContract';
 import { createAppRuntimeBridge } from './runtimeBridge';
 
-// The runtime package reads these at import; nothing here reaches them.
 jest.mock('react-native', () => ({
     AppState: { currentState: 'active', addEventListener: jest.fn() },
     Platform: { OS: 'ios' },

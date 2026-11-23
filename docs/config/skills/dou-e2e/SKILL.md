@@ -9,22 +9,22 @@ description: >-
 
 # dou-e2e
 
-The suite and its fakes: [`apps/web-e2e/README.md`](../../../../apps/web-e2e/README.md). Copy the shape of
-`apps/web-e2e/src/specs/room-mute.spec.ts`: fixtures from `src/fixtures/`, steps from `src/support/app.ts`,
-`test`/`expect` from `src/support/test`.
+The suite, its fakes and its targets: [`apps/web-e2e/README.md`](../../../../apps/web-e2e/README.md). Copy the
+shape of `apps/web-e2e/src/specs/room-mute.spec.ts`: fixtures from `src/fixtures/`, steps from
+`src/support/app.ts`, `test`/`expect` from `src/support/test`.
 
-1. **Find the scenario.** `ls apps/web-e2e/src/specs/` and grep for the feature's screen text or bridge
-   message. Extend an existing spec when it already sets up the state you need.
+1. **Find the scenario.** `npx nx run web-e2e:feature-coverage` lists specs per feature and features with
+   none; grep `src/specs/` for the screen text. Extend a spec that already sets up the state you need.
 2. **Write it** (README § Adding a scenario): start at `page.goto('/')` as a fresh guest; change only what the
    scenario is about with `shell.handle(...)`, `backend.useHttp(...)`, `backend.useSocket(...)`; assert what a
-   user sees by role and text, and what crossed the bridge or socket with `shell.received(...)` /
-   `backend.sent(...)`. A "nothing happened" assertion needs something observable after it.
-3. **Break it on purpose.** Revert the app change or the fixture and watch the scenario fail on both projects
+   user sees by role and text, and what crossed with `shell.received(...)` / `backend.sent(...)`. A new spec gets
+   its `feature-map.json` entry in the same change. A "nothing happened" assertion needs something observable after it.
+3. **Break it on purpose.** Revert the app change or the fixture and watch it fail on both projects
    (`webkit-ios`, `chromium-android`). A scenario that passes either way is deleted, not kept.
-4. **Run it.** `yarn web:e2e:headed <spec> --project=webkit-ios` while writing, then `yarn web:e2e` for both
-   projects. In a worktree, use the main checkout's Playwright binary if the local one is missing.
-5. **Evidence.** `await page.screenshot({ path })` at each state the change is about, plus the trace on failure
-   (`dist/.playwright/apps/web-e2e/test-results/`). Put them in the verification report.
+4. **Run it.** `yarn web:e2e:headed <spec> --project=webkit-ios` while writing, then `npx nx run web-e2e:e2e`.
+   In a worktree, use the main checkout's Playwright binary if the local one is missing. A changed screen also
+   runs `npx nx run web-e2e:e2e-visual:docker` from a Mac; a baseline change is `:update`, for a person to review.
+5. **Evidence.** `await evidence.shot(caption)` at each state the change is about. Attach the run's
+   `dist/.playwright/apps/web-e2e/evidence/index.html` (or its `summary.json`) to the verification report.
 
-What a scenario cannot show (real WKWebView, native code, device traits) goes to the report's "Not checked"
-with the reason, or to a device check.
+What a scenario cannot show (real WKWebView, native code, device traits) goes to the report's "Not checked".

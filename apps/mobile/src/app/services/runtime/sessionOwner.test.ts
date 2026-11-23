@@ -56,7 +56,6 @@ describe('defaultSessionOwner', () => {
         ['LOCAL', 'web'],
         ['PROD', 'native'],
         ['prod', 'native'],
-        // An env file that failed to load, or a stage this build does not know, keeps the page.
         [undefined, 'web'],
         ['STAGING', 'web'],
     ])('stage %p starts an unswitched install on %p', (stage, owner) => {
@@ -114,7 +113,6 @@ describe('writeDefaultSessionOwner', () => {
 
 describe('unswitchedSessionOwner', () => {
     it.each([
-        // stage, build pin, page default, owner
         ['PROD', undefined, undefined, 'native'],
         ['PROD', undefined, 'web', 'web'],
         ['DEV', undefined, 'web', 'web'],
@@ -131,7 +129,6 @@ describe('unswitchedSessionOwner', () => {
 
 describe('unswitchedSessionOwnerChoice', () => {
     it.each([
-        // stage, build pin, page default, owner, the row that answered
         ['PROD', 'web', 'native', 'web', 'build'],
         ['PROD', undefined, 'web', 'web', 'page'],
         ['PROD', 'shell', undefined, 'native', 'stage'],

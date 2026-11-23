@@ -1,16 +1,3 @@
-/**
- * The request handler, with electron mocked away.
- *
- * The handler decides what a request that matched no file gets back, and the two answers it
- * can give are not interchangeable: a client route needs the entry point, an absent asset
- * needs a 404. Getting that split wrong is silent in both directions — a deep link renders
- * "Not found" with no error anywhere, or a missing script arrives as HTML and fails as a
- * syntax error somewhere unrelated. So the split is pinned here rather than left to a smoke
- * test that only ever loads `/`.
- *
- * `net.fetch` is mocked onto the real filesystem so absence is real absence; `protocol` is
- * mocked because registering one needs a live app.
- */
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,10 +18,6 @@ mkdirSync(join(root, 'assets'));
 writeFileSync(join(root, 'index.html'), '<!doctype html>entry');
 writeFileSync(join(root, 'assets', 'app.js'), 'console.log(1)');
 
-/**
- * Only `url` and the Accept header are read, and a real `Request` cannot be built here —
- * Node's implementation rejects a non-http scheme, which is precisely the scheme under test.
- */
 const request = (path: string, accept: string | null): Request =>
     ({
         url: `${CUSTOM_UI_ORIGIN}${path}`,
@@ -55,8 +38,6 @@ const handlerFor = (dir: string): Handler => {
 let handle: Handler;
 
 beforeEach(() => {
-    // Reset, not just re-stub: two tests assert the handler never reached the filesystem,
-    // and a retained call log from an earlier test would make those pass or fail by order.
     (net.fetch as jest.Mock).mockReset();
     (net.fetch as jest.Mock).mockImplementation(async (url: string) => {
         const path = fileURLToPath(url);
@@ -82,15 +63,12 @@ describe('serving what is there', () => {
 
 describe('serving what is not there', () => {
     it('falls back to the entry point for a client route', async () => {
-        // BrowserRouter owns /settings; reloading there must reach the router, not a 404.
         const response = await handle(request('/settings', NAVIGATION));
         expect(response.status).toBe(200);
         await expect(response.text()).resolves.toContain('index.html');
     });
 
     it('falls back for a route whose last segment has dots', async () => {
-        // A dotted path segment (invite code, token) is the reason the fallback keys on Accept
-        // and not on an extension.
         const response = await handle(request('/join/invt.1.abc', NAVIGATION));
         expect(response.status).toBe(200);
         await expect(response.text()).resolves.toContain('index.html');
@@ -115,7 +93,6 @@ describe('serving what is not there', () => {
 
 describe('what the fallback must not reach', () => {
     it('404s a traversal attempt rather than falling back', async () => {
-        // A traversal answered with 200 tells the caller the shape is worth refining.
         const response = await handle(request('/..%2fescape/index.html', NAVIGATION));
         expect(response.status).toBe(404);
         expect(net.fetch).not.toHaveBeenCalled();

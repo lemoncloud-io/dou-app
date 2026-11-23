@@ -89,7 +89,6 @@ describe('VersionService', () => {
         expect(first.updateAvailable).toBe(false);
         expect(first.latestVersion).toBe('1.2.0');
 
-        // A later call retries the lookup instead of reusing a failed result.
         mockFetch.mockResolvedValue({
             ok: true,
             json: async () => ({ resultCount: 1, results: [{ version: '1.3.0' }] }),
@@ -115,7 +114,7 @@ describe('VersionService', () => {
         });
 
         await service.checkForUpdate();
-        dateNowSpy.mockReturnValue(1_000_000 + 60_000); // 1 minute later, well within the 30-minute TTL
+        dateNowSpy.mockReturnValue(1_000_000 + 60_000);
         await service.checkForUpdate();
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -130,7 +129,7 @@ describe('VersionService', () => {
         });
 
         await service.checkForUpdate();
-        dateNowSpy.mockReturnValue(1_000_000 + 31 * 60 * 1000); // 31 minutes later, past the 30-minute TTL
+        dateNowSpy.mockReturnValue(1_000_000 + 31 * 60 * 1000);
         mockFetch.mockResolvedValue({
             ok: true,
             json: async () => ({ resultCount: 1, results: [{ version: '1.4.0' }] }),

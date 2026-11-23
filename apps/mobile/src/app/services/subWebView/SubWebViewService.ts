@@ -15,10 +15,6 @@ import type {
 let sequence = 0;
 const defaultViewId = () => `sub-${Date.now().toString(36)}-${++sequence}`;
 
-/**
- * The one place the main WebView's side and the sub WebView's side meet. The main side asks it to
- * open and close; the sub side reports the user closing; neither imports the other.
- */
 export class SubWebViewService implements ISubWebViewService {
     private view: SubWebViewEntry | null = null;
     private readonly listeners = new Set<(event: SubWebViewEvent) => void>();
@@ -38,8 +34,6 @@ export class SubWebViewService implements ISubWebViewService {
         if (title !== undefined && typeof title !== 'string') return { ok: false, code: 'INVALID' };
         if (params !== undefined && !isSubWebViewParams(params)) return { ok: false, code: 'INVALID' };
         if (appId !== undefined && !isSubWebViewAppId(appId)) return { ok: false, code: 'INVALID' };
-        // Any plain https site opens; how far it is trusted is its tier. Refused is only what a
-        // parser could read two ways — userinfo, a port, a backslash, whitespace, an IP literal.
         const trust = subWebViewTrustOf(url);
         if (!trust) {
             this.logger.warn('WEBVIEW', '[sub] open refused: not a url a sub WebView opens', { url });
@@ -73,7 +67,6 @@ export class SubWebViewService implements ISubWebViewService {
         if (!this.view) return;
         const { viewId } = this.view;
         this.view = null;
-        // `host` is the closest reason, but nothing reads it: the event goes to the routing only.
         this.emit({ type: 'closed', viewId, reason: 'host', notifyHost: false });
     }
 
@@ -89,7 +82,6 @@ export class SubWebViewService implements ISubWebViewService {
             try {
                 listener(event);
             } catch (e) {
-                // One listener failing must not keep the other from hearing the close.
                 this.logger.error('WEBVIEW', '[sub] listener threw', e);
             }
         }

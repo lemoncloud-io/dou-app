@@ -1,6 +1,5 @@
 import { fetchUrlMetadata, isPrivateHost } from './unfurl';
 
-// `hostname` as `new URL(...)` yields it — the form the fetch path hands to isPrivateHost.
 const hostOf = (url: string): string => new URL(url).hostname;
 
 describe('isPrivateHost', () => {
@@ -21,7 +20,6 @@ describe('isPrivateHost', () => {
         'http://172.31.255.255/',
         'http://192.168.1.1/',
         'http://169.254.169.254/',
-        // Non-dotted IPv4 spellings reach the filter already normalised by the URL parser.
         'http://2130706433/',
         'http://0x7f.1/',
         'http://[::1]/',
@@ -34,7 +32,6 @@ describe('isPrivateHost', () => {
     });
 
     it.each([
-        // IPv4-mapped IPv6 carries an IPv4 address; the same table has to apply to it.
         'http://[::ffff:127.0.0.1]/',
         'http://[::ffff:7f00:1]/',
         'http://[::FFFF:169.254.169.254]/',
@@ -42,10 +39,8 @@ describe('isPrivateHost', () => {
         'http://[::ffff:192.168.0.1]/',
         'http://[::ffff:172.20.0.1]/',
         'http://[::ffff:0.0.0.0]/',
-        // IPv4-compatible (deprecated) addresses live in ::/96.
         'http://[::127.0.0.1]/',
         'http://[::10.0.0.1]/',
-        // fe80::/10 runs to febf, not just the fe8 prefix.
         'http://[fe90::1]/',
         'http://[fea0::1]/',
         'http://[febf:ffff::1]/',
@@ -64,7 +59,6 @@ describe('isPrivateHost', () => {
         'http://[2001:4860:4860::8888]/',
         'http://[::ffff:8.8.8.8]/',
         'http://[::ffff:172.32.0.1]/',
-        // Past fe80::/10 and fc00::/7 — outside both ranges.
         'http://[fec0::1]/',
         'http://[fe00::1]/',
         'http://[fb00::1]/',
@@ -127,7 +121,6 @@ describe('fetchUrlMetadata', () => {
         const result = await fetchUrlMetadata('https://example.com/go');
 
         expect(result.success).toBe(false);
-        // The internal host is never contacted, not merely hidden from the answer.
         expect(requested()).toEqual(['https://example.com/go']);
     });
 
@@ -183,7 +176,6 @@ describe('fetchUrlMetadata', () => {
         const result = await fetchUrlMetadata('https://example.com/');
 
         expect(result.success).toBe(false);
-        // The first request plus five followed redirects.
         expect(fetchMock).toHaveBeenCalledTimes(6);
     });
 });

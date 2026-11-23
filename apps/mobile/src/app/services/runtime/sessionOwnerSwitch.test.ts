@@ -41,7 +41,6 @@ describe('isSessionOwnerSwitchAllowed', () => {
         ['LOCAL', true],
         ['dev', true],
         ['PROD', false],
-        // An env file that failed to load, or a value this build does not know, counts as production.
         [undefined, false],
         ['', false],
         ['STAGING', false],
@@ -78,7 +77,6 @@ describe('createSessionOwnerSwitch', () => {
 
         expect(ownerSwitch.set('native')).toEqual({ next: 'native', restarting: true });
         expect(file.entries.get(SESSION_OWNER_KEY)).toBe('native');
-        // Not yet: the answer goes out first.
         expect(restart.restart).not.toHaveBeenCalled();
         expect(scheduled).toHaveLength(1);
         expect(scheduled[0]?.ms).toBe(SESSION_OWNER_RESTART_DELAY_MS);

@@ -1,5 +1,3 @@
-// Mock react-native-config: `getAppScheme` reads VITE_ENV, and the module is imported at load time
-// by the rest of this file regardless. The getAppScheme block below mutates and restores it.
 import Config from 'react-native-config';
 
 import {
@@ -15,17 +13,11 @@ jest.mock('react-native-config', () => ({
     default: { VITE_ENV: 'DEV' },
 }));
 
-// `@chatic/shared` is imported for its invite-link decoder, but its barrel also re-exports web-only
-// components that reach `@chatic/assets`, whose `import.meta.url` the CommonJS test transform cannot
-// parse. Point the specifier at the decoder module itself: the REAL decoder still runs here, which
-// is the point — the production bundler has no such limitation and takes the barrel as written.
-// Same workaround as useAppVersionCheck.test.ts / VersionService.test.ts, which stub it outright.
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('../../../../../../libs/shared/src/utils/inviteLink'),
     ...jest.requireActual('../../../../../../libs/shared/src/utils/subWebViewLink'),
 }));
 
-// The converter emits a host-less relative URL; parse against a throwaway base to inspect it.
 const PARSE_BASE = 'https://base.local';
 
 describe('convertShortUrlWithEnvsSync (신규 패턴 초대 링크)', () => {
@@ -61,9 +53,6 @@ describe('convertShortUrlWithEnvsSync (신규 패턴 초대 링크)', () => {
     it('출력은 프론트 도메인이 박히지 않은 상대 경로다 (도메인은 WEBVIEW_URL로 하위 일원화)', () => {
         const { url } = convertShortUrlWithEnvsSync('https://app-dev.chatic.io/s?code=ABC123&api=myapi&stage=dev');
 
-        // No scheme/host baked in — starts at root so the WebView base (WEBVIEW_URL) is applied downstream.
-        // (The encoded `_backend` value legitimately contains an https URL, so we only assert the
-        // absence of the frontend host, not the substring "http".)
         expect(url.startsWith('/?')).toBe(true);
         expect(url).not.toContain('chatic.io');
     });
@@ -87,8 +76,6 @@ describe('convertShortUrlWithEnvsSync (신규 패턴 초대 링크)', () => {
             'https://app-dev.chatic.io/s?code=invt%3A910457%3Ab1a86d2c-584e-4195-acaa-b5643417e2e0&api=uzjpiaey7a&stage=dev'
         );
 
-        // Assert the raw string, not a re-parsed URL: the RN regression collapsed this to "/", and
-        // re-parsing with Node's URL would mask that. Order is deterministic: code, provider, version, _backend.
         expect(url).toBe(
             '/?code=invt%3A910457%3Ab1a86d2c-584e-4195-acaa-b5643417e2e0' +
                 '&provider=invite&version=2' +
@@ -101,7 +88,6 @@ describe('convertShortUrlWithEnvsSync (릴레이 서버 초대 링크)', () => {
     it('relay 플래그만 있는 링크를 relay=1 마커로 변환하고 _backend는 넣지 않는다', () => {
         const { url } = convertShortUrlWithEnvsSync('https://app-dev.chatic.io/s?code=ABC123&relay');
 
-        // Assert the raw string: order is deterministic (code, provider, version, relay).
         expect(url).toBe('/?code=ABC123&provider=invite&version=2&relay=1');
 
         const parsed = new URL(url, PARSE_BASE);
@@ -113,7 +99,6 @@ describe('convertShortUrlWithEnvsSync (릴레이 서버 초대 링크)', () => {
     });
 
     it('값 없는 &relay(빈 문자열)도 릴레이로 인식한다 (get 진위값이 아니라 존재 여부로 판별)', () => {
-        // `get('relay')` is '' here, so a truthiness check would misread this as a non-relay link.
         const bare = new URL('https://app-dev.chatic.io/s?code=ABC123&relay');
         expect(bare.searchParams.get('relay')).toBe('');
 
@@ -130,7 +115,6 @@ describe('convertShortUrlWithEnvsSync (릴레이 서버 초대 링크)', () => {
 
         const parsed = new URL(url, PARSE_BASE);
         expect(parsed.searchParams.get('utm_source')).toBe('kakao');
-        // Consumed by the converter, so it is emitted exactly once in its canonical form.
         expect(parsed.searchParams.getAll('relay')).toEqual(['1']);
     });
 
@@ -144,7 +128,6 @@ describe('convertShortUrlWithEnvsSync (릴레이 서버 초대 링크)', () => {
 });
 
 describe('convertShortUrlWithEnvsSync (인코딩 초대 링크 /i)', () => {
-    // Encoded the way the server does, with Node's own base64url — never with the decoder under test.
     const token = (payload: Record<string, unknown>): string =>
         Buffer.from(JSON.stringify(payload)).toString('base64url');
 
@@ -155,8 +138,6 @@ describe('convertShortUrlWithEnvsSync (인코딩 초대 링크 /i)', () => {
             `https://app-dev.chatic.io/i?t=${token({ c: CODE, a: 'myapi', s: 'prod' })}`
         );
 
-        // Asserted as an exact string, not through URLSearchParams: React Native's URL builds
-        // `.search` from the raw text, so only the assembled string proves the query survived.
         expect(url).toBe(
             '/?code=invt%3A1000072-2%3Ae3faf0d0&provider=invite&version=2' +
                 '&_backend=https%3A%2F%2Fmyapi.execute-api.ap-northeast-2.amazonaws.com%2Fprod'
@@ -214,8 +195,6 @@ describe('convertShortUrlWithEnvsSync (인코딩 초대 링크 /i)', () => {
         expect(() => convertShortUrlWithEnvsSync(input)).toThrow('Unreadable encoded invite link');
     });
 
-    // Neither `/s` predicate was changed to make this true; this pins that it already was, so a
-    // later edit to them cannot quietly start claiming `/i`.
     it('기존 /s 판정기들은 /i를 자기 것으로 보지 않는다', () => {
         const link = `https://app-dev.chatic.io/i?t=${token({ c: CODE, r: 1 })}`;
 
@@ -265,8 +244,6 @@ describe('convertShortUrlWithEnvsSync (인코딩 초대 링크 /i)', () => {
 
         it('opens a link ending in a half percent-encoded character, where React Native cannot parse the query', () => {
             const BrowserURL = globalThis.URL;
-            // React Native's URLSearchParams runs every value through decodeURIComponent and throws
-            // on a malformed escape; node's never does, so the device behaviour is stood in for here.
             globalThis.URL = class extends BrowserURL {
                 override get searchParams(): URLSearchParams {
                     decodeURIComponent(this.search);
@@ -295,7 +272,7 @@ describe('convertShortUrlWithEnvsSync (인코딩 초대 링크 /i)', () => {
             resolveDeepLink(intact, log as never);
 
             expect(log.warn).not.toHaveBeenCalled();
-            expect(log.info).toHaveBeenCalledTimes(1); // the resolveDeepLink trace line only
+            expect(log.info).toHaveBeenCalledTimes(1);
         });
     });
 });
@@ -319,7 +296,6 @@ describe('resolveDeepLink (통합 해석기)', () => {
         const result = resolveDeepLink('https://app-dev.chatic.io/s?code=ABC123&backend=https://api.example.com');
 
         expect(result.kind).toBe('web');
-        // Narrow the discriminated union so path is accessible.
         if (result.kind === 'web') {
             const parsed = new URL(result.path, PARSE_BASE);
             expect(parsed.searchParams.get('provider')).toBe('invite');
@@ -377,7 +353,6 @@ describe('resolveDeepLink (통합 해석기)', () => {
     it('알 수 없는 native 라우트는 Main으로 폴백한다', () => {
         const result = resolveDeepLink('chatic://completelyUnknownRoute?target=native');
 
-        // Flat single-level Main route after the navigator merge (boot-optimization.md 4.3).
         expect(result).toEqual({
             kind: 'native',
             state: { routes: [{ name: 'Main' }] },
@@ -402,7 +377,6 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
             payload: JSON.stringify({ cid: 'cloud_1', sid: '100002', uid: 'user_456' }),
         });
 
-        // Relative link keeps its own query; cid/sid are appended for the web to consume.
         expect(path).toBe('/channel?channelId=room_123&cid=cloud_1&sid=100002');
     });
 
@@ -425,10 +399,6 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         expect(resolvePushTapPath(undefined)).toBeNull();
     });
 
-    // A cloud-activation push has no link, by contract. The spec's source of truth says "if link
-    // is empty, go to root", and if a tap only brings the app to the foreground, the user taps the
-    // notification and goes nowhere. The root is the root of the cloud the push names, so the tap
-    // lands in the cloud that just became ready rather than wherever the app last was.
     it('sends a linkless cloud push to the main screen of the cloud it names', () => {
         expect(resolvePushTapPath({ type: 'cloud', cid: 'cloud_1', uid: 'u1' })).toBe('/?cid=cloud_1');
         expect(resolvePushTapPath({ type: 'cloud', payload: JSON.stringify({ cid: 'cloud_1' }) })).toBe(
@@ -451,29 +421,20 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         expect(resolvePushTapPath({ type: 'cloud', cid: 'a&b=c' })).toBe('/?cid=a%26b%3Dc');
     });
 
-    // The no-link-goes-to-root fallback is only granted to types that have no link by contract.
-    // A chat push missing its link is a malformed payload, not a request to go home — it shouldn't
-    // steal the screen the user was looking at.
     it('클라우드가 아닌 유형은 link가 없으면 그대로 null이다', () => {
         expect(resolvePushTapPath({ type: 'chat', payload: JSON.stringify({ cid: 'cloud_1' }) })).toBeNull();
         expect(resolvePushTapPath({ type: 'notice' })).toBeNull();
     });
 
-    // If a link exists, it wins regardless of type — the root fallback branch only runs when there's no link.
     it('클라우드 푸시라도 link가 있으면 link를 따른다', () => {
         expect(resolvePushTapPath({ type: 'cloud', link: '/mypage/clouds' })).toBe('/mypage/clouds');
     });
 
-    // An Android background tap never goes through this function — native carries the scheme root
-    // in the intent's data URI, and RN Linking → resolveDeepLink receives it. Whether that URI
-    // actually resolves to root is the contract being tested here
-    // (see ChaticFirebaseMessagingService.rootTapLinkFor).
     it('네이티브가 싣는 스킴 루트 URI는 웹 루트로 풀린다', () => {
         expect(resolveDeepLink('chatic://')).toEqual({ kind: 'web', path: '/' });
         expect(resolveDeepLink('chatic-dev://')).toEqual({ kind: 'web', path: '/' });
     });
 
-    // The cloud the push names rides the scheme root's query, so the web switches to it.
     it("resolves a scheme root carrying the cloud to that cloud's root", () => {
         expect(resolveDeepLink('chatic://?cid=cloud_1')).toEqual({ kind: 'web', path: '/?cid=cloud_1' });
     });
@@ -493,7 +454,6 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
             payload: { cid: 'from_payload', sid: 'site_9' },
         });
 
-        // Existing cid is preserved; only the missing sid is added.
         expect(path).toBe('/channels/1/room?cid=explicit&sid=site_9');
     });
 
@@ -508,9 +468,6 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         expect(path).toBe('/channels/1/room?cid=top_cloud&sid=top_site');
     });
 
-    // The web opens the thread when the notified chat is a reply, and needs the chat id in the query
-    // to know which one. A chat that is not a reply leaves the reader in the room, so it rides along
-    // either way — the same as an in-app banner tap.
     it('merges the notified chatId after cid/sid', () => {
         const path = resolvePushTapPath({
             link: '/channels/1000001/room',
@@ -527,8 +484,6 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         expect(resolvePushTapPath({ link: '/channels/1/room', chatId: 'c42' })).toBe('/channels/1/room?chatId=c42');
     });
 
-    // The push service's APNs encoding, verbatim: `payload` is a map, `cid` is the relay sentinel `#`,
-    // and the chat id carries the room id with its colon. This is what a tap hands over on iOS.
     it('merges the context of a push exactly as the server encodes it for APNs', () => {
         const wire = {
             aps: { alert: { title: 'Design', body: '' }, 'mutable-content': 1, sound: 'default' },
@@ -580,9 +535,6 @@ describe('getAppScheme (OS 등록 스킴과의 일치)', () => {
         Config.VITE_ENV = originalEnv;
     });
 
-    // The polarity is `=== 'PROD'`, not `=== 'DEV'`: every non-prod build configuration registers
-    // `chatic-dev` with the OS (iOS `APP_URL_SCHEME`, Android `appScheme`), so LOCAL must land there
-    // too. See apps/mobile/docs/release/local-run.md.
     it.each([
         ['PROD', 'chatic'],
         ['DEV', 'chatic-dev'],
@@ -599,9 +551,6 @@ describe('getAppScheme (OS 등록 스킴과의 일치)', () => {
         expect(getAppScheme()).toBe('chatic-dev');
     });
 
-    // Asserts the reconstructed URL, not just that it resolved: VALID_SCHEMES accepts BOTH
-    // 'chatic' and 'chatic-dev', so a `kind !== 'invalid'` check passes on either scheme and
-    // would not catch the mismatch this function exists to prevent.
     it.each([
         ['LOCAL', 'chatic-dev://channels/1/room'],
         ['DEV', 'chatic-dev://channels/1/room'],

@@ -24,8 +24,6 @@ const emitUrl = (url: string) => {
     for (const handler of [...urlHandlers]) handler({ url });
 };
 
-// Lets the capture pass both initial-URL reads so the late wait is armed before
-// the test moves the clock or emits — acting earlier would hit nothing.
 const armLateWait = async () => {
     for (let i = 0; i < 4; i++) await Promise.resolve();
 };
@@ -53,9 +51,6 @@ describe('DeepLinkManager cold start capture', () => {
         await expect(pending).resolves.toBeNull();
     });
 
-    // A killed-state link tap that the OS delivers as a url event inside the late
-    // wait used to clear the timeout without settling the wait: getInitialUrl hung
-    // and the cold-start dispatch never ran.
     it('returns the url event that lands inside the late wait instead of hanging', async () => {
         const manager = new DeepLinkManager();
         manager.subscribe(() => undefined);
@@ -68,8 +63,6 @@ describe('DeepLinkManager cold start capture', () => {
         await expect(pending).resolves.toBe('chatic://chats/c1');
     });
 
-    // The late url already reaches the cold-start dispatch through getInitialUrl;
-    // forwarding it to the router listener too navigated to it a second time.
     it('does not forward a url claimed by the late wait to the router listener', async () => {
         const manager = new DeepLinkManager();
         const listener = jest.fn();

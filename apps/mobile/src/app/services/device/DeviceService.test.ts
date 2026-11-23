@@ -3,8 +3,6 @@ import { PermissionsAndroid, Platform } from 'react-native';
 
 import { DeviceService } from './DeviceService';
 
-// Mock every native import DeviceService pulls in at module load so the class can be instantiated
-// under jsdom. Only the contacts path is exercised here (ADR-0099).
 jest.mock('react-native', () => ({
     Linking: { openURL: jest.fn() },
     PermissionsAndroid: {
@@ -26,7 +24,6 @@ jest.mock('react-native-contacts', () => ({
 const getAll = Contacts.getAllWithoutPhotos as jest.Mock;
 const checkPermission = Contacts.checkPermission as jest.Mock;
 
-/** A contact with only the name fields this check reads. */
 const contact = (name: Partial<{ displayName: string; givenName: string; familyName: string }>) =>
     ({ displayName: null, givenName: null, familyName: '', ...name }) as never;
 
@@ -53,7 +50,6 @@ describe('DeviceService.getContacts — 부분 결과 기록', () => {
         expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    // Shape of #15: the fetch succeeds but some entries have no name — there's no exception, so it's not caught by the failure trigger.
     it('이름 없는 항목이 있으면 warn으로 올린다', async () => {
         getAll.mockResolvedValue([contact({ displayName: '가' }), contact({}), contact({})]);
 
@@ -115,8 +111,6 @@ describe('DeviceService.getContacts — permission travels with the list (iOS)',
         service = new DeviceService(logger as never);
     });
 
-    // The library's status call never settles on iOS 18+ for undetermined or partial access, so no
-    // path may await it — the fetch's own outcome is the answer.
     it('reports a successful read as granted without querying the status', async () => {
         getAll.mockResolvedValue([contact({ displayName: '가' })]);
 
@@ -193,9 +187,6 @@ describe('DeviceService.openPhotoLibrary — cancel stays empty, denial rejects'
         await expect(service.openPhotoLibrary()).resolves.toEqual([]);
     });
 
-    // A denial used to resolve [] too, indistinguishable from "chose nothing" — the
-    // web had no error to react to. The camera path already rejects here; match it so the
-    // handler answers LIBRARY_ERROR instead of a hollow success.
     it('rejects when the OS reports a permission denial', async () => {
         launchImageLibrary.mockImplementation((_opts: unknown, cb: (r: unknown) => void) =>
             cb({ errorCode: 'permission', errorMessage: 'Photo library permission denied' })

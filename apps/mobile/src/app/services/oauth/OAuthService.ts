@@ -12,13 +12,11 @@ import { Platform } from 'react-native';
 import type { IOAuthService } from './types';
 import type { ILogService } from '../log';
 
-/** Whether a failed Apple sheet means the user dismissed it (cancel, not an error). */
 const isAppleCancel = (error: unknown): boolean =>
     typeof error === 'object' && error !== null && (error as { code?: unknown }).code === appleAuth.Error.CANCELED;
 
 export class OAuthService implements IOAuthService {
     constructor(private readonly logger: ILogService) {
-        // Initialize Google sign-in configuration
         GoogleSignin.configure({
             webClientId: Config.VITE_GOOGLE_WEB_CLIENT_ID,
             offlineAccess: true,
@@ -29,11 +27,6 @@ export class OAuthService implements IOAuthService {
         return Platform.OS === 'ios' ? 'ios' : 'android';
     }
 
-    /**
-     * Native sign-in sheet. Resolves `null` ONLY when the user cancels — every genuine
-     * failure throws, so the bridge reports it as `success: false` (OAUTH_LOGIN_ERROR)
-     * instead of the cancel-shaped `result: null` the web reads as a dismiss.
-     */
     async login(provider: OAuthLoginProvider): Promise<OAuthTokenResult | null> {
         switch (provider) {
             case 'google':
@@ -99,8 +92,6 @@ export class OAuthService implements IOAuthService {
 
             throw new Error('Google Sign-In returned unknown type');
         } catch (error: unknown) {
-            // Cancel already returned null above; anything reaching here is a genuine
-            // failure and rethrows so the bridge reports it instead of the same null.
             this.logger.error('OAUTH', 'Google Sign-In Error', error);
             throw error instanceof Error ? error : new Error(String(error));
         }
@@ -135,8 +126,6 @@ export class OAuthService implements IOAuthService {
             }
             throw new Error(`Apple Sign-In credential state invalid: ${String(credentialState)}`);
         } catch (error: unknown) {
-            // The sheet's own cancel reads as null (the web's dismiss path); anything
-            // else rethrows so the bridge reports a failure instead of the same null.
             if (isAppleCancel(error)) {
                 this.logger.info('OAUTH', 'Apple Sign-In cancelled by user');
                 return null;

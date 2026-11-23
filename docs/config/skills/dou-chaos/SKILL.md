@@ -10,19 +10,17 @@ description: >-
 
 # dou-chaos
 
-Chaos runs on the same fakes as [`dou-e2e`](../dou-e2e/SKILL.md). `apps/web-e2e/src/specs/room-mute.spec.ts`
-is the pattern: drop the socket, hold the next sign-in, act, release, assert the write landed once.
+Chaos runs on the same fakes as [`dou-e2e`](../dou-e2e/SKILL.md), through the `chaos` fixture
+(`apps/web-e2e/src/support/chaos.ts`, README § Chaos). Pattern: `src/specs/chaos/offline-send.spec.ts`.
 
 1. **Name the invariant first**, as a sentence the scenario will assert: "a mute made while signing in again
    reaches the relay exactly once", "the list never shows a room twice after a reconnect".
 2. **Pick faults** from [`references/faults.md`](./references/faults.md). Start with the one the code is
-   about; add one neighbour (a second drop, a reply arriving late after a newer one).
+   about; add one neighbour (a second drop, a reply arriving late after a newer one). Tag the test
+   `{ tag: '@chaos' }` and mark each recovery with `chaos.recovered(what)`; a fault no request met fails the run.
 3. **Assert both sides**: what the user sees (no stuck spinner, no duplicate, the right error copy) and what
    the relay received (`backend.sent(...)` count and order, connection number).
-4. **Repeat** timing-sensitive scenarios: `--repeat-each=20` on one project. One failure in twenty is a real
-   race; report it with the seed and trace, not as flakiness.
-5. **Report** the fault matrix in the verification report: fault × outcome, with a screenshot for each
-   recovery state.
-
-Use the chaos helpers in `apps/web-e2e/src/support/` when they exist; the primitives in the reference work
-without them.
+4. **Run** `npx nx run web-e2e:e2e-chaos`; repeat timing-sensitive ones with
+   `-- --repeat-each=20 --project=webkit-ios`. One failure in twenty is a real race: report it with the trace.
+5. **Report** the fault matrix (fault × outcome) and link the evidence page's chaos timelines
+   (`dist/.playwright/apps/web-e2e/evidence/index.html`).
