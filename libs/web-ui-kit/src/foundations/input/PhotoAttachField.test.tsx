@@ -25,7 +25,6 @@ describe('PhotoAttachField', () => {
         expect(screen.getByText('최대 5장')).toBeInTheDocument();
     });
 
-    // The field reports every pick, over-limit included, so the owner can explain the refusal.
     it('hands back every picked file rather than trimming to `max` itself', () => {
         const onSelect = jest.fn();
         const { container } = render(
@@ -38,7 +37,6 @@ describe('PhotoAttachField', () => {
         expect(onSelect.mock.calls[0][0]).toHaveLength(2);
     });
 
-    // Without this, re-picking the file you just removed fires no change event at all.
     it('clears the input value so the same file can be picked twice', () => {
         const { container } = render(
             <PhotoAttachField label="사진" value={[]} onSelect={jest.fn()} onRemove={jest.fn()} />

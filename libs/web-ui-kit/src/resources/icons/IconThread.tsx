@@ -1,19 +1,9 @@
 import * as React from 'react';
 
 export interface IconThreadProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (glyph is square). */
     size?: number;
 }
 
-/**
- * Thread glyph — two overlapping speech bubbles with an ellipsis (Figma "Outline /
- * Messages, Conversation / Dialog 2", 4712:16496). Used by the message action sheet's
- * thread row.
- *
- * Deliberately not lucide's `MessageSquare`, which the sheet used before: a single
- * bubble is the icon for "a message", and the row opens the conversation hanging off
- * one. The doubled bubble is the distinction the design draws.
- */
 export const IconThread = ({ size = 26, className, ...props }: IconThreadProps) => (
     <svg
         width={size}

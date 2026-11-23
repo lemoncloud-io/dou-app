@@ -10,7 +10,6 @@ describe('AudioMessageBubble', () => {
         render(<AudioMessageBubble side="other" state="idle" name={NAME} meta="35:47 · 17.0MB" onToggle={onToggle} />);
 
         expect(screen.getByText('35:47 · 17.0MB')).toBeInTheDocument();
-        // The name is read once, whole, rather than as its two drawn halves.
         expect(screen.getByText(NAME)).toHaveClass('sr-only');
         fireEvent.click(screen.getByRole('button', { name: 'Play' }));
         expect(onToggle).toHaveBeenCalledTimes(1);
@@ -70,7 +69,6 @@ describe('AudioMessageBubble', () => {
 
         fireEvent.pointerUp(slider);
         expect(onSeek).toHaveBeenCalledWith(600);
-        // The preview ends with the drag; the clock goes back to the host's position.
         expect(screen.getByText('0:00 / 35:47')).toBeInTheDocument();
     });
 
@@ -102,7 +100,6 @@ describe('AudioMessageBubble', () => {
         expect(screen.getByText('7.1 MB / 17.0 MB')).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Cancel upload' }));
         expect(onCancelSend).toHaveBeenCalledTimes(1);
-        // Nothing is stored yet, so there is nothing to open.
         expect(screen.queryByRole('button', { name: 'Open' })).not.toBeInTheDocument();
     });
 

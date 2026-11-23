@@ -20,7 +20,6 @@ type Story = StoryObj<typeof ModalTopBar>;
 
 export const Default: Story = {};
 
-// Design-guide TopBar: back + title + more, with a bottom hairline.
 export const BackTitleMore: Story = {
     args: {
         title: 'Title',

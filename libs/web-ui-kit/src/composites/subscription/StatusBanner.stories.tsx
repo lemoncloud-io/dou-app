@@ -23,13 +23,10 @@ export default meta;
 
 type Story = StoryObj<typeof StatusBanner>;
 
-/** Info tone, non-interactive: no chevron, rendered as a plain section. */
 export const Info: Story = {};
 
-/** Info tone with `onClick`: the whole card is a button and a chevron trails the title. */
 export const Clickable: Story = { args: { onClick: () => undefined } };
 
-/** Danger tone with the D-day chip under the description. */
 export const DangerWithChip: Story = {
     args: {
         icon: <IconAlert className="size-6 text-destructive" />,
@@ -41,7 +38,6 @@ export const DangerWithChip: Story = {
     },
 };
 
-/** The narrowest column the app supports — the title and description wrap, nothing overflows. */
 export const Narrow320: Story = {
     decorators: [
         Story => (
@@ -57,7 +53,6 @@ export const Narrow320: Story = {
     },
 };
 
-/** A queued downgrade: the title row still opens the detail, and the pill asks which clouds stay. */
 export const WithAction: Story = {
     args: {
         title: 'Changes apply from the next billing date',

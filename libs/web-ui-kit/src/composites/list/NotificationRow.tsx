@@ -4,52 +4,27 @@ import { cn } from '@chatic/ui-kit';
 
 import { Checkbox } from '../../foundations/checkbox/Checkbox';
 
-/** How long a press has to rest before it counts as a long press. */
 export const NOTIFICATION_LONG_PRESS_MS = 500;
-/** How far a finger may drift during a press before it is a scroll, not a press. */
 const PRESS_SLOP_PX = 10;
 
 export interface NotificationRowProps {
-    /** The sender's avatar, 42px (e.g. a `ProfileAvatar`). */
     avatar: React.ReactNode;
-    /** Sender name. */
     sender: string;
-    /** When it happened, already formatted by the host ("오후 3:27", "11월 10일"). */
     time: string;
-    /** Unread — the red dot and the light lime ground. */
     unread?: boolean;
-    /** Accessible word for the dot (e.g. a localized "Unread"); folded into the row's name. */
     unreadLabel?: string;
-    /** The type chip that opens the location line (`NotificationTypeChip`); reactions and new 1:1 messages carry none. */
     typeChip?: React.ReactNode;
-    /** Where it happened — "#room" or "1:1 대화" — in the strong grey. */
     location?: string;
-    /** Why it is here — "내 메시지에 답글", "내 메시지에 반응 ❤️" — in the light grey. */
     context?: React.ReactNode;
-    /** The original message a reply or reaction points at, one line under a rule. The host adds any "원글:" prefix. */
     quote?: string;
-    /** The message itself, one line. A node, so the host can set `@name` in bold. */
     body: React.ReactNode;
-    /** Selection mode — the check circle shows on the left and a tap toggles. */
     selectable?: boolean;
-    /** Selected in selection mode — the navy check and the tinted ground. */
     selected?: boolean;
-    /** Tap. In selection mode the host toggles the row; otherwise it opens the message. */
     onPress?: () => void;
-    /** A press held for {@link NOTIFICATION_LONG_PRESS_MS} — enters selection mode with this row picked. */
     onLongPress?: () => void;
     className?: string;
 }
 
-/**
- * Notification row — one item of "내 알림" and "나를 찾는 메시지" (Figma "알림 행" 6023:19308). From
- * the top: sender · time · unread dot; the type chip, location and context; the quoted original;
- * the message. Unread rows sit on a light lime ground with a red dot; read rows on the page. In
- * selection mode a check circle leads the row and a picked row is tinted navy.
- *
- * Stateless apart from one gesture: a held press is timed so `onLongPress` can fire, and the click
- * that ends it is swallowed so the same press does not also toggle or open.
- */
 export const NotificationRow = ({
     avatar,
     sender,
@@ -125,7 +100,6 @@ export const NotificationRow = ({
             onContextMenu={event => onLongPress && event.preventDefault()}
             data-unread={unread || undefined}
             className={cn(
-                // The ground eases between unread, read and picked; a press dims the row a touch.
                 'flex w-full cursor-pointer select-none items-start px-3 py-2 text-left transition-[background-color,filter] duration-300 active:brightness-95 motion-reduce:transition-none',
                 selectable && selected ? 'bg-nav-ink/[0.06]' : unread ? 'bg-primary/[0.08]' : 'bg-transparent',
                 className

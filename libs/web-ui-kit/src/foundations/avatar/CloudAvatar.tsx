@@ -1,11 +1,7 @@
 import { cn } from '@chatic/ui-kit';
 
-// `xl` is the identity head on the cloud management screens (Figma 86px), not a list step.
 const SIZE = { sm: 36, md: 40, lg: 46, xl: 86 } as const;
 
-// Deterministic background palette for the initials fallback — chosen for
-// readable white-text contrast. Not part of the semantic token set since it's
-// a hash-derived rotation, not a single meaningful color.
 const PALETTE = [
     'bg-[#F2637B]',
     'bg-[#F2994A]',
@@ -26,18 +22,11 @@ const hashIndex = (value: string, length: number): number => {
 };
 
 export interface CloudAvatarProps {
-    /** Cloud name — drives both the initial glyph and the deterministic tone. */
     name: string;
-    /** Diameter step (Small 36 / Medium 40 / Large 46 / XL 86). */
     size?: keyof typeof SIZE;
     className?: string;
 }
 
-/**
- * Cloud initials avatar — Slack-style fallback for a cloud without an
- * owner-set profile photo: the name's first character on a color derived
- * deterministically from the name, so the same cloud always gets the same tone.
- */
 export const CloudAvatar = ({ name, size = 'lg', className }: CloudAvatarProps) => {
     const trimmed = name.trim();
     const initial = trimmed ? [...trimmed][0].toUpperCase() : '?';

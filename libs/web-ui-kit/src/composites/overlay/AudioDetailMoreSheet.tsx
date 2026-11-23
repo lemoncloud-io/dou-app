@@ -3,7 +3,6 @@ import { cn } from '@chatic/ui-kit';
 import { BottomSheet } from './BottomSheet';
 
 export interface AudioDetailMoreSheetLabels {
-    /** The sheet's accessible name; nothing draws it. */
     title: string;
     viewInChat: string;
     replyInThread: string;
@@ -13,11 +12,8 @@ export interface AudioDetailMoreSheetLabels {
 export interface AudioDetailMoreSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Jump to the message in its chat. Omit to hide the row. */
     onViewInChat?: () => void;
-    /** Open the message's thread to reply. Omit to hide the row — a room without threads, say. */
     onReplyInThread?: () => void;
-    /** Delete the file. Omit to hide the row — the viewer cannot delete it. */
     onDelete?: () => void;
     labels?: Partial<AudioDetailMoreSheetLabels>;
     className?: string;
@@ -36,7 +32,6 @@ interface RowProps {
     destructive?: boolean;
 }
 
-/** One row (Figma 6072:22914): 16px text with 16px padding, inside the sheet's own 8px inset. */
 const Row = ({ label, onPress, destructive = false }: RowProps) => (
     <button
         type="button"
@@ -50,14 +45,6 @@ const Row = ({ label, onPress, destructive = false }: RowProps) => (
     </button>
 );
 
-/**
- * The audio detail's ⋯ sheet (Figma "음성 상세 · 더보기 시트", 6072:22922; screen 6066:22477): a plain
- * list of what else can be done with the file — view it in its chat, reply in its thread, delete it.
- *
- * Each row exists only when the host passes its handler, so the host's permissions decide the list
- * rather than a set of flags beside it. A row closes the sheet after it runs: whatever it starts next
- * (a jump, a confirm dialog) should not open underneath a sheet still standing.
- */
 export const AudioDetailMoreSheet = ({
     open,
     onOpenChange,

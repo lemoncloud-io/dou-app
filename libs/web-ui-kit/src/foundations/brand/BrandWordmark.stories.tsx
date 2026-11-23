@@ -12,7 +12,6 @@ type Story = StoryObj<typeof BrandWordmark>;
 
 export const LoginScreenSize: Story = { args: { height: 32 } };
 
-/** Same wordmark on a dark surface — navy gives way to lime. */
 export const OnDarkSurface: Story = {
     render: args => (
         <div className="dark bg-background p-6">

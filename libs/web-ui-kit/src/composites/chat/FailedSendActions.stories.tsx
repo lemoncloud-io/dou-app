@@ -11,11 +11,9 @@ export default meta;
 
 type Story = StoryObj<typeof FailedSendActions>;
 
-/** Figma 6072:23054. */
 export const Default: Story = {};
 export const EnglishDefaults: Story = { args: { retryLabel: undefined, deleteLabel: undefined } };
 
-/** Under a failed bubble of mine, hugging the right edge as the bubble does. */
 export const UnderFailedBubble: Story = {
     render: args => (
         <div className="flex w-[343px] flex-col items-end gap-1.5">

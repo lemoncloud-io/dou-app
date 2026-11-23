@@ -13,11 +13,6 @@ import {
     slideEase,
 } from '@chatic/web-ui-kit';
 
-/**
- * The panel as the chat room places it: in the page's positioned container, under the composer, which
- * the host keeps clear of the panel's height. Tap + to open it and × (or Escape) to close it; pick
- * photos in the recent row and the composer's send button goes live with nothing typed.
- */
 const meta: Meta<typeof AttachPanel> = {
     title: 'web-ui-kit/composites/AttachPanel',
     component: AttachPanel,
@@ -54,7 +49,6 @@ const Demo = ({
             <p className="p-4 text-[14px] text-description">{sent ?? 'Nothing sent yet.'}</p>
             <div
                 className="absolute inset-x-0 bottom-0 z-20 px-4 pt-2"
-                // What the room does: the composer keeps clear of the panel while it is open.
                 style={{ paddingBottom: open ? `calc(${height}px + var(--safe-bottom, 0px) + 8px)` : 8 }}
             >
                 <MessageInput
@@ -100,22 +94,14 @@ const Demo = ({
 
 export const WithRecentRow: Story = { render: () => <Demo /> };
 
-/** A browser, or an app that cannot read the library: the entry points alone, in the middle of the panel. */
 export const ActionsOnly: Story = { render: () => <Demo withRecent={false} /> };
 
-/** A keyboard shorter than the content: the panel keeps the keyboard's height and scrolls. */
 export const ShortKeyboard: Story = { render: () => <Demo height={240} /> };
 
-/** Closed at first: tap + to watch it rise. */
 export const Closed: Story = { render: () => <Demo initiallyOpen={false} /> };
 
 type Mode = 'slide' | 'instant';
 
-/**
- * The four ways a change can go: pick how the panel arrives and how it leaves, then open and close it.
- * `instant` puts it in place, or removes it, in one frame — no slide at all. Each settled change is
- * logged as the panel reports it through `onTransitionEnd`, at once for an instant one.
- */
 const ModesDemo = () => {
     const [open, setOpen] = useState(false);
     const [enter, setEnter] = useState<Mode>('slide');
@@ -183,19 +169,9 @@ const ModesDemo = () => {
 
 export const EnterAndExitModes: Story = { render: () => <ModesDemo /> };
 
-/** The keyboard's own slide, as a stand-in: the shell's keyboard is drawn outside the page. */
 const KEYBOARD_MOTION =
     'transition-transform duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none';
 
-/**
- * The handover the chat room makes, with a grey block standing in for the soft keyboard (which in the
- * app is drawn by the OS, over the page). The keyboard and the panel share one slot of one height, so
- * the composer above them never moves while they swap:
- *
- * - Keyboard up, tap +: the panel is put in place instantly behind the keyboard, which slides away.
- * - Panel open, tap the field: the keyboard slides up over the panel, which is then removed instantly.
- * - No keyboard, tap +, or ×: the panel slides, and the composer moves with it on the same curve.
- */
 const HandoverDemo = () => {
     const height = 306;
     const [keyboard, setKeyboard] = useState(false);
@@ -211,7 +187,6 @@ const HandoverDemo = () => {
             setOpen(false);
             return;
         }
-        // Keyboard up: in place under it, and the keyboard goes.
         setEnter(keyboard ? 'instant' : 'slide');
         setOpen(true);
         setKeyboard(false);
@@ -219,7 +194,6 @@ const HandoverDemo = () => {
     const focusField = () => {
         setKeyboard(true);
         if (!open) return;
-        // Once the keyboard has covered the panel, it can go where it stands.
         window.clearTimeout(timer.current);
         timer.current = window.setTimeout(() => {
             setExit('instant');
@@ -244,7 +218,6 @@ const HandoverDemo = () => {
                 }}
             />
             <div
-                // The field's focus, not the + button's: tapping + moves focus too.
                 onFocus={event => {
                     if (event.target instanceof HTMLTextAreaElement) focusField();
                 }}
@@ -283,20 +256,12 @@ const HandoverDemo = () => {
 
 export const KeyboardHandover: Story = { render: () => <HandoverDemo /> };
 
-/**
- * The panel moved by its host (`motion="external"`): one frame loop writes the panel's translate and the
- * composer's bottom padding from the same eased value, so the composer's top stays the same 8px above the
- * panel's on every frame. Two transitions — the panel's transform and the composer's padding — start a
- * frame apart on iOS WebKit, and the composer visibly trails. Tap + and × quickly to see a slide turn
- * around from wherever the last frame left it.
- */
 const HostMovedDemo = () => {
     const height = 306;
     const [open, setOpen] = useState(false);
     const [log, setLog] = useState<string[]>([]);
     const panelRef = useRef<AttachPanelHandle>(null);
     const composerRef = useRef<HTMLDivElement>(null);
-    // Where the last frame left both: 0 with the panel below, 1 with it in place.
     const progress = useRef(0);
     const frame = useRef(0);
     const startedAt = useRef(0);
@@ -309,7 +274,6 @@ const HostMovedDemo = () => {
         if (composer) composer.style.paddingBottom = `calc(${value} * (${height}px + var(--safe-bottom, 0px)) + 8px)`;
     };
 
-    // A layout effect, so the slide's first frame is drawn before the commit that started it is painted.
     useLayoutEffect(() => {
         const from = progress.current;
         const to = open ? 1 : 0;
@@ -328,7 +292,6 @@ const HostMovedDemo = () => {
             else panelRef.current?.settle();
         };
         frame.current = requestAnimationFrame(step);
-        // A newer change takes over from wherever this one has got to.
         return () => cancelAnimationFrame(frame.current);
     }, [open]);
 
@@ -379,12 +342,6 @@ export const HostMovedSlide: Story = { render: () => <HostMovedDemo /> };
 
 type Library = 'asking' | 'answered' | 'none';
 
-/**
- * The first open in the app, before the shell has said whether it can read the library: the recent row
- * is drawn with skeleton tiles, so photos, camera and files are where they will stay. Answer with photos
- * and they take the skeletons' places; answer that there is no library and the row folds away, the tiles
- * rising with it.
- */
 const LoadingRowDemo = () => {
     const [library, setLibrary] = useState<Library>('asking');
     const [round, setRound] = useState(0);

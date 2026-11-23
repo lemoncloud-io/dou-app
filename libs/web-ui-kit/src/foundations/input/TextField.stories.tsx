@@ -40,8 +40,6 @@ export const ErrorState: Story = {
 };
 
 const OverLimitDemo = () => {
-    // Soft cap: enforceMaxLength={false} keeps the counter but lets the value exceed the max,
-    // so the "21/20" over-limit error state is reachable (used by place-profile-create).
     const [value, setValue] = useState('sunny12^^~ㄴㄴㄴㄴㄴㄴㄴㄴㄴㄴ');
     return (
         <TextField
@@ -70,7 +68,6 @@ const InlineAction = ({ label, tone = 'accent' }: { label: string; tone?: 'accen
     </button>
 );
 
-/** The phone-verification screen's shape: an in-field action plus a countdown on the helper row. */
 const WithActionsDemo = () => {
     const [phone, setPhone] = useState('01012345678');
     const [code, setCode] = useState('123456');

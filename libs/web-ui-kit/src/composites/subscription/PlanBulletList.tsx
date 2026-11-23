@@ -2,25 +2,15 @@ import { cn } from '@chatic/ui-kit';
 
 export interface PlanBullet {
     title: string;
-    /** Second line. Present on the paid plan's benefits, absent on the free plan's limits. */
     description?: string;
 }
 
 export interface PlanBulletListProps {
     items: PlanBullet[];
-    /**
-     * `muted` for a free plan's limitations — dot and text both recede. `emphasis` for a paid plan's
-     * selling points — a dark dot with a stronger title over a muted description.
-     */
     tone?: 'muted' | 'emphasis';
     className?: string;
 }
 
-/**
- * Dot-marked plan bullet list — the rows inside the cloud-guide comparison cards
- * (Figma 3519-29642 / 3519-29695). Distinct from `BenefitItem`, which leads with a 32px icon slot;
- * these rows are an 8px dot plus text.
- */
 export const PlanBulletList = ({ items, tone = 'muted', className }: PlanBulletListProps) => {
     const isEmphasis = tone === 'emphasis';
 

@@ -7,7 +7,6 @@ describe('BrandMark', () => {
         const { container } = render(<BrandMark />);
 
         expect(screen.getByRole('img', { name: 'DoU' })).toBeInTheDocument();
-        // Character + both wordmark colours; the theme hides one of the two.
         expect(container.querySelectorAll('img')).toHaveLength(3);
         expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(1);
     });
@@ -18,7 +17,6 @@ describe('BrandMark', () => {
         const character = container.querySelector('img') as HTMLElement;
         const wordmark = container.querySelector('[aria-hidden="true"]') as HTMLElement;
 
-        // Ratios of the designer's 300×97 combined mark.
         expect(root.style.height).toBe('97px');
         expect(root.style.gap).toBe('20px');
         expect(character.style.height).toBe('97px');

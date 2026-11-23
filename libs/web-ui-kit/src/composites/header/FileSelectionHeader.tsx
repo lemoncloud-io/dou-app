@@ -1,34 +1,16 @@
 import { cn } from '@chatic/ui-kit';
 
 export interface FileSelectionHeaderProps {
-    /**
-     * The centre title, formatted by the host: "Select items" with nothing picked, "2 selected" after
-     * (Figma 6082:23243 — "항목 선택" / "n개 선택").
-     */
     title: string;
-    /** Leaves selection mode. */
     onCancel: () => void;
-    /** The left text button. */
     cancelLabel?: string;
-    /** The right text button — "Select all", or "Deselect all" once everything is picked. */
     toggleAllLabel?: string;
     onToggleAll: () => void;
-    /** Nothing to pick (an empty list): the right button stays visible but does nothing. */
     toggleAllDisabled?: boolean;
-    /** Adds the status-bar inset above the 56px row, for a header that sits at the top of the screen. */
     safeArea?: boolean;
     className?: string;
 }
 
-/**
- * The room file list's header while picking files (Figma "대화방 파일 · 선택 헤더" 6082:23243): a
- * 56px row with "Cancel" on the left, the selection count in the centre and "Select all" /
- * "Deselect all" on the right, in navy.
- *
- * Both side buttons hold the same minimum width (72px in the design), so the title stays centred
- * whichever of "Select all" and "Deselect all" the right one says. The title is a polite live
- * region: picking a row changes nothing else a screen reader would announce.
- */
 export const FileSelectionHeader = ({
     title,
     onCancel,

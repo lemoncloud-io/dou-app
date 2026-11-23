@@ -8,7 +8,6 @@ describe('IconGroup', () => {
         const svg = container.querySelector('svg');
 
         expect(svg).toBeTruthy();
-        // All glyph paths inherit the caller's color.
         expect(svg?.querySelectorAll('path[fill="currentColor"]').length).toBeGreaterThan(0);
     });
 
@@ -17,7 +16,6 @@ describe('IconGroup', () => {
         const svg = container.querySelector('svg') as SVGSVGElement;
 
         expect(svg.getAttribute('width')).toBe('26');
-        // height = 26 * (20.8011 / 26.0006) ≈ 20.8
         expect(Number(svg.getAttribute('height'))).toBeCloseTo(20.8, 1);
     });
 

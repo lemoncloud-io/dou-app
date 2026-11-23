@@ -36,9 +36,6 @@ describe('MessageInput', () => {
         expect(onSend).not.toHaveBeenCalled();
     });
 
-    // The idle send button must stay a live pointer target: a `disabled` control receives no
-    // pointer events (nor lets them bubble), so the keep-the-keyboard preventDefault would be
-    // skipped and tapping send right after a message went out would blur the textarea.
     it('prevents the default on pointer down over the idle send button', () => {
         render(<MessageInput value="" onChange={jest.fn()} onSend={jest.fn()} />);
 
@@ -67,8 +64,6 @@ describe('MessageInput', () => {
         expect(prevented).toBe(false);
     });
 
-    // iOS WKWebView moves focus as the `mousedown` default action, so cancelling `pointerdown`
-    // alone does not hold the caret there.
     it('prevents the default on mouse down over the send button but not over the textarea', () => {
         render(<MessageInput value="hi" onChange={jest.fn()} onSend={jest.fn()} />);
 
@@ -83,7 +78,6 @@ describe('MessageInput', () => {
         expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
     });
 
-    // Photos picked in the attach panel go with or without a caption.
     describe('with something besides text to send', () => {
         it('enables send with an empty field and fires onSend with an empty string', () => {
             const onSend = jest.fn();
@@ -112,7 +106,6 @@ describe('MessageInput', () => {
             expect(onSend).not.toHaveBeenCalled();
         });
 
-        // The border is the field's: lit by text, not by photos waiting beside it.
         it('leaves the field’s border idle while nothing is typed', () => {
             const { container, rerender } = render(<MessageInput value="" onChange={jest.fn()} sendReady />);
             expect(container.firstChild).toHaveClass('border-input-border');
@@ -122,7 +115,6 @@ describe('MessageInput', () => {
         });
     });
 
-    // The attach button lives in the pill (Figma 3749:27998) but the input must not learn what it is.
     it('draws a leading slot before the textarea, and nothing when none is given', () => {
         const { rerender } = render(<MessageInput value="" onChange={jest.fn()} />);
         expect(screen.queryByRole('button', { name: 'Attach' })).not.toBeInTheDocument();

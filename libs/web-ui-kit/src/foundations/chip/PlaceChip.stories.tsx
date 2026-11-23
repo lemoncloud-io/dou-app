@@ -19,7 +19,6 @@ const PLACES = [
     { id: 'quiet', name: '조용한 방', unread: 0 },
 ];
 
-/** The home's place row — horizontally scrolling, the current place filled. */
 const Row = () => {
     const [current, setCurrent] = useState('family');
     return (

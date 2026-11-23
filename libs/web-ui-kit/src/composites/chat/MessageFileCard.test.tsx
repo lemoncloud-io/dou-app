@@ -13,7 +13,6 @@ describe('MessageFileCard', () => {
         expect(screen.getByText('2.5 MB')).toBeInTheDocument();
     });
 
-    // Only the body is clamped; the extension sits outside the clamp, so it can never be cut off.
     it('clamps the name body to two lines and leaves the extension out of the clamp', () => {
         render(<MessageFileCard name={`${'very long name '.repeat(10)}.hwp`} />);
 
@@ -60,7 +59,6 @@ describe('MessageFileCard', () => {
             expect(onDownload).toHaveBeenCalledTimes(1);
         });
 
-        // Several cards in a row must not be a list of identical "Download" buttons to a screen reader.
         it('is described by the file it downloads', () => {
             render(<MessageFileCard name="a.pdf" />);
             expect(screen.getByRole('button', { name: 'Download' })).toHaveAccessibleDescription('a.pdf');
@@ -136,7 +134,6 @@ describe('MessageFileCard', () => {
             expect(onDownload).not.toHaveBeenCalled();
         });
 
-        // The drawn name is split in two; the body's name must still read as the one file name.
         it('names the body by the whole file name and its size', () => {
             render(<MessageFileCard name="a.pdf" size={2048} onPress={jest.fn()} />);
             expect(screen.getByRole('button', { name: 'a.pdf 2 KB' })).toBeInTheDocument();
@@ -184,7 +181,6 @@ describe('MessageFileCard', () => {
             expect(onPress).toHaveBeenCalledTimes(1);
         });
 
-        // The server says the upload is unusable: nothing on the card may promise otherwise.
         it('dims a broken file, says it cannot be opened and offers nothing to press', () => {
             const onPress = jest.fn();
             const { container } = render(

@@ -15,7 +15,6 @@ describe('MessageBubble', () => {
         expect(bubble.className).toContain('bg-bubble-mine');
     });
 
-    // Code drawn inside picks its tint from this: a dark tint disappears into my navy bubble.
     it('marks its variant for the content inside to read', () => {
         render(
             <>

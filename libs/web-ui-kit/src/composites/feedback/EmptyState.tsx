@@ -4,20 +4,13 @@ import { IconChevronRight } from '../../resources/icons';
 import { OutlineButton } from '../../foundations/button/OutlineButton';
 
 export interface EmptyStateProps {
-    /** Bold heading. */
     title: string;
-    /** Supporting sentence below the title. */
     description?: string;
-    /** Outline pill action label; renders the button only when paired with onAction. */
     actionLabel?: string;
     onAction?: () => void;
     className?: string;
 }
 
-/**
- * Empty / waiting state — the Figma "Waiting for a friend's response" block: a title, a
- * description, and an optional outline pill action with a trailing chevron.
- */
 export const EmptyState = ({ title, description, actionLabel, onAction, className }: EmptyStateProps) => {
     return (
         <div className={cn('flex w-full flex-col gap-6 px-4 py-2.5', className)}>

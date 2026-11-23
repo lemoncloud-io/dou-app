@@ -28,13 +28,10 @@ const Demo = ({ initial }: { initial: string }) => {
     );
 };
 
-/** Empty — the resting state; focusing darkens the border to `--focus-border`. */
 export const Empty: Story = { render: () => <Demo initial="" /> };
 
-/** Short value, well within the box. */
 export const Filled: Story = { render: () => <Demo initial="가나다라마 abcd 1234 ^^!@" /> };
 
-/** Overflowing value — the box keeps its height and scrolls instead of growing. */
 export const Scrolling: Story = { render: () => <Demo initial={FILLED} /> };
 
 export const ErrorState: Story = {

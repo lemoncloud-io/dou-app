@@ -20,18 +20,14 @@ export default meta;
 
 type Story = StoryObj<typeof SelectableCard>;
 
-/** Hollow grey ring. */
 export const Unchecked: Story = {};
 
-/** Lime ring and dot, with the lime trailing label. */
 export const CheckedWithLabel: Story = { args: { checked: true, trailingLabel: 'Selected' } };
 
-/** 42px leading avatar slot. */
 export const WithLeading: Story = {
     args: { leading: <CloudAvatar name="My Cloud" />, checked: true, trailingLabel: 'Selected' },
 };
 
-/** Dimmed and not tappable. */
 export const Disabled: Story = { args: { disabled: true } };
 
 const MultiPickDemo = () => {
@@ -53,5 +49,4 @@ const MultiPickDemo = () => {
     );
 };
 
-/** A host-owned multi-pick list: each card toggles itself. */
 export const MultiPickList: Story = { render: () => <MultiPickDemo /> };

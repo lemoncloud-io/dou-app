@@ -22,10 +22,8 @@ export default meta;
 
 type Story = StoryObj<typeof MiniAudioPlayer>;
 
-/** Figma 6072:23032. */
 export const Playing: Story = { args: { playing: true } };
 export const Paused: Story = { args: { playing: false } };
-/** A name too long for the bar is cut at the end. */
 export const LongName: Story = {
     args: {
         playing: true,
@@ -34,7 +32,6 @@ export const LongName: Story = {
         duration: 4325,
     },
 };
-/** The host words the line itself. */
 export const CustomSubtitle: Story = { args: { playing: true, subtitle: '나와의 채팅 · 12:03 / 35:47' } };
 
 const RATES = [1, 1.5, 2];

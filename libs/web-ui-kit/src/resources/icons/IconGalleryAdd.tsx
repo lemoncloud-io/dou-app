@@ -1,18 +1,9 @@
 import * as React from 'react';
 
 export interface IconGalleryAddProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Photo frame with a plus badge — Figma "Bold / Video, Audio, Sound / Gallery Add"
- * (node 3739:26046), the empty state of the feedback screen's attach-photo area.
- * Fills with `currentColor`.
- *
- * The artwork's own box is 33.33 units, which Figma insets 8.33% inside a 40px
- * frame; the viewBox keeps that ratio so `size` behaves like every other icon here.
- */
 export const IconGalleryAdd = ({ size = 40, className, ...props }: IconGalleryAddProps) => (
     <svg
         width={size}
@@ -24,12 +15,10 @@ export const IconGalleryAdd = ({ size = 40, className, ...props }: IconGalleryAd
         aria-hidden="true"
         {...props}
     >
-        {/* Frame with the torn-open bottom edge. */}
         <path
             d="M33.3329 17.8297C33.3305 20.2791 33.3118 22.3608 33.1726 24.0691C33.0111 26.0513 32.6801 27.7076 31.9394 29.0833C31.6126 29.6901 31.2111 30.2334 30.7223 30.7223C29.335 32.1096 27.5675 32.738 25.3276 33.0392C23.1392 33.3334 20.3345 33.3334 16.7556 33.3333H16.5777C12.9988 33.3334 10.1941 33.3334 8.00575 33.0392C5.76584 32.738 3.99837 32.1096 2.61106 30.7223C1.38118 29.4924 0.746044 27.9616 0.408296 26.0627C0.076511 24.1973 0.0158174 21.8764 0.00320821 18.9945C3.19948e-07 18.2615 3.19895e-07 17.4862 3.19895e-07 16.6682V16.5777C-1.93128e-05 12.9988 -3.46949e-05 10.1941 0.294181 8.00575C0.595328 5.76584 1.22376 3.99837 2.61106 2.61106C3.99837 1.22376 5.76584 0.595328 8.00575 0.294181C9.95186 0.0325332 12.4558 0.00358253 15.5034 0.000393245C16.1456 -0.000278799 16.6667 0.520597 16.6667 1.16279C16.6667 1.80498 16.1453 2.32533 15.5031 2.32601C12.4125 2.32928 10.1125 2.35744 8.31562 2.59902C6.3336 2.8655 5.13869 3.37231 4.2555 4.2555C3.37231 5.13869 2.8655 6.3336 2.59902 8.31562C2.32805 10.3311 2.32558 12.9795 2.32558 16.6667C2.32558 17.1169 2.32558 17.5524 2.32611 17.974L3.87826 16.6159C5.29108 15.3797 7.42042 15.4506 8.74787 16.7781L15.3986 23.4288C16.4641 24.4943 18.1413 24.6396 19.3741 23.7732L19.8364 23.4482C21.6104 22.2015 24.0106 22.3459 25.6223 23.7965L30.0107 27.746C30.4523 26.8184 30.7146 25.5995 30.8547 23.8802C30.9867 22.2601 31.0049 20.2925 31.0074 17.8298C31.008 17.1876 31.5284 16.6667 32.1705 16.6667C32.8127 16.6667 33.3336 17.1876 33.3329 17.8297Z"
             fill="currentColor"
         />
-        {/* Plus badge, knocked out of its rounded square with `evenodd`. */}
         <path
             fillRule="evenodd"
             clipRule="evenodd"

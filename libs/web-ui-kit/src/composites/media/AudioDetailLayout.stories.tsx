@@ -42,7 +42,6 @@ const Screen = ({
     const [playing, setPlaying] = useState(initialPlaying);
     const [rate, setRate] = useState(initialPlaying ? 1.5 : 1);
 
-    // A fake clock so the playing story moves.
     useEffect(() => {
         if (!playing) return;
         const id = window.setInterval(() => setPosition(p => Math.min(p + rate, DURATION)), 1000);
@@ -81,11 +80,8 @@ const Screen = ({
     );
 };
 
-// Figma 6066:21958 — before play.
 export const BeforePlay: Story = { render: () => <Screen initialPosition={0} initialPlaying={false} /> };
 
-// Figma 6066:22076 — playing, 12:03 of 35:47 at 1.5x.
 export const Playing: Story = { render: () => <Screen initialPosition={723} initialPlaying /> };
 
-// Fetching the file before the first play.
 export const Loading: Story = { render: () => <Screen initialPosition={0} initialPlaying={false} loading /> };

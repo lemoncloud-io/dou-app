@@ -7,25 +7,13 @@ import { cssMatrix, fitPhotoEditPlan } from './editedPhotoLayout';
 import { cropAspectRatio, orientedSize, planPhotoEdit, type EditRect, type PhotoEdit } from './photoEdit';
 import { useBoxSize } from './useBoxSize';
 
-/**
- * Room kept around the photo inside the stage. A handle's touch target reaches half its size past
- * the crop box, so a box dragged to the photo's edge still has its whole handle on the stage.
- */
 const STAGE_INSET_PX = 24;
-/** The smallest the crop box may be dragged, on screen. Below this the handles would cover it. */
 const MIN_CROP_PX = 48;
 
 const WHOLE_FRAME: EditRect = { x: 0, y: 0, width: 1, height: 1 };
 
-/** The visible bracket at a corner and bar at an edge, 3px thick, hugging the box from outside. */
 const HANDLE_MARK = 'pointer-events-none absolute border-white';
 
-/**
- * Each handle's touch target and the mark drawn in it. The targets are 44px across — the smallest a
- * finger reliably hits — centred on the box's edge, so half of each lies outside the box. Edge targets
- * run the length of the edge between the corners; corners are listed last so they sit on top where
- * the two meet on a small box.
- */
 const HANDLES: { handle: Exclude<CropHandle, 'move'>; target: string; mark: string }[] = [
     {
         handle: 'n',
@@ -76,31 +64,17 @@ interface Drag {
     handle: CropHandle;
     x: number;
     y: number;
-    /** The crop as it was when the finger went down: every move is applied to it, not to the last move. */
     start: EditRect;
 }
 
 export interface PhotoCropStageProps {
-    /** A display rendition of the whole upright photo. */
     src: string;
-    /** The original's upright pixel size, the space `edit` is measured in. */
     width: number;
     height: number;
-    /** The draft being edited. */
     edit: PhotoEdit;
     onChange: (edit: PhotoEdit) => void;
 }
 
-/**
- * The crop & rotate tool's stage: the whole photo as it is turned and mirrored, fitted in the stage,
- * with the crop box over it. Outside the box is dimmed and the box carries rule-of-thirds lines. A
- * handle on each corner and edge resizes it, a drag inside moves it, and a box locked to an aspect
- * keeps it while resized. Kit-internal: `PhotoEditor` draws it in crop mode and owns the draft.
- *
- * The press is captured as it lands, as `GridScrubber`'s handle is, and the stage takes no browser
- * pan or pinch: on a dedicated handle there is nothing to tell apart from a tap, and a finger that
- * slides off the box has to keep dragging it.
- */
 export const PhotoCropStage = ({ src, width, height, edit, onChange }: PhotoCropStageProps) => {
     const [stageRef, stage] = useBoxSize<HTMLDivElement>();
     const dragRef = React.useRef<Drag | null>(null);
@@ -121,18 +95,12 @@ export const PhotoCropStage = ({ src, width, height, edit, onChange }: PhotoCrop
         top: (stage.height - displayed.height * scale) / 2,
     };
     const ready = photo.width > 0 && photo.height > 0;
-    // The whole turned and mirrored photo, uncropped: the box is drawn over it instead.
     const whole = planPhotoEdit(source, { ...edit, crop: WHOLE_FRAME }, { maxArea: Infinity });
     const pixelRatio = cropAspectRatio(edit.aspect, displayed);
-    // The drag arithmetic works in the frame's normalised units, where a pixel square on a wide photo
-    // is a tall rectangle.
     const ratio = pixelRatio === null ? null : (pixelRatio * displayed.height) / displayed.width;
     const crop = edit.crop;
 
     const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-        // A second finger is ignored rather than allowed to start a fight over the box. Told by
-        // `isPrimary` rather than by a drag already being held, so a release the stage never saw cannot
-        // leave the box stuck to a finger that is gone.
         if (event.isPrimary === false || !ready) return;
         const target = (event.target as Element).closest?.('[data-crop-handle]') as HTMLElement | null;
         const handle = target?.dataset.cropHandle as CropHandle | undefined;
@@ -200,7 +168,6 @@ export const PhotoCropStage = ({ src, width, height, edit, onChange }: PhotoCrop
                     <div
                         data-crop-box=""
                         data-crop-handle="move"
-                        // The spread shadow dims everything around the box; the stage clips it.
                         className="absolute cursor-move touch-none shadow-[0_0_0_9999px_rgba(0,0,0,0.6)]"
                         style={{
                             left: percent(crop.x),

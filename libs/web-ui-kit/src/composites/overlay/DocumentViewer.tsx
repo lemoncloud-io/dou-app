@@ -16,33 +16,20 @@ import {
 import { MEDIA_VIEWER_FOOTER_TOAST_LIFT } from './MediaViewer';
 import { VIEWER_MOTION } from './viewerShell';
 
-/** A page being drawn. `done` resolves to the page's height over width once it is on the canvas. */
 export interface DocumentPageRender {
     done: Promise<number>;
-    /** Stops the drawing. `done` then rejects. */
     cancel(): void;
 }
 
-/**
- * A document opened for the viewer: how many pages, the shape of the first, and how to draw one. The
- * host owns the renderer (pdf.js, in the app) so this kit never loads one.
- */
 export interface DocumentViewerPages {
     pageCount: number;
-    /** Height over width of the first page: how tall a page is held before its own shape is known. */
     aspectRatio: number;
-    /**
-     * Draws page `page` (1-based) into `canvas`, `cssWidth` pixels wide on screen. Only one drawing
-     * targets a canvas at a time: the viewer cancels the last one and lets it settle first.
-     */
     renderPage(page: number, canvas: HTMLCanvasElement, cssWidth: number): DocumentPageRender;
 }
 
 export interface DocumentViewerLabels {
     close: string;
-    /** The spinner's accessible name while the file is fetched and opened. */
     loading: string;
-    /** Drawn under the placeholder when the file could not be shown. */
     failed: string;
 }
 
@@ -56,40 +43,17 @@ export type DocumentViewerStatus = 'loading' | 'ready' | 'failed';
 
 export interface DocumentViewerProps {
     open: boolean;
-    /** The file's name: the viewer's accessible name and the page list's. Not drawn. */
     name: string;
     status: DocumentViewerStatus;
-    /** The document, once `status` is `ready`. */
     pages?: DocumentViewerPages;
     onClose: () => void;
-    /**
-     * The bar along the bottom edge — the host's share and save, built from `MediaViewerActionButton`
-     * as the media viewer's are. Shown in every status, so a file that will not open can still be
-     * saved or handed to an app that opens it.
-     */
     renderFooter?: () => React.ReactNode;
     labels?: Partial<DocumentViewerLabels>;
 }
 
-/** Pages are drawn no wider than this, however wide the window. */
 const PAGE_MAX_WIDTH = 880;
-/** How far outside the view a page is drawn ahead of the scroll, and kept after it. */
 const NEAR_MARGIN = '150% 0px';
 
-/**
- * A document — a PDF, in the app — read on the phone in the same frame as the photo viewer: black, the
- * position along the top ("3 / 12", here the page most in view), close at the top right, and the
- * host's share and save along the bottom over a gradient. The pages run down one column and scroll;
- * the photo viewer's left-right paging does not suit a document whose pages follow on.
- *
- * Only pages near the view hold a canvas; the rest keep their place and shape, so a long file does
- * not hold every page in memory.
- *
- * Pinching zooms the pages (up to 4×) about the point between the fingers, and a double tap enlarges
- * a fitted page to 2× about the tap — or fits an enlarged one back. While the fingers move only a CSS
- * scale is applied; when they lift the pages are drawn again at the new width, sharp, and the scroll
- * is moved so the same content stays under the fingers. An enlarged document scrolls both ways.
- */
 export const DocumentViewer = ({ open, name, status, pages, onClose, renderFooter, labels }: DocumentViewerProps) => {
     const text = { ...DEFAULT_LABELS, ...labels };
     const [scrollRoot, setScrollRoot] = React.useState<HTMLDivElement | null>(null);
@@ -99,16 +63,13 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
     const ready = status === 'ready' && pages !== undefined && pages.pageCount > 0;
     const [zoom, setZoom] = React.useState(1);
     const sectionRef = React.useRef<HTMLElement>(null);
-    // The pinch under way: where it started and the scale it has reached, applied as a CSS transform.
     const pinchRef = React.useRef<{ distance: number; focal: DocumentPoint; scale: number } | null>(null);
-    // The scroll to set once the pages have been laid out at a new zoom.
     const pendingScroll = React.useRef<DocumentPoint | null>(null);
     const lastTap = React.useRef<DocumentTap | null>(null);
     const tapStart = React.useRef<DocumentPoint | null>(null);
 
     useToastLift(open && renderFooter !== undefined ? MEDIA_VIEWER_FOOTER_TOAST_LIFT : null);
 
-    // The column is as wide as the screen allows, less its side padding, up to a page's limit.
     React.useEffect(() => {
         const scroller = scrollRoot;
         if (!scroller) return;
@@ -122,7 +83,6 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
         return () => observer.disconnect();
     }, [scrollRoot]);
 
-    // The page most in view is the one being read.
     React.useEffect(() => {
         if (!ready || !scrollRoot || typeof IntersectionObserver === 'undefined') return;
         const ratios = new Map<number, number>();
@@ -144,13 +104,11 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
         return () => observer.disconnect();
     }, [ready, scrollRoot, pages, width]);
 
-    // A new document starts at its first page, fitted to the width.
     React.useEffect(() => {
         setCurrent(1);
         setZoom(1);
     }, [pages]);
 
-    // After the pages are laid out at a new zoom, the scroll the zoom asked for.
     React.useLayoutEffect(() => {
         const target = pendingScroll.current;
         if (!target || !scrollRoot) return;
@@ -159,7 +117,6 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
         scrollRoot.scrollTop = target.y;
     }, [zoom, scrollRoot]);
 
-    /** A point of a touch or pointer event in the scroll area's own box. */
     const pointIn = (clientX: number, clientY: number): DocumentPoint => {
         const box = scrollRoot?.getBoundingClientRect();
         return { x: clientX - (box?.left ?? 0), y: clientY - (box?.top ?? 0) };
@@ -185,7 +142,6 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
             section.style.transformOrigin = '';
             return;
         }
-        // The origin is the focal point in the section's own box, so the content under the fingers stays put.
         const originX = (scrollRoot?.scrollLeft ?? 0) + focal.x - section.offsetLeft;
         const originY = (scrollRoot?.scrollTop ?? 0) + focal.y - section.offsetTop;
         section.style.transformOrigin = `${originX}px ${originY}px`;
@@ -213,7 +169,6 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
         if (pinch && event.touches.length === 2) {
             const [a, b] = [event.touches[0], event.touches[1]];
             const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-            // Held within the zoom's range, so the live scale never promises more than the lift gives.
             pinch.scale = clampDocumentZoom((zoom * distance) / pinch.distance) / zoom;
             setLiveScale(pinch.scale, pinch.focal);
             return;
@@ -221,7 +176,6 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
         const start = tapStart.current;
         if (start && event.touches.length === 1) {
             const point = pointIn(event.touches[0].clientX, event.touches[0].clientY);
-            // Moved: a scroll, not a tap.
             if (Math.hypot(point.x - start.x, point.y - start.y) > 10) tapStart.current = null;
         }
     };
@@ -262,11 +216,7 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
                 />
                 <Dialog.Content
                     aria-describedby={undefined}
-                    // The viewer fills the screen, so anything "outside" it is drawn on top of it — a
-                    // toast with a button of its own. Pressing that button must not close the viewer.
                     onInteractOutside={event => event.preventDefault()}
-                    // Focus lands on close rather than the first control in the page order, which is the
-                    // host's share or save: a ring on that reads as if it had been pressed.
                     onOpenAutoFocus={event => {
                         event.preventDefault();
                         closeRef.current?.focus({ preventScroll: true });
@@ -280,8 +230,6 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
                 >
                     <Dialog.Title className="sr-only">{name}</Dialog.Title>
                     <div
-                        // State, not a ref: the pages observe against it, and it exists only once the
-                        // dialog's portal has mounted.
                         ref={setScrollRoot}
                         onTouchStart={onTouchStart}
                         onTouchMove={onTouchMove}
@@ -291,13 +239,11 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
                             tapStart.current = null;
                             setLiveScale(1, null);
                         }}
-                        // A mouse's double click does what a double tap does.
                         onDoubleClick={event =>
                             zoomTo(doubleTapDocumentZoom(zoom), pointIn(event.clientX, event.clientY))
                         }
                         data-zoom={zoom}
                         className={cn(
-                            // The browser pans; the pinch is the viewer's own, about the fingers.
                             'absolute inset-0 touch-pan-x touch-pan-y overflow-auto overscroll-contain',
                             'pt-[calc(var(--safe-top,0px)+56px)]',
                             footer ? 'pb-[calc(var(--safe-bottom,0px)+76px)]' : 'pb-[calc(var(--safe-bottom,0px)+16px)]'
@@ -307,7 +253,6 @@ export const DocumentViewer = ({ open, name, status, pages, onClose, renderFoote
                             <section
                                 ref={sectionRef}
                                 aria-label={name}
-                                // At least the column's width, wider once enlarged: the scroll area then scrolls sideways.
                                 className="flex w-max min-w-full flex-col items-center gap-3 px-4"
                             >
                                 {Array.from({ length: pages.pageCount }, (_, i) => (
@@ -375,20 +320,13 @@ interface DocumentPageProps {
     pages: DocumentViewerPages;
     page: number;
     width: number;
-    /** The scroll area: "near the view" is measured against it. */
     scrollRoot: HTMLElement | null;
 }
 
-/**
- * One page: a white sheet of the page's shape, drawn while it is near the view. The sheet keeps its
- * height whether or not it holds a canvas, so drawing a page never moves the ones around it.
- */
 const DocumentPage = React.memo(function DocumentPage({ pages, page, width, scrollRoot }: DocumentPageProps) {
     const holderRef = React.useRef<HTMLDivElement>(null);
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
-    // The last drawing on this page, settled or not: the next one waits for it (one per canvas).
     const lastRender = React.useRef<Promise<unknown>>(Promise.resolve());
-    // Without an observer (an old engine) every page is drawn.
     const [isNear, setIsNear] = React.useState(() => typeof IntersectionObserver === 'undefined');
     const [aspect, setAspect] = React.useState(pages.aspectRatio);
 
@@ -411,7 +349,6 @@ const DocumentPage = React.memo(function DocumentPage({ pages, page, width, scro
         const drawn = lastRender.current.then(() => {
             if (!isActive) return;
             render = pages.renderPage(page, canvas, width);
-            // A page that fails to draw stays a blank sheet; the others still draw.
             return render.done.then(ratio => isActive && setAspect(ratio)).catch(() => undefined);
         });
         lastRender.current = drawn;

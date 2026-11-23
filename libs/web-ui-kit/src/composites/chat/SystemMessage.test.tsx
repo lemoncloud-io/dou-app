@@ -25,8 +25,6 @@ describe('SystemMessage', () => {
         expect(block?.className).not.toContain('rounded-full');
     });
 
-    // The Figma chat-entry spec (3086:14439) is the reason this component's typography changed; pin
-    // it so a silent revert to the old 16/15px sizing fails here.
     it('uses the Figma entry-notice type scale', () => {
         const { container } = render(<SystemMessage title="title" description="description" />);
         const [title, description] = Array.from(container.querySelectorAll('p'));

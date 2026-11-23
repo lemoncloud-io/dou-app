@@ -2,11 +2,6 @@ import { cn } from '@chatic/ui-kit';
 
 import { IconPlaySolid } from '../../resources/icons';
 
-/**
- * A video's length as a picker shows it: `m:ss`, and `h:mm:ss` from an hour. Rounded down, so a clip
- * of 59.9 seconds reads `0:59` rather than a minute it does not last. Negative or non-finite input is
- * `0:00`.
- */
 export const formatVideoDuration = (durationMs: number): string => {
     const total = Number.isFinite(durationMs) && durationMs > 0 ? Math.floor(durationMs / 1000) : 0;
     const hours = Math.floor(total / 3600);
@@ -16,16 +11,10 @@ export const formatVideoDuration = (durationMs: number): string => {
 };
 
 export interface VideoMarkProps {
-    /** Omitted: the play mark alone, for a video whose length the library did not report. */
     durationMs?: number;
     className?: string;
 }
 
-/**
- * The corner mark that tells a video's poster apart from a photo in the picker: a play triangle and the
- * length. Decorative — the tile's own label says what it is — and it never takes a tap, which belongs
- * to the tile under it.
- */
 export const VideoMark = ({ durationMs, className }: VideoMarkProps) => (
     <span
         aria-hidden

@@ -11,11 +11,6 @@ import {
     SystemNotice,
 } from '@chatic/web-ui-kit';
 
-/**
- * Composed showcase of the chat room screen (group / self cases), assembled from
- * the web-ui-kit chat primitives — the same pieces ChannelRoomPage wires up.
- * Not a shipped component; a visual reference for the design.
- */
 const meta: Meta = {
     title: 'web-ui-kit/composites/ChatScreen (showcase)',
     parameters: { layout: 'fullscreen' },
@@ -38,7 +33,6 @@ const composer = (
     </div>
 );
 
-// Group channel — group-glyph header avatar, numeric unread receipts, floating date chip.
 export const GroupMany: Story = {
     render: () => (
         <Frame>
@@ -94,7 +88,6 @@ export const GroupMany: Story = {
     ),
 };
 
-// 1:1 chat — a single unread receipt (peer hasn't read yet).
 export const DirectUnread: Story = {
     render: () => (
         <Frame>
@@ -131,7 +124,6 @@ export const DirectUnread: Story = {
     ),
 };
 
-// Self chat — person-glyph header avatar, overflow menu present, all mine bubbles, no receipts.
 export const SelfChat: Story = {
     render: () => (
         <Frame>

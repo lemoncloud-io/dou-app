@@ -3,36 +3,17 @@ import { useRef, useState } from 'react';
 import { cn } from '@chatic/ui-kit';
 
 export interface AudioSeekBarProps {
-    /** Seconds played. */
     value: number;
-    /** Seconds long. Unknown (or zero) draws a bar at rest that cannot be dragged. */
     max: number | undefined;
-    /** A position chosen — a tap, a key, or the end of a drag. */
     onSeek: (seconds: number) => void;
-    /**
-     * Called with the position under the finger while a drag is in progress, and with `null` when it
-     * ends, so the host can show the time it would jump to before the jump happens.
-     */
     onScrub?: (seconds: number | null) => void;
-    /** `onDark` on my navy bubble and the mini player, `onLight` everywhere else. */
     tone?: 'onDark' | 'onLight';
     disabled?: boolean;
-    /** The slider's accessible name. */
     label?: string;
-    /** Spoken value, e.g. "12:03 / 35:47". */
     valueText?: string;
     className?: string;
 }
 
-/**
- * An audio position bar — a 3px track, the played part filled, a 12px handle (Figma "재생 바",
- * 6040:20724). One bar for the bubble, the mini player's host, the detail screen and a file list row.
- *
- * A native range input lies over the drawing and takes every gesture, so dragging, tapping and the
- * arrow keys behave as the platform's own slider does. The only state held is the drag in progress:
- * a drag reports where it is (`onScrub`) and seeks once, when it ends, so the audio is not asked to
- * jump on every pixel of a drag.
- */
 export const AudioSeekBar = ({
     value,
     max,
@@ -108,7 +89,6 @@ export const AudioSeekBar = ({
                     }
                     onSeek(seconds);
                 }}
-                // Taller than the drawing so a thumb finds it; invisible, the drawing is the look.
                 className="absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 cursor-pointer appearance-none opacity-0 disabled:cursor-default"
             />
         </div>

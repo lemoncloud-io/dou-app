@@ -1,16 +1,9 @@
 import * as React from 'react';
 
 export interface IconMicrophoneSolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Solid microphone glyph — the "voice" action in the chat attach panel, drawn to sit beside the
- * photos, camera and files glyphs: a filled capsule over its stand, in the same 32×32 frame.
- *
- * Fills with `currentColor` so the tile colours it.
- */
 export const IconMicrophoneSolid = ({ size = 32, className, ...props }: IconMicrophoneSolidProps) => (
     <svg
         width={size}

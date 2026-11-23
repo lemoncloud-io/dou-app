@@ -1,15 +1,9 @@
 import * as React from 'react';
 
 export interface IconChatAddProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (glyph is square). */
     size?: number;
 }
 
-/**
- * Add-channel glyph — chat bubble outline with a plus. Extracted from the Figma
- * "add channel" asset (node 3209:13811) rather than reusing the generic lucide `Plus`.
- * Fills with `currentColor`, so callers set the color via `className`/`color`.
- */
 export const IconChatAdd = ({ size = 18, className, ...props }: IconChatAddProps) => (
     <svg
         width={size}

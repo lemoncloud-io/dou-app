@@ -30,86 +30,40 @@ import { useBoxSize } from './useBoxSize';
 export interface PhotoGridSheetLabels {
     camera: string;
     close: string;
-    /** Accessible name for a grid tile; receives the 1-based position in the grid. */
     photo: (position: number) => string;
-    /** Accessible name for a video's tile; receives the 1-based position in the grid. Default: `photo`. */
     video?: (position: number) => string;
-    /** Accessible name for a picked-strip remove chip; receives the 1-based pick position. */
     remove: (position: number) => string;
-    /** The footer's edit button. */
     edit: string;
-    /** The footer's checkbox: the pick goes as one message rather than one message per item. */
     grouped: string;
-    /** Accessible name for a picked-strip thumbnail, which opens the editor; receives the 1-based pick position. */
     select: (position: number) => string;
-    /** Accessible name of the mark a picked photo that has been edited carries in the strip. */
     edited: string;
 }
 
 export interface PhotoGridSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** The current album's name — the header title that opens the album list. */
     albumTitle: string;
     albumsOpen: boolean;
     onToggleAlbums: () => void;
     albums: PhotoAlbum[];
     onSelectAlbum: (id: string) => void;
     formatAlbumCount?: (count: number) => string;
-    /**
-     * How many photos the current album lays out. The grid is this tall at once, and a position whose
-     * photo has not loaded is drawn as a pulsing skeleton tile.
-     */
     count: number;
-    /** The photo at an index (0 = newest), or undefined while it has not loaded. */
     photoAt: (index: number) => PhotoItem | undefined;
-    /**
-     * The album's first page is on its way. With nothing laid out yet, the grid fills the screen with
-     * skeleton tiles rather than standing empty.
-     */
     loading?: boolean;
-    /**
-     * Picked photos in pick order. Carried whole rather than as ids because a pick can come from
-     * another album than the one on screen, and the strip still has to draw it.
-     */
     picked: PhotoItem[];
     onToggle: (photo: PhotoItem) => void;
-    /** How many may be picked. Unpicked tiles lock once it is reached. */
     max: number;
-    /** Omit to hide the camera tile. */
     onCamera?: () => void;
-    /**
-     * Fired as the grid scrolls, resizes or changes columns: the photos on screen, a few rows either
-     * side included, and the pixel size they are drawn at. The host loads what the range needs.
-     */
     onVisibleRangeChange?: (range: PhotoGridRange) => void;
-    /** Columns, 2–5. Default 3. */
     columns?: number;
-    /** Omit to keep the columns fixed; with it, a pinch on the grid steps them. */
     onColumnsChange?: (columns: number) => void;
-    /** The send button label, already carrying the count (e.g. "3장 보내기"). */
     sendLabel: string;
     onSend: () => void;
-    /**
-     * The host is still reading the pick — a video copied out of iCloud can take minutes. The send
-     * button greys out with whatever `sendLabel` says meanwhile (a spinner alone would not say what is
-     * going on) and takes no second tap; the sheet stays, so the screen is never empty while the
-     * message is on its way to existing.
-     */
     sending?: boolean;
-    /** A row above the grid — the host's "only some photos are shared" notice on a limited library. */
     notice?: React.ReactNode;
-    /**
-     * Omit to hide the Edit button. Called with no id from the footer button, with an id from a strip
-     * tap — the host opens its editor on the first picked item or on that one.
-     */
     onEdit?: (id?: string) => void;
-    /** Greys the Edit button — nothing picked can be edited (only videos/GIFs). */
     editDisabled?: boolean;
-    /**
-     * Whether the pick goes as one message (checked) or one message per item. Omit `onGroupedChange`
-     * to hide the checkbox. Shown only when picked.length >= 2: one item is one message either way.
-     */
     grouped?: boolean;
     onGroupedChange?: (grouped: boolean) => void;
     labels?: Partial<PhotoGridSheetLabels>;
@@ -126,12 +80,10 @@ const DEFAULT_LABELS: PhotoGridSheetLabels = {
     edited: 'Edited',
 };
 
-/** What the grid measured of its scroller: the box, how far it has scrolled, and where the grid starts. */
 interface Viewport {
     width: number;
     height: number;
     scrollTop: number;
-    /** How far down the scrolled content the grid begins — the notice's height, when there is one. */
     offsetTop: number;
 }
 
@@ -146,22 +98,14 @@ interface PickFooterProps {
     sendLabel: string;
     onSend: () => void;
     sending: boolean;
-    /** Absent: no edit button. */
     onEdit?: () => void;
     editDisabled: boolean;
     editLabel: string;
-    /** Absent: no checkbox. */
     onGroupedChange?: (grouped: boolean) => void;
     grouped: boolean;
     groupedLabel: string;
 }
 
-/**
- * The send button with a row above it: the edit button on the left, the "one message" checkbox on the
- * right. One panel holds both, so the row sits on the button's surface rather than under its upward
- * shadow. While the pick is being read neither control takes a tap: what they would change is already
- * on its way.
- */
 const PickFooter = ({
     sendLabel,
     onSend,
@@ -208,8 +152,6 @@ const PickFooter = ({
                 onClick={onSend}
                 disabled={sending}
                 aria-busy={sending}
-                // The surface and its shadow are the panel's; the button's own would draw a second edge
-                // between the row and the button.
                 wrapperClassName="rounded-none pt-3 shadow-none"
             />
         </div>
@@ -217,29 +159,13 @@ const PickFooter = ({
 };
 
 interface SlidingFooterProps {
-    /** The footer to show, or nothing while there is none to show. */
     children?: React.ReactNode;
-    /** The footer's height while it is up, and 0 from the moment it starts down — what the grid keeps clear. */
     onInsetChange: (px: number) => void;
 }
 
-/**
- * Carries the grid's footer up from below the sheet's bottom edge when there comes to be one, and back
- * down when there stops being one (the last item unpicked, the album list opened). Already due when
- * the sheet opens, it rises with the sheet instead.
- *
- * It lies over the grid's bottom edge rather than taking room from it — a wrapper with no height, the
- * footer hung from its bottom — so the photos stay put while it slides over them, where taking the room
- * would cut the grid short first and slide the footer into the gap. The grid keeps its last row
- * reachable with a spacer of the height this reports.
- *
- * The snackbar is lifted by the whole footer, row included — the send button's own lift would leave a
- * toast on the row — for as long as any of it is on screen.
- */
 const SlidingFooter = ({ children, onInsetChange }: SlidingFooterProps) => {
     const visible = children !== undefined && children !== null && children !== false;
     const { mounted, shown, ref, onTransitionEnd } = useSlidePresence<HTMLDivElement>(visible);
-    // On its way down it keeps drawing what it last showed: the host's label would by then count zero.
     const last = React.useRef<React.ReactNode>(children);
     if (visible) last.current = children;
 
@@ -257,7 +183,6 @@ const SlidingFooter = ({ children, onInsetChange }: SlidingFooterProps) => {
     const insetRef = React.useRef(onInsetChange);
     insetRef.current = onInsetChange;
     React.useLayoutEffect(() => insetRef.current(inset), [inset]);
-    // The sheet unmounts its content on close; the grid must not keep a spacer for a footer that is gone.
     React.useLayoutEffect(() => () => insetRef.current(0), []);
 
     if (!mounted) return null;
@@ -272,7 +197,6 @@ const SlidingFooter = ({ children, onInsetChange }: SlidingFooterProps) => {
                 className={cn(
                     'absolute inset-x-0 bottom-0',
                     SLIDE_MOTION,
-                    // Below the sheet's safe-area padding too, which would otherwise show the footer's top.
                     shown ? 'translate-y-0' : 'translate-y-[calc(100%+var(--safe-bottom,0px))]'
                 )}
             >
@@ -282,31 +206,6 @@ const SlidingFooter = ({ children, onInsetChange }: SlidingFooterProps) => {
     );
 };
 
-/**
- * The in-app photo picker (Figma `3749:29014` · `3767:30962` · `3767:32042`): a tall sheet whose title
- * names the album and opens the album list, the picked photos in a strip, a grid led by a camera tile,
- * and a send button that slides up over the grid's bottom once something is picked and back down when
- * the last pick is undone — at once, for someone who asked for less motion.
- *
- * The title row and the picked strip stay put; only the grid (with the notice above it) scrolls, in a
- * container of its own — the sheet is told which, so swipe-to-dismiss still arms only at its top. The
- * album list scrolls under the same fixed title. The strip opens when the first photo is picked and
- * closes when the last is undone, and the grid's top moves with it rather than jumping.
- *
- * The grid is virtual. It is laid out at its full height from `count`, and only the rows on screen
- * (a few either side) are rendered; what it shows is reported through `onVisibleRangeChange`, and the
- * host fills it. A long grid gets a fast-scroll handle on its right edge. A pinch steps the columns
- * between two and five, keeping the photo under the fingers where it was.
- *
- * Above the send button the host may add a row: an Edit button (`onEdit`), which also makes the
- * picked strip's thumbnails open the editor on themselves, and a checkbox choosing whether two or
- * more items go as one message (`grouped`). Like the send button, the row is not shown over the
- * album list.
- *
- * Stateless. What is picked, which album is showing, what has loaded, how many columns there are and
- * whether the pick goes as one message belong to the host — the host also owns reading the library,
- * which this component never touches.
- */
 export const PhotoGridSheet = ({
     open,
     onOpenChange,
@@ -337,17 +236,12 @@ export const PhotoGridSheet = ({
     labels,
 }: PhotoGridSheetProps) => {
     const text = { ...DEFAULT_LABELS, ...labels };
-    // One item goes as one message either way, so the choice is only offered from two.
     const showGrouped = onGroupedChange !== undefined && picked.length >= 2;
     const order = React.useMemo(() => new Map(picked.map((photo, index) => [photo.id, index + 1])), [picked]);
     const full = picked.length >= max;
     const columnCount = clampColumns(columns ?? DEFAULT_COLUMNS);
     const cameraCells = onCamera ? 1 : 0;
 
-    // State, not refs: the sheet mounts its content into a portal a commit after this component
-    // renders, so a ref read in an effect is still empty on the first pass — and with nothing else
-    // changing, the listeners would never be attached. Holding the nodes in state re-runs the effects
-    // the moment they exist. The ref is for the sheet, which reads it during a gesture.
     const scrollRef = React.useRef<HTMLDivElement | null>(null);
     const [scroller, setScroller] = React.useState<HTMLDivElement | null>(null);
     const attachScroller = React.useCallback((node: HTMLDivElement | null) => {
@@ -355,12 +249,9 @@ export const PhotoGridSheet = ({
         setScroller(node);
     }, []);
     const [grid, setGrid] = React.useState<HTMLDivElement | null>(null);
-    // How much of the grid's bottom the footer covers, as the footer reports it.
     const [footerInset, setFooterInset] = React.useState(0);
 
     const [viewport, setViewport] = React.useState<Viewport>(EMPTY_VIEWPORT);
-    // While the first page is out there is nothing to lay out: enough skeleton tiles to fill the screen
-    // stand in for it, and give way to the album's own layout the moment it answers.
     const skeletonCount =
         loading && count === 0 && viewport.width > 0
             ? Math.max(
@@ -389,12 +280,9 @@ export const PhotoGridSheet = ({
         setViewport(previous => (sameViewport(previous, next) ? previous : next));
     }, [scroller, grid]);
 
-    // `!!notice`, not the node: a host passes a fresh element on every render, and each would force a
-    // layout read. The notice's own height changes reach `measure` through the ResizeObserver below.
     const hasNotice = !!notice;
     React.useLayoutEffect(measure, [measure, hasNotice, picked.length, albumsOpen]);
 
-    // Scrolling re-measures once a frame: a fling fires scroll events faster than they can be drawn.
     React.useEffect(() => {
         if (!scroller) return;
         let frame = 0;
@@ -426,7 +314,6 @@ export const PhotoGridSheet = ({
               cells,
           })
         : { start: 0, end: 0 };
-    // Skeleton tiles stand for no photo: the range stops at the album's real end.
     const rangeStart = Math.min(count, Math.max(0, shown.start - cameraCells));
     const rangeEnd = Math.min(count, Math.max(rangeStart, shown.end - cameraCells));
     const thumbSize = measured ? thumbPixelSize(metrics.tile, window.devicePixelRatio || 1) : undefined;
@@ -438,8 +325,6 @@ export const PhotoGridSheet = ({
         rangeChangeRef.current?.({ start: rangeStart, end: rangeEnd, thumbSize });
     }, [open, albumsOpen, rangeStart, rangeEnd, thumbSize]);
 
-    // --- Pinch to change columns ---
-
     const metricsRef = React.useRef<GridMetrics>(metrics);
     metricsRef.current = metrics;
     const cellsRef = React.useRef(cells);
@@ -448,7 +333,6 @@ export const PhotoGridSheet = ({
     columnsRef.current = columnCount;
     const columnsChangeRef = React.useRef(onColumnsChange);
     columnsChangeRef.current = onColumnsChange;
-    /** The scroll a column change has to land on, applied once the new layout is in the DOM. */
     const pendingScroll = React.useRef<number | null>(null);
     const pinching = React.useRef(false);
 
@@ -470,14 +354,11 @@ export const PhotoGridSheet = ({
             if (startDistance <= 0) return;
             pinch = { startDistance, startColumns: columnsRef.current, current: columnsRef.current };
             pinching.current = true;
-            // Non-passive only while a pinch is on: a non-passive touchmove makes every scroll wait for
-            // the main thread, which is busy laying pages in.
             scroller.addEventListener('touchmove', onTouchMove, { passive: false });
         };
 
         const onTouchMove = (event: TouchEvent) => {
             if (!pinch || event.touches.length !== 2) return;
-            // Not a scroll and not a page zoom: the grid's own gesture.
             event.preventDefault();
             const [a, b] = [event.touches[0], event.touches[1]];
             const next = pinchColumns(pinch.startColumns, distance(a, b) / pinch.startDistance);
@@ -504,8 +385,6 @@ export const PhotoGridSheet = ({
             scroller.removeEventListener('touchmove', onTouchMove);
         };
 
-        // iOS WebKit's own pinch gesture. The page's viewport already disallows zoom; this keeps a
-        // WebView that ignores that from scaling the page under the grid's gesture.
         const onGesture = (event: Event) => event.preventDefault();
 
         scroller.addEventListener('touchstart', onTouchStart, { passive: true });
@@ -523,17 +402,12 @@ export const PhotoGridSheet = ({
         };
     }, [scroller, grid, albumsOpen]);
 
-    // A second finger, and every move while a pinch is on, stay away from the sheet's drag. Judged by
-    // `isPrimary` rather than by counting pointers: once the sheet captures a drag, the release goes to
-    // the sheet and never reaches here, and a count would be left one up for good.
     const guardPointerDown = (event: React.PointerEvent) => {
         if (!event.isPrimary) event.stopPropagation();
     };
     const guardPointerMove = (event: React.PointerEvent) => {
         if (pinching.current || !event.isPrimary) event.stopPropagation();
     };
-
-    // --- Tiles ---
 
     const tiles: React.ReactNode[] = [];
     for (let cell = shown.start; cell < shown.end; cell += 1) {
@@ -556,9 +430,6 @@ export const PhotoGridSheet = ({
         }
         const index = cell - cameraCells;
         const photo = index < count ? photoAt(index) : undefined;
-        // Keyed by position and photo: a tile keeps its element while its photo's preview changes size
-        // (a sharper copy after a pinch), and a different photo at that position — the library changed —
-        // gets a fresh one, with its own skeleton.
         tiles.push(
             photo ? (
                 <div key={`${cell}:${photo.id}`} className="absolute" style={style}>
@@ -592,7 +463,6 @@ export const PhotoGridSheet = ({
             title={albumTitle}
             hideHeader
             scrollRef={scrollRef}
-            // The upward shadow is the design's (Figma 3767:31025): on a white page the sheet has no other edge.
             className="h-[calc(90vh-var(--keyboard-height,0px))] rounded-t-[20px] shadow-[0_-2px_6px_rgba(0,0,0,0.12)]"
             footer={
                 <SlidingFooter onInsetChange={setFooterInset}>
@@ -646,8 +516,6 @@ export const PhotoGridSheet = ({
                     </div>
                 ) : (
                     <>
-                        {/* Always drawn, empty or not: it opens and closes itself, pushing the grid down
-                            and letting it back up, which it cannot do from outside a condition. */}
                         <SelectedPhotoStrip
                             photos={picked}
                             onRemove={id => {
@@ -665,7 +533,6 @@ export const PhotoGridSheet = ({
                                 data-testid="photo-grid-scroller"
                                 onPointerDown={guardPointerDown}
                                 onPointerMove={guardPointerMove}
-                                // pan-y: the browser scrolls, and a pinch is left to the grid.
                                 className="relative h-full touch-pan-y overflow-y-auto overscroll-contain"
                             >
                                 {notice && <div>{notice}</div>}
@@ -678,7 +545,6 @@ export const PhotoGridSheet = ({
                                 >
                                     {tiles}
                                 </div>
-                                {/* The footer lies over the grid's bottom; this is what scrolls the last row clear of it. */}
                                 {footerInset > 0 && (
                                     <div
                                         aria-hidden

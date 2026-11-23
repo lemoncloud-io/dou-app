@@ -1,26 +1,9 @@
 import * as React from 'react';
 
 export interface IconImageSolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Solid picture-placeholder avatar — a filled disc with a sun-and-ridge photo
- * motif knocked out of it, so whatever surface sits behind shows through the
- * motif. Extracted from the Figma place-thumbnail placeholder (node 3073:10971)
- * rather than reusing the lucide outline `Image`, so the invite place card matches
- * the design exactly. Fills with `currentColor`.
- *
- * Unlike most icons here this glyph *includes* its own disc, so callers render it
- * alone rather than inside a coloured circle wrapper.
- *
- * The same shape already ships as the fixed-colour asset
- * `resources/assets/default-place-avatar.svg` (86px, `#102346` baked in) which
- * `CreatePlaceDialog` uses as an upload default. That one cannot take
- * `currentColor` and so cannot follow the theme; this component exists for
- * surfaces that need it themeable.
- */
 export const IconImageSolid = ({ size = 40, className, ...props }: IconImageSolidProps) => (
     <svg
         width={size}
@@ -36,7 +19,6 @@ export const IconImageSolid = ({ size = 40, className, ...props }: IconImageSoli
             d="M29.3023 14.4186C29.3023 16.4736 27.6364 18.1395 25.5814 18.1395C23.5264 18.1395 21.8605 16.4736 21.8605 14.4186C21.8605 12.3636 23.5264 10.6977 25.5814 10.6977C27.6364 10.6977 29.3023 12.3636 29.3023 14.4186Z"
             fill="currentColor"
         />
-        {/* Disc + ridge in one `evenodd` path: the second subpath is the knocked-out area. */}
         <path
             fillRule="evenodd"
             clipRule="evenodd"

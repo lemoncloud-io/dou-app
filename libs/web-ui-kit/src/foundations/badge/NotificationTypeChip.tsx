@@ -5,9 +5,7 @@ import { IconAtSign, IconThreadChip } from '../../resources/icons';
 export type NotificationTypeChipVariant = 'mention' | 'thread';
 
 export interface NotificationTypeChipProps {
-    /** `mention` — the orange @ chip; `thread` — the blue bubble chip. */
     variant: NotificationTypeChipVariant;
-    /** Chip text (e.g. a localized "Mention" / "Thread"). */
     label: string;
     className?: string;
 }
@@ -17,11 +15,6 @@ const TONE: Record<NotificationTypeChipVariant, string> = {
     thread: 'text-point-blue',
 };
 
-/**
- * Notification type chip — the small outlined tag that opens a notification row's location line
- * (Figma "유형 칩" in the notification row 6023:19308): an orange @ for a mention, a blue bubble for
- * a thread reply. Reactions and new 1:1 messages carry no chip.
- */
 export const NotificationTypeChip = ({ variant, label, className }: NotificationTypeChipProps) => (
     <span
         className={cn(

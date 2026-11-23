@@ -1,23 +1,11 @@
 import { cn } from '@chatic/ui-kit';
 
 export interface FloatingDateChipProps {
-    /** Preformatted short date label (e.g. "7. 01 Mon"). */
     label: string;
-    /**
-     * Whether the chip is shown. Toggling fades it in/out; when hidden it also
-     * stops catching pointer events. Defaults to `true`.
-     */
     visible?: boolean;
     className?: string;
 }
 
-/**
- * Floating date chip — the Figma scroll-time date pill (node 3188:24204): a
- * frosted, semi-transparent pill that surfaces the date of the group currently
- * pinned to the top of the message list while scrolling, then fades out.
- * Purely presentational; the host owns the label, the visibility, and the
- * fade-out timer.
- */
 export const FloatingDateChip = ({ label, visible = true, className }: FloatingDateChipProps) => (
     <div
         aria-hidden={!visible}

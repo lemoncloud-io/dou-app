@@ -10,7 +10,6 @@ export default meta;
 
 type Story = StoryObj<typeof ActivityCountBadge>;
 
-/** A row with a mention and two thread replies waiting. */
 export const Both: Story = {
     render: () => (
         <div className="flex gap-1">

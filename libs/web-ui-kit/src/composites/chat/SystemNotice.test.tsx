@@ -22,8 +22,6 @@ describe('SystemNotice', () => {
         expect(pill?.className).toContain('bg-brand-ink/5');
     });
 
-    // A 1:1 losing its only other participant is not a neutral event, so that notice drops the
-    // tint and reddens instead (Figma 4041-33606).
     it('drops the tint and reddens in the alert tone', () => {
         const { container } = render(<SystemNotice tone="alert">x</SystemNotice>);
         const pill = container.querySelector('span');

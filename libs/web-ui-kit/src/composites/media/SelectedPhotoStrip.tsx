@@ -15,54 +15,24 @@ import { EditedPhotoImage } from './EditedPhotoImage';
 import type { PhotoItem } from './types';
 import { VideoMark } from './VideoMark';
 
-/**
- * `regular` is the photo grid's strip. `compact` is the row a chat composer keeps above its field
- * while photos wait there: smaller tiles, tighter spacing, on a soft surface of its own that hugs them.
- */
 export type SelectedPhotoStripSize = 'regular' | 'compact';
 
 export interface SelectedPhotoStripProps {
-    /** Picked photos, in pick order. */
     photos: PhotoItem[];
     onRemove: (id: string) => void;
-    /** Accessible name for a remove button; receives the 1-based position. */
     removeLabel?: (position: number) => string;
-    /** Omit to leave the thumbnails untappable. With it, a tap on one hands its id to the host. */
     onSelect?: (id: string) => void;
-    /** Accessible name for a tappable thumbnail; receives the 1-based position. */
     selectLabel?: (position: number) => string;
-    /** Accessible name of the mark an edited photo carries. */
     editedLabel?: string;
-    /**
-     * Names the row, which then reads as a group. Worth giving where nothing around the row says
-     * what it is — above a composer, rather than under the grid's own title.
-     */
     label?: string;
-    /** Defaults to `regular`. */
     size?: SelectedPhotoStripSize;
-    /**
-     * Called once the strip has finished closing after its last photo left — for a host that keeps
-     * something of its own around it until then.
-     */
     onExited?: () => void;
-    /**
-     * On the row's surface, inside the part that opens and closes. Space the host wants between the
-     * row and what follows it belongs here, as a margin: it then opens and closes with the row, where
-     * the same space on a wrapper would stay behind when the row has gone.
-     */
     className?: string;
 }
 
-/**
- * What differs between the two sizes. Everything else — order, marks, the two buttons, the motion — is
- * shared. The pixel values are the ones the motion is computed from: a tile's width and the space before
- * it are animated as numbers, and the end padding is what scrolling a new tile into view leaves after it.
- */
 const SIZES = {
     regular: {
         root: 'w-full p-3',
-        // Room on the top and right for the remove chip, which hangs off each tile's corner: the
-        // scroller clips whatever leaves its box.
         row: 'py-3 pr-2',
         endPx: 8,
         tile: 'size-16',
@@ -75,18 +45,12 @@ const SIZES = {
         video: 'bottom-1 left-1 pr-1',
     },
     compact: {
-        // A composer has no surface — the message list scrolls on behind it — so the row brings one,
-        // in the field's own glass: without it the thumbnails run into a photo message passing under
-        // them. White on the room's white, it shows only when something is behind it. Its padding and
-        // the row's together leave 6px beside and below the tiles and 8px above, where the chips hang.
         root: 'w-fit max-w-full rounded-2xl bg-white/80 pb-1.5 pl-1.5 pr-px pt-[3px] backdrop-blur-[4px] dark:bg-black/80',
         row: 'pr-[5px] pt-[5px]',
         endPx: 5,
         tile: 'size-12',
         tilePx: 48,
         gapPx: 8,
-        // The chip is drawn small, and its target reaches past it: 18px is too little to hit with a
-        // thumb, and the corner it grows into is the thumbnail's least useful part.
         chip: "-right-[5px] -top-[5px] p-[3px] after:absolute after:-inset-1.5 after:content-['']",
         chipIcon: 'size-3',
         edited: 'bottom-0.5 left-0.5 size-4',
@@ -97,11 +61,6 @@ const SIZES = {
 
 type Look = (typeof SIZES)[SelectedPhotoStripSize];
 
-/**
- * Where a drawn tile is in its life. `enter`: just added, drawn at no width for one commit so that
- * widening it is a transition. `in`: in its place. `leave`: removed by the host, closing its space where
- * it stood until that has played out.
- */
 type Phase = 'enter' | 'in' | 'leave';
 
 interface Entry {
@@ -113,19 +72,12 @@ const settledEntries = (photos: PhotoItem[]): Entry[] => photos.map(photo => ({ 
 
 const samePhotos = (a: PhotoItem[], b: PhotoItem[]) => a.length === b.length && a.every((photo, i) => photo === b[i]);
 
-/**
- * The tiles to draw for a new pick list: the host's photos in its order, with each removed one kept
- * where it stood, leaving, unless `keepLeaving` is off. A photo picked again while it was leaving comes
- * back where the host now puts it. A new one always starts at `enter`, even where nothing will animate:
- * it is also how the row knows what to scroll into view.
- */
 const reconcile = (previous: Entry[], photos: PhotoItem[], keepLeaving: boolean): Entry[] => {
     const wanted = new Set(photos.map(photo => photo.id));
     const before = new Map(previous.map(entry => [entry.photo.id, entry.phase]));
     const next: Entry[] = [];
     const placed = new Set<string>();
     let cursor = 0;
-    // Lays out the host's photos up to and including `id` (all of them without one).
     const placeThrough = (id?: string) => {
         while (cursor < photos.length) {
             const photo = photos[cursor];
@@ -149,10 +101,6 @@ const reconcile = (previous: Entry[], photos: PhotoItem[], keepLeaving: boolean)
     return next;
 };
 
-/**
- * Where the newly added tiles will sit once everything has settled, in the row's content coordinates —
- * not where they are drawn now, which is at no width. `null` when nothing was added.
- */
 const enteringSpan = (entries: Entry[], look: Look): { left: number; right: number } | null => {
     let x = 0;
     let first = true;
@@ -171,25 +119,6 @@ const enteringSpan = (entries: Entry[], look: Look): { left: number; right: numb
     return right < 0 ? null : { left, right };
 };
 
-/**
- * The picked photos in pick order, each with a remove chip on its corner — above the grid (Figma
- * `3767:31297`, 64px thumbnails), and, `compact`, above a chat composer while the photos wait there
- * for its send button (48px). Removing here is the same as un-picking in the grid. A picked video
- * keeps its play mark, without its length, which a tile this small has no room for.
- *
- * With `onSelect` a thumbnail is a button of its own — the photo editor opens on it — and the remove
- * chip stays a separate button beside it rather than inside it, so each is reachable on its own. A
- * photo carrying an edit (`edited`) is drawn as edited, cropped to the square, with a small pencil mark
- * so a crop that happens to look natural is still told apart from the original.
- *
- * It moves rather than jumps, on the slide's timing. The host keeps it mounted whether or not anything
- * is picked. When the first photo is picked it opens from no height to its own, its content rising a
- * little and fading in, so whatever sits under it is pushed down along with it; when the last one goes
- * it closes the same way, still showing that photo, and draws nothing once closed. A photo picked
- * while it is open widens into the row from nothing, and the row scrolls along to keep it in view; a
- * photo removed narrows to nothing where it stood while the ones after it slide over. Open with photos
- * on its first render, it is simply there. Under reduced motion all of it is instant.
- */
 export const SelectedPhotoStrip = ({
     photos,
     onRemove,
@@ -206,22 +135,15 @@ export const SelectedPhotoStrip = ({
     const look = SIZES[size];
     const open = photos.length > 0;
 
-    // The tiles drawn, kept in step with `photos` during render rather than in an effect, so a commit
-    // never draws the new list without the tiles that are leaving it.
     const [tracked, setTracked] = React.useState(() => ({ photos, entries: settledEntries(photos) }));
     let entries = tracked.entries;
     if (tracked.photos !== photos && !samePhotos(tracked.photos, photos)) {
-        // Emptied, it keeps drawing what it last showed while it closes; opened again, it starts
-        // from the host's list as it stands, since the opening is the motion.
         if (photos.length === 0) entries = tracked.entries;
         else if (tracked.photos.length === 0) entries = settledEntries(photos);
         else entries = reconcile(tracked.entries, photos, !prefersReducedMotion());
         setTracked({ photos, entries });
     }
 
-    // The height it opens to. Measured on an inner wrapper that is never squeezed, once when that
-    // wrapper mounts — which is ahead of the opening, since a ref is attached before the layout effect
-    // that starts the move — and again only if its own size changes.
     const [natural, setNatural] = React.useState<number | null>(null);
     const measure = React.useCallback((node: HTMLDivElement | null) => {
         if (!node) return undefined;
@@ -248,13 +170,10 @@ export const SelectedPhotoStrip = ({
     }, []);
     React.useEffect(() => stopScroll, [stopScroll]);
 
-    // A tile just added is drawn once at no width; this lays that out, then lets it widen, and scrolls
-    // the row so it will be in view once it has.
     React.useLayoutEffect(() => {
         const span = enteringSpan(entries, look);
         if (!span) return;
         const scroller = scrollerRef.current;
-        // Reading layout commits the no-width tile as the style its widening starts from.
         scroller?.getBoundingClientRect();
         setTracked(current => ({
             ...current,
@@ -272,10 +191,6 @@ export const SelectedPhotoStrip = ({
             scroller.scrollLeft = to;
             return;
         }
-        // Frame by frame on the slide's own curve, not `scrollTo({ behavior: 'smooth' })`: a smooth
-        // scroll is clamped to the width the row has when it starts, before the new tile has grown
-        // into it, and would stop short. Each frame's position is clamped to that frame's width, so the
-        // row keeps pace with the tile as it widens.
         let start: number | null = null;
         const step = (now: number) => {
             start ??= now;
@@ -294,8 +209,6 @@ export const SelectedPhotoStrip = ({
             return kept.length === current.entries.length ? current : { ...current, entries: kept };
         });
     }, []);
-    // A tile leaves when its narrowing ends; this is for when that end is never reported (a hidden tab).
-    // Keyed on which tiles are leaving, so it counts from the latest one to start.
     const leavingIds = entries
         .filter(entry => entry.phase === 'leave')
         .map(entry => entry.photo.id)
@@ -308,7 +221,6 @@ export const SelectedPhotoStrip = ({
 
     if (!mounted) return null;
 
-    // Positions count only the tiles staying, so the labels read 1…n while one is on its way out.
     let position = 0;
     let anyBefore = false;
     return (
@@ -316,18 +228,15 @@ export const SelectedPhotoStrip = ({
             ref={ref}
             data-picked-strip=""
             data-shown={shown}
-            // On its way out it takes no tap, no focus and no reading: what it shows is already gone.
             inert={!open}
             aria-hidden={!open || undefined}
             onTransitionEnd={onTransitionEnd}
-            // Unmeasured, it takes its own height: the first draw of a strip that mounts open.
             style={{ height: shown ? (natural ?? undefined) : 0 }}
             className={cn(
                 'shrink-0 overflow-hidden',
                 instant ? 'transition-none' : cn('transition-[height]', SLIDE_TIMING)
             )}
         >
-            {/* A block formatting context, so a margin the host gives the row is inside what is measured. */}
             <div
                 ref={measure}
                 className={cn(
@@ -344,7 +253,6 @@ export const SelectedPhotoStrip = ({
                 >
                     <div
                         ref={scrollerRef}
-                        // The person took over: a scroll still moving toward a new tile stops where it is.
                         onPointerDown={stopScroll}
                         onWheel={stopScroll}
                         className={cn('flex overflow-x-auto [scrollbar-width:none]', look.row)}
@@ -385,9 +293,6 @@ export const SelectedPhotoStrip = ({
                                             )}
                                         >
                                             <IconEdit className={cn('text-white', look.editedIcon)} aria-hidden />
-                                            {/* Text rather than a label on the glyph: it is what a thumbnail
-                                                button's description points at, and plain text is read the
-                                                same way everywhere. */}
                                             <span id={markId} className="sr-only">
                                                 {editedLabel}
                                             </span>
@@ -403,16 +308,11 @@ export const SelectedPhotoStrip = ({
                                     data-phase={phase}
                                     inert={!staying}
                                     aria-hidden={!staying || undefined}
-                                    // The slot, not the tile, changes width: the space before it goes with it,
-                                    // so the next tile slides over by exactly what this one took. The gap is a
-                                    // margin of each slot rather than the row's own, which a slot of no width
-                                    // would still be flanked by.
                                     style={{
                                         width: placed ? look.tilePx : 0,
                                         marginLeft: placed && spaced ? look.gapPx : 0,
                                     }}
                                     onTransitionEnd={event => {
-                                        // Its own narrowing, not the tile's fade inside it.
                                         const ownWidth =
                                             event.target === event.currentTarget && event.propertyName === 'width';
                                         if (ownWidth && phase === 'leave') purgeLeaving(photo.id);
@@ -422,8 +322,6 @@ export const SelectedPhotoStrip = ({
                                         instant ? 'transition-none' : cn('transition-[width,margin-left]', SLIDE_TIMING)
                                     )}
                                 >
-                                    {/* The tile keeps its size and overflows its narrowing slot, shrinking
-                                        and fading while the next one slides over it. */}
                                     <div
                                         data-picked-tile=""
                                         className={cn(

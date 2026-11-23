@@ -11,33 +11,20 @@ import {
 import { cn } from '@chatic/ui-kit';
 
 export interface AlertDialogProps {
-    /** Controls visibility. */
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** Bold centered title. */
     title: React.ReactNode;
-    /** Optional supporting message below the title. */
     description?: React.ReactNode;
-    /** Left (dismiss) button label. Omit for a single full-width confirm button. */
     cancelLabel?: string;
-    /** Right (confirm) button label. */
     confirmLabel: string;
     onConfirm: () => void;
     onCancel?: () => void;
-    /** Renders the confirm action in the destructive (red) color. */
     destructive?: boolean;
 }
 
 const ACTION =
     'flex h-[52px] flex-1 items-center justify-center border-t border-input-border px-2 text-[16px] font-semibold leading-[1.5] tracking-[-0.08px] transition-colors';
 
-/**
- * Centered confirmation dialog — the Figma "dialogue" design system: a compact
- * card with a title, optional description, and a two-up split action row
- * (dismiss / confirm). Built on the shared Radix AlertDialog primitives; the
- * confirm action can be styled destructive. Focus/escape/overlay are handled by
- * the primitive.
- */
 export const AlertDialog = ({
     open,
     onOpenChange,
@@ -49,7 +36,6 @@ export const AlertDialog = ({
     onCancel,
     destructive = false,
 }: AlertDialogProps) => {
-    // No cancel label → a single full-width confirm button (the Figma one-action dialog).
     const hasCancel = cancelLabel !== undefined;
     const handleCancel = () => {
         onCancel?.();
@@ -69,8 +55,6 @@ export const AlertDialog = ({
                         <AlertDialogTitle className="text-[18px] font-semibold leading-[1.5] text-foreground">
                             {title}
                         </AlertDialogTitle>
-                        {/* pre-line: the Figma dialogs hard-wrap their copy, so `\n` in a
-                            translation is a deliberate line break, not incidental whitespace. */}
                         {description && (
                             <AlertDialogDescription className="whitespace-pre-line text-[16px] font-medium leading-[1.45] tracking-[-0.08px] text-description">
                                 {description}
@@ -78,9 +62,6 @@ export const AlertDialog = ({
                         )}
                     </div>
 
-                    {/* Use the RAW Radix Cancel/Action (not @chatic/ui-kit's styled wrappers): those
-                        inject buttonVariants + `mt-2`, which Radix Slot concatenates onto the child
-                        button (no tailwind-merge), breaking the two-up split row (misaligned/overlap). */}
                     <div className="flex w-full">
                         {hasCancel && (
                             <AlertDialogPrimitive.Cancel asChild>

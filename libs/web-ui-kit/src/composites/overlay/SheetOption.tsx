@@ -1,20 +1,13 @@
 import { cn } from '@chatic/ui-kit';
 
 export interface SheetOptionProps {
-    /** Option label. */
     label: string;
-    /** Selected (radio filled) state. */
     selected?: boolean;
     onSelect?: () => void;
-    /** Draws a bottom divider. */
     showDivider?: boolean;
     className?: string;
 }
 
-/**
- * Single-select row for a bottom sheet — the Figma report-reason list item: a
- * label with a trailing radio, and an optional bottom divider.
- */
 export const SheetOption = ({ label, selected = false, onSelect, showDivider = true, className }: SheetOptionProps) => {
     return (
         <button

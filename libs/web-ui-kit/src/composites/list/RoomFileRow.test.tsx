@@ -5,8 +5,6 @@ import { ROOM_FILE_LONG_PRESS_MS, RoomFileRow } from './RoomFileRow';
 const title = 'New recording 8.m4a';
 const subtitle = 'Sunny · Nov 11 · 35:47 · 17.0MB';
 
-// jsdom has no PointerEvent, so `fireEvent.pointerDown` drops the coordinates; a MouseEvent of the
-// pointer type keeps them and React still routes it to the pointer handlers.
 const pointer = (type: string, target: Element, clientX: number, clientY: number) =>
     fireEvent(target, new MouseEvent(type, { bubbles: true, clientX, clientY }));
 
@@ -162,7 +160,6 @@ describe('RoomFileRow', () => {
         fireEvent.click(screen.getByRole('checkbox'));
         expect(onToggle).not.toHaveBeenCalled();
 
-        // The next tap is a tap again.
         pointer('pointerdown', screen.getByRole('checkbox'), 10, 10);
         fireEvent.click(screen.getByRole('checkbox'));
         expect(onToggle).toHaveBeenCalledTimes(1);

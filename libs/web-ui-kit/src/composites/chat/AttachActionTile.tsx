@@ -3,7 +3,6 @@ import * as React from 'react';
 import { cn } from '@chatic/ui-kit';
 
 export interface AttachActionTileProps {
-    /** The 32px glyph, already coloured by the caller. */
     icon: React.ReactNode;
     label: string;
     onClick: () => void;
@@ -11,10 +10,6 @@ export interface AttachActionTileProps {
     className?: string;
 }
 
-/**
- * One entry point in the chat attach panel (Figma `3749:28533`): a 54px circle on the light control
- * surface holding a 32px glyph, with the label below.
- */
 export const AttachActionTile = ({ icon, label, onClick, disabled = false, className }: AttachActionTileProps) => (
     <button
         type="button"

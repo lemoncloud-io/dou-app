@@ -29,7 +29,6 @@ export default meta;
 
 type Story = StoryObj<typeof ChatRoomHeader>;
 
-// 1:1 chat — peer avatar + name, hugging the back button.
 export const Direct: Story = {
     args: {
         kind: 'direct',
@@ -38,7 +37,6 @@ export const Direct: Story = {
     },
 };
 
-// 1:1 chat, peer has no profile photo yet — falls back to the person glyph.
 export const DirectWithDefaultAvatar: Story = {
     args: {
         kind: 'direct',
@@ -46,7 +44,6 @@ export const DirectWithDefaultAvatar: Story = {
     },
 };
 
-// Group channel with a thumbnail image supplied by the host.
 export const GroupWithThumbnail: Story = {
     args: {
         kind: 'group',
@@ -55,7 +52,6 @@ export const GroupWithThumbnail: Story = {
     },
 };
 
-// Group channel with no thumbnail — falls back to the three-person group glyph.
 export const GroupWithDefaultAvatar: Story = {
     args: {
         kind: 'group',
@@ -63,8 +59,6 @@ export const GroupWithDefaultAvatar: Story = {
     },
 };
 
-// Group channel with the participant meta row — owner-first avatar stack + total
-// member count under the title (Figma group top bar).
 const stackAvatar = (key: string) => <ImageAvatar key={key} src={AVATAR} size={20} className="ring-2 ring-surface" />;
 export const GroupWithMemberStack: Story = {
     args: {
@@ -75,7 +69,6 @@ export const GroupWithMemberStack: Story = {
     },
 };
 
-// 1:1 chat whose avatar + name open the peer's profile — the zone is one button.
 export const DirectOpensProfile: Story = {
     args: {
         kind: 'direct',
@@ -86,7 +79,6 @@ export const DirectOpensProfile: Story = {
     },
 };
 
-// Group whose participant stack opens the member list; the title stays inert.
 export const GroupStackOpensMembers: Story = {
     args: {
         kind: 'group',
@@ -98,7 +90,6 @@ export const GroupStackOpensMembers: Story = {
     },
 };
 
-// Self chat — solid-silhouette self glyph (ring) + title, overflow opens a dropdown.
 export const SelfWithMenu: Story = {
     args: {
         kind: 'self',

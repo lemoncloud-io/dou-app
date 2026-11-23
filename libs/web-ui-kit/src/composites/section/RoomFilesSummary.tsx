@@ -7,35 +7,19 @@ import { IconAudioWave, IconChevronRight, IconFileGeneric, IconImage, IconLink }
 export type RoomFilesKind = 'media' | 'file' | 'audio' | 'link';
 
 export interface RoomFilesSummaryItem {
-    /** Which list the cell opens. Also picks the default glyph. */
     key: RoomFilesKind;
-    /** Cell label (e.g. a localized "Photos·Videos"). */
     label: string;
-    /** How many the room holds. Ignored while `loading`. */
     count: number;
-    /** A 24px glyph in place of the kind's default. */
     icon?: React.ReactNode;
-    /**
-     * Draws the tile navy with a white glyph instead of the soft grey ground — the design marks the
-     * audio cell this way. Which cell, if any, is the host's call.
-     */
     accent?: boolean;
 }
 
 export interface RoomFilesSummaryProps {
-    /** The four cells, left to right. */
     items: RoomFilesSummaryItem[];
-    /** A cell was pressed. */
     onSelect: (key: RoomFilesKind) => void;
-    /** The section's title. */
     title?: string;
-    /** Opens the file list on its first tab. Omitted, the "See all" link is not drawn. */
     onSeeAll?: () => void;
     seeAllLabel?: string;
-    /**
-     * The counts are not known yet: each count is a placeholder bar rather than `0`, which would say
-     * the room has none.
-     */
     loading?: boolean;
     className?: string;
 }
@@ -47,13 +31,6 @@ const DEFAULT_ICON: Record<RoomFilesKind, React.ReactNode> = {
     link: <IconLink size={24} strokeWidth={1.75} />,
 };
 
-/**
- * The "room files" block of a room's settings (Figma "방 설정 · 대화방 파일" 6072:23272, on screen
- * 6067:22063): a grey 13px title with an optional "See all ›" on the right, then four 76px cells
- * spread across the row — a 52px rounded tile with the kind's glyph, the label, and the count in grey.
- *
- * Stateless: the counts arrive as props and each cell reports its key.
- */
 export const RoomFilesSummary = ({
     items,
     onSelect,

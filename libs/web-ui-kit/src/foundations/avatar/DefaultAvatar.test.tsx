@@ -27,7 +27,6 @@ describe('DefaultAvatar', () => {
         expect(root.querySelector('svg')).toBeTruthy();
     });
 
-    // Same stroke as ImageAvatar, so a member looks the same with and without a photo.
     it('strokes the default user variant with the photo avatar stroke', () => {
         const { container } = render(<DefaultAvatar />);
         const root = container.firstElementChild as HTMLElement;
@@ -43,8 +42,6 @@ describe('DefaultAvatar', () => {
         expect(glyph?.getAttribute('height')).toBe('42');
     });
 
-    // The room avatar has exactly two images and this is the single-person one: the custom solid
-    // silhouette (viewBox 0 0 42 42), never the lucide outline.
     it('draws the solid silhouette for the user variant', () => {
         const { container } = render(<DefaultAvatar variant="user" />);
         const root = container.firstElementChild as HTMLElement;

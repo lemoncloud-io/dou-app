@@ -1,14 +1,9 @@
 import * as React from 'react';
 
 export interface IconPauseSolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Solid pause mark — two rounded bars, the companion of `IconPlaySolid` on an audio player's button
- * (Figma "아이콘 · 일시정지", 6040:20719). Fills with `currentColor` so the caller colours it.
- */
 export const IconPauseSolid = ({ size = 20, className, ...props }: IconPauseSolidProps) => (
     <svg
         width={size}

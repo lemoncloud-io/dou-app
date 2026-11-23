@@ -23,7 +23,6 @@ const items = photos(images);
 const shown = () => screen.getByRole('dialog').querySelector('img[data-current]') as HTMLImageElement;
 const strip = () => screen.getByRole('dialog').querySelector('.flex') as HTMLElement;
 
-// jsdom's PointerEvent drops clientX/Y from the init, so the coordinates are hung on the event.
 const pointer = (type: string, [x, y]: [number, number], pointerId = 1) => {
     const event = new Event(type, { bubbles: true });
     Object.assign(event, { clientX: x, clientY: y, pointerId });
@@ -106,7 +105,6 @@ describe('MediaViewer', () => {
         expect(onIndexChange.mock.calls).toEqual([[2], [0]]);
     });
 
-    // A count that jumps from the last back to "1" reads as a different message.
     it('stops at the ends instead of wrapping', () => {
         const { rerender } = render(
             <MediaViewer items={items} index={0} onIndexChange={jest.fn()} onClose={jest.fn()} />
@@ -138,7 +136,6 @@ describe('MediaViewer', () => {
         expect(onIndexChange).not.toHaveBeenCalled();
     });
 
-    // A swipe that ends beside the image is followed by a click there; it must not close the viewer.
     it('does not close on the click that ends a swipe on the backdrop', () => {
         const onClose = jest.fn();
         render(<MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={onClose} />);
@@ -158,7 +155,6 @@ describe('MediaViewer', () => {
         expect(strip().style.transform).toBe('translate3d(calc(-100% + 0px), 0, 0)');
         press(shown(), [300, 400], [260, 402]);
         expect(strip().style.transform).toBe('translate3d(calc(-100% + -40px), 0, 0)');
-        // No transition while held, so the strip keeps up with the finger.
         expect(strip()).not.toHaveClass('transition-transform');
 
         fireEvent(shown(), pointer('pointerup', [260, 402]));
@@ -235,7 +231,6 @@ describe('MediaViewer', () => {
         expect(onClose).toHaveBeenCalledTimes(2);
     });
 
-    // The count still matches what was sent, so a broken item keeps its page.
     it('draws a broken item as a placeholder page, counted with the rest', () => {
         const withBroken: MediaViewerItem[] = [items[0], { ...items[1], state: 'broken' }, items[2]];
         render(<MediaViewer items={withBroken} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />);
@@ -247,7 +242,6 @@ describe('MediaViewer', () => {
     });
 
     describe('pull down to close', () => {
-        // An 800px-tall viewer, so a release has to travel a sixth of it — 133px — to close.
         beforeEach(() => {
             jest.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
         });
@@ -255,7 +249,6 @@ describe('MediaViewer', () => {
 
         const viewer = () => screen.getByRole('dialog');
         const backdrop = () => document.querySelector('.bg-black') as HTMLElement;
-        // Slow enough that the release is judged by distance alone, not as a flick.
         const slowDrag = (target: Element, from: [number, number], to: [number, number]) => {
             const now = jest.spyOn(Date, 'now').mockReturnValue(1000);
             press(target, from, to);
@@ -270,7 +263,6 @@ describe('MediaViewer', () => {
 
             expect(viewer().style.transform).toBe('translate3d(0, 120px, 0)');
             expect(Number(backdrop().style.opacity)).toBeCloseTo(0.75);
-            // No transition while held, so the viewer keeps up with the finger.
             expect(viewer()).not.toHaveClass('transition-transform');
         });
 
@@ -322,7 +314,6 @@ describe('MediaViewer', () => {
             expect(onClose).not.toHaveBeenCalled();
         });
 
-        // A single image has no strip to drag, but it still closes by pulling down.
         it('closes a single image too', () => {
             const onClose = jest.fn();
             render(<MediaViewer items={[items[0]]} index={0} onIndexChange={jest.fn()} onClose={onClose} />);
@@ -367,8 +358,6 @@ describe('MediaViewer', () => {
             );
         });
 
-        // jsdom runs no exit animation, so the closing viewer is gone at once here; in a browser it
-        // stays for the slide, and a swipe or a button pressed then must not reach it.
         it('takes no presses while it slides away', () => {
             render(<MediaViewer items={items} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />);
 
@@ -447,7 +436,6 @@ describe('MediaViewer', () => {
                 <button type="button">toast action</button>
             </>
         );
-        // Radix arms its outside-press listener on the next tick.
         await new Promise(resolve => setTimeout(resolve, 0));
 
         const action = screen.getByText('toast action');
@@ -493,7 +481,6 @@ describe('MediaViewer', () => {
             );
             const busy = screen.getByRole('button', { name: '저장' });
             expect(busy.getAttribute('aria-busy')).toBe('true');
-            // Still focusable, so focus stays on the button just pressed.
             expect((busy as HTMLButtonElement).disabled).toBe(false);
             expect(busy.getAttribute('aria-disabled')).toBe('true');
             expect(screen.queryByTestId('icon')).toBeNull();
@@ -533,11 +520,9 @@ describe('MediaViewer', () => {
 
     describe('previews', () => {
         const thumbs = ['https://example.com/a-t.jpg', 'https://example.com/b-t.jpg', 'https://example.com/c-t.jpg'];
-        // The showing page is the one without aria-hidden.
         const placeholder = () =>
             screen.getByRole('dialog').querySelector('[data-page]:not([aria-hidden]) img[data-placeholder]');
 
-        // An original can take seconds; the small copy stands in until it has arrived.
         it('draws the preview under the original until the original loads', () => {
             render(
                 <MediaViewer items={photos(images, thumbs)} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} />
@@ -564,7 +549,6 @@ describe('MediaViewer', () => {
             expect(placeholder()).toHaveAttribute('src', thumbs[0]);
         });
 
-        // A refreshed address is a new download; the preview covers it again until it lands.
         it('brings the preview back for a new address', () => {
             const { rerender } = render(
                 <MediaViewer items={photos(images, thumbs)} index={0} onIndexChange={jest.fn()} onClose={jest.fn()} />
@@ -595,8 +579,6 @@ describe('MediaViewer', () => {
     });
 
     describe('zoom', () => {
-        // jsdom lays nothing out: give the page and the photo sizes so a pan has somewhere to go.
-        // The page's centre is the origin, since jsdom's bounding rect is all zeros.
         beforeEach(() => {
             jest.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
             jest.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
@@ -634,7 +616,6 @@ describe('MediaViewer', () => {
             expect(layer().style.transform).toContain('scale(1)');
         });
 
-        // Zoomed, a drag moves the photo; it does not turn the page.
         it('pans a zoomed photo instead of turning the page, up to its edge', () => {
             const onIndexChange = jest.fn();
             render(<MediaViewer items={items} index={1} onIndexChange={onIndexChange} onClose={jest.fn()} />);
@@ -643,7 +624,6 @@ describe('MediaViewer', () => {
             drag(content(), [0, 0], [-300, 0]);
 
             expect(onIndexChange).not.toHaveBeenCalled();
-            // 2x of a 400-wide photo on a 400-wide page leaves 200 of travel each way.
             expect(layer().style.transform).toContain('translate3d(-200px, 0px, 0)');
         });
 
@@ -701,7 +681,6 @@ describe('MediaViewer', () => {
             state: 'ready',
             ...extra,
         });
-        // A photo, a video, a photo: the video sits between two pages to turn to.
         const mixed = [items[0], clip(1), items[2]];
         const video = () => screen.getByRole('dialog').querySelector('video') as HTMLVideoElement;
 
@@ -713,8 +692,6 @@ describe('MediaViewer', () => {
             pause = jest.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
             load = jest.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => undefined);
         });
-        // Unmount while the stubs are still in place: closing releases the video, and jsdom has no
-        // `pause` or `load` of its own.
         afterEach(() => {
             cleanup();
             jest.restoreAllMocks();
@@ -731,7 +708,6 @@ describe('MediaViewer', () => {
             expect(screen.getByText('2 / 3')).toBeInTheDocument();
         });
 
-        // Prefetching a video is a download the user may never watch.
         it('draws only the poster of a neighbouring video', () => {
             render(<MediaViewer items={mixed} index={0} onIndexChange={jest.fn()} onClose={jest.fn()} />);
 
@@ -787,7 +763,6 @@ describe('MediaViewer', () => {
             expect(screen.queryByRole('button', { name: '재생' })).toBeNull();
         });
 
-        // An interrupted play is not a refusal; there is nothing to ask the user for.
         it('offers no play button for a play that was interrupted', async () => {
             play.mockRejectedValueOnce(Object.assign(new Error('aborted'), { name: 'AbortError' }));
             render(<MediaViewer items={mixed} index={1} onIndexChange={jest.fn()} onClose={jest.fn()} autoPlay />);
@@ -824,7 +799,6 @@ describe('MediaViewer', () => {
             expect(playing).not.toHaveAttribute('src');
         });
 
-        // The bottom of the video is its seek bar; a drag there scrubs, it does not page.
         it("leaves a drag on the video's controls alone, and pages on a drag above them", () => {
             const onIndexChange = jest.fn();
             render(<MediaViewer items={mixed} index={1} onIndexChange={onIndexChange} onClose={jest.fn()} />);

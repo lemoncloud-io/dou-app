@@ -2,12 +2,6 @@ import { render } from '@testing-library/react';
 
 import { IconDangerCircle } from './IconDangerCircle';
 
-/**
- * Not folded into DuotoneIcons.test.tsx: that suite's contract is "every path is `currentColor`",
- * and this glyph is two-tone — disc and mark take two DIFFERENT tokens, the way
- * IconCheckCircleSolid does. Tokens rather than the exported hex is the whole point of the
- * component existing, so that is what gets asserted.
- */
 describe('IconDangerCircle', () => {
     it('renders a square svg on the Figma viewBox', () => {
         const { container } = render(<IconDangerCircle />);
@@ -31,7 +25,7 @@ describe('IconDangerCircle', () => {
         const { container } = render(<IconDangerCircle />);
         const paths = Array.from(container.querySelectorAll('path'));
 
-        expect(paths.length).toBe(3); // disc + the exclamation's stem and dot
+        expect(paths.length).toBe(3);
         for (const path of paths) {
             expect(path.getAttribute('fill')).toBeNull();
             expect(path.getAttribute('class')).toMatch(/^fill-/);

@@ -18,8 +18,6 @@ describe('PlanCompareCard', () => {
     });
 
     it('exposes the tier so the two cards are distinguishable', () => {
-        // Asserted via data-tier rather than the header's background class: a pure restyle must not
-        // break this, and a free card wrongly rendered as paid must.
         const { container } = render(
             <PlanCompareCard name="내 클라우드" tier="paid" tierLabel="PRO" headline="내가 만드는 나만의 공간">
                 <span>benefits</span>
@@ -31,7 +29,6 @@ describe('PlanCompareCard', () => {
     });
 
     it('gives only the paid card the lime glow', () => {
-        // The glow is what separates the upsell card from the free one at a glance (Figma 3519-29690).
         const { container: paid } = render(
             <PlanCompareCard name="내 클라우드" tier="paid" tierLabel="PRO" headline="h">
                 <span />

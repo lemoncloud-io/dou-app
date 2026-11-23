@@ -2,17 +2,11 @@ import { act, render, screen } from '@testing-library/react';
 
 import { HeaderGlass } from './HeaderGlass';
 
-/**
- * The component settles on a `requestAnimationFrame`, with a timer as the fallback for a hidden
- * document. jsdom runs neither on its own, so each test drives whichever one it is about.
- */
 const flushFrame = () => act(() => void jest.advanceTimersByTime(0));
 
 describe('HeaderGlass', () => {
     beforeEach(() => {
         jest.useFakeTimers();
-        // jsdom has no rAF under fake timers in this setup; route it through the timer queue so
-        // `advanceTimersByTime` drives it the same way it drives the fallback.
         jest.spyOn(window, 'requestAnimationFrame').mockImplementation(cb => {
             return setTimeout(() => cb(performance.now()), 0) as unknown as number;
         });
@@ -88,14 +82,11 @@ describe('HeaderGlass', () => {
             document.documentElement.setAttribute(ATTRIBUTE, '');
             render(<HeaderGlass />);
 
-            // WebKit paints no frost inside the transition's snapshots: faded in now, it would be
-            // invisible through the slide and arrive in one frame at its end.
             flushFrame();
             act(() => void jest.advanceTimersByTime(400));
             expect(warmup().className).toContain('opacity-100');
             expect(frost().className).toContain('opacity-0');
 
-            // The marker coming off is observed in a microtask; the fade then starts on a frame.
             await act(async () => {
                 document.documentElement.removeAttribute(ATTRIBUTE);
                 await Promise.resolve();
@@ -113,8 +104,6 @@ describe('HeaderGlass', () => {
             act(() => void jest.advanceTimersByTime(1400));
             expect(frost().className).toContain('opacity-0');
 
-            // Past the 1.5s cap the fade starts anyway. (A frame requested from inside a timer lands 1ms
-            // later under fake timers; advancing past the fade's own fallback covers both.)
             act(() => void jest.advanceTimersByTime(100 + 100));
             expect(frost().className).toContain('opacity-100');
         });

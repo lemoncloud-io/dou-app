@@ -7,30 +7,16 @@ import { IconAlert, IconChevronRight } from '../../resources/icons';
 export type ProductStatusTone = 'active' | 'scheduled' | 'ended' | 'danger';
 
 export interface ProductCardProps {
-    /** Product name. Truncates on one line so the status label keeps its place. */
     name: string;
-    /** Leading tier pill — hosts pass `<PlanBadge label="PRO" accent icon={<IconBoltSolid />} />`. */
     badge?: React.ReactNode;
-    /** Right-aligned status text ("In use", "Scheduled", "Ended"). */
     statusLabel?: string;
-    /**
-     * Status colour: `active` point blue · `scheduled` warning orange · `ended` grey ·
-     * `danger` destructive red.
-     */
     statusTone?: ProductStatusTone;
-    /** Grey note under the name, led by a small alert glyph (e.g. the renewal date). */
     caption?: string;
-    /** Makes the header row a button and adds a trailing chevron after the status label. */
     onClick?: () => void;
-    /** Rendered under an inset divider inside the same card — nested key/value rows, a CTA. */
     children?: React.ReactNode;
     className?: string;
 }
 
-/**
- * `--warning` is declared by `apps/web` but not by this kit's `tokens.css`, so the fallback keeps
- * the colour in Storybook too. Kept identical to `KeyValueRows`' warning tone.
- */
 const WARNING_TEXT = 'text-[hsl(var(--warning,38_92%_50%))]';
 
 const STATUS_TONE_CLASS: Record<ProductStatusTone, string> = {
@@ -40,14 +26,6 @@ const STATUS_TONE_CLASS: Record<ProductStatusTone, string> = {
     danger: 'text-destructive',
 };
 
-/**
- * Current / selected product card — the Figma "current product" card on the subscription screens:
- * a tier badge, the product name and a status label, an optional caption, and an optional body
- * (`children`) under a divider.
- *
- * Only the header row becomes a button with `onClick`, never the whole card: `children` may carry
- * its own CTA, and a button cannot nest inside another.
- */
 export const ProductCard = ({
     name,
     badge,
@@ -65,7 +43,6 @@ export const ProductCard = ({
                 {name}
             </span>
             {statusLabel && (
-                // Capped so a long label can never squeeze the name to nothing at a 320px column.
                 <span
                     className={cn(
                         'max-w-[45%] shrink-0 truncate text-right text-[16px] font-semibold leading-[1.3] tracking-[-0.08px]',
@@ -100,8 +77,6 @@ export const ProductCard = ({
                 {caption && (
                     <div className="flex items-start gap-1">
                         <IconAlert aria-hidden className="mt-px size-[18px] shrink-0 text-description" />
-                        {/* Figma BK_500 (#9FA2A7) is one step lighter than `description` (BK_600) and
-                            sits under 3:1 on white; the token keeps the caption readable. */}
                         <span className="min-w-0 text-[14px] font-medium leading-[1.4] tracking-[-0.07px] text-description">
                             {caption}
                         </span>

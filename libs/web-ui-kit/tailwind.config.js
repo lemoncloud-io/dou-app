@@ -1,12 +1,5 @@
 const { join } = require('path');
 
-/**
- * Tailwind config for the web-ui-kit library. Consumed by the Storybook showcase
- * so components render with the same tokens the app resolves. apps/web keeps its
- * own config; the token names below intentionally match it (plus avatar tokens).
- *
- * @type {import('tailwindcss').Config}
- */
 module.exports = {
     darkMode: ['class'],
     content: [
@@ -41,7 +34,6 @@ module.exports = {
                     DEFAULT: 'hsl(var(--card))',
                     foreground: 'hsl(var(--card-foreground))',
                 },
-                // Figma design system tokens
                 label: 'hsl(var(--label))',
                 placeholder: 'hsl(var(--placeholder))',
                 description: 'hsl(var(--description))',
@@ -96,8 +88,6 @@ module.exports = {
                 md: 'calc(var(--radius) - 2px)',
                 sm: 'calc(var(--radius) - 4px)',
             },
-            // Safe-area insets. `--safe-*` is injected by the native WebView; falls
-            // back to 0px on the web / Storybook. Mirrors apps/web's spacing tokens.
             spacing: {
                 'safe-top': 'var(--safe-top, 0px)',
                 'safe-bottom': 'var(--safe-bottom, 0px)',

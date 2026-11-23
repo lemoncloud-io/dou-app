@@ -35,5 +35,4 @@ const Demo = ({ notice }: { notice?: string }) => {
 };
 
 export const Default: Story = { render: () => <Demo /> };
-/** An iOS browser or an older app takes photos only from the album, and says so. */
 export const WithNotice: Story = { render: () => <Demo notice="앱을 업데이트하면 동영상을 보낼 수 있어요" /> };

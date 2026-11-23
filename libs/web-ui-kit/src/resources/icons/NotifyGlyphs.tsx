@@ -1,19 +1,11 @@
 import * as React from 'react';
 
 export interface NotifyGlyphProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width in pixels; the height follows the glyph's own aspect ratio. */
     size?: number;
 }
 
-/** How far the small bubble is shrunk so its centred stroke lands where the design's masked one does. */
 const THREAD_INSET_SCALE = 0.913;
 
-/**
- * The thread type chip's glyph — a 12px speech bubble with two lines of text (Figma "채팅 1",
- * notification row 6023:19308). The design masks a 1.73px stroke inside the bubble; as with the nav
- * glyphs, the bubble is instead shrunk about its centre so a plain stroke lands inside the outline
- * without a `url(#…)` reference the app's `<base href>` could break.
- */
 export const IconThreadChip = ({ size = 12, className, ...props }: NotifyGlyphProps) => (
     <svg
         width={size}
@@ -36,7 +28,6 @@ export const IconThreadChip = ({ size = 12, className, ...props }: NotifyGlyphPr
     </svg>
 );
 
-/** The small check the filter chip leads with when it is on (Figma 6021:18511). */
 export const IconCheckSmall = ({ size = 12, className, ...props }: NotifyGlyphProps) => (
     <svg
         width={size}
@@ -58,10 +49,6 @@ export const IconCheckSmall = ({ size = 12, className, ...props }: NotifyGlyphPr
     </svg>
 );
 
-/**
- * The jump pill's arrow — a 12×14 shaft with an open head, pointing up (Figma 6002:40136). The pill
- * turns it to point down for "latest messages".
- */
 export const IconJumpArrow = ({ size = 12, className, ...props }: NotifyGlyphProps) => (
     <svg
         width={size}

@@ -5,7 +5,6 @@ import { PullToRefresh } from './PullToRefresh';
 const meta: Meta<typeof PullToRefresh> = {
     title: 'web-ui-kit/composites/PullToRefresh',
     component: PullToRefresh,
-    // Touch-only gesture: open the canvas in a touch-emulating viewport (device toolbar) to pull.
     decorators: [
         Story => (
             <div className="flex h-[720px] w-[390px] flex-col overflow-hidden border border-input-border">
@@ -24,7 +23,6 @@ export const Default: Story = {
     render: () => (
         <PullToRefresh
             onRefresh={() => wait(1500)}
-            // No haptics in a browser; the console shows where the host would play them.
             onTick={() => console.info('tick')}
             onFill={() => console.info('fill')}
             refreshingLabel="새로고침 중"

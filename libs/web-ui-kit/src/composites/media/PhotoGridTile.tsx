@@ -5,27 +5,16 @@ import type { PhotoItemKind } from './types';
 import { VideoMark } from './VideoMark';
 
 export interface PhotoGridTileProps {
-    /** Empty for an item the library could make no preview of: the tile is drawn bare. */
     src: string;
-    /** A video draws its poster with a play mark and its length. Default `image`. */
     kind?: PhotoItemKind;
     durationMs?: number;
-    /** 1-based pick order when picked; absent when not. */
     order?: number;
     onToggle: () => void;
-    /** Accessible name. Host supplies a localized string. */
     label: string;
-    /** Blocks picking more — the host passes it once the cap is reached, for unpicked tiles only. */
     disabled?: boolean;
     className?: string;
 }
 
-/**
- * One square in the photo grid (Figma `3766:30801` / `3767:30959`). Unpicked: an empty ring in the
- * top-right corner. Picked: the photo dims and the ring becomes a lime badge carrying the pick order,
- * so the order the message will send in is visible while choosing it. A video is its poster frame with
- * a play mark and its length in the bottom-left corner, clear of the ring.
- */
 export const PhotoGridTile = ({
     src,
     kind = 'image',

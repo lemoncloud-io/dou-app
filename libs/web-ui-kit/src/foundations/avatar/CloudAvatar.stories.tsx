@@ -14,7 +14,6 @@ export const Large: Story = { args: { name: '스터디 플레이스', size: 'lg'
 export const Medium: Story = { args: { name: 'DoU Home', size: 'md' } };
 export const Small: Story = { args: { name: 'Sunny Place', size: 'sm' } };
 
-// Different names deterministically land on different tones.
 export const Palette: Story = {
     render: () => (
         <div className="flex gap-2">
