@@ -11,17 +11,16 @@ description: >-
 # dou-load
 
 A performance claim needs two numbers from the same machine and the same scenario: `develop` and the branch.
+The `@load` scenarios are in `apps/web-e2e/src/specs/load/` (README § Load).
 
-1. **Pick the volume** that matches the claim: a room with 5,000 messages for paging, 300 rooms for the home
-   list, 200 images for media. Build it with the web-e2e fixtures (`src/fixtures/rooms.ts` builders) so the
-   page loads it from the fake relay, not from a real account.
-2. **Measure in the page** with the Performance API: `performance.mark/measure` around the action,
-   `PerformanceObserver` for `longtask`, `performance.memory` in Chromium, and `backend.sent(...)` for the
-   number of requests. Read the app's own `perf.*` metrics where the change already reports them.
-3. **Run each side five times** in the same browser project and keep the median and the spread. Run
-   `develop` in its own worktree; never switch the branch of the main checkout.
-4. **Report** a table (metric, develop median, branch median, delta, runs) and a small chart in the
-   verification report. Say the machine and the browser project; a headless number is not a device number.
+1. **Pick the scenario** that matches the claim: `room-list` (200 rooms), `long-room` (5,000 messages),
+   `image-room` (200 photos), `message-burst` (300 pushed messages). Extend one, or add one tagged
+   `{ tag: '@load' }` with the builders in `src/fixtures/load.ts` (`manyRooms`, `addImageMessages`).
+2. **Measure** with `src/support/load.ts` (`msUntilVisible`, `msOf`, `heapMB`, `requestsDuring`) and record
+   each number with `evidence.metric(name, value, unit)`. Assert correctness only, never a time.
+3. **Run** `npx nx run web-e2e:e2e-load` on both sides; it repeats each scenario three times on one worker.
+   Run `develop` in its own worktree; never switch the branch of the main checkout.
+4. **Report** a table (metric, develop median, branch median, delta) from each side's
+   `dist/.playwright/apps/web-e2e/evidence/summary.json`. Name the machine; heap is Chromium only.
 
-A regression above the run-to-run spread blocks the change or gets named in `To Reviewers` with the reason
-it is accepted.
+A regression above the run-to-run spread blocks the change or gets named in `To Reviewers` with the reason.
