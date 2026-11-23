@@ -35,7 +35,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </div>
     ),
 }));
-// The form is the shared create dialog; this suite only needs to open it and finish or leave it.
 jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
     PlaceProfileCreateDialog: ({
         open,
@@ -99,8 +98,6 @@ describe('PlaceProfileBanner', () => {
         expect(onSaved).not.toHaveBeenCalled();
     });
 
-    // A save writes my nick to the cache before the server answers, which hides the card. The form
-    // has to stay up until the save settles, or a failure would vanish with it.
     it('keeps the form open after the card is hidden mid-save', () => {
         const { rerender } = renderBanner();
         fireEvent.click(screen.getByText('placeProfileBanner.action'));

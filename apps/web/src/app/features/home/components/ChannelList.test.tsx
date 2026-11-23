@@ -9,13 +9,10 @@ import type { NotificationItem } from '../../../utils/notifications';
 import { roomOpenTrace } from '../../../runtime/perf';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
-// Partial mock: the rest is left real. The `@chatic/runtime` barrel reaches all the way to
-// `createQueryKeys` at import time, so swapping out the whole module would make that disappear.
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
 }));
-// `channel.get` is rejected with 403 for someone else's self-chat — we need to see which id it registers under.
 const mockUseChannelSync = jest.fn();
 const mockPrefetchRoomFeed = jest.fn().mockResolvedValue(undefined);
 jest.mock('@chatic/runtime', () =>
@@ -31,19 +28,12 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 
-// My user id drives the owner-vs-member title branch; 'me' owns channels tagged ownerId: 'me'.
-
-// The rows' preview source — the list-level combined lookup (ADR-0057). Null by default (rows
-// under test have no messages); the preview cases below seed it for EVERY row. Preview picking
-// itself is covered by chatPreview.test.ts (libs/data) and useLastChats.test.ts.
 let mockLastChat: any = null;
-// Per-channel override, for the ordering cases — the list sorts by these same times (ADR-0055 decision 2).
 let mockLastChatByChannel: Map<string, any> | null = null;
 jest.mock('../../../hooks/useLastChats', () => ({
     useLastChats: () => ({
         get: (channelId: string) => mockLastChatByChannel?.get(channelId) ?? mockLastChat ?? undefined,
     }),
-    // The room's latest activity: the line's message unless a case seeds a newer one (a thread reply).
     useLastActivities: () => ({
         get: (channelId: string) =>
             mockLastActivityByChannel?.get(channelId) ??
@@ -54,24 +44,16 @@ jest.mock('../../../hooks/useLastChats', () => ({
 }));
 let mockLastActivityByChannel: Map<string, any> | null = null;
 
-// A group row's sender, from the list-level lookup (covered by useLastChatSenders.test.ts). Empty by
-// default, so every other case reads its line without a sender.
 const mockLastChatSenders = new Map<string, string>();
 jest.mock('../hooks/useLastChatSenders', () => ({ useLastChatSenders: () => mockLastChatSenders }));
 
-// My profile nick is the self-chat title fallback and my photo is the self-chat row avatar
-// (both resolved once by ChannelList). resolveSelfChatTitle / resolveChannelAvatar are the real
-// pure fns (unit-tested separately).
 jest.mock('../../../hooks', () => ({
     ...jest.requireActual('../../../hooks'),
     useMyProfile: () => ({ profile: { nick: 'MY_NICK', thumbnail: 'my-photo.png' } }),
     useBlurLastMessage: () => ({ blurLastMessage: false }),
 }));
 
-// The list-level DM peer lookup (one profile subscription for every DM row) is covered by
-// useDmPeers.test.ts; here we inject its result so rows can be driven without the runtime.
 const mockDmPeers = new Map<string, { id: string; profileNick?: string; cloudName?: string; thumbnail?: string }>();
-// The swipe actions write through the same mutations the room's settings screen uses.
 const mockUpdateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 const mockLeaveChannel = jest.fn().mockResolvedValue(undefined);
 const mockDeleteChannel = jest.fn().mockResolvedValue(undefined);
@@ -85,7 +67,6 @@ jest.mock('../../channels/hooks', () => ({
     }),
 }));
 jest.mock('../../channels/components/ConfirmDialog', () => ({
-    // Stays mounted when closed, as the real one does while it fades out, so its copy can be read then.
     ConfirmDialog: ({ open, title, confirmLabel, onConfirm }: any) => (
         <div role="alertdialog" aria-label={title} hidden={!open}>
             <button onClick={onConfirm}>{confirmLabel}</button>
@@ -107,8 +88,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
         count > 0 ? <span data-testid={`activity-${variant}`}>{count}</span> : null,
     Badge: ({ children }: any) => <span>{children}</span>,
     CollapsibleSection: ({ actions, children, count, open, onOpenChange }: any) => (
-        // `count` is surfaced as an attribute, not text: the rows under test already render bare
-        // numbers (member counts, unread badges), so a text node would collide with them.
         <section data-count={count ?? ''} data-open={open === undefined ? '' : String(open)}>
             <button data-testid="section-toggle" onClick={() => onOpenChange?.(!open)} />
             {actions}
@@ -135,8 +114,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </div>
     ),
     SubscriptionBadge: ({ tier }: any) => <span data-testid="tier-badge">{tier}</span>,
-    // The gesture is the kit's (SwipeActionRow.test.tsx); here every action is a plain button, so the
-    // list's choice of actions and what each one does can be read and pressed directly.
     SwipeActionRow: ({ leadingActions = [], trailingActions = [], children }: any) => (
         <div data-testid="swipe-row">
             {children}
@@ -160,15 +137,6 @@ jest.mock('../../../runtime/logging/divergenceReporter', () => ({ divergenceRepo
 
 const makeChannel = (over: any) => ({ id: 'c1', name: '', stereo: 'group', memberNo: 3, ...over });
 
-/**
- * Path seen in a production alert:
- *   403 NOT ALLOWED - denied by policy (channel.get)  body: {"type":"channel.get","data":{"id":"U:1000030"}}
- *
- * `U:1000030` is guest 1000030's self-chat. Since a guest→social-login promotion only swaps the uid,
- * this list can go on holding a stale account's row for one render, and that row re-registers its
- * own channel target. The tag belongs to the new account, so SyncManager's scope guard can't catch
- * it — it's the id side that's stale.
- */
 describe('ChannelList — 남의 셀프챗 행은 channel.get을 등록하지 않는다', () => {
     it('ownerId가 내가 아닌 self 행은 동기화 대상에서 빠진다', () => {
         render(
@@ -195,7 +163,6 @@ describe('ChannelList — 남의 셀프챗 행은 channel.get을 등록하지 �
         expect(mockUseChannelSync).toHaveBeenCalledWith('U:me');
     });
 
-    // Blocking even rows the server didn't attach an ownerId to would leave a perfectly fine room silently un-synced.
     it('ownerId를 모르면 막지 않는다', () => {
         render(
             <ChannelList
@@ -254,8 +221,6 @@ describe('ChannelList self-chat row', () => {
     });
 
     it('서버 기본 nick(UUID)은 무시하고 내 프로필 nick으로 폴백한다', () => {
-        // Unnamed self-chat: the server seeds join.nick to the raw userId (a UUID). Caught by the
-        // UUID-shape guard regardless of the session uid.
         const uuidNick = '6f9a03e5-5e28-424e-bc1f-1ebdb34631eb';
         render(
             <ChannelList
@@ -275,10 +240,7 @@ describe('ChannelList self-chat row', () => {
         render(
             <ChannelList
                 sid="s1"
-                channels={[
-                    // useSessionIdentity mock returns userId: 'me'; a nick equal to it is the default, not a name.
-                    makeChannel({ id: 'self4', stereo: 'self', memberNo: 1, name: '', $join: { nick: 'me' } }),
-                ]}
+                channels={[makeChannel({ id: 'self4', stereo: 'self', memberNo: 1, name: '', $join: { nick: 'me' } })]}
                 isLoading={false}
             />
         );
@@ -287,7 +249,6 @@ describe('ChannelList self-chat row', () => {
     });
 
     it('채널 목록을 마지막 메시지 시각 최신순으로 정렬한다', () => {
-        // My read cursor (join.updatedAt) is more recent for a, but ordering looks only at message time.
         mockLastChatByChannel = new Map([
             ['a', { content: 'a의 마지막', createdAtMs: 100 }],
             ['b', { content: 'b의 마지막', createdAtMs: 200 }],
@@ -310,12 +271,11 @@ describe('ChannelList self-chat row', () => {
         );
 
         const titles = screen.getAllByTestId('row-title').map(el => el.textContent);
-        expect(titles).toEqual(['B방', 'A방']); // b(last message 200) before a(100)
+        expect(titles).toEqual(['B방', 'A방']);
         mockLastChatByChannel = null;
     });
 
     it('orders by the latest activity while the line stays on the last message the room shows', () => {
-        // a's newest message is a thread reply (300); its line is still the older top-level message (100).
         mockLastChatByChannel = new Map([
             ['a', { content: 'a의 일반 메시지', createdAtMs: 100 }],
             ['b', { content: 'b의 마지막', createdAtMs: 200 }],
@@ -339,7 +299,6 @@ describe('ChannelList self-chat row', () => {
         mockLastActivityByChannel = null;
     });
 
-    // The place's chat-room section holds its group rooms and its 1:1s together: one list, one order.
     describe('a cloud 1:1 beside group rooms', () => {
         const rows = () => [
             makeChannel({ id: 'g-old', stereo: 'group', memberNo: 1, name: 'Old group', cid: '1000001', sid: 'S1' }),
@@ -432,8 +391,6 @@ describe('ChannelList self-chat row', () => {
         expect(screen.queryByText('내별명')).not.toBeInTheDocument();
     });
 
-    // A group is titled by its shared name for every member — the name its push carries — so a
-    // member's own join.nick for the room is not shown.
     it('titles a group I am a member of by channel.name, not my join.nick', () => {
         render(
             <ChannelList
@@ -461,10 +418,7 @@ describe('ChannelList self-chat row', () => {
     });
 });
 
-// ADR-0039: a DM row shows the person, not the channel. Name, avatar, and member count all follow from that.
 describe('ChannelList — 1:1(DM) 행', () => {
-    // `cid` carries the lineage — the relay cloud vs a subscription one. Not `sid`:
-    // it names the room's place, not which cloud it is in.
     const dmChannel = (over: any = {}) =>
         makeChannel({
             id: 'dm1',
@@ -511,7 +465,6 @@ describe('ChannelList — 1:1(DM) 행', () => {
         expect(screen.getByText('토끼친구')).toBeInTheDocument();
     });
 
-    // The relay chain does not read the cloud profile; a cloud 1:1 does.
     it('names a cloud 1:1 peer with no place profile by their cloud-profile name', () => {
         mockDmPeers.set('dm1', { id: 'peer', cloudName: '임마' });
 
@@ -632,7 +585,6 @@ describe('ChannelList 아바타', () => {
         expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'my-photo.png');
     });
 
-    // A self chat's own photo is set from its name dialog; until then it is my profile photo.
     it("uses a self row's own photo once one is set", () => {
         render(
             <ChannelList
@@ -734,7 +686,6 @@ describe('ChannelList 고정 · 알림꺼짐 표기', () => {
         expect(screen.queryByLabelText('channelList.muted')).not.toBeInTheDocument();
     });
 
-    // "Mentions only" still rings for a mention, so it is not drawn as off.
     it("notify가 'mention'이면 알림꺼짐 대신 @ 아이콘을 노출한다", () => {
         renderRow({ joinByChannel: new Map([['c1', { notify: 'mention' } as any]]) });
 
@@ -742,7 +693,6 @@ describe('ChannelList 고정 · 알림꺼짐 표기', () => {
         expect(screen.queryByLabelText('channelList.muted')).not.toBeInTheDocument();
     });
 
-    // A 1:1 delivers every message whatever its level, so a stored `mention` draws as all messages.
     it("1:1의 notify 'mention'은 아무 아이콘도 노출하지 않는다", () => {
         render(
             <ChannelList
@@ -780,8 +730,6 @@ describe('ChannelList 고정 · 알림꺼짐 표기', () => {
     });
 });
 
-// ADR-0047 decision 6 — a message deleted by another client (desktop) arrives as a hidden row.
-// If the room and home don't use the same wording, one of them will keep showing the original text.
 describe('ChannelList — 마지막 메시지 미리보기', () => {
     const renderRow = () =>
         render(<ChannelList channels={[makeChannel({ name: '개발방', ownerId: 'me' })]} sid="s1" isLoading={false} />);
@@ -797,14 +745,12 @@ describe('ChannelList — 마지막 메시지 미리보기', () => {
         expect(screen.getByText('안녕하세요')).toBeInTheDocument();
     });
 
-    // ADR-0055 — a single-line row has no room to render a code block. It's flattened to plain text, not rendered.
     it('인라인 백틱은 벗겨서 보여준다', () => {
         mockLastChat = { content: '배포는 `yarn deploy` 로', createdAt: 1 };
         renderRow();
         expect(screen.getByText('배포는 yarn deploy 로')).toBeInTheDocument();
     });
 
-    // A webhook message's body is a Block Kit payload. Without collapsing it, the home row would show `{"blocks":[…`.
     it('Block Kit 본문은 한 줄 요약으로 접는다', () => {
         mockLastChat = {
             content: JSON.stringify({
@@ -833,19 +779,14 @@ describe('ChannelList — 마지막 메시지 미리보기', () => {
         expect(screen.queryByText('지워진 원문')).not.toBeInTheDocument();
     });
 
-    // Since both preview and time come from the same lastChat, an "old body + new time" combination can't happen.
     it('tombstone이어도 그 행의 시각은 그대로 살아 있다', () => {
         mockLastChat = { content: '지워진 원문', createdAt: 1750000000000, hidden: true };
         renderRow();
 
-        // The time is locale-formatted, so instead of pinning the exact string, we just check that a digit appears.
         expect(screen.getByTestId('row-trailing').textContent).toMatch(/\d/);
     });
 });
 
-// The create popover (Chat section ＋) — on relay, "1:1 대화" is the real action and "그룹 방 만들기" is
-// layered on only as an upsell for non-subscribers (Figma 2870:20387). What each tap does belongs to
-// the host (HomePage), so this only covers the delegation.
 describe('ChannelList 생성 메뉴', () => {
     const renderMenu = (props: any) =>
         render(<ChannelList channels={[]} sid="site-1" isLoading={false} canCreate {...props} />);
@@ -881,12 +822,9 @@ describe('ChannelList 생성 메뉴', () => {
         expect(screen.getByTestId('tier-badge')).toBeInTheDocument();
     });
 
-    // The two used to be one flag. Splitting them is only worth anything if neither moves the
-    // other, so both directions are pinned here.
     it('1:1 표시 조건은 그룹 업셀 규칙을 건드리지 않는다', () => {
         renderMenu({ isDefaultCloud: true, isPro: true, showOneOnOneCreate: false });
 
-        // Relay + subscribed still hides the group entry, with the 1:1 entry withheld.
         expect(screen.queryByText('channelList.createDirect')).not.toBeInTheDocument();
         expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
     });
@@ -897,7 +835,6 @@ describe('ChannelList 생성 메뉴', () => {
         expect(screen.getByTestId('tier-badge')).toHaveTextContent('pro');
     });
 
-    // A section with one action (a cloud's 1:1 section) runs it from the ＋ itself, no one-row popover.
     it('runs onCreate straight from the ＋ and drops the popover entries', () => {
         const onCreate = jest.fn();
         renderMenu({ isDefaultCloud: false, isPro: true, onCreate, createLabel: 'cloudDm.start' });
@@ -923,8 +860,6 @@ describe('ChannelList 생성 메뉴', () => {
         expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
     });
 
-    // An invited member cannot make a room here and CAN talk to the people already beside them.
-    // `canCreate` used to close the popover outright, which took the second one with the first.
     it('방을 못 만드는 멤버에게도 1:1만 남겨 메뉴를 연다', () => {
         renderMenu({ canCreate: false, isDefaultCloud: false, isPro: true, showOneOnOneCreate: true });
 
@@ -932,8 +867,6 @@ describe('ChannelList 생성 메뉴', () => {
         expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
     });
 
-    // The negative form (`!isDefaultCloud || !isPro`) reads true for every non-relay cloud, so
-    // without `canCreate` guarding it the invited member would be offered exactly what they cannot do.
     it('초대받은 클라우드에서 그룹 생성이 새어 나오지 않는다', () => {
         renderMenu({ canCreate: false, isDefaultCloud: false, isPro: false, showOneOnOneCreate: true });
 
@@ -950,7 +883,6 @@ describe('ChannelList 빈 상태 / 로딩', () => {
         );
 
         expect(screen.getByText('channelList.emptyInvited')).toBeInTheDocument();
-        // The create-oriented copy would be a dead end here: an invited member cannot make a room.
         expect(screen.queryByText('channelList.empty')).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByText('channelList.emptyInvitedPlaceInfo'));
@@ -961,7 +893,6 @@ describe('ChannelList 빈 상태 / 로딩', () => {
         const { container } = render(<ChannelList sid="s1" channels={[]} isLoading />);
 
         expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'channelList.loading');
-        // "0" next to a skeleton asserts an answer that has not arrived yet.
         expect(container.querySelector('section')).toHaveAttribute('data-count', '');
         expect(screen.queryByText('channelList.empty')).not.toBeInTheDocument();
         expect(screen.queryByText('channelList.emptyInvited')).not.toBeInTheDocument();
@@ -1025,7 +956,6 @@ describe('ChannelList — room-open trace', () => {
 
     it("starts the room's fetch on the tap, with the trace already begun", () => {
         roomOpenTrace.reset();
-        // The fetch takes the room's trace, so the trace has to exist when the fetch starts.
         let traceAtFetch: unknown;
         mockPrefetchRoomFeed.mockClear().mockImplementation(async () => {
             traceAtFetch = roomOpenTrace.peek('g1');
@@ -1044,7 +974,6 @@ describe('ChannelList — room-open trace', () => {
         expect(traceAtFetch).toBeDefined();
     });
 
-    // A stale row of the previous account's notes-to-self room: its feed is refused to anyone else.
     it("does not fetch somebody else's notes-to-self room on the tap", () => {
         mockPrefetchRoomFeed.mockClear();
         render(
@@ -1069,7 +998,6 @@ describe('ChannelList — room-open trace', () => {
     });
 });
 
-// An image message has no text, so its preview would be a blank line — it reads as a photo count.
 describe('ChannelList — image message preview', () => {
     const renderWith = (lastChat: any) => {
         mockLastChat = lastChat;
@@ -1107,7 +1035,6 @@ describe('ChannelList — image message preview', () => {
         expect(screen.getByText('chat.room.deletedMessage')).toBeInTheDocument();
     });
 
-    // `stereo` as the server stamps each upload; a sent row carries it in `upload$$`.
     const up = (stereo: string) => ({ id: `u-${stereo}`, status: 'stored', stereo });
 
     it.each([
@@ -1169,7 +1096,6 @@ describe('ChannelList swipe actions', () => {
         expect(screen.queryByRole('button', { name: 'channelList.swipe.leave' })).not.toBeInTheDocument();
     });
 
-    // A cloud's 1:1 section leads with the self room; a pin there could not move it, so none is offered.
     it('offers no pin on a self room that leads the list, while its 1:1s keep theirs', () => {
         render(
             <ChannelList
@@ -1187,7 +1113,6 @@ describe('ChannelList swipe actions', () => {
         expect(screen.getAllByRole('button', { name: 'channelList.swipe.pin' })).toHaveLength(1);
     });
 
-    // An older build could pin the self room; leading the list, it could never be unpinned here.
     it('draws no pin glyph on a leading self room, even with a stored pin', () => {
         render(
             <ChannelList
@@ -1271,8 +1196,6 @@ describe('ChannelList swipe actions', () => {
         await waitFor(() => expect(mockLeaveChannel).toHaveBeenCalledWith({ channelId: 'g1' }));
         expect(mockDeleteChannel).not.toHaveBeenCalled();
         await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.leftRoomToast' }));
-        // The toast fires inside `confirm`'s try and the dialog closes in its `finally`, so the close
-        // can still be uncommitted when the toast assertion passes — on a slow runner it was.
         await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     });
 
@@ -1346,7 +1269,6 @@ describe('ChannelList unread divergence report', () => {
     });
 });
 
-// An unread last message that calls me leads its line with "@me", read off the record like the push.
 describe('ChannelList — a last message that mentions me', () => {
     afterEach(() => {
         mockLastChat = null;
@@ -1365,7 +1287,6 @@ describe('ChannelList — a last message that mentions me', () => {
             <ChannelList
                 sid="s1"
                 channels={[makeChannel({ id: 'r1', stereo: 'group', name: 'Room', chatNo: 10, metaNo: 0 })]}
-                // My read cursor: behind the head while unread, at it once read.
                 joinByChannel={
                     new Map([['r1', { channelId: 'r1', userId: 'cloud-me', chatNo: unread ? 2 : 10 } as never]])
                 }
@@ -1374,7 +1295,6 @@ describe('ChannelList — a last message that mentions me', () => {
         );
     };
 
-    // The record holds the room's member ids: in a cloud room that is my join's id, not the account's.
     it('marks the line when the record names my id in the room', () => {
         renderRoom({ mention$: { userIds: ['cloud-me'] } });
 
@@ -1402,7 +1322,6 @@ describe('ChannelList — a last message that mentions me', () => {
     });
 });
 
-// What was left unsent in a room's composer leads that room's line, so it is not forgotten further down.
 describe('ChannelList — a room with a draft', () => {
     const renderRoom = () =>
         render(
@@ -1474,8 +1393,6 @@ describe('ChannelList — a room with a draft', () => {
     });
 });
 
-// The line names who wrote a group room's last message, and marks a thread reply as one. The prefix
-// keys echo here, so the assertion reads which key composed the line.
 describe('ChannelList — sender and thread marks', () => {
     afterEach(() => {
         mockLastChat = null;
@@ -1557,7 +1474,6 @@ describe('ChannelList — bare list and inbox activity', () => {
                 b: item({ id: 'b', kind: 'threadMention' }),
                 c: item({ id: 'c', kind: 'replyToMine' }),
                 d: item({ id: 'd', kind: 'mention', read: true }),
-                // The same channel id in another cloud is another room.
                 e: item({ id: 'e', kind: 'mention', cloudId: 'cloud-b' }),
             },
         });

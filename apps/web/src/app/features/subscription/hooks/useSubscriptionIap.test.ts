@@ -35,8 +35,6 @@ jest.mock('../../../hooks/useMembership', () => ({
     useValidateMembership: () => ({ mutateAsync: membershipMutate }),
 }));
 jest.mock('../../../hooks', () => ({ useLinkedAccounts: jest.fn() }));
-// The host's store, as the `checkout` port offers it. Its purchase never settles unless a test says
-// how the store answered.
 const mockStore = {
     kind: 'store' as const,
     store: 'google' as 'google' | 'apple',
@@ -104,8 +102,6 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
             'mypage.subscription.socialLinkRequired'
         );
 
-        // The purchase must not even start — validateMembership runs after the purchase, so if it
-        // isn't blocked here, money leaves and there's nothing for the subscription to attach to.
         expect(mockStore.purchase).not.toHaveBeenCalled();
         expect(membershipMutate).not.toHaveBeenCalled();
     });
@@ -114,8 +110,6 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
         setSocial('unknown');
         const { result } = renderHook(() => useSubscriptionIap());
 
-        // No push event arrives, so this never resolves. What matters is that it wasn't rejected
-        // and got as far as the store call.
         void result.current.purchaseAndValidate(product);
 
         expect(mockStore.purchase).toHaveBeenCalledWith(expect.objectContaining({ id: 'plan-1' }));
@@ -136,7 +130,6 @@ describe('useSubscriptionIap — 클라우드 소유를 위한 소셜 연동 가
 
         const restored = await result.current.restorePurchases();
 
-        // Doesn't throw from the guard — it defers to the server's verdict and ends up with 0 restored.
         expect(restored).toBe(0);
         expect(mockStore.currentPurchases).toHaveBeenCalled();
     });
@@ -214,7 +207,6 @@ describe('useSubscriptionIap — 결제 기록', () => {
         expect(logger.error).toHaveBeenCalledWith('IAP', 'membership validation rejected receipt (isValid=false)', {
             data: { productId: 'plan-1' },
         });
-        // The receipt never rides along — redaction is key-name based and would not catch it here.
         expect(JSON.stringify((logger.error as jest.Mock).mock.calls)).not.toContain('RECEIPT-SECRET');
     });
 

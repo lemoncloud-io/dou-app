@@ -46,7 +46,6 @@ import {
 } from '../lib';
 import { useRestoredSignal } from '../stores/useRestoredSignal';
 
-/** The navy the status banner icons carry in the design — no token, the same as the banner title. */
 const BANNER_ICON = 'size-6 shrink-0 text-[#1C274C] dark:text-foreground';
 
 const SectionTitle = ({ children }: { children: string }) => (
@@ -55,17 +54,6 @@ const SectionTitle = ({ children }: { children: string }) => (
     </h2>
 );
 
-/**
- * "구독 정보" — the running subscription in detail (Figma 4666-42489 and the banner variants
- * 4476-77853 · 4522-14249 · 4522-14495 · 4523-14812, the queued downgrade 4556-20993 · 4564-22624).
- *
- * Every value comes from the membership and the store price; the app computes no amount. The one
- * banner on top is `deriveBanner`'s choice, and tapping it opens the store's own subscription
- * management — the design notes say so, and it is where an ending is undone.
- *
- * Two designed variants are not drawn: the payment-failure banner (the relay has no grace-period
- * signal to show it from) and the refunded amount (the membership carries no amounts at all).
- */
 export const SubscriptionDetailPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -82,7 +70,6 @@ export const SubscriptionDetailPage = () => {
     useEffect(() => {
         if (!isLoading) observe(summary.state);
     }, [isLoading, summary.state, observe]);
-    // The restored note is news once. Leaving the screen spends it.
     useEffect(() => () => dismiss(), [dismiss]);
 
     if (!isLoading && summary.state === 'none') return <Navigate to={ROUTES.subscription.root} replace />;
@@ -93,14 +80,7 @@ export const SubscriptionDetailPage = () => {
     const validUntil = formatDate(membership?.validUntil);
     const banner = deriveBanner({ summary, autoRenewing: membership?.autoRenewing, hasPrice: !!price, restored });
     const webBilled = isWebBilled(membership?.platform);
-    // This device's store management lists only its own subscriptions, so it has nothing to offer
-    // for one the other store — or the website — bills: the banners stay informational and the
-    // buttons give way to a note (`isOtherStore`). The website is checked on its own too, since its
-    // plan may be missing from the catalog that `isOtherStore` is judged against.
     const canManageHere = sellsInStore && !isOtherStore && !webBilled;
-    // Where the website sells, its checkout takes the store's place for anyone a store is not billing
-    // right now. Where a store sells it is never offered: the stores do not allow pointing a buyer at
-    // another way to pay.
     const canUseWeb = checkout.kind === 'web' && canCheckoutOnWeb(summary, membership?.platform);
     const openWebSubscription = () => {
         if (checkout.kind === 'web') checkout.open(WEB_SUBSCRIPTION_URL.list);
@@ -112,9 +92,6 @@ export const SubscriptionDetailPage = () => {
         : canUseWeb && webBilled
           ? openWebSubscription
           : undefined;
-    // Where to manage it is where it was bought, not this device's store — fall back to the device
-    // only when the membership does not say. The website is named only where no store sells, for the
-    // same reason it is never linked where one does; there the `webBilled` note says what can be said.
     const storeKey = webBilled
         ? sellsInStore
             ? undefined
@@ -187,7 +164,6 @@ export const SubscriptionDetailPage = () => {
                         icon={<Lock className={BANNER_ICON} />}
                         title={t('mypage.subscription.banner.expired.title')}
                         description={
-                            // "Your clouds come back" is only true while the relay still holds them.
                             isWithinExpiredHold(membership?.validUntil, now)
                                 ? t('mypage.subscription.banner.expired.description')
                                 : t('mypage.subscription.banner.expired.descriptionPastHold')
@@ -344,7 +320,6 @@ export const SubscriptionDetailPage = () => {
                         <div className="flex flex-col gap-4 px-4">
                             {bannerNode}
                             {currentCard}
-                            {/* Only when both the plan and the receipt back it (`resolveTrialDaysLeft`). */}
                             {summary.trialDaysLeft != null && (
                                 <span className="self-start rounded-full bg-primary/20 px-3 py-1 text-[13px] font-semibold text-main-accent">
                                     {t('mypage.subscription.trialRemaining', { days: summary.trialDaysLeft })}
@@ -397,8 +372,6 @@ export const SubscriptionDetailPage = () => {
 
                     <NoticeList
                         items={[
-                            // How a store applies a tier change; a change the website bills is made, and
-                            // explained, on the website.
                             ...(webBilled
                                 ? []
                                 : [

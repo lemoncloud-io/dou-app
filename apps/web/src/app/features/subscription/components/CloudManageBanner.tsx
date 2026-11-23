@@ -20,16 +20,6 @@ import {
 
 const BANNER_ICON = 'size-6 text-[#1C274C] dark:text-foreground';
 
-/**
- * The status banner at the top of cloud management — what the subscription is doing to the clouds
- * (Figma 5000-54966 queued downgrade · 5002-56919 expired).
- *
- * Exported from the feature barrel so `CloudManagePage` can mount it without learning how the
- * membership is judged: the choice is `useCloudManageScene`'s, the dates and names come from the
- * same joins the subscription screens use. The title row opens the subscription detail; the queued
- * downgrade additionally carries the keep-clouds pill, because that choice is the one thing a user
- * can still do about which clouds the relay will hold.
- */
 export const CloudManageBanner = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -62,7 +52,6 @@ export const CloudManageBanner = () => {
                     icon={<Lock className={BANNER_ICON} />}
                     title={t('mypage.subscription.banner.expired.title')}
                     description={
-                        // "Your clouds come back" is only true while the relay still holds them.
                         isWithinExpiredHold(membership?.validUntil, Date.now())
                             ? t('mypage.subscription.banner.expired.description')
                             : t('mypage.subscription.banner.expired.descriptionPastHold')
@@ -73,8 +62,6 @@ export const CloudManageBanner = () => {
             );
         case 'pendingChange': {
             const candidates = keepCandidates(cloudsData?.list ?? []);
-            // The pill only when there is a choice to make: a downgrade everything fits into has
-            // nothing to ask, and the keep screen would bounce straight back.
             const owesKeepChoice = needsKeepChoice(candidates.length, pendingPlan?.maxClouds);
             return (
                 <StatusBanner

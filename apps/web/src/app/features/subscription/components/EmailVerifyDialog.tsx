@@ -11,43 +11,21 @@ import { InlineAction } from '../../../ui/components/InlineAction';
 import { formatCountdown, isValidEmail, VERIFICATION_CODE_LENGTH, VERIFICATION_TIMER_SECONDS } from '../../../utils';
 import { isEmailVerifyRefusal } from '../lib';
 
-/** Below this the countdown turns red — same threshold the phone flow uses. */
 const IMMINENT_SECONDS = 60;
 
 interface EmailVerifyDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onVerified: (email: string) => void;
-    /**
-     * Runs one leg of the verification exchange, rejecting on failure. Supplied by the caller (see
-     * `useVerifyEmailCode`), which is also where a refusal is raised — see `EmailVerifyRefusal`.
-     */
     verifyEmail: (request: {
         email: string;
         step: 'send' | 'resend' | 'check' | 'confirm';
         code?: string;
         cloudId?: string;
     }) => Promise<void>;
-    /**
-     * The existing cloud the verified address is bound to. `verify` chains a `confirm` call after
-     * `check` — `check` alone only validates the code typed back, it does not link the address to
-     * anything.
-     */
     cloudId: string;
 }
 
-/**
- * Email verification for a cloud: take an address, send a code, check the digits typed back.
- * Resolves to the verified address via `onVerified`.
- *
- * Both fields live on one screen, the way the design system intends and the phone flow already does
- * (`PhoneVerifyFields`): each field's action sits inside its border (`trailing`) and the countdown
- * opposite the helper text (`helperTrailing`). It used to be two full-screen steps of bespoke
- * markup, which is how it drifted away from the rest of the app's inputs.
- *
- * Its one caller is `EmailBindRequestHost`, which cloud management raises: a cloud is created
- * without an email, and the address is bound to it afterwards, there and only there.
- */
 export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail, cloudId }: EmailVerifyDialogProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -92,8 +70,6 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail,
         if (timerRef.current) clearInterval(timerRef.current);
     }, []);
 
-    // The dialog is kept mounted by its hosts, so state has to be cleared on close rather than on
-    // unmount — otherwise the next open starts on the previous attempt's address.
     const handleClose = useCallback(() => {
         onOpenChange(false);
         reset();
@@ -110,8 +86,6 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail,
             setCodeSent(true);
             startTimer();
         } catch (e) {
-            // Only a deliberate refusal carries copy written for the user; anything else is a
-            // failed request whose message is backend wording.
             const fallback = step === 'send' ? 'addAccount.sendCodeFailed' : 'addAccount.resendFailed';
             toast({ title: isEmailVerifyRefusal(e) ? e.message : t(fallback), variant: 'destructive' });
         } finally {
@@ -125,15 +99,11 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail,
         let stage: 'check' | 'confirm' = 'check';
         try {
             await verifyEmail({ email, step: 'check', code });
-            // `check` only validates the code — binding it to the cloud is a separate `confirm` call.
             stage = 'confirm';
             await verifyEmail({ email, step: 'confirm', cloudId });
             onVerified(email);
             handleClose();
         } catch (error) {
-            // A mistyped code is ordinary; a failed `confirm` is not — it leaves the cloud unbound
-            // after the address was already proven. Both collapse into the same red field, so the
-            // stage is the only thing that tells them apart afterward. The address is never logged.
             logger.warn('CLOUD', `cloud email verification failed (stage=${stage})`, { error, cloudId });
             setCodeError(true);
         } finally {
@@ -141,8 +111,6 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail,
         }
     }, [verifyEmail, email, code, cloudId, onVerified, handleClose]);
 
-    // Submit as soon as the last digit lands — typing six digits and then hunting for a button is
-    // the friction this flow exists to avoid. Keyed on the value so it fires once per completion.
     useEffect(() => {
         if (isCodeComplete && busy === 'idle' && !expired) void verify();
     }, [isCodeComplete]);
@@ -157,11 +125,6 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail,
 
     return (
         <Dialog open={open} onOpenChange={next => !next && handleClose()}>
-            {/* `max-w-app` for the same reason PhoneVerifyScreen states it: this is a full-screen
-                surface on the notice variant, which otherwise sizes it to one card width. A
-                full-screen dialog follows the column, `max-h-none` lifts the card's viewport cap, and
-                `top-[50%]` stops the variant lifting a card above the keyboard — the screen's own
-                layout does that for its button. */}
             <DialogContent className="top-[50%] h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none" hideClose>
                 <DialogTitle className="sr-only">{t('addAccount.emailTitle')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('addAccount.emailSubtitle')}</DialogDescription>
@@ -169,7 +132,6 @@ export const EmailVerifyDialog = ({ open, onOpenChange, onVerified, verifyEmail,
                 <ScreenLayout
                     header={<ModalTopBar safeArea title={t('addAccount.emailTitle')} onClose={handleClose} />}
                     footer={
-                        // ScreenLayout rides the footer above the soft keyboard and the bottom inset.
                         <FloatingButton
                             label={t('addAccount.complete')}
                             onClick={() => void verify()}

@@ -16,7 +16,6 @@ interface PlaceChipItemProps {
     onSelectPlace: (placeId: string) => void;
 }
 
-/** One place as a chip. Keeps the place record synced while shown, as the old list row did. */
 const PlaceChipItem = ({ place, isSelected, isSwitching, unreadCount, onSelectPlace }: PlaceChipItemProps) => {
     const { t } = useTranslation();
     runtime.sync.usePlaceSync(place.id);
@@ -30,12 +29,10 @@ const PlaceChipItem = ({ place, isSelected, isSwitching, unreadCount, onSelectPl
             unread={unread}
             unreadLabel={t('bottomNav.unread', { count: unread })}
             selected={isSelected}
-            // A switch already under way owns the session; a second tap would race it.
             onClick={
                 isSwitching
                     ? undefined
                     : () => {
-                          // A tick as the row moves its fill to another place; the current one stays quiet.
                           if (!isSelected) haptics.play('selection');
                           onSelectPlace(place.id);
                       }
@@ -44,15 +41,10 @@ const PlaceChipItem = ({ place, isSelected, isSwitching, unreadCount, onSelectPl
     );
 };
 
-/** The row's side padding (`px-4`) — a revealed chip keeps that margin from the edge. */
 const ROW_INSET = 16;
 
 type HorizontalRect = Pick<DOMRect, 'left' | 'right'>;
 
-/**
- * How far the row has to scroll for `chip` to sit fully inside it, `inset` from either edge;
- * negative scrolls back. Zero when it is already inside. A chip wider than the row aligns its start.
- */
 export const chipRevealDelta = (row: HorizontalRect, chip: HorizontalRect, inset: number): number => {
     if (chip.left < row.left + inset) return chip.left - (row.left + inset);
     if (chip.right > row.right - inset) {
@@ -64,22 +56,14 @@ export const chipRevealDelta = (row: HorizontalRect, chip: HorizontalRect, inset
 interface PlaceChipRowProps {
     places: DomainPlace[];
     selectedPlaceId: string | null;
-    /** Unread messages per place id — each chip's pill. */
     unreadByPlace?: Record<string, number>;
     isLoading: boolean;
     isSwitching?: boolean;
     onSelectPlace: (placeId: string) => void;
-    /** Owner-only: the ＋ at the end of the row. */
     onCreatePlace?: () => void;
     canAddPlace?: boolean;
 }
 
-/**
- * The home's place row — CLOUD MODE ONLY, like the section it replaces: the relay has exactly one
- * place and draws the cloud promo in this slot. Every place is a chip on one horizontally scrolling
- * line, the current one filled and named, the rest folded to their disc and unread count; the
- * owner's ＋ closes the row.
- */
 export const PlaceChipRow = ({
     places: rawPlaces,
     selectedPlaceId,
@@ -91,14 +75,10 @@ export const PlaceChipRow = ({
     canAddPlace,
 }: PlaceChipRowProps) => {
     const { t } = useTranslation();
-    // Relay subscription rows (`stereo === 'place'`) are not places a member switches between.
     const places = rawPlaces.filter(place => place.stereo !== 'place');
     const rowRef = useRef<HTMLDivElement>(null);
     const hasScrolledRef = useRef(false);
 
-    // Keep the current chip in view: a place far down the row is otherwise off-screen on entry,
-    // and a chip near the edge unfolds its name past it. The first placement jumps; later ones glide.
-    // Scrolls the row itself, not `scrollIntoView`, which would also move the page vertically.
     const revealSelectedChip = useCallback(() => {
         const row = rowRef.current;
         const chip = row?.querySelector<HTMLElement>('[aria-pressed="true"]');
@@ -113,7 +93,6 @@ export const PlaceChipRow = ({
         if (!isLoading) revealSelectedChip();
     }, [isLoading, selectedPlaceId, revealSelectedChip]);
 
-    // The unfold widens the chip after the effect above ran, so look again once it has finished.
     const handleTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
         if (event.propertyName !== 'grid-template-columns') return;
         if (!(event.target as HTMLElement).closest('[aria-pressed="true"]')) return;
@@ -130,7 +109,6 @@ export const PlaceChipRow = ({
         >
             {isLoading ? (
                 <div role="status" aria-label={t('placeList.loading')} className="flex gap-2">
-                    {/* One unfolded chip, then folded ones — the shape the row settles into. */}
                     {[96, 52, 32].map((width, index) => (
                         <div
                             key={width}

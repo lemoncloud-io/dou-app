@@ -14,9 +14,6 @@ jest.mock('../hooks', () => ({ usePlanCatalog: jest.fn() }));
 const navigateMock = jest.fn();
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigateMock }));
 
-// i18n stub: echo the key so assertions target keys, and surface the interpolated day count.
-// A separate suite below checks those keys actually exist in the locale files, since this stub
-// would happily render a typo'd key.
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
         t: (key: string, arg?: unknown) =>
@@ -28,7 +25,6 @@ jest.mock('react-i18next', () => ({
 
 const K = 'mypage.subscription.cloudGuide';
 
-/** `sellablePlans` is empty off-native — no store applies there. See usePlanCatalog. */
 const setProduct = (product: { trialDays?: number } | undefined, trialEligible = true) =>
     (usePlanCatalog as jest.Mock).mockReturnValue({
         sellsInStore: !!product,
@@ -69,8 +65,6 @@ describe('CloudGuidePage — CTA label', () => {
     });
 
     it('omits any trial claim off-native, where no store product resolves', () => {
-        // The usual web case. Promising a trial we cannot confirm would be a false claim, so the
-        // no-trial label is the default rather than an error path.
         setProduct(undefined);
 
         render(<CloudGuidePage />);
@@ -89,16 +83,12 @@ describe('CloudGuidePage — CTA label', () => {
 });
 
 describe('CloudGuidePage — locale keys', () => {
-    // The i18n mock above echoes keys, so a typo'd or deleted key still renders a passing
-    // assertion. This suite is what actually stops the page shipping raw key strings.
     const KEYS = [
         'heroAccent',
         'heroRest',
         'ctaCaption',
         'ctaWithTrial',
         'ctaPlain',
-        // The MyPage entry-row label is NOT here: it lives at `mypage.subscription.guideEntry`, one
-        // level up, because the row belongs to the MyPage menu rather than to this screen's copy.
         'free.name',
         'free.badge',
         'free.headline',
@@ -116,8 +106,6 @@ describe('CloudGuidePage — locale keys', () => {
         'pro.benefit3Description',
     ];
 
-    // Read the shipped JSON off disk: a default JSON import resolves to undefined under this
-    // ts-jest config, and going through i18next would only re-test the library.
     const load = (locale: string): Record<string, unknown> =>
         JSON.parse(readFileSync(join(__dirname, `../../../../../public/locales/${locale}/translation.json`), 'utf-8'));
 

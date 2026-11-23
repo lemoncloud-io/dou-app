@@ -24,8 +24,6 @@ describe('ChannelEmptyState', () => {
     });
 
     it('초대받은 플레이스라도 이동할 곳이 없으면 나가기 안내를 숨긴다', () => {
-        // No active site id on the host → the settings hub has no route to open, so offering the
-        // link would dead-end. Only the "rooms arrive by invitation" line survives.
         render(<ChannelEmptyState variant="invited" />);
 
         expect(screen.getByText('channelList.emptyInvited')).toBeInTheDocument();

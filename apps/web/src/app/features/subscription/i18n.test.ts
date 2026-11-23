@@ -1,14 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/**
- * The tier screens render copy through keys, and a typo'd key renders as the key itself — visible
- * only to whoever opens that exact screen on that exact locale. This suite is what stops that
- * shipping — the i18n stub in component tests happily renders a typo'd key.
- */
-
-// Read the shipped JSON off disk: a default JSON import resolves to undefined under this ts-jest
-// config, and going through i18next would only re-test the library.
 const load = (locale: string): Record<string, unknown> =>
     JSON.parse(readFileSync(join(__dirname, `../../../../public/locales/${locale}/translation.json`), 'utf-8'));
 
@@ -140,7 +132,6 @@ const SUBSCRIPTION_KEYS = [
     'refusal.otherStore.description',
     'refusal.pickInstead',
     'refusal.selectInstead',
-    // Pre-existing keys the reworked screens still read.
     'pricePerMonth',
     'vatIncluded',
     'subscribe',
@@ -159,7 +150,6 @@ const ADD_ACCOUNT_KEYS = [
     'subscriptionCanceled',
     'addFailed',
     'success',
-    // Keys read by the redesigned verification screen
     'emailTitle',
     'emailSubtitle',
     'emailLabel',
@@ -195,8 +185,6 @@ describe('구독 tier 문구 — 로케일 정의', () => {
 });
 
 describe('구독 tier 문구 — 치환 변수', () => {
-    // A missing placeholder is worse than a missing key: the sentence still renders, just with the
-    // number silently dropped ("계정은 최대 개까지").
     const INTERPOLATIONS: [string, string][] = [
         ['addAccount.limitDialog.changeableDescription', 'max'],
         ['addAccount.limitDialog.topTitle', 'max'],

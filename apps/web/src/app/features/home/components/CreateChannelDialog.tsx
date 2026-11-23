@@ -8,13 +8,11 @@ import { AVATAR_IMAGE, prepareImage, useNavigateWithTransition } from '@chatic/s
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-// Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
-// `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { ROUTES } from '../../../routes/paths';
 import { useCreateChannel } from '../../channels/hooks';
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const NAME_MAX = 20;
 
 interface Notice {
@@ -27,17 +25,6 @@ interface CreateChannelDialogProps {
     onOpenChange: (open: boolean) => void;
 }
 
-/**
- * Full-screen overlay to CREATE a group room (=Channel, stereo 'private'): name + optional photo.
- * On success it creates the room on the cloud server and navigates into it, then closes. Built on
- * @chatic/web-ui-kit; mirrors CreatePlaceDialog. Owner/PRO/limit gating lives in the caller
- * (HomePage). See place-channel-create.md.
- */
-/**
- * The screen shows the same "too large" message for a codec failure as for an oversized file, so
- * the two are indistinguishable to the user and were indistinguishable to us. Size and type are
- * what separate them; the file's contents are never recorded (ADR-0099).
- */
 const logImageEncodeFailure = (error: unknown, file: File): void =>
     logger.warn('CHANNEL', 'channel image encoding failed', {
         error,
@@ -55,11 +42,8 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
     const [submitting, setSubmitting] = useState(false);
     const [alertOpen, setAlertOpen] = useState(false);
     const [notice, setNotice] = useState<Notice | null>(null);
-    // Whether the name field holds focus — i.e. the soft keyboard is up. Drives the compact layout;
-    // the rationale sits on the collapsing header below.
     const [editing, setEditing] = useState(false);
 
-    // Reset transient state each time the overlay opens.
     useEffect(() => {
         if (open) {
             setName('');
@@ -88,8 +72,6 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
         }
         try {
             const { avatar: base64 } = await prepareImage(file, AVATAR_IMAGE);
-            // A record field has nothing to fall back to, so a preview that could not be made is
-            // an error here, not a degraded result.
             if (!base64) throw new Error('Failed to prepare avatar image');
             setThumbnail(base64);
             setNotice(null);
@@ -116,8 +98,6 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                 thumbnail: thumbnail || undefined,
             });
             onOpenChange(false);
-            // Enter the freshly created room. Guard the id: an empty id would build "/channels//room"
-            // (no route match, blank screen) — in that unlikely case just close and stay on home.
             if (created.id) navigate(ROUTES.channels.room(created.id));
         } catch (error) {
             logger.error('CHANNEL', 'Failed to create group room', { error });
@@ -132,24 +112,6 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                 className="flex h-full max-h-[100dvh] w-full flex-col rounded-none bg-background p-0"
                 hideClose
                 variant="slide-up"
-                // The slide-up variant bakes in `pt-safe-top` / `pb-safe-bottom`, and both insets are
-                // owned by children here instead.
-                //
-                // Top: the dialog's own `pt-safe-top` renders the status-bar band as opaque
-                // `bg-background` *above* the glass bar, so only the 44px bar looked blurred. The bar
-                // carries the inset itself (`safeArea`), which puts the whole band inside the
-                // translucent, backdrop-blurred header and lets content scroll under all of it.
-                //
-                // Bottom: KeyboardSafeAreaSpacer below the CTA already reserves
-                // max(safe-bottom - CTA padding, keyboard-height). Keeping both applies the
-                // home-indicator inset twice, and with the keyboard up it floats the CTA a full inset
-                // above the keyboard instead of the intended 16px. Dropping it here leaves the spacer as
-                // the single bottom inset — the same arrangement as PlaceProfileForm's page container,
-                // which has no dialog padding to begin with.
-                //
-                // Inline rather than `pt-0` / `pb-0` classes: the safe-area keys are custom spacing
-                // tailwind-merge doesn't recognise, so both classes would survive and utility order
-                // would decide the winner.
                 style={{ paddingTop: 0, paddingBottom: 0 }}
             >
                 <DialogTitle className="sr-only">{t('createChannel.title')}</DialogTitle>
@@ -157,29 +119,12 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
 
                 <div className="flex h-full w-full flex-col">
                     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-                        {/* Glass top bar floats above the scroll area (sticky + z-index) instead of
-                            occupying a band of its own, so the content passes under the translucent bar
-                            while the close button stays on top and tappable (Figma 3421-59848, the
-                            overlay chrome idiom from e5a0a19d). Sticky rather than KeyboardAwareLayout's
-                            absolute + measured padding: dialogs can't nest that layout, and a sticky bar
-                            in flow reserves exactly its own height at the top of the scroller.
-                            safeArea: the bar owns the status-bar inset (the dialog's `pt-safe-top` is
-                            zeroed above) so the blur covers the notch band too, not just the 44px bar. */}
                         <ModalTopBar
                             onClose={requestClose}
                             closeLabel={t('createChannel.close')}
                             className="sticky top-0 z-20 shrink-0"
                         />
 
-                        {/* Title + subtitle — folded away while the name field has focus.
-                            The keyboard rises over a WebView that is never resized (Android
-                            `adjustNothing`), so the field can only be kept readable by moving it UP.
-                            Collapsing the decorative header lands it just under the top bar, above
-                            any keyboard, without depending on `--keyboard-height` being reported or
-                            on the scroller having room to scroll — the two things that fail on the
-                            devices where the field stayed buried. Animated through a 0fr<->1fr grid
-                            row, the CollapsibleSection idiom, and faded alongside so the text dissolves
-                            rather than being cut off by the shrinking row. */}
                         <div
                             className={cn(
                                 'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
@@ -202,11 +147,6 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                             </div>
                         </div>
 
-                        {/* Avatar + name. The paddings tighten with the same compact mode: folding
-                            the header alone is not enough on a short screen, so the avatar block
-                            gives up its generous spacing and its caption while typing. The avatar
-                            keeps its size — the folded text frees enough height, and a photo that
-                            shrank on every focus read as the screen changing under the user. */}
                         <div
                             className={cn(
                                 'flex flex-col transition-all duration-200 ease-out',
@@ -219,11 +159,6 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                                     editing ? 'gap-0' : 'gap-4'
                                 )}
                             >
-                                {/* Keeps focus on the input when the avatar is tapped: blurring
-                                    would expand the layout out from under the finger between
-                                    pointerdown and click, so the tap would land on whatever moved
-                                    into that spot. Preventing mousedown's default cancels the focus
-                                    change while still delivering the click. */}
                                 <span onMouseDown={event => event.preventDefault()}>
                                     <ProfileAvatar
                                         src={thumbnail || undefined}

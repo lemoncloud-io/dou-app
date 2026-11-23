@@ -34,19 +34,6 @@ import {
     toggleKeep,
 } from '../lib';
 
-/**
- * "유지할 클라우드 선택" — after a downgrade, which clouds stay once the allowance shrinks (Figma
- * 4537-15842 · 4564-22355 · 4564-23171 first choice, 4564-23375 · 4564-23577 · 4565-24236 changing it).
- *
- * The relay asks the opposite question: `POST /memberships/0/drops` takes the clouds to give up, and
- * its list is the final state. The screen asks what to keep, because that is the choice a person
- * makes, and sends everything else. Nothing happens on save — the relay holds the unchosen clouds
- * when the downgrade actually lands at renewal, and the choice can be changed until then, even
- * after, while they are on hold.
- *
- * The target plan is the queued one from the membership. Straight after the purchase the relay may
- * not have read the new receipt yet, so the confirm screen passes the plan along as `?plan=` too.
- */
 export const KeepCloudsPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -66,7 +53,6 @@ export const KeepCloudsPage = () => {
     const limit = target?.maxClouds;
     const candidates = keepCandidates(cloudsData?.list ?? []);
 
-    // Nothing to choose — no change queued, or everything fits — goes back to the detail.
     if (!isLoading && (typeof limit !== 'number' || !needsKeepChoice(candidates.length, limit))) {
         return <Navigate to={ROUTES.subscription.detail} replace />;
     }
@@ -83,16 +69,11 @@ export const KeepCloudsPage = () => {
     const selection = picked ?? saved;
     const canSubmit =
         selection.length === limit && !markDrops.isPending && !(isChange && isSameKeepChoice(selection, saved));
-    // The date the downgrade lands. A purchase this moment old may not show it yet; the dash then is
-    // honest rather than a guessed renewal date.
     const changeDate = formatDate(membership?.validUntil);
 
     const submit = async () => {
         setIsConfirmOpen(false);
         try {
-            // The response's `excess` is owned clouds against the CURRENT plan's allowance, not
-            // against the marks, so it says nothing about whether this choice is complete — the
-            // selection count above is what guarantees that.
             await markDrops.mutateAsync({ cloudIds: toDropIds(candidates, selection) });
             toast({ title: t('mypage.subscription.keep.saved') });
             navigate(ROUTES.subscription.detail, { replace: true });
@@ -153,8 +134,6 @@ export const KeepCloudsPage = () => {
                                         key={id}
                                         title={name}
                                         leading={<CloudAvatar name={name} size="md" />}
-                                        // "Selected" names what the relay holds now, not the pending tap —
-                                        // it is how a returning user sees the choice they already made.
                                         trailingLabel={
                                             isChange && saved.includes(id)
                                                 ? t('mypage.subscription.keep.selected')
