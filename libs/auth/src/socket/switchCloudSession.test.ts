@@ -30,7 +30,6 @@ jest.mock('./reauthDelegate', () => ({ createReauthDelegate: () => ({}) }));
 
 const inviteAnswer = { id: 'invitee', Token: { identityToken: 'invitee-identity' } };
 const endpoints = { backend: 'https://cloud.example.com', wss: 'wss://cloud.example.com' };
-/** The handle the runtime hands a screen for an invite login's answer, as the switch takes it. */
 const handleFor = (answer: unknown) => ({ ...keepInviteLogin(answer as never), ...endpoints });
 let inviteLogin: ReturnType<typeof handleFor>;
 
@@ -95,7 +94,6 @@ describe('switchCloudSession', () => {
         await switchCloudSession('cloud-1', { inviteLogin });
 
         expect(mockReauthenticate).toHaveBeenCalledWith(expect.objectContaining({ slot: 'cloud-1' }));
-        // A renewal re-issues through delegate-cloud — the very identity the answer replaced.
         expect(mockRenew).not.toHaveBeenCalled();
     });
 

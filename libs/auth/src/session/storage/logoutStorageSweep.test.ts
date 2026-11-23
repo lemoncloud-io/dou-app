@@ -10,7 +10,6 @@ import type * as SweepModule from './logoutStorageSweep';
 
 const setUrl = (search: string): void => window.history.replaceState({}, '', `/${search}`);
 
-// The address the sweep reads its flag from: the jsdom page's.
 beforeEach(() => authPlatform.configure(fakeAuthPorts()));
 
 describe('logoutStorageSweeper', () => {
@@ -19,7 +18,6 @@ describe('logoutStorageSweeper', () => {
     beforeEach(() => {
         plain = new MemoryStore();
         sessionStores.configure({ secret: new MemoryStore(), plain });
-        // What apps/web's log and telemetry domains declare at boot.
         signedOutAppKeys.register(['@chatic/web.log.', '@chatic/web.telemetry.policy']);
         [
             '@chatic/web.log.pending.tab-1',

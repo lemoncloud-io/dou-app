@@ -19,7 +19,6 @@ jest.mock('@chatic/session/store', () => ({
 }));
 
 const mockRecentClouds = jest.fn((): string[] => []);
-/** Every cloud has a complete cached entry unless a case says otherwise. */
 const mockPeekCached = jest.fn((_cid: string): unknown => ({
     delegationToken: { wss: 'wss://cloud' },
     cloudToken: { Token: { identityToken: 'token' } },
@@ -39,7 +38,6 @@ const mockedLogoutCloud = cloudSession.clearStores as jest.Mock;
 const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;
 const mockedGetCommittedCloudId = getCommittedCloudId as jest.MockedFunction<typeof getCommittedCloudId>;
 
-/** Manager whose getClient(slot) resolves a per-slot auth stub (null when that slot is absent). */
 const managerWith = (bySlot: { relay?: unknown; cloud?: unknown }) =>
     ({
         getClient: jest.fn((slot: string) => {
@@ -111,8 +109,6 @@ describe('logoutCloudSession', () => {
     });
 
     it('leaves a joined cloud past the cap to the binder — it signs off every cap-dropped slot', async () => {
-        // Six joined clouds, cloud-1 the least recent: it will be torn down, and SocketBinder says
-        // auth.logout as it does. Saying it here too would notify the same socket twice.
         backgroundClouds.setJoined(['cloud-1', 'cloud-2', 'cloud-3', 'cloud-4', 'cloud-5', 'cloud-6']);
         mockRecentClouds.mockReturnValue(['cloud-2', 'cloud-3', 'cloud-4', 'cloud-5', 'cloud-6', 'cloud-1']);
         const cloudLogout = jest.fn().mockResolvedValue(undefined);
@@ -124,7 +120,6 @@ describe('logoutCloudSession', () => {
     });
 
     it('does not log out of a cloud a send is still in flight to, even one no longer joined', async () => {
-        // Not joined: without the hold this is the "sign off here" case.
         const release = backgroundClouds.hold('cloud-1');
         const cloudLogout = jest.fn().mockResolvedValue(undefined);
         mockedGetManager.mockReturnValue(managerWith({ cloud: { logout: cloudLogout } }));

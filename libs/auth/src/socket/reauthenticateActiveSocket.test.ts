@@ -29,7 +29,6 @@ const makeManager = (auth: unknown, isVerified = true, clientState = 'connected'
     ({
         getClient: jest.fn(() => (auth ? { auth, state: clientState } : null)),
         getSnapshot: jest.fn(() => ({ isVerified })),
-        // The revoke/dip guard now reads the PER-SLOT verification, not the active-slot snapshot.
         isSlotVerified: jest.fn(() => isVerified),
         setAuthenticated: jest.fn(),
     }) as unknown as ISocketManager;
@@ -43,8 +42,6 @@ const makeDelegate = (registration: { token: string; authId: string } | null): j
     }) as unknown as jest.Mocked<SocketSessionDelegate>;
 
 describe('reauthenticateActiveSocket', () => {
-    // The registry is module state that every register() in this file writes to; without this a case
-    // would inherit the previous one's registration and see a phantom drift.
     beforeEach(() => authIdRegistry.reset());
 
     it('logs out then re-registers when the registration token differs from the SDK token', async () => {
@@ -54,7 +51,7 @@ describe('reauthenticateActiveSocket', () => {
 
         await reauthenticateActiveSocket({ manager: makeManager(auth), delegate, slot: RELAY });
 
-        expect(order).toEqual(['logout', 'register']); // revoke old session BEFORE registering new identity
+        expect(order).toEqual(['logout', 'register']);
         expect(auth.register).toHaveBeenCalledWith(
             expect.objectContaining({ token: 'social-token', authId: 'social-auth', sign: expect.any(Function) })
         );
@@ -72,9 +69,6 @@ describe('reauthenticateActiveSocket', () => {
         expect(auth.register).not.toHaveBeenCalled();
     });
 
-    // The 403 this guard exists for: the writeback left the store on a NEW $auth.id while the
-    // controller still quotes the old one, so the token matches but every later refresh would be
-    // signed with a key the server does not expect (`invalid sign`).
     it('re-seeds the authId alone when the token matches but the registered authId drifted', async () => {
         const order: string[] = [];
         const auth = makeAuth('same-token', order);
@@ -84,8 +78,6 @@ describe('reauthenticateActiveSocket', () => {
 
         await reauthenticateActiveSocket({ manager, delegate, slot: RELAY });
 
-        // A bare register: no logout (the identity did not change — revoking would drop a live
-        // session over a field), and no verified dip (nothing for the UI to re-anchor).
         expect(order).toEqual(['register']);
         expect(auth.register).toHaveBeenCalledWith(
             expect.objectContaining({ token: 'same-token', authId: 'rotated-auth' })
@@ -135,8 +127,6 @@ describe('reauthenticateActiveSocket', () => {
 
         await reauthenticateActiveSocket({ manager: makeManager(auth, false), delegate, slot: RELAY });
 
-        // register still runs (so the new identity is applied on the next handshake — edge not lost),
-        // but auth.logout is skipped (it would 503 on a disconnected socket).
         expect(order).toEqual(['register']);
         expect(auth.logout).not.toHaveBeenCalled();
         expect(auth.register).toHaveBeenCalledWith(
@@ -151,8 +141,6 @@ describe('reauthenticateActiveSocket', () => {
 
         await reauthenticateActiveSocket({ manager: makeManager(auth, false, 'closed'), delegate, slot: RELAY });
 
-        // register re-activated the controller; without stop() the SDK would auto-send auth.update
-        // on the next `connected` BEFORE that connection's device.save:ok and fail terminally.
         expect(order).toEqual(['register', 'stop']);
     });
 

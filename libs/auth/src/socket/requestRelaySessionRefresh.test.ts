@@ -7,10 +7,6 @@ jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-// `getAuthStatus` (ADR-0076 Decision 1) reads the store's token and the credential clock on top of the
-// socket, so both have to be seeded here. That is a real input the pre-refactor condition did NOT
-// have — see the commit message; a bound socket with no stored token now reads `absent`, which is
-// the safe direction.
 jest.mock('@chatic/session/store/stores', () => ({
     relayStore: { getIdentityToken: () => 'relay-idt' },
     cloudStore: { getIdentityToken: () => 'cloud-idt' },
@@ -19,14 +15,6 @@ jest.mock('@chatic/session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 30 * 60_000, isStale: () => false },
 }));
 
-/**
- * Fake AuthController. `refresh()` is the SDK's public call (sockets-lib 0.5.1) and its promise IS
- * the answer, so the fake needs no listener emitters — the old one had them because this module used
- * to guess at completion from `onTokenRefresh`/`onAuthState`.
- *
- * `deferRefresh` hands back the settle functions for the cases that need a refresh to still be
- * in flight while a second caller arrives.
- */
 const makeAuth = ({ state = 'authenticated' } = {}) => {
     let settle: { resolve: () => void; reject: (error: Error) => void } | null = null;
     return {
@@ -37,7 +25,6 @@ const makeAuth = ({ state = 'authenticated' } = {}) => {
                     settle = { resolve: () => resolve({ Token: { identityToken: 'fresh' } }), reject };
                 })
         ),
-        /** Settles the refresh currently in flight. */
         finishRefresh: () => settle?.resolve(),
         failRefresh: (message = 'auth.refresh failed: sign') => settle?.reject(new Error(message)),
     };
@@ -45,12 +32,6 @@ const makeAuth = ({ state = 'authenticated' } = {}) => {
 
 type FakeAuth = ReturnType<typeof makeAuth>;
 
-// `isSlotVerified` is DERIVED here, not a free knob. The real SocketManager computes it as
-// `authenticated && connState === 'connected'` and clears it on every non-connected transition, so a
-// fake that reports `verified` for a closed socket describes a state the manager cannot produce.
-// That mattered once `deriveAuthStatus` started trusting this flag instead of re-reading the
-// transport (ADR-0076 Decision 1): the stale fake was the only thing claiming a closed socket could
-// carry a refresh. `verified` can still be forced to false to model a mid-handshake connection.
 const makeManager = (client: { auth?: FakeAuth; state?: string } | null, { verified = true } = {}): ISocketManager =>
     ({
         getClient: jest.fn(() => client),
@@ -62,8 +43,6 @@ const makeManager = (client: { auth?: FakeAuth; state?: string } | null, { verif
 describe('requestRelaySessionRefresh', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        // Attempts are coalesced per kind in module state; without this each case would inherit the
-        // previous one's memoized answer instead of driving its own refresh.
         resetRelayRefreshCoalescing();
     });
 
@@ -88,9 +67,6 @@ describe('requestRelaySessionRefresh', () => {
         await expect(pending).resolves.toBe(false);
     });
 
-    // A rejection is only the answer to this attempt, not a session verdict — the controller's
-    // backoff keeps running behind it, and whether it goes terminal is the controller's call. The
-    // reason only rides along in the message, so this doesn't branch on it.
     it('거부 사유가 무엇이든 false 하나로 답한다 — 분기하지 않는다', async () => {
         const auth = makeAuth();
         const manager = makeManager({ auth, state: 'connected' });
@@ -101,11 +77,6 @@ describe('requestRelaySessionRefresh', () => {
         await expect(pending).resolves.toBe(false);
     });
 
-    // A completion ceiling is no longer ours to hold. It used to be needed as a 10s ceiling because
-    // the old code called the private `runRefresh` via a cast and guessed completion from a
-    // subscription. `refresh()` now rides the socket's `request`, so it gets rejected by its own
-    // transport timeout (`408`), and that rejection IS the answer — holding a timer here would just
-    // be a second ceiling racing the SDK's own.
     it('자체 타임아웃을 걸지 않는다 — 미해결 refresh는 미해결로 남는다', async () => {
         jest.useFakeTimers();
         try {
@@ -126,10 +97,6 @@ describe('requestRelaySessionRefresh', () => {
         }
     });
 
-    // ADR-0070 invariants 1·2 — refresh belongs to ClientSocketAuth alone. With no socket, it rejects
-    // instead of finding a way around it. This used to fall back to a service-level HTTP refresh here,
-    // which was a second path to the refresh endpoint — one that updated only the store and left the
-    // socket's own signing material stale, which is exactly the source of the divergence.
     it('바인드된 슬롯이 없으면 refresh하지 않고 false를 돌려준다', async () => {
         await expect(requestRelaySessionRefresh({ manager: makeManager(null) })).resolves.toBe(false);
     });
@@ -150,12 +117,6 @@ describe('requestRelaySessionRefresh', () => {
         expect(auth.refresh).not.toHaveBeenCalled();
     });
 
-    // Right after a reconnect, the SDK's `auth.state` still carries the 'authenticated' of the dead
-    // connection (`stop()` only turns off the active flag and timers, it doesn't touch the state
-    // value). Firing in that window hits a new connection with no device attached yet, so the server
-    // rejects with `400 BAD REQUEST - no device linked @auth.refresh(...)` — not a session problem but
-    // a race, and it still burns one attempt. So this also checks the slot-verified flag that tracks
-    // the current connection.
     it('연결은 됐지만 이번 연결의 핸드셰이크가 안 끝났으면 refresh하지 않는다', async () => {
         const auth = makeAuth();
         const manager = makeManager({ auth, state: 'connected' }, { verified: false });
@@ -175,9 +136,6 @@ describe('requestRelaySessionRefresh', () => {
         expect(manager.isSlotVerified).toHaveBeenCalledWith(RELAY_SLOT);
     });
 
-    // This trigger is relay-only. A cloud token is **reissued** from the relay identity
-    // (renewCloudSession), so it isn't something refresh fixes — which is why there's no slot
-    // argument at all.
     it('relay 슬롯만 본다 — cloud 슬롯이 살아 있어도 그쪽으로 가지 않는다', async () => {
         const relayAuth = makeAuth({ state: 'expired' });
         const cloudAuth = makeAuth();
@@ -189,7 +147,6 @@ describe('requestRelaySessionRefresh', () => {
             isSlotVerified: jest.fn(() => true),
         } as unknown as ISocketManager;
 
-        // False because relay isn't authenticated. It doesn't fall back to a live cloud.
         await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
 
         expect(manager.getClient).toHaveBeenCalledWith(RELAY_SLOT);
@@ -197,15 +154,6 @@ describe('requestRelaySessionRefresh', () => {
     });
 });
 
-/**
- * Absorbing simultaneous and back-to-back requests.
- *
- * Epoch pile-up (the path where an earlier attempt is invalidated and counted as a timeout failure,
- * filling up maxFailures by our own hand) is now blocked by the SDK — `refresh()` joins an in-flight
- * renewal (0.5.1). What's left here is the share of attempts that **never even reach** the SDK: the
- * "no authenticated socket" verdict is decided before `refresh()` is called, so the SDK's join-in-
- * flight can't absorb it, and memoizing a just-finished answer is a question the SDK never gets asked.
- */
 describe('requestRelaySessionRefresh — 중복 억제', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -254,9 +202,6 @@ describe('requestRelaySessionRefresh — 중복 억제', () => {
         const manager = makeManager(null);
 
         await expect(requestRelaySessionRefresh({ manager })).resolves.toBe(false);
-        // How many manager reads ONE attempt costs is an implementation detail (the status snapshot
-        // reads the client more than once). What this case is about is that the SECOND request runs
-        // no attempt at all, so measure the delta rather than an absolute count.
         const readsAfterFirstAttempt = (manager.getClient as jest.Mock).mock.calls.length;
         expect(readsAfterFirstAttempt).toBeGreaterThan(0);
 
@@ -265,9 +210,6 @@ describe('requestRelaySessionRefresh — 중복 억제', () => {
         expect(manager.getClient).toHaveBeenCalledTimes(readsAfterFirstAttempt);
     });
 
-    // A returning user's first relay-signed requests fail while the socket is still handshaking and
-    // ask for a refresh; the staleness guard asks again on the verified edge, typically inside the
-    // memo window. Answering the guard from that memo left the expired credential in place.
     it('does not answer from a "still handshaking" memo once the relay slot has verified', async () => {
         const auth = makeAuth();
         const client = { auth, state: 'connected' };

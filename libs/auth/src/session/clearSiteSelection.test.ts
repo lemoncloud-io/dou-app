@@ -6,7 +6,6 @@ const mockSwitchSite = jest.fn();
 jest.mock('@chatic/session/store', () => ({
     setSelectedSiteId: (...args: unknown[]) => mockSetSelectedSiteId(...args),
 }));
-// The switch path, so the test can say it is never taken.
 jest.mock('../socket/switchSite', () => ({
     switchSite: (...args: unknown[]) => mockSwitchSite(...args),
 }));

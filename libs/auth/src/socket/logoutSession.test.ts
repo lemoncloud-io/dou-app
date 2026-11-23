@@ -21,10 +21,6 @@ const mockedGetManager = getSocketManager as jest.MockedFunction<typeof getSocke
 
 const CLOUD = slotKeyOf('cloud-1');
 
-/**
- * Manager whose getClient(slot)/getSlotKeys() resolve from a per-slot auth stub (relay/cloud keys
- * only — no slot bound when the corresponding value is absent).
- */
 const managerWith = (bySlot: { relay?: unknown; cloud?: unknown }) =>
     ({
         getClient: jest.fn((slot: string) => {
@@ -90,13 +86,11 @@ describe('logoutSession', () => {
     });
 
     it('does NOT block the local teardown on a hanging auth.logout ack (wedged socket)', async () => {
-        // auth.logout never resolves (server wedged / half-open). logoutSession must still complete
-        // the local teardown without awaiting the socket ack.
-        const authLogout = jest.fn(() => new Promise<void>(() => undefined)); // never settles
+        const authLogout = jest.fn(() => new Promise<void>(() => undefined));
         mockedGetManager.mockReturnValue(managerWith({ relay: { logout: authLogout } }));
 
         await expect(logoutSession()).resolves.toBeUndefined();
-        expect(authLogout).toHaveBeenCalledTimes(1); // frame dispatched
-        expect(mockedLogoutRelay).toHaveBeenCalledTimes(1); // local teardown still ran
+        expect(authLogout).toHaveBeenCalledTimes(1);
+        expect(mockedLogoutRelay).toHaveBeenCalledTimes(1);
     });
 });

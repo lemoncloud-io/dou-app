@@ -1,13 +1,5 @@
-// @chatic/auth — logging in, switching cloud, renewing a credential, ending a session, and pairing.
-//
-// This barrel is what the runtime modules above it read. It sells each module the layers above
-// import, whole; a module nothing above imports — the session auth adapter, the signature helpers,
-// the auth-id registry, the cloud-identity reader, the revoked-session reader, the site alignment,
 // the cloud renewal step the renewers call — stays inside. Apps never import it: the root eslint
-// config closes it, and they reach these through `runtime.session` and `runtime.connection` from
-// @chatic/runtime.
 
-// session — the relay and cloud sessions, and the use cases over them.
 export * from './session/authActions';
 export * from './session/accountView';
 export * from './session/inviteLogins';
@@ -20,7 +12,6 @@ export { relayCredentialProbe } from './session/relayCredentialProbe';
 export type { IRelayCredentialProbe } from './session/types';
 export * from './session/relaySession';
 
-// pairing — signing a device in from another device.
 export * from './pairing/pairedCloudSessions';
 export * from './pairing/pairedClouds';
 export * from './pairing/pairedSession';
@@ -29,7 +20,6 @@ export * from './pairing/pairingClient';
 export * from './pairing/pairingErrors';
 export * from './pairing/pairingRequestFlow';
 
-// socket — authentication on the socket slots. `types.ts` holds no values.
 export * from './socket/types';
 export * from './socket/applySessionToken';
 export * from './socket/phoneLogin';
@@ -48,9 +38,7 @@ export * from './socket/sessionDelegate';
 export * from './socket/switchCloudSession';
 export * from './socket/switchSite';
 
-// platform — the address the session ends to and the boot reads, filled by each platform's adapter
 export * from './platform';
 
-// utils — the concurrency guards the renewals use, which the app-layer hooks share.
 export * from './utils/coalescer';
 export * from './utils/throttle';

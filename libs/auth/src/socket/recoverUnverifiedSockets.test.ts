@@ -25,10 +25,6 @@ jest.mock('@chatic/logger', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-// `getAuthStatus` (ADR-0076 Decision 1) reads the store's token and the credential clock on top of the
-// socket, so both have to be seeded here. That is a real input the pre-refactor condition did NOT
-// have — see the commit message; a bound socket with no stored token now reads `absent`, which is
-// the safe direction.
 jest.mock('@chatic/session/store/stores', () => ({
     relayStore: { getIdentityToken: () => 'relay-idt' },
     cloudStore: { getCloudTokenOf: () => ({ Token: { identityToken: 'cloud-idt' } }) },
@@ -37,15 +33,8 @@ jest.mock('@chatic/session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 30 * 60_000, isStale: () => false },
 }));
 
-// Typed off the production contract rather than inferred: a zero-arg `jest.fn` makes
-// `register.mock.calls[0][0]` an index into an empty tuple, so the registered `sign` callback
-// cannot be read back out.
 type AuthRegisterOptions = Parameters<AuthIdReseedTarget['register']>[0];
 
-/**
- * Fake per-slot client capturing the recovery sequence in `order` (prefixed by kind so the two
- * slots stay distinguishable). `authState` mirrors AuthController.state.
- */
 const makeClient = (kind: string, order: string[], { authState = '', state = 'connected' } = {}) => {
     const auth = {
         state: authState,
@@ -56,7 +45,6 @@ const makeClient = (kind: string, order: string[], { authState = '', state = 'co
     return {
         auth,
         state,
-        /** The liveness probe's ping; answers by default. */
         request: jest.fn((_type: string, _data: unknown, _options?: { timeoutMs?: number }) => {
             order.push(`${kind}:ping`);
             return Promise.resolve<unknown>({});
@@ -65,7 +53,6 @@ const makeClient = (kind: string, order: string[], { authState = '', state = 'co
             messageListeners.add(listener);
             return () => messageListeners.delete(listener);
         }),
-        /** Delivers a frame to whoever listens, as the SDK does for every message it reads. */
         receive: () => messageListeners.forEach(listener => listener()),
         disconnect: jest.fn((_code?: number, _reason?: string) => {
             order.push(`${kind}:disconnect`);
@@ -80,12 +67,10 @@ const makeClient = (kind: string, order: string[], { authState = '', state = 'co
 
 type FakeClient = ReturnType<typeof makeClient>;
 
-/** Maps the test's logical 'relay' | 'cloud' slots onto real SlotKeys, mirroring `getSlotKeys()`. */
 const makeManager = (
     slots: Partial<Record<'relay' | 'cloud', FakeClient>>,
     verified: Record<string, boolean> = {},
     active: string | null = null,
-    /** When each logical slot's first connection began, while it lasts; none when left out. */
     firstConnect: Partial<Record<'relay' | 'cloud', number>> = {}
 ) =>
     ({
@@ -130,8 +115,6 @@ describe('recoverUnverifiedSockets', () => {
 
         await recoverUnverifiedSockets({ manager: makeManager({ relay }), delegate });
 
-        // Seed happens on the CLOSED socket (no update fired into the void), the gate is re-closed
-        // so the reconnect keeps device.save:ok → auth.update order, and only then do we reconnect.
         expect(order).toEqual(['relay:disconnect', 'relay:register', 'relay:stop', 'relay:connect']);
         expect(relay.auth.register).toHaveBeenCalledWith(
             expect.objectContaining({ token: 'tok', authId: 'aid', sign: expect.any(Function) })
@@ -157,7 +140,6 @@ describe('recoverUnverifiedSockets', () => {
         await recoverUnverifiedSockets({ manager: makeManager({ relay }), delegate: makeDelegate(null) });
 
         expect(order).toEqual([`resume:${RELAY}`, 'relay:disconnect', 'relay:connect']);
-        // Cleared after the reconnect, so a mark that opened no attempt is not left for a later one.
         expect(clearResumeKick).toHaveBeenCalledWith(RELAY);
     });
 
@@ -173,7 +155,6 @@ describe('recoverUnverifiedSockets', () => {
 
         expect(order).toEqual([]);
         expect(relay.disconnect).not.toHaveBeenCalled();
-        // Without the probe a verified slot is not even pinged.
         expect(relay.request).not.toHaveBeenCalled();
     });
 
@@ -237,7 +218,6 @@ describe('recoverUnverifiedSockets', () => {
 
     it('kicks a reconnect however young, so it restarts at once with the backoff reset', async () => {
         const order: string[] = [];
-        // Connecting, but not the slot's first attempt: the manager reports no first connect.
         const relay = makeClient('relay', order, { state: 'connecting' });
 
         await recoverUnverifiedSockets({ manager: makeManager({ relay }), delegate: makeDelegate(null) });
@@ -431,7 +411,6 @@ describe('recoverSocketsOnResume', () => {
         expect(order).toEqual(['relay:ping', `resume:${RELAY}`, 'relay:disconnect', 'relay:connect']);
         expect(relay.disconnect).toHaveBeenCalledWith(1000, 'wake-probe');
         expect(clearResumeKick).toHaveBeenCalledWith(RELAY);
-        // A verified slot's controller is not expired, so nothing is re-seeded.
         expect(relay.auth.register).not.toHaveBeenCalled();
     });
 
@@ -500,7 +479,6 @@ describe('recoverSocketsOnResume', () => {
             manager: makeManager({ relay, cloud }, { relay: false, cloud: true }),
             delegate: makeDelegate(null),
         });
-        // Let the kick run while the probe is still out.
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(order).toEqual(['cloud:ping', 'relay:disconnect', 'relay:connect']);
 
