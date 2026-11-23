@@ -66,7 +66,7 @@ jobs:
 
     verify:
         needs: base
-        name: doc links · doc language · code comment language · lint · typecheck · test
+        name: doc links · doc language · code comment language · ratchets · lint · typecheck · test
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
@@ -149,6 +149,10 @@ jobs:
             - name: Internal paths
               run: yarn check:internal-paths
 
+            # The repository scripts' own tests (scripts/__tests__), which no Nx project runs.
+            - name: Script tests
+              run: npx jest --config scripts/jest.config.js
+
             # Green across every project, so no exclusions here.
             - name: Lint
               env:
@@ -177,6 +181,62 @@ jobs:
               env:
                   NX_SCOPE: ${{ steps.scope.outputs.nx }}
               run: npx nx $NX_SCOPE -t test
+
+            # Per-file ratchets: comment lines, escape hatches and useEffect calls, unused code
+            # (knip) and copy-paste (jscpd) — tools/eslint-rules/README.md § Ratchet. They run after
+            # the steps above, and even when one of those failed, so a forgotten `yarn ratchet:update`
+            # never hides a lint or test result.
+            #
+            # A change must not be judged by rules it can edit. The judge — the scripts, the counting
+            # module, the modes in scripts/ratchet/modes.json — is checked out from the compare base,
+            # and the counts this tree may not exceed are the base's baselines (followed through
+            # renames), so a change that loosens a check or raises a baseline is still judged by the
+            # old one. Until the base carries the ratchet, this tree judges itself.
+            - name: Ratchet judge from the compare base
+              id: judge
+              if: ${{ !cancelled() }}
+              env:
+                  BASE: ${{ needs.base.outputs.sha }}
+              run: |
+                  if [ -n "$BASE" ] && git cat-file -e "$BASE:scripts/ratchet.js" 2>/dev/null; then
+                      git worktree add --detach "$RUNNER_TEMP/ratchet-judge" "$BASE"
+                      echo "dir=$RUNNER_TEMP/ratchet-judge" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "::notice title=ratchet::the compare base has no ratchet yet; this tree judges itself"
+                      echo "dir=$GITHUB_WORKSPACE" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Ratchet baselines only go down
+              if: ${{ !cancelled() && steps.judge.outcome == 'success' && needs.base.outputs.sha != '' }}
+              env:
+                  BASE: ${{ needs.base.outputs.sha }}
+                  JUDGE: ${{ steps.judge.outputs.dir }}
+                  RATCHET_ROOT: ${{ github.workspace }}
+              run: node "$JUDGE/scripts/ratchet.js" verify-baseline --base "$BASE"
+
+            - name: Ratchet · comments, escape hatches, useEffect
+              if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
+              env:
+                  BASE: ${{ needs.base.outputs.sha }}
+                  JUDGE: ${{ steps.judge.outputs.dir }}
+                  RATCHET_ROOT: ${{ github.workspace }}
+              run: node "$JUDGE/scripts/ratchet.js" check --only source ${BASE:+--reference "$BASE"}
+
+            - name: Ratchet · unused code (knip)
+              if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
+              env:
+                  BASE: ${{ needs.base.outputs.sha }}
+                  JUDGE: ${{ steps.judge.outputs.dir }}
+                  RATCHET_ROOT: ${{ github.workspace }}
+              run: node "$JUDGE/scripts/ratchet.js" check --only knip ${BASE:+--reference "$BASE"}
+
+            - name: Ratchet · copy-paste (jscpd)
+              if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
+              env:
+                  BASE: ${{ needs.base.outputs.sha }}
+                  JUDGE: ${{ steps.judge.outputs.dir }}
+                  RATCHET_ROOT: ${{ github.workspace }}
+              run: node "$JUDGE/scripts/ratchet.js" check --only jscpd ${BASE:+--reference "$BASE"}
 
             # Left out of the gate, with the reason. Measured 2026-09-14 (dated per row where a row was re-measured).
             #
