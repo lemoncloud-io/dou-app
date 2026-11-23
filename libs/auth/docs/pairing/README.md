@@ -39,6 +39,19 @@ failures.
       one, and stopping only stops scheduling — a claim already on the wire is handled to the end.
     - A network failure keeps polling until the code expires; a 4xx ends it. A 503 on the request means
       the drawn code was taken, and one more request is enough.
+    - **The phases the screen draws:** `requesting`, `waiting` (the code is up and `claim` is polled),
+      `applying`, `done`, `expired`, `denied`, `lost` and `failed`. `lost` means the approval came but
+      its session could not be taken or applied — another claim already took it, it was revoked, or
+      applying threw. It cannot be fetched again, so like `expired` and `denied` it starts over with a
+      new code; `failed` is the request itself being refused.
+    - **One last claim goes out after the code's deadline.** The relay only expires a pairing that is
+      still pending, so an approval that landed in the last seconds, or inside this device's clock
+      drift, is claimable after `expiredAt`. The relay's answer decides: an approval is still taken,
+      and only an error or `pending` ends it as `expired`.
+    - **An answer for a replaced code is ignored, except an approval.** Asking for a new code bumps a
+      generation, so a claim still in flight for the old code cannot free the new one's claim slot or
+      change the screen. If that old answer is an approval, it is taken anyway: it is the only answer
+      that will ever carry the session.
 - **`pairedClouds`** (a `PairedCloudStore` over `chatic-paired-cloud-ids`, in the session's own storage) lists the clouds a guest
   entered through a pairing. A guest's cloud catalog is empty, so this list is what puts those clouds in
   the switch sheet. It is a plain store with no other dependency, so `isPairedSession` and the relay
@@ -82,8 +95,10 @@ failures.
   neither the relay nor a paired cloud)? A device asks for a pairing only while signed out, so the code
   screens ask such a guest to sign out of the cloud first.
 - **`isPairedSession`** — is this a secondary device? A relay pairing's `$auth` carries `purpose` and
-  `pairingId`, which no other login writes; a guest holding paired clouds counts too. A secondary device
-  signs out with its approver, so it neither approves others nor lists approvals.
+  `pairingId`, which no other login writes; a relay guest holding paired clouds counts too, but only a
+  guest: once the device signs in to an account of its own (a phone number, Google), its clouds come
+  from that account. A secondary device signs out with its approver, so it neither approves others
+  nor lists approvals.
 - **`isRefusedForEndedPairing`** — the relay refused a cloud with a 403 naming the pairing or its approver
   (`pairing revoked`, `approver session revoked`, …). Any other 403 — stale relay signing credentials
   notably — must not sign a device out. The relay keeps an ended grant tied to the auth session that

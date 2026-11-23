@@ -5,13 +5,13 @@ import type { SignaturePayload } from './contracts';
 const signer = new LemonHmacSigner();
 
 const RELAY_PAYLOAD: SignaturePayload = {
-    authId: 'auth-relay-id', // the key a relay socket signs with
+    authId: 'auth-relay-id',
     accountId: 'account-relay-1',
     identityId: 'identity-relay-1',
 };
 
 const CLOUD_PAYLOAD: SignaturePayload = {
-    authId: 'token-authid-cloud-1', // the key a cloud socket signs with
+    authId: 'token-authid-cloud-1',
     accountId: 'account-cloud-1',
     identityId: 'identity-cloud-1',
 };
@@ -20,10 +20,6 @@ const FIXTURE_CURRENT = '2026-08-27T00:00:00.000Z';
 const FIXTURE_UA = 'fixture-ua/1.0';
 const RELAY_SIGNATURE = 'lfOFYzXFM4hYKhCfPuDb/0INNosD42VRotuv4VvcTBs=';
 
-// The expected signatures were computed independently with node crypto (HMAC-SHA256, base64), so
-// neither this implementation nor lemon-web-core is the reference these assertions trust. While
-// lemon-web-core was a dependency, an equivalence test also checked them against its `calcSignature`;
-// they matched, and they are what the server validates against.
 describe('LemonHmacSigner — fixed signatures', () => {
     it('produces the fixed signature for relay material', () => {
         const result = signer.sign(RELAY_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
