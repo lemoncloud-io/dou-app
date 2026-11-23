@@ -585,6 +585,12 @@ export default [
         },
     },
     {
+        files: ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts', '**/*.js', '**/*.jsx', '**/*.mjs', '**/*.cjs'],
+        rules: {
+            '@nx/workspace-ratchet': 'error',
+        },
+    },
+    {
         // The runtime's wiring calls are made in one file, the assembly point; the rule says why.
         // Every glob starts with `**/`, so no `basePath`. Tests wire packages up on purpose and are
         // left out.

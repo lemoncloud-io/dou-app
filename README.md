@@ -501,14 +501,14 @@ Android `envConfigFiles`), not by the script. See
 
 ## CI/CD
 
-| Workflow                | Trigger                          | Description                                                                                                                                                                         |
-| ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `verify.yml`            | Pull requests, push to `develop` | Doc links, doc language, code comment language, lint, typecheck & test — only the projects listed as covered; excluded projects are named at the bottom of the file with the reason |
-| `deploy-dev.yml`        | Push to `develop`                | Auto-detect changed apps, build & deploy to dev                                                                                                                                     |
-| `deploy-prod.yml`       | Push to `main`                   | Build, deploy to prod & create a GitHub release                                                                                                                                     |
-| `force-deploy.yml`      | Manual dispatch                  | Force (re)deploy Web / Admin / Landing to dev or prod — no other app                                                                                                                |
-| `build-desktop.yml`     | Manual dispatch                  | Build unsigned macOS `.dmg` + Windows `.exe` installers, publish to a rolling `desktop-dev` / `desktop-prod` GitHub Release                                                         |
-| `build-desktop-win.yml` | Manual dispatch                  | Windows-only variant of the above                                                                                                                                                   |
+| Workflow                | Trigger                          | Description                                                                                                                                                                                                                                                    |
+| ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `verify.yml`            | Pull requests, push to `develop` | Doc links, doc language, code comment language, script tests, ratchets (comments, escape hatches, useEffect, knip, jscpd), lint, typecheck & test — only the projects listed as covered; excluded projects are named at the bottom of the file with the reason |
+| `deploy-dev.yml`        | Push to `develop`                | Auto-detect changed apps, build & deploy to dev                                                                                                                                                                                                                |
+| `deploy-prod.yml`       | Push to `main`                   | Build, deploy to prod & create a GitHub release                                                                                                                                                                                                                |
+| `force-deploy.yml`      | Manual dispatch                  | Force (re)deploy Web / Admin / Landing to dev or prod — no other app                                                                                                                                                                                           |
+| `build-desktop.yml`     | Manual dispatch                  | Build unsigned macOS `.dmg` + Windows `.exe` installers, publish to a rolling `desktop-dev` / `desktop-prod` GitHub Release                                                                                                                                    |
+| `build-desktop-win.yml` | Manual dispatch                  | Windows-only variant of the above                                                                                                                                                                                                                              |
 
 `deploy-dev`/`deploy-prod` auto-detect which apps changed and only build/deploy the affected ones —
 this is the only path that ships `desktop-web` (see the note in
@@ -530,6 +530,8 @@ yarn check:doc-links        # Fail on a dead markdown link, or an ADR link whose
 yarn check:doc-korean       # Fail on untranslated Korean prose in a markdown file (AGENTS.md's English policy)
 yarn check:code-korean      # Fail on untranslated Korean prose in a source code comment (same policy)
 yarn check:env              # Fail when apps' local env files disagree on a backend (values never printed)
+yarn ratchet:check         # Fail on more comments, escape hatches, useEffect, unused code or copy-paste than a file's baseline
+yarn ratchet:update        # Lower the ratchet baselines to today's counts (never raises); see tools/eslint-rules/README.md
 
 # Format
 yarn prettier               # Format all files
