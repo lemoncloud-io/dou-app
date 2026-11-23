@@ -20,14 +20,10 @@ const SAMPLES = [
 ] as const;
 
 describe('the webhook samples', () => {
-    // The reader has to be able to draw every block a webhook message carries — an `unknown`
-    // here would mean the client's supported set had fallen behind the sample.
     it.each(SAMPLES)('draws every block the %s sample carries', (_, __, blocks) => {
         expect(toBlocks(blocks).some(block => block.type === 'unknown')).toBe(false);
     });
 
-    // `source$` is the server's copy of three `meta` slots; a sample whose two halves disagree
-    // would test a message the server never sends.
     it.each(SAMPLES)("keeps the %s sample's source$ in step with its send body", (_, send, __, source) => {
         const meta = send.meta as { color?: string; sourceUrl?: string; channel?: string };
         expect(source).toEqual(

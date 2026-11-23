@@ -1,29 +1,12 @@
-/**
- * A webhook card's accent: the colour its type badge and in-card links take, read from the sender's
- * own `color` (the message's `source$.color`, which the server stores as sent).
- *
- * The value is untrusted. The server checks neither its shape nor its length, and a sender with no
- * token can post one, so it is only ever *read* here — matched against a name table or parsed as a
- * hex — and what the card paints is the colour this file computes, never the string that came in.
- *
- * The name table, the hex shape and the grey rule are the server's own (the emoji it puts before the
- * title), compared without case the way the server compares them. Reading them any other way would
- * let the title say 🔴 while the badge says green.
- */
-
-/** sRGB, each channel 0–255. */
 interface Rgb {
     r: number;
     g: number;
     b: number;
 }
 
-/** One theme's three colours, as `#rrggbb`. */
 export interface CardAccentColors {
-    /** The type badge's text. At least 4.5:1 against `badgeBackground`. */
     badgeText: string;
     badgeBackground: string;
-    /** Links inside the card. At least 4.5:1 against the card in this theme. */
     link: string;
 }
 
@@ -32,22 +15,12 @@ export interface CardAccent {
     dark: CardAccentColors;
 }
 
-/** The text a card's links and badge text must clear against its ground. */
 export const CARD_ACCENT_MIN_CONTRAST = 4.5;
 
-/**
- * The grounds the colours are measured against: each a step past every caller's `--card` in that
- * theme, so a colour that clears this one clears all of them. Light: no lighter than the darkest
- * light card (the builder's, #FCFDFB). Dark: no darker than the lightest dark card (desktop's,
- * #2E2F2D). desktop-web's contrast spec holds its `--card` to this; the other callers have to keep
- * theirs past it by hand.
- */
 export const CARD_ACCENT_GROUND = { light: '#F7F7F7', dark: '#333333' } as const;
 
 type NamedTone = 'danger' | 'warning' | 'good';
 
-// A Map, not an object literal: the key is the sender's text, and an object would answer
-// `constructor` or `__proto__` from its prototype.
 const NAMES = new Map<string, NamedTone>([
     ['danger', 'danger'],
     ['red', 'danger'],
@@ -58,23 +31,15 @@ const NAMES = new Map<string, NamedTone>([
     ['green', 'good'],
 ]);
 
-/**
- * The design's colours for the three named tones. `danger` and `good` are the ERROR and ATTENDANCE
- * badges as drawn (base colour and its tint behind the text). The design draws no warning badge, so
- * `warning` takes the `--warning` amber all three apps already define, with a tint mixed the way the
- * design's two are.
- */
 const NAMED: Record<NamedTone, { base: string; lightTint?: string }> = {
     danger: { base: '#FF4C35', lightTint: '#FDECEC' },
     warning: { base: '#F59E0B' },
     good: { base: '#43946C', lightTint: '#E4F0EA' },
 };
 
-/** How much of the colour goes into a badge's tint: about what the design's two tints hold. */
 const LIGHT_TINT = 0.12;
 const DARK_TINT = 0.22;
 
-/** Below this HSL saturation a colour is grey and says nothing — the server's own cut. */
 const GREY_SATURATION = 0.2;
 
 const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/;
@@ -113,7 +78,6 @@ const ratioOf = (a: Rgb, b: Rgb): number => {
     return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 };
 
-/** WCAG 2 contrast ratio between two hex colours; `NaN` when either is not one, which clears no minimum. */
 export const contrastRatio = (a: string, b: string): number => {
     const [x, y] = [parseHex(a.toLowerCase()), parseHex(b.toLowerCase())];
     return x && y ? ratioOf(x, y) : NaN;
@@ -179,12 +143,6 @@ const fit = (color: Rgb, ground: Rgb, min: number): Rgb => {
     return step < 0 ? { r: 0, g: 0, b: 0 } : { r: 255, g: 255, b: 255 };
 };
 
-/**
- * The colour as close to itself as reads on `ground`: unchanged when it already clears the minimum,
- * otherwise walked darker (on a light ground) or lighter (on a dark one) in lightness alone, so the
- * hue the sender chose stays. Black and white both clear 4.5:1 on either ground, so the walk ends.
- * `null` when either value is not a hex colour.
- */
 export const fitContrast = (color: string, ground: string, min = CARD_ACCENT_MIN_CONTRAST): string | null => {
     const [c, g] = [parseHex(color.toLowerCase()), parseHex(ground.toLowerCase())];
     return c && g ? toHex(fit(c, g, min)) : null;
@@ -192,7 +150,6 @@ export const fitContrast = (color: string, ground: string, min = CARD_ACCENT_MIN
 
 const hex = (value: string): Rgb => parseHex(value.toLowerCase()) as Rgb;
 
-// Whole channel values, so the contrast is measured on the colour the page will actually paint.
 const whole = (color: Rgb): Rgb => hex(toHex(color));
 
 const colorsFor = (base: Rgb, tint: Rgb): CardAccent => {
@@ -227,16 +184,9 @@ const computeAccent = (value: string): CardAccent | null => {
     return colorsFor(base, mix(base, WHITE, LIGHT_TINT));
 };
 
-// A channel's cards all carry the same few values and a row re-renders often, so each value is
-// resolved once. Bounded, because the values are whatever senders send.
 const CACHE = new Map<string, CardAccent | null>();
 const CACHE_LIMIT = 64;
 
-/**
- * The accent for a sender's `color`, or `null` for the neutral card: nothing sent, a name outside the
- * table (`purple`), something that is not a colour, or a grey. `null` means the badge is the design's
- * grey one and links keep the app's own link colour.
- */
 export const resolveCardAccent = (color: unknown): CardAccent | null => {
     if (typeof color !== 'string') return null;
     const value = color.trim().toLowerCase();

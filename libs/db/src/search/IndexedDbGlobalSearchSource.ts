@@ -17,7 +17,6 @@ type SearchableType = 'channel' | 'site' | 'chat';
 const includesKeyword = (value: string | undefined, keyword: string): boolean =>
     typeof value === 'string' && value.toLowerCase().includes(keyword);
 
-/** One cursor read per channel, so the same channel referenced by many chat rows costs once. */
 const dedupeRefs = (refs: GlobalCacheRef[]): GlobalCacheRef[] => {
     const seen = new Map<string, GlobalCacheRef>();
     refs.forEach(ref => {
@@ -27,14 +26,6 @@ const dedupeRefs = (refs: GlobalCacheRef[]): GlobalCacheRef[] => {
     return [...seen.values()];
 };
 
-/**
- * Cross-cloud reads over IndexedDB. `search` scans the `type_cid_uid` index with only `type` bound
- * (cid left open), so it reads every cached cloud partition in one pass instead of the
- * active-cid-only reads that repo `observeList`/`cacheReadList` perform.
- *
- * `cid`/`uid` scoping lives on the row (`IndexedDbRow`), not on the domain view stored in
- * `row.data` — the view types don't all carry `uid`, so filtering happens at the row level.
- */
 export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
     constructor(private readonly db: IIndexedDB) {}
 
@@ -61,11 +52,6 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
         };
     }
 
-    /**
-     * Reads the rows a search result row needs around it. Unlike `search` these lookups are
-     * addressed, so they use exact `[type, cid, uid]` index hits per cloud plus one reverse cursor
-     * per channel — never a full-table scan.
-     */
     async resolveContext(query: GlobalCacheContextQuery): Promise<GlobalCacheContext> {
         const context: GlobalCacheContext = {
             channelsByRef: {},
@@ -78,7 +64,6 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
         const refs = dedupeRefs(query.channelRefs);
         if (cids.length === 0 && refs.length === 0) return context;
 
-        // Per-cloud maps. `row.id` is the channelId / sid for these types.
         await Promise.all(
             cids.map(async cid => {
                 const [channels, sites, joins] = await Promise.all([
@@ -95,21 +80,12 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
                 });
                 joins.forEach(row => {
                     const join = row.data as CacheJoinView;
-                    // `uid` on the ROW is the cache owner, not the join's subject: a channel's other
-                    // members are cached under my partition too (useJoinPositions registers every
-                    // member for read receipts). Without the userId check the map would end up
-                    // holding whichever member was written last, and the unread count would be
-                    // computed against a stranger's read cursor.
                     if (!join.channelId || join.userId !== query.uid) return;
                     context.joinsByRef[globalCacheRefKey(cid, join.channelId)] = join;
                 });
             })
         );
 
-        // Newest cached message per channel, via the chat pagination index read backwards. Unsent
-        // rows (`chat_no: 0`) sort lowest so they normally lose on ordering alone; the filter is
-        // what decides when a channel's ONLY cached row is unsent — a preview must never show a
-        // message the server hasn't accepted.
         await Promise.all(
             refs.map(async ref => {
                 const rows = await this.db.loadWithCursor<'chat'>({
@@ -144,7 +120,6 @@ export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
         type: TType,
         query: GlobalCacheSearchQuery
     ): Promise<IndexedDbRow<TType>[]> {
-        // Bound only on `type` (cid/uid left open) so every cloud partition is scanned.
         const range = IDBKeyRange.bound([type], [type, []]);
         const rows = await this.db.loadAll<TType>(TYPE_CID_UID_INDEX, range);
 

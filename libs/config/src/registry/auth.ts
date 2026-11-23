@@ -1,15 +1,5 @@
 import type { ConfigRegistryModule } from '../types';
 
-/**
- * Session, credential refresh and retry timing.
- *
- * `sdk.*` excludes `'server'` on purpose — a wrong remote value for refresh cadence can make every
- * device refresh at once, and undoing it remotely means writing this same value again while the
- * backend is already under the load it just caused. Only shell and local reach it.
- *
- * `sdk.*` is `'reconnect'`: `SocketManager` passes `AUTH_OPTIONS` to the SDK at socket construction,
- * so a changed value needs a reconnect to take effect.
- */
 export const authModule: ConfigRegistryModule = {
     'auth.sdk.refreshRatio': {
         title: 'Auth refresh ratio',

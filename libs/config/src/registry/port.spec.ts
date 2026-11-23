@@ -29,7 +29,6 @@ const withBuildValues = (stage: Stage, values: Record<string, string>): IConfigE
     raw: name => values[name],
 });
 
-/** The real registry, so these tests pin the declarations themselves rather than fixtures. */
 const boot = (stage: Stage = 'DEV', overrides: Parameters<typeof ports>[0] = {}) => {
     const config = createConfig();
     config.init(ports({ env: envAdapter(stage), ...overrides }));

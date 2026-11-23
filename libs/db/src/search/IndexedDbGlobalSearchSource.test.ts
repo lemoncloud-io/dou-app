@@ -37,13 +37,11 @@ describe('IndexedDbGlobalSearchSource', () => {
             name: 'Lemon Secret',
         } as any);
         await siteCloudA.save('site-1', { id: 'site-1', cid: 'cloud-a', name: 'Lemon HQ' } as any);
-        // Same sid string in another cloud — the context maps must not let these collide.
         const siteCloudB = new IndexedDBAdapter(db, 'site', contextFor('cloud-b', 'user-1'));
         await siteCloudB.save('site-1', { id: 'site-1', cid: 'cloud-b', name: 'Other HQ' } as any);
         await siteCloudB.save('site-2', { id: 'site-2', cid: 'cloud-b', name: 'Other Place' } as any);
 
         const joinCloudA = new IndexedDBAdapter(db, 'join', contextFor('cloud-a', 'user-1'));
-        // A co-member's join row lands in MY partition (read receipts cache every member).
         const joinCoMember = new IndexedDBAdapter(db, 'join', contextFor('cloud-a', 'user-1'));
         await joinCloudA.save('join-1', {
             id: 'join-1',
@@ -74,7 +72,6 @@ describe('IndexedDbGlobalSearchSource', () => {
             chatNo: 2,
             content: 'unrelated message',
         } as any);
-        // Unsent row: highest by insertion, lowest by chat_no — must never win the preview.
         await chatCloudA.save('chat-pending', {
             id: 'chat-pending',
             cid: 'cloud-a',

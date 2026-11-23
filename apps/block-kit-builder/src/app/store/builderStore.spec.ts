@@ -35,8 +35,6 @@ describe('useBuilderStore', () => {
         expect(blocks().map(block => block.type)).toEqual(['divider', 'header']);
     });
 
-    // Off the ends is a no-op, not a wrap: the buttons are disabled there, and a
-    // wrap would move a block the reader was trying to hold still.
     it.each([
         [0, -1 as const],
         [1, 1 as const],
@@ -69,8 +67,6 @@ describe('useBuilderStore', () => {
         expect(blocks().map(block => block.type)).toEqual(['header', 'divider']);
     });
 
-    // The branch the redo stack belonged to no longer exists, so offering to walk
-    // back into it would restore a message the reader never had.
     it('drops the redo stack once a new edit is made', () => {
         const store = useBuilderStore.getState();
         store.addBlock('header');
@@ -84,7 +80,6 @@ describe('useBuilderStore', () => {
         expect(blocks()).toEqual([]);
     });
 
-    // Clear is a normal edit — that is why it needs no confirmation dialog.
     it('empties the message but leaves it recoverable', () => {
         useBuilderStore.getState().addBlock('header');
         useBuilderStore.getState().clear();
@@ -93,8 +88,6 @@ describe('useBuilderStore', () => {
         expect(blocks().map(block => block.type)).toEqual(['header']);
     });
 
-    // Only the message is worth restoring. Persisting the stack would offer to undo
-    // edits from a session the reader cannot see, and grow without bound.
     it('persists the blocks and nothing else', () => {
         useBuilderStore.getState().addBlock('divider');
         const stored = JSON.parse(localStorage.getItem('dou-block-kit-builder') ?? '{}');
@@ -102,8 +95,6 @@ describe('useBuilderStore', () => {
         expect(stored.state.blocks).toEqual([{ type: 'divider' }]);
     });
 
-    // A typed word is one undo, not one per letter. Without this the stack grows
-    // with the message and undo walks back a character at a time.
     it('joins consecutive edits of the same block into one history entry', () => {
         useBuilderStore.getState().addBlock('header');
         const depth = useBuilderStore.getState().past.length;
@@ -125,8 +116,6 @@ describe('useBuilderStore', () => {
         expect(useBuilderStore.getState().past.length).toBe(depth + 2);
     });
 
-    // Otherwise the next keystroke would extend a snapshot the reader has already
-    // walked away from, and the edit they just undid would be unreachable.
     it('breaks the run on undo', () => {
         useBuilderStore.getState().addBlock('header');
         useBuilderStore.getState().replaceBlock(0, { type: 'divider' });
@@ -150,8 +139,6 @@ describe('useBuilderStore', () => {
         expect(blocks()).toEqual([]);
     });
 
-    // A drag asks "does it read better here?", and the message has to answer while
-    // the block is still moving — so the array reorders on every hover, not on drop.
     it('reorders under the pointer without recording each step', () => {
         const store = useBuilderStore.getState();
         store.addBlock('header');
@@ -170,8 +157,6 @@ describe('useBuilderStore', () => {
         expect(useBuilderStore.getState().dragIndex).toBeNull();
     });
 
-    // One entry for the whole gesture: undo returns to where the drag began, not to
-    // the halfway arrangement the pointer happened to pass through.
     it('undoes a whole drag at once', () => {
         const store = useBuilderStore.getState();
         store.addBlock('header');
@@ -183,7 +168,6 @@ describe('useBuilderStore', () => {
         expect(blocks().map(block => block.type)).toEqual(['header', 'divider']);
     });
 
-    // Picking a block up and putting it back is not an edit.
     it('records nothing when a drag ends where it started', () => {
         useBuilderStore.getState().addBlock('header');
         const depth = useBuilderStore.getState().past.length;
@@ -199,8 +183,6 @@ describe('useBuilderStore', () => {
         expect(useBuilderStore.getState().dragIndex).toBe(0);
     });
 
-    // The payload editor re-commits what it just rendered on every keystroke.
-    // Without this, undo would have to be pressed once per character typed.
     it('ignores a setBlocks that changes nothing', () => {
         useBuilderStore.getState().addBlock('divider');
         const past = useBuilderStore.getState().past;

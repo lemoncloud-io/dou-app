@@ -18,7 +18,6 @@ const hueOf = (hex: string): number => {
     return (h * 60 + 360) % 360;
 };
 
-/** Every colour an accent paints clears 4.5:1 on what it sits on, in both themes. */
 const expectReadable = (accent: CardAccent) => {
     for (const theme of ['light', 'dark'] as const) {
         const colors = accent[theme];
@@ -32,7 +31,6 @@ const expectReadable = (accent: CardAccent) => {
 const HEX_ONLY = /^#[0-9A-F]{6}$/;
 
 describe('resolveCardAccent', () => {
-    // The server's name table, compared without case — it stores the sender's value as sent.
     describe('names', () => {
         it.each(['danger', 'red', 'Danger', ' RED '])('reads %j as the design ERROR colour', color => {
             const accent = resolveCardAccent(color);
@@ -69,7 +67,6 @@ describe('resolveCardAccent', () => {
             expect(resolveCardAccent('#3a6')).toEqual(resolveCardAccent('#33aa66'));
         });
 
-        // A purple is not in the name table but is a colour the sender chose; it keeps its hue.
         it.each(['#6A52E0', '#FFB71B', '#00FF00', '#0000FF', '#FF00FF'])(
             'keeps the hue of %s and only moves its lightness, in both themes',
             color => {
@@ -114,7 +111,6 @@ describe('resolveCardAccent', () => {
             ['an object', { color: 'red' }],
             ['CSS a style would run', 'red; background:url(x)'],
             ['a CSS function', 'rgb(255,0,0)'],
-            // Object property names: the table must answer only its own seven words.
             ['constructor', 'constructor'],
             ['__proto__', '__proto__'],
             ['toString in another case', 'ToString'],
@@ -124,7 +120,6 @@ describe('resolveCardAccent', () => {
         });
     });
 
-    // The raw value is only ever matched or parsed: what comes out is always a computed `#RRGGBB`.
     it('returns only computed six-digit colours, never the value that came in', () => {
         for (const color of ['Danger', 'warning', '#3a6', 'FFB71B', '#6a52e0']) {
             const accent = resolveCardAccent(color) as CardAccent;
@@ -152,7 +147,6 @@ describe('fitContrast', () => {
         expect(contrastRatio('#000000', '#FFFFFF')).toBeCloseTo(21, 5);
     });
 
-    // Exported, so it answers bad input instead of throwing on it.
     it('gives nothing for a value that is not a hex colour', () => {
         expect(fitContrast('red', '#FFFFFF')).toBeNull();
         expect(fitContrast('#FFFFFF', 'url(x)')).toBeNull();

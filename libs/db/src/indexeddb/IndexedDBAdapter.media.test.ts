@@ -31,7 +31,6 @@ const chat = (id: string, chatNo: number, mediaEntries?: ChatMediaEntry[], extra
 
 const image = (idx: number, ref = `u${idx}`): ChatMediaEntry => ({ kind: 'image', idx, ref });
 
-/** Every record in the store, read raw — what the adapter wrote, not what it chooses to return. */
 const rawRecords = (): Promise<any[]> =>
     new Promise((resolve, reject) => {
         const open = indexedDB.open(DB_NAME);
@@ -52,7 +51,6 @@ const mediaRecordsOf = async (cid: string) =>
 
 describe('IndexedDBDatabase v3 → v4', () => {
     it('keeps the chat rows, adds the media index, and has no entries yet', async () => {
-        // A v3 database as a device has it today: the v3 indexes and one chat row.
         await new Promise<void>((resolve, reject) => {
             const open = indexedDB.open(DB_NAME, 3);
             open.onupgradeneeded = () => {
@@ -118,7 +116,6 @@ describe('IndexedDBAdapter — media index records', () => {
         await storage.save('room:1', chat('room:1', 1, [image(0, 'old')]));
         const [oldEntry] = await mediaRecordsOf('atomic');
 
-        // A record without its key path cannot be put, so the batch throws after queuing the delete.
         await expect(
             db.writeBatch({
                 deleteKeys: [oldEntry.key],

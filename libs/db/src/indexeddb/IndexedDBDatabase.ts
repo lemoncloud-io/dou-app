@@ -9,37 +9,14 @@ import type {
 } from '@chatic/data';
 
 const DB_NAME = 'ChaticWebCacheDB';
-/**
- * v4 adds `CHAT_MEDIA_INDEX` and nothing else: the media entries are new records in the same store,
- * so an upgrade moves no data, and a room's existing messages are indexed the first time its media
- * is read.
- */
 const DB_VERSION = 4;
 const STORE_NAME = 'cache_store';
 export const TYPE_CID_UID_INDEX = 'type_cid_uid';
 export const CHAT_PAGINATION_INDEX = 'chat_pagination_index';
-/**
- * A room's media entries of one kind, ordered by message number: `[type, cid, uid, channel_id, kind,
- * chat_no]`. Only `chatmedia` records carry `kind`, so no other record is in it.
- */
 export const CHAT_MEDIA_INDEX = 'chat_media_index';
 
-/**
- * When `chat_no` is this value, the row has no server number yet — a message that's sending or
- * failed. `ChatLocalDataSource` writes this value for optimistic sends, and `mappers.ts`
- * demotes any server response without a `chatNo` down to it.
- *
- * As the last key element of `CHAT_PAGINATION_INDEX`, it sorts **lowest**, and that fact
- * governs behavior in two places: a newest-first page read misses these rows
- * (`ChatQueryExecutor.includeUnsent`), and eviction must never touch these rows
- * (`IndexedDBAdapter`). Keeping the constant in one place is what makes it visible that both
- * are relying on the same fact.
- */
 export const UNSENT_CHAT_NO = 0;
 
-/**
- * The concrete implementation that physically interacts with the IndexedDB database.
- */
 export class IndexedDBDatabase implements IIndexedDB {
     private dbPromise: Promise<IDBDatabase>;
 
@@ -55,9 +32,6 @@ export class IndexedDBDatabase implements IIndexedDB {
                 const db = (event.target as IDBOpenDBRequest).result;
                 let store: IDBObjectStore;
 
-                // A schema move rebuilds indexes and can leave a domain briefly unreadable, so the
-                // version it came from is what explains a cold cache right after an update
-                // (ADR-0099). One line per upgrade, which happens at most once per version.
                 logger.info('CACHE', `web cache schema upgrade v${event.oldVersion} → v${event.newVersion}`, {
                     data: { from: event.oldVersion, to: event.newVersion },
                 });
@@ -91,15 +65,10 @@ export class IndexedDBDatabase implements IIndexedDB {
             request.onsuccess = () => {
                 const db = request.result;
                 db.onclose = () => {
-                    // Forced shut by the browser (storage pressure, profile eviction) rather than by
-                    // us. Reads in flight fail and the reopen below is the recovery — silent, this
-                    // looked like a burst of unrelated cache errors.
                     logger.warn('CACHE', 'web cache closed unexpectedly — reopening');
                     this.dbPromise = this.openDB();
                 };
                 db.onversionchange = () => {
-                    // Another tab is upgrading the schema. Holding the connection would block it, so
-                    // this one steps aside and reopens — the multi-tab contention signal.
                     logger.warn('CACHE', 'web cache version changed in another tab — reopening');
                     db.close();
                     this.dbPromise = this.openDB();
@@ -108,8 +77,6 @@ export class IndexedDBDatabase implements IIndexedDB {
             };
 
             request.onerror = () => {
-                // No local cache for this session at all: every read misses and every write throws.
-                // The rejection alone reached callers as an anonymous failure per operation.
                 logger.error('CACHE', 'web cache failed to open', { error: request.error });
                 reject(request.error);
             };
@@ -263,8 +230,6 @@ export class IndexedDBDatabase implements IIndexedDB {
             batch.deleteRanges?.forEach(range => store.delete(range));
             batch.put?.forEach(record => store.put(record));
         } catch (error) {
-            // A put that throws (a value that cannot be cloned) would otherwise leave the requests
-            // queued before it to commit — the old entries deleted, the new row never written.
             done.catch(() => undefined);
             tx.abort();
             throw error;
@@ -304,7 +269,6 @@ export class IndexedDBDatabase implements IIndexedDB {
         const done = this.promisifyTransaction(tx);
         const store = tx.objectStore(STORE_NAME);
         let applied = 0;
-        // Each check and its write run inside this transaction, so nothing can land between them.
         for (const fill of fills) {
             const read = store.get(fill.chatKey);
             read.onsuccess = () => {
@@ -327,13 +291,6 @@ export class IndexedDBDatabase implements IIndexedDB {
         return this.readOperation<number>(store => store.index(indexName).count(range));
     }
 
-    /**
-     * Returns how many rows were removed.
-     *
-     * The count already existed here; it was thrown away. Callers that know WHAT they were evicting
-     * (a channel, a scope) need it to say so — this function knows only an index range, so it
-     * reports the number and lets the caller name it (ADR-0099).
-     */
     async clearByRange(indexName: string, range: IDBKeyRange): Promise<number> {
         const keysToDelete = await this.readOperation<IDBValidKey[]>(store => {
             const index = store.index(indexName);

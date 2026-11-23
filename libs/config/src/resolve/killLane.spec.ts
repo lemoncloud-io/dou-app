@@ -5,14 +5,6 @@ import { ConfigStore } from '../store/ConfigStore';
 import { UNLOCK_ENTRY, entry, moduleOf } from '../testing/fixtures';
 import { ConfigResolver, UNLOCK_KEY } from './ConfigResolver';
 
-/**
- * The remote lane isn't implemented this round. This file is the only proof that its place is
- * still alive.
- *
- * A code path that never runs is guaranteed to be broken the first day it's used. So we exercise
- * it now with a fake adapter — does the kill beat a web override, does a server default lose to
- * the web, does only the kill vanish once time passes.
- */
 const fakeAdapter = (payload: RemotePayload): IRemoteConfigAdapter => ({ fetch: async () => payload });
 
 const payloadOf = (

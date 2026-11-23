@@ -28,7 +28,6 @@ describe('takeSourceLink', () => {
             expect(blocks).toEqual([header]);
         });
 
-        // The link is drawn as its own line now, so it no longer needs a plain-text heading to sit in.
         it.each([
             ['no heading', [context('<https://x.dev/r.json|원문 보기>')]],
             [

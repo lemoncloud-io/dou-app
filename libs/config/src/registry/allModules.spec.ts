@@ -73,7 +73,6 @@ describe('ALL_MODULES — the full registry', () => {
         expect(resolveInStage('feature.auth.emailLogin', stage)).toBe(on);
     });
 
-    // Production builds keep today's bottom navigation: no mini app tab, no mini app routes.
     it.each<[Stage, boolean]>([
         ['LOCAL', true],
         ['DEV', true],
