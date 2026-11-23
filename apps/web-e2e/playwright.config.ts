@@ -7,16 +7,8 @@ const CI = !!process.env['CI'];
 
 const BROWSER_SERVER = process.env['WEB_E2E_BROWSER_SERVER'];
 
-/** The suffix the app's WebView adds to the system user agent (`applicationNameForUserAgent` in `AppWebView`). */
 const appUserAgent = (prefix: string, platform: string) => `(${prefix}; DoU E2E/0.28.1; ${platform}; Build:1)`;
 
-/**
- * `apps/web` in its native (WebView) mode, against a fake shell and a fake relay. See README.md for
- * what this can and cannot catch.
- *
- * The server is Vite's dev server: no build step before the first scenario, and the same server a
- * developer already runs. Set `WEB_E2E_PORT` to move it off 5390.
- */
 export default defineConfig<E2EOptions>({
     testDir: './src/specs',
     outputDir: '../../dist/.playwright/apps/web-e2e/test-results',
@@ -27,7 +19,6 @@ export default defineConfig<E2EOptions>({
     fullyParallel: true,
     forbidOnly: CI,
     retries: CI ? 1 : 0,
-    // Each scenario boots the whole app; more workers than this mostly queue on the dev server.
     workers: CI || BROWSER_SERVER ? 2 : undefined,
     reporter: [
         ['list'],
@@ -43,8 +34,6 @@ export default defineConfig<E2EOptions>({
         screenshot: 'only-on-failure',
     },
     projects: [
-        // The two platforms the app ships on. WebKit is not WKWebView and Chromium is not Android
-        // System WebView — they are the nearest engines a CI machine can run (README § Limits).
         {
             name: 'webkit-ios',
             use: {
@@ -68,7 +57,6 @@ export default defineConfig<E2EOptions>({
         url: E2E_BASE_URL,
         env: WEB_SERVER_ENV,
         reuseExistingServer: !CI,
-        // The first start compiles every dependency Vite pre-bundles.
         timeout: 180_000,
     },
 });

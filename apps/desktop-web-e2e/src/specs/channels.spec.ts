@@ -13,10 +13,6 @@ import {
 } from '../support/app';
 import { expect, test } from '../support/test';
 
-/**
- * A channel's whole life in a sandbox place: created, talked in, found from the Channels list, and
- * deleted again — whatever happened in between — so the place is left as it was.
- */
 test.describe('channels', () => {
     test('creates a channel, sends to it, finds it in the Channels list, and deletes it', async ({ app }) => {
         const { cloud, place } = SANDBOX;
@@ -35,9 +31,6 @@ test.describe('channels', () => {
         await expect(dialog).toBeHidden();
 
         try {
-            // The Home sidebar lists the new channel, and it opens. The open is soft: now and then the
-            // room that was open stays open instead, and the rest of the scenario is still worth
-            // running — it opens the channel from the list then.
             const header = app.getByRole('main').getByRole('heading', { level: 1 });
             const listed = channelRow(app, name);
             await expect(listed).toBeVisible();
@@ -48,8 +41,6 @@ test.describe('channels', () => {
             const text = marker('channel');
             await send(app, text);
 
-            // The Channels list shows it first (most recent activity), with what was just sent. A
-            // channel row names the sender even when it is me; only a 1:1 says "You:".
             await go(app, 'Channels');
             const channels = panel(app, 'Channels');
             const row = channels.getByRole('listitem').filter({ hasText: name });
@@ -82,7 +73,6 @@ test.describe('channels', () => {
         const names = [1, 2, 3].map(n => `e2e-${tag}-${n}`);
         try {
             for (const name of names) await createChannel(app, name);
-            // Each delete starts while the previous one's list update is still landing.
             for (const name of names) {
                 await deleteChannel(app, name);
                 await expect(channelRow(app, name)).toBeHidden();
@@ -94,7 +84,6 @@ test.describe('channels', () => {
                     .filter({ hasText: `e2e-${tag}-` })
             ).toHaveCount(0);
         } finally {
-            // Whatever a failure left behind; a channel already gone is passed over.
             for (const name of names) await deleteChannel(app, name);
         }
     });

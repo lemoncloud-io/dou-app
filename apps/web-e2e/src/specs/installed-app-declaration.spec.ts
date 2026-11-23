@@ -1,12 +1,6 @@
 import { myTab } from '../support/app';
 import { expect, test } from '../support/test';
 
-/**
- * The page is always the newest deploy, but the app around it is whatever build a person installed.
- * Builds up to 0.32.x declare their capabilities in the spellings from before the values were renamed
- * (`'app'` for the app doing the work), and the page has to read them as the app's: answered
- * `'browser'`, every installed phone loses the app's own sign-in, icon choice, picker and push at once.
- */
 const declaredBy0322 = (platform: 'ios' | 'android') => ({
     version: 4,
     checkout: [platform === 'ios' ? 'apple' : 'google'],
