@@ -16,8 +16,6 @@ const deleteChannel = vi.fn(async () => ({}));
 const leaveChannel = vi.fn(async () => ({}));
 const readInCloud = vi.fn(async (..._args: unknown[]) => undefined);
 
-// Stable across renders: `useChannels` re-subscribes when the repositories
-// object changes identity, and a fresh object per render loops forever.
 const repositories = {
     channel: {
         observeList: (_q: unknown, cb: (r: { list: DomainChannel[] }) => void) => {
@@ -45,7 +43,6 @@ vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => repositories,
-            // The channel cloud's join repository; `readInCloud(cid, input)` stands for its outbox receipt.
             getCloudRepositories: (cid: string) => ({
                 join: { readChat: (input: unknown) => Promise.resolve({ delivered: readInCloud(cid, input) }) },
             }),
@@ -176,7 +173,6 @@ describe('PlaceChannelsPage', () => {
         const row = screen.getByText('general').closest('li') as HTMLElement;
         fireEvent.click(row.querySelector('button[aria-label="Delete channel"]') as HTMLElement);
 
-        // The confirm guards a destructive, irreversible write.
         expect(deleteChannel).not.toHaveBeenCalled();
         fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
 

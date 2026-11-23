@@ -5,7 +5,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import type * as BridgesModule from '@chatic/bridges';
 
-/** The session signal the router reads, flipped by the fake login the way a guest login flips it. */
 const session = (() => {
     const snapshots = { in: { isAuthenticated: true }, out: { isAuthenticated: false } };
     let current = snapshots.out;
@@ -23,9 +22,6 @@ const session = (() => {
     };
 })();
 
-// A plain browser tab, as `isNative()` false says: the fake runtime's ports are a browser's while
-// nothing is published, so every port the routes reach answers the page, and no notification tap or
-// menu-bar link is listened for.
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
         session: {
@@ -70,14 +66,12 @@ import { useOAuthAttemptStore } from './features/auth/stores/useOAuthAttemptStor
 import { usePairingCodePageStore } from './features/pairing/stores/usePairingCodePageStore';
 import { AppRouter } from './routes';
 
-/** The exchange needs a guest session, so a real attempt signs in before the code is judged. */
 const signInThen = (result: unknown) => async () => {
     session.set(true);
     await Promise.resolve();
     return result;
 };
 
-/** The routes are lazy chunks; under a loaded full-suite run they can take longer than the 1s default. */
 const WAIT = { timeout: 5000 };
 
 const submitCode = async (code: string) => {
@@ -89,8 +83,6 @@ const submitCode = async (code: string) => {
 
 const previewOf = (code: string) => ({ preview: { code, info: null, createdGuest: true } });
 
-// Signed out, a bad code used to land the person on Home: the guest login flipped the router
-// to its signed-in branch, whose `/auth/*` redirect unmounted the page and its error with it.
 describe('AppRouter signed-out invite attempt', () => {
     beforeAll(async () => {
         await Promise.all([import('./features/auth'), import('./features/chat')]);
@@ -131,7 +123,6 @@ describe('AppRouter signed-out invite attempt', () => {
         });
 
         await submitCode('invt:good');
-        // The guest the preview registered flipped the router to its signed-in branch; the page stays for the join.
         await act(async () => {
             fireEvent.click(await screen.findByRole('button', { name: 'Join' }, WAIT));
         });
@@ -151,7 +142,6 @@ describe('AppRouter signed-out invite attempt', () => {
         expect(window.location.pathname).toBe('/');
     });
 
-    // The notice is taken from storage when it mounts: signed out, it must wait for the account.
     it('says what a sign-in landed as only once signed in', async () => {
         await act(async () => {
             render(<AppRouter />);
@@ -165,9 +155,6 @@ describe('AppRouter signed-out invite attempt', () => {
     });
 });
 
-// A guest taps "join with invite" on the Account hub and nothing happens there: the
-// dialog lives on the home route only, so it pops up later on return to chat. It is
-// mounted beside ShortcutsDialog instead, and the home mount goes away with it.
 describe('AppRouter join dialog', () => {
     beforeAll(async () => {
         await Promise.all([import('./features/auth'), import('./features/chat')]);
@@ -219,8 +206,6 @@ describe('AppRouter join dialog', () => {
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 });
-// Starting Google from Welcome registers the device first, which flips the router to its signed-in
-// branch while the browser is still open; Welcome has to stay for the attempt.
 describe('AppRouter signed-out Google attempt', () => {
     beforeAll(async () => {
         await Promise.all([import('./features/auth'), import('./features/chat')]);
@@ -268,8 +253,6 @@ describe('AppRouter signed-out Google attempt', () => {
     });
 });
 
-// The code screen signs in as a guest before it asks for a code, which flips the router to its signed-in
-// branch mid-flow; the hold keeps `/auth/pair` there, and nothing else does.
 describe('AppRouter device pairing', () => {
     beforeAll(async () => {
         await Promise.all([import('./features/pairing'), import('./features/chat')]);

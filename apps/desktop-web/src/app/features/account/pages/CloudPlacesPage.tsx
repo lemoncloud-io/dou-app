@@ -15,12 +15,6 @@ import {
     usePlaces,
 } from '../../../shared';
 
-/**
- * One cloud's places. Listing another cloud's places needs its session, and
- * entering one silently would yank the reader out of their cloud — so a
- * foreign cloud shows a switch button instead, and the list appears once the
- * reader's own switch lands them there.
- */
 export const CloudPlacesPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -30,9 +24,6 @@ export const CloudPlacesPage = () => {
     const { switchCloud, isSwitching } = useCloudSwitchFlow();
 
     const isActive = !!cloudId && cloudId === selectedCloudId;
-    // The hub names itself dynamically; borrow its name for the back button so
-    // back reads as the cloud, falling back to its id while the catalog loads.
-    // Memoized: the cached catalog already updates this page, no extra fetch.
     const { clouds } = useCloudSessionCatalog();
     const parentName = useMemo(() => clouds.find(row => row.id === cloudId)?.name ?? cloudId ?? '', [clouds, cloudId]);
 

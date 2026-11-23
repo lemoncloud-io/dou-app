@@ -1,30 +1,14 @@
 import { plainStore } from '../../../storage';
 
-/**
- * What the app says once a Google sign-in has landed. A sign-in that replaces a session reloads the
- * app, so the word is left in storage for the signed-in shell to pick up, and taken once.
- */
 export interface SignInNoticeRecord {
     provider: string;
-    /** The server made the account just now: the Google had no DoU account yet. */
     isNew: boolean;
 }
 
 const SIGN_IN_NOTICE_KEY = 'chatic-signin-notice';
 
-/**
- * Slack for a server clock that runs behind this one. A Google account that already owned a DoU account
- * was made long before any sign-in, so a minute of slack cannot mistake one for new. A clock here that
- * runs ahead by more than the slack plus the time spent in the browser errs the other way: a new account
- * reads as existing, and gets the toast instead of the stop.
- */
 export const NEW_ACCOUNT_CLOCK_SLACK_MS = 60 * 1000;
 
-/**
- * Whether the login response describes an account made by this sign-in. The server does not say so, but
- * the account's `createdAt` falls after the moment the sign-in started only when the sign-in made it.
- * Without a `createdAt` there is no evidence, and nothing is claimed.
- */
 export const isAccountMadeSince = (account: unknown, startedAt: number): boolean => {
     const createdAt = (account as { createdAt?: unknown } | null)?.createdAt;
     return typeof createdAt === 'number' && createdAt >= startedAt - NEW_ACCOUNT_CLOCK_SLACK_MS;
@@ -34,7 +18,6 @@ export const saveSignInNotice = (notice: SignInNoticeRecord): void => {
     plainStore.set(SIGN_IN_NOTICE_KEY, JSON.stringify(notice));
 };
 
-/** Read the notice and delete it in the same call, so it is said once. */
 export const takeSignInNotice = (): SignInNoticeRecord | null => {
     const raw = plainStore.get(SIGN_IN_NOTICE_KEY);
     plainStore.remove(SIGN_IN_NOTICE_KEY);

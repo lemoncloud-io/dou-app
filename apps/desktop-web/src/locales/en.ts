@@ -1,8 +1,3 @@
-/**
- * English UI strings for the desktop client, and the shape every other locale
- * follows: `ko.ts` is typed against `EnTranslation`, so a key added here fails
- * the Korean bundle until it is translated too.
- */
 export const en = {
     'auth.invite.title': 'Join with invite',
     'auth.invite.subtitle': 'Enter your invite link or code to join.',
@@ -161,7 +156,6 @@ export const en = {
     'chat.jumpToLatest': 'Jump to latest',
     'chat.newMessageBadge_one': '{{count}} new message',
     'chat.newMessageBadge_other': '{{count}} new messages',
-    // Past the cap the exact number is unknown, so it is not asserted.
     'chat.newMessageBadgeOverflow': '{{cap}}+ new messages',
     'chat.threadEmpty': 'No messages yet',
     'chat.intro.label': 'Start of the conversation',
@@ -596,10 +590,6 @@ export const en = {
     'sidebar.empty.favorites': 'Favorites will appear here.',
     'sidebar.empty.channels': "No channels you've been invited to yet.",
     'sidebar.empty.dms': 'No direct messages yet.',
-    // Screen-reader text for the sidebar unread markers. The channel dot
-    // carries no number, so without these the badge is colour-only.
-    // Sidebar tombstone. Shorter than the feed's sentence on purpose — this slot
-    // is one truncated line next to a channel name.
     'sidebar.deletedPreview': 'Message deleted',
     'sidebar.startDm': 'Start a direct message with {{name}}',
     'sidebar.startingDm': 'Opening the conversation',
@@ -879,8 +869,6 @@ export const en = {
     'settings.launchAtLogin': 'Launch at login',
     'settings.launchAtLoginHint': 'Start DoU automatically when you sign in to this computer.',
     'settings.launchAtLoginFailed': 'Could not change this setting.',
-    // 'offline' now means the browser itself reports no network, so reconnecting is the one
-    // thing that cannot be happening. A down socket on a working network says 'reconnecting'.
     'connection.offline': 'No network connection',
     'connection.reconnecting': 'Reconnecting…',
     'update.available': 'Version {{version}} is available',
@@ -966,16 +954,11 @@ export const en = {
     'toast.undo': 'Undo',
     'toast.undoRemove': 'Add them back to the channel',
 
-    // Failure copy for channel actions. These lead; the transport's own wire
-    // text is shown under them in the failure toast. See
-    // features/channels/utils/actionError.ts.
     'errors.notAllowed': "You don't have permission to do that.",
     'errors.notFound': 'That channel is no longer available.',
     'errors.conflict': 'Someone changed this channel first. Reopen it and try again.',
     'errors.network': "Couldn't reach the server. Check your connection and try again.",
     'errors.generic': "That didn't work. Try again in a moment.",
-    // Last-resort fallback in extractErrorMessage when nothing else describes the
-    // failure (no message, no status, no wire text). See shared/utils/errors.ts.
     'errors.unknown': 'An unknown error occurred.',
     'toast.messageFailed': 'Message not sent.',
     'channels.settings.title': 'Channel settings',
@@ -1274,12 +1257,6 @@ export const en = {
     'pairing.approved.empty': 'No approved sign-ins.',
 } as const;
 
-/** Every key English defines, each carrying a plain string in any locale. */
 export type TranslationKey = keyof typeof en;
 
-/**
- * The shape a locale bundle must fill. Keyed off `en`, so a new English key is a
- * type error in every other bundle until it is translated, while values stay
- * plain strings rather than English literals.
- */
 export type EnTranslation = Record<TranslationKey, string>;

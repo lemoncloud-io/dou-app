@@ -4,31 +4,11 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { getCustomUiApi, type CustomUiStatus } from '../../../shared';
 
-/**
- * Sample bundle: a real desktop-web production build with every theme hue rotated 189°, so
- * the whole app arrives violet instead of lime. That makes it the stronger demo — it shows
- * the actual product running off the custom scheme, not a page written to talk about it, and
- * the color leaves no doubt about which build the window is showing.
- *
- * Two other archives exist and can be pasted into the field below:
- *   custom-web-poc-desktop.zip  — the probe page (origin, privileges, backend reachability)
- *   custom-web-poc.zip          — the mobile PoC's phone-shaped build
- */
 const SAMPLE_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc-desktopweb.zip';
 
-// Read once: the shell injects it before any page script, and a per-render read would be a
-// fresh dependency for the status effect below.
 const api = getCustomUiApi();
-// Undefined on a production shell, which does not take bundles — the panel then hides Apply.
 const apply = api?.apply;
 
-/**
- * Custom web bundle PoC (desktop shell only): swap the whole UI for a downloaded ZIP.
- *
- * Applying reloads the window into the bundle, so this panel disappears with it — the way back
- * is the shell's own "Reset custom UI", in the menu bar and the tray. Both live in main and so
- * survive whatever the bundle does; a button inside the bundle would not.
- */
 export const DebugCustomUiPage = () => {
     const [zipUrl, setZipUrl] = useState(SAMPLE_ZIP_URL);
     const [status, setStatus] = useState<CustomUiStatus | null>(null);
@@ -36,8 +16,6 @@ export const DebugCustomUiPage = () => {
 
     useEffect(() => {
         if (!api) return;
-        // Surfaced, not swallowed: an unhandled rejection here would leave status null, which
-        // renders as "inactive" — a confident answer the panel does not actually have.
         api.status()
             .then(setStatus)
             .catch((error: unknown) => setStatus({ active: false, root: null, error: String(error) }));

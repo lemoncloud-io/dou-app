@@ -14,24 +14,11 @@ import { useSearchDialogStore } from './features/search/stores/useSearchDialogSt
 import { pressHistory, useHistoryNavigation } from './features/chat/hooks/useHistoryNavigation';
 import { RouteFallback, parsePushDeeplink, useDownloadNotices, usePendingOpenStore } from './shared';
 
-/**
- * Desktop notification-open router. Mounted inside the Router (so it can
- * navigate) and route-independent, so opening works from /profile or /settings —
- * not just home. Two entry points feed the same pending-open store:
- *   - the OS-banner click, delivered as an `OnReceiveNotification` deeplink
- *     (same-cloud, cross-cloud, and the thread-reply form that also carries the
- *     root — see parsePushDeeplink), and
- *   - the in-app toast click (foreground), which sets the store directly.
- * Whenever a target is set it routes home; HomePage applies the cloud/place/
- * channel target once each loads.
- */
-/** Back and Forward from any page: the bracket chords, the mouse's side buttons, the shell's swipes and menu items. */
 const HistoryNavigation = () => {
     useHistoryNavigation();
     return null;
 };
 
-/** A save the shell finished: "Saved …" and the way to show it, on whichever page the reader is. */
 const DownloadNotices = () => {
     useDownloadNotices();
     return null;
@@ -41,26 +28,19 @@ const NotificationOpenListener = () => {
     const navigate = useNavigate();
     const request = usePendingOpenStore(s => s.request);
     const pendingNonce = usePendingOpenStore(s => s.target?.nonce);
-    // Any open request (banner OR toast) routes home. Guard on a live target so
-    // HomePage clearing it back to null doesn't re-navigate.
     useEffect(() => {
         if (pendingNonce == null) return;
         navigate('/');
     }, [pendingNonce, navigate]);
     useEffect(() => {
-        // Notification taps, and the menu bar's links that ride the same message, arrive only where the
-        // app hands the page its notifications.
         const notifications = runtime.push.notifications;
         if (!notifications) return;
         return notifications.onReceive(({ notification }) => {
             const deeplink: string | undefined = notification?.data?.deeplink;
-            // The shell's menu bar (Settings, Go, Help → Keyboard Shortcuts) rides the same
-            // event with a `chatic-ui:` link rather than an open target.
             if (deeplink === 'chatic-ui:settings') {
                 navigate('/settings');
                 return;
             }
-            // Go → Back / Forward and the trackpad's swipes, the same presses as Mod+[ and Mod+].
             if (deeplink === 'chatic-ui:back' || deeplink === 'chatic-ui:forward') {
                 pressHistory(deeplink === 'chatic-ui:back' ? 'back' : 'forward');
                 return;
@@ -69,7 +49,6 @@ const NotificationOpenListener = () => {
                 useShortcutsDialogStore.getState().setOpen(true);
                 return;
             }
-            // The switcher and search are mounted by the home screen, so go there first.
             if (deeplink === 'chatic-ui:switcher' || deeplink === 'chatic-ui:search') {
                 navigate('/');
                 if (deeplink === 'chatic-ui:switcher') useQuickSwitcherStore.getState().setOpen(true);
@@ -84,16 +63,9 @@ const NotificationOpenListener = () => {
     return null;
 };
 
-// Route-level code splitting: the auth branch, the messenger shell, and the
-// settings/profile/debug pages each become their own chunk, so the initial load
-// ships only what the current branch needs. (Named exports → default mapping.)
 const ShortcutsDialog = lazy(() => import('./features/chat').then(m => ({ default: m.ShortcutsDialog })));
-// The line of hints a held ⌘ or ⌥ shows; route-independent for the same reason.
 const ShortcutHintBar = lazy(() => import('./features/chat').then(m => ({ default: m.ShortcutHintBar })));
-// Route-independent like ShortcutsDialog: the Account hub opens it off the home route,
-// where it used to be dead until the return to chat.
 const JoinWithInviteDialog = lazy(() => import('./features/auth').then(m => ({ default: m.JoinWithInviteDialog })));
-// Route-independent too: the account menu opens it from any page.
 const AppearanceDialog = lazy(() =>
     import('./features/settings/components/AppearanceDialog').then(m => ({ default: m.AppearanceDialog }))
 );
@@ -135,9 +107,7 @@ export const AppRouter = () => {
             {isAuthenticated && <NotificationOpenListener />}
             {isAuthenticated && <DownloadNotices />}
             {isAuthenticated && <HistoryNavigation />}
-            {/* Route-independent, so "?" and the menu entry work on every page. */}
             {isAuthenticated && (
-                // Its own boundary: the chat chunk loading must not blank the page.
                 <Suspense fallback={null}>
                     <ShortcutsDialog />
                     <ShortcutHintBar />
@@ -145,14 +115,8 @@ export const AppRouter = () => {
                     <AppearanceDialog />
                 </Suspense>
             )}
-            {/* Same branch app.tsx makes for the boot fallback: the chat shell skeleton only for
-                home, a page skeleton for the other signed-in routes, the plain loader signed out. */}
             <Suspense fallback={<LocationFallback isAuthenticated={isAuthenticated} />}>
-                {/* Social Login deeplink (chatic://oauth) — pre-auth it signs in (router
-                    flips branches); in-app (guest linking from Profile) it swaps the
-                    session and reloads. */}
                 <OAuthDeeplinkListener />
-                {/* Who a Google sign-in landed as, said once the app is up as that account. */}
                 {isAuthenticated && <SignInNotice />}
                 <Routes>
                     {isAuthenticated ? (
@@ -171,30 +135,15 @@ export const AppRouter = () => {
                             <Route path="/account/policies/privacy" element={<PrivacyPage />} />
                             {isDevicePairingEnabled() && (
                                 <>
-                                    {/* The page itself turns away the browser and a paired session. */}
                                     <Route path="/settings/pairing/approve" element={<PairingApprovePage />} />
                                     <Route path="/account/devices" element={<DevicesPage />} />
                                 </>
                             )}
-                            {/* OAuth hand-off must work even with a (possibly stale) authenticated
-                                session in this browser — the relay return would otherwise bounce
-                                to home and lose the code before it reaches the shell. */}
                             <Route path="/auth/oauth-response" element={<OAuthResponsePage />} />
-                            {/* A signed-out invite attempt signs in a guest before the code is
-                                exchanged, so the session flips mid-attempt. Keep its page until
-                                it succeeds or is left, or a rejected code is never shown. */}
                             {inviteAttemptHeld && <Route path="/auth/login" element={<InviteLoginPage />} />}
-                            {/* A Google sign-in begun signed out registers the device before the browser
-                                opens. Keep Welcome, which waits for the browser, until it returns or is
-                                cancelled, or the person lands in the app as a guest they never chose. */}
                             {socialLoginHeld && <Route path="/auth/welcome" element={<WelcomePage />} />}
-                            {/* Sending the first code registers the device, which lands here mid-flow;
-                                the page also turns away an account that is already signed in. */}
                             {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}
-                            {/* The code screen signs in as a guest before it asks for a code, which flips
-                                the router here mid-flow. Keep it until it finishes or is left. */}
                             {pairingHeld && <Route path="/auth/pair" element={<PairingCodePage />} />}
-                            {/* Once authenticated, leave the auth screens — fixes invite login not advancing. */}
                             <Route path="/auth/*" element={<Navigate to="/" replace />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
                         </>

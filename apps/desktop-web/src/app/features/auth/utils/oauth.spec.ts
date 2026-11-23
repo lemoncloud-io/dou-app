@@ -50,7 +50,6 @@ describe('parseOAuthDeeplink', () => {
         expect(parseOAuthDeeplink('chatic://oauth')).toBeNull();
     });
 
-    // These all start with `chatic://oauth`, which is what the old prefix comparison accepted.
     it.each([
         'chatic://oauth.evil.example?provider=google&code=abc',
         'chatic://oauthx?provider=google&code=abc',
@@ -128,8 +127,6 @@ describe('Apple sign-in', () => {
         ).toBe(true);
     });
 
-    // The hand-off page reads the provider off this address. Carried here so an Apple code that comes
-    // back without the relay naming the provider is not read as a Google one and refused.
     it('carries the provider on the hand-off address', () => {
         const redirect = new URL(new URL(buildAuthorizeUrl('apple', 'n1')).searchParams.get('redirect') ?? '');
 

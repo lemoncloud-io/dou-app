@@ -65,7 +65,6 @@ import { MiniAppRailButton } from './MiniAppRailButton';
 const HUB = 'https://apps-dev.chatic.io/';
 const SHOP = 'https://shop.example/app';
 
-// The app's own client keeps a read for the whole session (`staleTime: Infinity`); so does this one.
 const renderButton = async () => {
     const client = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
     render(

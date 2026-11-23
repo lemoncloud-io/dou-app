@@ -60,8 +60,6 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={new QueryClient()}>{children}</QueryClientProvider>
 );
 
-// The exchange is signed with the device's guest delegation; a pasted link naming another server
-// used to be followed, handing that delegation to whoever runs it.
 describe('useInviteLogin with a link naming an untrusted backend', () => {
     beforeEach(() => getIdentityContext.mockReturnValue({ delegatorId: null, isAuthenticated: false }));
     afterEach(() => vi.clearAllMocks());
@@ -186,7 +184,6 @@ describe('useInviteLogin with an encoded link', () => {
     });
 });
 
-// The identity context carries no guest flag; guest-ness is the active token's `userRole`.
 describe('useInviteLogin while a session is already signed in', () => {
     beforeEach(() => getIdentityContext.mockReturnValue({ delegatorId: null, isAuthenticated: true }));
     afterEach(() => vi.clearAllMocks());

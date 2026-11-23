@@ -46,3 +46,13 @@ stores in `src/app/shared/`.
   notifications, unread counts and previews treat it.
 - [notifications.md](./notifications.md): the OS banner's title for a mention, what the title promises,
   and how a push from another cloud or the relay is shown and opened.
+
+Dialogs reached from the sidebar and the room header:
+
+- [message-search.md](./message-search.md): what the search dialog looks through, what counts as a hit, and
+  how "nothing loaded", "no match" and "could not read" differ.
+- [create-channel.md](./create-channel.md): the name rule shared with rename and how a refused create is
+  explained.
+- [channel-members.md](./channel-members.md): how the roster loads, what an invite writes locally, and kick with
+  undo.
+- [invite-waiting.md](./invite-waiting.md): the waiting dialog's polling, cancel and reissue.

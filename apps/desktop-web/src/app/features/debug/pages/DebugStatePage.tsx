@@ -18,7 +18,6 @@ const Section = ({ title, children }: { title: string; children: ReactNode }) =>
     </div>
 );
 
-/** Dev-only session/state inspector (desktop equivalent of apps/web DebugStatePage). */
 export const DebugStatePage = () => {
     const { userId } = runtime.session.useSessionIdentity();
     const { userName } = runtime.session.useRuntimeProfile();

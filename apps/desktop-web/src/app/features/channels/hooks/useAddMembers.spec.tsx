@@ -7,7 +7,6 @@ import type { InviteCandidate } from './useInviteCandidates';
 const cacheWriteMany = vi.fn(() => Promise.resolve());
 const inviteChannel = vi.fn(() => Promise.resolve({}));
 
-// The runtime returns a singleton repository bundle — keep the mock identity-stable.
 const repositories = { user: { cacheWriteMany } };
 
 vi.mock('@chatic/runtime', async () =>
@@ -40,14 +39,11 @@ describe('useAddMembers', () => {
         expect(inviteChannel).toHaveBeenCalledWith({ channelId: 'ch-target', userIds: ['u-1', 'u-2'] });
         const [written] = cacheWriteMany.mock.calls[0] as unknown as [Array<Record<string, unknown>>];
         expect(written.map(u => u.id)).toEqual(['u-1', 'u-2']);
-        // `$join` is the cursor from the channel we found them in; it says nothing about this one.
         expect(written.every(u => !('$join' in u) && !('viaChannels' in u))).toBe(true);
         expect(written[0].channelIds).toEqual(['ch-target']);
     });
 
     it('does not report a failure when only the local cache write fails', async () => {
-        // The server already accepted the invite — surfacing this as an error made the caller
-        // toast a failure and retry, inviting the same people twice.
         cacheWriteMany.mockRejectedValue(new Error('quota exceeded'));
         const { result } = renderHook(() => useAddMembers('ch-target'));
 

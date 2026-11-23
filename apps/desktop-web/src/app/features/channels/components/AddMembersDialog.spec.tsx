@@ -19,10 +19,6 @@ import '../../../../i18n';
 import { useSiteProfilesStore } from '../../../shared';
 import { AddMembersDialog } from './AddMembersDialog';
 
-/**
- * Mounts the dialog only while open, as ChannelActionDialogs does. `keepOpener` false stands in
- * for the channel intro's button, which leaves the page once the channel has members.
- */
 const Host = ({ keepOpener }: { keepOpener: boolean }) => {
     const [open, setOpen] = useState(false);
     const [added, setAdded] = useState(false);
@@ -89,8 +85,6 @@ describe('AddMembersDialog focus after adding', () => {
     });
 });
 
-// A rejected add used to toast the server's wire text (`403 NOT ALLOWED - …`) alone, then nothing
-// but a sentence. It now leads with the sentence and keeps the wire text under it.
 describe('AddMembersDialog when adding fails', () => {
     afterEach(() => vi.clearAllMocks());
 
@@ -115,8 +109,6 @@ describe('AddMembersDialog names', () => {
     });
 
     it("draws a candidate by this place's profile, and finds them by it", () => {
-        // Somebody who shares no channel with me is known here only by the profile the member
-        // list loaded, so the row has to read it rather than the account name.
         useSiteProfilesStore.getState().setAll({ u2: { nick: 'Bobby in this place' } });
         render(<AddMembersDialog open onOpenChange={() => undefined} channelId="C1" />);
 

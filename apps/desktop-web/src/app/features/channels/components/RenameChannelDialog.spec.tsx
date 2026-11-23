@@ -16,7 +16,6 @@ describe('RenameChannelDialog', () => {
         render(<RenameChannelDialog open onOpenChange={vi.fn()} channelId="c-1" currentName="design" />);
 
         const dialog = screen.getByRole('dialog', { name: i18n.t('channels.rename.title') });
-        // A screen reader read the title twice while an sr-only description repeated it.
         expect(dialog.hasAttribute('aria-describedby')).toBe(false);
     });
 

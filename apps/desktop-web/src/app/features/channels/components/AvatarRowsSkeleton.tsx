@@ -1,15 +1,10 @@
 import { Skeleton } from '../../../shared';
 
 interface AvatarRowsSkeletonProps {
-    /** Accessible label for the loading region (the list this stands in for). */
     label: string;
     rows?: number;
 }
 
-/**
- * Placeholder for any avatar + name list while it loads — the member roster and the
- * add-members picker both render one, so the shape lives here rather than twice.
- */
 export const AvatarRowsSkeleton = ({ label, rows = 4 }: AvatarRowsSkeletonProps) => (
     <div className="flex flex-col gap-0.5" role="status" aria-label={label}>
         {Array.from({ length: rows }).map((_, i) => (

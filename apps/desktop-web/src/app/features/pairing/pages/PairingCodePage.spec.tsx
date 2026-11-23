@@ -93,7 +93,6 @@ const renderPage = () =>
         </MemoryRouter>
     );
 
-/** Signed in as the guest this screen registered, as after the router's branch flip. */
 const asRegisteredGuest = () => {
     env.auth.set(true);
     env.relayUser = { userRole: 'guest' };
@@ -253,7 +252,6 @@ describe('PairingCodePage', () => {
         fireEvent.click(screen.getByRole('button', { name: 'back' }));
 
         expect(env.signOutGuest).toHaveBeenCalledTimes(1);
-        // Held while the sign-out runs, so the router does not open the app as the guest meanwhile.
         expect(usePairingCodePageStore.getState()).toMatchObject({ held: true, leaving: true });
         expect(screen.getByText('Going back…')).toBeTruthy();
         await act(async () => finishSignOut());

@@ -23,10 +23,6 @@ import {
 } from '../../auth';
 import { linkedSignInOf, type LinkedMethod, type RelaySignInUser } from '../utils/linkedSignIn';
 
-/**
- * A provider round trip of this kind is out in the system browser: say so, and offer to open the browser
- * again or to give up. Neither signs anyone out — the session here was there before the button.
- */
 const OAuthWaiting = ({ intent, labelKey }: { intent: OAuthStartIntent; labelKey: string }) => {
     const { t } = useTranslation();
     const { reopen, cancel } = useSocialLogin();
@@ -64,11 +60,6 @@ const linkFailureKey = {
     failed: 'account.signIn.link.failed',
 } as const;
 
-/**
- * Why the last link did not go through, kept on the card until dismissed: a toast is gone before someone
- * back from the browser looks, and an occupied account needs its next step read, not glimpsed. The store
- * keeps the reason without the provider, so the copy names neither — the button just pressed sits above.
- */
 const LinkFailureNotice = () => {
     const { t } = useTranslation();
     const failure = useOAuthAttemptStore(s => s.linkFailure);
@@ -87,12 +78,6 @@ const LinkFailureNotice = () => {
     );
 };
 
-/**
- * The guest's card: what a guest is, and the ways out of it. Signing in comes first — the phone number
- * an account was made with on mobile (placed first so a phone sign-up does not reach for Google or Apple
- * and get a second account), then Google, then Apple — each replacing the guest session on this device. Joining a
- * workspace by invite comes last, as a link: it keeps the guest and only adds a workspace.
- */
 const GuestSignIn = ({ social, phone, onJoin }: { social: boolean; phone: boolean; onJoin?: () => void }) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -162,10 +147,6 @@ const GuestSignIn = ({ social, phone, onJoin }: { social: boolean; phone: boolea
     );
 };
 
-/**
- * Links Google or Apple to the account signed in here. The browser round trip is the sign-in one; the
- * code that comes back is linked rather than signed in with, so the session stays and nothing reloads.
- */
 const LinkSocial = () => {
     const { t } = useTranslation();
     const { startLink } = useSocialLogin();
@@ -207,13 +188,6 @@ const LinkSocial = () => {
     );
 };
 
-/**
- * How this account signs in. A guest gets the ways to sign in the build allows — Google and Apple, with
- * the note for people who signed up with a phone number, and phone-number sign-in. A signed-in account
- * sees every method linked to it and, while it has no social account and the build allows social sign-in,
- * buttons that link Google or Apple. When the relay user carries no `link$` slot the card is left out
- * rather than claiming there is no method.
- */
 export const AccountSignInCard = ({ account, onJoin }: { account: RelaySignInUser | null; onJoin?: () => void }) => {
     const { t } = useTranslation();
     const signIn = linkedSignInOf(account);
@@ -236,7 +210,6 @@ export const AccountSignInCard = ({ account, onJoin }: { account: RelaySignInUse
                   ? t('account.signIn.phoneHint', { last4: method.hint })
                   : t('account.signIn.phone')
               : [t('account.signIn.email'), method.hint].filter(Boolean).join(' · ');
-    // The server keeps one social slot per account: with one taken, another is refused (`type-linked`).
     const canLinkSocial = isSocialLoginEnabled() && !methods.some(method => method.kind === 'social');
 
     return (

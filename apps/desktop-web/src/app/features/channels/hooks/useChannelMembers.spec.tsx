@@ -69,7 +69,6 @@ describe('useChannelMembers sync failures', () => {
         await act(async () => {
             result.current.retry();
         });
-        // Retries from the same cursor — the failed delta is redriven, not skipped.
         await waitFor(() => expect(userMocks.syncChannelUsers).toHaveBeenCalledTimes(2));
         expect(userMocks.syncChannelUsers).toHaveBeenLastCalledWith({ channelId: 'C1', since: 0 });
     });

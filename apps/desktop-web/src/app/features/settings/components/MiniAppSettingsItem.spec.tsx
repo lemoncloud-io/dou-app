@@ -12,13 +12,11 @@ import type * as SharedModule from '../../../shared';
 const env = vi.hoisted(() => ({
     scope: 'anyHttps' as string | null,
     activeCloudId: 'c1' as string | null,
-    // The catalog's say on c2, which can change under an open screen.
     c2Kind: 'invited' as string,
     noUid: false,
     closed: null as ((closed: OnSubWebViewClosedPayload) => void) | null,
     open: vi.fn(),
     toastFailure: vi.fn(),
-    // What the relay holds per cloud.
     links: {} as Record<string, string>,
     fetchMiniAppUrl: vi.fn(),
     saveMiniAppUrl: vi.fn(),
@@ -68,8 +66,6 @@ vi.mock('../../../shared', async () => ({
     }),
     useCurrentPlace: () => ({ place: undefined, placeName: 'Studio', placeId: 'p1' }),
     useAccountName: () => 'Ada',
-    // c1's nick is a synced row under the cloud id; c2 has only the row my own save wrote, under my
-    // account id.
     useSiteProfileMap: () => ({ 'uid-c1': { nick: 'Ada in Studio' }, 'uid-session': { nick: 'Ada, saved' } }),
     toastFailure: env.toastFailure,
 }));
@@ -85,7 +81,6 @@ const wrap = (node: ReactNode) => <QueryClientProvider client={queryClient}>{nod
 
 const renderItem = async () => {
     const view = render(wrap(<MiniAppSettingsItem />));
-    // The shell's handshake and the relay's read answer asynchronously.
     await act(async () => undefined);
     return { ...view, rerender: () => view.rerender(wrap(<MiniAppSettingsItem />)) };
 };
@@ -95,7 +90,6 @@ const linkButton = () => screen.queryByRole('button', { name: /Mini app link/ })
 const linkRow = () => screen.getByRole('button', { name: /Mini app link/ });
 const addressInput = () => screen.queryByLabelText('Address (https)');
 
-/** The hub this screen opened closes with `result`. */
 const hubCloses = (result: unknown) => act(() => env.closed?.({ viewId: 'view-1', reason: 'page', result }));
 
 const typeAndSave = async (url: string) => {

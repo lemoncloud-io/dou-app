@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderHook, waitFor } from '@testing-library/react';
 
-// The pool is the place's member list (`place.list-user`). When that fails, it falls back to the
-// union of my channels' rosters — and an unfiltered user-cache read would also return chat authors
-// and profile lookups, so that union is assembled per channel id.
 let rostersByChannel: Record<string, Array<Record<string, unknown>>> = {};
 let channels: Array<{ id: string; name: string; memberIds?: string[]; stereo?: string }> = [];
 let isVerified = true;
@@ -17,8 +14,6 @@ const refreshList = vi.fn((query: { channelId: string }) =>
 );
 
 type Member = { id: string; cid?: string; name?: string; thumbnail?: string; isOwner?: boolean };
-// Rejects unless a test says otherwise: a cloud whose server has not shipped the action, which is
-// exactly the case the roster fallback exists for.
 const listPlaceMembers = vi.fn(
     (_query: {
         placeId: string;
@@ -32,8 +27,6 @@ const listPlaceMembers = vi.fn(
 const placeList = (members: Member[], context = { cid: 'cloud-a', sid: 'site-1' }) =>
     listPlaceMembers.mockResolvedValue({ members, context, profiles: 'loaded' });
 
-// The runtime returns a singleton repository bundle, so the mock must be identity-stable too —
-// a fresh object per render re-runs the load effect on every state change.
 const repositories = {
     user: {
         refreshList,
@@ -54,7 +47,6 @@ vi.mock('@chatic/runtime', async () =>
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useSessionSelection: () => ({ selectedCloudId, selectedSiteId: 'site-1' }),
-            // My id in this cloud differs from the session's, as it can for a cloud account.
             useUidInCloud: () => 'me-in-cloud',
             SWITCH_SITE_MUTATION_KEY: ['switch-site'],
             SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'],
@@ -96,9 +88,7 @@ describe('useInviteCandidates', () => {
                 { id: 'owner', name: 'Olivia', isOwner: true },
                 { id: 'u-in', name: 'Already in' },
                 { id: 'u-co', name: 'Coworker' },
-                // Invited into the place only — no channel anywhere, possibly not accepted yet.
                 { id: 'u-nochannel', name: 'Placeonly' },
-                // In channels of this place, none of them mine.
                 { id: 'u-stranger', name: 'Elsewhere' },
             ]);
 
@@ -110,7 +100,6 @@ describe('useInviteCandidates', () => {
             expect(via.get('u-co')).toEqual(['design']);
             expect(via.get('u-nochannel')).toEqual([]);
             expect(via.get('u-stranger')).toEqual([]);
-            // The roster union is the fallback only — it is not fetched alongside a list that worked.
             expect(refreshList.mock.calls.map(([query]) => query.channelId)).toEqual(['ch-target']);
         });
 
@@ -317,8 +306,6 @@ describe('useInviteCandidates', () => {
         expect(refreshList).toHaveBeenCalledWith({ channelId: 'ch-target', detail: true });
     });
     it('falls back to the cached rosters when the socket never verifies', async () => {
-        // A sleep/wake wedge can leave the socket unverified indefinitely (see useChannels).
-        // Gating the whole load on it pinned the picker on its loading state forever.
         isVerified = false;
         channels = [
             { id: 'ch-target', name: 'lemoncloud' },
@@ -349,7 +336,6 @@ describe('useInviteCandidates', () => {
         const { result } = renderHook(() => useInviteCandidates('ch-target'));
 
         await waitFor(() => expect(result.current.isLoading).toBe(false));
-        // u-1 is already in the channel; without the memberIds fallback the empty roster would offer them.
         expect(result.current.candidates.map(c => c.id)).toEqual(['u-2']);
     });
 
@@ -378,7 +364,6 @@ describe('useInviteCandidates', () => {
     });
 
     it('does not name a 1:1 as the channel a candidate comes from', async () => {
-        // A 1:1 usually has no name, so its label would fall back to a raw channel id.
         channels = [
             { id: 'ch-a', name: 'design' },
             { id: 'dm-1', name: '', stereo: 'dm' },

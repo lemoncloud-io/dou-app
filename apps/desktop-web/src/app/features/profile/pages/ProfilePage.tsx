@@ -40,8 +40,6 @@ const ProfileField = ({ label, value, onCopy, copied, copyLabel, copiedLabel }: 
             <span className="truncate text-callout text-foreground select-text">{value}</span>
         </div>
         {onCopy && (
-            // Kit button for the standard focus ring and a real target size. The old
-            // one was ~24px with no ring, and its lime label sat on white at 1.6:1.
             <Button variant="ghost" size="sm" onClick={onCopy} className="shrink-0 text-primary-ink">
                 {copied ? copiedLabel : copyLabel}
             </Button>
@@ -53,25 +51,12 @@ const SectionTitle = ({ children }: { children: string }) => (
     <h2 className="text-overline uppercase text-muted-foreground">{children}</h2>
 );
 
-/**
- * Single profile surface. The "This place" card is how you appear in the current
- * place (per-place nick/photo, edited via the optimistic dialog); the "Account"
- * card is the read-only canonical (global) identity. One door — there is no
- * separate place-profile menu entry. With no place selected (the Default Cloud) there
- * is nowhere to save a place profile, so the card is not offered at all.
- */
 export const ProfilePage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
-    // Identity is uid-only now; profile facts (name/photo) come from runtime.session.useRuntimeProfile.
-    // `userId` is my uid in the session I am connected to — inside a cloud that is the cloud's own
-    // uid, which is what the place profiles are keyed by.
     const { userId } = runtime.session.useSessionIdentity();
     const { photo } = runtime.session.useRuntimeProfile();
     const accountName = useAccountName();
-    // The Account card is about the account, so it reads the relay session. The active session's
-    // user would be the cloud's inside a cloud: another uid, another name and no email, which drew a
-    // signed-in account as a guest and offered it social sign-in again.
     const accountUser = runtime.session.getRelaySessionUser() as {
         uid?: string;
         id?: string;
@@ -84,17 +69,9 @@ export const ProfilePage = () => {
     const openEditPlaceProfile = useEditPlaceProfileDialogStore(s => s.open);
     const { start: startSocialLogin, isStarting } = useSocialLogin();
 
-    // Keep the display store fed on this route too — HomePage's subscription is
-    // unmounted here, so without this the optimistic self-edit would not reflect
-    // in the "This place" card until navigating back home.
     useSiteProfiles();
     const { placeName, placeId } = useCurrentPlace();
     const placeLabel = placeName || t('profile.thisPlaceFallback');
-    // Whether I have a per-place override here (vs falling back to the account). The display store
-    // (fed by useSiteProfiles, by my account uid) is reset when this page mounts and only gains my
-    // entry once my place profile has been read, which used to happen when the edit dialog opened:
-    // the card said "Set up" and flipped to "Edit" behind the dialog. So the page reads it once on
-    // mount and draws the card only once that read settles, or the cache already has my entry.
     const cachedPlaceProfile = useSiteProfileMap()[userId ?? ''];
     const { load: loadPlaceProfile } = useMyProfile();
     const [placeRead, setPlaceRead] = useState<{ profile: DomainProfile | null } | null>(null);
@@ -107,14 +84,11 @@ export const ProfilePage = () => {
             live = false;
         };
     }, [loadPlaceProfile]);
-    // The read's own result stands in until its cache write reaches the store, so the card does not
-    // flip for the frame in between.
     const placeProfile = cachedPlaceProfile ?? placeRead?.profile ?? undefined;
     const hasPlaceProfile = !!placeProfile;
     const placeStateKnown = !!cachedPlaceProfile || placeRead !== null;
 
     const fallback = t('profile.unknown');
-    // Same rule as `useAccountName`, for the account's own name: a guest's is a bare UUID.
     const ownName = isPlaceholderName(accountUser?.name)
         ? accountUser?.userRole === 'guest'
             ? t('profile.guestName')
@@ -123,18 +97,14 @@ export const ProfilePage = () => {
     const name = ownName || fallback;
     const email = accountUser?.email || t('profile.notSet');
     const uid = accountUid ?? fallback;
-    // Only a Guest Session is offered Google or Apple sign-in, which replaces the session. A signed-in account
-    // with no email (a phone sign-up) would land in a new account, so it is not offered one.
     const showSocialLogin = accountUser?.userRole === 'guest' && isSocialLoginEnabled();
     const phoneNoteId = useId();
 
-    // Effective display = my Place Profile when active, else the global identity.
     const { name: displayName, thumbnail: displayPhoto } = resolveDisplay(
         placeProfile,
         accountName || fallback,
         photo ?? undefined
     );
-    // Initial of a real name only, else "?" — the edit dialog's avatar draws the same.
     const initial = (placeProfile?.nick?.trim() || accountName).charAt(0).toUpperCase() || '?';
 
     const handleCopyUid = () => {
@@ -199,8 +169,6 @@ export const ProfilePage = () => {
             <section className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-2">
                     <SectionTitle>{t('profile.account')}</SectionTitle>
-                    {/* The card below is read-only: name, photo and sign-in live
-                        on the one account surface, linked here instead. */}
                     <Button
                         variant="ghost"
                         size="sm"

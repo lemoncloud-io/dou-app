@@ -19,8 +19,6 @@ describe('AccountProfileDialog seeding', () => {
     });
     afterEach(cleanup);
 
-    // A session notify rebuilds the relay user object mid-edit: reseeding the
-    // form off it wipes a half-typed name and photo.
     it('keeps a half-typed draft when the session notifies mid-edit', () => {
         const view = render(<AccountProfileDialog open onOpenChange={() => undefined} initial={{ name: 'Ada' }} />);
 

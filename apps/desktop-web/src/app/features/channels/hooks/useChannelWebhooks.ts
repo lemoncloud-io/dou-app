@@ -5,14 +5,6 @@ import { runtime } from '@chatic/runtime';
 
 export type ChannelWebhooksStatus = 'loading' | 'ready' | 'error';
 
-/**
- * The channel owner's webhook list and its writes. Remote-only: nothing is cached, the list is read
- * when the section mounts (and again on the unverified→verified edge, like the roster) and each write
- * patches the local list from the server's answer. The one-time token is handed to the caller of
- * `issue` and never held here — it must not outlive the dialog that shows it.
- *
- * Pass `channelId = null` to stay idle (a non-owner never reads the list).
- */
 export const useChannelWebhooks = (channelId: string | null) => {
     const { webhook: webhookRepository } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
@@ -56,7 +48,6 @@ export const useChannelWebhooks = (channelId: string | null) => {
         async (input: WebhookIssueInput): Promise<DomainIssuedWebhook> => {
             if (!channelId) throw new Error('no channel');
             const issued = await webhookRepository.issue(channelId, input);
-            // Only the row joins the list; `issued.token` goes back to the dialog alone.
             setWebhooks(rows => [issued.webhook, ...rows]);
             return issued;
         },

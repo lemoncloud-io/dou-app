@@ -5,10 +5,6 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 
 const nowLabel = (): string => new Date().toLocaleTimeString();
 
-/**
- * Dev-only OS badge tester — drives the shell's SetBadgeCount handler, where the frame paints a dock
- * badge (the host's `appShell` port).
- */
 export const DebugBadgeCountPage = () => {
     const [count, setCount] = useState('5');
     const [log, setLog] = useState<string[]>([]);

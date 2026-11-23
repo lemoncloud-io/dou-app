@@ -1,4 +1,3 @@
-/** Google "G" mark (copied from apps/web mypage LoginPage — brand colors fixed). */
 export const GoogleIcon = () => (
     <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden>
         <path

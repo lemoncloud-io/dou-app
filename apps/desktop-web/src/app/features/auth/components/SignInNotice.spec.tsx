@@ -11,7 +11,6 @@ const state = vi.hoisted(() => ({
     signOut: vi.fn(),
 }));
 
-// Taken once, as the real one is: storage is emptied by the read.
 vi.mock('../utils/signInNotice', () => ({
     takeSignInNotice: () => {
         const notice = state.notice;
@@ -101,7 +100,6 @@ describe('SignInNotice', () => {
         );
     });
 
-    // The store takes the notice when the app loads, so it is there on the first render.
     it('names an existing account once when the effect runs twice, as it does in development', () => {
         useSignInNoticeStore.setState({ notice: { provider: 'google', isNew: false } });
         render(

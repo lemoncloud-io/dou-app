@@ -50,7 +50,6 @@ import { InviteLoginPage } from './InviteLoginPage';
 const LINK = 'https://app.chatic.io/s?code=invt:1:abc&backend=https://api.eureka.codes/d1';
 const previewed = { code: 'invt:1:abc', info: null, placeName: 'Design Team', inviterName: 'Mina', createdGuest: true };
 
-// Lets the promise chains the page starts on a click finish before the next assertion.
 const settle = () =>
     act(async () => {
         await Promise.resolve();

@@ -12,7 +12,6 @@ vi.mock('../hooks/useInviteLogin', () => ({
 import { useJoinDialogStore } from '../stores';
 import { JoinWithInviteDialog } from './JoinWithInviteDialog';
 
-// Initialises i18next so the dialog copy resolves.
 import '../../../../i18n';
 
 const mount = () => {
@@ -46,8 +45,6 @@ describe('JoinWithInviteDialog', () => {
         expect(useJoinDialogStore.getState().isOpen).toBe(false);
     });
 
-    // The dialog stays mounted while closed, so a failure left in place would greet the next
-    // opening, and one left while typing would describe a code that is no longer there.
     it('clears the last failure when the code is edited', () => {
         error = { kind: 'relay' };
         mount();
@@ -67,7 +64,6 @@ describe('JoinWithInviteDialog', () => {
         expect(clearError).toHaveBeenCalled();
     });
 
-    // The server's refusal used to reach the console only, behind a line that blamed the connection.
     it("shows the server's own words under the sentence", () => {
         error = { kind: 'server', message: '400 INVALID - grace-timeout by invite[910024]' };
         mount();

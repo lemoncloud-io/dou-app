@@ -5,7 +5,6 @@ import type { WebHostFacts } from '@chatic/runtime-web';
 import { pageUploadPut } from '../upload';
 import { desktopFiles } from './files';
 
-// Neither side reads the facts; the implementations decide from the side alone.
 const facts = {} as WebHostFacts;
 
 describe.each([
