@@ -37,10 +37,13 @@ answering `NOT_FOUND`).
    round's findings and failures instead of a second reviewer starting cold.
 7. **Flaky tests are fixed or deleted**, never skipped, slept or retried; a deleted test's reason goes in the
    commit and the module doc.
-8. **PRs carry their evidence inline**: a mermaid diagram of the change, and screenshots pushed to an orphan
-   `pr-assets` branch (`pr-<number>/<name>`, removed after merge) and linked by raw URL. Only screenshots of fake
-   data are pushed, because the repository is public and git keeps them in history. The branch is created by the
-   repository owner, not by an agent.
+8. **No auto-merge step.** Auto-merge cannot be enabled in this repository, so `dou-ship` ends at the PR and
+   every PR gets a person; `REVIEW.md` and the single reviewer are the review path. This replaces the
+   auto-merge eligibility step ADR-0367 gave `dou-ship`.
+9. **PRs carry their evidence inline**: a mermaid diagram of the change, and screenshots pushed to the PR's own
+   orphan branch `pr-assets/pr-<number>` (the shape the repository already used for design images), linked by
+   raw URL and deleted when the PR closes. Only screenshots of fake data are pushed, because the repository is
+   public and git keeps them.
 
 ## Alternatives
 

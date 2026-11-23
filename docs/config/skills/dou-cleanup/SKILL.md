@@ -21,5 +21,5 @@ agent folder by folder.
 4. **Prove it**: run [`references/ast-equality.mjs`](./references/ast-equality.mjs) against `origin/develop`
    for the changed files. It must print `identical` for every file. Paste its output in the PR.
 5. **Lower the baseline** for the files you cleaned (the comment ratchet's update command), run the gate,
-   and ship with [`dou-ship`](../dou-ship/SKILL.md). A comment-only PR with an identical AST is auto-merge
-   eligible.
+   and ship with [`dou-ship`](../dou-ship/SKILL.md). The proof makes the review of a comment-only PR
+   quick; it still gets a reviewer.

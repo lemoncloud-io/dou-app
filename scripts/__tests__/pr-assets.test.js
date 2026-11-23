@@ -37,39 +37,50 @@ const setup = () => {
 };
 
 describe('pr-assets', () => {
-    it('refuses to create the branch without --create', () => {
+    it('puts each PR on its own orphan branch, files at the root, and leaves other branches alone', () => {
         const { dir, bare, work } = setup();
-        const result = run(work, '--pr', '7', path.join(dir, 'room.png'));
-        expect(result.code).toBe(1);
-        expect(result.out).toContain("owner's call");
-        expect(sh(bare, 'branch', '--list', 'pr-assets')).toBe('');
-    });
-
-    it('creates an orphan branch, adds images per PR, and removes a PR folder', () => {
-        const { dir, bare, work } = setup();
-        const first = run(work, '--pr', '7', path.join(dir, 'home screen.png'), '--create');
+        sh(work, 'push', '--quiet', 'origin', 'develop:refs/heads/pr-assets/some-design');
+        const first = run(work, '--pr', '7', path.join(dir, 'home screen.png'));
         expect(first.code).toBe(0);
-        expect(first.out).toContain('pr-7/home-screen.png');
-        expect(sh(bare, 'rev-list', '--max-parents=0', 'pr-assets')).toBe(sh(bare, 'rev-parse', 'pr-assets'));
-        expect(() => sh(bare, 'merge-base', 'pr-assets', 'develop')).toThrow();
+        expect(first.out).toContain('#pr-assets/pr-7/home-screen.png');
+        expect(sh(bare, 'rev-list', '--max-parents=0', 'pr-assets/pr-7')).toBe(sh(bare, 'rev-parse', 'pr-assets/pr-7'));
+        expect(() => sh(bare, 'merge-base', 'pr-assets/pr-7', 'develop')).toThrow();
 
+        expect(run(work, '--pr', '7', path.join(dir, 'room.png')).code).toBe(0);
         expect(run(work, '--pr', '8', path.join(dir, 'room.png')).code).toBe(0);
-        expect(sh(bare, 'ls-tree', '-r', '--name-only', 'pr-assets').split('\n')).toEqual([
-            'pr-7/home-screen.png',
-            'pr-8/room.png',
+        expect(sh(bare, 'ls-tree', '--name-only', 'pr-assets/pr-7').split('\n')).toEqual([
+            'home-screen.png',
+            'room.png',
         ]);
+        expect(sh(bare, 'ls-tree', '--name-only', 'pr-assets/pr-8')).toBe('room.png');
 
-        expect(run(work, '--pr', '7', '--remove').code).toBe(0);
-        expect(sh(bare, 'ls-tree', '-r', '--name-only', 'pr-assets')).toBe('pr-8/room.png');
+        expect(run(work, '--pr', '7', '--remove').out).toContain('deleted pr-assets/pr-7');
+        expect(
+            sh(bare, 'branch', '--list', 'pr-assets/*')
+                .split('\n')
+                .map(b => b.trim())
+        ).toEqual(['pr-assets/pr-8', 'pr-assets/some-design']);
         expect(sh(work, 'status', '--porcelain')).toBe('');
         expect(sh(work, 'rev-parse', '--abbrev-ref', 'HEAD')).toBe('develop');
     });
 
-    it('accepts images only', () => {
+    it('builds raw GitHub URLs for a GitHub remote', () => {
+        const out = execFileSync(
+            'node',
+            [
+                '--input-type=module',
+                '-e',
+                `import { branchFor } from ${JSON.stringify(SCRIPT)}; console.log(branchFor(1140));`,
+            ],
+            { encoding: 'utf8' }
+        ).trim();
+        expect(out).toBe('pr-assets/pr-1140');
+    });
+
+    it('accepts images only and needs a PR number', () => {
         const { dir, work } = setup();
         fs.writeFileSync(path.join(dir, 'notes.txt'), 'x');
-        const result = run(work, '--pr', '7', path.join(dir, 'notes.txt'), '--create');
-        expect(result.code).toBe(1);
-        expect(result.out).toContain('only png');
+        expect(run(work, '--pr', '7', path.join(dir, 'notes.txt')).out).toContain('only png');
+        expect(run(work, path.join(dir, 'room.png')).out).toContain('--pr <number> is required');
     });
 });

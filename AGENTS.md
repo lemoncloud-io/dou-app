@@ -19,7 +19,7 @@ open the one that applies and follow it.
 | `dou-failure-hunt` | before a release, after an incident, or asked to find what could break     |
 | `dou-ratchet`      | the same correction or the same CI failure came back                       |
 | `dou-cleanup`      | removing comments from a project, or lowering a ratchet baseline           |
-| `dou-ship`         | a change is finished: review, commit, PR, auto-merge eligibility           |
+| `dou-ship`         | a change is finished: review, commit, PR                                   |
 | `dou-metrics`      | harness or delivery metrics are asked for, or a lane has merged            |
 
 Where a task runs, on which model and effort: [`placement.md`](./docs/config/skills/dou-plan/references/placement.md), agents in `.claude/agents/`.

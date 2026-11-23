@@ -1,9 +1,8 @@
 ---
 name: dou-ship
 description: >-
-    Take a finished change in this repo through review, commit, pull request and the auto-merge eligibility
-    check. Use when a change is done and verified, before the first commit, and whenever asked to review a
-    change, commit, push, open a PR or "ship it". Replaces the old dou-review, dou-commit and dou-pr procedures.
+    Take a finished change in this repo through review, commit and pull request. Use when a change is done and
+    verified, before the first commit, and whenever asked to review a change, commit, push, open a PR or "ship it". Replaces the old dou-review, dou-commit and dou-pr procedures.
 ---
 
 # dou-ship
@@ -23,7 +22,5 @@ Review before the commit, so a fix for a finding lands in the same commit as wha
    The commit hook runs the gate; never skip hooks.
 5. **PR** against `develop`, assigned to the person, with a mermaid diagram and fake-data screenshots inline
    ([`references/pr.md`](./references/pr.md)); report and plan links go in `To Reviewers`.
-6. **Auto-merge.** Say whether the PR is eligible ([`references/auto-merge.md`](./references/auto-merge.md))
-   and why. Never enable auto-merge on a PR that is not; never merge without a green run.
 
 Asked only to commit: steps 1–4.
