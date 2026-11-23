@@ -1,5 +1,4 @@
 const ts = require('typescript');
-const { code } = require('./text');
 
 const KEPT_FLAGS =
     ts.NodeFlags.Let |
@@ -30,6 +29,7 @@ const SKIPPED_KEYS = new Set([
     'endFlowNode',
     'returnFlowNode',
     'original',
+    'multiLine',
 ]);
 
 const DIRECTIVE =
@@ -65,6 +65,10 @@ function cleanJsxText(text) {
 function fingerprint(sf) {
     const out = [];
     const visit = node => {
+        if (ts.isParenthesizedExpression(node)) {
+            const standaloneString = ts.isExpressionStatement(node.parent) && ts.isStringLiteral(node.expression);
+            if (!standaloneString) return visit(node.expression);
+        }
         if (ts.isJsxExpression(node) && !node.expression && !node.dotDotDotToken) return;
         if (node.kind === ts.SyntaxKind.JsxText) {
             const text = cleanJsxText(node.text);
@@ -138,11 +142,6 @@ function shebang(text) {
     return text.startsWith('#!') ? text.slice(0, text.indexOf('\n') >>> 0) : '';
 }
 
-/**
- * Proves a change to one file removed comments and nothing else: the two syntax trees match once
- * comments and layout are set aside, every comment left was already there, and no removed comment
- * was a directive a tool reads.
- */
 function proveCommentRemoval(fileName, before, after) {
     const a = parse(fileName, before);
     const b = parse(fileName, after);
@@ -160,46 +159,10 @@ function proveCommentRemoval(fileName, before, after) {
     for (const [c, n] of left) for (let i = 0; i < n; i++) removed.push(c);
     const directive = removed.find(c => DIRECTIVE.test(c));
     if (directive) {
-        return { ok: false, why: `a tool directive was removed: ${code(directive.split('\n')[0].slice(0, 80))}` };
+        return { ok: false, why: `a tool directive was removed: ${directive.split('\n')[0].slice(0, 80)}` };
     }
     if (removed.length === 0) return { ok: false, why: 'no comment was removed (formatting-only change)' };
     return { ok: true, removed: removed.length };
 }
 
-const TEST_CALL = /^(it|test)(\.(each|concurrent|failing))?$/;
-const FOCUS_OR_SKIP =
-    /^(x|f)(it|test|describe)$|^(it|test|describe)(\.\w+)*\.(only|skip|fixme|todo|skipIf|runIf)(\.\w+)*$/;
-
-function calleeText(expr) {
-    if (ts.isIdentifier(expr)) return expr.text;
-    if (ts.isPropertyAccessExpression(expr)) {
-        const left = calleeText(expr.expression);
-        return left === null ? null : `${left}.${expr.name.text}`;
-    }
-    if (ts.isCallExpression(expr) || ts.isTaggedTemplateExpression(expr)) {
-        return calleeText(ts.isCallExpression(expr) ? expr.expression : expr.tag);
-    }
-    return null;
-}
-
-/** Counts test cases and focus/skip markers in a test file, for the "tests only grow" rules. */
-function countTests(fileName, text) {
-    const sf = parse(fileName, text);
-    let cases = 0;
-    let markers = 0;
-    const visit = node => {
-        if (ts.isCallExpression(node)) {
-            const callee = calleeText(node.expression);
-            const inner = ts.isCallExpression(node.parent) && node.parent.expression === node;
-            if (callee !== null && !inner) {
-                if (FOCUS_OR_SKIP.test(callee)) markers++;
-                else if (TEST_CALL.test(callee)) cases++;
-            }
-        }
-        ts.forEachChild(node, visit);
-    };
-    visit(sf);
-    return { cases, markers, parses: parses(sf) };
-}
-
-module.exports = { proveCommentRemoval, countTests, fingerprint, comments, parse, cleanJsxText };
+module.exports = { proveCommentRemoval, fingerprint, comments, parse, cleanJsxText, scriptKind };
