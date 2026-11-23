@@ -4,7 +4,6 @@ import { createNativeDownloads, toDownloadResult, type DownloadBridge } from './
 
 type Listener = (message: { data: OnFileTransferStatePayload }) => void;
 
-/** A shell that answers each request type from a table and lets the test push transfer states. */
 const createShell = (answers: Record<string, unknown | ((data: any) => unknown)> = {}) => {
     const listeners: Listener[] = [];
     const requests: Array<{ type: string; data: any }> = [];
@@ -43,7 +42,6 @@ const notFound = () => Object.assign(new Error('no handler'), { code: 'NOT_FOUND
 const file = { uri: 'file:///cache/transfer-download/h/photo.jpg', size: 3, contentType: 'image/jpeg' };
 const url = 'https://bucket.s3.amazonaws.com/k?X-Amz-Signature=s';
 
-/** Lets pending bridge replies land. Works under fake timers: it only waits on promises. */
 const settle = async () => {
     for (let i = 0; i < 20; i++) await Promise.resolve();
 };
@@ -219,7 +217,6 @@ describe('createNativeDownloads', () => {
         await expect(download.result).resolves.toEqual({ kind: 'stalled' });
         expect(requests.at(-1)).toEqual({ type: 'CancelFileTransfer', data: { transferId: 'd-1' } });
 
-        // The shell's own cancelled state is acknowledged when it comes.
         emit({ transferId: 'd-1', state: 'cancelled' });
         await settle();
         expect(acks()).toEqual([['d-1']]);
@@ -248,7 +245,6 @@ describe('createNativeDownloads', () => {
         const download = downloads.start({ url });
         await settle();
 
-        // The app was away: the timer is overdue, and the terminal event has not been delivered yet.
         jest.advanceTimersByTime(1_000);
 
         await expect(download.result).resolves.toEqual({ kind: 'file', file });
@@ -298,7 +294,6 @@ describe('createNativeDownloads', () => {
         await settle();
         expect(result).toBeUndefined();
 
-        // A repeated state with the same count is not progress.
         emit({ transferId: download.transferId, transferredBytes: 2 });
         jest.advanceTimersByTime(100);
         await settle();

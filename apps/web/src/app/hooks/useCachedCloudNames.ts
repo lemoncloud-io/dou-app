@@ -2,15 +2,6 @@ import { useEffect, useState } from 'react';
 
 import { runtime } from '@chatic/runtime';
 
-/**
- * Observes the local cloud cache and returns a map of `cloudId → cached name`.
- *
- * The relay catalog (`useCloudSessionCatalog`) is the list source for owned/subscription clouds, but
- * its name can lag a just-applied edit: `cloud.update` (and `cloud.get`) write the fresh name into
- * the local cloud cache first — see `CloudRepository`. Callers overlay this map on top of the
- * catalog so the cached name wins, keeping the displayed cloud name in sync immediately after an
- * edit — without waiting for a relay refetch.
- */
 export const useCachedCloudNames = (): Record<string, string> => {
     const { cloud } = runtime.data.useRuntimeRepositories();
     const [names, setNames] = useState<Record<string, string>>({});

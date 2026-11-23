@@ -4,15 +4,6 @@ import { APP_ICON_ATTR_VALUES } from './appIcon';
 
 import type { TelemetryCatalog } from '@chatic/bridges';
 
-/**
- * The usage events this build records, and the two bookkeeping samples the pipeline writes about
- * itself. Together with `@chatic/perf`'s traces this is the closed list the recorder accepts.
- *
- * **The screen and session events, and the app icon.** The rest of the usage catalogue (a login, a
- * sent message, …) is still being settled with product, and an event cannot be renamed once it has
- * data behind it. Attribute values here are closed sets, except `screen`, whose values are the route
- * templates — a closed set too, generated from the route table.
- */
 const USAGE_CATALOG: TelemetryCatalog = {
     'usage.screen_view': {
         kinds: ['event'],
@@ -27,21 +18,17 @@ const USAGE_CATALOG: TelemetryCatalog = {
         kinds: ['event'],
         metrics: ['duration_ms', 'screens'],
     },
-    /** The user switched the app icon in the picker. */
     'usage.app_icon_change': {
         kinds: ['event'],
         attrs: { from: APP_ICON_ATTR_VALUES, to: APP_ICON_ATTR_VALUES },
     },
-    /** The icon on this install's home screen, once per usage session, in apps that can switch it. */
     'usage.app_icon_in_use': {
         kinds: ['event'],
         attrs: { icon: APP_ICON_ATTR_VALUES },
     },
 };
 
-/** Statistics the pipeline writes about itself. */
 const PIPELINE_CATALOG: TelemetryCatalog = {
-    /** Statistics the queue had to drop for room, counted since the last one of these. */
     'perf.telemetry_dropped': { kinds: ['sample'], metrics: ['count'] },
 };
 

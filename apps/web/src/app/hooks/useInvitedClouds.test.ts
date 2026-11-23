@@ -7,14 +7,10 @@ import { useInvitedClouds } from './useInvitedClouds';
 let mockCached: DomainCloud[] = [];
 let mockOwned: DomainCloud[] = [];
 let mockDelegatorId: string | null = 'guest-1';
-// The relay session's uid. A guest's equals its delegatorId; a signed-in account's is the account's own.
 let mockAcceptorId: string | null = 'guest-1';
-// Whether the cache answers as soon as it is observed; off, the test answers through `mockAnswer`.
 let mockAnswersAtOnce = true;
 let mockAnswer: ((result: { list: DomainCloud[] }) => void) | null = null;
 
-// One repositories object for every render, as the runtime hands out: the hook subscribes per `cloud`,
-// and a fresh one each render would re-subscribe and re-set state forever.
 const mockRepositories = {
     cloud: {
         observeList: (listener: (result: { list: DomainCloud[] }) => void) => {

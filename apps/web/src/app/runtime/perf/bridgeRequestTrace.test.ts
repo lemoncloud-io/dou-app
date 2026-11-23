@@ -10,7 +10,6 @@ import {
 
 import type { BridgeRequestObserver, BridgeRequestSample } from '@chatic/bridges';
 
-// Picked against the real hash so the sampling decision is not mocked away.
 const SAMPLED_RUN = 'run-8';
 const UNSAMPLED_RUN = 'run-0';
 
@@ -43,8 +42,6 @@ const setup = (runId: string | undefined, options: { hidden?: boolean; held?: ()
         record,
         stop,
         emit: (value: BridgeRequestSample = sample()) => observer?.(value),
-        /** The `i`th of a run of requests, each of its own type, so the per-type cap stays out of the way. */
-        // Distinct names, not real message types: only their difference matters here.
         emitNth: (i: number) => observer?.(sample({ type: `Type${i}` as BridgeRequestSample['type'] })),
         advance: (ms: number) => (clock += ms),
     };

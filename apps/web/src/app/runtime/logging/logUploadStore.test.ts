@@ -34,7 +34,6 @@ describe('createLogUploadStore — 왕복', () => {
     it('탭이 닫혔다 다시 열려도 남아 있다 — sessionStorage였다면 사라졌을 자리', () => {
         createLogUploadStore('tab-a').save([entry('survivor')]);
 
-        // A new store object stands in for the next page load in the same tab.
         expect(createLogUploadStore('tab-a').load()).toHaveLength(1);
     });
 
@@ -153,8 +152,6 @@ describe('resolveTabId', () => {
 
 describe('createLogUploadStore — 유령 하트비트 청소', () => {
     it('큐가 이미 사라진 죽은 탭의 하트비트를 치운다 — 안 그러면 무한정 쌓인다', () => {
-        // A tab that drained its queue and then closed leaves only a heartbeat;
-        // nothing else would ever remove it.
         localStorage.setItem(BEAT('dead-tab'), String(Date.now() - ORPHAN_AFTER_MS - 1_000));
 
         createLogUploadStore('tab-b').load();

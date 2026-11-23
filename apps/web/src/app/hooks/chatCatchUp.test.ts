@@ -7,13 +7,8 @@ import {
     type CatchUpPage,
 } from './chatCatchUp';
 
-/** The newest page is counted with the catch-up's own size. */
 const NEWEST_LIMIT = CATCH_UP_LIMIT;
 
-/**
- * A feed that counts down like the server: a page below `cursorNo` (or below the head) covers `limit`
- * numbers and answers with the lowest one it counted, or 0 once it reached the start.
- */
 const feedWithHead = (head: number) => {
     const answer = (top: number, limit: number): CatchUpPage => {
         const low = top - limit;
@@ -39,7 +34,6 @@ describe('catchUpChannel', () => {
     });
 
     it('pages older until the pages meet the newest cached row', async () => {
-        // Head 200, cache up to 100: the newest page covers 171–200, then 121–170, then 71–120.
         const feed = feedWithHead(200);
 
         const result = await catchUpChannel({ knownNo: 100, ...feed, shouldContinue: always });
@@ -52,7 +46,6 @@ describe('catchUpChannel', () => {
     });
 
     it('treats a page that starts right above the cached row as meeting it', async () => {
-        // Head 130, cache up to 100: the newest page covers 101–130, nothing is missing.
         const feed = feedWithHead(130);
 
         const result = await catchUpChannel({ knownNo: 100, ...feed, shouldContinue: always });
@@ -71,7 +64,6 @@ describe('catchUpChannel', () => {
     });
 
     it('stops at the start of history', async () => {
-        // Head 60 with a cache that holds one old row: the first older page reaches number 1.
         const feed = feedWithHead(60);
 
         const result = await catchUpChannel({ knownNo: 1, ...feed, shouldContinue: always });
@@ -132,10 +124,8 @@ describe('catchUpChannel', () => {
 });
 
 describe('createPageGate', () => {
-    /** Lets the gate's release, which runs after the caller's answer, take its turn. */
     const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 
-    /** A task that stays open until `finish` is called. */
     const openTask = () => {
         let finish: (value: string) => void = () => undefined;
         let fail: (error: Error) => void = () => undefined;

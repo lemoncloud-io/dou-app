@@ -3,12 +3,6 @@ import type { ReactNode } from 'react';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-/**
- * The resync's contract: with the relay socket verified, a catalog whose last settled read failed is
- * read once more — whether the failure was there before the socket verified or arrived after. A read
- * that answered is left alone, and a re-read that fails again does not start another.
- * A real QueryClient carries the query state, so only the relay flag and the catalog read are faked.
- */
 let relayVerified = false;
 let mockIsAuthenticated = true;
 let mockIsAccountGuest = false;
@@ -39,7 +33,6 @@ const setup = () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: ReactNode }) =>
         createElement(QueryClientProvider, { client: queryClient }, children);
-    // The catalog consumer keeps the query active, the way home's header does.
     const hook = renderHook(
         () => {
             useCloudCatalogRelayResync();
@@ -77,7 +70,6 @@ describe('useClouds', () => {
         mockIsAuthenticated = false;
         const { result } = renderClouds({ limit: -1 });
 
-        // Give a read the chance to start; a disabled query stays pending without fetching.
         await act(async () => undefined);
         expect(mockFetchCloudCatalog).not.toHaveBeenCalled();
         expect(result.current.fetchStatus).toBe('idle');
@@ -91,7 +83,6 @@ describe('useClouds', () => {
         expect(result.current.data?.list).toEqual([]);
         expect(mockFetchCloudCatalog).not.toHaveBeenCalled();
 
-        // `refetch` ignores `enabled`, so it is the path that would have reached the relay.
         await act(async () => void (await result.current.refetch()));
         expect(mockFetchCloudCatalog).not.toHaveBeenCalled();
     });
@@ -153,7 +144,6 @@ describe('useCloudCatalogRelayResync', () => {
         await act(async () => new Promise(resolve => setTimeout(resolve, 50)));
         expect(mockFetchCloudCatalog).toHaveBeenCalledTimes(2);
 
-        // A later verification (a reconnect) is a new chance.
         relayVerified = false;
         rerender();
         relayVerified = true;

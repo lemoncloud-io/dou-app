@@ -7,7 +7,6 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 const warn = logger.warn as jest.Mock;
-/** The observation payload of the first entry — flat, discriminated by `observation`. */
 const dataOf = () => warn.mock.calls[0][2];
 
 beforeEach(() => jest.clearAllMocks());
@@ -33,7 +32,6 @@ describe('divergenceReporter.badge — 뱃지 대조', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // Android can't read the icon value, so it comes back null. Treating that as 0 would make every device permanently diverge.
     it('기기 값을 읽을 수 없으면(null) 대조 자체를 건너뛴다', () => {
         divergenceReporter.badge({ web: 5, native: null, active: 5, others: 0 });
 
@@ -60,7 +58,6 @@ describe('divergenceReporter.unread — 안 읽음 대조', () => {
         expect(dataOf()).toMatchObject({ observation: 'unread-divergence', cursorLanded: false, drawn: 3 });
     });
 
-    // If the cursor has landed but the count still remains, the cause is on the chatNo-metaNo conversion side (ADR-0048).
     it('커서가 도달했는데도 카운트가 남으면 다른 원인으로 구분해 남긴다', () => {
         divergenceReporter.unread({ ...base, markedChatNo: 10, cursorChatNo: 10, drawn: 2, hasReadMetaNo: false });
 
@@ -74,7 +71,6 @@ describe('divergenceReporter.unread — 안 읽음 대조', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // It's normal for the count to remain if a new message arrives after reading — counting this as a divergence would flag every active room.
     it('마크 이후 머리가 전진했으면(새 메시지 도착) 대조하지 않는다', () => {
         divergenceReporter.unread({ ...base, headChatNo: 12, markedChatNo: 10, cursorChatNo: 10, drawn: 2 });
 
@@ -103,7 +99,6 @@ describe('divergenceReporter.member — 멤버 대조', () => {
         });
     });
 
-    // A missing memberIds means "hasn't arrived yet", not "empty room". Treating it as 0 would flag every join as ahead.
     it('로스터를 아직 못 읽었으면 대조하지 않는다', () => {
         divergenceReporter.member({ channelId: 'ch_1', rosterOnly: 0, joinOnly: 2, joinCount: 2, rosterKnown: false });
 
@@ -116,7 +111,6 @@ describe('divergenceReporter.member — 멤버 대조', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // A join count of 0 doesn't distinguish between "empty room" and "cache not hydrated yet".
     it('join을 아직 못 읽었으면(0건) 대조하지 않는다', () => {
         divergenceReporter.member({ channelId: 'ch_1', rosterOnly: 2, joinOnly: 0, joinCount: 0, rosterKnown: true });
 

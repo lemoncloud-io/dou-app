@@ -1,10 +1,5 @@
 import { MENU_EXIT_TIMEOUT_MS, waitForMenuDismissal } from './menuDismissal';
 
-/**
- * `MutationObserver` delivers on a microtask, so every assertion here has to let the queue drain
- * before reading the result. `settled` flips in a `then`, which is one microtask behind the
- * observer's own callback — awaiting twice is what puts this test after both.
- */
 const drainMicrotasks = async () => {
     await Promise.resolve();
     await Promise.resolve();

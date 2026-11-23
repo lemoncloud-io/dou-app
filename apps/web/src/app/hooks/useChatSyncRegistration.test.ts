@@ -34,9 +34,7 @@ interface Subscription {
 
 const registerChat = jest.fn();
 const updateSyncSnapshot = jest.fn();
-/** The cloud repository's newest-page requests (no cursor). */
 const newestFeed = jest.fn();
-/** The cloud repository's older-page requests (with a cursor). */
 const olderRefreshList = jest.fn();
 let subscriptions: Subscription[] = [];
 const observeLastList = jest.fn((ids: string[], cb: (rows: DomainLastChat[]) => void) => {
@@ -45,7 +43,6 @@ const observeLastList = jest.fn((ids: string[], cb: (rows: DomainLastChat[]) => 
     return unsubscribe;
 });
 
-/** Moves the selection, as both the render and a read outside it see it. */
 const select = (cid: string) => {
     (runtime.session.useSessionSelection as jest.Mock).mockReturnValue({ selectedCloudId: cid });
     (runtime.session.getGlobalSessionContext as jest.Mock).mockReturnValue({ cloud: { cloudId: cid } });
@@ -54,10 +51,8 @@ const select = (cid: string) => {
 const channel = (id: string, chatNo = 0): DomainChannel => ({ id, chatNo }) as unknown as DomainChannel;
 const row = (channelId: string, lastNo: number): DomainLastChat => ({ channelId, lastNo, chat: null, activity: null });
 
-/** Lets every promise the hook started settle, inside act. */
 const settle = () => act(async () => new Promise(resolve => setTimeout(resolve, 0)));
 
-/** Answers the newest open reading, then lets what follows from it run. */
 const answer = async (rows: DomainLastChat[]) => {
     const open = subscriptions[subscriptions.length - 1];
     open.emit(rows);
@@ -71,7 +66,6 @@ beforeEach(() => {
     olderRefreshList.mockResolvedValue({ fetchedCount: 0, cursorNo: 0 });
     registerChat.mockReturnValue(jest.fn());
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ chat: { observeLastList } });
-    // One repository answers both: the newest page asks with no cursor, an older page with one.
     const refreshList = (query: { cursorNo?: number }, options?: unknown) =>
         query.cursorNo === undefined ? newestFeed(query) : olderRefreshList(query, options);
     (runtime.data.getCloudRepositories as jest.Mock).mockReturnValue({ chat: { refreshList } });
@@ -235,7 +229,6 @@ describe('useChatSyncRegistration', () => {
         renderHook(() => useChatSyncRegistration([channel('c1', 200)]));
         await answer([row('c1', 100)]);
 
-        // The switch lands while the newest page is in flight.
         select('cloud-b');
         await act(async () => answerNewest({ fetchedCount: 20, cursorNo: 181 }));
         await settle();

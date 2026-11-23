@@ -1,8 +1,5 @@
 import { createLogUploadSwitch, isLogCollectionEnabled, isLogUploadHeld, setLogUploadHold } from './logUploadSwitch';
 
-// A tiny fake resolver: defaults match the registry's own declared defaults
-// (log.collection.enabled/log.upload.enabled: true, log.upload.hold: false), and `set` marks a key
-// overridden the same way a real `local`-lane write would.
 let values: Record<string, unknown> = {};
 let overridden: Record<string, boolean> = {};
 
@@ -26,7 +23,6 @@ jest.mock('@chatic/config', () => ({
     },
 }));
 
-/** Simulates an override landing on a key — however it got there (local write, shell hydration). */
 const setOverride = (key: string, value: unknown) => {
     values[key] = value;
     overridden[key] = true;

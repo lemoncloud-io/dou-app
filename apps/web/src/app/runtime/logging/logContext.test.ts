@@ -1,4 +1,3 @@
-/** Whether the `diagnostics` port sends the logs through the app — what `isNative()` used to answer. */
 let mockInsideTheApp = false;
 jest.mock('../../../config/diagnosticsKind', () => ({
     diagnosticsKind: () => (mockInsideTheApp ? 'shell' : 'browser'),
@@ -110,12 +109,6 @@ describe('attachLogContext', () => {
     });
 });
 
-/**
- * `runId` is the single axis that ties one run together, and the only thread linking a native entry
- * to a web entry — the native side knows nothing of `uid`, `sid`, `cid`, or `route`. So without
- * injection, it's not just the shared id that's lost — **every native entry for that run loses its
- * way back to the user.**
- */
 describe('reportRunIdJoin — 조인이 깨진 실행을 말한다', () => {
     const warn = jest.spyOn(logger, 'warn').mockImplementation();
 
@@ -145,7 +138,6 @@ describe('reportRunIdJoin — 조인이 깨진 실행을 말한다', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 
-    // A browser-only visit has no native half to link to in the first place — a self-issued id is the right answer.
     it('앱 밖에서는 주입이 없어도 남기지 않는다', () => {
         reportRunIdJoin();
 

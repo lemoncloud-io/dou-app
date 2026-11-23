@@ -1,10 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Toaster as SonnerToaster } from 'sonner';
 
-// Top-positioned toasts (in-app push banner) must clear the device notch/status bar.
-// `--safe-top` is injected by the native WebView (see mobile injectionScripts.ts) and
-// falls back to 0px in a plain browser. Only `top` is set, so bottom toasts keep
-// sonner's defaults.
 const SONNER_SAFE_OFFSET = { top: 'calc(var(--safe-top, 0px) + 8px)' };
 
 import { GlobalLoader, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
@@ -29,53 +25,23 @@ import { useCloudCredentialRenewal } from './useCloudCredentialRenewal';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 import { useSocketWakeRecovery } from './useSocketWakeRecovery';
 
-/**
- * Runtime layer — assembles the declarative `runtime.connection.RuntimeConnectionHost` (transport bootstrap,
- * socket lifecycle and SDK-driven re-auth from the session's own socket slots). Re-authentication on
- * site/cloud switch is handled internally — the app never sends `auth:update` itself, and the
- * socket session delegate is now owned by the runtime (no delegate prop).
- *
- * Session readiness: `runtime.connection.RuntimeConnectionHost` is the SINGLE web-core init driver (its session controller →
- * `initializeRelaySession`) and gates its subtree until ready, and its session controller's guest
- * keep-alive logs a guest in when the relay session is absent. `AppReadyGate` then holds the UI
- * until the profile is ready so it never renders profile-less.
- */
 export const AppRuntime = () => {
     const { t } = useTranslation();
     const { hasUpdate, currentVersion, latestVersion, dismissUpdate } = useVersionCheck();
 
-    // Global focus-scroll for all text fields (touch only; excludes [data-no-autoscroll]).
     useAutoScrollOnFocus();
-    // One return-key rule for every text field: next moves down, the last one closes the keyboard.
     useReturnKeyFlow();
-    // A tap on empty space closes the keyboard (the focused field loses focus).
     useDismissKeyboardOnTap();
 
-    // Foreground wake kick: recycle bound-but-unverified sockets immediately on resume, and ping the
-    // verified ones, recycling any that stay silent for 3 s, instead of waiting for the keep-alive
-    // loop to notice the zombie. No-op before the sockets boot.
     useSocketWakeRecovery();
 
-    // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies. Nothing
-    // else refreshes them at boot and the SDK's first writeback is a refresh cycle (5min) away, so without this every relay-signed request — notably the cloud entry
-    // calls — 403s meanwhile.
     useRelayCredentialRefresh();
-    // ...and re-read the cloud catalog if that stale credential already cost it its boot read —
-    // otherwise home's cloud header stays a bare `?` until the switcher sheet refetches.
     useCloudCatalogRelayResync();
 
-    // Cloud half of the same problem, different cure: a cloud credential that lapses while its socket
-    // is down is RE-ISSUED from the relay identity (there is no refresh to ask for). Arms itself off
-    // the credential's own expiry; no-op in a relay-only session.
     useCloudCredentialRenewal();
 
     return (
         <runtime.connection.RuntimeConnectionHost>
-            {/* One cloud-wide channel/read-cursor observation and one cross-cloud unread read for
-                the whole app, above BOTH the badge runners and the router — the badge, the bottom
-                nav and home each used to assemble the same numbers from their own subscriptions.
-                A cache write re-renders these providers and their consumers only: `children` is one
-                unchanged element, so the router subtree bails out. */}
             <ActiveCloudDataProvider>
                 <OtherCloudUnreadProvider>
                     <PreferenceLoader />
@@ -90,9 +56,6 @@ export const AppRuntime = () => {
                     <InvitedCloudDurabilityRunner />
                     <PairedCloudNameRunner />
                     <QueueLossRunner />
-                    {/* Mirrors the two shared observations out to the debug overlay, which is mounted
-                        outside AppRuntime and so cannot consume the providers. Nothing mounts below it
-                        unless debug mode is unlocked. */}
                     <DebugObservationReporter />
                     <VersionUpdateBanner
                         isVisible={hasUpdate}

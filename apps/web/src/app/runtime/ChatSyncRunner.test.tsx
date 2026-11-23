@@ -42,11 +42,6 @@ describe('ChatSyncRunner', () => {
         expect(useChatSyncRegistration).toHaveBeenCalledWith([{ id: 'c1' }, { id: 'self' }]);
     });
 
-    /**
-     * Path seen in a production alert, uid 1001002 reading guest 1000124's notes-to-self room:
-     *   403 FORBIDDEN - not a member of channel @verifyJoin(join/U:1000124)  GET /chats/U:1000124/feed
-     * The cached rows still held the previous account's room, and the catch-up pulled its feed.
-     */
     it("leaves out somebody else's notes-to-self room, from either slice", () => {
         const foreign = { id: 'U:1000124', stereo: 'self', ownerId: '1000124' };
         const mine = { id: 'U:1001002', stereo: 'self', ownerId: '1001002' };

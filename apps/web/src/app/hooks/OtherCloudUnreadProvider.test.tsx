@@ -3,10 +3,6 @@ import { act, render } from '@testing-library/react';
 import { OtherCloudUnreadProvider } from './OtherCloudUnreadProvider';
 import { useOtherCloudUnread, type OtherCloudUnread } from './useOtherCloudUnread';
 
-/**
- * The cache, partitioned the way the real one is: by cloud AND the uid the account has there. Each
- * observer is answered at once with what its partition holds, and again whenever the test writes.
- */
 type Row = Record<string, unknown>;
 type Scope = { cid?: string; uid?: string };
 type Listener = { key: string; query: Row | undefined; emit: (result: { list: Row[] }) => void };
@@ -49,8 +45,6 @@ const uidSubscribers = new Set<() => void>();
 
 jest.mock('@chatic/runtime', () => {
     const { useSyncExternalStore } = jest.requireActual('react');
-    // One graph for the whole run, as the real one is: the observers' effects are keyed on it. The
-    // calls go through lazily because this factory is hoisted above the fake cache it reads.
     const repositories = {
         channel: { observeList: (...args: Parameters<ReturnType<typeof observe>>) => observe('channel')(...args) },
         place: { observeList: (...args: Parameters<ReturnType<typeof observe>>) => observe('site')(...args) },
@@ -101,7 +95,6 @@ beforeEach(() => {
     seen = { byCloud: {}, total: 0 };
 });
 
-/** Cloud 2's rows, under the uid the account has THERE. */
 const seedCloud2 = (rows: Row[], joins: Row[] = []) => {
     partitions.channel.set(
         'cloud_2|uid-2',
@@ -117,7 +110,6 @@ describe('OtherCloudUnreadProvider', () => {
             [channel('ch1', 'site-a', { chatNo: 10, metaNo: 0 })],
             [{ channelId: 'ch1', userId: 'uid-2', chatNo: 6 }]
         );
-        // The same cloud's rows under the ACTIVE cloud's uid are some other partition entirely.
         partitions.channel.set('cloud_2|uid-1', [channel('ch9', 'site-a', { cid: 'cloud_2', chatNo: 50 })]);
 
         renderProvider();
@@ -155,7 +147,6 @@ describe('OtherCloudUnreadProvider', () => {
         });
         expect(seen).toEqual({ byCloud: { cloud_2: 3 }, total: 3 });
 
-        // Read on another device: the next delta carries the moved $join, and the count goes.
         act(() => {
             write('channel', 'cloud_2', 'uid-2', [
                 channel('ch1', 'site-a', { cid: 'cloud_2', chatNo: 8, $join: { chatNo: 8 } }),

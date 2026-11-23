@@ -5,9 +5,6 @@ import { syncLanguageChoiceToShell } from '../bridge';
 import { PreferenceLoader } from './PreferenceLoader';
 
 const mockIsNative = jest.fn((): boolean => false);
-// The frame's own preference store, as the host's `appShell` port offers it; a browser has none.
-// Its `read` answers with the bridge's whole response here, and the store hands back the value in it,
-// as the web app's implementation does.
 const mockFetchPreference = jest.fn();
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
@@ -77,7 +74,6 @@ describe('PreferenceLoader — 구 셸 브릿지 폴백', () => {
 
     it('isFirstRun은 극성을 반전해 onboardingCompleted로 옮긴다', async () => {
         mockIsNative.mockReturnValue(true);
-        // isFirstRun: true means NOT onboarded yet — the opposite of onboardingCompleted.
         mockFetchPreference.mockImplementation(({ key }) =>
             Promise.resolve({ data: { key, value: key === 'isFirstRun' ? true : null } })
         );
@@ -120,8 +116,6 @@ describe('PreferenceLoader — resending the language choice to the shell', () =
     const snapshotWithLanguage = (language: { isOverridden: boolean; value?: unknown }) =>
         mockSnapshot.mockImplementation((key: string) => (key === 'ui.language' ? language : { isOverridden: true }));
 
-    // A choice made while an older shell was installed sits in the config bag, but that shell kept
-    // its own copy in a format the current shell discards. Only a resend reaches the new store.
     it('resends a stored choice once per native boot', async () => {
         mockIsNative.mockReturnValue(true);
         snapshotWithLanguage({ isOverridden: true, value: 'en' });

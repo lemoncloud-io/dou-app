@@ -14,7 +14,6 @@ import { isSocketRequestSampledRun } from './socketRequestTrace';
 
 type Sample = runtime.data.StateOutboxSample;
 
-/** A run id whose hash falls in `[from, to)` of the hundred buckets, found against the real hash. */
 const runInBucket = (from: number, to: number): string => {
     for (let i = 0; i < 10_000; i += 1) {
         const id = `run-${i}`;

@@ -18,7 +18,6 @@ const observeList = jest.fn();
 const cacheReadList = jest.fn();
 const refreshItem = jest.fn();
 
-/** Emits `list` to every observer of `{ sid }`, the way the profile cache stream does. */
 const seedObserved = (list: Record<string, unknown>[]) =>
     observeList.mockImplementation((_query, cb) => {
         cb({ list });
@@ -37,8 +36,6 @@ beforeEach(() => {
 
 describe('useSenderProfiles', () => {
     it('fetches the authors the cache does not have, keyed `sid@uid`', async () => {
-        // The point of going through the repository: a profile sync only runs inside a room, so a
-        // search result from a room the user never opened has nothing cached to read.
         const { result } = renderHook(() =>
             useSenderProfiles([
                 { sid: 'site-1', userId: 'user-2' },
@@ -71,7 +68,6 @@ describe('useSenderProfiles', () => {
     });
 
     it('keys an older row that only carries `uid` as its member id', async () => {
-        // Profile rows set both `uid` and `userId` to the subject; older rows only set `uid`.
         seedObserved([{ sid: 'site-1', uid: 'user-2', nick: 'Bora' }]);
 
         const { result } = renderHook(() => useSenderProfiles([{ sid: 'site-1', userId: 'user-2' }]));
@@ -118,7 +114,6 @@ describe('useSenderProfiles', () => {
 
         await waitFor(() => expect(observeList).toHaveBeenCalledTimes(1));
 
-        // Same authors, fresh array — the search rows are rebuilt on every render.
         rerender({ refs: [{ sid: 'site-1', userId: 'user-2' }] });
         expect(observeList).toHaveBeenCalledTimes(1);
 
@@ -139,7 +134,6 @@ describe('useSenderProfiles', () => {
         );
 
         await waitFor(() => expect(refreshItem).toHaveBeenCalledTimes(2));
-        // A rejected author must not surface as an unhandled rejection or abort the batch.
         expect(logger.warn).not.toHaveBeenCalled();
     });
 

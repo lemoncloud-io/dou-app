@@ -9,42 +9,13 @@ import { diagnosticsKind } from '../../../config/diagnosticsKind';
 
 import type { LogContext, ShellGlobals } from '@chatic/bridges';
 
-/**
- * Supplies the context stamped onto every entry at dispatch.
- *
- * Read fresh on every call rather than cached: these values change during a
- * session (login, cloud switch, navigation) and an entry must carry what was
- * true when it was written. Caching would relabel a queued entry with whatever
- * the session looks like when the queue finally drains.
- */
-
-/** Bundler-injected web release version; not every host app defines it. */
 declare const __APP_VERSION__: string;
 const WEB_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : undefined;
 
 let webRunId: string | undefined;
 
-/**
- * The run id the native shell injected, or `undefined` outside the app WebView.
- *
- * Deliberately NOT the same thing as `resolveRunId()` below, which always
- * answers with something. A caller that needs "is this the app, and does it
- * share an id with us" — performance sampling does, since the two runtimes have
- * to reach the same verdict — must see the absence rather than a locally issued
- * substitute (ADR-0071).
- */
-export const readInjectedRunId = (): string | undefined =>
-    // Read as it stands now, a value the shell writes rather than a host fact; the shell injects a string.
-    liveShellValue('CHATIC_APP_RUN_ID') as string | undefined;
+export const readInjectedRunId = (): string | undefined => liveShellValue('CHATIC_APP_RUN_ID') as string | undefined;
 
-/**
- * Identifier for one app run — the primary axis for exploring logs, since
- * sid/uid/cid are all tenancy axes and cannot group "one launch".
- *
- * The native shell issues it at app start and injects it, so native and web
- * entries from the same launch share a value. Without the injection — a
- * browser tab — the web issues its own, which keeps web entries groupable.
- */
 const resolveRunId = (): string => {
     const injected = readInjectedRunId();
     if (injected) return injected;
@@ -53,15 +24,9 @@ const resolveRunId = (): string => {
     return webRunId;
 };
 
-/** Where an `effectiveType` exists (Chromium, Android WebView); WebKit has none, and it is left out. */
 const readNetwork = (): string | undefined =>
     (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType;
 
-/**
- * The device family and the host. Where the `diagnostics` port sends the logs through the app, the
- * platform is the one the shell injects; where the page sends its own (a standalone tab) it is `web`
- * whatever it runs on, because what differs there is the browser, not the OS.
- */
 const deviceContext = (globals: ShellGlobals): Pick<LogContext, 'platform' | 'host' | 'network' | 'locale'> => {
     const hybrid = diagnosticsKind() === 'shell';
     const injected = globals.CHATIC_APP_PLATFORM;
@@ -74,8 +39,6 @@ const deviceContext = (globals: ShellGlobals): Pick<LogContext, 'platform' | 'ho
 };
 
 export const readLogContext = (): LogContext => {
-    // Live, not the boot profile: the phone's second boot pass can rewrite the version, and an entry
-    // carries what was true when it was written.
     const globals = liveShellGlobals();
     const trail = getRouteTrail();
     const route = trail.at(-1);
@@ -111,30 +74,11 @@ export const readLogContext = (): LogContext => {
     };
 };
 
-/** Wires the provider into the logging core. Call before anything logs. */
 export const attachLogContext = (): (() => void) => {
     setLogContextProvider(readLogContext);
     return () => setLogContextProvider(undefined);
 };
 
-/**
- * Says so when this run's native and web entries will not join.
- *
- * `runId` is the only axis that groups one launch, and it is also the only thing tying a native
- * entry to a web one: the native half carries no `uid`/`sid`/`cid`/`route`, because the native
- * runtime does not know them. So inside the app, a missing injection does not merely cost a shared
- * id — it strands every native entry with no way back to a user. The web mints its own so that at
- * least the web half stays groupable, and that substitution is silent: two runIds for one launch
- * look exactly like two launches.
- *
- * Reported once, at `warn`, and **only where the `diagnostics` port sends the logs through the app**.
- * In a plain browser the page sends its own, there is no native half to join, and a locally minted id
- * is simply the right answer.
- *
- * Called separately from `attachLogContext` rather than inside it because of the boot ordering in
- * `main.tsx`: the context provider is registered before the upload queue subscribes, so an entry
- * emitted at that point would be published to nobody. This runs after the queue is wired.
- */
 export const reportRunIdJoin = (): void => {
     if (diagnosticsKind() !== 'shell') return;
     if (readInjectedRunId()) return;
@@ -144,7 +88,6 @@ export const reportRunIdJoin = (): void => {
     });
 };
 
-/** Test seam — forgets the locally issued runId. */
 export const resetWebRunId = (): void => {
     webRunId = undefined;
 };

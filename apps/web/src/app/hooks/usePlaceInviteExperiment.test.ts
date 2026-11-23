@@ -5,9 +5,6 @@ import { runtime, type StorageLike } from '@chatic/runtime';
 import { wireTestSettings } from '../../testing/settings';
 import { usePlaceInviteExperiment } from './usePlaceInviteExperiment';
 
-// The real registry and resolver, not a mock: what this hook must not get wrong is the key itself.
-// A mocked config would stay green if the registry renamed or dropped `feature.placeInvite`, while
-// the switch in the app silently stopped doing anything.
 const memoryStorage = (): StorageLike => {
     const map = new Map<string, string>();
     return {

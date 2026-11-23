@@ -2,54 +2,20 @@ import { useCallback } from 'react';
 
 import { runtime, isInPlaceList, type DomainChannel } from '@chatic/runtime';
 
-/** Give up after this long and let the caller fall back (home + a "it's on its way" notice). */
 export const CHANNEL_WAIT_TIMEOUT_MS = 20_000;
-/** How often to pull a channel delta while waiting. */
 const CHANNEL_WAIT_POLL_MS = 3_000;
 
 export interface AwaitInviteChannelOptions {
-    /**
-     * Channel ids that already existed, so a match is genuinely new. Defaults to whatever is in the
-     * cache when the wait starts — pass this when the caller snapshotted earlier (e.g. before the
-     * accept round-trip).
-     */
     knownChannelIds?: Iterable<string>;
     timeoutMs?: number;
     pollMs?: number;
-    /**
-     * Ends the wait early with `null`, stopping the polls. For a caller that found the room another
-     * way while this was still pulling channel deltas every few seconds.
-     */
     signal?: AbortSignal;
 }
 
-/**
- * Waits for the DM room an accepted invite creates.
- *
- * `invite.accept` answers without a `channelId` — the room is built asynchronously and only shows up
- * once the client sees it (05-client-guide §not-yet-implemented, backend request 5). Two things follow:
- *
- * - Socket push cannot deliver it. `ChannelSyncPlan` only fires for targets already registered by a
- *   rendered row, and a room nobody has seen has no row.
- * - The background poll would, but its cadence is 60s — far too slow to hold a user on a spinner.
- *
- * So this pulls `channel.sync` deltas on a short interval and watches the cache for a new `dm`
- * channel to land. It resolves with that channel id, or `null` on timeout — it never rejects, because
- * the accept itself already succeeded and the caller's fallback (send them home, tell them the room
- * is coming) is a fine outcome.
- *
- * The delta watermark follows the same protocol as useBackgroundSync (`channel-sync:<cid>` through
- * syncMeta), so borrowing the cursor here does not make the periodic sync skip anything.
- *
- * Shared with the inviter side (roadmap Track B — the invite waiting screen makes the same jump when
- * it sees `state === 'accepted'`).
- */
 export const useAwaitInviteChannel = () => {
     const { channel, syncMeta } = runtime.data.useRuntimeRepositories();
     const session = runtime.session.useGlobalSession();
     const { selectedSiteId: sid } = runtime.session.useSessionSelection();
-    // Same derivation as useHomeChannels — the observer scope key has to match the one the home list
-    // subscribes with, or the two see different cache partitions.
     const uid = session.identity.userId ?? undefined;
     const cid = session.cloud?.cloudId && session.cloud.cloudId !== 'default' ? session.cloud.cloudId : 'default';
 
@@ -60,7 +26,6 @@ export const useAwaitInviteChannel = () => {
             pollMs = CHANNEL_WAIT_POLL_MS,
             signal,
         }: AwaitInviteChannelOptions = {}): Promise<string | null> => {
-            // No active place means nothing to observe; the caller falls back rather than hanging.
             if (!sid || signal?.aborted) return null;
 
             const known = new Set(knownChannelIds ?? []);
@@ -69,8 +34,6 @@ export const useAwaitInviteChannel = () => {
                 for (const item of before?.list ?? []) if (item.id) known.add(item.id);
             }
 
-            // The cache read on the relay server is not sid-isolated, so filter like useHomeChannels — with
-            // its place rule, which lists a relay 1:1 whatever place it carries.
             const findNewDm = (list: DomainChannel[]): string | undefined =>
                 list.find(item => !!item.id && !known.has(item.id) && item.stereo === 'dm' && isInPlaceList(item, sid))
                     ?.id;
@@ -92,7 +55,6 @@ export const useAwaitInviteChannel = () => {
 
                 const timer = setTimeout(() => finish(null), timeoutMs);
 
-                // Force discovery rather than waiting out the 60s background cadence.
                 const pull = async () => {
                     try {
                         const kind = `channel-sync:${cid}`;
@@ -106,11 +68,6 @@ export const useAwaitInviteChannel = () => {
                 const ticker = setInterval(() => void pull(), pollMs);
                 void pull();
 
-                // SCOPE PINNING — key the observer off the React session, matching useHomeChannels;
-                // without it a cloud switch registers under the stale provider cid and misses writes.
-                // Cloud-wide (`sid: ''`), like the list home slices: a write wakes only the observers of
-                // the place it files the row under, and a relay 1:1 can be filed under another place or
-                // none — a place-keyed observer would never see it. `findNewDm` applies the place rule.
                 unsubscribe = channel.observeList(
                     { sid: '' },
                     result => {
@@ -119,8 +76,6 @@ export const useAwaitInviteChannel = () => {
                     },
                     { cid, uid }
                 );
-                // observeList may resolve synchronously and call finish() before the assignment above
-                // lands, which would leave the subscription open. Settle it here in that case.
                 if (settled) {
                     unsubscribe();
                     unsubscribe = null;
