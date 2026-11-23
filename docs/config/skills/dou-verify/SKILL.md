@@ -22,10 +22,10 @@ A green unit suite is not the end. Choose by what the change touches, run it, an
 | Property          | state transitions, merging, ordering, parsing                 | [`dou-property`](../dou-property/SKILL.md)                                          |
 | Device (opt-in)   | native code, keyboard, safe area, splash, WebKit-on-device    | [`references/device.md`](./references/device.md)                                    |
 
-- Pick the smallest set that would catch the change being wrong. Docs-only or comment-only changes need the
-  gate alone; say so in the report.
+- Pick the smallest set that would catch the change being wrong; docs- or comment-only changes need the gate alone.
 - Long runs (e2e suites, chaos, load) go to the `dou-verifier` agent; you read its report, not its logs.
 - A test written for a bug must fail without the fix: revert, watch it fail, restore, and say so.
+- A flaky test is never skipped, slept or retried: find the cause, or delete it and record why (commit, module doc).
 
 ## The report
 

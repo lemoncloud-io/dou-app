@@ -56,5 +56,5 @@ The repo is public: no paths or issue/PR numbers from an internal store. Plans a
 
 ## Reviewing a change
 
-Run the gate for `npx nx show projects --affected --base=origin/develop`, and check that set against the exclusions in
-`.github/workflows/verify.yml` — an excluded project is checked by hand and named in the PR. Detail: `dou-ship`.
+Gate `npx nx show projects --affected --base=origin/develop`; a project `.github/workflows/verify.yml` excludes is run
+by hand and named in the PR. Questions the diff triggers: [`REVIEW.md`](./REVIEW.md). Procedure: `dou-ship`.

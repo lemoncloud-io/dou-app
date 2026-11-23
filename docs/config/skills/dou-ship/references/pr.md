@@ -18,3 +18,22 @@ Fill `.github/pull_request_template.md` in English; never the generic Summary / 
 - **To Reviewers**: what deserves attention — a decision that could have gone the other way, a project CI does
   not check and its hand-run output, what was deliberately left alone, follow-ups. Links to the plan page and
   the verification report go here.
+
+## Opening it
+
+`gh pr create --base develop --assignee @me --title … --body-file …`; the person who asked is the assignee.
+
+## Evidence inline
+
+The PR body shows the change, not only links to a private artifact.
+
+- **One diagram**: a ` ```mermaid ` block in `Changes` with the structure or flow of the change. GitHub
+  renders it.
+- **Screenshots**: `node docs/config/skills/dou-ship/references/pr-assets.mjs --pr <number> <image>...` pushes
+  them to the orphan `pr-assets` branch at `pr-<number>/<name>` and prints the Markdown image lines to paste.
+  The branch never merges anywhere; `--pr <number> --remove` deletes a PR's folder after it merges.
+- **Fake data only.** The repository is public and a pushed image stays in git history after removal. Push only
+  screenshots from fake-data runs — web-e2e, the fake shell, a component harness. Never a real account, a dev
+  server's data, a device's home screen, or anything with a token, email, phone number or name of a real person.
+  When in doubt, leave the screenshot in the private verification report.
+- If `pr-assets` does not exist yet, the script stops: creating it (`--create`) is the repository owner's call.
