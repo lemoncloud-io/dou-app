@@ -7,23 +7,15 @@ import type { SocialProvider } from '../hooks';
 
 const linkProvider = jest.fn();
 let mockIsGuest = false;
-/** What the server says this account has proved (`link$`), as `useLinkedAccounts` reads it. */
 let mockLinked: LinkedAccounts = { phone: 'linked', social: 'absent', phoneHint: '1234' };
-/**
- * `useSocialLinks().socialState` — the same read as `mockLinked.social`, kept separate so a test can
- * pin the "one unknown silences the whole section" rule from either side.
- */
 let mockSocialState: LinkedState = 'absent';
-/** Which provider the single server-side social slot holds, or none. */
 let mockLinkedProvider: SocialProvider | null = null;
 let mockIsLinking = false;
 const mockIsNative = jest.fn((): boolean => true);
-/** The providers the app's own sign-in lists, as the port reports them: Apple's only on iOS. */
 let mockProviders: SocialProvider[] = ['google'];
 const isLinked = jest.fn((provider: SocialProvider) => mockLinkedProvider === provider);
 
 jest.mock('react-i18next', () => ({
-    // Echo the key (with the masked tail appended) so assertions can target keys.
     useTranslation: () => ({ t: (k: string, o?: { last4?: string }) => (o?.last4 ? `${k}|${o.last4}` : k) }),
 }));
 jest.mock('@chatic/runtime', () =>
@@ -31,7 +23,6 @@ jest.mock('@chatic/runtime', () =>
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
-        // The app's own provider sign-in, as the host's `signIn` port carries it; a browser tab has none.
         get signIn() {
             const tab = require('@chatic/runtime/testing').browserSignIn();
             if (!mockIsNative()) return tab;
@@ -48,9 +39,6 @@ jest.mock('../hooks', () => ({
         socialState: mockSocialState,
     }),
 }));
-// Stubbed like ContactInvitePage.test.tsx does: the sheet's own rendering is covered by
-// PhoneVerifySheet.test.tsx, and the real one pulls @chatic/runtime's confirmPhoneLogin plus the
-// Radix Sheet primitives. `mode` is surfaced because it is this section's decision (ADR-0042 §3).
 jest.mock('../../auth/components/PhoneVerifySheet', () => ({
     PhoneVerifySheet: ({ mode, onVerified, onClose }: any) => (
         <div>
@@ -68,7 +56,6 @@ const LINK = 'mypage.accountInfo.social.link';
 const LINKED = 'mypage.accountInfo.social.linked';
 const NUDGE = 'mypage.accountInfo.social.bannerTitle';
 
-/** The row a credential lives in — label span + its trailing control. */
 const row = (label: string) => screen.getByText(label).closest('div') as HTMLElement;
 
 beforeEach(() => {
@@ -220,7 +207,6 @@ describe('AccountLinkSection — 소셜 행', () => {
 
         render(<AccountLinkSection />);
 
-        // There is no unlink endpoint, so a linked row offers nothing to press rather than a dead button.
         expect(within(row('Google')).queryByRole('button')).not.toBeInTheDocument();
         expect(within(row(PHONE)).queryByRole('button')).not.toBeInTheDocument();
     });

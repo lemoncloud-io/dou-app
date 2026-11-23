@@ -10,15 +10,6 @@ import {
     toLanguagePreference,
 } from '../../../../i18n/languagePreference';
 
-/**
- * The language choice in Settings — `system` (the default) or a language pinned by hand.
- *
- * Three writes, and each has a reader: `ui.language` on the shell lane is what the next boot resolves
- * from (mirrored locally for a shell-less browser), the shell's `languageStore` is what its own
- * surfaces and push banners follow (`syncLanguageChoiceToShell`), and `changeLanguage` is what the
- * screen shows now. Choosing `system` switches straight to the device language, so the sheet never
- * shows one language while claiming another.
- */
 export const useLanguagePreference = () => {
     const { i18n } = useTranslation();
     const preference = toLanguagePreference(runtime.settings.useConfigValue<string>('ui.language'));

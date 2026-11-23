@@ -24,20 +24,8 @@ import { cloudDisplayName, isCloudEnterable, resolveCloudRowState } from '../../
 import { useOwnedCloud } from '../hooks/useOwnedCloud';
 
 const MIN_NAME_LENGTH = 1;
-/** The design's limit (Figma 4989-48306: "20자 이내"). */
 const MAX_NAME_LENGTH = 20;
 
-/**
- * "클라우드 프로필" — edits the CLOUD ENTITY's own name: the cloud organization itself, not the
- * connected user's per-cloud profile (that is home's place profile dialog).
- *
- * The write (`cloud.update`) goes to the relay, which owns the cloud's catalog row, so the screen
- * renames the cloud from wherever the session is and never switches into it. The design draws a
- * photo slot above the name; the cloud model has no image field, so it is not drawn until the relay
- * has one — a slot that could not save would be worse than none.
- *
- * Not an owned cloud (or not mine): back to the list once the catalog has said so.
- */
 export const CloudEditPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
@@ -50,14 +38,11 @@ export const CloudEditPage = () => {
 
     useEffect(() => {
         if (isResolved && !cloud) navigate(ROUTES.mypage.cloud.manage, { replace: true });
-        // The hub disables this row for a cloud that is not ready to be entered; a typed URL
-        // bypasses the hub, so the screen sends it back there, where that state is explained.
         if (cloud && cloudId && !isCloudEnterable(resolveCloudRowState(cloud))) {
             navigate(ROUTES.mypage.cloud.hub(cloudId), { replace: true });
         }
     }, [isResolved, cloud, cloudId, navigate]);
 
-    // Capture the initial name once the cloud first resolves so change detection is stable.
     const initialRef = useRef<{ name: string; initialized: boolean }>({ name: '', initialized: false });
     const [name, setName] = useState('');
 
@@ -79,8 +64,6 @@ export const CloudEditPage = () => {
         try {
             await updateCloudName({ id: cloudId, name: trimmedName });
 
-            // `cloud.update` runs over the relay socket; the relay catalog (home header, cloud switcher,
-            // the management list) is a separate HTTP query, so patch its cache to reflect the new name.
             queryClient.setQueriesData<ListResult<CloudView>>({ queryKey: runtime.data.cloudsKeys.lists() }, old => {
                 if (!old?.list) return old;
                 return { ...old, list: old.list.map(c => (c.id === cloudId ? { ...c, name: trimmedName } : c)) };
@@ -99,9 +82,6 @@ export const CloudEditPage = () => {
     return (
         <KeyboardAwareLayout
             className={fixedViewportScreen}
-            // PageHeader frosts its own notch strip, so the scaffold must not pad above it —
-            // that would push the glass down and leave the inset bare, with the body
-            // scrolling through it unblurred.
             headerSafeArea={false}
             header={<PageHeader title={t('mypage.cloudManage.edit.title')} />}
             footer={

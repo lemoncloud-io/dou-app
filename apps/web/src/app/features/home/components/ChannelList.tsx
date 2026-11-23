@@ -65,11 +65,6 @@ import { channelBadges, type ChannelBadges } from '../../../utils/notifications'
 import { useChannelRowActions } from '../hooks/useChannelRowActions';
 import { useComposerDraftStore } from '../../channels/stores/useComposerDraftStore';
 
-/**
- * One placeholder row. The pulse lives on the ROW (not each bar) and is offset per row, so three
- * of them read as a wave travelling down the list — motion that says "still arriving" rather than
- * three identical blocks breathing in lockstep.
- */
 const ChannelSkeleton = ({ delayMs = 0 }: { delayMs?: number }) => (
     <div className="flex animate-pulse items-center gap-3 px-4 py-3" style={{ animationDelay: `${delayMs}ms` }}>
         <div className="size-[42px] rounded-full bg-muted" />
@@ -100,52 +95,25 @@ const ChannelItem = ({
     channel: DomainChannel;
     unread: number;
     myNick?: string;
-    /** My place-profile photo — the self-chat row's avatar (see resolveChannelAvatar). */
     myThumbnail?: string;
     joinNick?: string;
     uid?: string;
-    /** The 1:1 peer for this row (from the list-level useDmPeers). Undefined for non-DM rows. */
     dmPeer?: DmPeer;
-    /** Pinned in this place (client preference) — shown as a pin glyph next to the time. */
     pinned?: boolean;
-    /** Room notifications off (my join's notify === 'none', ADR-0025) — shown as a bell-off glyph. */
     muted?: boolean;
-    /** Room notifications on mentions only (my join's notify === 'mention', outside a 1:1) — an @ glyph. */
     mentionOnly?: boolean;
-    /** My id in this room's cloud (my join row's `userId`) — what a mention record holds. */
     myMemberId?: string;
-    /**
-     * This row's last-message preview, from the ONE list-level useLastChats subscription
-     * (ADR-0057) — not a per-row cache window. Undefined when the channel has nothing to preview.
-     */
     lastChat?: DomainChat;
-    /**
-     * The room's latest activity (list-level useLastActivities) — a thread reply included, where
-     * `lastChat` never is. Its time is the one the row prints, and the list is ordered by it.
-     */
     lastActivity?: DomainChat;
-    /** Who wrote `lastChat`, for a group room (list-level useLastChatSenders). Undefined otherwise. */
     lastChatSender?: string;
-    /** Unread mentions of me and unread replies in my threads here, from the notification inbox. */
     inboxActivity?: ChannelBadges;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { blurLastMessage } = useBlurLastMessage();
-    // Self-chat is identified by stereo (ADR-0026), not member count.
     const isSelf = channel.stereo === 'self';
     const isForeignSelfChat = isSomeoneElsesSelfChat(channel, uid);
 
-    // Keep the channel metadata synced while rendered (unregisters on unmount). The read
-    // boundary that drives the unread badge rides along on the channel as `$join.chatNo`, and
-    // the polled `chatNo` head doubles as the chat catch-up trigger (useChatSyncRegistration).
-    //
-    // Skipped for somebody else's self-chat, which `channel.get` refuses outright
-    // (`403 NOT ALLOWED - denied by policy`). A row like that is only ever left over from the
-    // PREVIOUS account: a guest→social promotion swaps the uid while this list still holds the
-    // guest's rows for a render, and the row re-registers its target under the new identity — so
-    // the scope guard in SyncManager cannot catch it, the tag is current and only the id is stale.
-    // Same rule the room uses to bounce out of one (`isSomeoneElsesSelfChat`).
     runtime.sync.useChannelSync(isForeignSelfChat ? undefined : channel.id);
 
     const formatTime = (dateValue?: string | number) => {
@@ -155,7 +123,6 @@ const ChannelItem = ({
         return date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Title by channel type — shared with the chat-room management list (see resolveChannelTitle).
     const name = resolveChannelTitle({
         channel,
         uid,
@@ -168,20 +135,10 @@ const ChannelItem = ({
         dmUnnamedLabel: t('chat.dm.unnamedPeer'),
     });
 
-    // Preview / time reflect the LAST MESSAGE only. With no messages both stay empty so no stale
-    // preview or timestamp shows (the message line is hidden). The line itself — tombstone, flattened
-    // text or the attachment noun — is shared with the search and manage rows (lastChatPreview).
-    // Code in that line gets no badge or monospace: that would complicate the row and tangle with
-    // blurLastMessage.
     const preview = lastChatPreview(lastChat, t, lastChatSender);
-    // The time is the room's latest activity, so a thread reply moves it while the line above stays on
-    // the last message the room shows. `lastChat` stands in when no activity is known.
     const activity = lastActivity ?? lastChat;
     const time = activity?.createdAt ? formatTime(activity.createdAt) : '';
 
-    // An unread last message that calls me leads its line with "@me" — the record decides, as it
-    // does for the push and the room's highlight, never the text. Mine never calls me, and once the
-    // room is read the mark goes: it points at something waiting.
     const mentionsMe =
         unread > 0 &&
         !!lastChat &&
@@ -190,10 +147,6 @@ const ChannelItem = ({
         lastChat.ownerId !== myMemberId &&
         isMentioningViewer(lastChat, [myMemberId, uid]);
 
-    // What was left unsent in this room's composer takes the line instead, behind a pencil, so a
-    // half-written message is not forgotten in a room further down — the typed text on one line, or,
-    // with only files waiting, the file (or how many). The room's own scope only: a thread's draft
-    // stays with the thread. The time and the badge still speak for the last message.
     const draftText = useComposerDraftStore(state => state.texts[channel.id]);
     const draftFiles = useComposerDraftStore(state => state.held[channel.id]);
     const draftLine = toPlainPreview(draftText ?? '')
@@ -206,9 +159,6 @@ const ChannelItem = ({
             : (draftFiles?.[0]?.source.name ?? ''));
     const line = draftPreview || preview;
 
-    // Self → my place-profile photo, DM → the peer's, else the channel photo — one shared rule with
-    // the room header / settings / manage list, which also decides the placeholder glyph (a group
-    // room gets the two-person glyph, not the one-person default).
     const { src: avatarSrc, glyph } = resolveChannelAvatar({ channel, myThumbnail, peerThumbnail: dmPeer?.thumbnail });
     const leading = avatarSrc ? (
         <ImageAvatar src={avatarSrc} alt="" size={42} />
@@ -227,24 +177,17 @@ const ChannelItem = ({
                         </Badge>
                     )}
                     <span className="truncate">{name}</span>
-                    {/* Group member count — an inline gray pill after the name (Figma 2931-8611).
-                        Hidden for a DM (always 2) and a self chat (always 1): neither number carries
-                        information. The test is on the stereo, not on the count — hiding the self
-                        chat's pill used to depend on `memberNo > 1` happening to be false. */}
                     {showsMemberCount(channelKindOf(channel.stereo)) && (channel.memberNo ?? 0) > 1 && (
                         <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none text-muted-foreground">
                             {channel.memberNo}
                         </span>
                     )}
-                    {/* Row-state glyphs sit together after the name: pinned first (it decides the
-                        row's position), then muted. */}
                     {pinned && (
                         <IconPin
                             size={12}
                             filled
                             role="img"
                             aria-label={t('channelList.pinned')}
-                            // The kit's glyphs are decorative by default; this one is announced.
                             aria-hidden={false}
                             className="shrink-0 text-control-idle"
                         />
@@ -253,7 +196,6 @@ const ChannelItem = ({
                         <IconBellOff
                             role="img"
                             aria-label={t('channelList.muted')}
-                            // The kit's glyphs are decorative by default; this one is announced.
                             aria-hidden={false}
                             className="size-3.5 shrink-0 text-muted-foreground"
                         />
@@ -274,7 +216,6 @@ const ChannelItem = ({
                         size={14}
                         role="img"
                         aria-label={t('channelList.draft')}
-                        // The kit's glyphs are decorative by default; this one says what the line is.
                         aria-hidden={false}
                         className="shrink-0"
                     />
@@ -283,19 +224,12 @@ const ChannelItem = ({
             subtitle={
                 line ? (
                     <>
-                        {/* Readable under the blur too, like the pencil: that I was called is not
-                            what the blur hides. */}
                         {mentionsMe && !draftPreview && (
                             <span className="mr-1 font-semibold text-brand-ink dark:text-primary">
                                 {t('channelList.mentionedMe')}
                             </span>
                         )}
-                        {blurLastMessage ? (
-                            // The pencil stays readable: that a draft exists is not what the blur hides.
-                            <span className="select-none blur-[5px]">{line}</span>
-                        ) : (
-                            line
-                        )}
+                        {blurLastMessage ? <span className="select-none blur-[5px]">{line}</span> : line}
                     </>
                 ) : undefined
             }
@@ -317,14 +251,8 @@ const ChannelItem = ({
                     </div>
                 </div>
             }
-            // Hand the row's channel across so the room renders its header instantly instead of
-            // re-resolving a row that was just on screen (ADR-0058; same pattern as openThread).
-            // The room-open trace starts before the page transition, which is part of the wait.
-            // The room's fetch starts here too, so it is under way while the transition runs instead of
-            // after the room mounts. The trace has to exist first: the fetch takes it.
             onClick={() => {
                 roomOpenTrace.begin(channel.id, 'list');
-                // Not for somebody else's self-chat: its feed is refused, and the room bounces out of it.
                 if (!isForeignSelfChat) void runtime.sync.prefetchRoomFeed(readSelectedCloudId(), channel.id);
                 navigate(ROUTES.channels.room(channel.id), { state: { channel } });
             }}
@@ -334,87 +262,29 @@ const ChannelItem = ({
 
 interface ChannelListProps {
     channels: DomainChannel[];
-    /** My join per channel (subscribed join list) — supplies the self-chat title nick. */
     joinByChannel?: Map<string, DomainJoin>;
-    /**
-     * Active place id — scopes the one profile subscription that names every DM row. Required, not
-     * optional: forgetting it fails silently (every DM row quietly falls back to `channel.name` or
-     * the unnamed label), which is the drift this list exists to avoid.
-     */
-    /**
-     * The place whose profiles name the people in these rows: the place being listed. The cloud's
-     * self room, listed atop the 1:1 section, has no place of its own and is named under it too.
-     */
     sid: string;
     isLoading: boolean;
-    /** Section heading. Defaults to the chat-room heading; a cloud's two sections pass their own. */
     title?: string;
-    /**
-     * Empty body for a section that is not a place's room list. The place list's own empty state
-     * nudges towards creating or explains an invited place, and neither sentence is true of a
-     * section that simply has no room in it yet.
-     */
     emptyLabel?: string;
-    /** Show the create (＋) popover in the section header. */
     canCreate?: boolean;
-    /**
-     * Drives relay-only presentation — the sent-invite rows' section and the group-create upsell
-     * rule below. It used to gate the "1:1 대화" entry too, which conflated WHETHER that entry
-     * shows with WHAT it does; `showOneOnOneCreate` now carries the first and the host the second.
-     */
     isDefaultCloud?: boolean;
-    /**
-     * Show the "1:1 대화" entry in the create popover. This component draws the entry; whether it
-     * shows and where the tap goes are the host's call (on mobile: relay only, to the contact form).
-     */
     showOneOnOneCreate?: boolean;
-    /** Drives the PRO badge on "그룹방 만들기" — and, on relay, whether that entry shows at all. */
     isPro?: boolean;
-    /** Sort method for this place's channel list (client preference). Defaults to 'recent'. */
     sortMethod?: ChannelSortMethod;
-    /** Channel ids pinned in this place (client preference) — pinned rows float to the top. */
     pinnedChannelIds?: ReadonlySet<string>;
-    /** The notes-to-self room leads the list, above pins and the sort — a cloud's 1:1 section. */
     leadsWithSelf?: boolean;
-    /**
-     * Pins or unpins a room in this place. Given, rows offer it as their right-swipe action — all but
-     * a leading self room, which a pin could not move; left out, no row offers a right swipe.
-     */
     onTogglePin?: (channelId: string) => void;
-    /** Start a 1:1 — the host picks the destination. */
     onCreateOneOnOne?: () => void;
-    /**
-     * A section with ONE create action: the ＋ runs it straight away instead of opening a popover
-     * with a single row in it. Given, it replaces the popover entries above — the cloud's 1:1
-     * section, whose only action is opening the member picker.
-     */
     onCreate?: () => void;
-    /** Accessible name of the ＋ when `onCreate` is given. */
     createLabel?: string;
-    /** Cloud: create a group room (host applies the PRO gate). */
     onCreateGroup?: () => void;
-    /**
-     * True while connected to an INVITED cloud — the member cannot create rooms here, so the empty
-     * body explains that rooms arrive by invitation and offers the place-info exit instead of a
-     * create nudge (Figma 3717:23857).
-     */
     isInvitedPlace?: boolean;
-    /** Invited empty state only: opens this place's settings hub ("플레이스 정보 바로가기"). */
     onOpenPlaceInfo?: () => void;
-    /**
-     * Sent relay invites still worth a row — `pending`/`expired` only (ADR-0089 Track B). The
-     * host is expected to pass `[]` outside the default cloud, where 1:1 invites don't apply.
-     */
     sentInvites?: MyInviteView[];
-    /** Tapping an invite row — the host navigates to that invite's waiting screen. */
     onSelectInvite?: (inviteId: string) => void;
-    /** Controlled expanded state — the host remembers it. Omit to let the section hold its own. */
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
-    /**
-     * Rows only, with no section heading or fold — a cloud's home, whose tabs above the list already
-     * say what it holds and carry the create button.
-     */
     bare?: boolean;
 }
 
@@ -446,23 +316,11 @@ export const ChannelList = ({
     bare = false,
 }: ChannelListProps) => {
     const { t } = useTranslation();
-    // My active-site profile — the self-chat title fallback AND the self-chat row's avatar. Resolved
-    // once here (not per row) since useMyProfile triggers a fetch.
     const { profile: myProfile } = useMyProfile();
     const myNick = myProfile?.nick;
     const myThumbnail = myProfile?.thumbnail;
-    // My user id — the owner rule's fallback when my join carries no role (see isRoomOwner).
     const { userId: uid } = runtime.session.useSessionIdentity();
-    // Unread is derived directly from the channel stream plus my join stream passed from HomePage.
     const { byChannel: unreadByChannel } = useChannelUnreads(channels, joinByChannel);
-    // Unread divergence (ADR-0099). A room the user read should draw no count here; when it still
-    // does, this separates the two causes — a read cursor that never landed in the cache, versus a
-    // cursor that did land while the `chatNo - metaNo` conversion still nets a count (ADR-0048).
-    //
-    // Once per list mount, not per render: the channel and join streams push constantly, and a
-    // comparison on every recompute would spend the device's log budget on a room that is merely
-    // busy. `readMarkRegistry` only holds rooms actually visited this session, so a fresh launch
-    // compares nothing.
     const checkedRef = useRef(false);
     useEffect(() => {
         if (checkedRef.current || channels.length === 0) return;
@@ -470,8 +328,6 @@ export const ChannelList = ({
         for (const channel of channels) {
             const marked = readMarkRegistry.markOf(channel.id);
             if (marked === undefined) continue;
-            // The position the drawn count was computed from — join row or `$join`, whichever is
-            // further along — so the report does not blame a cursor that landed through the other.
             const position = readPositionOf(joinByChannel?.get(channel.id), channel.$join);
             divergenceReporter.unread({
                 channelId: channel.id,
@@ -484,20 +340,11 @@ export const ChannelList = ({
         }
     }, [channels, joinByChannel, unreadByChannel]);
 
-    // 1:1 peers for every DM row, named by ONE list-level profile subscription (not one per row).
     const dmPeers = useDmPeers(sid, channels, uid);
-    // Last-message previews for every row, from ONE combined observation (ADR-0057): the whole
-    // list costs a single bridge round trip on a current app, and per-row chat sync targets are
-    // gone with it. This read stays PURE — freshness (live push + head-triggered catch-up) is owned
-    // by the app-wide ChatSyncRunner (useChatSyncRegistration), so rendering a row never makes a network call.
-    // Previews are windowed by my join cursor so a re-joined room shows no pre-leave message (ADR-0067).
     const lastChats = useLastChats(channels, joinByChannel);
     const lastActivities = useLastActivities(channels, joinByChannel);
-    // A group row's line names who wrote it, through ONE list-level profile subscription as well.
     const lastChatSenders = useLastChatSenders(sid, channels, lastChats);
 
-    // Unread mentions and thread replies per row, from the device's notification inbox. Channel ids
-    // repeat across clouds, so only the selected cloud's items are counted.
     const notificationItems = useNotificationStore(state => state.items);
     const activityByChannel = useMemo(() => {
         const cloudId = readSelectedCloudId();
@@ -505,20 +352,10 @@ export const ChannelList = ({
         return new Map(channels.map(channel => [channel.id, channelBadges(items, channel.id)]));
     }, [notificationItems, channels]);
 
-    // Which row has its swipe actions out. One at a time: opening a row replaces this, and every
-    // other row reads null and stays closed.
     const [openRow, setOpenRow] = useState<{ id: string; side: SwipeSide } | null>(null);
     const rowActions = useChannelRowActions();
     const { toast } = useToast();
 
-    /**
-     * A row's swipe actions. Right: pin. Left: notifications, then the way out — leave or delete,
-     * decided per row by `removalActionFor`, the rule the room's settings and the place's bulk remove
-     * already share, so a 1:1 always leaves and a group deletes only for its owner.
-     *
-     * A self chat has no left side: its settings offer neither notifications nor an exit. Someone
-     * else's self chat gets nothing — it is only ever a row left over from the previous account.
-     */
     const swipeActionsFor = (
         channel: DomainChannel,
         join: DomainJoin | undefined,
@@ -526,7 +363,6 @@ export const ChannelList = ({
         muted: boolean
     ): { leading: SwipeAction[]; trailing: SwipeAction[] } => {
         if (isSomeoneElsesSelfChat(channel, uid ?? undefined)) return { leading: [], trailing: [] };
-        // In a list the self room leads (`leadsWithSelf`), a pin could not move it, so it offers none.
         const canPin = !!onTogglePin && !(leadsWithSelf && channel.stereo === 'self');
         const leading: SwipeAction[] = canPin
             ? [
@@ -537,7 +373,6 @@ export const ChannelList = ({
                       icon: <IconPin size={18} filled={!pinned} />,
                       onSelect: () => {
                           onTogglePin?.(channel.id);
-                          // Said out loud because a pin moves the row, often out from under the finger.
                           toast({ title: t(pinned ? 'channelManage.unpinned' : 'channelManage.pinned') });
                       },
                   },
@@ -571,9 +406,6 @@ export const ChannelList = ({
         };
     };
 
-    // Order by the place's chosen sort method ('unread' floats unread channels above). The base
-    // order is the last message's time, read from the same `lastChats` map the rows render — so the
-    // order and the previews can never tell two different stories. See sortChannels (unit-tested).
     const sortedChannels = useMemo(
         () =>
             sortChannels({
@@ -587,15 +419,6 @@ export const ChannelList = ({
         [channels, lastActivities, unreadByChannel, sortMethod, pinnedChannelIds, leadsWithSelf]
     );
 
-    // "그룹방 만들기" is the real action on a cloud; on relay it rides along ONLY as an upsell for
-    // an unpaid account (Figma 2870:20387) — a group room lives in a cloud of one's own, so for a
-    // subscriber the relay entry would lead nowhere and is dropped. What the tap does is the host's
-    // call (see HomePage.handleCreateGroup).
-    //
-    // `canCreate` is the outer condition, not just this row's tier rule: an invited member cannot
-    // make a room here at all, and without that guard the negative form above reads `true` for
-    // them — every cloud that is not the relay — and would offer the one thing they are not
-    // allowed to do.
     const showGroupCreate = canCreate && (!isDefaultCloud || !isPro);
 
     const createMenu =
@@ -613,8 +436,6 @@ export const ChannelList = ({
 
     const body = (
         <>
-            {/* Sent-invite rows float above real channels — they are the newest, most actionable
-                entries, same spirit as a pinned channel. See useInviteListRows for what qualifies. */}
             {sentInvites.map(invite => {
                 const id = invite.id;
                 if (!id) return null;
@@ -640,13 +461,8 @@ export const ChannelList = ({
             ) : (
                 sortedChannels.map(channel => {
                     const join = joinByChannel?.get(channel.id);
-                    // A leading self room is never drawn pinned: no pin moves it, and with no pin swipe a
-                    // pin stored for it by an older build could not be taken off.
                     const pinned =
                         !(leadsWithSelf && channel.stereo === 'self') && (pinnedChannelIds?.has(channel.id) ?? false);
-                    // The level lives on my join row, same source the settings sheet writes through
-                    // (join.update) — not the channel's embedded $join. A 1:1 stored as `mention` is
-                    // delivered as all messages, so it draws as that.
                     const notifyLevel = notifyLevelOf(join?.notify, channel.stereo === 'dm');
                     const muted = notifyLevel === 'none';
                     const { leading, trailing } = swipeActionsFor(channel, join, pinned, muted);
@@ -687,8 +503,6 @@ export const ChannelList = ({
     if (bare) return <div className="flex flex-col">{body}</div>;
 
     return (
-        // While the list is still loading, the count is not "0" — it is unknown. Showing 0 next to
-        // a skeleton claims an answer we don't have yet, so the number is withheld until it lands.
         <CollapsibleSection
             title={title ?? t('homePage.channels')}
             count={isLoading ? undefined : channels.length}

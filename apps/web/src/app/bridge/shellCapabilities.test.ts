@@ -40,7 +40,6 @@ describe('shellCapabilities', () => {
         expect(result.current).toBe(true);
     });
 
-    // The web ships before the shell: the owner's mini app link is offered only where the shell says so.
     it('reports how far the shell opens sub WebViews, and nothing before the handshake', () => {
         const { result } = renderHook(() => useSubWebViewOpenScope());
         expect(result.current).toBeNull();

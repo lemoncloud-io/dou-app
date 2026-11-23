@@ -193,6 +193,38 @@ than only on the transition into it.
 On a browser or an older native shell `fetchPushMarks()` degrades to an empty array, and the feature
 falls back to foreground marks plus each cloud's cached count.
 
+The drain is destructive, so the runner logs what it read: the count and the cloud ids, never the
+channel name, which is content. It is the only trace a background arrival leaves on the web side
+(on iOS the notification service extension runs in its own process and cannot reach the logger),
+and the count is a lower bound — the shell skips a record carrying none of `cid`, `uid` and
+`channelId`, and its store keeps a bounded number of records with the oldest evicted first.
+
+## The app-icon badge — `UnreadBadgeRunner`
+
+Mounted under `AppRuntime`, not on the home page, so the icon stays correct on every route. The
+number is the sum over every cloud of the account, each counted from its own cache with the one
+formula: the active cloud from `ActiveCloudDataProvider`, every other from
+`OtherCloudUnreadProvider`. A read lowers it at once; a message in a cloud off screen raises it when
+that cloud's background delta lands, sooner when a push names it. Because it is computed from the
+caches there is no stored per-cloud snapshot to strand: a count frozen when you switched away used to
+sit on the icon indefinitely.
+
+- **The write is one-way and the device lags it by design.** The runner re-sends the total on every
+  change and again on every return to the foreground even when the total has not moved: while the app
+  was backgrounded the native badge drifts (iOS zeroes it when the app becomes active, and both
+  platforms add one per push), so re-sending overwrites the drift and resets the native increment
+  base for the next background session.
+- **Divergence is checked against the last value pushed, never the current total.** The question is
+  "is the device still showing what we told it?"; comparing a fresh total to the icon would flag every
+  ordinary read as a mismatch. The icon is read before it is overwritten, which is the moment the
+  drift is still visible. The first check of an app run has no earlier push, so the total about to be
+  written stands in: on a cold start that total is the truth and the icon carries what the background
+  push handler left. That first check runs once, on mount — a check on every change would race the
+  fire-and-forget write it follows.
+- **Unknown is `null`, never 0.** A browser has no icon badge to read, and a read the device cannot
+  answer is unknown for that read. The reporter skips `null`; reporting 0 would mark every such device
+  as diverged forever, and 0 is a real badge.
+
 ## The native contract
 
 The web side of this feature depends on two things from the shell, and on nothing else about it:

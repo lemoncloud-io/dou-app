@@ -21,8 +21,6 @@ beforeEach(() => {
 });
 
 describe('useOwnedClouds', () => {
-    // Closing the profile screen remounts the list into the window where the relay still answers
-    // with the old name; the name the rename cached is the one to show.
     it('names a cloud by its cached name over the catalog name', () => {
         cachedNames = { CL1: 'Orange' };
 

@@ -2,12 +2,6 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { MiniAppCard } from './MiniAppCard';
 
-/**
- * The Lab's mini app card: the hub is the way in for everyone — it lists the cloud's mini apps and hands
- * back the one chosen — and a cloud's owner keeps that list here. A site DoU does not run is opened only
- * after the user agreed to hand it their names, and the hub can send an owner to adding one.
- */
-
 const mockOpenSubWebView = jest.fn();
 const mockToast = jest.fn();
 let mockScope: string | null = 'anyHttps';
@@ -25,7 +19,6 @@ jest.mock('react-i18next', () => ({
     }),
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
-// The real sheet, dialog and field; the card and its rows as plain markup the queries can read.
 jest.mock('@chatic/web-ui-kit', () => ({
     ...jest.requireActual('@chatic/web-ui-kit'),
     IconChevronRight: () => null,
@@ -113,7 +106,6 @@ const closeView = (viewId: string, result?: unknown) =>
         mockClosedHandler?.({ viewId, reason: 'page', result });
     });
 
-/** Open the hub (the next open request), and have it close asking for `result`. */
 const throughHub = async (result: unknown) => {
     const before = mockOpenSubWebView.mock.calls.length;
     fireEvent.click(hubRow());
@@ -163,7 +155,6 @@ describe('MiniAppCard — where it shows', () => {
         expect(queryAddRow()).toBeTruthy();
     });
 
-    // Both lists load after the first render; until the owned catalog names the cloud, it is not mine.
     it('offers no managing, and tells the hub I am no owner, before the catalog has answered', async () => {
         seed('c1', [SHOP]);
         mockOwned = [];
@@ -392,7 +383,6 @@ describe('MiniAppCard — opening', () => {
         expect(mockOpenSubWebView).toHaveBeenCalledTimes(1);
     });
 
-    // The other cloud holds a mini app under the same id and is mine too, so only the cloud check stops it.
     it.each([
         ['open a mini app', { action: 'openMiniApp', id: 'shop' }],
         ['add one', { action: 'openMiniAppLinkSettings' }],

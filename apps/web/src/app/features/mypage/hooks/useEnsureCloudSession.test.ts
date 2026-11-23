@@ -59,7 +59,6 @@ describe('useEnsureCloudSession', () => {
         const { result, rerender } = renderHook(() => useEnsureCloudSession('CL1'));
         expect(result.current.isSwitching).toBe(true);
 
-        // The switch committed: the selection names the cloud and the session is live.
         setup({ selectedCloudId: 'CL1', isCloudActive: true });
         rerender();
 
@@ -75,7 +74,6 @@ describe('useEnsureCloudSession', () => {
         expect(switchCloud).not.toHaveBeenCalled();
         expect(result.current.isSwitching).toBe(true);
 
-        // It settled on another cloud: now this one asks for its own switch.
         setup({ selectedCloudId: 'CL9', isCloudActive: true, isPending: false });
         rerender();
 
@@ -83,7 +81,6 @@ describe('useEnsureCloudSession', () => {
     });
 
     it('switches once per cloud, even while the selection has not committed yet', () => {
-        // Selected but not yet active: the window in which a naive effect would fire again.
         setup({ selectedCloudId: 'CL1', isCloudActive: false });
 
         const { rerender } = renderHook(() => useEnsureCloudSession('CL1'));

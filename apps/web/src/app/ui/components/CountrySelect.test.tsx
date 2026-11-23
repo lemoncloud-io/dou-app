@@ -27,7 +27,6 @@ describe('CountrySelect', () => {
         fireEvent.click(screen.getByText('일본'));
 
         expect(onChange).toHaveBeenCalledWith('JP');
-        // The sheet closed with the pick, so its search box is gone.
         expect(screen.queryByPlaceholderText('phoneInput.countrySearchPlaceholder')).not.toBeInTheDocument();
     });
 });

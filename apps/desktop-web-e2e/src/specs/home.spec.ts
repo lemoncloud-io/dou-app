@@ -15,8 +15,6 @@ test.describe('home', () => {
                 'true'
             );
         }
-        // Folding Channels takes its rows (or its empty line) away; the open room is a DM, so none of
-        // them is kept, as the selected row would be.
         const channels = list.getByRole('button', { name: 'Channels', exact: true });
         const drawn = list.locator('button, p');
         const unfolded = await drawn.count();

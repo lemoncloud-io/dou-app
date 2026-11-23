@@ -43,8 +43,6 @@ describe('summarizeMembership — 5상태', () => {
         expect(summary.isEntitled).toBe(false);
     });
 
-    // isSuper was the old way of expressing an unlimited grant, and the server dropped it from the
-    // verdict in 2026-08. Keep reading it here and the stale axis survives only in the app (ADR-0101).
     it('isSuper 는 더 이상 자격을 주지 않는다', () => {
         const summary = summarizeMembership({ isSuper: true } as MembershipView, undefined, NOW);
 
@@ -77,8 +75,6 @@ describe('summarizeMembership — 관리자 오버라이드', () => {
         expect(summary.isEntitled).toBe(true);
     });
 
-    // The server derives status only once, at write time, and there's no batch job to revert it.
-    // The app looks at adminUntil directly, so it reflects the expiry immediately.
     it('부여 기간이 지나면 status 가 active 로 남아 있어도 영수증 기준으로 돌아간다', () => {
         const summary = summarizeMembership(
             membership({ status: 'active', validUntil: NOW - DAY, adminStatus: 'active', adminUntil: NOW - 1 }),
@@ -128,8 +124,6 @@ describe('summarizeMembership — 관리자 오버라이드', () => {
         expect(summary.productId).toBe('pro_tier_03');
     });
 
-    // Values that go out to the store (oldPlanId, the plan being replaced) must follow the receipt,
-    // not entitlement.
     it('영수증이 만료된 채 부여받으면 스토어에는 교체할 구독이 없다', () => {
         const summary = summarizeMembership(
             membership({ status: 'expired', validUntil: NOW - DAY, adminStatus: 'active' }),
@@ -152,8 +146,6 @@ describe('summarizeMembership — 관리자 오버라이드', () => {
         expect(summary.hasLiveReceipt).toBe(true);
     });
 
-    // Blocking only takes away entitlement, it doesn't assign a tier. The leftover value from a past
-    // grant must not be shown as the tier.
     it('차단 상태에서는 남아 있는 adminProductId를 등급으로 쓰지 않는다', () => {
         const summary = summarizeMembership(
             membership({
@@ -195,8 +187,6 @@ describe('summarizeMembership — 해지 예약', () => {
     });
 
     it('해지 예약도 자격은 유지된다 — 서버 isValid가 false여도 아직 돈을 낸 기간이다', () => {
-        // The backend's isValid returns false once canceledAt>0 (proxy.ts:717). Measuring the quota
-        // against that value would flag clouds as over the limit during a month the user already paid for.
         const canceled = membership({ status: 'canceled', canceledAt: NOW - DAY });
 
         expect(summarizeMembership(canceled, tier1, NOW).isEntitled).toBe(true);
@@ -215,7 +205,6 @@ describe('summarizeMembership — 해지 예약', () => {
 
 describe('summarizeMembership — 결제 실패 유예', () => {
     it('유효기간이 남아 있으면 active다 — 앱이 별도 컷을 두지 않는다', () => {
-        // Even if the renewal payment fails, validUntil is still in the future during the store's grace period.
         const inGrace = membership({ status: 'active', validUntil: NOW + 2 * DAY });
 
         expect(summarizeMembership(inGrace, tier1, NOW).state).toBe('active');

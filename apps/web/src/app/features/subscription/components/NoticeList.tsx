@@ -5,12 +5,6 @@ interface NoticeListProps {
     items: string[];
 }
 
-/**
- * The "please note" block every subscription screen ends with: a title and bulleted fine print.
- *
- * Read-only prose that wraps freely, so it takes the reading measure rather than the column — on an
- * unfolded phone a full-width bullet runs past a comfortable line length.
- */
 export const NoticeList = ({ items }: NoticeListProps) => {
     const { t } = useTranslation();
     if (items.length === 0) return null;

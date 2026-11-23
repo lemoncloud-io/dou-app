@@ -1,6 +1,5 @@
 import { routeStackTracker, type RouteStackTransition } from './stackTracker';
 
-/** Shorthand: the tracker only ever sees these three fields. */
 const push = (pathname: string, index: number): RouteStackTransition => ({ pathname, action: 'PUSH', index });
 const pop = (pathname: string, index: number): RouteStackTransition => ({ pathname, action: 'POP', index });
 const replace = (pathname: string, index: number): RouteStackTransition => ({
@@ -9,7 +8,6 @@ const replace = (pathname: string, index: number): RouteStackTransition => ({
     index,
 });
 
-/** Only the parts a reader cares about, so assertions stay legible. */
 const paths = () => routeStackTracker.getSnapshot().entries.map(entry => entry.pathname);
 
 describe('routeStackTracker', () => {
@@ -29,7 +27,6 @@ describe('routeStackTracker', () => {
         expect(routeStackTracker.getSnapshot().currentIndex).toBe(1);
     });
 
-    // This is where trail and stack diverge. trail keeps a,b,c but the stack has a,c.
     it('뒤로 간 뒤 push하면 앞쪽 가지를 버린다', () => {
         routeStackTracker.record(push('/a', 0));
         routeStackTracker.record(push('/b', 1));
@@ -45,7 +42,6 @@ describe('routeStackTracker', () => {
         routeStackTracker.record(push('/b', 1));
         routeStackTracker.record(pop('/a', 0));
 
-        // /b is still reachable in the browser via forward navigation.
         expect(paths()).toEqual(['/a', '/b']);
         expect(routeStackTracker.getSnapshot().currentIndex).toBe(0);
     });
@@ -67,8 +63,6 @@ describe('routeStackTracker', () => {
         expect(paths()).toEqual(['/a2', '/b']);
     });
 
-    // Reloading in the middle of the stack means the entries below it were never observed. Making it
-    // look like it started at 0 would falsify the depth.
     it('리로드로 중간에 착지하면 아래 항목을 알 수 없음으로 채운다', () => {
         routeStackTracker.record(push('/channels/abc', 3));
 
@@ -89,7 +83,6 @@ describe('routeStackTracker', () => {
 
         const snapshot = routeStackTracker.getSnapshot();
         expect(snapshot.isIndexed).toBe(false);
-        // It doesn't corrupt the stack by inserting an entry whose position is unknown.
         expect(snapshot.entries.map(entry => entry.pathname)).toEqual(['/a']);
     });
 
@@ -107,7 +100,6 @@ describe('routeStackTracker', () => {
         expect(routeStackTracker.getSnapshot().entries.map(entry => entry.isCurrent)).toEqual([true, false]);
     });
 
-    // Same reason as trail — the query string carries capability tokens.
     it('기록된 경로에 쿼리스트링이 섞여 있지 않다', () => {
         const location = { pathname: '/invite/accept', search: '?token=super-secret' };
         routeStackTracker.record(push(location.pathname, 0));

@@ -2,7 +2,6 @@ import type { DomainChannel, DomainChat } from '@chatic/runtime';
 
 import type { ChannelSortMethod } from '../stores/preferenceKeys';
 
-// Coerce a possibly-string/number timestamp to epoch ms for comparison (0 when absent/invalid).
 export const toTime = (value: unknown): number => {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
     if (typeof value === 'string') {
@@ -14,34 +13,13 @@ export const toTime = (value: unknown): number => {
 
 export interface SortChannelsInput {
     channels: DomainChannel[];
-    /**
-     * The latest activity per channel id (`useLastActivities`) — a thread reply counts. A channel with
-     * no cached message falls back to `channel.updatedAt`.
-     */
     lastChatByChannel?: ReadonlyMap<string, DomainChat>;
-    /** Unread count per channel id — drives the 'unread' method. */
     unreadByChannel: Record<string, number>;
     sortMethod: ChannelSortMethod;
-    /** Channel ids pinned in this place (client-only preference) — floated above everything. */
     pinnedChannelIds?: ReadonlySet<string>;
-    /** The notes-to-self room goes first, above pins too. */
     leadsWithSelf?: boolean;
 }
 
-/**
- * Order channels for the home list by the place's chosen sort method (pure — unit-tested).
- *
- * Base order is always most-recent-activity first, and activity means **the latest message's time**,
- * a thread reply included (`lastChatByChannel`) — the very value the row prints beside the preview, so the order and the
- * times on screen can never disagree (ADR-0055 decision 2, landed on ADR-0057's list-level read).
- * My join's `updatedAt` is deliberately not consulted: it bumps when I *read* a room, which is not
- * when the room moved. A channel with nothing cached yet falls back to `channel.updatedAt`.
- *
- * 'unread' then floats channels with unread messages above read ones, keeping the activity order
- * within each group (Array.sort is stable). 'recent' returns the base order. Pinned channels are
- * floated after that, so a pin always wins over the sort method. `leadsWithSelf` then puts the
- * notes-to-self room above everything, pins included.
- */
 export const sortChannels = ({
     channels,
     lastChatByChannel,
@@ -51,7 +29,6 @@ export const sortChannels = ({
     leadsWithSelf,
 }: SortChannelsInput): DomainChannel[] => {
     const activityAt = (channel: DomainChannel): number => {
-        // A just-sent optimistic row carries `createdAt = now`, so sending floats the channel at once.
         const lastChat = lastChatByChannel?.get(channel.id);
         return toTime(lastChat?.createdAtMs ?? lastChat?.createdAt) || toTime(channel.updatedAt);
     };

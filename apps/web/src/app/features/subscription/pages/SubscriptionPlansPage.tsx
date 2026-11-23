@@ -22,21 +22,6 @@ import { POLICY_BASE_URL } from '../consts';
 import { usePlanCatalog, usePlanOptions, type PlanOption } from '../hooks';
 import { nearestSelectablePlan, platformLabelKey, productStatusWord } from '../lib';
 
-/**
- * "구독 안내" — the tier picker (Figma 4541-17522 · 4541-17971 · 4550-19003).
- *
- * It only chooses. Confirming the choice — what it costs, when it applies — happens on the next
- * screen, before the store sheet opens; this one never talks to the store. That split is also why
- * this screen reads `usePlanOptions` and not `useTierPurchase`: a second purchase hook here would
- * stand up a second store-result subscription next to the confirm screen's.
- *
- * The adjacency rule is unchanged — a first subscription starts on the entry tier, then one step at
- * a time either way. A refused tier stays tappable and explains itself (`TierRefusalDialog`).
- *
- * After an expiry the screen opens with the lapsed tier already chosen (`resubscribePlan`): coming
- * back from "다시 구독하기" is picking the plan up again, and an empty selection would leave the user
- * to find which card the rule allows.
- */
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
@@ -56,15 +41,12 @@ export const SubscriptionPlansPage = () => {
     const { isGuest } = runtime.session.useRuntimeProfile();
 
     const [picked, setPicked] = useState<ProductView | null>(null);
-    // Derived rather than seeded into state: the catalog loads after the first render, and the user's
-    // own pick always wins once there is one.
     const selected = picked ?? resubscribePlan ?? null;
     const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
     const [refused, setRefused] = useState<PlanOption | null>(null);
 
     const isKo = i18n.language.startsWith('ko');
     const alternative = refused ? nearestSelectablePlan(options, refused.plan) : undefined;
-    // The entry tier is the only one with a trial, and only for someone who never subscribed.
     const trialDays = summary.state === 'none' && trialEligible ? (sellablePlans[0]?.trialDays ?? 0) : 0;
     const hasCurrent = summary.state !== 'none' && !!currentPlan;
     const currentWord = productStatusWord(summary.state);
@@ -80,8 +62,6 @@ export const SubscriptionPlansPage = () => {
 
     const handleNext = () => {
         if (!selected) return;
-        // A guest has no account for the receipt to attach to. Ask before sending them away
-        // (Figma 2870-33015) rather than yanking them to login mid-decision.
         if (isGuest) {
             setIsLoginPromptOpen(true);
             return;
@@ -187,8 +167,6 @@ export const SubscriptionPlansPage = () => {
                         ]}
                     />
 
-                    {/* Auto-renewal disclosure + terms/privacy. Both stores require these near the
-                        purchase, so they stay on the screen the purchase starts from. */}
                     <div className="px-4">
                         <PolicyFooter onOpenPolicy={openPolicyUrl} />
                     </div>

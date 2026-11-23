@@ -3,12 +3,10 @@ import { useState } from 'react';
 import { runtime } from '@chatic/runtime';
 
 interface UpdatePlacePayload {
-    /** Backend requires `@id` on place.update; for a place, id === sid. */
     id: string;
     sid: string;
     name?: string;
     thumbnail?: string;
-    /** Place introduction text. An empty string clears it. */
     desc?: string;
 }
 

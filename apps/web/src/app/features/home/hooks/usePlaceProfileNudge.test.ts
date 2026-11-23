@@ -5,7 +5,6 @@ const mockMarkPresent = jest.fn();
 let mockIsVerified = true;
 let mockSid: string | null = 'site-1';
 let mockUid: string | null = 'user-1';
-// In-flight switches app-wide, per mutation key, as `useIsMutating` counts them.
 let mockSwitches: Record<string, number> = {};
 
 jest.mock('@tanstack/react-query', () => ({
@@ -23,7 +22,6 @@ jest.mock('@chatic/runtime', () =>
         },
     })
 );
-// The read itself is covered by usePlaceProfileAbsent's own suite; here it is the verdict it gives.
 jest.mock('../../../hooks/usePlaceProfileAbsent', () => ({
     usePlaceProfileAbsent: (options: { enabled?: boolean }) => mockUsePlaceProfileAbsent(options),
 }));
@@ -50,7 +48,6 @@ describe('usePlaceProfileNudge', () => {
         expect(result.current.isVisible).toBe(true);
     });
 
-    // A cache that does not hold my row yet is not an answer; only the server's "absent" is.
     it.each([
         ['the answer is still out', undefined],
         ['a profile exists', false],
@@ -61,10 +58,6 @@ describe('usePlaceProfileNudge', () => {
         expect(result.current.isVisible).toBe(false);
     });
 
-    // Sent before the socket is up the read fails and the judgement fails open, so the banner would
-    // be missing on a cold start; sent mid-switch it answers for the place being left.
-    // A push tap or the search screen switches places with home still mounted, so home's own flag
-    // is not enough: the count is app-wide, on both keys.
     it.each([
         ['the socket is not verified', () => (mockIsVerified = false)],
         ['a place switch is in flight anywhere', () => (mockSwitches = { 'session/switch-site': 1 })],
@@ -76,8 +69,6 @@ describe('usePlaceProfileNudge', () => {
         expect(mockUsePlaceProfileAbsent).toHaveBeenLastCalledWith({ enabled: false });
     });
 
-    // Someone with a profile can never see the banner; asking again on every return to home and every
-    // reconnect only costs requests, and a read failing open would take down a correct banner.
     it('holds the read once the cache holds a nick', () => {
         renderHook(() => usePlaceProfileNudge({ nick: 'Raine' }));
 
@@ -97,7 +88,6 @@ describe('usePlaceProfileNudge', () => {
         expect(result.current.isVisible).toBe(false);
     });
 
-    // A save writes my nick to the cache before anything re-reads; the banner goes with it.
     it('hides as soon as the cache holds a nick for me', () => {
         const { result } = renderHook(() => usePlaceProfileNudge({ nick: 'Raine' }));
 

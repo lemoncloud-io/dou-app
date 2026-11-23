@@ -6,8 +6,6 @@ describe('isEmailVerifyRefusal', () => {
     });
 
     it('요청 실패는 매칭하지 않는다 — 그 메시지는 백엔드 문구다', () => {
-        // throwIfApiError throws the server's string as-is, and axios throws its own message as-is.
-        // Neither should end up on a toast.
         expect(isEmailVerifyRefusal(new Error('403 FORBIDDEN - membership is not valid'))).toBe(false);
         expect(isEmailVerifyRefusal(new Error('Request failed with status code 500'))).toBe(false);
     });
@@ -19,7 +17,6 @@ describe('isEmailVerifyRefusal', () => {
 });
 
 describe('isEmailAlreadyRegistered', () => {
-    // What `throwIfApiError` rethrows when the relay answers `send` for an address another user holds.
     const RELAY = '409 CONFLICT - alias[taken@user.test] is already registered - verifyEmail(send/taken@user.test)';
 
     it('matches the relay conflict the HTTP layer rethrows as a plain Error', () => {

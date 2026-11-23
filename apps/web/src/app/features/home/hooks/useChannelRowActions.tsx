@@ -16,38 +16,22 @@ interface PendingRemoval {
 }
 
 export interface ChannelRowActions {
-    /** Turns the room's notifications off (`muted`) or back on, through my join row. */
     setMuted: (channel: DomainChannel, join: DomainJoin | undefined, muted: boolean) => void;
-    /** Asks for confirmation, then leaves or deletes. What to ask for is the caller's `removalActionFor`. */
     requestRemoval: (channel: DomainChannel, action: Removal) => void;
-    /** The confirmation. Render it once, next to the rows. */
     dialog: ReactNode;
 }
 
-/**
- * The home row's swipe actions, done the way the room's own settings screen does them — the same
- * join write for notifications and the same confirmations, copy and repository calls for leaving and
- * deleting — so a room is not removed or muted one way from home and another way from inside it.
- *
- * Every write here is optimistic in the repository: the row loses its bell, or disappears, before
- * the server answers, and comes back if it refuses. So success needs no toast for a mute (the glyph
- * is the answer), and a removal's toast says only what happened.
- */
 export const useChannelRowActions = (): ChannelRowActions => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const { userId } = runtime.session.useSessionIdentity();
     const { updateJoin } = useJoinMutations();
     const { leaveChannel, deleteChannel, isPending } = useChannelMutations();
-    // What the confirmation is about, kept after it closes: the dialog fades out over a few hundred
-    // milliseconds, and clearing this with `open` would swap its copy to the default mid-fade.
     const [pending, setPending] = useState<PendingRemoval | null>(null);
     const [open, setOpen] = useState(false);
 
     const setMuted = useCallback(
         (channel: DomainChannel, join: DomainJoin | undefined, muted: boolean) => {
-            // The join input types only channelId/notify; the engine resolves the row from
-            // channelId + userId at write time — the same cast the settings screen makes.
             updateJoin({
                 channelId: channel.id,
                 userId: join?.userId ?? userId,
@@ -109,7 +93,6 @@ export const useChannelRowActions = (): ChannelRowActions => {
             onConfirm={confirm}
             isPending={pending?.action === 'delete' ? isPending.delete : isPending.leave}
             variant={pending?.action === 'delete' ? 'danger' : 'warning'}
-            // The dialog stays up, spinning, until the call settles; `confirm` closes it.
             closeOnConfirm={false}
         />
     );

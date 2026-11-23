@@ -14,24 +14,11 @@ import { useSubscriptionIap } from './useSubscriptionIap';
 export interface TierPurchase {
     pageState: PageState;
     isBlocked: boolean;
-    /** What picking this plan would do, given the running subscription. */
     changeKindOf: (plan: ProductView) => TierChangeKind;
-    /** Looks the plan up in the store catalog. Rejects with a user-facing message when absent. */
     resolveNativeProduct: (plan: ProductView) => Promise<IapProductSubscription>;
-    /**
-     * Buys (or replaces) the plan and resolves to the membership the relay validated. `email` is
-     * optional — skipping it still validates the purchase.
-     */
     purchaseTier: (plan: ProductView, matched: IapProductSubscription, email?: string) => Promise<MembershipView>;
 }
 
-/**
- * The purchase half of the plan picker, shared by the plans page and the home subscribe sheet.
- *
- * Both screens used to carry their own copy of "find the store product, then build the payload", and
- * the copies had already drifted — the sheet matched Android against the shared parent SKU and so
- * never resolved a tier. One implementation, two callers.
- */
 export const useTierPurchase = (): TierPurchase => {
     const { t } = useTranslation();
     const { isIOS, replaceablePlan, resubscribePlan } = usePlanCatalog();
@@ -49,8 +36,6 @@ export const useTierPurchase = (): TierPurchase => {
             try {
                 const matched = matchNativeProduct(await fetchNativeProducts(), plan, isIOS);
                 if (!matched) {
-                    // The plan is sellable per the server catalog but absent from the store's — a
-                    // config skew that blocks purchase entirely and is invisible from the outside.
                     logger.error('IAP', 'no native product matched tier', {
                         data: { planId: plan.id, isIOS },
                     });
@@ -70,8 +55,6 @@ export const useTierPurchase = (): TierPurchase => {
             const product = buildPurchaseProduct(matched, {
                 isIOS,
                 isTierChange: kind === 'upgrade' || kind === 'downgrade',
-                // The plan being replaced at the store, which is what `oldPlanId` must name.
-                // `summary.productId` used to be the same thing; an admin grant made it diverge.
                 currentProductId: replaceablePlan?.id,
             });
             if (!product) {

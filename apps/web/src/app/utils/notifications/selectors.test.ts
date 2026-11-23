@@ -32,7 +32,6 @@ describe('inScope', () => {
             item('here'),
             item('noPlace', { placeId: undefined }),
             item('otherPlace', { placeId: 'p2' }),
-            // Same place id, another cloud: place ids repeat across clouds.
             item('otherCloud', { cloudId: 'c2' }),
         ];
         expect(ids(inScope(items, 'c1', 'p1'))).toEqual(['here', 'noPlace']);
@@ -90,7 +89,6 @@ describe('unreadOnly', () => {
 });
 
 describe('groupByDay', () => {
-    // Local times, so the test holds in any time zone.
     const now = new Date(2026, 10, 13, 10, 0).getTime();
     const at = (day: number, hour: number) => new Date(2026, 10, day, hour, 0).getTime();
 

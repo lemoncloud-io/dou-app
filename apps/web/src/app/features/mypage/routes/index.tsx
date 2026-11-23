@@ -19,7 +19,6 @@ import {
     SettingsPage,
     TermsPage,
 } from '../pages';
-// Owned by the `feedback` feature; nested here only because its URL lives under the mypage hub.
 import { FeedbackPage } from '../../feedback';
 
 export const MyPageRoutes = () => {
@@ -27,7 +26,6 @@ export const MyPageRoutes = () => {
         <Routes>
             <Route index element={<MyPage />} />
             <Route path="account" element={<AccountInfoPage />} />
-            {/* One cloud's tree: the hub, then `edit` writes, `detail` reads, `places` lists. */}
             <Route path="cloud-manage" element={<CloudManagePage />} />
             <Route path="cloud-manage/:cloudId" element={<CloudHubPage />} />
             <Route path="cloud-manage/:cloudId/edit" element={<CloudEditPage />} />

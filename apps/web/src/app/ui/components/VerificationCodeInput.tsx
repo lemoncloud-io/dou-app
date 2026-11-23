@@ -3,8 +3,6 @@ import { useRef } from 'react';
 import { cn } from '@chatic/ui-kit';
 
 import { VERIFICATION_CODE_LENGTH } from '../../utils';
-// Direct path: `buildEnv` is deliberately kept out of the `utils` barrel (`import.meta` — see that
-// barrel's comment).
 import { isDevBuild } from '../../utils/buildEnv';
 
 interface VerificationCodeInputProps {
@@ -15,12 +13,7 @@ interface VerificationCodeInputProps {
 
 export const VerificationCodeInput = ({ value, onChange, hasError = false }: VerificationCodeInputProps) => {
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-    // Development deployments recognise a non-numeric bypass code, which the digits-only filter
-    // made impossible to type. Release builds keep the filter — this is the only thing standing
-    // between a production code field and arbitrary input.
     const acceptsAnyCharacter = isDevBuild();
-    // A numeric keypad has no '#', so relaxing the filter without this leaves the character
-    // untypeable on a phone, which is where the bypass is actually used.
     const inputMode = acceptsAnyCharacter ? 'text' : 'numeric';
 
     const digits = value.split('').concat(Array(VERIFICATION_CODE_LENGTH - value.length).fill(''));
@@ -54,7 +47,6 @@ export const VerificationCodeInput = ({ value, onChange, hasError = false }: Ver
     };
 
     return (
-        // The cells are one code, so return on any of them finishes the code rather than stepping a cell.
         <div data-return-key-unit className="flex items-center justify-center gap-[10px]">
             {digits.map((digit, index) => {
                 const isFilled = digit !== '';

@@ -10,14 +10,6 @@ import {
     SubscriptionPlansPage,
 } from '../pages';
 
-/**
- * The subscription flow, in the order a person walks it: the list, the detail, the guide (why) and
- * the picker (which tier), the confirmation before the store opens, and — after a downgrade — the
- * clouds to keep. Entry points may skip ahead: home's add-cloud goes straight to the picker.
- *
- * The picker and the confirmation sell through a store, so outside the app they hand the reader to the
- * website's checkout instead (`WebCheckoutHandoff`).
- */
 export const SubscriptionRoutes = () => {
     return (
         <Routes>

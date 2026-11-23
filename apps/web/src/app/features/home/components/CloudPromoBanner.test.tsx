@@ -17,8 +17,6 @@ beforeEach(() => {
 
 describe('CloudPromoBanner', () => {
     it('puts the horizontal gutter on a wrapper as PADDING, never as a margin on the card', () => {
-        // The card is `w-full`. A margin on it would resolve to 100% + gutter and push the whole
-        // page into a horizontal scroll — the bug this structure exists to prevent.
         const { container } = render(<CloudPromoBanner hasOwnedCloud={false} className="pb-2" />);
 
         const wrapper = container.firstElementChild as HTMLElement;
@@ -27,7 +25,6 @@ describe('CloudPromoBanner', () => {
 
         const card = wrapper.firstElementChild as HTMLElement;
         expect(card.className).toContain('w-full');
-        // No mx-*/ml-*/mr-* on a full-width box.
         expect(card.className).not.toMatch(/\bm[xlr]-/);
     });
 

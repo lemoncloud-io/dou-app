@@ -12,7 +12,6 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('../../../runtime/telemetry/appIcon', () => ({ recordAppIconChange: jest.fn() }));
 const mockIsNative = jest.fn((): boolean => false);
-// The frame's alternate icons, as the host's `appShell` port offers them; a browser has none.
 const mockAppIcon = { current: jest.fn(), options: jest.fn(), change: jest.fn() };
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
@@ -23,14 +22,12 @@ jest.mock('@chatic/runtime', () => {
     });
 });
 
-// The frame answers: the alternate icon in use, one on offer, and a change applied.
 const mockFrame = () => {
     mockAppIcon.current.mockResolvedValue({ supported: true, iconName: 'alt' });
     mockAppIcon.options.mockResolvedValue([{ id: 'alt', label: 'Alt Icon' }]);
     mockAppIcon.change.mockResolvedValue({ iconName: 'alt' });
 };
 
-// The frame did not answer.
 const mockSilentFrame = () => {
     mockAppIcon.current.mockResolvedValue(null);
     mockAppIcon.options.mockResolvedValue(null);

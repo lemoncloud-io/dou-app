@@ -6,7 +6,6 @@ import { useActiveCloudUnreads, useOtherCloudUnread } from '../../hooks';
 import { divergenceReporter } from '../../runtime/logging/divergenceReporter';
 import { UnreadBadgeRunner } from './UnreadBadgeRunner';
 
-// The icon badge the frame reads back, as the host's `appShell` port offers it.
 const mockReadBadge = jest.fn();
 let mockIconBadge = true;
 jest.mock('@chatic/runtime', () => {
@@ -35,7 +34,6 @@ const otherMock = useOtherCloudUnread as jest.Mock;
 const fetchBadge = mockReadBadge;
 const badgeDivergence = divergenceReporter.badge as jest.Mock;
 
-// Pull the latest foreground handler the component registered so tests can fire it directly.
 const latestForegroundHandler = () => useBg.mock.calls[useBg.mock.calls.length - 1][0];
 
 describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
@@ -52,9 +50,6 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
         expect(setBadge).toHaveBeenCalledWith(5);
     });
 
-    // What the phantom badge was: back when the inactive-clouds share was a frozen number, reading
-    // everything still left that value behind. Now it's recomputed from the cache, so when that's
-    // 0, only the active value remains.
     it('비활성 클라우드에 안읽음이 없으면 활성 클라우드 값만 남는다', () => {
         otherMock.mockReturnValue({ byCloud: {}, total: 0 });
 
@@ -72,8 +67,6 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
         expect(setBadge).toHaveBeenCalledWith(0);
     });
 
-    // Another cloud's count moves on its own — its background delta landed — with nothing changing
-    // in the active cloud, and the icon has to follow it.
     it("pushes again when another cloud's count moves while the active one stays put", () => {
         const { rerender } = render(<UnreadBadgeRunner />);
         setBadge.mockClear();
@@ -105,7 +98,6 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
     describe('뱃지 정합성 대조 (ADR-0099)', () => {
         beforeEach(() => fetchBadge.mockResolvedValue(null));
 
-        // Cold start: the icon holds whatever value a background push left, and the web's computed total is the truth.
         it('첫 push 전에 아이콘 값을 읽어 곧 쓸 총합과 대조한다', async () => {
             fetchBadge.mockResolvedValue(2);
             unreadsMock.mockReturnValue({ total: 0 });
@@ -118,8 +110,6 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
             expect(badgeDivergence).toHaveBeenCalledWith({ web: 0, native: 2, active: 0, others: 0 });
         });
 
-        // The comparison baseline is "the value last pushed" — comparing against the current total
-        // would flag every normal read as a divergence (the icon lags behind by design).
         it('포그라운드 복귀 시 마지막으로 push한 값과 대조한다', async () => {
             await act(async () => {
                 render(<UnreadBadgeRunner />);
@@ -134,7 +124,6 @@ describe('UnreadBadgeRunner — 앱 뱃지 동기화', () => {
             expect(badgeDivergence).toHaveBeenCalledWith({ web: 5, native: 9, active: 3, others: 2 });
         });
 
-        // A browser has no icon badge to read: the reporter is told the value is unknown, not 0.
         it('reports the icon as unknown where the frame has no icon badge to read', async () => {
             mockIconBadge = false;
 

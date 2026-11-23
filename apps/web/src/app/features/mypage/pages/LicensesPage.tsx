@@ -19,7 +19,6 @@ interface LicenseEntry {
 const OpenSourceHero = () => {
     const { t } = useTranslation();
 
-    // The OS browser in the app, a new tab in a browser.
     const handleGithubClick = () => runtime.links.openUrl(GITHUB_URL);
 
     return (
@@ -99,12 +98,10 @@ export const LicensesPage = () => {
             <PageHeader title={t('mypage.policy.licenses')} />
 
             <div className="flex-1 overflow-y-auto pb-8">
-                {/* Open Source Hero */}
                 <div className="pt-4">
                     <OpenSourceHero />
                 </div>
 
-                {/* License List */}
                 <div className="px-4 pt-6">
                     <p className="mb-3 px-1 text-[13px] text-muted-foreground">
                         {t('mypage.policy.licensesDescription')}

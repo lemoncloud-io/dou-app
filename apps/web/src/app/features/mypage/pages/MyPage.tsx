@@ -14,38 +14,18 @@ import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled'
 
 const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
 
-/**
- * MY hub — identity and the two account-scoped destinations (subscription, clouds). Device and app
- * preferences moved one depth down behind the header gear (SettingsPage), so this screen stays a
- * short identity card list rather than a settings dump.
- */
 export const MyPage = () => {
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
     const { t } = useTranslation();
-    // The ACCOUNT's guest-ness, not the active session's. Every row on this screen is account-scoped
-    // — the profile, the subscription, the clouds you own — and they must read the same subject the
-    // header's name does, which is the relay account whichever cloud is connected. `useRuntimeProfile`
-    // would answer for the delegated cloud user instead (see useIsAccountGuest).
     const isGuest = useIsAccountGuest();
     const myUser = useMyUser();
     const pairingEnabled = useDevicePairingEnabled();
-    // Approving is the apps' job, on an account: approving hands on a sign-in, and a guest has none of
-    // its own to give. A device that is itself signed in through an approval never approves another —
-    // it would sign out with its own approver.
-    // Whether this device approves pairings, and whether its sign-in is the device's own or a tab's, is
-    // `runtime.signIn`'s answer.
     const isPairedSession = runtime.session.useIsPairedSession();
     const { approvesPairing, sessionScope } = runtime.signIn;
     const canApprovePairing = pairingEnabled && approvesPairing && !isGuest && !isPairedSession;
-    // A browser guest has no account to list devices for; an app guest does have its own device.
     const canListDevices = pairingEnabled && (!isGuest || sessionScope === 'device');
-    // Where the host sells in its store, a guest signs in before buying, so the row waits for an
-    // account. Where it hands the buyer to the website, the website signs the buyer in itself, so a
-    // guest gets the row like anyone else (`runtime.checkout`).
     const canOpenSubscription = !isGuest || runtime.checkout.kind === 'web';
-    // The same chrome as the other tabs: once the cards pass under the header it gains its divider
-    // and the title steps down, so the three tabs read alike as they scroll.
     const { scrolled, track: trackScroll } = useScrollChrome();
 
     const displayName = myUser?.name;
@@ -61,25 +41,15 @@ export const MyPage = () => {
         </span>
     );
 
-    // The header shows the RELAY account's data (name/email/photo) — the same record whichever cloud
-    // is connected. It opens My Info, the account hub: profile editing and social links
-    // all hang off it, and this row is now their only way in.
     const handleProfileClick = () => {
         navigate(ROUTES.mypage.account.info);
     };
 
     return (
-        // Trailing clearance for the floating nav comes from BottomNavSpacer at the end of the
-        // content, not from padding on this container — see BottomNavSpacer for why.
         <div
             className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background"
             onScroll={event => trackScroll(event.currentTarget)}
         >
-            {/* The page is the scrollport, so the header sticks, and it carries the safe-area inset
-                itself: on the container, the inset would scroll away and leave the cards passing
-                under the status bar. The border is always there and only changes colour, so the bar
-                never moves by a pixel; the 36px gear sets its height, so the smaller title does not
-                shrink it either. */}
             <header
                 className={cn(
                     'sticky top-0 z-20 flex shrink-0 items-center justify-between border-b bg-background px-4 pb-3 pt-[calc(var(--safe-top,0px)+0.75rem)] transition-colors duration-200 motion-reduce:transition-none',
@@ -105,10 +75,6 @@ export const MyPage = () => {
             </header>
 
             <div className="flex flex-col gap-[18px] px-4 pt-2">
-                {/* Account profile card — account-level profile (name/email/photo), not cloud/site.
-                    Signed out, the same card shape carries the sign-in prompt: the default avatar
-                    stands in for the photo, so the row keeps its height and the card does not
-                    reflow the two below it when a session appears. */}
                 <MenuCard>
                     {isGuest ? (
                         <ListRow
@@ -136,16 +102,11 @@ export const MyPage = () => {
                         <ListRow
                             title={t('mypage.subscription.hubEntry')}
                             trailing={<Chevron />}
-                            // Always the subscription list: it has a state for everyone, including an
-                            // empty one whose call to action leads to the cloud guide. Branching here on
-                            // `isValid` sent a scheduled cancellation — still paid for — to the pitch.
                             onClick={() => navigate(ROUTES.subscription.root)}
                         />
                     </MenuCard>
                 )}
 
-                {/* A secondary device signs out with the app that approved it — said here, where the
-                    user looks for who they are signed in as, since nothing else on the screen shows it. */}
                 {pairingEnabled && sessionScope === 'device' && isPairedSession && (
                     <p
                         className="px-1 text-[13px] leading-[1.5] text-description"
@@ -174,9 +135,6 @@ export const MyPage = () => {
                     </MenuCard>
                 )}
 
-                {/* Every signed-in account, owner or not: cloud management has a state for each —
-                    an empty one that starts a subscription, the list, and the lapsed list whose
-                    leftover clouds still need releasing. Gating on ownership hid the first. */}
                 {!isGuest && (
                     <MenuCard>
                         <ListRow

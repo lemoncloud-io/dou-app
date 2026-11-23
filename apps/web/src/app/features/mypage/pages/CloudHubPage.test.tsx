@@ -125,7 +125,6 @@ describe('CloudHubPage', () => {
             );
         });
 
-        // The relay refuses a cloud that failed after its workspace slot was assigned.
         it.each([[{ slotId: 'S9' }], [{ accountNo: '123' }]])('offers no retry once a slot is held (%o)', slot => {
             clouds = [{ id: 'CL1', name: 'Lemon', status: 'error', ...slot }];
 

@@ -17,7 +17,6 @@ describe('resolveCloudRowState — one row state per relay status', () => {
     });
 
     it('lets a hold outrank a drop mark the cloud also carries', () => {
-        // After the downgrade lands, the relay holds the marked cloud and leaves the mark in place.
         expect(resolveCloudRowState({ status: 'suspended', state$: { hold: 'downgrade', plan: 'drop' } })).toBe(
             'restricted'
         );

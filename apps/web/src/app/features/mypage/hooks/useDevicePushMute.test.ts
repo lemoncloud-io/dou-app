@@ -8,7 +8,6 @@ import { resetHostProfileForTests } from '@chatic/bridges';
 
 import { useDevicePushMute } from './useDevicePushMute';
 
-// The push port's device token, swapped per test; `null` is a host that registers no push device.
 let mockDeviceToken: { fetch: () => Promise<string | null> } | null = null;
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
@@ -48,37 +47,29 @@ beforeEach(() => {
 
 describe('useDevicePushMute', () => {
     it('토글 OFF는 muted:true를 보내고, 성공 시 서버 echo로 재조정한다', async () => {
-        // Server echoes a value distinct from the optimistic flip to prove onSuccess reconciliation
-        // wins over the optimistic set.
         updateRemotePushMuteMock.mockResolvedValue(false);
 
         const { result } = renderHook(() => useDevicePushMute(), { wrapper });
-        expect(result.current.pushEnabled).toBe(true); // default ON
+        expect(result.current.pushEnabled).toBe(true);
 
         act(() => result.current.setPushEnabled(false));
 
-        // Optimistic flip is synchronous.
         expect(setPushMutedMock).toHaveBeenNthCalledWith(1, true);
-        // mutate dispatches the write on a microtask; once it resolves the server's authoritative
-        // echo reconciles the store.
         await waitFor(() => expect(setPushMutedMock).toHaveBeenLastCalledWith(false));
-        // The relay destination is pinned inside the data layer (DeviceSocketDataSource), so the
-        // hook passes only the value.
         expect(updateRemotePushMuteMock).toHaveBeenCalledWith(true);
         expect(mockHaptic).not.toHaveBeenCalled();
     });
 
     it('is supported only where push registration happens: a device token and an injected platform', () => {
         const { result, unmount } = renderHook(() => useDevicePushMute(), { wrapper });
-        expect(result.current.isSupported).toBe(false); // jsdom: no shell global, no token
+        expect(result.current.isSupported).toBe(false);
         unmount();
 
-        // A shell that injects its platform before the page boots, when the host profile is built.
         window.CHATIC_APP_PLATFORM = 'ios';
         resetHostProfileForTests();
         try {
             const { result: noToken, unmount: unmountNoToken } = renderHook(() => useDevicePushMute(), { wrapper });
-            expect(noToken.current.isSupported).toBe(false); // platform alone registers nothing
+            expect(noToken.current.isSupported).toBe(false);
             unmountNoToken();
 
             mockDeviceToken = { fetch: async () => 'token' };
@@ -98,7 +89,6 @@ describe('useDevicePushMute', () => {
         act(() => result.current.setPushEnabled(false));
 
         await waitFor(() => expect(toastMock).toHaveBeenCalled());
-        // optimistic true, then rolled back to the prior false.
         expect(setPushMutedMock).toHaveBeenNthCalledWith(1, true);
         expect(setPushMutedMock).toHaveBeenNthCalledWith(2, false);
         expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
