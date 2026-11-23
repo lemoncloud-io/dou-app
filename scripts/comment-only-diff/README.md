@@ -32,14 +32,15 @@ A source file that was added, deleted or changed type fails.
 
 How the trees are compared: TypeScript's parser builds both, and a walk prints each node's kind,
 the primitive fields the parser sets on it (names, literal text, operators, `let`/`const`, type-only
-imports) and its children, without positions, comments or layout flags (whether a block, array or object spans several
-lines). Parentheses are looked through, since a formatter drops them once a comment inside goes;
-parentheses that carry meaning still show, because dropping them changes the tree (`(a + b) * c`)
-or its optional-chain flag (`(a?.b).c`). A parenthesized string standing alone as a statement keeps
-its parentheses, because without them it would become a directive such as `'use strict'`. Two JSX details follow React's own rules,
-because they decide what renders. An empty `{/* … */}` container renders nothing and is dropped.
-JSX text is compared after React's whitespace trimming. So removing a JSX comment that sat between
-two text runs joins them into one rendered string, and that is correctly reported as a change.
+imports) and its children. It leaves out positions, comments and layout flags (whether a block,
+array or object spans several lines). Parentheses are looked through, since a formatter drops them
+once a comment inside goes. Parentheses that carry meaning still show, because dropping them
+changes the tree (`(a + b) * c`) or its optional-chain flag (`(a?.b).c`). A parenthesized string
+standing alone as a statement keeps its parentheses, because without them it would become a
+directive such as `'use strict'`. Two JSX details follow React's own rules, because they decide what
+renders. An empty `{/* … */}` container renders nothing and is dropped. JSX text is compared after
+React's whitespace trimming. So removing a JSX comment that sat between two text runs joins them
+into one rendered string, and that is correctly reported as a change.
 
 Checked against the repository itself: in 365 real TS/TSX files with comments, removing every
 non-directive comment was proven each time. Changing one `const` to `let` in 348 of them was caught
