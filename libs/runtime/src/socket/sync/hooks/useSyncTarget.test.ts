@@ -13,8 +13,6 @@ import { coreEngine } from '@chatic/runtime-core/engine';
 import { fakeSessionView } from '@chatic/runtime-core/testing/sessionView';
 import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 
-// The hooks start their work from the engine the entry point hands over: the core one, with a fake
-// session view that `emitSession` loads the uids below into.
 const session = fakeSessionView();
 const uidsNow = () =>
     Object.fromEntries(Object.entries(mockUids).filter((entry): entry is [string, string] => entry[1] !== null));
@@ -28,14 +26,11 @@ jest.mock('@chatic/sync/runtime', () => ({
     getSyncManager: () => ({ register: mockRegister, updateLocalSnapshot: mockUpdateLocalSnapshot }),
 }));
 
-// Mutable so each test can flip a slot's auth state; useChatSync's prime is gated on it.
 let verifiedSlots: Set<string> = new Set();
 jest.mock('../../../connection/hooks/useSlotVerified', () => ({
     useSlotVerified: (slot: string) => verifiedSlots.has(slot),
 }));
 
-// The session readers: the selected cloud, and the uid this account has in each cloud. A test that
-// changes either assigns here and calls `emitSession`, which is what the session signal does.
 let mockSelectedCloudId: string | null = 'default';
 let mockUids: Record<string, string | null> = {};
 let sessionListeners: Array<() => void> = [];
@@ -67,7 +62,6 @@ const mockGetScopedRepositories = jest.fn((_cid: string) => ({
 jest.mock('@chatic/runtime-core/data/runtime', () => ({
     getDataManager: () => ({ getScopedRepositories: mockGetScopedRepositories }),
 }));
-// The room feed this hook primes through reads the same graph, handed down at boot.
 jest.mock('@chatic/sync/dataGraph', () => ({
     syncDataGraph: { get: () => ({ getScopedRepositories: mockGetScopedRepositories }) },
 }));
@@ -75,7 +69,6 @@ jest.mock('@chatic/sync/dataGraph', () => ({
 jest.mock('@chatic/logger', () => ({ ...jest.requireActual('@chatic/logger'), logger: { warn: jest.fn() } }));
 
 beforeEach(() => {
-    // A fetch is remembered for a moment after it finishes; one test's must not answer the next's.
     resetRoomFeeds();
     mockSelectedCloudId = 'default';
     mockUids = { default: 'relay-uid', 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
@@ -85,7 +78,7 @@ beforeEach(() => {
 
 describe('useSyncTarget', () => {
     beforeEach(() => {
-        verifiedSlots = new Set(); // keep prime dormant so register behavior is isolated
+        verifiedSlots = new Set();
         mockRegister.mockClear();
         mockDispose.mockClear();
     });
@@ -123,16 +116,15 @@ describe('useSyncTarget', () => {
         });
         expect(mockRegister).toHaveBeenCalledTimes(1);
 
-        rerender({ id: 'ch-1' }); // same key — no re-register
+        rerender({ id: 'ch-1' });
         expect(mockRegister).toHaveBeenCalledTimes(1);
 
-        rerender({ id: 'ch-2' }); // key change — dispose old, register new
+        rerender({ id: 'ch-2' });
         expect(mockDispose).toHaveBeenCalledTimes(1);
         expect(mockRegister).toHaveBeenCalledTimes(2);
         expect(mockRegister).toHaveBeenLastCalledWith({ type: 'chat', id: 'ch-2' }, { cid: 'default' });
     });
 
-    // A mounted component renders the next cloud's rows after a switch, so its target follows.
     it('re-registers under the next cloud when the selection changes', () => {
         mockSelectedCloudId = 'cloud-a';
         renderHook(() => useSyncTarget({ type: 'channel', id: 'ch-1' }));
@@ -209,7 +201,6 @@ describe('useChatSync — prime', () => {
         verifiedSlots = new Set();
         renderHook(() => useChatSync('ch-1'));
 
-        // Let any (skipped) effect microtask settle — nothing should touch the cache/baseline.
         await act(async () => {
             await Promise.resolve();
         });
@@ -230,7 +221,6 @@ describe('useChatSync — prime', () => {
         });
     });
 
-    // The active slot being verified says nothing about the slot this room's cloud is served by.
     it("waits for the target cloud's slot, not whichever slot is verified", async () => {
         mockSelectedCloudId = 'cloud-a';
         verifiedSlots = new Set(['default']);
@@ -251,7 +241,6 @@ describe('useChatSync — prime status', () => {
         mockRefreshList.mockClear().mockResolvedValue({ fetchedCount: 0 });
     });
 
-    // A cold room reads empty until its first page lands; that read is not "this room is empty".
     it('stays pending while a cold room fetches its first page, then is ready', async () => {
         let finishFetch: (value: { fetchedCount: number }) => void = () => undefined;
         mockRefreshList.mockReturnValue(new Promise(resolve => (finishFetch = resolve)));
@@ -294,7 +283,6 @@ describe('useChatSync — prime status', () => {
         expect(mockRefreshList).toHaveBeenCalledTimes(2);
     });
 
-    // The status is one room's: the next room must not inherit "ready" from the last.
     it('starts over at pending when another room is opened', async () => {
         const { result, rerender } = renderHook(({ id }: { id: string }) => useChatSync(id), {
             initialProps: { id: 'ch-1' },
@@ -385,12 +373,10 @@ describe('useChatSync — chat_room_sync phases', () => {
         mockCacheReadList.mockRejectedValue(new Error('bridge timeout'));
         mockRefreshList.mockClear();
         const trace = beginSync();
-        // A warm room's foreground refresh already owns this trace.
         trace.mark('feed_sent');
 
         const { result } = renderHook(() => useChatSync('ch-1'));
 
-        // `failed` is settled in the same catch that used to end the trace, so it is checked after.
         await waitFor(() => expect(result.current.prime).toBe('failed'));
         expect(backend.stop).not.toHaveBeenCalled();
     });
@@ -398,7 +384,6 @@ describe('useChatSync — chat_room_sync phases', () => {
     it('does not end a trace an earlier fetch took when its own fetch fails', async () => {
         mockRefreshList.mockClear().mockRejectedValue(new Error('socket closed'));
         const trace = beginSync();
-        // A first prime already requested the page for this trace; this one is a re-verification.
         trace.mark('feed_sent');
 
         const { result } = renderHook(() => useChatSync('ch-1'));

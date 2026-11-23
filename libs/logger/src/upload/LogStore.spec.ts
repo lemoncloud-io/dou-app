@@ -16,8 +16,6 @@ beforeEach(() => {
 
 describe('LogStoreReader — 2단계 배출 계약', () => {
     it('peek은 비파괴다 — 같은 배치를 다시 준다', async () => {
-        // The core of the contract. A destructive read would remove the only copy before the
-        // send succeeds — if the process dies in that window, the entry survives nowhere.
         const queue = createLogUploadQueue();
         const store = createQueueLogStore(queue);
         store.push(entry());
@@ -44,7 +42,6 @@ describe('LogStoreReader — 2단계 배출 계약', () => {
     });
 
     it('id가 없는 엔트리도 ack으로 놓아줄 수 있다', async () => {
-        // If the port only accepted ids, an entry like this would be re-fetched forever.
         const queue = createLogUploadQueue();
         const store = createQueueLogStore(queue);
         const legacy: LogEntry = { level: 'info', tag: 'TEST', message: 'no-id', timestamp: 1 };
@@ -79,8 +76,6 @@ describe('toLogListener — 저장하는 애', () => {
     });
 
     it('debug는 저장소가 문 앞에서 버린다 — 리스너는 거르지 않는다', () => {
-        // The level policy belongs to the store, not the listener (principles 13/16). Keeping
-        // the listener thin keeps the policy in exactly one place.
         const queue = createLogUploadQueue();
         const listener = toLogListener(createQueueLogStore(queue));
 

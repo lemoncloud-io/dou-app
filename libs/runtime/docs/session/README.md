@@ -70,6 +70,36 @@ attached when it is.
 only when the shell injected none (`lazySessionDeviceId`). Inside the phone app there always is one, and
 a page whose session runs in the app's process has no session store of its own. `pairingClientOf` reads
 this page's platform and user agent from the page itself, not from the runtime's transport.
+
+`resolveDeviceIds` is the one place socket identity and push registration get their ids, so the two always
+agree; derive them nowhere else. The shell's `CHATIC_APP_UNIQUE_DEVICE_ID` and
+`CHATIC_APP_FIREBASE_INSTALLATION_ID` are read first. A legacy shell packs both into the composite
+`CHATIC_APP_DEVICE_ID` (`bareId:firebaseInstallId`), and splitting on the colon recovers them, since
+neither part can contain one. `CHATIC_APP_INSTALLATION_ID` is deliberately not a source here: what it
+carried changed between the Firebase installation id and the bare device id across app versions, so it
+cannot be trusted to mean either.
+
+`useRuntimeProfile` seeds its first value synchronously from the active session token, so a guard reading
+`isGuest` never flashes the wrong answer before the cache emits. When the uid changes it drops the row it
+held and falls back to the new identity's seed. A guest-to-main promotion commits a new token without
+writing a user row, and the old row would otherwise keep answering `isGuest: true` indefinitely. `userRole`
+resolves cached-first, with the token seed as the fallback, field by field: a partial cached row that omits
+the role must not turn a guest into a non-guest. The display fields (name, photo) prefer the cached row so
+a profile edit reaches every reader.
+
+The alias hooks log a failure and never the request. `useVerifyAlias` serves send, resend, check, change and
+confirm for both sign-up and password reset through one endpoint, so its entry carries `mode` and `step`
+(without them, "the code never arrived" and "I entered the code and it failed" look the same) plus
+presence flags for the code and password. The address, the code and the password are never recorded.
+`useFindAlias` records only the lookup `type`: whether an account exists for an address is exactly the
+fact an enumeration attempt is after. `useInviteInfo` stays disabled until there is a code, an endpoint
+and an authenticated session, because the lookup is a signed request; a relay invite carries no backend, so
+it falls back to the configured relay backend.
+
+`useSwitchCloudSession` takes the `cloud_switch` trace itself rather than leaving it to the command. The
+command has a second caller, cloud-refresh recovery, which is rare and slow and would pass for a
+user-initiated switch and drag the tail. A failed switch is recorded too: dropping failures would bias
+the distribution optimistic.
 `authFailureReaction` stays a re-export of the transport's registry: only admin and landing register
 on it, and neither runs inside the phone app, where the HTTP layer would be in another process.
 

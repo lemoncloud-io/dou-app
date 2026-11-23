@@ -11,17 +11,14 @@ import { useImageSendProgress } from './imageSendProgress';
 import { useSendImages, type PreparedShellVideo, type UseSendImagesInput } from './useSendImages';
 
 jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn() }));
-// The hook reads a cloud's graph and holds its socket through the engine; the graph is the same mock either way.
 jest.mock('@chatic/runtime-client/data/dataCommands', () => ({
     getCloudRepositories: (cid: string) =>
         jest.requireMock('@chatic/runtime-core/data/cloudChat').getCloudRepositories(cid),
     holdCloud: jest.fn(),
 }));
-// The send's perf sample is observed, not recorded: each call hands back a timing that does nothing.
 const idleTiming = () => ({ mark: jest.fn(), end: jest.fn() });
 jest.mock('@chatic/runtime-core/data/mediaSendTrace', () => ({ beginMediaSendTiming: jest.fn(() => idleTiming()) }));
 
-/** The clouds whose socket is held right now, as the engine's `holdCloud` would hold them. */
 const held: string[] = [];
 
 const mockSendImageMessage = jest.fn();
@@ -35,7 +32,6 @@ jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn() } }));
 
 const put = jest.fn();
 const beforeSweep = jest.fn(async () => undefined);
-/** The hook as a shell binds it: its PUT and its catch-up are fixed, the room varies. */
 const useBound = (room: Omit<UseSendImagesInput, 'put' | 'beforeSweep'>) =>
     useSendImages({ ...room, put, beforeSweep });
 
@@ -76,7 +72,6 @@ beforeEach(() => {
         async ({ pendingId }: { pendingId?: string }) => pendingId ?? `row-${++rowSeq}`
     );
     chat.listPendingImageChats.mockResolvedValue([]);
-    // A browser that cannot draw the frame, unless a test says otherwise.
     (makeVideoPoster as jest.Mock).mockResolvedValue(null);
 });
 
@@ -230,7 +225,6 @@ describe('useSendImages', () => {
         expect(sentFiles).toEqual(picked);
         sentFiles.forEach((file: File, i: number) => expect(file).toBe(picked[i]));
         const pendingId = chat.createPendingImageChat.mock.results[0].value;
-        // A page file goes to the shell's own PUT, untouched.
         put.mockResolvedValueOnce({ kind: 'responded', httpStatus: 200 });
         await ports.put({ url: 'u', headers: {} }, picked[0], 'slot-0/original');
         expect(put).toHaveBeenCalledWith(
@@ -258,7 +252,6 @@ describe('useSendImages', () => {
         unmount();
     });
 
-    // A refused file (a type this cloud does not take) used to vanish with the row the message replaced.
     it('writes the files a sent message left out as a failed message of their own, which can be retried', async () => {
         const partial: SendImageResult = { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1] };
         mockSendImageMessage.mockResolvedValueOnce(partial).mockResolvedValueOnce(sent);
@@ -358,7 +351,6 @@ describe('useSendImages', () => {
         expect(cancelled).toBe(true);
         expect(signal?.aborted).toBe(true);
 
-        // The sequence sees its PUT fail and settles as failed; the row is removed, not marked failed.
         finish(failed);
         await act(() => sending);
         expect(chat.cacheDelete).toHaveBeenCalledWith(pendingId);
@@ -504,7 +496,6 @@ describe('useSendImages', () => {
 
         expect(room.result.current.canRetry(roomRow)).toBe(true);
         expect(revoked).toHaveLength(0);
-        // Nor does it sweep the room it sends to: only the room's own attach did.
         expect(chat.listPendingImageChats).toHaveBeenCalledTimes(1);
         room.unmount();
     });
@@ -711,14 +702,12 @@ describe('useSendImages — one message per file', () => {
             'prepare c.jpg',
             'start',
         ]);
-        // One preview per row, each its own file's.
         const previews = chat.createPendingImageChat.mock.calls.map(call => call[0].localThumbUrls);
         expect(previews).toEqual([[expect.any(String)], [expect.any(String)], [expect.any(String)]]);
         expect(new Set(previews.flat()).size).toBe(3);
         unmount();
     });
 
-    // Every row shows as sending from the start, so each one's cancel has to hold while it waits its turn.
     it('cancels a row still waiting behind the one being sent', async () => {
         let finish: (result: SendImageResult) => void = () => undefined;
         mockSendImageMessage.mockImplementationOnce(
@@ -751,8 +740,6 @@ describe('useSendImages — one message per file', () => {
         unmount();
     });
 
-    // Timed from the row, a later message would count the earlier ones' sends as its own, and a pick of
-    // ten would spend the whole per-minute sample budget at the press.
     it("starts each message's send sample at its own turn, not when the rows are written", async () => {
         const order: string[] = [];
         jest.mocked(beginMediaSendTiming).mockImplementation(({ files }) => {
@@ -815,9 +802,7 @@ describe('useSendImages — one message per file', () => {
         unmount();
     });
 
-    // Pending rows sort by `createdAt` in milliseconds; two rows stamped alike lose their pick order.
     it('stamps each row a later millisecond than the row before it', async () => {
-        // Where the repository takes the row's `createdAt`. An instant write is the case at stake.
         const stamps: number[] = [];
         chat.createPendingImageChat.mockImplementation(async () => {
             stamps.push(Date.now());
@@ -849,7 +834,6 @@ describe('useSendImages — one message per file', () => {
         act(() => void (sending = result.current.sendImages(picked, separately)));
         for (let k = 0; k < picked.length; k += 1) {
             await waitFor(() => expect(settle).toHaveLength(k + 1));
-            // The next message has not started while this one is still on its way.
             await act(() => new Promise(resolve => setTimeout(resolve, 5)));
             expect(mockSendImageMessage).toHaveBeenCalledTimes(k + 1);
             act(() => settle[k]());
@@ -898,7 +882,6 @@ describe('useSendImages — one message per file', () => {
         expect(mockSendImageMessage.mock.calls[3][0]).toHaveLength(1);
         expect(mockSendImageMessage.mock.calls[3][0][0]).toBe(picked[2]);
         expect(result.current.canRetry(third)).toBe(false);
-        // The first row's failure is untouched by the third one's retry.
         expect(result.current.canRetry(first)).toBe(true);
         unmount();
     });
@@ -954,7 +937,6 @@ describe('useSendImages — one message per file', () => {
         unmount();
     });
 
-    // Every row is already on screen as sending; stopping the queue would leave the later ones so.
     it('keeps sending the queued messages after the screen leaves, and keeps no files once they settle', async () => {
         let finishFirst: (value: SendImageResult) => void = () => undefined;
         mockSendImageMessage
@@ -968,7 +950,6 @@ describe('useSendImages — one message per file', () => {
         await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalledTimes(1));
         const rows = await rowsWritten();
         unmount();
-        // Still in flight, so the screen leaving kept every file.
         expect(revoked).toHaveLength(0);
 
         await act(async () => {
@@ -978,7 +959,6 @@ describe('useSendImages — one message per file', () => {
 
         expect(mockSendImageMessage).toHaveBeenCalledTimes(3);
         expect(chat.failPendingImageChat.mock.calls).toEqual([[rows[1]]]);
-        // The failed one is left to delete: its screen has gone, and its files with it.
         rows.forEach(row => expect(result.current.canRetry(row)).toBe(false));
         expect(revoked).toHaveLength(3);
     });
@@ -993,12 +973,10 @@ describe('useSendImages — one message per file', () => {
 
         await act(() => expect(result.current.sendImages(picked, separately)).rejects.toThrow('cache'));
 
-        // The third file is never shown as sending, since nothing would send it.
         expect(chat.createPendingImageChat).toHaveBeenCalledTimes(2);
         expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
         expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
         expect(mockSendImageMessage.mock.calls[0][0][0]).toBe(picked[0]);
-        // The sent row's preview went with its send, the unwritten row's with its write.
         expect(revoked).toHaveLength(2);
         unmount();
     });
@@ -1063,7 +1041,6 @@ describe('useSendImages — text with the pictures', () => {
         unmount();
     });
 
-    // A mention is part of the text; with no text left there is nothing for it to belong to.
     it('drops the mention when there is no text', async () => {
         mockSendImageMessage.mockResolvedValue(sent);
         const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
@@ -1074,7 +1051,6 @@ describe('useSendImages — text with the pictures', () => {
         unmount();
     });
 
-    // The text went out with the message the files were left out of; a second copy would repeat it.
     it('writes the row of the files a sent message left out without the text', async () => {
         const partial: SendImageResult = { status: 'sent', uploadIds: ['up-0'], failedIndexes: [1] };
         mockSendImageMessage.mockResolvedValueOnce(partial);
@@ -1089,7 +1065,6 @@ describe('useSendImages — text with the pictures', () => {
         unmount();
     });
 
-    // The repository sends the row's own text, so a retry that named none keeps the text it was written with.
     it('retries on the same row without naming the text, and sends it through that row', async () => {
         mockSendImageMessage
             .mockResolvedValueOnce(failed)
@@ -1131,7 +1106,6 @@ describe('useSendImages — preparations across messages', () => {
     let peak = 0;
     const holds = new Map<string, () => void>();
 
-    // Every preparation counts towards `active`; one whose file is listed waits for `holds.get(name)`.
     const holdPreparing = (...names: string[]) =>
         (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => {
             active += 1;
@@ -1153,10 +1127,8 @@ describe('useSendImages — preparations across messages', () => {
         );
     });
 
-    // The page's preparation turn outlives a test; one left held would stall the next file's one-each sends.
     afterEach(() => holds.forEach(release => release()));
 
-    // Bundled sends prepared side by side before one-each picks existed, and desktop sends nothing else.
     it('prepares two bundled messages side by side, as before', async () => {
         holdPreparing('a.jpg', 'b.jpg');
         const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
@@ -1183,8 +1155,6 @@ describe('useSendImages — preparations across messages', () => {
         const room = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
         const thread = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1', parentId: 'root-1' }));
 
-        // The thread's queue starts once the room's first preparation holds the turn. Started together,
-        // which queue reaches the turn first is down to timer order, and the thread's could take it.
         let roomSending: Promise<unknown> = Promise.resolve();
         act(() => {
             roomSending = room.result.current.sendImages([photo('a.jpg'), photo('b.jpg')], separately);
@@ -1197,7 +1167,6 @@ describe('useSendImages — preparations across messages', () => {
                 thread.result.current.sendImages([photo('c.jpg'), photo('d.jpg')], separately),
             ]);
         });
-        // The thread's queue is on its way and waiting on its preparation, not on the room's queue.
         await waitFor(() => expect(mockSendImageMessage).toHaveBeenCalledTimes(2));
         expect(prepareChatAttachment).toHaveBeenCalledTimes(1);
 
@@ -1264,7 +1233,6 @@ describe('useSendImages — preparations across messages', () => {
         act(() => {
             other = Promise.all([result.current.retry(bundled), result.current.sendImages([photo('y.jpg')])]);
         });
-        // The retry and the new send each prepared while the queue's preparation was still held.
         await waitFor(() => expect(prepareChatAttachment).toHaveBeenCalledTimes(3));
         expect(peak).toBe(2);
 
@@ -1302,7 +1270,6 @@ describe('useSendImages — preparations across messages', () => {
                     other.result.current.sendImages([photo('c.jpg'), photo('d.jpg')], separately),
                 ]);
             });
-            // The other room's first message is on its way, waiting for its turn to prepare.
             while (mockSendImageMessage.mock.calls.length < 2) await advance(1);
 
             await advance(startedAt + 30_000 - 1 - Date.now());
@@ -1310,7 +1277,6 @@ describe('useSendImages — preparations across messages', () => {
             await advance(1);
             expect(prepared().slice(0, 2)).toEqual(['a.jpg', 'c.jpg']);
 
-            // The stuck preparation still holds its own message; once it lands, everything settles.
             unstick();
             await advance(100);
             await act(() => sending);
@@ -1327,7 +1293,6 @@ describe('useSendImages — preparations across messages', () => {
 describe('useSendImages — order in a room', () => {
     const separately = { separately: true } as const;
     const photo = (name: string) => new File([name], name);
-    /** What reached the server, in the order its sends arrived: each message as its files' names. */
     const server: string[] = [];
     const holding = new Set<string>();
     const releases = new Map<string, () => void>();
@@ -1336,9 +1301,7 @@ describe('useSendImages — order in a room', () => {
     const nameOf = (picked: File[]) => picked.map(file => file.name).join('+');
     const hold = (name: string) => holding.add(name);
     const release = (name: string) => releases.get(name)?.();
-    /** Resolves once the named message is on its way and waiting at its hold. */
     const reached = (name: string) => waitFor(() => expect(releases.has(name)).toBe(true));
-    // Long enough for a send that is free to go to reach the server.
     const settleALittle = () => act(() => new Promise(resolve => setTimeout(resolve, 10)));
 
     beforeEach(() => {
@@ -1358,7 +1321,6 @@ describe('useSendImages — order in a room', () => {
         );
     });
 
-    // A room's queue outlives a test; one left held would keep the next test's sends in that room waiting.
     afterEach(() => {
         holding.clear();
         releases.forEach(go => go());
@@ -1429,7 +1391,6 @@ describe('useSendImages — order in a room', () => {
 
         act(() => release('a.jpg'));
         await reached('d.jpg');
-        // The bundled send made before the second queue holds that queue back while it is on its way.
         await settleALittle();
         expect(server).toEqual(['a.jpg', 'b.jpg']);
 
@@ -1455,7 +1416,6 @@ describe('useSendImages — order in a room', () => {
         });
         await reached('a.jpg');
         act(() => release('a.jpg'));
-        // The first queue has settled; the second one is on its way.
         await reached('c.jpg');
         expect(server).toEqual(['a.jpg', 'b.jpg']);
 
@@ -1520,7 +1480,6 @@ describe('useSendImages — order in a room', () => {
         elsewhere.unmount();
     });
 
-    // What desktop does: bundled sends only, which never waited on one another.
     it('sends a bundled pick at once while an earlier bundled one is still on its way', async () => {
         hold('a.jpg');
         const { result, unmount } = renderHook(() => useBound({ cid: 'c', channelId: 'ch-1' }));
@@ -1599,8 +1558,6 @@ describe('useSendImages — previews while sending', () => {
     const thumb = (name: string) => new File(['t'], `${name}-thumb.jpg`, { type: 'image/jpeg' });
     const order: string[] = [];
 
-    // The mocked sequence calls the real prepare port the hook binds, then records where `start`
-    // would run — which is what the preview switch has to come before.
     const runSequence = (result: SendImageResult = sent) =>
         mockSendImageMessage.mockImplementation(
             async (picked: File[], ports: { prepare: (f: File) => Promise<unknown> }) => {
@@ -1618,8 +1575,6 @@ describe('useSendImages — previews while sending', () => {
         });
     });
 
-    // A video or document has nothing to resize and no thumbnail; the server wants its original under
-    // its own type, and a name that ends in the format's extension.
     it('sends a video or document as its original alone, typed and named the way the server takes it', async () => {
         const prepared: unknown[] = [];
         mockSendImageMessage.mockImplementation(
@@ -1649,8 +1604,6 @@ describe('useSendImages — previews while sending', () => {
         unmount();
     });
 
-    // An image let in by its extension still has the raw type it arrived with; declared as-is, the
-    // server refuses it, and an untyped GIF would get the still thumbnail a GIF must not have.
     it('prepares an image under its format’s type when it arrived untyped', async () => {
         runSequence();
         (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
@@ -1683,7 +1636,6 @@ describe('useSendImages — previews while sending', () => {
         unmount();
     });
 
-    // A phone photo is several megapixels; the feed must not decode ten of them for small tiles.
     it('switches the row to the thumbnails once every image is prepared, before the upload starts', async () => {
         (prepareChatAttachment as jest.Mock).mockImplementation(async (file: File) => ({
             original: { file },
@@ -1699,7 +1651,6 @@ describe('useSendImages — previews while sending', () => {
         expect(second.pendingId).toBeDefined();
         expect(second.localThumbUrls).toHaveLength(2);
         expect(second.localThumbUrls).not.toEqual(first.localThumbUrls);
-        // The original previews are let go once the thumbnails replace them.
         expect(revoked).toEqual(expect.arrayContaining(first.localThumbUrls));
         unmount();
     });
@@ -1750,7 +1701,6 @@ describe('useSendImages — previews while sending', () => {
             await result.current.retry(pendingId);
         });
 
-        // The retry's own reset of the row, then straight to the upload — no second switch.
         expect(order).toEqual(['rewrite', 'start']);
         unmount();
     });
@@ -1770,7 +1720,6 @@ describe('useSendImages — previews while sending', () => {
 
         await act(() => result.current.sendImages(files()));
 
-        // Two originals, then two thumbnails; the thumbnails were never shown and are revoked.
         expect(revoked).toEqual(expect.arrayContaining([`blob:${created + 3}`, `blob:${created + 4}`]));
         unmount();
     });
@@ -1811,7 +1760,6 @@ describe('useSendImages — shell files', () => {
         },
     });
     const prepared: unknown[] = [];
-    /** The mocked sequence runs the real prepare port the hook binds, then answers `result`. */
     const runSequence = (result: (picked: ChatAttachmentSource[]) => SendImageResult = () => sent) =>
         mockSendImageMessage.mockImplementation(
             async (
@@ -1916,7 +1864,6 @@ describe('useSendImages — shell files', () => {
         await act(() => result.current.sendImages([video]));
 
         expect(order).toEqual(['create', 'convert', 'rewrite']);
-        // Drawn as the mp4 it will be, with no preview the page could not read.
         expect(chat.createPendingImageChat.mock.calls[0][0]).toMatchObject({
             localThumbUrls: [''],
             localFiles: [{ name: 'IMG_0001.mp4', contentType: 'video/mp4', size: 170_000_000 }],
@@ -1952,12 +1899,10 @@ describe('useSendImages — shell files', () => {
             { name: 'IMG_0001.mp4', contentType: 'video/mp4', size: 170_000_000 },
         ]);
         expect(chat.failPendingImageChat).toHaveBeenCalledWith(leftover);
-        // Converting it again would be refused the same way.
         expect(result.current.canRetry(leftover)).toBe(false);
         unmount();
     });
 
-    // Sent one per file, the refused video fails its own row rather than splitting off a leftover row.
     it('fails a refused video on its own row when each file goes alone, and still sends the next file', async () => {
         prepareVideo.mockRejectedValueOnce(Object.assign(new Error('x'), { code: 'TOO_LARGE' }));
         runSequence();
@@ -2129,7 +2074,6 @@ describe('useSendImages — shell files', () => {
                 thumbnail: { file: poster, width: 400, height: 225 },
             },
         ]);
-        // Grey while the frame is drawn, then the poster.
         expect(chat.createPendingImageChat.mock.calls[0][0].localThumbUrls).toEqual(['']);
         expect(chat.createPendingImageChat.mock.calls[1][0]).toMatchObject({
             localThumbUrls: [expect.stringMatching(/^blob:/)],
@@ -2147,7 +2091,6 @@ describe('useSendImages — shell files', () => {
 
         expect(prepared).toEqual([{ original: { file: video, width: 0, height: 0 }, thumbnail: null }]);
         expect(mockSendImageMessage).toHaveBeenCalledTimes(1);
-        // Nothing to switch to, so the row is written once.
         expect(chat.createPendingImageChat).toHaveBeenCalledTimes(1);
         unmount();
     });
@@ -2178,7 +2121,6 @@ describe('useSendImages — shell files', () => {
 
 describe('useSendImages — progress', () => {
     type Report = (slot: number, sent: number, total: number) => void;
-    /** A sequence that reports what the test tells it to, then settles when the test says so. */
     const heldSequence = () => {
         let report: Report = () => undefined;
         let settle: (result: SendImageResult) => void = () => undefined;
@@ -2273,7 +2215,6 @@ describe('useSendImages — progress', () => {
         const pendingId = await chat.createPendingImageChat.mock.results[0].value;
         const progress = renderHook(() => useImageSendProgress(pendingId));
 
-        // The sequence's slot 0 is the photo, the pick's second file.
         act(() => sequence.report(0, 1, 2));
         expect(progress.result.current).toEqual([undefined, 0.5]);
 

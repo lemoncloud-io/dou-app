@@ -5,12 +5,8 @@ import { sessionCommands } from '@chatic/runtime-client';
 import { cloudsKeys } from '../../../data/hooks/queryKeys';
 import type { LoginUserBody } from '@lemoncloud/chatic-backend-api';
 
-/**
- * Logs into relay using the generic relay login endpoint and hydrates session state.
- */
 export const useLogin = () => {
     const queryClient = useQueryClient();
-    // The answer is the account's fields: the token stays with the session.
     return useCustomMutation<SessionAccountView, string, LoginUserBody & { email?: boolean }>(
         ({ email, ...body }) => sessionCommands().loginUser(body, { email }),
         {

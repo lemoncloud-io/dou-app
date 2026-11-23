@@ -49,7 +49,6 @@ describe('safeSerializable', () => {
             params: { locale: 'ko' },
             data: { deviceId: 'd1', password: '[REDACTED]' },
         });
-        // Headers are intentionally never included (they carry auth tokens).
         expect(result.request.headers).toBeUndefined();
         expect(result.response).toEqual({ status: 400, statusText: 'Bad Request', data: { error: 'INVALID' } });
     });

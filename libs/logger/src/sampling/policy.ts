@@ -1,23 +1,13 @@
 import type { LogHost, LogPlatform, TelemetryKind } from '../core/types';
 
-/**
- * A sampling stream. Performance records (`trace`, `sample`) and usage events (`event`) are sampled
- * separately, at different rates and with different salts.
- */
 export type TelemetryStream = 'perf' | 'usage';
 
-/** The salt each stream hashes the run id with. A contract — see `samplingBucket`. */
 export const TELEMETRY_STREAM_SALT: Record<TelemetryStream, string> = { perf: 'perf', usage: 'usage' };
 
-/** The tag prefix each stream's records carry: `perf.chat_room_open`, `usage.screen_view`. */
 export const TELEMETRY_STREAM_AREA: Record<TelemetryStream, string> = { perf: 'perf', usage: 'usage' };
 
 export const telemetryStreamOf = (kind: TelemetryKind): TelemetryStream => (kind === 'event' ? 'usage' : 'perf');
 
-/**
- * What a rule can match on. A rule matches when all of its keys do. Every key is an exact match
- * except `minAppVersion`, which is "this app version or later".
- */
 export interface TelemetryPolicyMatch {
     stream?: TelemetryStream;
     tag?: string;
@@ -25,12 +15,6 @@ export interface TelemetryPolicyMatch {
     host?: LogHost;
     appVersion?: string;
     webVersion?: string;
-    /**
-     * The app version or later (`1.4.0` matches `1.4.0`, `1.4.2`, `2.0.0`). A record with no app
-     * version — the standalone web — never matches it. This is what lets statistics be turned on
-     * only for app builds that carry the statistics queue share: on an older build a statistic would
-     * be stored as a plain log.
-     */
     minAppVersion?: string;
 }
 
@@ -44,17 +28,11 @@ const MATCH_KEYS: readonly (keyof TelemetryPolicyMatch)[] = [
     'minAppVersion',
 ];
 
-/** `major.minor.patch`, with the minor and patch optional. A pre-release or build suffix is not a version here. */
 const VERSION = /^\d+(\.\d+){0,2}$/;
 
-/** The numeric parts of a version, or `undefined` when it is not one. */
 const versionParts = (value: string): number[] | undefined =>
     VERSION.test(value) ? value.split('.').map(Number) : undefined;
 
-/**
- * Whether `version` is `minimum` or later, part by part (`1.10.0` is after `1.9.0`; a missing part is
- * zero). A version that does not parse — or no version at all — is not "later" than anything.
- */
 export const isAppVersionAtLeast = (version: string | undefined, minimum: string): boolean => {
     const have = version ? versionParts(version) : undefined;
     const need = versionParts(minimum);
@@ -69,43 +47,24 @@ export const isAppVersionAtLeast = (version: string | undefined, minimum: string
 
 export interface TelemetryPolicyRule {
     match: TelemetryPolicyMatch;
-    /** `0..1`. */
     rate: number;
 }
 
-/** A debugging override: every record of the named user or run at 100%, until it expires. */
 export interface TelemetryPolicyForce {
     uid?: string;
     runId?: string;
-    /** Epoch milliseconds. An override without an expiry is not accepted. */
     until: number;
 }
 
-/**
- * The sampling policy, as this package uses it.
- *
- * Statistics only — logs never pass through it. The server owns the document; what arrives is read
- * by {@link parseTelemetryPolicy}, which is the only way a policy gets built from outside the code.
- */
 export interface TelemetryPolicy {
     version: number;
-    /** How long a fetched policy may be reused at the next run's start. */
     ttlSec?: number;
-    /** `false` is the statistics kill switch. Logs are not affected. */
     enabled: boolean;
     defaults?: Partial<Record<TelemetryStream, number>>;
-    /** First match wins; no match falls through to `defaults`. */
     rules?: TelemetryPolicyRule[];
     force?: TelemetryPolicyForce[];
 }
 
-/**
- * The built-in policy: statistics off.
- *
- * A run that has never received a policy creates no statistics entries at all, so shipping the
- * client ahead of the server changes nothing on the wire. The server turns statistics on by serving
- * a policy; the client does not wait for a server release.
- */
 export const DEFAULT_TELEMETRY_POLICY: TelemetryPolicy = Object.freeze({ version: 0, enabled: false });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -121,11 +80,7 @@ const parseRule = (raw: unknown): TelemetryPolicyRule | undefined => {
 
     const match: Record<string, string> = {};
     for (const [key, value] of Object.entries(raw.match)) {
-        // A key this build does not know, or a value that is not a string, could only be read more
-        // broadly than the policy meant. Such a rule is skipped as a whole rather than half-applied.
         if (!(MATCH_KEYS as readonly string[]).includes(key) || typeof value !== 'string') return undefined;
-        // A minimum that is not a version could never be compared; the rule is skipped rather than
-        // read as "every version".
         if (key === 'minAppVersion' && !versionParts(value)) return undefined;
         match[key] = value;
     }
@@ -141,14 +96,6 @@ const parseForce = (raw: unknown): TelemetryPolicyForce | undefined => {
     return { ...(uid ? { uid } : {}), ...(runId ? { runId } : {}), until };
 };
 
-/**
- * Reads a policy document as the server serves it. Returns `undefined` when the document cannot be a
- * policy at all, so the caller falls back to the last stored one, then to the default.
- *
- * Within a valid document it is conservative item by item: a rate outside `0..1` is dropped, a rule
- * it cannot read never matches, and an override without a readable expiry is ignored. `enabled` must
- * be exactly `true` to turn anything on.
- */
 export const parseTelemetryPolicy = (raw: unknown): TelemetryPolicy | undefined => {
     if (!isRecord(raw)) return undefined;
     if (typeof raw.version !== 'number' || !Number.isInteger(raw.version) || raw.version < 0) return undefined;
@@ -177,7 +124,6 @@ export const parseTelemetryPolicy = (raw: unknown): TelemetryPolicy | undefined 
     return policy;
 };
 
-/** What a rate is resolved against: the record's stream and tag, and the run's context. */
 export interface TelemetryRateQuery {
     stream: TelemetryStream;
     tag: string;
@@ -191,7 +137,6 @@ export interface TelemetryRateQuery {
 
 export interface TelemetryRate {
     rate: number;
-    /** Raised to 100% by a debugging override. */
     forced: boolean;
 }
 
@@ -202,12 +147,6 @@ const matches = (match: TelemetryPolicyMatch, query: TelemetryRateQuery): boolea
             : query[key as keyof TelemetryRateQuery] === value
     );
 
-/**
- * The rate one record is kept at.
- *
- * Order: the kill switch, then a live override (100%), then the first rule that matches, then the
- * stream's default. A stream with no default is not collected — a policy has to say what it wants.
- */
 export const resolveTelemetryRate = (
     policy: TelemetryPolicy,
     query: TelemetryRateQuery,

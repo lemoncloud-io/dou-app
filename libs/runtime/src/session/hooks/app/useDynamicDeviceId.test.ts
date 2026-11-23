@@ -34,8 +34,6 @@ describe('useDynamicDeviceId — 소켓/푸시 공용 디바이스 id 단일 해
     });
 
     it('복합 DEVICE_ID(bare:firebaseId)에서는 콜론 앞의 순수 id를 파생한다', () => {
-        // Legacy shells (<= 0.15.x, 0.17.x) inject the composite form; the bare
-        // prefix is the only reinstall-stable part.
         window.CHATIC_APP_DEVICE_ID = 'bare-1:fid-1';
 
         const { result } = renderHook(() => useDynamicDeviceId());
@@ -109,8 +107,6 @@ describe('useDynamicDeviceId — 소켓/푸시 공용 디바이스 id 단일 해
         expect(result.current.firebaseInstallationId).toBeUndefined();
     });
 
-    // The connection controller resolves the id outside React, on every pass: the page's own id is
-    // fixed once, and a shell id injected later is picked up by the next pass.
     it('resolves outside React the same way, re-reading the injected ids on every call', () => {
         const sessionDeviceId = lazySessionDeviceId();
         expect(resolveDeviceIds(sessionDeviceId).deviceId).toBe('session-1');

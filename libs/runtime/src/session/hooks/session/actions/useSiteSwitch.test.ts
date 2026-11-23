@@ -9,7 +9,6 @@ jest.mock('../../mutationKeys', () => ({ SWITCH_SITE_MUTATION_KEY: ['session', '
 describe('useSiteSwitch — memo 안정성 (#10)', () => {
     it('mutation 객체가 매 렌더 새 참조여도 switchSite 콜백 참조는 유지된다', () => {
         const mutateAsync = jest.fn().mockResolvedValue(undefined);
-        // react-query hands back a FRESH mutation object every render; only mutateAsync is stable.
         (useMutation as jest.Mock).mockImplementation(() => ({ mutateAsync, isPending: false }));
 
         const { result, rerender } = renderHook(() => useSiteSwitch());

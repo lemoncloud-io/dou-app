@@ -2,26 +2,11 @@ import { toWireLogEntry } from '../serialization/wire';
 
 import type { LogEntry } from '../core/types';
 
-/**
- * Runs the catalog's §Forbidden/Duplicate rule's "don't carry this" list through a single
- * entry, checking that it doesn't survive into **the shape that goes out to the server**.
- *
- * Other masking suites look at the pieces (`redactText`, `isSensitiveField`). This one looks
- * at **the boundary** — even with every piece correct, one step of wiring out of place (message
- * not going through safeStringify was exactly this, in practice) and the value goes out as-is.
- * And since this list's source of truth is the vault catalog, a case here gets added whenever
- * an item is added there.
- *
- * **This suite does not stand in for the caller's own responsibility.** Masking only catches
- * shapes it can recognize. Passing here does not mean "safe to carry."
- */
 const mapped = (entry: Partial<LogEntry>) =>
     toWireLogEntry({ level: 'error', tag: 'TEST', message: '', timestamp: 1, ...entry } as LogEntry);
 
-/** The whole payload as one string — a leak is a leak wherever it sits, so negative assertions scan this. */
 const wire = (entry: Partial<LogEntry>) => JSON.stringify(mapped(entry));
 
-/** `data` is a string on the wire, so it ends up nested-quoted — positive assertions read it back. */
 const wireData = (entry: Partial<LogEntry>) => JSON.parse(mapped(entry).data ?? '{}');
 
 describe('카탈로그 금지 항목이 wire에 남지 않는다', () => {
@@ -77,7 +62,6 @@ describe('카탈로그 금지 항목이 wire에 남지 않는다', () => {
         const out = wire({ data: { offerToken: 'offer-abc-123', hasOfferToken: true } });
 
         expect(out).not.toContain('offer-abc-123');
-        // The presence flag is made to avoid carrying the value, so it must survive.
         expect(wireData({ data: { offerToken: 'offer-abc-123', hasOfferToken: true } }).hasOfferToken).toBe(true);
     });
 
@@ -86,7 +70,6 @@ describe('카탈로그 금지 항목이 wire에 남지 않는다', () => {
 
         expect(out).not.toContain('secret-invite');
         expect(out).not.toContain('nonce');
-        // Which parameter was present is diagnostic, so the name survives.
         expect(out).toContain('code=');
     });
 
@@ -101,10 +84,6 @@ describe('카탈로그 금지 항목이 wire에 남지 않는다', () => {
     });
 });
 
-/**
- * The opposite direction. If these fields were redacted, tracing itself would fall apart —
- * over-masking is quieter than under-masking, so it gets noticed later.
- */
 describe('추적 축은 그대로 남는다', () => {
     const traced = {
         runId: 'run-1',
@@ -140,12 +119,6 @@ describe('추적 축은 그대로 남는다', () => {
     });
 });
 
-/**
- * Masking leaves a token's fingerprint and part of a phone number or address. These cases hold that
- * line at the boundary: what is shown is the last four digits, a mail provider's domain and six hex
- * characters of a token's hash — never another digit, the local part, a personal domain or a token's
- * body.
- */
 describe('fingerprints and partial display leave nothing else behind', () => {
     const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW';
     const fcm = 'fMxZ1s9k:APA91bHqRs0dQxT7vWnLpYzB3cKmJ4eR5uG';
@@ -212,8 +185,6 @@ describe('fingerprints and partial display leave nothing else behind', () => {
         expect(out).not.toContain('483920');
     });
 
-    // Four hidden digits are ten thousand candidates: a hash of a number could be matched by trying
-    // them all, so numbers and addresses carry none.
     it('gives phone numbers and addresses no fingerprint', () => {
         const out = wire({
             message: 'mail jane@gmail.com, call 010-9876-5432',

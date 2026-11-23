@@ -1,15 +1,3 @@
-/**
- * SHA-256, synchronous and dependency-free — the one primitive the token fingerprints need.
- *
- * Hand-written rather than borrowed because neither platform offers it the way masking runs.
- * WebCrypto's `subtle` is asynchronous, and masking happens inside `JSON.stringify`'s replacer and
- * the wire mapper, which cannot wait. Hermes has no `crypto` at all. A library would be the first
- * dependency of a core that has none, for under a hundred lines that the FIPS 180 examples and a sweep
- * against Node's own `crypto` pin completely (`sha256.spec.ts`).
- *
- * Speed is not a concern at this size: it runs only on a value a rule has already matched.
- */
-
 const K = new Uint32Array([
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98,
     0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786,
@@ -27,7 +15,6 @@ const BLOCK_BYTES = 64;
 
 const rotr = (x: number, n: number): number => (x >>> n) | (x << (32 - n));
 
-/** UTF-8 bytes of `text`. `TextEncoder` is not guaranteed on every Hermes this app ships to. */
 export const utf8Bytes = (text: string): Uint8Array => {
     const out: number[] = [];
     for (let i = 0; i < text.length; i += 1) {
@@ -55,7 +42,6 @@ export const utf8Bytes = (text: string): Uint8Array => {
 };
 
 export const sha256 = (message: Uint8Array): Uint8Array => {
-    // Message, the 0x80 marker, zero fill, and the 64-bit big-endian bit length, to whole blocks.
     const padded = new Uint8Array(Math.ceil((message.length + 9) / BLOCK_BYTES) * BLOCK_BYTES);
     padded.set(message);
     padded[message.length] = 0x80;
@@ -64,7 +50,6 @@ export const sha256 = (message: Uint8Array): Uint8Array => {
     view.setUint32(padded.length - 8, Math.floor(bits / 0x100000000));
     view.setUint32(padded.length - 4, bits >>> 0);
 
-    // A Uint32Array wraps every assignment modulo 2^32, which is the arithmetic SHA-256 is defined in.
     const h = Uint32Array.from(H0);
     const w = new Uint32Array(64);
     for (let offset = 0; offset < padded.length; offset += BLOCK_BYTES) {

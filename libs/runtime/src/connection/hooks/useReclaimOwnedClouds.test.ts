@@ -6,8 +6,6 @@ import { fakeRuntimeConnection } from '@chatic/runtime-core/testing/connection';
 import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 import { useReclaimOwnedClouds } from './useReclaimOwnedClouds';
 
-// When to reclaim — on a list change and on each cloud token commit — is the engine's
-// (`setOwnedClouds`); what is left here is handing it the lists.
 const setOwnedClouds = jest.fn();
 
 beforeEach(() => {

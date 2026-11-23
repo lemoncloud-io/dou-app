@@ -7,9 +7,7 @@ import { getCloudRepositories } from '@chatic/runtime-core';
 import { holdCloud } from '@chatic/runtime-client/data/dataCommands';
 import { useSendImages } from './useSendImages';
 
-// Its own file, so the tracer's per-minute cap starts empty: the main suite's sends would use it up.
 jest.mock('@chatic/runtime-core/data/cloudChat', () => ({ getCloudRepositories: jest.fn() }));
-// The hook reads a cloud's graph and holds its socket through the engine; the graph is the same mock either way.
 jest.mock('@chatic/runtime-client/data/dataCommands', () => ({
     getCloudRepositories: (cid: string) =>
         jest.requireMock('@chatic/runtime-core/data/cloudChat').getCloudRepositories(cid),
@@ -37,7 +35,6 @@ const backend = { start: jest.fn(), stop: jest.fn() };
 const sent: SendImageResult = { status: 'sent', uploadIds: ['up-1'], failedIndexes: [] };
 const failed: SendImageResult = { status: 'failed', reason: 'socket', error: new Error('x') };
 
-/** Runs the ports the way the real sequence does: start, the transfer, complete, send. */
 const throughPorts =
     (result: SendImageResult) => async (_files: unknown, ports: SendImagePorts<ChatAttachmentSource>) => {
         await ports.start({ channelId: 'ch-1', uploads: [] } as never);
@@ -104,7 +101,6 @@ describe('useSendImages — chat_send_media', () => {
     });
 
     it("records an error when the cloud's graph could not be read for the upload, and lets the hold go", async () => {
-        // The read that fails is the one made under the hold — not the row's write or the attach-time sweep.
         let holding = false;
         let failed = false;
         const release = jest.fn(() => {

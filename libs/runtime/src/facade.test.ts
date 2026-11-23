@@ -3,11 +3,6 @@ import { join, relative, sep } from 'path';
 
 import * as ts from 'typescript';
 
-/**
- * `@chatic/runtime` is a facade: hooks, components and re-exports. The logic they wrap is in
- * `@chatic/runtime-client` (React-free) or the core packages, where it is tested without React and
- * where a second UI could reach it. These checks hold the package to that, by reading its source.
- */
 const SRC = __dirname;
 
 const sourceFiles = (dir: string): string[] =>
@@ -18,7 +13,6 @@ const sourceFiles = (dir: string): string[] =>
         return [relative(SRC, path).split(sep).join('/')];
     });
 
-/** The barrels the facade is assembled from: the entry, the group list, and each group's catalog. */
 const BARRELS = [
     'index.ts',
     'facade.ts',
@@ -33,13 +27,8 @@ const BARRELS = [
     'report/index.ts',
 ];
 
-/**
- * Files with logic of their own that predate this rule. Each is to move into runtime-client or below,
- * and leaves this list when it does; nothing is added to it.
- */
 const LOGIC_STILL_TO_MOVE = ['report/reportIssue.ts', 'session/pageDevice.ts', 'utils/isNativeApp.ts'];
 
-/** Top-level statements that are not a re-export (`export … from '…'`), as `file: text`. */
 const nonReexports = (file: string): string[] => {
     const source = ts.createSourceFile(file, readFileSync(join(SRC, file), 'utf8'), ts.ScriptTarget.Latest, true);
     return source.statements
@@ -61,13 +50,10 @@ describe('@chatic/runtime holds no logic of its own', () => {
     it('keeps every other source file a hook or a component', () => {
         const others = sourceFiles(SRC)
             .filter(file => !BARRELS.includes(file))
-            // A test's fake, not the facade: it is loaded only by tests (`@chatic/runtime/testing`).
             .filter(file => !file.startsWith('testing/'))
             .filter(file => !file.split('/').includes('hooks') && !file.endsWith('.tsx'))
             .sort();
 
-        // Shrinks only: a file that moves out leaves the list, and a new one with logic belongs in
-        // runtime-client instead.
         expect(others).toEqual([...LOGIC_STILL_TO_MOVE].sort());
     });
 });

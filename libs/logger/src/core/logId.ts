@@ -1,16 +1,3 @@
-/**
- * Globally unique id for a single log entry — the server's dedup key. The id
- * becomes the stored document id, so a resend upserts the same document
- * instead of piling up duplicates. Issued at dispatch (not at flush) so the
- * value stays stable across retries of the same entry.
- *
- * Deliberately dependency-free: this package declares `dependencies: {}` and
- * imports no external module (see design principle 1), so the workspace's
- * `uuid` package is not pulled in here. The randomness sources are probed
- * defensively — React Native Hermes and older WebViews ship neither
- * `randomUUID` nor `getRandomValues` reliably.
- */
-
 interface CryptoLike {
     randomUUID?: () => string;
     getRandomValues?: (array: Uint8Array) => Uint8Array;
@@ -20,10 +7,9 @@ const BYTE_TO_HEX = Array.from({ length: 256 }, (_, i) => (i + 0x100).toString(1
 
 const readCrypto = (): CryptoLike | undefined => (globalThis as { crypto?: CryptoLike }).crypto;
 
-/** Formats 16 random bytes as an RFC 4122 v4 UUID, pinning version/variant bits. */
 const formatUuidV4 = (bytes: Uint8Array): string => {
-    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
-    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10xx
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
     const h = BYTE_TO_HEX;
 
     return (

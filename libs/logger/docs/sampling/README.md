@@ -94,7 +94,8 @@ the default after a failed read would switch statistics off and empty every queu
 - **With statistics switched off** (`enabled: false`), `selectForUpload` keeps nothing, so whatever statistics are already queued are acknowledged and gone as they are drawn.
 
 A record kept only because of an override carries the attribute `forced: '1'`, so it can be told
-apart from a sampled run.
+apart from a sampled run. It is written first among the attributes because the wire keeps only the
+first 16, and losing it would make a forced record read as a sampled one.
 
 ## The catalogue
 
