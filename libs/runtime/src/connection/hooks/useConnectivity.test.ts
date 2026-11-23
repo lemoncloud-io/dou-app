@@ -21,10 +21,7 @@ const socket = (over: Partial<ReturnType<typeof useRuntimeSocketState>> = {}) =>
     ...over,
 });
 
-// The truth table itself is runtime-client's (`deriveConnectivity`); this is the hook reading the
-// engine's online signal and the socket hooks into it.
 describe('useConnectivity', () => {
-    // The online signal is the engine's — the platform's where the sockets run — read off its snapshot.
     const connection = fakeRuntimeConnection();
 
     beforeEach(() => {

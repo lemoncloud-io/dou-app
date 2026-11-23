@@ -1,12 +1,3 @@
-// The domain's names an app's screens use, handed on unchanged from the packages that own them, so the
-// call part of an app imports `@chatic/runtime` and nothing below it.
-//
-// Re-exports only, each by name: what the screens import is the list, and a name added to
-// `@chatic/data` does not reach apps until it is written here. Types are most of it — the shapes the
-// repositories return — and the values are constants and pure helpers over those shapes. Nothing here
-// reaches the runtime; anything that does is in a `runtime.<group>`.
-
-// --- the data layer's shapes ------------------------------------------------------------------------
 export type {
     AccountLinkMode,
     ChatAttachmentFilter,
@@ -61,7 +52,6 @@ export type {
     WriteReceipt,
 } from '@chatic/data';
 
-// --- the data layer's constants and pure helpers ----------------------------------------------------
 export {
     ACCOUNT_CHANNEL_SID,
     CHAT_ATTACHMENT_ACCEPT,
@@ -114,10 +104,8 @@ export {
     uploadSlotKind,
 } from '@chatic/data';
 
-// --- the settings' shapes, for what `runtime.settings` reads and writes -------------------------------
 export type { ConfigChangeListener, ConfigSnapshot, SetOptions, SetResult, StorageLike } from '@chatic/config';
 
-// --- the host ports' shapes, for what `runtime.<port>` holds -----------------------------------------
 export type {
     AlternateAppIcon,
     AppAttachmentPicker,

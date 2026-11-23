@@ -9,8 +9,6 @@ import { useRuntimeSocketState } from './useRuntimeSocketState';
 import { useSlotVerified } from './useSlotVerified';
 import { useVerifiedClouds } from './useVerifiedClouds';
 
-// Which slots are verified, and keeping the list the same array until the set changes, is the engine's
-// (runtime-core's runtimeConnection); these read its snapshot for React.
 const connection = fakeRuntimeConnection();
 
 beforeEach(() => {

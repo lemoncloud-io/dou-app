@@ -24,8 +24,6 @@ describe('logAreaOf', () => {
 
 describe('LOG_AREAS', () => {
     it('holds every legacy tag, lower-cased, as an area', () => {
-        // The legacy tags and the area list are the same catalogue read two ways, so every old tag
-        // must land in a known area — otherwise an area query would lose it at the switch-over.
         for (const tag of KNOWN_LOG_TAGS) expect(isKnownLogArea(logAreaOf(tag) as string)).toBe(true);
     });
 

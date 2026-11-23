@@ -15,7 +15,6 @@ const stat = (): LogEntry => {
     return { id: `stat-${seq}`, level: 'info', tag: 'perf.boot', message: 'boot', kind: 'trace', timestamp: seq };
 };
 
-// A timer that never fires on its own — every cycle here is a `flushNow`, awaited to completion.
 const idleTimer = { schedule: (() => 0) as never, cancel: (() => undefined) as never };
 
 const build = (selectTelemetry?: (entries: LogEntry[]) => LogEntry[], outcome: UploadOutcome = 'ok') => {

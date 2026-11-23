@@ -21,7 +21,6 @@ afterEach(() => {
 });
 
 describe('foreignDropAggregator — 외래 클라우드 드롭 집계', () => {
-    // A spot where dozens can arrive at once, riding a 2-second poll per target — the catalog forbids logging them individually.
     it('창이 닫힐 때까지 아무것도 남기지 않는다', () => {
         drop();
         drop();
@@ -76,7 +75,6 @@ describe('foreignDropAggregator — 외래 클라우드 드롭 집계', () => {
         expect(warn.mock.calls[0][2].count).toBe(1);
     });
 
-    // With no drops there should be no timer at all — no cost left running on an idle device.
     it('드롭이 없으면 시간이 흘러도 아무것도 남기지 않는다', () => {
         jest.advanceTimersByTime(60_000);
 

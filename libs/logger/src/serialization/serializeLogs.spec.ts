@@ -52,28 +52,21 @@ describe('serializeLogs — 평탄화 + 트렁케이션', () => {
     it('필드 길이를 PER_FIELD_CHAR_LIMIT로 자른다', () => {
         const long = 'x'.repeat(PER_FIELD_CHAR_LIMIT + 500);
         const [out] = serializeLogs([entry({ message: long })]);
-        // Every wire field is optional — `compact` drops the keys that were never set — so the
-        // presence of `message` is its own assertion before its length can be measured.
         expect(out.message).toBeDefined();
-        expect(out.message?.length).toBeLessThanOrEqual(PER_FIELD_CHAR_LIMIT + 20); // + truncation suffix
+        expect(out.message?.length).toBeLessThanOrEqual(PER_FIELD_CHAR_LIMIT + 20);
         expect(out.message).toContain('…');
     });
 
     it('총 예산을 넘기면 오래된 항목을 버리고 최신 항목을 남긴다(시간순 유지)', () => {
-        // Each message is truncated to PER_FIELD_CHAR_LIMIT, so ~budget/limit entries fit.
         const maxed = 'y'.repeat(PER_FIELD_CHAR_LIMIT);
         const fitCount = Math.floor(TOTAL_CHAR_BUDGET / PER_FIELD_CHAR_LIMIT);
         const total = fitCount + 5;
-        // Oldest→newest input; timestamp doubles as an identity marker.
         const entries = Array.from({ length: total }, (_, i) => entry({ message: maxed, timestamp: i }));
         const out = serializeLogs(entries);
 
         expect(out).toHaveLength(fitCount);
-        // Newest kept, oldest dropped, and output stays chronological.
         expect(out[out.length - 1].timestamp).toBe(total - 1);
         expect(out[0].timestamp).toBe(total - fitCount);
-        // `timestamp` is optional on the wire shape; the two assertions above already fail if one
-        // went missing, so the sort comparator can work on a narrowed copy.
         const timestamps = out.map(l => l.timestamp ?? -1);
         expect(timestamps).toEqual([...timestamps].sort((a, b) => a - b));
     });
@@ -83,13 +76,6 @@ describe('serializeLogs — 평탄화 + 트렁케이션', () => {
     });
 });
 
-/**
- * This got missed for lack of a suite like this one. A stored entry is read back at boot and
- * goes straight to the uploader, so whatever drops out here drops out on the server too. It used
- * to keep only level/tag/message/timestamp, so **every entry that outlived its process** arrived
- * without a user, run, version, or screen — the entries from a dead run, exactly the ones most
- * worth tracing.
- */
 describe('발생 시점 컨텍스트와 id는 저장을 건너 살아남는다', () => {
     const full = entry({
         id: 'entry-1',
@@ -123,9 +109,6 @@ describe('발생 시점 컨텍스트와 id는 저장을 건너 살아남는다',
         });
     });
 
-    // id is both the server's dedup key and the key the host acks. Without it the upload still
-    // happens but nothing removes the entry from the queue, so it goes up again every cycle, and
-    // the server has no key to dedup on, so it stores a new document every time.
     it('id와 source를 보존한다', () => {
         const [out] = serializeLogs([full]);
 
@@ -136,14 +119,10 @@ describe('발생 시점 컨텍스트와 id는 저장을 건너 살아남는다',
     it('없는 필드는 키 자체를 만들지 않는다 — 저장된 레코드가 원본보다 넓어지면 안 된다', () => {
         const [out] = serializeLogs([entry()]);
 
-        // `area` is the one key every record gains: the wire derives it from the tag.
         expect(Object.keys(out).sort()).toEqual(['area', 'level', 'message', 'tag', 'timestamp']);
     });
 });
 
-// Reports go to a shared Slack channel, and since ADR-0097 the same entries are persisted to
-// sessionStorage/MMKV. Every consumer of serializeLogs is one of those two paths (report,
-// persistence), so masking applied here once covers the whole pipeline.
 describe('민감정보 마스킹', () => {
     it('secret으로 보이는 키의 값을 가린다', () => {
         const out = safeStringify({ accessToken: 'a.b.c', password: 'pw', authorization: 'Bearer x' });
@@ -166,7 +145,6 @@ describe('민감정보 마스킹', () => {
 
         expect(out).not.toContain('secret-1');
         expect(out).not.toContain('s2');
-        // Non-sensitive values are left intact so debugging value isn't lost.
         expect(out).toContain('kim');
     });
 

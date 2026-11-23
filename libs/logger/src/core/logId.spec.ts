@@ -21,7 +21,6 @@ describe('createLogId', () => {
     });
 
     it('randomUUID가 던지면 getRandomValues로 내려가 v4 형식을 만든다', () => {
-        // Some WebViews expose randomUUID but reject it outside a secure context.
         stubCrypto({
             randomUUID: () => {
                 throw new Error('insecure context');

@@ -113,7 +113,6 @@ describe('maskSensitiveValue', () => {
         it('keeps a placeholder only of the kind the name prints', () => {
             const email = '[EMAIL:@gmail.com]';
             expect(maskSensitiveValue('password', email)).toBe('[REDACTED]');
-            // Judged afresh instead, as any value under a token name is — never kept as it came.
             expect(maskSensitiveValue('deviceToken', email)).not.toBe(email);
             expect(maskSensitiveValue('deviceToken', '[TOKEN#abcdef]')).toBe('[TOKEN#abcdef]');
         });
@@ -157,7 +156,6 @@ describe('redactSensitive in detail', () => {
 
 describe('truncate around a detailed placeholder', () => {
     it('never cuts through one, so a strict reader cannot get its pieces', () => {
-        // Lands the 2,048-character cut inside the placeholder, after `[EMAIL:@gmail.co`.
         const prefix = 'x'.repeat(MAX_BODY_BYTES - '[EMAIL:@gmail.co'.length - 1);
         const cut = truncate(`${prefix}[EMAIL:@gmail.com] tail`) as string;
 

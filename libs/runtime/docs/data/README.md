@@ -44,6 +44,14 @@ handed to the engine ([image-send.md](./image-send.md)).
 | `usePairedCloudNameSync()`         | Reads a paired cloud's name once per entry. Browser and shells alike                                                                        |
 | `useRegisterDeviceTokenMutation()` | Push registration by hand, for apps/web's push debug screen — sold through the `push` group; the runtime's own registration does not use it |
 
+Both name hooks read the name from the relay, so each waits for the relay slot to be verified as well as the
+cloud's own: the active slot being verified says nothing about the relay, and the run is spent once it starts,
+so starting on the cloud's socket alone would leave the name unsynced for the whole visit. A failed paired-cloud
+read waits for the next entry into the cloud instead of retrying in a loop. The invited-cloud hook runs only in
+the phone app, decided by the injected `ReactNativeWebView` handle (can the page reach the shell?) rather than a
+user agent, so a browser tab and the desktop shell's message handler leave the name alone; `isNativeApp()` asks
+the same question.
+
 `cloudsKeys` is the only query key left here, because the runtime is one of the things that
 invalidates it — `useLogin` does, right after a login — while the apps invalidate it after their own
 cloud-changing actions. The other REST hooks went down to the app layer, where their only

@@ -35,7 +35,6 @@ describe('fakeRuntime', () => {
         expect(runtime.session.useIsPairedSession()).toBe(false);
         paired = true;
         expect(runtime.session.useIsPairedSession()).toBe(true);
-        // The rest of the group stays real either way.
         expect(runtime.session.useGlobalSession).toBe(facade.session.useGlobalSession);
     });
 

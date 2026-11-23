@@ -12,7 +12,6 @@ const on = (extra: Partial<TelemetryPolicy> = {}): TelemetryPolicy => ({
     ...extra,
 });
 
-/** A run id that falls below / above 0.5 for the perf stream. */
 const findRun = (below: boolean): string => {
     for (let i = 0; ; i += 1) {
         const run = `run-${i}`;

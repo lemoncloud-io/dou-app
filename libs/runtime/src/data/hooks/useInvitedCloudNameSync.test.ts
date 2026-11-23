@@ -39,8 +39,6 @@ describe('useInvitedCloudNameSync', () => {
         expect(syncInvitedCloudName).toHaveBeenCalledWith('cloud-b');
     });
 
-    // The name is read from the relay, and the run is spent once it starts: starting it while only
-    // the cloud's socket is up would leave the name unsynced for the whole visit.
     it('waits for the relay, then syncs once it verifies', () => {
         isRelayVerified = false;
         const { rerender } = renderHook(() => useInvitedCloudNameSync());
@@ -61,8 +59,6 @@ describe('useInvitedCloudNameSync', () => {
         expect(syncInvitedCloudName).not.toHaveBeenCalled();
     });
 
-    // The phone app's channel only, as `isNativeApp()` answered: a browser tab and the desktop shell's
-    // message handler leave the name alone.
     it.each([null, 'message-handler', 'webkit-message-handler'])('does nothing with bridge %p', bridge => {
         mockBridge = bridge;
 

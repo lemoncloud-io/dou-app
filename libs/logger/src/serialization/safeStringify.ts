@@ -4,52 +4,18 @@ import { redactText } from '../redaction/valuePatterns';
 
 import type { RedactOptions } from '../redaction/fingerprint';
 
-/**
- * Stringify an arbitrary log field defensively: circular references become
- * `[Circular]`, Errors expand to name/message/stack, and anything that still
- * throws falls back to `String()`. Returns undefined for nullish input so the
- * field can be omitted entirely.
- *
- * Secret-bearing fields are masked by name (`SENSITIVE_KEYS`), the same list
- * the transport's network logging already applies to request bodies. String
- * values that are themselves serialized JSON are masked *inside* too: axios
- * stringifies a request body before the call fails, so the failed request's
- * `config.data` reaches here as one opaque string and key-based masking alone
- * would see only the key `data` and let its contents through. ADR-0017
- * shipped v1 without this on the grounds that a report is read by the team;
- * ADR-0097 widened where these entries end up — a shared Slack channel, and now
- * sessionStorage/MMKV on the device — so the exemption no longer holds. Masking
- * happens inside the replacer so it reaches nested objects and array elements.
- *
- * `options.strict` is for a sink outside the log pipeline: bare placeholders
- * only, never a fingerprint or a partial display (`redaction/fingerprint.ts`).
- *
- * Every string is also masked by shape (`redactText`) — including the bare
- * string this is handed directly, which used to be returned untouched. A name
- * is not always available: `logger.warn(tag, msg, someServerText)` arrives here
- * as a lone string with no key to judge, and an error's `message` and `stack`
- * are just text. Those are exactly where a value that should never have been
- * logged tends to sit.
- */
 export const safeStringify = (value: unknown, options?: RedactOptions): string | undefined => {
     if (value === undefined || value === null) return undefined;
     if (typeof value === 'string') return redactText(value, options);
     try {
         const seen = new WeakSet<object>();
         return JSON.stringify(value, (key, val) => {
-            // Before the Error branch: a secret held under a sensitive key is
-            // masked whatever its type. The value is passed too, so a boolean
-            // presence flag (`hasToken`) is kept rather than blanked.
             if (key && isSensitiveField(key, val, options)) return maskSensitiveValue(key, val, options);
-            // Parsed JSON is acyclic, so this cannot reintroduce the cycle the
-            // WeakSet below guards against.
             if (typeof val === 'string') return redactMaybeJson(val, options);
             if (val instanceof Error) {
                 return {
                     name: val.name,
                     message: redactText(val.message, options),
-                    // Left undefined when absent rather than coerced to '' — the field is simply
-                    // omitted from the output, which is what it did before masking was added.
                     stack: val.stack === undefined ? undefined : redactText(val.stack, options),
                 };
             }

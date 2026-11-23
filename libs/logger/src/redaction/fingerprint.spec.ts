@@ -26,7 +26,6 @@ describe('placeholders', () => {
         const token = 'eyJhbGciOiJIUzI1NiJ9.e30.sig';
         expect(tokenPlaceholder('JWT', token, true)).toBe(`[JWT#${fingerprint(token)}]`);
         expect(tokenPlaceholder('TOKEN', token, false)).toBe('[TOKEN]');
-        // Too short to fingerprint: an unkeyed hash of a short value can be matched by guessing.
         expect(tokenPlaceholder('TOKEN', '12345678', true)).toBe('[TOKEN]');
     });
 
@@ -39,7 +38,6 @@ describe('placeholders', () => {
     it('show the domain only for a listed mail provider, matched case-insensitively and exactly', () => {
         expect(emailPlaceholder('jane@NAVER.com', true)).toBe('[EMAIL:@naver.com]');
         expect(emailPlaceholder('jane@yahoo.co.kr', true)).toBe('[EMAIL:@yahoo.co.kr]');
-        // A personal or company domain, and a subdomain of a listed one, show nothing.
         expect(emailPlaceholder('jane@jane-doe.com', true)).toBe('[EMAIL]');
         expect(emailPlaceholder('jane@mail.naver.com', true)).toBe('[EMAIL]');
         expect(emailPlaceholder('jane@gmail.com', false)).toBe('[EMAIL]');
