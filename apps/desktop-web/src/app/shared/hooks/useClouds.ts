@@ -8,46 +8,18 @@ import { useCloudSessionCatalog } from './useCloudCatalog';
 
 import { useJoinedCloudsStore } from '../stores';
 
-/** Minimal cloud shape the rail needs (id guaranteed present). */
 export interface RailCloud {
     id: string;
     name?: string;
     status?: string;
-    /** 'home' = Default/relay, 'owned' = broker-delegable, 'invited' = invite-joined. */
     kind: 'home' | 'owned' | 'invited';
 }
 
-/**
- * A cloud its subscription no longer keeps open: the membership lapsed or was blocked, and the
- * server suspends or expires the cloud. The only way back is a subscription, which is bought in
- * the mobile app. A suspended cloud is on hold but can still be entered (see `isExpiredCloud`);
- * what it cannot do is take new places.
- */
 export const isLapsedCloud = (cloud: Pick<RailCloud, 'status'>): boolean =>
     cloud.status === 'suspended' || cloud.status === 'expired';
 
-/**
- * A cloud the server has released. Switching into one cannot succeed, so the rail does not try.
- * A suspended cloud is not this: the server accepts a switch into it, so the pick goes through.
- */
 export const isExpiredCloud = (cloud: Pick<RailCloud, 'status'>): boolean => cloud.status === 'expired';
 
-/**
- * Whether a place can be made from where the session is. Three things have to hold.
- *
- * The account's role has to allow it: a guest may not, and neither may a session that is not
- * active in a cloud. Both are read off the session (`useRuntimeProfile`), which reports the role of
- * the cloud user while a cloud is connected.
- *
- * The account has to be one that manages places (`canManage`, from `readPlaceManageAccess`). The
- * mobile app has no such condition: there every owner makes places.
- *
- * And the cloud has to be the account's own: not Home, which has no places to add to, and not a
- * cloud joined by invite. The request goes over the active cloud's socket, so it has to be the
- * open one, and a lapsed cloud cannot be opened at all.
- *
- * This only decides whether the entry is shown. The server has the final say.
- */
 export const canCreatePlace = (
     clouds: readonly RailCloud[],
     activeCloudId: string | null,
@@ -58,31 +30,14 @@ export const canCreatePlace = (
     return active?.kind === 'owned' && !isLapsedCloud(active);
 };
 
-/**
- * Cloud list + currently-active cloud id for the cloud rail. The active id is derived from the
- * global session (`cloud.cloudId`); when the relay catalog has settled empty it falls back to
- * 'default' so the synthesized Home cloud highlights in relay mode.
- *
- * Invited clouds are absent from the relay catalog by design (there is no server-side list for
- * them), so their durable record is the local `invitecloud` cache row written by the invite-accept
- * flow — the same row apps/web reads in `useInvitedClouds`. The joined-clouds store is only a
- * fast path for a just-joined cloud (and the sole carrier of its name); it lives in this profile's
- * localStorage, so reading it alone hid every invited cloud joined on another profile — including
- * the one the session was inside.
- */
 export const useClouds = () => {
     const { t } = useTranslation();
     const { clouds: rawClouds, isFetchingClouds, isCloudsError, refetchClouds } = useCloudSessionCatalog();
     const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
     const allJoinedClouds = useJoinedCloudsStore(s => s.joinedClouds);
     const session = runtime.session.useGlobalSession();
-    // The cloud cache's invited rows and the joined-clouds store are device-wide and outlive a sign-out
-    // (the device's guest keeps its grants), so they hold other accounts' clouds too. Only the signed-in
-    // account's are used: a tile for another account's cloud can only 403 on switch.
     const acceptorId = runtime.data.getAcceptorId();
     const [allCachedClouds, setCachedClouds] = useState<DomainCloud[]>([]);
-    // Fall back to 'default' so the synthesized Home cloud highlights in relay mode —
-    // but only once the fetch settled, to avoid briefly highlighting it then un-highlighting.
     const activeCloudId = session.cloud.cloudId || (!isFetchingClouds && rawClouds.length === 0 ? 'default' : null);
 
     useEffect(() => cloudRepository.observeList(result => setCachedClouds(result?.list ?? [])), [cloudRepository]);
@@ -101,8 +56,6 @@ export const useClouds = () => {
 
     const clouds = useMemo<RailCloud[]>(() => {
         const byId = new Map<string, RailCloud>();
-        // The joined-clouds store is the only source carrying a just-joined cloud's name — the
-        // cache row is written without one — so every entry falls back to it for the name.
         const joinedName = (id: string) => joinedClouds[id]?.name;
         const invitedTile = (id: string, name?: string): RailCloud => ({
             id,
@@ -111,10 +64,6 @@ export const useClouds = () => {
             kind: 'invited',
         });
 
-        // An owned tile's name comes from the relay catalog, and that list can still show the old
-        // name for a moment after a rename. The rename writes the new one into the local cloud cache
-        // first (and that row survives a reload), so a cached name wins over the catalog's. Without
-        // a cached name the catalog name stands.
         const cachedName = (id: string) => cachedClouds.find(cached => cached.id === id)?.name || undefined;
 
         for (const c of rawClouds) {
@@ -123,34 +72,21 @@ export const useClouds = () => {
                 byId.set(c.id, { id: c.id, name, status: c.status as string | undefined, kind: 'owned' });
             }
         }
-        // Invited clouds, restored from their durable cache row. Owned entries win — the same cloud
-        // can be cached as invited and later show up owned once signed in as its owner.
         for (const c of cachedClouds) {
             if (c.cloudType === 'invited' && c.id && c.id !== 'default' && !byId.has(c.id)) {
                 byId.set(c.id, invitedTile(c.id, c.name));
             }
         }
-        // A cloud joined via invite can be in neither of the above yet: the broker list is
-        // eventually consistent and the cache row lands moments later. Show it right away.
         for (const j of Object.values(joinedClouds)) {
             if (j.id !== 'default' && !byId.has(j.id)) byId.set(j.id, invitedTile(j.id, j.name));
         }
-        // The cloud the session is inside always gets a tile, even when no source lists it — its
-        // channels are on screen, so a rail without it reads as "my cloud disappeared" and leaves
-        // no tile for the active highlight to land on.
         if (activeCloudId && activeCloudId !== 'default' && !byId.has(activeCloudId)) {
             byId.set(activeCloudId, invitedTile(activeCloudId));
         }
-        // The Default Cloud (Home) is always the first rail entry — it's the Guest
-        // Session's Self Channel and the return path from any joined cloud. Its name is
-        // the UI's, so it follows the language; a literal 'Home' sat in the Korean rail.
         const home: RailCloud = { id: 'default', name: t('cloud.home'), status: 'active', kind: 'home' };
         return [home, ...byId.values()];
     }, [rawClouds, cachedClouds, joinedClouds, activeCloudId, t]);
 
-    // Owned clouds that are also cached as invited — drawn as owned above, and handed to the owned-cloud
-    // reclaim: a guest on this device may have entered one before the account that owns it signed in,
-    // and the token it left behind no longer says so.
     const ownedAlsoInvitedIds = useMemo(() => {
         const ownedIds = new Set(rawClouds.map(c => c.id).filter((id): id is string => !!id && id !== 'default'));
         return cachedClouds

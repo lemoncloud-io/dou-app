@@ -7,8 +7,6 @@ const store = () => useUpdateStore.getState();
 describe('useUpdateStore', () => {
     beforeEach(() => useUpdateStore.setState({ status: 'idle', version: undefined, percent: 0, dismissed: false }));
 
-    // The shell re-checks the feed every 30 minutes and on focus, so the same offer arrives
-    // again and again. "Later" has to hold for it.
     it('keeps "Later" when the same version is offered again', () => {
         store().set({ status: 'available', version: '0.0.15' });
         store().dismiss();

@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import { DocumentViewer, type DocumentViewerPages } from './DocumentViewer';
 
-// jsdom lays nothing out; the column measures the scroll area's width to size the pages.
 const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
 beforeAll(() => {
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 390 });
@@ -64,7 +63,6 @@ describe('DocumentViewer', () => {
 
         const sheets = screen.getByRole('dialog').querySelectorAll('[data-page]');
         expect(sheets).toHaveLength(3);
-        // 390 wide less 16px each side.
         expect((sheets[0] as HTMLElement).style.width).toBe('358px');
         expect(pages.renderPage.mock.calls.map(([page, , width]) => [page, width])).toEqual([
             [1, 358],

@@ -11,15 +11,6 @@ import { usePlaces } from './usePlaces';
 
 const NO_FILED_PLACES: ReadonlyMap<string, readonly string[]> = new Map();
 
-/**
- * A cloud's notification level: the place level (see `usePlaceNotifyApply`) applied to every place
- * of the cloud, places with no channel yet included. The place the session is in is written at
- * once, every other place when the session enters it. Only the
- * active cloud can be set: its channels are what the session can list, and another cloud's would
- * need that cloud's session, so `isActive` is false there and the caller offers a switch instead.
- *
- * `mode` is the level every place of the cloud shares, else null.
- */
 export const useCloudNotify = (cloudId: string | undefined) => {
     const { t } = useTranslation();
     const { channel: channelRepository } = runtime.data.useRuntimeRepositories();

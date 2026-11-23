@@ -41,17 +41,14 @@ describe('hasUnreadMentionIn', () => {
         expect(hasUnreadMentionIn(inbox(item({ channelId: 'C2' })), C1, 0)).toBe(false);
     });
 
-    // Channel ids are numbered per place, and the inbox holds every place's mentions.
     it('does not count a mention from the channel of the same id in another place', () => {
         expect(hasUnreadMentionIn(inbox(item({ placeId: 'place-2' })), C1, 0)).toBe(false);
     });
 
-    // Every cloud numbers its places and channels from the same start.
     it('does not count a mention from the same channel and place ids in another cloud', () => {
         expect(hasUnreadMentionIn(inbox(item({ cloudId: 'cloud-b' })), C1, 0)).toBe(false);
     });
 
-    // Without a number there is no telling whether I have read past it.
     it('does not count a mention that has no number', () => {
         expect(hasUnreadMentionIn(inbox(item({ chatNo: undefined })), C1, 0)).toBe(false);
     });
@@ -113,7 +110,6 @@ describe('markChannelRead', () => {
     });
 });
 
-// The inbox also holds 1:1 messages, replies and reactions; the mention-only readers must not see them.
 describe('mention-only readers', () => {
     const others = inbox(
         item({ id: 'dm', kind: 'dm' }),
@@ -127,7 +123,6 @@ describe('mention-only readers', () => {
 });
 
 describe('inboxItemId', () => {
-    // Message ids are the cloud's own; the second cloud's message would otherwise read as captured.
     it('keys the same message id apart in two clouds', () => {
         expect(inboxItemId('cloud-a', 'm1')).not.toBe(inboxItemId('cloud-b', 'm1'));
     });
@@ -147,7 +142,6 @@ describe('add', () => {
 });
 
 describe('keepCloudItems', () => {
-    // A v0 item cannot say which cloud its place id belongs to.
     it('drops the items that name no cloud and keeps the rest', () => {
         const kept = item({ id: 'a:1' });
         const { cloudId: _dropped, ...legacy } = item({ id: 'old' });
@@ -159,7 +153,6 @@ describe('keepCloudItems', () => {
         expect(keepCloudItems({})).toEqual({ items: {} });
     });
 
-    // The function alone passes with the store's version or migrate unwired; this reads a stored v0 inbox.
     it('runs on a stored v0 inbox and writes it back as v1', async () => {
         const kept = item({ id: 'a:1' });
         const { cloudId: _dropped, ...legacy } = item({ id: 'old' });

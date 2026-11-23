@@ -111,7 +111,6 @@ describe('VoiceDetailDialog', () => {
         const keyDown = fireEvent.keyDown(rate, { key: ' ' });
         expect(keyDown).toBe(false);
         expect(play).toHaveBeenCalledTimes(1);
-        // The key's default — clicking the focused button — was cancelled, so the speed did not change.
         expect(screen.getByRole('button', { name: 'Playback speed 1x' })).toBeTruthy();
     });
 
@@ -138,7 +137,6 @@ describe('VoiceDetailDialog', () => {
     });
 });
 
-// The card holds the player before the dialog opens; the dialog mounts in a portal a render later.
 describe('its fill when opened partway through', () => {
     const Card = () => {
         useVoicePlayback(SRC);
@@ -212,7 +210,6 @@ describe('opening it from the card', () => {
         const seek = dialog.querySelector('input[type="range"]') as HTMLInputElement;
         expect(Number(seek.value)).toBe(30);
         expect(dialog.textContent).toContain('-1:35');
-        // Still playing: opening the dialog does not restart or stop it.
         expect(screen.getAllByRole('button', { name: 'Pause song.mp3' }).length).toBeGreaterThan(0);
     });
 
@@ -251,7 +248,6 @@ describe('opening it from the card', () => {
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 
-    // The feed unmounts a row that leaves its window; the delete must not go with it.
     it('asks and deletes from the dialog after the row it came from is gone', async () => {
         const onDeleteMessage = vi.fn();
         const { rerender } = renderFeed({ canDelete: true, onDeleteMessage });

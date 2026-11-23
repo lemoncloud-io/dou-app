@@ -8,7 +8,6 @@ const expectRect = (actual: EditRect, expected: EditRect) => {
     expect(actual.height).toBeCloseTo(expected.height, 9);
 };
 
-// A box clear of every edge of the frame, so a small drag moves freely in any direction.
 const start: EditRect = { x: 0.2, y: 0.3, width: 0.4, height: 0.4 };
 const min = { width: 0.1, height: 0.1 };
 const free = { ratio: null, min };
@@ -95,7 +94,6 @@ describe('dragCropRect — corner with a ratio', () => {
 
     it('stops at the frame without breaking the ratio', () => {
         expectRect(dragCropRect(box, 'se', { dx: 0.9, dy: 0 }, square), { x: 0.2, y: 0.2, width: 0.8, height: 0.8 });
-        // Tall: the bottom of the frame is reached before the right.
         const tall = { x: 0.1, y: 0.1, width: 0.2, height: 0.4 };
         expectRect(dragCropRect(tall, 'se', { dx: 0.9, dy: 0 }, { ratio: 0.5, min }), {
             x: 0.1,
@@ -103,7 +101,6 @@ describe('dragCropRect — corner with a ratio', () => {
             width: 0.45,
             height: 0.9,
         });
-        // Wide: the right of the frame is reached first.
         const wide = { x: 0.1, y: 0.1, width: 0.4, height: 0.2 };
         expectRect(dragCropRect(wide, 'se', { dx: 0.9, dy: 0 }, { ratio: 2, min }), {
             x: 0.1,
@@ -115,7 +112,6 @@ describe('dragCropRect — corner with a ratio', () => {
 
     it('stops at the minimum on both sides', () => {
         expectRect(dragCropRect(box, 'se', { dx: -1, dy: 0 }, square), { x: 0.2, y: 0.2, width: 0.1, height: 0.1 });
-        // At 2:1 the minimum height is the tighter one: 0.1 tall is 0.2 wide.
         const wide = { x: 0.1, y: 0.1, width: 0.4, height: 0.2 };
         expectRect(dragCropRect(wide, 'nw', { dx: 1, dy: 0 }, { ratio: 2, min }), {
             x: 0.3,
@@ -161,7 +157,6 @@ describe('dragCropRect — edge with a ratio', () => {
     });
 
     it('stops where the side that follows fills the frame', () => {
-        // A tall ratio: widening it makes it taller, and it can be no taller than the frame.
         const tall = { x: 0.1, y: 0.1, width: 0.2, height: 0.4 };
         expectRect(dragCropRect(tall, 'e', { dx: 0.9, dy: 0 }, { ratio: 0.5, min }), {
             x: 0.1,

@@ -12,7 +12,6 @@ export default meta;
 
 type Story = StoryObj<typeof SegmentedTabs>;
 
-/** The invite page's two tabs — the shape this component was built for. */
 const TwoTabsDemo = () => {
     const [value, setValue] = useState('place');
     return (
@@ -27,7 +26,6 @@ const TwoTabsDemo = () => {
     );
 };
 
-/** Tabs divide the row equally, so a third one narrows the others rather than overflowing. */
 const ThreeTabsDemo = () => {
     const [value, setValue] = useState('all');
     return (
@@ -46,7 +44,6 @@ const ThreeTabsDemo = () => {
 export const TwoTabs: Story = { render: () => <TwoTabsDemo /> };
 export const ThreeTabs: Story = { render: () => <ThreeTabsDemo /> };
 
-/** The home's conversation tabs: inline, with counts and the new-chat button at the end. */
 const InlineCountsDemo = () => {
     const [value, setValue] = useState('all');
     return (
@@ -64,7 +61,6 @@ const InlineCountsDemo = () => {
     );
 };
 
-/** The notification tabs: five inline tabs whose counts are unread notifications, zero hidden. */
 const NotificationTabsDemo = () => {
     const [value, setValue] = useState('all');
     return (

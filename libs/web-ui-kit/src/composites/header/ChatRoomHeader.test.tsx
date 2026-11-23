@@ -23,8 +23,6 @@ describe('ChatRoomHeader', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    // If the host's placeholder name ("Unnamed channel") flashes before the channel has loaded,
-    // it reads as if a different room opened — so we just hold the spot and show the name once it's settled.
     describe('loading', () => {
         it('holds back the invented title and the meta row', () => {
             render(<ChatRoomHeader loading title="이름 없는 채널" meta={<span>MEMBERS</span>} onBack={jest.fn()} />);
@@ -33,7 +31,6 @@ describe('ChatRoomHeader', () => {
             expect(screen.queryByText('MEMBERS')).not.toBeInTheDocument();
         });
 
-        // The way out has to stay open even while loading.
         it('keeps the back button reachable', () => {
             const onBack = jest.fn();
             render(<ChatRoomHeader loading onBack={onBack} />);
@@ -58,7 +55,6 @@ describe('ChatRoomHeader', () => {
             const { container } = render(<ChatRoomHeader kind="group" title="개발 모임방" />);
 
             expect(screen.getByText('개발 모임방')).toBeInTheDocument();
-            // The group fallback avatar renders a glyph in the leading slot.
             expect(container.querySelector('svg')).toBeInTheDocument();
         });
 
@@ -93,7 +89,6 @@ describe('ChatRoomHeader', () => {
             expect(moreButton).toHaveAttribute('aria-haspopup', 'menu');
 
             fireEvent.click(moreButton);
-            // moreMenu takes precedence — the plain onMore callback must not fire.
             expect(onMore).not.toHaveBeenCalled();
         });
     });
@@ -116,13 +111,10 @@ describe('ChatRoomHeader', () => {
         it('falls back to the self solid-silhouette glyph (viewBox 0 0 42 42) with a ring', () => {
             const { container } = render(<ChatRoomHeader kind="self" title="나와의 채팅" />);
 
-            // The self fallback avatar uses the custom solid-person glyph, not the lucide outline.
             expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 42 42');
         });
     });
 
-    // Figma 4718:22183 — a thread's header names the SCREEN, and pairing that with the
-    // channel's face would claim the screen is the channel.
     it('hideAvatar drops both the avatar node and the fallback glyph', () => {
         const { container, rerender } = render(<ChatRoomHeader title="스레드" hideAvatar />);
         expect(container.querySelector('svg')).toBeNull();
@@ -138,7 +130,6 @@ describe('ChatRoomHeader', () => {
         expect(container.querySelector('[class*="size-[42px]"]')).toBeNull();
     });
 
-    // A 1:1 room's avatar and name stand for the peer, so the host can make them open the profile.
     describe('onIdentityClick', () => {
         it('turns the avatar + title zone into one labelled button', () => {
             const onIdentityClick = jest.fn();
@@ -160,7 +151,6 @@ describe('ChatRoomHeader', () => {
             expect(onIdentityClick).toHaveBeenCalledTimes(1);
         });
 
-        // A button may hold phrasing content only; a <div> or <p> inside it is invalid HTML.
         it('holds no block elements of its own inside the button', () => {
             render(
                 <ChatRoomHeader
@@ -176,7 +166,6 @@ describe('ChatRoomHeader', () => {
             expect(screen.getByRole('button', { name: 'Open profile' }).querySelector('div, p')).toBeNull();
         });
 
-        // Nothing is resolved yet, so there is nothing to open.
         it('stays inert while loading', () => {
             render(
                 <ChatRoomHeader loading title="친구 이름" onIdentityClick={jest.fn()} identityLabel="Open profile" />

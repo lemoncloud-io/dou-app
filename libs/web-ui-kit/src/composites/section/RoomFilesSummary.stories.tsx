@@ -31,13 +31,10 @@ export default meta;
 
 type Story = StoryObj<typeof RoomFilesSummary>;
 
-/** Figma 6072:23272 — the audio cell drawn navy as in the design. */
 export const Default: Story = {};
 
-/** Counts not known yet. */
 export const Loading: Story = { args: { loading: true } };
 
-/** No "see all" link, no accented cell. */
 export const Plain: Story = {
     args: { onSeeAll: undefined, items: items.map(item => ({ ...item, accent: false })) },
 };

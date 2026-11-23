@@ -40,7 +40,6 @@ describe('AppHeader — cloud kind (Type 2)', () => {
             <AppHeader kind="cloud" name="<클라우드 명>" switcherLabel="클라우드 선택" switcherMenu={<div>menu</div>} />
         );
 
-        // Radix wires the trigger with a menu popup; it stays closed until opened.
         expect(screen.getByRole('button', { name: '클라우드 선택' })).toHaveAttribute('aria-haspopup', 'menu');
     });
 
@@ -74,14 +73,11 @@ describe('AppHeader — cloud kind loading placeholder', () => {
         );
 
         expect(screen.getByRole('status', { name: '클라우드를 불러오는 중이에요' })).toBeInTheDocument();
-        // A half-resolved header (blank circle + blank text) reads as a nameless cloud, so neither
-        // the stale identity nor the real avatar may show through the placeholder.
         expect(screen.queryByText('<클라우드 명>')).not.toBeInTheDocument();
         expect(screen.queryByText('CLOUD')).not.toBeInTheDocument();
     });
 
     it('keeps the brand mark for the no-cloud kind even when loading is set', () => {
-        // Only the cloud identity is fetched; the brand mark is known before any request.
         render(<AppHeader kind="no-cloud" loading loadingLabel="loading" onSwitcher={jest.fn()} />);
 
         expect(screen.queryByRole('status')).not.toBeInTheDocument();

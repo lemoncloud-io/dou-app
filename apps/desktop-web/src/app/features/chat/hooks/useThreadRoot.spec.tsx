@@ -5,16 +5,11 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { DomainChat } from '@chatic/runtime';
 
 const getChat = vi.fn();
-// One object for every render, as the runtime's is: a fresh one would re-run the hook's fetch effect on each.
 const repositories = { chat: { getChat } };
 const warn = vi.fn();
-// The place the session has selected; the server answers a read from the place the session is in.
 const session = vi.hoisted(() => ({ siteId: 'place-a' as string | null, switching: 0 }));
 
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
-// The runtime's own signal that a place or cloud switch is in flight: the selected site flips first, and
-// the socket session (`auth.switch`) follows, so the selection alone says nothing about which place a read
-// will be answered from.
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => session.switching }));
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
@@ -32,7 +27,6 @@ import { REPLY_PAGES_PER_BATCH, useThreadRoot } from './useThreadRoot';
 const chat = (chatNo: number, extra: Partial<DomainChat> = {}): DomainChat =>
     ({ id: `C1:${chatNo}`, channelId: 'C1', chatNo, ownerId: 'ada', ...extra }) as DomainChat;
 
-// A window whose oldest message is `oldest`. A new array each time, as the cache observer emits.
 const windowFrom = (oldest: number): DomainChat[] => [chat(oldest), chat(2000)];
 
 type Args = Parameters<typeof useThreadRoot>[0];
@@ -114,8 +108,6 @@ describe('useThreadRoot — the root', () => {
         expect(getChat).toHaveBeenCalledWith({ id: 'C1:5' });
     });
 
-    // The server will not serve a message from before my join window, and the number says so: asking
-    // would only leave a spinner, so nothing is asked.
     it('does not ask for a root from before my membership', () => {
         const loadOlder = vi.fn();
         const { result } = mount({ joinedNo: 10, loadOlder });
@@ -156,8 +148,6 @@ describe('useThreadRoot — the root', () => {
         expect(getChat).toHaveBeenLastCalledWith({ id: 'C1:5' });
     });
 
-    // A read is answered from the place the session is in, so "not there" and "can't reach it from here"
-    // look the same on the wire. A verdict of that kind has to be taken again when the place changes.
     it('asks again for a root that was gone once the place changes', async () => {
         getChat.mockRejectedValueOnce(new Error('404 NOT FOUND'));
         const { result, rerender, initial } = mount();
@@ -182,8 +172,6 @@ describe('useThreadRoot — the root', () => {
         expect(getChat).toHaveBeenCalledTimes(2);
     });
 
-    // The selection flips first and the socket session follows ~hundreds of ms later; a read sent in
-    // between is answered from the old place and its refusal would pin the panel on "can't be shown here".
     it('sends nothing while a switch is in flight, and asks once after it ends', async () => {
         getChat.mockRejectedValueOnce(new Error('403 NOT ALLOWED - action[read] is invalid'));
         const { result, rerender, initial } = mount();
@@ -287,7 +275,6 @@ describe('useThreadRoot — the replies', () => {
         getChat.mockReset().mockResolvedValue(chat(5, { content: 'old root' }));
     });
 
-    // Stands in for the cache observer: each landed page re-emits the window with 50 older rows.
     const pager = async (over: Partial<Args> = {}) => {
         const loadOlder = over.loadOlder ?? vi.fn().mockResolvedValue(true);
         const view = mount({ ...over, loadOlder });
@@ -312,7 +299,6 @@ describe('useThreadRoot — the replies', () => {
     it('does not ask for the next page until the last one has shown up in the window', async () => {
         const { loadOlder, rerender, initial, result } = await pager();
 
-        // Same window re-rendered (e.g. the loading flag flipping): the page has not landed.
         rerender({ ...initial, loadOlder });
         rerender({ ...initial, loadOlder, isLoadingOlder: true });
         rerender({ ...initial, loadOlder });
@@ -328,7 +314,6 @@ describe('useThreadRoot — the replies', () => {
 
         expect(loadOlder).toHaveBeenCalledTimes(REPLY_PAGES_PER_BATCH);
         expect(result.current.replies).toBe('partial');
-        // The root stays up the whole time: stopping is not failing.
         expect(result.current.status).toBe('found');
         expect(result.current.root?.chatNo).toBe(5);
 
@@ -384,8 +369,6 @@ describe('useThreadRoot — the replies', () => {
         expect(result.current.replies).toBe('loadingOlder');
     });
 
-    // The same feed observer re-emits on every cache write — the fetched root, a live message, a
-    // reaction — so a new window that still starts at the same row says nothing about the page.
     it('keeps waiting through an emission that does not move the window, without failing or asking again', async () => {
         const { result, loadOlder, rerender, initial } = await pager();
 

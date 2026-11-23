@@ -14,7 +14,6 @@ import {
 const meta: Meta<typeof SwipeActionRow> = {
     title: 'web-ui-kit/composites/SwipeActionRow',
     component: SwipeActionRow,
-    // Touch-only gesture: open the canvas in a touch-emulating viewport (device toolbar) to swipe.
     decorators: [
         Story => (
             <div className="w-[390px] border border-input-border">
@@ -29,7 +28,6 @@ type Story = StoryObj<typeof SwipeActionRow>;
 
 const ROWS = ['디자인 팀', '주말 등산', '나와의 채팅'];
 
-/** Three rows sharing one open slot, the way a list host holds it. */
 const List = ({ destructiveLabel }: { destructiveLabel: '나가기' | '삭제' }) => {
     const [open, setOpen] = React.useState<{ row: string; side: SwipeSide } | null>(null);
     return (
@@ -81,7 +79,6 @@ export const MemberRows: Story = { render: () => <List destructiveLabel="나가�
 
 export const OwnerRows: Story = { render: () => <List destructiveLabel="삭제" /> };
 
-/** Opened from the story, so the trailing tray is visible without a touch device. */
 export const OpenTrailing: Story = {
     render: () => (
         <SwipeActionRow

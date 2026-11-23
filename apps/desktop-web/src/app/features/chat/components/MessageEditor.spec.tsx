@@ -13,16 +13,13 @@ import { MessageEditor } from './MessageEditor';
 
 const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
 
-// jsdom implements no layout, so no scrollIntoView; the editor calls it once when it opens.
 Element.prototype.scrollIntoView = vi.fn();
-// Nor does it lay out ranges: Lexical scrolls a focused selection into view through one.
 Range.prototype.getBoundingClientRect = () => new DOMRect();
 Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
 
 type LexicalRoot = HTMLElement & { __lexicalEditor?: LexicalEditor };
 
 const body = (): LexicalRoot =>
-    // A textbox, unless the @-list is open — then the same box is a combobox naming it.
     (screen.queryByRole('textbox', { name: 'Edit message' }) ??
         screen.getByRole('combobox', { name: 'Edit message' })) as LexicalRoot;
 const editorOf = (): LexicalEditor => {
@@ -33,7 +30,6 @@ const editorOf = (): LexicalEditor => {
 const saveButton = () => screen.getByRole('button', { name: 'Save' }) as HTMLButtonElement;
 const cancelButton = () => screen.getByRole('button', { name: 'Cancel' });
 
-// Async act: the toolbar's listener sets state in a microtask after the update.
 const typeAtEnd = (text: string) =>
     act(async () => {
         editorOf().update(
@@ -56,7 +52,6 @@ const clearAll = () =>
     });
 const exported = () => editorOf().getEditorState().read($exportWireMarkdown);
 
-// Lexical reads `keyCode`, not `key`, to recognise Enter.
 const pressEnter = (init: KeyboardEventInit = {}) =>
     act(async () => {
         fireEvent.keyDown(body(), { key: 'Enter', keyCode: 13, ...init });
@@ -68,7 +63,6 @@ const open = async (initialContent: string, overrides: Partial<Parameters<typeof
     render(<MessageEditor initialContent={initialContent} onSave={onSave} onCancel={onCancel} {...overrides} />, {
         wrapper,
     });
-    // The document is loaded in a microtask; acting before it lands would see an empty editor.
     await act(async () => {
         await Promise.resolve();
     });
@@ -82,8 +76,6 @@ describe('MessageEditor', () => {
     afterEach(cleanup);
     beforeEach(() => vi.clearAllMocks());
 
-    // An edit sends the text only: the server keeps who a message called as it was first sent.
-    // A row that says it calls the whole channel would be a promise the save does not keep.
     it('does not offer the everyone row, which an edit cannot send', async () => {
         await open('hi', {
             mentionables: [{ id: '@everyone', name: 'all', everyone: true, keywords: ['Everyone'] }, ADA],
@@ -252,7 +244,6 @@ describe('MessageEditor', () => {
         fireEvent.click(emoji);
 
         await waitFor(() => expect(exported()).toBe(`hello${glyph}`));
-        // Radix hands focus back to its trigger on close; the caret has to stay in the text.
         await act(async () => new Promise(resolve => setTimeout(resolve, 50)));
         expect(document.activeElement).toBe(body());
     });
@@ -271,7 +262,6 @@ describe('MessageEditor', () => {
         await typeAtEnd(' world');
 
         rerender(<MessageEditor initialContent="hello (edited elsewhere)" onSave={onSave} onCancel={onCancel} />);
-        // A reload would be committed in a microtask, so look after one.
         await flush();
 
         expect(exported()).toBe('hello world');
@@ -333,7 +323,6 @@ describe('MessageEditor', () => {
 describe('MessageEditor code blocks', () => {
     afterEach(cleanup);
 
-    // One backtick per update, as typing makes them; the fence shortcut keys on that.
     const typeFence = async () => {
         await typeAtEnd('``');
         await typeAtEnd('`');
@@ -363,7 +352,6 @@ describe('MessageEditor code blocks', () => {
         expect(exported()).toBe('```\nls\npwd\n```');
     });
 
-    // An empty code block still exports its fences; that is not a message to save.
     it('treats a code block with nothing in it as empty', async () => {
         const { onSave, onCancel } = await open('x');
         await clearAll();

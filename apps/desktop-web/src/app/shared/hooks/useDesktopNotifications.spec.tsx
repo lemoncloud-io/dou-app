@@ -21,7 +21,6 @@ vi.mock('@chatic/runtime', async () => {
         },
         connection: { useRuntimeSocketState: () => ({ isVerified: false }) },
         session: { useSessionIdentity: () => ({ userId: ACCOUNT_UID }) },
-        // Inside the desktop shell: the page can raise an OS banner.
         push: { ...browserPush(), localBanner: { present } },
     });
 });
@@ -76,14 +75,11 @@ describe('useDesktopNotifications', () => {
         expect(present).not.toHaveBeenCalled();
     });
 
-    // Outside the relay a persisted message's owner is the per-channel cloud user id.
     it('stays silent for my own message identified by my per-channel cloud user id', () => {
         feedHandler?.(feed({ ownerId: CLOUD_UID }));
         expect(present).not.toHaveBeenCalled();
     });
 
-    // A webhook is never mine, even if the server stamps my id on it: the feed shows it as unread,
-    // so the banner must not be the one surface that calls it mine.
     it('banners a webhook message even when its owner id is mine', () => {
         feedHandler?.(feed({ ownerId: CLOUD_UID, stereo: 'webhook' }));
         expect(present).toHaveBeenCalledTimes(1);
@@ -110,7 +106,6 @@ describe('useDesktopNotifications', () => {
             expect(present).not.toHaveBeenCalled();
         });
 
-        // A 1:1 has no such level: the server sends every message of it, so this banners them all.
         it('banners every message of a 1:1 that was left on mentions only', () => {
             const { channel, ...rest } = mentionOnly({ content: 'hello' });
             feedHandler?.({ ...rest, channel: { ...channel, name: undefined, stereo: 'dm' } });
@@ -193,7 +188,6 @@ describe('useDesktopNotifications', () => {
             expect(present).not.toHaveBeenCalled();
         });
 
-        // The banner copy is translated at notify time, so both locales render through this path.
         it.each([
             ['ko', '멘션 · #general', '@전체 · #general'],
             ['en', 'Mention · #general', '@all · #general'],

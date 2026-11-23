@@ -8,14 +8,9 @@ const FADE = {
 
 interface ScrollHintProps {
     edge: 'top' | 'bottom';
-    /** The surface under the scroll box, so the fade blends into it. */
     surface: keyof typeof FADE;
 }
 
-/**
- * A fade with a chevron over the edge of a scroll box that has more beyond it.
- * Decorative: the tiles it points at are still in the tab order.
- */
 export const ScrollHint = ({ edge, surface }: ScrollHintProps) => (
     <span
         aria-hidden

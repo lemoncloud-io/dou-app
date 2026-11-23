@@ -11,8 +11,6 @@ import {
     isMentionBoundary,
 } from '../../../shared';
 
-// The message styles live in `@chatic/block-kit`: the block renderer needs them
-// and that renderer is what got shared.
 import {
     MSG_BOLD_CLASS,
     MSG_CODE_BLOCK_CLASS,
@@ -24,37 +22,20 @@ import {
 
 import { splitFences } from '../utils';
 
-/** Name (without the @) → the member it refers to, when the roster knows one. */
 export type MentionResolver = (name: string) => { userId: string; name: string } | undefined;
 
-// One pass over a non-code run: labelled links, bold, italic, strikethrough, bare links, @mentions.
-// A labelled link is listed first so its address is not read as a bare one.
-// Bold is listed before italic so `**x**` matches as bold, not italic.
-// A mark captures only its words, which are read again for marks alone: an address or an @name
-// inside a mark stays text.
 const INLINE = new RegExp(
     `${LABELLED_LINK_SOURCE}|${BOLD_SOURCE}|${ITALIC_SOURCE}|~~([^~\\n]+)~~|(${LINK_URL_SOURCE})|(@${MENTION_TOKEN_SOURCE}+)`,
     'gu'
 );
 
-// Underlined at rest, not only on hover: colour alone cannot carry "this is a link" inside body
-// text (WCAG 1.4.1), and the colour it used to carry was the brand accent, shared with every button.
 const LINK_CLASS = 'text-link underline underline-offset-2 hover:no-underline';
 
-// Group words by name (without the @), so the pill gate and the self check
-// share one lookup instead of scanning the list twice per mention.
 const GROUP_WORDS = new Set(GROUP_MENTIONS.map(group => group.slice(1)));
 
-// A display name can hold spaces (`Sunyeop Hwang`) but the token class cannot, so the token stops at
-// the first word. The words that follow are tried against the roster to find where the name ends.
 const NEXT_WORD = new RegExp(`^ (${MENTION_TOKEN_SOURCE}+)`, 'u');
 const MAX_EXTRA_WORDS = 3;
 
-/**
- * The longest roster name that starts with `first` and runs on into the words of `after`, or
- * undefined when no longer name is known. Only a known member extends a mention: an unknown
- * `@word` followed by prose must not swallow the prose.
- */
 const extendToKnownName = (first: string, after: string, resolveMention?: MentionResolver): string | undefined => {
     if (!resolveMention) return undefined;
     let best: string | undefined;
@@ -77,7 +58,6 @@ const renderInline = (
     resolveMention?: MentionResolver,
     hasMentionRecord?: boolean,
     selfSuffix?: string,
-    /** Reading the words inside a mark: only further marks are drawn there, the rest stays text. */
     insideMark = false
 ): ReactNode[] => {
     const nodes: ReactNode[] = [];
@@ -85,12 +65,10 @@ const renderInline = (
         renderInline(words, key, selfNames, resolveMention, hasMentionRecord, selfSuffix, true);
     let last = 0;
     for (const match of text.matchAll(INLINE)) {
-        // Inside a spaced name already drawn as one pill.
         if (match.index < last) continue;
         const [token, label, labelHref, bold, italic, strike, url, tokenMention] = match;
         let mention = tokenMention;
         let consumed = token.length;
-        // Skipped, so it stays inside the surrounding text run.
         if (insideMark && !bold && !italic && !strike) continue;
         if (match.index > last) nodes.push(text.slice(last, match.index));
         const key = `${keyBase}-${match.index}`;
@@ -117,8 +95,6 @@ const renderInline = (
                 </a>
             );
         } else if (!isMentionBoundary(text, match.index)) {
-            // Inside a word — an address (`lemon@lemoncloud.io`) or a password
-            // (`lemoncloud@123`), never a mention. Left as the text it is.
             nodes.push(mention);
         } else {
             const spaced = extendToKnownName(mention.slice(1), text.slice(match.index + token.length), resolveMention);
@@ -126,28 +102,16 @@ const renderInline = (
                 mention = `@${spaced}`;
                 consumed = mention.length;
             }
-            // A trailing sentence dot belongs to the sentence, not the name: look the
-            // name up without it, but render what was written.
             const full = mention.slice(1);
             const word = full.replace(/\.+$/, '');
             const lower = word.toLowerCase();
             const isGroup = GROUP_WORDS.has(lower);
-            // My own name (or @channel/@here) reads louder — Slack-style callout.
             const isSelf = !!selfNames?.length && (isGroup || selfNames.includes(lower));
             const className = isSelf ? MSG_MENTION_SELF_CLASS : MSG_MENTION_CLASS;
-            // A mention that names a known member opens their profile, the same card
-            // an avatar opens. It used to be inert text, so checking who was
-            // mentioned meant finding one of their messages first. The full token is
-            // only retried when stripping changed it.
             const person = resolveMention?.(word) ?? (word !== full ? resolveMention?.(full) : undefined);
-            // A pill claims someone was called: a known member, a group word, my own
-            // name, or a message whose record says so. Anything else is plain text —
-            // the token pattern used to highlight any word, member or not.
             if (!person && !isSelf && !isGroup && !hasMentionRecord) {
                 nodes.push(mention);
             } else {
-                // A self pill reads its cue too — colour alone cannot carry "this
-                // is you" (the class also adds weight; see messageClasses).
                 const cue = isSelf && selfSuffix ? <span className="sr-only">{selfSuffix}</span> : null;
                 nodes.push(
                     person ? (
@@ -172,8 +136,6 @@ const renderInline = (
     return nodes;
 };
 
-// Backtick `code` spans split out first so markdown inside them stays literal —
-// odd split indices are the captured spans.
 const renderCodeRuns = (
     text: string,
     keyBase: string,
@@ -194,8 +156,6 @@ const renderCodeRuns = (
         )
     );
 
-// Group consecutive "> " lines into one quote block; other lines flow as-is
-// (the host preserves their newlines via whitespace-pre-wrap).
 const renderQuoteRuns = (
     text: string,
     keyBase: string,
@@ -227,7 +187,6 @@ const renderQuoteRuns = (
     const flushQuote = () => {
         if (!quote.length) return;
         nodes.push(
-            // block-level span: legal inside the host <p>, unlike <blockquote>.
             <span key={`${keyBase}-q${block++}`} className={MSG_QUOTE_CLASS}>
                 {renderCodeRuns(
                     quote.join('\n'),
@@ -242,7 +201,6 @@ const renderQuoteRuns = (
         quote = [];
     };
     for (const line of text.split('\n')) {
-        // `>` needs a space after it (or nothing), as the editor's own import does, so `>_<` stays text.
         const quoted = line.match(/^>(?:\s(.*))?$/);
         if (quoted) {
             flushPlain();
@@ -259,24 +217,12 @@ const renderQuoteRuns = (
 
 interface RichTextProps {
     content: string;
-    /** Lowercased names that count as "me" — my mentions render highlighted. */
     selfNames?: string[];
-    /** Makes a mention of a known member open that member's profile. */
     resolveMention?: MentionResolver;
-    /** The message carries a mention record — its @-tokens name a recorded pick, even an unknown one. */
     hasMentionRecord?: boolean;
-    /** Screen-reader cue read inside a self pill ("me"), alongside the weight cue. */
     selfSuffix?: string;
 }
 
-/**
- * Message text with lightweight, safe formatting — no HTML injection. Parse
- * order: fenced ```code blocks``` are split out first (`splitFences`; their
- * contents stay fully literal and a language tag is not shown), then "> "
- * quote lines group into quote blocks, then backtick `code` spans, then the inline pass (**bold**, *italic*, ~~strike~~, links,
- * @mentions; marks nest, as the composer stacks them). Block elements render as display:block <span>s because the host
- * wraps messages in a <p>.
- */
 export const RichText = ({
     content,
     selfNames,
@@ -293,8 +239,6 @@ export const RichText = ({
                 </span>
             );
         }
-        // A block already ends its line, so the newline that follows its closing fence is the
-        // same line break; rendering it too left an empty line under every block.
         const text = segments[idx - 1]?.type === 'code' ? segment.value.replace(/^\r?\n/, '') : segment.value;
         return (
             <Fragment key={idx}>

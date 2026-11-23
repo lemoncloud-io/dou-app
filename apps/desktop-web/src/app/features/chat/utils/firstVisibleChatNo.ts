@@ -1,7 +1,3 @@
-/**
- * The first message whose row reaches into the view. Rows are in feed order, so
- * a binary search keeps this to a handful of layout reads per scroll frame.
- */
 export const firstVisibleChatNo = (container: HTMLElement): number | null => {
     const top = container.getBoundingClientRect().top;
     const rows = container.querySelectorAll<HTMLElement>('[data-chat-no]');

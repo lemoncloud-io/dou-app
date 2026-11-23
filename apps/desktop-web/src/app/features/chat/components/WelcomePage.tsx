@@ -17,20 +17,13 @@ const STEP_ICON: Record<WelcomeStepKey, LucideIcon> = {
 interface WelcomePageProps {
     placeName: string;
     signals: WelcomeSignals;
-    /** Each step's way in; a step without one cannot be taken here and is drawn disabled. */
     onCreateChannel?: () => void;
     onInvite?: () => void;
     onStartDm?: () => void;
     onEditProfile?: () => void;
-    /** Put the page away for this place. */
     onLater: () => void;
 }
 
-/**
- * The main pane of a place with nothing in it yet: a welcome, then four getting-started steps (create
- * a channel, invite members, send a DM, set up a profile) with the progress the place already shows.
- * A step opens the flow that does it; Later puts the page away.
- */
 export const WelcomePage = ({
     placeName,
     signals,
@@ -119,7 +112,6 @@ export const WelcomePage = ({
                                                 {t('placeWelcome.done')}
                                             </span>
                                         )}
-                                        {/* No way in from here: the row stays readable, only the go-arrow is gone. */}
                                         {action && (
                                             <ChevronRight
                                                 size={18}

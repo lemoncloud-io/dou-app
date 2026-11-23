@@ -21,16 +21,12 @@ export default meta;
 
 type Story = StoryObj<typeof RoomFilesHeader>;
 
-/** Figma 6067:22438. */
 export const Default: Story = {};
 
-/** The search field below it is open. */
 export const Searching: Story = { args: { searchActive: true } };
 
-/** Nothing to select yet. */
 export const NothingToSelect: Story = { args: { actionDisabled: true } };
 
-/** A long title truncates before it reaches either side. */
 export const LongTitle: Story = { args: { title: '아주 긴 대화방 이름의 대화방 파일 목록 화면 제목' } };
 
 export const Interactive: Story = {

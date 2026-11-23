@@ -17,7 +17,6 @@ const ITEMS: AudioSendSheetItem[] = [
     { key: 'b', name: '팀 회의 1107_최종본_전체녹음_수정.m4a', meta: '1:12:05 · 68.4MB' },
 ];
 
-/** Figma 6072:22979. Remove a row; the host closes the sheet when the last one goes. */
 const Demo = ({ initial }: { initial: AudioSendSheetItem[] }) => {
     const [open, setOpen] = useState(true);
     const [items, setItems] = useState(initial);

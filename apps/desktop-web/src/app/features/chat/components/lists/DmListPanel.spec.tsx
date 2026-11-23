@@ -11,7 +11,6 @@ import { DM_NAME_WAIT_MS } from '../../hooks/useDmIdentities';
 import { useDmNameWaitStore } from '../../stores';
 import { DmListPanel } from './DmListPanel';
 
-/** The cache and the profile stores, as each test sets them. */
 const current = vi.hoisted(() => ({
     repo: { observeLastList: vi.fn(), refreshList: vi.fn() },
     cloud: new Map<string, { name?: string; thumbnail?: string }>(),
@@ -155,7 +154,6 @@ describe('DmListPanel', () => {
             ])
         );
 
-        // Each row's text opens with the avatar's initial, then the name.
         expect(rows().map(text => /(Ada|Bo|You)/.exec(text)?.[1])).toEqual(['Bo', 'You', 'Ada']);
     });
 
@@ -234,7 +232,6 @@ describe('DmListPanel', () => {
 
         expect(screen.getByText('No conversations yet')).toBeTruthy();
         expect(current.repo.observeLastList).not.toHaveBeenCalled();
-        // The header's + and the empty state's button both start one.
         fireEvent.click(screen.getAllByRole('button', { name: 'New message' }).at(-1) as HTMLElement);
         expect(onCreateDm).toHaveBeenCalled();
     });

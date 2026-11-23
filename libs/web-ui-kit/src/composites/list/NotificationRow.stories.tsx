@@ -23,7 +23,6 @@ type Story = StoryObj<typeof NotificationRow>;
 
 const avatar = <ProfileAvatar size={42} />;
 
-/** The seven cases of the design's case sheet (6024:18586), unread then read. */
 export const Cases: Story = {
     render: () => (
         <div className="flex flex-col">
@@ -97,7 +96,6 @@ export const Cases: Story = {
     ),
 };
 
-/** Selection mode — tap rows to pick them; the check and the navy tint follow. */
 const Selecting = () => {
     const [picked, setPicked] = useState<Set<number>>(new Set([0]));
     const toggle = (index: number) =>

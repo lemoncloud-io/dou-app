@@ -32,8 +32,6 @@ describe('NavSidebar', () => {
         expect(screen.queryByRole('navigation', { name: 'Channels' })).toBeNull();
     });
 
-    // The Home list writes the order the next-unread shortcut walks, and holds ⌘K and message search:
-    // leaving Home must not unmount it, or all three stop where the reader left.
     it('keeps the Home list mounted, out of sight, while another destination is open', () => {
         mounted.mockClear();
         unmounted.mockClear();

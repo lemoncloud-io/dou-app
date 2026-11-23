@@ -38,7 +38,6 @@ describe('PlaceChip', () => {
         expect(name).toHaveClass('grid-cols-[0fr]', 'opacity-0');
 
         rerender(<PlaceChip name="Sunny" unread={3} selected />);
-        // Same node, so the change animates instead of mounting a new label.
         expect(screen.getByTestId('place-chip-name')).toBe(name);
         expect(name).toHaveAttribute('aria-hidden', 'false');
         expect(name).toHaveClass('grid-cols-[1fr]', 'opacity-100');

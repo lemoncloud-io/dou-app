@@ -6,7 +6,6 @@ const meta: Meta<typeof ImageAvatar> = {
     title: 'web-ui-kit/foundations/ImageAvatar',
     component: ImageAvatar,
     args: {
-        // A deliberately non-square source to show the crop-to-circle behavior.
         src: 'https://picsum.photos/400/240',
         alt: 'sample',
     },

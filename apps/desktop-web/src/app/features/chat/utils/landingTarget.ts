@@ -1,15 +1,5 @@
 import type { DomainChannel } from '@chatic/runtime';
 
-/**
- * Which channel the home screen selects when its channel list changes.
- *
- * - `pending`: a deferred open (notification click, saved-item jump, a room just created or
- *   started) whose channel the list now carries.
- * - `fallback`: nothing pending has landed and the selection is gone from the list — restore the
- *   channel last opened in this cloud and place, else the first unread one, else the first.
- * - `null`: leave the selection alone. A pending target that is not listed yet is also `null` while
- *   the current selection is still valid, so waiting for a new room never snaps to another one.
- */
 export type Landing = { kind: 'pending' | 'fallback'; channelId: string } | null;
 
 export const landingTarget = (
@@ -18,10 +8,6 @@ export const landingTarget = (
         pendingChannelId: string | null;
         selectedChannelId: string | null;
         rememberedChannelId?: string;
-        /**
-         * False while a place switch the pending open waits for is unfinished. A room listed in every
-         * place (the Self Channel) would otherwise land in the place being left.
-         */
         placeSettled?: boolean;
     }
 ): Landing => {
@@ -30,20 +16,12 @@ export const landingTarget = (
     if (pendingChannelId && !placeSettled) return null;
     if (pendingChannelId && isListed(pendingChannelId)) return { kind: 'pending', channelId: pendingChannelId };
     if (selectedChannelId && isListed(selectedChannelId)) return null;
-    // A place badged "1" used to open on whatever was first (or last read), which was routinely a
-    // channel with nothing new — the badge led nowhere. With no remembered channel, land on the
-    // first unread one and the badge resolves to the thing it was pointing at.
     const firstUnread = channels.find(channel => (channel.unreadCount ?? 0) > 0)?.id;
     const target =
         rememberedChannelId && isListed(rememberedChannelId) ? rememberedChannelId : (firstUnread ?? channels[0]?.id);
     return target ? { kind: 'fallback', channelId: target } : null;
 };
 
-/**
- * Where an opened link or notification puts the reader once its channel is on screen: a thread reply
- * opens its thread; a copied message link lands the feed on that message; anything else opens the
- * conversation at its latest. Never two of these — a reply is not in the feed.
- */
 export const openLandingOf = ({
     rootId,
     chatNo,
@@ -56,12 +34,6 @@ export const openLandingOf = ({
     return { kind: 'latest' };
 };
 
-/**
- * Whether an open may take the reader to the cloud it names. A copied message link reaches the app
- * from anywhere on the machine — a web page can open the scheme — so it only moves the reader to a
- * cloud this device already lists (the home cloud included), never to one it would have to look up.
- * A notification's target comes from the reader's own pushes and is not held to this.
- */
 export const opensIntoKnownCloud = (
     target: { cloudId?: string; chatNo?: number },
     { activeCloudId, knownCloudIds }: { activeCloudId: string; knownCloudIds: ReadonlySet<string> }

@@ -4,17 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { logger } from '@chatic/bridges';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-/**
- * Last line of defence around the whole app.
- *
- * Without one, two ordinary failures ended the session at a blank window with no
- * way out: a render that throws, and — more often in the installed shell — a lazy
- * route chunk that 404s because the build it belongs to was replaced while the
- * app was open. Both are recoverable by reloading; neither said so.
- *
- * A class component because React offers no hook equivalent of
- * `componentDidCatch`.
- */
 const ErrorScreen = ({ onReload }: { onReload: () => void }) => {
     const { t } = useTranslation();
     return (
@@ -51,8 +40,6 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
 
     override render(): ReactNode {
         if (!this.state.hasError) return this.props.children;
-        // A full reload, not a state reset: the common cause is a stale chunk, and
-        // re-rendering the same broken tree would land right back here.
         return <ErrorScreen onReload={() => window.location.reload()} />;
     }
 }

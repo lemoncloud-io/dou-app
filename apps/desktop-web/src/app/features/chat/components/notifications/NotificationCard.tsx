@@ -16,7 +16,6 @@ export const SOURCE_ICON: Record<InboxSource, LucideIcon> = {
     thread: MessagesSquare,
 };
 
-/** The selection box, drawn: the cards and the select-all box share it, so the panel has one checkbox. */
 export const SelectMark = ({ state }: { state: boolean | 'mixed' }) => (
     <span
         aria-hidden
@@ -29,7 +28,6 @@ export const SelectMark = ({ state }: { state: boolean | 'mixed' }) => (
     </span>
 );
 
-/** Why the item is here, as the card's context line says it. */
 const whyKey = (item: MentionItem, source: InboxSource): string => {
     const kind = inboxKindOf(item);
     if (kind === 'reply') return 'inbox.why.reply';
@@ -38,7 +36,6 @@ const whyKey = (item: MentionItem, source: InboxSource): string => {
     return source === 'thread' ? 'inbox.why.threadMention' : 'inbox.why.channelMention';
 };
 
-/** A mention reads as one in the body: the `@name` tokens carry the accent, the rest stays plain. */
 const MentionBody = ({ text, accent }: { text: string; accent: boolean }) => {
     if (!accent) return <>{text}</>;
     return (
@@ -58,24 +55,13 @@ const MentionBody = ({ text, accent }: { text: string; accent: boolean }) => {
 
 interface NotificationCardProps {
     item: MentionItem;
-    /** The channel's name: loaded with the place, else kept with the item when it was captured. */
     channelName?: string;
-    /** What the thread a reply answers said, when this device has it. */
     rootPreview?: string;
-    /** The card last opened from the panel. */
     isCurrent: boolean;
-    /** Set in selection mode: the card is a checkbox, and a click toggles it rather than opening it. */
     selected?: boolean;
-    /** Opens the item, or toggles it in selection mode. */
     onOpen: (id: string) => void;
 }
 
-/**
- * One inbox item: who, when and whether it is unread; where it happened and why it is here; then
- * what was said. An unread item sits on a raised card and a read one on the panel itself, so the
- * unread ones stand out without a count; the card opened last carries the accent border. In
- * selection mode the box sits beside the card, and a selected row is tinted around both.
- */
 export const NotificationCard = memo(
     ({ item, channelName, rootPreview, isCurrent, selected, onOpen }: NotificationCardProps) => {
         const { t } = useTranslation();
@@ -83,9 +69,7 @@ export const NotificationCard = memo(
         const SourceIcon = SOURCE_ICON[source];
         const kind = inboxKindOf(item);
         const why = t(whyKey(item, source), { emoji: item.emoji ?? '' });
-        // A 1:1 is named after its person; a channel by its name, when it is known.
         const where = source === 'dm' ? t('inbox.dmWith', { name: item.ownerName }) : channelName && `# ${channelName}`;
-        // A reaction's body is my message, and says so.
         const body = kind === 'reaction' ? t('inbox.mine', { text: item.content }) : item.content;
         const unread = !item.readAt;
         const selecting = selected !== undefined;
@@ -130,7 +114,6 @@ export const NotificationCard = memo(
                                     {item.ownerName.charAt(0).toUpperCase() || '?'}
                                 </AvatarFallback>
                             </Avatar>
-                            {/* A reaction is not something the person wrote: the badge says so before the text does. */}
                             {kind === 'reaction' && (
                                 <span
                                     aria-hidden

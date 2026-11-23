@@ -6,7 +6,6 @@ const { register, fetchToken, onRenew, port } = vi.hoisted(() => ({
     register: vi.fn(),
     fetchToken: vi.fn(),
     onRenew: vi.fn(() => () => undefined),
-    // What the test plays: the desktop app (a token and its renewals) or a browser (neither).
     port: { inShell: true },
 }));
 

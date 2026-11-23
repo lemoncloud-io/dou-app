@@ -4,11 +4,6 @@ import { IconCameraSolid } from './IconCameraSolid';
 import { IconFileSolid } from './IconFileSolid';
 import { IconGalleryWideSolid } from './IconGalleryWideSolid';
 
-/**
- * The three attach-menu glyphs exported from the Figma chat attach sheet. Grouped because the
- * contract is identical: square, 32px frame, `currentColor`, `size`-driven — the tile decides the
- * colour, the glyph never carries one.
- */
 describe.each([
     ['IconGalleryWideSolid', IconGalleryWideSolid],
     ['IconCameraSolid', IconCameraSolid],
@@ -46,9 +41,6 @@ describe.each([
     });
 });
 
-// The gallery glyph is three separately placed shapes (frame, dot, upper frame) and the file glyph
-// two (sheet, folded corner). Merging them is the drift that makes a redrawn icon read as "almost
-// right", so the shape count is pinned.
 it('keeps each design shape as its own path', () => {
     expect(render(<IconGalleryWideSolid />).container.querySelectorAll('path')).toHaveLength(3);
     expect(render(<IconCameraSolid />).container.querySelectorAll('path')).toHaveLength(1);

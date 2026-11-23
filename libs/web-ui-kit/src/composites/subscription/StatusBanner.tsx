@@ -5,38 +5,16 @@ import { cn } from '@chatic/ui-kit';
 import { IconChevronRight } from '../../resources/icons';
 
 export interface StatusBannerProps {
-    /** 24px leading glyph slot. */
     icon: React.ReactNode;
-    /** One-line headline beside the icon. */
     title: string;
-    /** Supporting line under the title, coloured by `tone`. */
     description: React.ReactNode;
-    /** `info` paints the description point blue; `danger` paints it the destructive red. */
     tone?: 'info' | 'danger';
-    /** Outlined pill under the description (e.g. "D-3 until it ends"). Omitted when absent. */
     chip?: string;
-    /**
-     * Makes the card a button and adds a trailing chevron after the title. With `action` set only
-     * the title row is the button — a button cannot nest inside another.
-     */
     onClick?: () => void;
-    /**
-     * Full-width dark pill at the foot of the card (e.g. "Choose the clouds to keep"). Rendered as
-     * its own button, so the card stays a section around it.
-     */
     action?: { label: string; onClick: () => void };
     className?: string;
 }
 
-/**
- * Subscription status banner — the Figma "subscription status banner" card at the top of the
- * subscription screens: an icon and title, a tone-coloured description, and an optional D-day chip.
- *
- * The chevron is the visual promise that the card goes somewhere, so it is drawn only when
- * `onClick` is passed; without it the banner is a plain, non-interactive section. An `action`
- * splits the two: the card is a section, the title row carries `onClick` and the pill carries its
- * own — the Figma "subscription status banner" with the inner button (5002:57306).
- */
 export const StatusBanner = ({
     icon,
     title,
@@ -54,15 +32,10 @@ export const StatusBanner = ({
         className
     );
 
-    // The pill splits the card: the whole card may no longer be the button, so the title row takes
-    // `onClick` on its own instead.
     const titleRowClassName = 'flex w-full items-center gap-2 text-left';
     const titleRow = (
         <>
             <span className="flex size-6 shrink-0 items-center justify-center">{icon}</span>
-            {/* Figma navy #1C274C has no token. `brand-ink` is a navy too, but it stays navy in
-                dark mode, where it would vanish on the dark card — so dark falls back to the
-                theme foreground. */}
             <span className="min-w-0 flex-1 text-[16px] font-semibold leading-[1.44] tracking-[-0.08px] text-[#1C274C] dark:text-foreground">
                 {title}
             </span>
@@ -70,7 +43,6 @@ export const StatusBanner = ({
         </>
     );
 
-    // Spans rather than divs throughout: the root may be a <button>, which only takes phrasing content.
     const content = (
         <>
             {action && onClick ? (
@@ -89,7 +61,6 @@ export const StatusBanner = ({
                 {description}
             </span>
             {chip && (
-                // BK_200 outline — `tile-ring` carries exactly that value in both themes.
                 <span className="self-start rounded-full border border-tile-ring px-3 py-1.5 text-[14px] font-medium leading-[1.4] tracking-[-0.07px] text-foreground">
                     {chip}
                 </span>

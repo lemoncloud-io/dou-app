@@ -16,7 +16,6 @@ const Frame = ({ children }: { children: ReactNode }) => (
     <div className="flex w-[375px] justify-center bg-surface py-6">{children}</div>
 );
 
-// Figma 6072:22400 — nothing has played, every bar is idle.
 export const BeforePlay: Story = {
     render: () => (
         <Frame>
@@ -25,7 +24,6 @@ export const BeforePlay: Story = {
     ),
 };
 
-// Figma 6072:22439 — a third played (12:03 of 35:47).
 export const Playing: Story = {
     render: () => (
         <Frame>
@@ -34,7 +32,6 @@ export const Playing: Story = {
     ),
 };
 
-// Measured bars from the host rather than the seeded placeholder.
 export const MeasuredBars: Story = {
     render: () => (
         <Frame>
@@ -52,5 +49,4 @@ const SeekDemo = () => {
     );
 };
 
-// Tap or drag across the bars, or focus and use the arrow keys.
 export const Seekable: Story = { render: () => <SeekDemo /> };

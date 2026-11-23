@@ -1,17 +1,9 @@
 import * as React from 'react';
 
 export interface IconCameraSolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Solid camera glyph — the "camera" action in the chat attach menu. Exported from the Figma
- * "Bold / Video, Audio, Sound / Camera" instance the attach menu carries (node `3749:28919` inside
- * `3749:27536`): a filled body with the lens cut out, plus a small flash pill top-right.
- *
- * The `viewBox` is the icon's own 32×32 frame. Fills with `currentColor` so the tile colours it.
- */
 export const IconCameraSolid = ({ size = 32, className, ...props }: IconCameraSolidProps) => (
     <svg
         width={size}

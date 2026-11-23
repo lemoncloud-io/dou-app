@@ -5,23 +5,14 @@ import { cn } from '@chatic/ui-kit';
 import { IconSearch } from '../../resources/icons';
 
 export interface SearchInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
-    /** Controlled value. */
     value: string;
-    /** Controlled change handler — receives the raw string. */
     onChange: (value: string) => void;
     placeholder?: string;
-    /** Optional adjacent action rendered to the right (e.g. an invite-link button). */
     trailing?: React.ReactNode;
-    /** Accessible label for the input. Host supplies a localized string. */
     label?: string;
     className?: string;
 }
 
-/**
- * Pill search field — the Figma "Search" container. A rounded, filled input with
- * a leading magnifier. An optional `trailing` slot sits beside it for a sibling
- * action button (e.g. the friend-picker's invite-link button).
- */
 export const SearchInput = React.forwardRef<HTMLInputElement, SearchInputProps>(
     ({ value, onChange, placeholder = 'Search', trailing, label, className, ...props }, ref) => {
         return (

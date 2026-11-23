@@ -31,10 +31,8 @@ const Trigger = (props: Pick<AudioDetailMoreSheetProps, 'onViewInChat' | 'onRepl
 
 const noop = () => undefined;
 
-// Figma 6072:22922, without the copy-link row.
 export const AllRows: Story = {
     render: () => <Trigger onViewInChat={noop} onReplyInThread={noop} onDelete={noop} />,
 };
 
-// Someone else's file in a room without threads: only the jump back to the chat.
 export const ViewOnly: Story = { render: () => <Trigger onViewInChat={noop} /> };

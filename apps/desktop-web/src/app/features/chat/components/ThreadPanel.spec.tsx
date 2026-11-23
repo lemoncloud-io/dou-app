@@ -35,14 +35,12 @@ const composerSend = vi.fn();
 const useComposerSend = vi.fn((_target: unknown) => ({ send: composerSend }));
 const clearTray = vi.fn();
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
-// Read positions are covered in ThreadPanel.readMarkers.spec.tsx; here the room has none to draw.
 vi.mock('../../../shared/hooks/useChannelReadCounts', () => ({
     useChannelReadCounts: () => ({ readCountOf: () => null, cursors: [] }),
 }));
 vi.mock('../../../shared/hooks/usePanelWidth', () => ({
     usePanelWidth: () => ({ width: 384, minWidth: 280, maxWidth: 640, panelRef: { current: null } }),
 }));
-// The hook under the panel is the real one — the panel's states are what it reports.
 vi.mock('../hooks', async () => ({
     useThreadRoot: (await vi.importActual<{ useThreadRoot: typeof UseThreadRoot }>('../hooks/useThreadRoot'))
         .useThreadRoot,
@@ -63,8 +61,6 @@ vi.mock('../hooks', async () => ({
     useRunWithFreshAddress: () => vi.fn(),
     useComposerSend: (target: unknown) => useComposerSend(target),
 }));
-// The composer is a rich-text editor with its own runtime needs; this file is about
-// what the panel renders above it — and what it does with a reply the composer hands up.
 let composerOnSend: ((content: string, files: File[], mention?: { userIds?: string[] }) => void) | undefined;
 vi.mock('./Composer', () => ({
     Composer: ({ onSend }: { onSend: typeof composerOnSend & {} }) => {
@@ -100,7 +96,6 @@ const chat = (chatNo: number, extra: Partial<DomainChat>): DomainChat =>
         ...extra,
     }) as DomainChat;
 
-// A root, one reply, and someone's 👍 on the root — the reaction arrives as its own chat.
 const THREAD_WITH_REACTION: DomainChat[] = [
     chat(1, { content: 'root' }),
     chat(2, { content: 'reply', parentId: 'C1:1' }),
@@ -122,7 +117,6 @@ describe('ThreadPanel', () => {
     });
 
     describe('a root older than the loaded window', () => {
-        // Newest page of a long channel: the thread's root (chat 5) is far below it.
         const WINDOW: DomainChat[] = [chat(100, { content: 'recent' }), chat(101, { content: 'recent too' })];
 
         it('fetches the root itself and shows it with its composer, without asking the reader to scroll', async () => {
@@ -187,7 +181,6 @@ describe('ThreadPanel', () => {
     });
 
     describe('replies below the loaded window', () => {
-        // The window starts at 500; the root is 5, so the replies in between are still out there.
         const FAR_WINDOW: DomainChat[] = [
             chat(500, { content: 'recent reply', parentId: '5' }),
             chat(501, { content: 'later chatter' }),
@@ -219,7 +212,6 @@ describe('ThreadPanel', () => {
             expect(screen.getByText('1 reply loaded')).toBeTruthy();
             expect(screen.queryByText('1 reply')).toBeNull();
 
-            // The window reaches the root: the thread is whole, so the count is the thread's.
             messages = [chat(5, { content: 'the root' }), ...FAR_WINDOW];
             view.rerender(panel());
 
@@ -233,7 +225,6 @@ describe('ThreadPanel', () => {
 
             const view = render(<ThreadPanel channel={CHANNEL} rootId="5" members={[]} />, { wrapper });
             await screen.findByText('the root');
-            // A place switch hands the panel a fresh object for the same channel when the list returns.
             view.rerender(<ThreadPanel channel={{ ...CHANNEL }} rootId="5" members={[]} />);
 
             expect(screen.getByText('the root')).toBeTruthy();
@@ -249,12 +240,10 @@ describe('ThreadPanel', () => {
             messages = windowFrom(800);
             hasMore = true;
             getChat.mockResolvedValue(chat(5, { content: 'the root' }));
-            // A fresh element each time: React skips a re-render for the very same one.
             const panel = () => <ThreadPanel channel={CHANNEL} rootId="5" members={[]} />;
 
             const view = render(panel(), { wrapper });
             await screen.findByText('the root');
-            // Each landed page re-emits the window 50 messages further back.
             const land = (from: number) => {
                 messages = windowFrom(from);
                 view.rerender(panel());
@@ -269,7 +258,6 @@ describe('ThreadPanel', () => {
             expect(loadOlder).toHaveBeenCalledTimes(5);
             expect(screen.getByText('the root')).toBeTruthy();
             expect(screen.getByText('recent reply')).toBeTruthy();
-            // The root being there, replying stays possible however much is still out.
             expect(useComposerSend).toHaveBeenLastCalledWith({ cid: 'default', channelId: 'C1', parentId: 'C1:5' });
 
             fireEvent.click(more);
@@ -308,20 +296,13 @@ describe('ThreadPanel', () => {
     });
 
     it('shows the reactions on a threaded message', () => {
-        // The server keeps no reaction state: the tallies are folded out of the loaded feed. The
-        // panel renders the same messages as the feed, so a message with reactions has to carry
-        // them here too.
         messages = THREAD_WITH_REACTION;
 
         render(<ThreadPanel channel={CHANNEL} rootId="C1:1" members={[]} />, { wrapper });
 
-        // The chip, not the toolbar's quick-reaction button: only the chip is labelled
-        // "<emoji> · <reactors>", and only the chip means the reaction is on the message.
         expect(screen.getByLabelText(/^👍 ·/)).toBeTruthy();
     });
 
-    // Same renderer as the feed. A reply that arrives as Block Kit is drawn here for
-    // free — this pins that, so a future surface cannot quietly grow its own path.
     it('draws a Block Kit reply', () => {
         messages = [
             chat(1, { content: 'root' }),
@@ -339,9 +320,6 @@ describe('ThreadPanel', () => {
         expect(screen.getByRole('heading', { name: 'Error report' })).toBeTruthy();
     });
 
-    // Same renderer, and `blocks$` (server field) outranks `content` JSON. `MessageList.spec`
-    // asserts the same thing through
-    // the feed; this pins that the thread panel does not grow a second reader.
     it('draws a blocks$ reply ahead of its content', () => {
         messages = [
             chat(1, { content: 'root' }),
@@ -349,8 +327,6 @@ describe('ThreadPanel', () => {
                 parentId: 'C1:1',
                 content: WEBHOOK_SEND_ERROR_REPORT.content,
                 blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
-                // Pins buildMessageRows' `stereo === 'system'` branch: a webhook chat is a
-                // user bubble, not a system notice.
                 stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
             } as Partial<DomainChat>),
         ];
@@ -360,8 +336,6 @@ describe('ThreadPanel', () => {
         expect(screen.getByRole('heading', { name: /error-report/ })).toBeTruthy();
     });
 
-    // Addressed to the channel's own cloud, captured at the press, so a cloud switch while the
-    // reply is in flight cannot send it through the next cloud's socket.
     it("sends a reply, with its pictures, to the thread in the channel's own cloud and empties the tray", async () => {
         messages = [chat(1, { content: 'root' })];
         const files = [new File(['a'], 'a.png', { type: 'image/png' })];
@@ -369,7 +343,6 @@ describe('ThreadPanel', () => {
         render(<ThreadPanel channel={{ ...CHANNEL, cid: 'cloud-a' } as DomainChannel} rootId="C1:1" members={[]} />, {
             wrapper,
         });
-        // The composer arrives a tick after the thread (lazy chunk) — wait for it.
         await waitFor(() => expect(composerOnSend).toBeDefined());
         composerOnSend?.('reply', files);
 
@@ -486,8 +459,6 @@ describe('ThreadPanel keyboard dismissal', () => {
         try {
             opener.focus();
             const { unmount } = openPanel();
-            // Assert the call, not the resulting activeElement: jsdom restores focus
-            // on subtree removal by itself, so a state assertion passes either way.
             const focusSpy = vi.spyOn(opener, 'focus');
             try {
                 unmount();

@@ -49,7 +49,6 @@ describe('useHeldChannel', () => {
 
         rerender({ resolved: undefined, wantedId: 'ch-1', loading: true });
         rerender({ resolved: undefined, wantedId: 'ch-1', loading: false });
-        // The next load (another place switch) must not hand the gone channel's old object back.
         rerender({ resolved: undefined, wantedId: 'ch-1', loading: true });
 
         expect(result.current).toBeUndefined();

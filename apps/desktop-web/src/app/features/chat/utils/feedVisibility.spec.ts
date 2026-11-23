@@ -16,8 +16,6 @@ describe('isFeedVisible', () => {
         expect(isFeedVisible(chat({ parentId: 'C1:1' }))).toBe(false);
     });
 
-    // The row stays and renders as "This message was deleted." A message that just
-    // vanishes leaves the people who were reading it with no account of what happened.
     it('keeps a deleted message so the feed can say one was here', () => {
         expect(isFeedVisible(chat({ hidden: true }))).toBe(true);
     });
@@ -30,20 +28,14 @@ describe('isFeedVisible', () => {
         expect(isFeedVisible(chat({ stereo: 'system', subType: 'join' }))).toBe(true);
     });
 
-    // These are the input to foldReactions, shown as chips under the message they
-    // point at. As feed rows they would be empty lines.
     it('drops a reaction event', () => {
         expect(isFeedVisible(chat({ stereo: 'system', subType: 'reaction' }))).toBe(false);
     });
 
-    // A deleted reaction event is still a reaction event: it must not become a
-    // tombstone in the feed just because it was removed.
     it('drops a deleted reaction event rather than tombstoning it', () => {
         expect(isFeedVisible(chat({ stereo: 'system', subType: 'reaction', hidden: true }))).toBe(false);
     });
 
-    // Written by the server each time a message is edited or deleted. As a feed row it would split one
-    // person's run of messages in two around an empty line.
     it('drops a revision notice, an edit or a delete alike', () => {
         expect(isFeedVisible(chat({ stereo: 'system', subType: 'edit', content: '' }))).toBe(false);
         expect(

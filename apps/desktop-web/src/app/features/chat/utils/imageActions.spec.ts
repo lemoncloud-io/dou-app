@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { copyImageToClipboard, downloadImage, fetchFileBytes } from './imageActions';
 
-/** Every anchor the page clicked, as it was at the click. */
 const clicked: { href: string; download: string }[] = [];
 
 beforeEach(() => {
@@ -43,7 +42,6 @@ describe('downloadImage', () => {
         expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:saved');
     });
 
-    // A document sent before the server kept names is saved as "file"; its bytes say what it is.
     it('names a nameless document by its type too', async () => {
         vi.stubGlobal(
             'fetch',
@@ -119,7 +117,6 @@ describe('fetchFileBytes', () => {
         );
     });
 
-    // Storage that ignores the range sends the whole file; only what was asked for is kept.
     it('stops reading a whole-file answer once it has enough', async () => {
         const cancel = vi.fn();
         let sent = 0;

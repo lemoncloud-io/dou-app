@@ -13,19 +13,12 @@ import { deviceStore, persistStorageOver } from '../../storage';
 
 interface MyThreadsState {
     threads: MyThreads;
-    /** Clouds whose cache has been read into the list once — the first launch with the feature. */
     backfilled: Record<string, true>;
     record: (reply: ThreadReply, options?: { root?: ThreadRoot; seen?: boolean }) => void;
     markSeen: (cid: string, channelId: string, rootNo: string) => void;
-    /** Adds a cloud's cached threads as read — history, not news — leaving listed ones alone. */
     backfill: (cid: string, found: Array<{ reply: ThreadReply; root: ThreadRoot }>) => void;
 }
 
-/**
- * Device-local list of the threads the user takes part in. No server thread list exists, so this is a
- * local record like the mentions inbox — persisted to localStorage, not following the account across
- * devices. The rules live in `myThreads`; a no-op there leaves the state, and localStorage, untouched.
- */
 export const useMyThreadsStore = create<MyThreadsState>()(
     persist(
         set => ({

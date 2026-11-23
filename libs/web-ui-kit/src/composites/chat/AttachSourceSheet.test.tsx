@@ -53,7 +53,6 @@ describe('AttachSourceSheet', () => {
             <AttachSourceSheet open onOpenChange={jest.fn()} title="파일" onAlbum={jest.fn()} onFiles={jest.fn()} />
         );
 
-        // Drawn once for the eye (hidden from assistive tech) and once, hidden, as the sheet's name.
         expect(screen.getAllByText('파일')).toHaveLength(2);
         expect(screen.getByRole('dialog', { name: '파일' })).toBeInTheDocument();
     });
@@ -72,7 +71,6 @@ describe('AttachSourceSheet', () => {
         expect(screen.getByRole('dialog', { name: '파일 첨부' })).toBeInTheDocument();
     });
 
-    // The second step has to read as the first one narrowing: the same top edge as the attach panel.
     it("draws the sheet with the attach panel's edge", () => {
         render(<AttachSourceSheet open onOpenChange={jest.fn()} onAlbum={jest.fn()} onFiles={jest.fn()} />);
 

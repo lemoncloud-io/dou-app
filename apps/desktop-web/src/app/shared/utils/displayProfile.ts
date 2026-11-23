@@ -5,13 +5,6 @@ export interface ResolvedDisplay {
     thumbnail: string | undefined;
 }
 
-/**
- * Display Profile merge (ADR 0007): an active Place Profile overrides the Global
- * fallback field-by-field. The single merge used by every surface (selector +
- * message rows) — pass the place entry (if any) and the caller's already-resolved
- * global name/thumbnail. Avatar color seed stays keyed to the canonical uid
- * elsewhere.
- */
 export const resolveDisplay = (
     place: PlaceProfileEntry | undefined,
     fallbackName: string,

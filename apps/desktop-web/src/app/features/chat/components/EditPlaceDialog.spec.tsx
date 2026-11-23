@@ -46,7 +46,6 @@ const saveButton = () => screen.getByRole('button', { name: i18next.t('place.edi
 const typeName = (value: string) => fireEvent.change(nameField(), { target: { value } });
 const openOn = (placeId: string) => act(() => useEditPlaceDialogStore.getState().open(placeId));
 const openId = () => useEditPlaceDialogStore.getState().placeId;
-/** The dialog renders in a portal, so the hidden picker is looked up on the document. */
 const pickPhoto = (file: File) =>
     fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [file] } });
 const photoOf = (bytes: number) => {
@@ -55,7 +54,6 @@ const photoOf = (bytes: number) => {
     return file;
 };
 
-/** A promise the test settles by hand, to hold the dialog mid-request. */
 const deferred = <T,>() => {
     let resolve!: (value: T) => void;
     let reject!: (reason: unknown) => void;
@@ -79,7 +77,6 @@ describe('EditPlaceDialog', () => {
 
         expect(nameField().value).toBe('Design');
         expect(nameField().maxLength).toBe(PLACE_NAME_MAX);
-        // The place has a photo, so the form offers to change it rather than to add one.
         expect(screen.getByRole('button', { name: i18next.t('place.create.changePhoto') })).toBeTruthy();
         expect(saveButton().disabled).toBe(true);
     });
@@ -159,7 +156,6 @@ describe('EditPlaceDialog', () => {
         await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(i18next.t('place.edit.failed.denied')));
         expect(openId()).toBe('place-1');
         expect(nameField().value).toBe('Studio');
-        // The toast clears the dialog's dim, so the server's words reach the person too.
         expect(toast).toHaveBeenCalledWith(
             expect.objectContaining({ variant: 'destructive', title: i18next.t('place.edit.failed.denied') })
         );
@@ -213,7 +209,6 @@ describe('EditPlaceDialog', () => {
         const { rerender } = render(<EditPlaceDialog places={places} />);
         typeName('Studio');
         fireEvent.click(saveButton());
-        // The cloud changes under the dialog: the host closes it, and it is opened again elsewhere.
         act(() => useEditPlaceDialogStore.getState().close());
         rerender(<EditPlaceDialog places={places} />);
         openOn('place-2');

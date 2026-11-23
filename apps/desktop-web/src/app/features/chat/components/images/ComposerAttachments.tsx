@@ -15,38 +15,18 @@ import { Hint, hoverReveal } from '../../../../shared';
 interface ComposerAttachmentsProps {
     attachments: ComposerAttachment[];
     onRemove: (id: string) => void;
-    /** Where focus goes once the last attachment is removed: the message input. */
     onEmptied?: () => void;
 }
 
-/**
- * The tray of picked files inside the composer (Figma "Image"): 92px tiles in one row
- * that scrolls sideways, a spinner until an image's preview has decoded, a video or
- * document named on its tile with its size, the remove "×" on hover
- * or focus ("delete button on hover"), and how many of the ten are used. A tile opens
- * its file at full size before it is sent, where `canPreviewAttachment` says it can;
- * a voice file's tile plays it instead.
- *
- * The row used to wrap, so ten images took about 40% of the window and pushed the
- * conversation out of view while you wrote the message that goes with them.
- */
 export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: ComposerAttachmentsProps) => {
     const { t } = useTranslation();
     const listRef = useRef<HTMLUListElement>(null);
-    // Removing a tile unmounts the button that had focus, which dropped it on <body>.
-    // The position it left is where focus goes next: the tile that slid into it, the
-    // new last tile, or the message input once the tray is empty.
     const refocusAt = useRef<number | null>(null);
-    // A screen reader heard nothing when images joined or left the tray.
-    // Each message gets its own node, so the same words twice ("1 image added") are said twice.
     const [announcement, setAnnouncementState] = useState({ text: '', seq: 0 });
     const setAnnouncement = (text: string) => setAnnouncementState(current => ({ text, seq: current.seq + 1 }));
     const previousCount = useRef(attachments.length);
-    // Previews that have decoded. Local to the tray: it was a second decode through
-    // `new Image()` in the hook, for a flag only this spinner reads.
     const [decoded, setDecoded] = useState<ReadonlySet<string>>(() => new Set());
     const markDecoded = (id: string) => setDecoded(current => (current.has(id) ? current : new Set(current).add(id)));
-    // Looked up by id, so removing the previewed file closes its preview with it.
     const [previewId, setPreviewId] = useState<string | null>(null);
     const previewing = attachments.find(attachment => attachment.id === previewId);
 
@@ -72,7 +52,6 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
 
     return (
         <>
-            {/* Mounted with the tray empty too: the last removal is announced after the list is gone. */}
             <span role="status" aria-live="polite" className="sr-only">
                 <span key={announcement.seq}>{announcement.text}</span>
             </span>
@@ -81,7 +60,6 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
                     <ul
                         ref={listRef}
                         aria-label={t('chat.attach.tray')}
-                        // pt/pr leave room for the "×" that overhangs each tile's corner.
                         className="scrollbar-thin flex min-w-0 flex-1 gap-3.5 overflow-x-auto pb-1 pr-2 pt-2"
                     >
                         {attachments.map((attachment, index) => {
@@ -177,21 +155,13 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
     );
 };
 
-/**
- * A picked voice file's tile, which plays it from the tray's object URL: a click toggles play and
- * pause, and a bar along the bottom edge shows how far it has gone.
- */
 const AudioTile = ({ attachment }: { attachment: ComposerAttachment }) => {
     const { t } = useTranslation();
     const { playing, time, duration, failed, toggle } = useVoicePlayback(attachment.url);
     const name = attachment.name;
     const PlayIcon = playing ? Pause : Play;
-    // A file it cannot play is a plain tile, like a document nothing opens: a disabled button takes
-    // no focus, and its label would hide the error from a screen reader.
     const Tile = failed ? 'div' : 'button';
     const started = time > 0 || playing;
-    // The clock once it has started; before that what it is and how long (Figma "음성 파일 · 0:42"), the
-    // length as soon as the file's header has been read.
     const caption = failed
         ? t('chat.file.playFailed')
         : started
@@ -234,8 +204,6 @@ const AudioTile = ({ attachment }: { attachment: ComposerAttachment }) => {
                 </div>
             </div>
             {duration !== undefined && started && (
-                // Inside the padding, so the tile's rounded corners do not clip its ends; the same ink
-                // as the play button and the feed card's seek bar.
                 <span aria-hidden className="absolute inset-x-2.5 bottom-1.5 h-0.5 overflow-hidden rounded-full">
                     <span
                         className="block h-full origin-left bg-foreground"

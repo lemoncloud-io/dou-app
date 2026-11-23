@@ -30,7 +30,6 @@ describe('selectRailCloud', () => {
         expect(onSelect).not.toHaveBeenCalled();
     });
 
-    // A held cloud still opens: the server decides, and a refusal gets the switch flow's own toast.
     it('starts a switch into a suspended cloud', () => {
         const onSelect = vi.fn();
         selectRailCloud(cloud('b', 'owned', 'suspended'), 'a', onSelect, t);

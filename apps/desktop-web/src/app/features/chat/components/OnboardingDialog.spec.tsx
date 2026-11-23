@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const syncChannels = vi.fn(() => Promise.resolve({ syncedAt: 0, removedCount: 0 }));
 const repositories = { channel: { syncChannels } };
-// Every cloud gives the account its own uid; the relay's is the one it keeps everywhere.
 const ids = { session: 'u1', relay: 'u1' as string | null };
 vi.mock('@chatic/runtime', async () =>
     (await import('@chatic/runtime/testing')).fakeRuntimeModule({
@@ -18,7 +17,6 @@ vi.mock('@chatic/runtime', async () =>
 import { useOnboardingStore } from '../stores';
 import { OnboardingDialog, SELF_CHANNEL_WAIT_MS } from './OnboardingDialog';
 
-// Initialises i18next so the dialog copy resolves.
 import '../../../../i18n';
 
 const mount = ({ hasWorkspaces = true } = {}) =>
@@ -26,7 +24,6 @@ const mount = ({ hasWorkspaces = true } = {}) =>
 
 describe('OnboardingDialog', () => {
     afterEach(() => {
-        // A dialog left mounted re-runs its first-run check when the store resets below.
         cleanup();
         localStorage.clear();
         useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
@@ -34,14 +31,11 @@ describe('OnboardingDialog', () => {
         ids.relay = 'u1';
     });
 
-    // The flag was keyed by the session uid, which is a different one in every cloud, so the tips
-    // opened again on the first visit to each workspace.
     it('stays closed in another cloud once the account has closed it', () => {
         const first = mount();
         fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
         first.unmount();
 
-        // The switch commits: the session now answers with this cloud's uid, the relay's is unchanged.
         ids.session = 'uid-in-cloud-1';
         useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
         mount();
@@ -61,8 +55,6 @@ describe('OnboardingDialog', () => {
         expect(screen.getByRole('dialog')).toBeTruthy();
     });
 
-    // A guest on Home has no workspace or place to pick, so explaining those columns taught nothing;
-    // how to join one is what helps.
     it('tells an account with Home alone how to join a workspace', () => {
         mount({ hasWorkspaces: false });
         fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -81,7 +73,6 @@ describe('OnboardingDialog', () => {
         expect(screen.queryByText(/Have an invite/)).toBeNull();
     });
 
-    // The home screen remounts on every return from Profile; closed tips came back each time.
     it('stays closed after a dismissal when the home screen remounts', () => {
         const first = mount();
         expect(screen.getByRole('dialog')).toBeTruthy();
@@ -104,8 +95,6 @@ describe('OnboardingDialog', () => {
     });
 });
 
-// The dialog opens from state with nothing focused, so it has no opener to return to: closing it
-// dropped focus on <body> and the next Tab started from the top of the page.
 describe('OnboardingDialog focus on close', () => {
     let composer: HTMLElement;
     beforeEach(() => {
@@ -138,11 +127,7 @@ describe('OnboardingDialog focus on close', () => {
     });
 });
 
-// A dismissal used to survive only in memory, so every page reload — the wedge
-// self-heal after sleep, a restart, a manual refresh — brought the tips back.
 describe('OnboardingDialog after a reload', () => {
-    // A page load starts with empty stores and whatever localStorage kept, so the
-    // precondition is set here rather than inherited from the suite above.
     beforeEach(() => {
         localStorage.clear();
         useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
@@ -153,7 +138,6 @@ describe('OnboardingDialog after a reload', () => {
         fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
         first.unmount();
 
-        // A reload keeps localStorage and drops every in-memory store.
         useOnboardingStore.setState({ checkedFor: null, reopenRequested: false });
 
         mount();
@@ -161,8 +145,6 @@ describe('OnboardingDialog after a reload', () => {
     });
 });
 
-// A new account on Home waits on its Self Channel. When the list dropped that channel the row spun
-// for as long as anyone watched, with nothing to do about it.
 describe('OnboardingDialog Self Channel row', () => {
     const mountHome = (isChannelReady: boolean) => (
         <OnboardingDialog enabled showChannelStatus isChannelReady={isChannelReady} hasWorkspaces={false} />
@@ -201,7 +183,6 @@ describe('OnboardingDialog Self Channel row', () => {
         expect(screen.getByRole('status').textContent).toBe("Couldn't load your Self Channel.");
     });
 
-    // A retry whose sync fails is known at once — no point spinning another 15s.
     it('shows the failure at once when the retry sync fails', async () => {
         syncChannels.mockRejectedValueOnce(new Error('offline'));
         render(mountHome(false));

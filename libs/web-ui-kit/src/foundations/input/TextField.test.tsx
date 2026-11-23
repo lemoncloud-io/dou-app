@@ -38,7 +38,6 @@ describe('TextField', () => {
     });
 
     it('drops the hard cap but keeps the counter when enforceMaxLength is false', () => {
-        // Over-limit value: counter shows 21/20 (unreachable if the input were hard-capped).
         render(
             <TextField
                 label="이름"
@@ -79,7 +78,6 @@ describe('TextField', () => {
             />
         );
 
-        // Order inside the bordered container is what makes it read as one input group.
         const box = container.querySelector('.rounded-\\[10px\\]');
         const order = Array.from(box?.children ?? []).map(child => child.textContent);
         expect(order).toEqual(['+82', '', '인증 요청']);
@@ -95,8 +93,6 @@ describe('TextField', () => {
             <TextField label="휴대폰 번호" value="" onChange={jest.fn()} leading={<button type="button">+82</button>} />
         );
 
-        // focus-within, not focus: the ring belongs to the container, so tapping the picker keeps
-        // the field looking active instead of dropping it back to its resting border.
         expect(container.querySelector('.rounded-\\[10px\\]')?.className).toContain('focus-within:border-focus-border');
     });
 

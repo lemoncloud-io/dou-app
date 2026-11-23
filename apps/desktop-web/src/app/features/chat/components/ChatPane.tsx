@@ -58,20 +58,9 @@ import { LazyComposer } from './LazyComposer';
 
 interface ChatPaneProps {
     channel: DomainChannel | undefined;
-    /** Roster for the open channel (lifted to HomePage so it's fetched once). */
     members: ChannelMember[];
-    /** Roster still loading — message headers show a name skeleton, not "Unknown". */
     membersLoading?: boolean;
-    /**
-     * Where a jump brought the reader from, and how to go back. Supplied by the
-     * host, which owns both the channel list (for the name) and the jump itself.
-     */
     jumpReturn?: { originName?: string; onReturn: () => void; onDismiss: () => void };
-    /**
-     * What the pane offers with no channel open. `pick` when the sidebar has
-     * channels, `create` when this place has none, `join` on the Default Cloud,
-     * which cannot create channels: there the only next step is an invite.
-     */
     emptyState?: { mode: 'pick' | 'create' | 'join' | 'inbox'; onAction?: () => void };
 }
 
@@ -86,29 +75,20 @@ export const ChatPane = ({
     const channelId = channel?.id ?? null;
     const shell = useShellSidebar();
     const myUid = runtime.session.useSessionIdentity().userId;
-    // Identity for naming own/optimistic messages (guest-UUID guard + per-channel
-    // cloud id) — shared with the thread panel via useMessageViewer.
     const viewer = useMessageViewer(channel);
     const placeProfiles = useSiteProfileMap();
-    // The channel record's newest chatNo drives the feed's freshness bridge (see useChats).
     const { messages, isLoading, loadFailed, retryLoad, loadOlder, loadOlderFailed, hasMore, isLoadingOlder } =
         useChats(channelId, channel ? lastChatNoOf(channel) : undefined);
     const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
     const clearIfOpen = useSelectedChannelStore(s => s.clearIfOpen);
-    // One instance for the header menu and the intro, so both open the same dialogs. A removal
-    // answers about a second after its confirm, so it closes the room only if it is still open.
     const channelActions = useChannelActions(channelId, { onRemoved: () => clearIfOpen(channelId) });
     const openSearch = useSearchDialogStore(s => s.setOpen);
-    // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
-    // scoped to the active place. A null scope (cloud/place not settled) leaves the star a no-op
-    // instead of writing a half-formed key.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const pinScope = placeScopeKey(selectedCloudId, selectedSiteId);
     const { pinnedIds, toggle: togglePinned } = usePinnedChannels(pinScope);
     const isFavorite = channelId ? pinnedIds.includes(channelId) : false;
     const openThreadIn = useThreadStore(s => s.open);
-    // A thread is bound to the channel it was opened in; the root id alone is a bare chatNo.
     const openThread = useCallback(
         (rootId: string) => {
             if (channelId) openThreadIn(rootId, channelId);
@@ -117,8 +97,6 @@ export const ChatPane = ({
     );
     const labeled = useMemo(() => (channel ? [channel] : []), [channel]);
     const labelOf = useChannelLabels(labeled);
-    // Saved-item / search jump: forward a target to MessageList only when it
-    // belongs to the open channel; clear it once the list has consumed it.
     const jumpRequest = useMessageJumpStore(s => s.target);
     const clearJump = useMessageJumpStore(s => s.clear);
     const jumpTarget = useMemo(
@@ -128,7 +106,6 @@ export const ChatPane = ({
                 : undefined,
         [jumpRequest, channelId]
     );
-    // "Show in chat" from a voice file's detail: the same centred, flashed landing as a search hit.
     const requestJump = useMessageJumpStore(s => s.request);
     const showMessage = useCallback(
         (message: DomainChat) => {
@@ -136,7 +113,6 @@ export const ChatPane = ({
         },
         [requestJump, channelId]
     );
-    // The feed reports what the reader is looking at, so a jump can record it as the way back.
     const setReadingPosition = useMessageJumpStore(s => s.setPosition);
     const reportPosition = useCallback(
         (chatNo: number | null) => {
@@ -144,76 +120,42 @@ export const ChatPane = ({
         },
         [channelId, setReadingPosition]
     );
-    // Thread replies belong to the panel (ADR 0008) and reaction events are chips, not
-    // rows — `isFeedVisible` owns both rules. Deleted messages stay and render as a
-    // tombstone, so the filter no longer needs the thread index to decide.
     const topLevel = useMemo(() => messages.filter(isFeedVisible), [messages]);
-    // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
-    // the events this reads, so folding `topLevel` would always come back empty.
     const reactions = useMemo(() => foldReactions(messages, viewer), [messages, viewer]);
     const [sendTick, setSendTick] = useState(0);
 
-    // Snapshot the read position when the channel opens, before HomePage's
-    // mark-read effect advances the cursor — this is where the "new messages"
-    // divider sits. Captured during render so it precedes that post-commit effect.
     const baselineRef = useRef<{ id: string | null; no: number }>({ id: null, no: 0 });
     const serverJoinNo = channel?.$join?.chatNo ?? 0;
-    // Subscribe to the cursor (rather than reading getState() in render) so the
-    // baseline captures a consistent value; the ref guard below freezes it after
-    // the first capture, so the later mark-read advance doesn't move the divider.
     const localCursor = useReadCursorStore(s => (channelId ? (s.cursors[channelId] ?? 0) : 0));
-    // Re-capture once the channel's $join arrives (it can land a render after the
-    // channelId flips), otherwise the divider would freeze at a stale 0 baseline.
     if (baselineRef.current.id !== channelId || (baselineRef.current.no === 0 && serverJoinNo > 0)) {
         baselineRef.current = { id: channelId, no: Math.max(localCursor, serverJoinNo) };
     }
     const baselineReadNo = baselineRef.current.no;
-    // A reply takes a slot in the channel's unread count but stays out of this feed, so its root's
-    // footer is what shows it is new — and where the feed lands when nothing else is.
     const newReplyRule = useNewReplyRule(channelId, messages, baselineReadNo, viewer);
-    // Reply counts come from the full set so a root's "N replies" footer is correct;
-    // replies keep arriving in the cache via chat:create.
     const threadIndex = useMemo(() => buildThreadIndex(messages, newReplyRule), [messages, newReplyRule]);
 
-    // owner$ is often omitted on other users' messages, so resolve author names
-    // from the `user` cache keyed by owner id (useAuthorNames) — that paints a
-    // previously-seen author instantly, with no roster-reload flicker. The channel
-    // roster is only a fallback for members not yet held individually. Until either
-    // resolves, the header shows a skeleton (namePending) rather than "Unknown".
     const authorIds = useMemo(() => messages.map(m => m.ownerId), [messages]);
     const cachedNames = useAuthorNames(authorIds);
     const memberNames = useMemo(() => buildMemberNames(members, cachedNames), [members, cachedNames]);
 
     const mentionables = useMentionables(members, viewer, channel);
 
-    // The image tray belongs to the open channel: switching channels shows that channel's own
-    // tray, and the one left behind waits for the way back, as the typed draft does.
     const tray = useImageAttachments(channelId ?? '');
     const { isDragging, dropHandlers } = useFileDrop(tray.addFiles);
-    // The channel's own cloud, so a cloud switch while a send is in flight cannot move it to the next
-    // cloud's socket. Empty until the channel row is here (nothing can be sent before that).
     const composer = useComposerSend({
         cid: channel ? channel.cid || RELAY_CLOUD_ID : '',
         channelId: channel ? (channelId ?? '') : '',
     });
 
-    // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages, channel ? channel.cid || RELAY_CLOUD_ID : '');
-    // How far each member has read: the faces on the message they stopped at, and the list behind them.
     const { readCountOf, cursors: readCursors } = useChannelReadCounts(channel);
 
-    // A notification click asks this channel to open at its latest message (the pinged
-    // one) rather than the unread divider. Read the one-shot flag for THIS channel and
-    // clear it once consumed so a later plain open keeps the divider behaviour.
     const openAtBottom = useOpenAtBottomStore(s => s.channelId === channelId && !!channelId);
     const clearOpenAtBottom = useOpenAtBottomStore(s => s.clear);
     useEffect(() => {
         if (openAtBottom) clearOpenAtBottom();
     }, [openAtBottom, clearOpenAtBottom]);
 
-    // After a delete or leave, focus goes to the first room shown that is not the removed one, or
-    // to the empty state's action when none is left. `pick` means rooms are listed and one is about
-    // to be selected, so the request waits for it.
     const focusRemovedId = useComposerFocusStore(s => s.removedId);
     const consumeComposerFocus = useComposerFocusStore(s => s.consume);
     const hasRoom = !!channelId && !!channel;
@@ -249,10 +191,7 @@ export const ChatPane = ({
                         {t(`chat.empty.${emptyState.mode}.action`)}
                     </Button>
                 )}
-                {/* An invite is one way in; the other is a cloud of one's own, which desktop cannot
-                    make. Without this line Home read as if joining were the only option. */}
                 {emptyState.mode === 'join' && <MobileAppPointer className="mt-2 max-w-xs" />}
-                {/* A drawer hides the list this copy points at. */}
                 {emptyState.mode === 'pick' && shell.isDrawer && (
                     <Button
                         variant="outline"
@@ -274,13 +213,8 @@ export const ChatPane = ({
         tray.clear();
     };
 
-    // memberNo is deprecated server-side (back-filled from memberIds for compat) —
-    // count the ids directly and keep memberNo as the last resort.
     const memberCount = channel.memberIds?.length ?? channel.memberNo ?? 0;
     const desc = channel.desc?.trim();
-    // DM headers carry the other party, resolved like the sidebar row: this place's profile first
-    // (nick and photo), then the roster record already loaded here, then the shared label (the
-    // user cache). The self channel reads as "You"; a channel, as its name without `#`.
     const introKind = channelKind(channel);
     let headerName = labelOf(channel);
     let dmAvatar: string | undefined;
@@ -319,12 +253,8 @@ export const ChatPane = ({
     return (
         <>
             <header className={`${PANE_HEADER} px-6`}>
-                {/* The chat screen had no h1 — its top heading was the sidebar's h2. The
-                    open channel is what this screen is about, so it names the page. */}
                 <h1 className="sr-only">{headerName}</h1>
                 <div className="flex min-w-0 items-center gap-3.5">
-                    {/* Only reachable route to the channel list once the sidebar is a
-                        drawer; absent from the docked layout, where it would do nothing. */}
                     {shell.isDrawer && (
                         <Hint label={t('sidebar.show')}>
                             <button
@@ -353,8 +283,6 @@ export const ChatPane = ({
                     {memberCount > 0 && (
                         <button
                             type="button"
-                            // It reads as the member list, so it opens on the member list,
-                            // not at the top of the settings panel.
                             onClick={() => openSettings(channelId, 'members')}
                             aria-label={t('channels.settings.memberCount', { count: memberCount })}
                             className="focus-ring hit-target flex shrink-0 items-center gap-1 rounded-md bg-muted px-1.5 py-1 text-caption tabular-nums text-label transition-colors hover:bg-accent"

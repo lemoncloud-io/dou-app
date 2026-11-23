@@ -1,17 +1,9 @@
 import * as React from 'react';
 
 export interface IconFileSolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Solid file glyph — the "files" action in the chat attach menu. Exported from the Figma
- * "Bold / Files / File" instance the attach menu carries (node `3758:30488` inside `3749:27536`):
- * a filled sheet with the folded corner drawn as its own shape.
- *
- * The `viewBox` is the icon's own 32×32 frame. Fills with `currentColor` so the tile colours it.
- */
 export const IconFileSolid = ({ size = 32, className, ...props }: IconFileSolidProps) => (
     <svg
         width={size}

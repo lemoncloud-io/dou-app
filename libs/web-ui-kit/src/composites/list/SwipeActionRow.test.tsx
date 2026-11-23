@@ -13,10 +13,8 @@ import {
 
 const touch = (clientX: number, clientY = 0, identifier = 1) => ({ touches: [{ identifier, clientX, clientY }] });
 
-/** One finger down at x=0, dragged sideways to `toX`, then lifted. */
 const drag = (node: HTMLElement, toX: number) => {
     fireEvent.touchStart(node, touch(0));
-    // The first move only clears the slop; the swipe is measured from where it cleared it.
     fireEvent.touchMove(node, touch(Math.sign(toX) * 10));
     fireEvent.touchMove(node, touch(toX));
     fireEvent.touchEnd(node, { touches: [] });
@@ -33,7 +31,6 @@ interface HarnessProps {
     onContentClick?: () => void;
 }
 
-/** A host that holds `open`, as the kit expects one to. */
 const Harness = ({ leading, trailing, initialOpen = null, onReveal, onOpenChange, onContentClick }: HarnessProps) => {
     const [open, setOpen] = React.useState<SwipeSide | null>(initialOpen);
     return (
@@ -258,7 +255,6 @@ describe('SwipeActionRow', () => {
 
         act(() => drag(content(), -SWIPE_ACTION_WIDTH));
         expect(onOpenChange).toHaveBeenLastCalledWith('trailing');
-        // Well inside the click-swallow window of the swipe, but a touch of its own.
         fireEvent.touchStart(content(), touch(0));
         fireEvent.touchEnd(content(), { touches: [] });
         fireEvent.click(content());
@@ -279,9 +275,7 @@ describe('SwipeActionRow', () => {
 
         act(() => {
             fireEvent.touchStart(row, touch(0));
-            // Leans down at the slop, so the pull takes it...
             fireEvent.touchMove(row, touch(2, 6));
-            // ...and a move that now leans sideways must not start a swipe on top of it.
             fireEvent.touchMove(row, touch(10, 7));
             fireEvent.touchMove(row, touch(-80, 8));
             fireEvent.touchEnd(row, { touches: [] });

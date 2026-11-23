@@ -19,7 +19,6 @@ vi.mock('@chatic/runtime', async () =>
 import { useMessageActions } from './useMessageActions';
 
 const wrapper = ({ children }: { children: ReactNode }) => {
-    // Without this a rejected write would retry for seconds before surfacing.
     const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 };
@@ -38,7 +37,6 @@ describe('useMessageActions', () => {
         await waitFor(() => expect(updateChat).toHaveBeenCalledWith({ id: 'C1:4', content: 'fixed' }));
     });
 
-    // "(edited)" used to wait for a reload because the saved row kept updatedAt === createdAt.
     it('stamps the saved row as edited when the response did not', async () => {
         updateChat.mockResolvedValue({ id: 'C1:4', content: 'fixed', createdAt: 100, updatedAt: 100 });
         const { result } = renderHook(() => useMessageActions(), { wrapper });
@@ -64,8 +62,6 @@ describe('useMessageActions', () => {
         await waitFor(() => expect(deleteChat).toHaveBeenCalledWith({ id: 'C1:4' }));
     });
 
-    // The hook is shared by every message in an author block, so a failure has to name
-    // its row or the error would appear under whichever message was acted on last.
     it('attributes a failure to the message that caused it', async () => {
         deleteChat.mockRejectedValue(new Error('offline'));
         const { result } = renderHook(() => useMessageActions(), { wrapper });
@@ -74,8 +70,6 @@ describe('useMessageActions', () => {
         await waitFor(() => expect(result.current.failure?.id).toBe('C1:7'));
     });
 
-    // The row prints a different sentence for each: "couldn't save that change" is the
-    // wrong thing to say about a delete that did not go through.
     it('says which of the two operations failed', async () => {
         deleteChat.mockRejectedValue(new Error('offline'));
         updateChat.mockRejectedValue(new Error('offline'));

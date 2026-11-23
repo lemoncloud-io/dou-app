@@ -2,9 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook } from '@testing-library/react';
 
-// A push is the only signal that names a missing invited cloud — its endpoints
-// live nowhere else once the cache DB is gone — so every push carrying a cid
-// re-derives that cloud, presentation gates aside.
 const recoverInvitedCloudIfMissing = vi.fn(() => Promise.resolve());
 const cloudRepository = { id: 'cloud-repo' };
 
@@ -15,7 +12,6 @@ type PushListener = (payload: {
     notification: { title?: string; body?: string; data?: Record<string, string> };
 }) => void;
 
-// What the desktop shell hands the page: every listener the hook subscribed, until it unsubscribes.
 const listeners = new Set<PushListener>();
 const notifications = {
     onReceive: vi.fn((listener: PushListener) => {
@@ -143,7 +139,6 @@ describe('usePushInvitedCloudRecovery', () => {
         ).resolves.toBeUndefined();
         expect(recoverInvitedCloudIfMissing).toHaveBeenCalledTimes(1);
 
-        // The in-flight entry evicts in `finally`, so the next push retries.
         emitPushData({ cid: 'cloud-9' });
         await flush();
         expect(recoverInvitedCloudIfMissing).toHaveBeenCalledTimes(2);

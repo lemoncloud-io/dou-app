@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import { firstVisibleChatNo } from './firstVisibleChatNo';
 
-/** A feed of 40px rows starting at y=0, scrolled so the view's top edge sits at `viewTop`. */
 const feed = (chatNos: (number | undefined)[], viewTop: number): HTMLElement => {
     const container = document.createElement('div');
     container.getBoundingClientRect = () => ({ top: viewTop }) as DOMRect;

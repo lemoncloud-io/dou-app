@@ -4,25 +4,15 @@ import { ProfileAvatar } from '../../foundations/avatar/ProfileAvatar';
 import { Checkbox } from '../../foundations/checkbox/Checkbox';
 
 export interface SelectableUserItemProps {
-    /** Display name. */
     name: string;
-    /** Secondary line under the name; omitted (not an empty line) when blank. */
     subtitle?: string;
-    /** Avatar image URL; falls back to the placeholder glyph. */
     avatarSrc?: string;
-    /** Selected state (controlled). */
     checked?: boolean;
-    /** Toggle handler — receives the next checked value. */
     onToggle?: (checked: boolean) => void;
     disabled?: boolean;
     className?: string;
 }
 
-/**
- * Selectable user row — the Figma "friend invite list" item: an avatar + name + round
- * checkbox. Composed from ProfileAvatar + Checkbox. The whole row is the control
- * (single accessible checkbox); the inner Checkbox is a visual indicator.
- */
 export const SelectableUserItem = ({
     name,
     subtitle,

@@ -16,3 +16,5 @@ trailing panels, and how they share the window at each width. `DesktopLayout`
 - [place-rail.md](./place-rail.md): the place tiles, and making, editing and deleting a place from the rail.
 - [layering.md](./layering.md): the one stacking scale.
 - [failure-toasts.md](./failure-toasts.md): what a failure toast says, and the server's words under it.
+- [recovery.md](./recovery.md): the error screen, the connection banner, wake recovery and the
+  wedged-socket reload, and the update banner.

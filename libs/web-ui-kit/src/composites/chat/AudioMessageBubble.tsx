@@ -14,19 +14,6 @@ import {
 import { splitFileName } from './messageFile';
 import { ProgressRing } from './ProgressRing';
 
-/**
- * Where the audio message stands.
- *
- * - `idle` — sent and not playing; the second line is the host's meta (`35:47 · 17.0MB`).
- * - `loading` — play was pressed and the audio is not ready yet; a spinner turns in the button.
- * - `playing` / `paused` — the seek bar, the clock and the speed chip replace the meta line.
- * - `sending` — still going up: a ring with a cancel mark in the button's place.
- * - `failed` — the send failed; a red mark, and the retry/delete chips under the bubble are the
- *   host's (`FailedSendActions`).
- * - `broken` — stored but unplayable; a waveform mark in place of the button.
- * - `unsupported` — a format this device cannot play; the same mark plus a download button, so the
- *   file can still be taken to an app that can.
- */
 export type AudioMessageBubbleState =
     | 'idle'
     | 'loading'
@@ -38,42 +25,23 @@ export type AudioMessageBubbleState =
     | 'unsupported';
 
 export interface AudioMessageBubbleProps {
-    /** `mine` draws on my navy bubble ground, `other` on the received-message ground. */
     side: 'mine' | 'other';
     state: AudioMessageBubbleState;
-    /** The file's name, extension included (Figma 6040:20715). */
     name: string;
-    /** The idle line under the name, already formatted by the host — `35:47 · 17.0MB`. */
     meta?: string;
-    /** Seconds played, for `playing` / `paused`. */
     position?: number;
-    /** Seconds long, for `playing` / `paused`. Unknown leaves the seek bar at rest. */
     duration?: number;
-    /** The speed playing now (Figma "배속", 6040:20730). */
     rate?: number;
-    /** The speed chip was pressed; which speed comes next is the host's rule. */
     onRateChange?: () => void;
-    /** The round button was pressed — play, pause, or stop a load in progress. */
     onToggle?: () => void;
-    /** A position chosen on the seek bar. */
     onSeek?: (seconds: number) => void;
-    /**
-     * A press on the bubble outside its controls. The host opens the audio's detail screen. Omit to
-     * leave the body inert. Never offered while the message is `sending` or `failed`, since there is
-     * nothing stored to open yet.
-     */
     onOpen?: () => void;
-    /** 0..1 of the upload while `sending`. Omit while unknown, and the ring turns instead of filling. */
     sendProgress?: number;
-    /** The line under the name while `sending`, formatted by the host — `12 MB / 48 MB`. */
     sendingText?: string;
-    /** The × inside the upload ring. */
     onCancelSend?: () => void;
-    /** The download button of an `unsupported` bubble. */
     onDownload?: () => void;
     failedText?: string;
     brokenText?: string;
-    /** The `unsupported` line, formatted by the host — `Unsupported format · 17.0MB`. */
     unsupportedText?: string;
     playLabel?: string;
     pauseLabel?: string;
@@ -88,21 +56,6 @@ export interface AudioMessageBubbleProps {
 const clampRatio = (value: number | undefined): number | undefined =>
     value === undefined || !Number.isFinite(value) ? undefined : Math.min(Math.max(value, 0), 1);
 
-/**
- * An audio file in a chat message (Figma "음성 파일 · 앱 말풍선", 6040:20822): a 248px bubble with a
- * 36px round control on the left, the name on one line and a second line that changes with the
- * state — the meta, the upload, the failure, or, while it plays, a seek bar over a clock and the
- * speed chip.
- *
- * The bubble's body opens the detail screen (`onOpen`) through a transparent button laid under the
- * whole bubble, rather than by wrapping the bubble in one: the controls are buttons and a slider of
- * their own, and a button cannot hold another. The text above that layer lets presses through, and
- * only the controls take them. A long press is the message row's, so nothing here stops a pointer
- * event from reaching it.
- *
- * The only state held is the drag on the seek bar, so the clock can show where a drag would land
- * before the host jumps there.
- */
 export const AudioMessageBubble = ({
     side,
     state,
@@ -138,7 +91,6 @@ export const AudioMessageBubble = ({
     const openable = onOpen && state !== 'sending' && state !== 'failed';
     const { base, extension } = splitFileName(name);
 
-    // A drag in progress ends with the state that started it; a stale preview must not outlive it.
     React.useEffect(() => {
         if (!player) setScrub(null);
     }, [player]);
@@ -149,8 +101,6 @@ export const AudioMessageBubble = ({
     const control = (() => {
         if (state === 'sending') {
             const ratio = clampRatio(sendProgress);
-            // The ring and the × are siblings, not parent and child: a progressbar's children are
-            // presentational, which would hide the cancel button from assistive tech.
             return (
                 <span className="relative size-9 shrink-0">
                     <span
@@ -188,7 +138,6 @@ export const AudioMessageBubble = ({
             );
         }
         if (state === 'failed') {
-            // A drawn "!" rather than the outlined alert glyph: the design fills the whole disc red.
             return (
                 <span
                     aria-hidden="true"
@@ -226,7 +175,6 @@ export const AudioMessageBubble = ({
                 aria-busy={state === 'loading' || undefined}
                 className={cn(
                     'pointer-events-auto flex size-9 shrink-0 items-center justify-center rounded-full transition-opacity active:opacity-70',
-                    // My bubble is already navy, so its button inverts: a white disc with a navy glyph.
                     mine ? 'bg-bubble-mine-foreground text-bubble-mine' : 'bg-brand-ink text-bubble-mine-foreground'
                 )}
             >
@@ -312,15 +260,12 @@ export const AudioMessageBubble = ({
                     className="absolute inset-0 rounded-[18px]"
                 />
             )}
-            {/* The layout lets presses fall through to the open layer; each control takes its own back. */}
             <div className="pointer-events-none relative flex items-center gap-2.5">
                 {control}
                 <div className={cn('flex min-w-0 flex-1 flex-col items-start', player ? 'gap-1.5' : 'gap-[3px]')}>
                     <span id={nameId} className="sr-only">
                         {name}
                     </span>
-                    {/* Cut in the middle, never at the end: the extension stays, so two recordings
-                        that differ only in format do not both read "Recording…". */}
                     <span aria-hidden="true" className="flex w-full min-w-0 text-[14px] font-semibold leading-[normal]">
                         <span className="min-w-0 truncate">{base}</span>
                         {extension && <span className="shrink-0">{extension}</span>}

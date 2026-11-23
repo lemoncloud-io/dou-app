@@ -13,8 +13,6 @@ describe('useSelectedChannelStore', () => {
         expect(useSelectedChannelStore.getState().selectedChannelId).toBeNull();
     });
 
-    // A delete answers about a second after its confirm, and the reader may have opened another
-    // room by then; clearing that one took it away from under them.
     it('clears a channel named for it only while that channel is still the open one', () => {
         useSelectedChannelStore.getState().selectChannel('b');
         useSelectedChannelStore.getState().clearIfOpen('a');

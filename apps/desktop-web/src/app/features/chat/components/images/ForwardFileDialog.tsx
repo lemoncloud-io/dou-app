@@ -13,16 +13,13 @@ import { fetchFileBytes } from '../../utils';
 import { rankChannels } from '../QuickSwitcher';
 import { channelKind, toastFailure, useChannelLabels, useLastChannelStore, useListboxNav } from '../../../../shared';
 
-/** A sent file to forward: where its bytes are, and what it is called and typed as. */
 export interface ForwardRequest {
     url: string;
     name: string;
     contentType?: string;
-    /** A fresh address for the file, asked once when the first one no longer loads. */
     refreshUrl?: () => Promise<string | undefined>;
 }
 
-/** One forward under way: the file, and the channel it goes to. */
 interface ForwardJob {
     id: number;
     file: ForwardRequest;
@@ -32,24 +29,17 @@ interface ForwardJob {
 }
 
 interface ForwardFileState {
-    /** The file whose channel picker is open. */
     request: ForwardRequest | null;
     jobs: ForwardJob[];
     open: (request: ForwardRequest) => void;
     close: () => void;
-    /** Closes the picker and starts sending the file to `channel`. */
     send: (channel: { cid: string; channelId: string; label: string }) => void;
     done: (id: number) => void;
 }
 
 let nextJob = 0;
-/** Jobs whose send has begun; outlives a remount of the component that runs it. */
 const startedJobs = new Set<number>();
 
-/**
- * "Forward" from a file's More menu. The picker and the sends live beside the channel list, not in the
- * row: a send outlives the row it was asked from, which the feed may unmount.
- */
 export const useForwardFileStore = create<ForwardFileState>((set, get) => ({
     request: null,
     jobs: [],
@@ -63,16 +53,10 @@ export const useForwardFileStore = create<ForwardFileState>((set, get) => ({
     done: id => set(state => ({ jobs: state.jobs.filter(job => job.id !== id) })),
 }));
 
-/**
- * The forward picker and the forwards under way, for the channels of the place on screen — the same
- * list the quick switcher offers. The server has no forward of its own, so a forward is the file
- * fetched and sent again as a new message in the channel picked, by the reader.
- */
 export const ForwardFileHost = ({ channels }: { channels: DomainChannel[] }) => {
     const request = useForwardFileStore(s => s.request);
     const jobs = useForwardFileStore(s => s.jobs);
     const close = useForwardFileStore(s => s.close);
-    // Left with the home screen: a picker still open would greet the reader on the way back.
     useEffect(() => close, [close]);
     return (
         <>
@@ -163,15 +147,9 @@ const ForwardFileDialog = ({ channels, file }: { channels: DomainChannel[]; file
     );
 };
 
-/**
- * One forward: fetches the file and sends it to its channel as the reader's own new message. Keyed by
- * the job, so the send is bound to that channel however the screen moves meanwhile; the row it writes
- * shows in that channel as any send's does.
- */
 const ForwardSend = ({ job }: { job: ForwardJob }) => {
     const { t } = useTranslation();
     const done = useForwardFileStore(s => s.done);
-    // Not the room's screen: the target room may be open beside it, and its rows are that screen's.
     const { sendImages } = runtime.data.useSendImages({
         cid: job.cid,
         channelId: job.channelId,
@@ -179,21 +157,16 @@ const ForwardSend = ({ job }: { job: ForwardJob }) => {
         attach: false,
     });
     useEffect(() => {
-        // Once per job, claimed outside the component: a remount of the host (the home screen left
-        // and entered again) must not send again.
         if (startedJobs.has(job.id)) return;
         startedJobs.add(job.id);
         const { file } = job;
         void (async () => {
             try {
                 const bytes = await fetchFileBytes(file.url).catch(async (error: unknown) => {
-                    // The signed address may have expired while the file sat in the feed.
                     const fresh = await file.refreshUrl?.();
                     if (!fresh || fresh === file.url) throw error;
                     return fetchFileBytes(fresh);
                 });
-                // Said as it starts, not as it ends: an upload that fails still settles, and shows as a
-                // failed message in that channel rather than here.
                 toast({ description: t('chat.file.forwarding', { channel: job.label }) });
                 await sendImages([new File([bytes], file.name, { type: file.contentType || bytes.type })]);
             } catch (error) {

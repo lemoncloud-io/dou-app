@@ -30,8 +30,6 @@ describe('EmojiPicker', () => {
     it('names every category tab for assistive tech, not just the hover hint', async () => {
         setup(vi.fn());
 
-        // The Hint tooltip is not read by assistive tech (see Hint.tsx) — the
-        // tab itself has to carry the name.
         expect(await screen.findByRole('tab', { name: i18next.t('emoji.recent') })).toBeTruthy();
         for (const cat of EMOJI_CATEGORIES) {
             expect(screen.getByRole('tab', { name: i18next.t(`emoji.cat.${cat.key}`) })).toBeTruthy();
@@ -53,7 +51,6 @@ describe('EmojiPicker', () => {
             const button = await screen.findByRole('button', { name: emojiNames['😀'] });
             expect(button.textContent).toBe('😀');
 
-            // Radix opens the tooltip from pointer movement, not from a synthetic `mouseenter`.
             fireEvent.pointerMove(button);
             expect((await screen.findByRole('tooltip')).textContent).toBe(emojiNames['😀']);
         } finally {
@@ -62,7 +59,6 @@ describe('EmojiPicker', () => {
     });
 
     it('leaves an emoji with no name to its glyph instead of a blank label', async () => {
-        // Not in the curation, so not in the generated tables — e.g. an old pick kept in recents.
         useRecentEmojiStore.setState({ recent: ['🫨'] });
         setup(vi.fn());
 

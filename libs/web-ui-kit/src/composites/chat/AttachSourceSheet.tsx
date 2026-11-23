@@ -11,19 +11,10 @@ export interface AttachSourceSheetLabels {
 export interface AttachSourceSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** The sheet's title, drawn above the sources and used as its accessible name. */
     title?: string;
-    /** Photos and videos from the device's library. */
     onAlbum: () => void;
-    /** Documents from the device's file browser. */
     onFiles: () => void;
     labels?: Partial<AttachSourceSheetLabels>;
-    /**
-     * One line under the two sources, for what this device cannot send from here — an iOS browser or
-     * an app built before the shell could pick videos takes photos only from the album, and says so
-     * here rather than letting a picked video fail after a long silence. Omit when there is nothing to
-     * say.
-     */
     notice?: React.ReactNode;
 }
 
@@ -35,7 +26,6 @@ interface SourceRowProps {
     onClick: () => void;
 }
 
-/** One source (Figma `3749:29688`): a 48px circle on the light control surface, then the label. */
 const SourceRow = ({ icon, label, onClick }: SourceRowProps) => (
     <div className="w-full px-3">
         <button
@@ -53,20 +43,6 @@ const SourceRow = ({ icon, label, onClick }: SourceRowProps) => (
     </div>
 );
 
-/**
- * The second step of the attach panel's files entry: where the file comes from — the file browser
- * (documents) or the album (photos and videos, mixed). Two sources rather than one picker because the
- * systems' own pickers split them the same way: the photo library picker cannot reach a PDF, and the
- * document browser does not show the library.
- *
- * Figma `3749:29651`: a titled list rather than the attach panel's row of tiles. The sources are
- * phrases, not single words, and a list keeps each one readable at any length; the title says which
- * entry of the panel this narrows. The sheet edge (rounded top, shadow) still matches the panel's, so
- * the step reads as the same surface. The title is drawn in the body rather than through the sheet's
- * own header, which sets a larger type and a glass band the design does not have.
- *
- * Stateless: what each entry opens is the host's.
- */
 export const AttachSourceSheet = ({
     open,
     onOpenChange,
@@ -86,7 +62,6 @@ export const AttachSourceSheet = ({
             className="rounded-t-[20px] shadow-[0_-2px_6px_rgba(0,0,0,0.12)]"
         >
             <div className="flex flex-col pb-8">
-                {/* The sheet's accessible name is the hidden header title; this copy is for the eye. */}
                 <p
                     aria-hidden
                     className="truncate px-4 py-3.5 text-[16px] font-semibold leading-[1.5] tracking-[-0.08px] text-foreground"

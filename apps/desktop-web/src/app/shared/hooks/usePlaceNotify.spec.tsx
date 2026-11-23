@@ -6,7 +6,6 @@ import { act, renderHook as renderBareHook } from '@testing-library/react';
 
 import type { DomainChannel } from '@chatic/runtime';
 
-// The channel-write hook it uses reads the app's switch mutations, so it needs the query client.
 const renderHook = <T,>(hook: () => T) =>
     renderBareHook(hook, {
         wrapper: ({ children }: { children: ReactNode }) =>
@@ -90,7 +89,6 @@ describe('usePlaceNotify', () => {
 
         await act(async () => result.current.setMode('mention'));
 
-        // The 1:1 already reads as "all", so it needs no write at all.
         expect(written()).toEqual([
             { channelId: 'G1', userId: 'cloud-me', notify: 'mention' },
             { channelId: 'G2', userId: 'cloud-me', notify: 'mention' },

@@ -7,8 +7,6 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import type { DomainChat } from '@chatic/runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
-// One object for every call: a fresh one per render would change what the rows derive from it, and
-// every row would redraw for a reason that has nothing to do with read markers.
 const session = vi.hoisted(() => ({ activeServer: { siteId: 'S1' } }));
 
 vi.mock('@chatic/runtime', async () =>
@@ -53,7 +51,6 @@ const message = (chatNo: number, ownerId: string, extra: Partial<DomainChat> = {
 
 const at = (userId: string, cursor: number): MemberReadCursor => ({ userId, cursor });
 
-// Members the roster below can name: m0 is Sunny, m1 is `레인`, bob is Bob (from the feed names).
 const everyoneRead = (): ReadCount => ({ readIds: ['m0', 'm1', 'bob'], unreadIds: [] });
 
 const renderList = (
@@ -128,7 +125,6 @@ describe('MessageList read markers', () => {
     });
 
     it('lowers a cursor that sits on a number no row carries to the message below it', () => {
-        // Number 2 went to a reaction or a system event, so only 1 and 3 have rows.
         renderList([message(1, 'ada'), message(3, 'ada')], [at('m0', 2)]);
 
         expect(markerIn('message 1')).not.toBeNull();
@@ -136,7 +132,6 @@ describe('MessageList read markers', () => {
     });
 
     it('leaves a message’s author off their own message, as the list does', () => {
-        // m0 wrote message 1 and has read to it; m1 stopped there too. Only m1 is a reader of it.
         renderList([message(1, 'm0')], [at('m0', 1), at('m1', 1)]);
 
         const marker = markerIn('message 1') as HTMLElement;
@@ -151,8 +146,6 @@ describe('MessageList read markers', () => {
     });
 
     it('puts no face on a message from before the member joined, where the list would not name them', () => {
-        // The member's cursor is past message 2, but they joined after it: the list for that message
-        // never includes them, so a face there would open a list without the person it shows.
         renderList([message(1, 'ada'), message(2, 'ada')], [{ userId: 'm0', cursor: 9, joinedNo: 5 }]);
 
         expect(screen.queryByRole('button', { name: /Seen/ })).toBeNull();
@@ -257,7 +250,6 @@ describe('MessageList read markers', () => {
         await act(async () => fireEvent.click(markerIn('message 2') as HTMLElement));
         expect(screen.getByRole('dialog')).toBeDefined();
 
-        // A fresh array of fresh objects holding the same positions, as every join update produces.
         rerender(list([at('m0', 2)]));
 
         expect(screen.getByRole('dialog')).toBeDefined();

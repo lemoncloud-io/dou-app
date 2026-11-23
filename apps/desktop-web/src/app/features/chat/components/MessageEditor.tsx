@@ -32,11 +32,8 @@ import {
 import type { Mentionable } from './MentionAutocomplete';
 
 export interface MessageEditorProps {
-    /** The message's wire string. Read once, when the editor opens — later changes do not reload it. */
     initialContent: string;
-    /** Roster for @-autocomplete, and for turning the message's existing `@name` back into chips. */
     mentionables?: Mentionable[];
-    /** Called with the new wire string, only when it is non-empty and differs from what opened. */
     onSave: (content: string) => void;
     onCancel: () => void;
 }
@@ -53,16 +50,10 @@ const MessageEditorInner = ({
     const [editor] = useLexicalComposerContext();
     const hintId = useId();
     const containerRef = useRef<HTMLDivElement>(null);
-    // What the document exports as right after it is loaded. Dirty means "differs from this", not
-    // "differs from the stored string": the round trip may normalise a message that was written
-    // elsewhere, and touching nothing must not offer a save or rewrite it.
     const baselineRef = useRef<string | null>(null);
     const openedWithRef = useRef(initialContent);
-    // Read once with the content: chips are restored for whoever was on the roster at that moment.
     const rosterRef = useRef(mentionables);
     const [isDirty, setDirty] = useState(false);
-    // An edit saves the text only — who a message called is fixed when it is first sent — so the
-    // row that calls the whole channel is not offered here: picking it would call no one.
     const pickable = useMemo(() => mentionables.filter(person => !person.everyone), [mentionables]);
 
     useEffect(() => {
@@ -80,15 +71,11 @@ const MessageEditorInner = ({
             $getRoot().selectEnd();
             baselineRef.current = $exportWireMarkdown().trim();
         });
-        // The node itself, as the composer does: editor.focus() places a selection and leaves DOM
-        // focus to follow it. preventScroll because the scrollIntoView below frames the whole box.
         editor.getRootElement()?.focus({ preventScroll: true });
-        // The row can sit under the composer; bring the buttons into view once.
         containerRef.current?.scrollIntoView({ block: 'nearest' });
         return unregister;
     }, [editor]);
 
-    // Enter and the Save button share this so the two can never drift.
     const save = useCallback(() => {
         const next = editor.getEditorState().read($exportMessage);
         if (!next || next === baselineRef.current) onCancel();
@@ -106,10 +93,6 @@ const MessageEditorInner = ({
         <div
             ref={containerRef}
             className="flex flex-col gap-1.5"
-            // Handled here so it works from the body, a toolbar button or Cancel alike, and marked
-            // handled so the thread panel's own Escape-to-close leaves the panel open. A key an
-            // overlay already took (the emoji picker's, the mention list's) arrives prevented, and
-            // a portalled picker bubbles through the React tree without being inside this box.
             onKeyDown={event => {
                 if (event.key !== 'Escape' || event.defaultPrevented) return;
                 if (!containerRef.current?.contains(event.target as Node)) return;
@@ -135,9 +118,6 @@ const MessageEditorInner = ({
                 />
                 <div className="flex items-center justify-between px-3 pb-2">
                     <ComposerEmojiButton onEmoji={insertEmoji} />
-                    {/* Buttons and shortcuts both, deliberately. The shortcuts are faster once
-                        known and the buttons are how you find out — and how you leave the editor
-                        without taking your hand off the mouse. */}
                     <div className="flex items-center gap-2">
                         <Button size="sm" variant="ghost" onClick={onCancel} className="h-9 px-3 text-caption">
                             {t('common.cancel')}
@@ -164,11 +144,6 @@ const MessageEditorInner = ({
     );
 };
 
-/**
- * The editor a message opens in: the composer's formatting, shortcuts and emoji picker around the
- * message's own text, at the width of the message column. It owns no attachments — the update API
- * takes text only.
- */
 export const MessageEditor = (props: MessageEditorProps) => (
     <LexicalComposer
         initialConfig={{

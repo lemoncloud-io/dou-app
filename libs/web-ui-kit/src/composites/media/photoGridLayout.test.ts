@@ -11,7 +11,6 @@ import {
     visibleCells,
 } from './photoGridLayout';
 
-// 404 wide keeps the numbers whole: three columns are 132-px tiles on a 136 pitch, two are 200 on 204.
 const three = gridMetrics({ width: 404, columns: 3, cells: 100 });
 const two = gridMetrics({ width: 404, columns: 2, cells: 100 });
 
@@ -36,7 +35,6 @@ describe('cellPosition', () => {
 
 describe('visibleCells', () => {
     it('covers the rows on screen and the overscan either side, in whole rows', () => {
-        // Rows 10–14 are on screen at 1360 with a 600 viewport; two rows of overscan: rows 8–16.
         expect(
             visibleCells({
                 scrollTop: 1360,
@@ -65,7 +63,7 @@ describe('visibleCells', () => {
                 cells: 100,
                 overscan: 4,
             })
-        ).toEqual({ start: 84, end: 100 }); // row 32 on screen, four above: row 28
+        ).toEqual({ start: 84, end: 100 });
     });
 
     it('renders nothing for an empty grid', () => {
@@ -113,8 +111,6 @@ describe('clampColumns / pinchColumns', () => {
 
 describe('anchoredScrollTop', () => {
     it('keeps the cell under the fingers at the same height when the columns change', () => {
-        // Scrolled to row 10 of three (1360); fingers 68 px down, in the middle column: cell 31, half
-        // way down its row. Two columns put cell 31 in row 15 (3060); half a row down, minus the 68.
         expect(
             anchoredScrollTop({ scrollTop: 1360, anchorY: 68, anchorX: 200, offsetTop: 0, before: three, after: two })
         ).toBe(3060 + 102 - 68);

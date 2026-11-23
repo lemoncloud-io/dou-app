@@ -6,41 +6,24 @@ import { ProfileAvatar } from '../../foundations/avatar/ProfileAvatar';
 import { IconClose } from '../../resources/icons';
 
 export interface SelectedAvatarItem {
-    /** Stable identity used as the React key and the `onRemove` argument. */
     id: string;
-    /** Display name shown under the avatar. */
     name: string;
-    /** Avatar image URL; falls back to the placeholder glyph. */
     avatarSrc?: string;
 }
 
 export interface SelectedAvatarRowProps {
     items: SelectedAvatarItem[];
-    /** Called with the item id when its remove (X) badge is tapped. */
     onRemove: (id: string) => void;
-    /** Accessible label prefix for the remove button (host supplies a localized string). */
     removeLabel?: string;
     className?: string;
 }
 
 interface Entry extends SelectedAvatarItem {
-    /** True once its id has dropped out of `items` — kept mounted just to play the exit transition. */
     leaving: boolean;
 }
 
-/** Must match the exit transition's `duration-*` class below. */
 const EXIT_DURATION_MS = 150;
 
-/**
- * Horizontal scroll of selected users — the Figma friend-picker's "selected"
- * strip. Each entry is a circular ProfileAvatar with a small X badge pinned
- * top-right and a truncated name label below. Renders nothing when empty.
- *
- * A newly selected friend slides up into place; removing one (the X badge, or deselecting in
- * the list above) slides it back down while fading, rather than snapping it away — `items`
- * still updates immediately in the parent, so the dropped entry is held here in local state
- * for just the exit transition's duration before it is actually dropped.
- */
 export const SelectedAvatarRow = ({ items, onRemove, removeLabel = 'Remove', className }: SelectedAvatarRowProps) => {
     const [entries, setEntries] = useState<Entry[]>(() => items.map(item => ({ ...item, leaving: false })));
     const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -53,7 +36,7 @@ export const SelectedAvatarRow = ({ items, onRemove, removeLabel = 'Remove', cla
                 if (incomingIds.has(entry.id)) {
                     next.push({ ...entry, leaving: false });
                 } else if (entry.leaving) {
-                    next.push(entry); // Already animating out — leave its timer running.
+                    next.push(entry);
                 } else {
                     next.push({ ...entry, leaving: true });
                     const timer = setTimeout(() => {
@@ -70,7 +53,6 @@ export const SelectedAvatarRow = ({ items, onRemove, removeLabel = 'Remove', cla
         });
     }, [items]);
 
-    // Clears any exit timers still pending if the row itself unmounts mid-animation.
     useEffect(() => {
         const timers = timersRef.current;
         return () => timers.forEach(timer => clearTimeout(timer));

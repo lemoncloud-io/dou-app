@@ -9,18 +9,6 @@ import { usePlaceNotifyApply } from './usePlaceNotify';
 
 const NO_FILED_PLACES: ReadonlyMap<string, readonly string[]> = new Map();
 
-/**
- * Gives a channel this device sees for the first time the level its place was set to. A place
- * level exists only as each channel's own join.notify (see `usePlaceNotifyApply`), so a channel
- * made after the level was chosen would otherwise keep the server's default. "First time" is the
- * place's `known` list: a channel in it was already given the level, and a different level on it
- * now is the person's own exception, which is never overwritten.
- *
- * It reads the active cloud's channel cache, the same rows the sidebar lists, and writes only the
- * place the session is in: the server refuses a join write for any other place. A level chosen for
- * another place is therefore written when the session enters it. A message that arrives in a
- * channel this device has not written yet can still be pushed at the level the server has.
- */
 export const usePlaceNotifyInheritance = () => {
     const { channel: channelRepository } = runtime.data.useRuntimeRepositories();
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
@@ -41,8 +29,6 @@ export const usePlaceNotifyInheritance = () => {
             if (!pref) return;
             const known = new Set(pref.known);
             const fresh = placeNotifyTargets(channels).filter(channel => !known.has(channel.id ?? ''));
-            // Nobody asked for this write, so a refusal is not announced: the channel keeps its
-            // level on this device, and the person sees the server's on the channel itself.
             if (fresh.length > 0) {
                 void applyRef.current(selectedSiteId, fresh, pref.mode, { remember: false, announce: false });
             }

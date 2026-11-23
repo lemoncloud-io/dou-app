@@ -22,8 +22,6 @@ describe('SubscriptionBadge', () => {
         expect(screen.getByText('구독중')).toBeTruthy();
     });
 
-    // The whole reason this component exists: it goes inside other buttons, where a nested
-    // <button> would be invalid HTML and would carve a dead zone out of the parent's tap target.
     it('is not a button', () => {
         render(<SubscriptionBadge tier="pro" />);
 
@@ -31,8 +29,6 @@ describe('SubscriptionBadge', () => {
         expect(screen.getByText('PRO').tagName).toBe('SPAN');
     });
 
-    // The in-menu pill (Figma 2870:20411 / 4135:24750) is 28px tall — tighter than the header
-    // control — and the two tiers differ by a hair, so both trims are asserted.
     describe('size="xs" (in-menu pill)', () => {
         it('tightens PRO to a 2px gap on an opaque ground', () => {
             render(<SubscriptionBadge tier="pro" size="xs" />);
@@ -41,7 +37,6 @@ describe('SubscriptionBadge', () => {
             expect(className).toContain('py-1.5');
             expect(className).toContain('gap-0.5');
             expect(className).toContain('bg-background');
-            // The header control's roomier padding must be gone, not merely overridden visually.
             expect(className).not.toContain('py-2.5');
         });
 
@@ -56,16 +51,12 @@ describe('SubscriptionBadge', () => {
         });
     });
 
-    // The tier glyphs are the design's own (Solar bold), not the lucide stand-ins — a 16px square
-    // frame is the tell.
     it('draws the tier glyph on the Figma 16px frame', () => {
         const { container } = render(<SubscriptionBadge tier="free" size="xs" />);
 
         expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 16 16');
     });
 
-    // Guards the reason both derive from `buttonSurfaceClass` — a class string copied into one of
-    // them would drift the moment the button system changed.
     it('carries the same surface classes as the button it twins', () => {
         const { unmount } = render(<SubscriptionBadge tier="pro" />);
         const badgeClass = screen.getByText('PRO').className;
@@ -74,7 +65,6 @@ describe('SubscriptionBadge', () => {
         render(<SubscriptionButton tier="pro" />);
         const buttonClass = screen.getByRole('button', { name: /PRO/ }).className;
 
-        // The badge adds `shrink-0` for its in-button role; everything else must match.
         const surfaceOf = (className: string) =>
             className
                 .split(/\s+/)
@@ -86,8 +76,6 @@ describe('SubscriptionBadge', () => {
 });
 
 describe('SubscriptionBadgeSkeleton', () => {
-    // The footprint is borrowed, not declared: every class that sizes the FREE pill must be on the
-    // skeleton too, or the real pill changes size when it replaces it.
     const sizingTokens = (className: string) =>
         className.split(/\s+/).filter(token => /^(p[xylr]?|gap|text|leading|tracking|h|w)-/.test(token));
 

@@ -1,17 +1,10 @@
 import * as React from 'react';
 
 export interface IconSkip15Props extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
-    /** `back` turns counter-clockwise, `forward` clockwise. */
     direction: 'back' | 'forward';
 }
 
-/**
- * A circular arrow with "15" inside — the audio detail's skip back / skip forward 15 seconds
- * (Figma "음성 상세 · 플레이어", 6072:22653). The number is part of the glyph, not a label: the
- * button's accessible name says what it does. Strokes and fills with `currentColor`.
- */
 export const IconSkip15 = ({ size = 24, direction, className, ...props }: IconSkip15Props) => (
     <svg
         width={size}

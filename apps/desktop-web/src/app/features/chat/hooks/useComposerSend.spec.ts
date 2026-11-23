@@ -64,7 +64,6 @@ describe('useComposerSend', () => {
         expect(sendMessage).toHaveBeenCalledWith('cloud-a', { channelId: 'ch-1', content: 'hello' });
     });
 
-    // The server learns who was called only from this field, never from the text.
     it('carries the picked mention beside the text', () => {
         const { result } = renderHook(() => useComposerSend({ cid: 'cloud-a', channelId: 'ch-1' }));
 
@@ -100,8 +99,6 @@ describe('useComposerSend', () => {
         expect(sendMessage).not.toHaveBeenCalled();
     });
 
-    // Reported: a thread post with a picture and text landed as two messages, each saved and
-    // replied to on its own. Text and pictures sent together are one post.
     it('sends text typed with pictures as one message, the text as its caption', () => {
         const { result } = renderHook(() => useComposerSend({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'root-1' }));
         const files = picked();

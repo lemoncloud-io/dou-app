@@ -18,10 +18,8 @@ export default meta;
 
 type Story = StoryObj<typeof MonthGroupHeader>;
 
-/** Figma 6067:22462. */
 export const Default: Story = {};
 
-/** Pinned while its month scrolls under it. */
 export const Sticky: Story = {
     args: { sticky: true },
     render: args => (

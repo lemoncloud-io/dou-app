@@ -5,28 +5,15 @@ import { cn } from '@chatic/ui-kit';
 import { IconAlert, IconCheck } from '../../resources/icons';
 
 export interface ToastProps {
-    /** Single-line message (default / positive variants). */
     children?: React.ReactNode;
-    /** Two-line title (action variant); overrides the `children` layout. */
     title?: React.ReactNode;
-    /** Accent (green) subtitle under the title. */
     description?: React.ReactNode;
-    /** Leading icon. `positive` supplies a green check when this is omitted. */
     icon?: React.ReactNode;
-    /** Trailing action(s) (e.g. Subscribe / Close buttons). */
     action?: React.ReactNode;
-    /** `default` plain · `positive` green check · `warning`/`error` red alert. */
     variant?: 'default' | 'positive' | 'warning' | 'error';
     className?: string;
 }
 
-/**
- * Snackbar toast — the Figma dark notice, in one component:
- *  - default:  a single-line message.
- *  - positive: a leading green check + message.
- *  - action:   a title + accent subtitle + trailing actions (pass title/description/action).
- * Purely presentational; the host owns show/hide/timing and positioning.
- */
 export const Toast = ({ children, title, description, icon, action, variant = 'default', className }: ToastProps) => {
     const leading =
         icon ??

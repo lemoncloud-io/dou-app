@@ -11,10 +11,6 @@ import { useSidebarSectionsStore } from '../stores';
 import { SidebarHeader } from './SidebarHeader';
 import { SortableSection } from './SortableSection';
 
-// The Home sidebar is the header (title, search, Saved, the place's actions) above the sections
-// `ChannelList` draws. ChannelList.spec covers which sections a place shows; this file covers
-// the shape both pieces share with the design.
-
 const renderHeader = (props: Partial<ComponentProps<typeof SidebarHeader>> = {}) =>
     render(
         <MemoryRouter>
@@ -39,7 +35,6 @@ describe('Home sidebar header', () => {
         expect(labels.slice(0, 2)).toEqual([i18next.t('threads.title'), i18next.t('saved.title')]);
     });
 
-    // Mentions and the snooze moved to the Notifications destination of the nav rail.
     it('holds no Mentions or snooze rows', () => {
         renderHeader();
         expect(screen.queryByRole('button', { name: /Mentions|Pause notifications/ })).toBeNull();
@@ -72,7 +67,6 @@ describe('Home sidebar section', () => {
         const heading = within(toggle).getByRole('heading', { name: 'Channels' });
         const chevron = toggle.querySelector('svg');
         expect(chevron).not.toBeNull();
-        // The chevron follows the title in document order.
         expect(heading.compareDocumentPosition(chevron as SVGElement) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 

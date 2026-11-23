@@ -7,13 +7,7 @@ import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext
 import { ContentEditable } from '@lexical/react/LexicalContentEditable';
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
-import {
-    $createParagraphNode,
-    $createTextNode,
-    $getRoot,
-    type LexicalEditor,
-    type TextNode,
-} from 'lexical';
+import { $createParagraphNode, $createTextNode, $getRoot, type LexicalEditor, type TextNode } from 'lexical';
 
 import '../../../../../i18n';
 
@@ -75,7 +69,6 @@ describe('useUnpickedMention', () => {
 
     const hint = () => screen.getByTestId('unpicked').textContent;
 
-    // Typed the full name, moved on, never picked: sending now mentions nobody.
     it('names a member typed in full but never picked', async () => {
         const editor = mountProbe(ROSTER);
         await typeText(editor, 'hi @Ada, welcome');

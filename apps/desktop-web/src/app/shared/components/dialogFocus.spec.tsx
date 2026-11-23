@@ -11,10 +11,6 @@ import {
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-/**
- * The kit's dialogs as this app opens them: from state, with no Trigger. Radix hands focus
- * back to the Trigger on close, so these used to drop it on <body>.
- */
 const StateDialog = ({ withField = false }: { withField?: boolean }) => {
     const [open, setOpen] = useState(false);
     return (
@@ -67,8 +63,6 @@ describe('kit dialogs opened without a Trigger', () => {
         expect(document.activeElement).toBe(opener);
     });
 
-    // The quick switcher's field takes focus as it mounts, and React's development double-mount
-    // then ran the capture again: the field was taken for the opener and focus fell to <body>.
     it('return focus past a field that focused itself, under StrictMode', async () => {
         render(
             <StrictMode>
@@ -85,8 +79,6 @@ describe('kit dialogs opened without a Trigger', () => {
         expect(document.activeElement).toBe(opener);
     });
 
-    // An alert dialog focuses its Cancel. With an action only, it focused nothing and
-    // Enter still went to the page behind the notice.
     it('focus the only action of a notice, then return focus on close', async () => {
         render(<Notice />);
         const opener = screen.getByRole('button', { name: 'open' });
@@ -117,9 +109,7 @@ describe('kit dialogs opened without a Trigger', () => {
         expect(document.activeElement).toBe(elsewhere);
     });
 
-    // On a phone, focusing the text field that opened a sheet raises the keyboard again.
     it('do not refocus a text field on a touch screen', async () => {
-        // jsdom ships no matchMedia; stand in a touch screen's.
         window.matchMedia = vi.fn((query: string) => ({ matches: query === '(pointer: coarse)' }) as MediaQueryList);
         try {
             render(

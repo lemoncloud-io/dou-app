@@ -19,7 +19,6 @@ vi.mock('../stores', () => ({
 
 import { deleteCauseKey, isCloudAlreadyGone, useRemoveCloud } from './useRemoveCloud';
 
-// The text the backend sends for a release it refuses.
 const ALREADY_EXPIRED = '409 CONFLICT - already expired @releaseCloud(clouds/1000001)';
 const NOT_OWNER = '403 FORBIDDEN - not owner of cloud @releaseCloud(clouds/1000001)';
 const NOT_FOUND = '404 NOT FOUND - not found cloud @releaseCloud(clouds/1000001)';
@@ -31,18 +30,13 @@ beforeEach(() => {
 });
 
 describe('what a failed delete means', () => {
-    // `classifyWireError` calls an already-released cloud "expired"; the switch flow words that as
-    // "you no longer have access", which would be the wrong thing to tell someone deleting it.
     it('treats a cloud that is already expired or gone as gone, not as refused', () => {
         expect(isCloudAlreadyGone(new Error(ALREADY_EXPIRED))).toBe(true);
         expect(isCloudAlreadyGone(new Error(NOT_FOUND))).toBe(true);
         expect(isCloudAlreadyGone(new Error(NOT_OWNER))).toBe(false);
         expect(isCloudAlreadyGone(new Error('Network Error'))).toBe(false);
-        // Something else the backend could not find is not this cloud being gone.
         expect(isCloudAlreadyGone(new Error('404 NOT FOUND - not found user @releaseCloud(clouds/1)'))).toBe(false);
-        // A route that is not there is a failure too, not a cloud that is gone.
         expect(isCloudAlreadyGone(new Error('Request failed with status code 404'))).toBe(false);
-        // An expired session is a failure to report, not a cloud that is gone.
         expect(isCloudAlreadyGone(new Error('401 UNAUTHORIZED - token expired'))).toBe(false);
     });
 
@@ -64,7 +58,6 @@ describe('deleteOwnedCloud', () => {
         expect(refetchClouds).toHaveBeenCalled();
     });
 
-    // A retry of "already expired" can only fail the same way; the list is what is out of date.
     it('refreshes the list and reports a cloud that was already released', async () => {
         releaseCloud.mockRejectedValue(new Error(ALREADY_EXPIRED));
         const { result } = renderHook(() => useRemoveCloud());

@@ -63,7 +63,6 @@ const mountEditor = (plugins: ReactNode = <ComposerAutoLinkPlugin />): LexicalEd
     return captured;
 };
 
-// act(): the update re-renders the RichTextPlugin placeholder.
 const typeInto = (
     editor: LexicalEditor,
     text: string,
@@ -169,10 +168,6 @@ describe('ComposerAutoLinkPlugin', () => {
     });
 });
 
-/**
- * One keystroke per update, as typing produces them — the shortcut keys on that shape. Async: the
- * shortcut's own update lands on the next microtask, as it does after a real keystroke.
- */
 const typeKeys = async (editor: LexicalEditor, keys: string) => {
     for (const key of keys) {
         await act(async () =>
@@ -313,10 +308,6 @@ describe('CodeFencePastePlugin', () => {
         return editor;
     };
 
-    /**
-     * Whether the paste was passed on to the editor's own handler. That handler needs a real
-     * clipboard jsdom does not have, so a catcher registered after the plugin stands in for it.
-     */
     const paste = async (editor: LexicalEditor, text: string, types = ['text/plain']) => {
         const event = {
             clipboardData: { types, getData: (type: string) => (type === 'text/plain' ? text : '') },
@@ -381,7 +372,6 @@ describe('CodeFencePastePlugin', () => {
     });
 });
 
-// A pasted web page brings its anchors as link nodes; only the ones a message can carry stay links.
 describe('LinkGuardPlugin', () => {
     afterEach(cleanup);
 

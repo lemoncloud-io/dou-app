@@ -1,19 +1,11 @@
 import * as React from 'react';
 
-// Native aspect ratio of the Figma group glyph (26.0006 × 20.8011).
 const RATIO = 20.8011 / 26.0006;
 
 export interface IconGroupProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width in pixels; height follows the glyph's native aspect ratio. */
     size?: number;
 }
 
-/**
- * Group avatar glyph — three overlapping people. Extracted from the Figma
- * "Group room Profile" asset (node 3158:26239) rather than reusing the generic lucide
- * `Users`, so the group default avatar matches the design exactly. Fills with
- * `currentColor`, so callers set the color via `className`/`color`.
- */
 export const IconGroup = ({ size = 24, className, ...props }: IconGroupProps) => (
     <svg
         width={size}

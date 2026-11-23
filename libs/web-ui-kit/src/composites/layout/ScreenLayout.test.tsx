@@ -30,7 +30,6 @@ describe('ScreenLayout bottom clearance', () => {
         );
 
         const strip = screen.getByTestId('screen-layout-footer-inset');
-        // The strip comes after the footer, inside the same pinned block.
         expect(screen.getByRole('button', { name: 'cta' }).parentElement).toBe(strip.parentElement);
         expect(strip.previousElementSibling).toBe(screen.getByRole('button', { name: 'cta' }));
         expect(strip.style.height).toBe('max(var(--safe-bottom, 0px), var(--keyboard-height, 0px))');

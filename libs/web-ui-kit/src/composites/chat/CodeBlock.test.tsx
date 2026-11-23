@@ -41,7 +41,6 @@ describe('CodeBlock', () => {
         expect(container.querySelector('svg.lucide-copy')).toBeNull();
     });
 
-    // On my navy bubble a dark tint is invisible; the block switches to a light one there.
     it('takes a light tint inside my bubble', () => {
         const { container } = render(<CodeBlock code="x" />);
         expect(container.firstElementChild?.className).toContain('group-data-[variant=mine]/bubble:bg-white/10');
@@ -55,8 +54,6 @@ describe('CodeBlock', () => {
         expect(onPointerDown).toHaveBeenCalledTimes(1);
     });
 
-    // Horizontal scrolling is what stands in for syntax highlighting, so it is a contract, not a
-    // style detail: a long line must scroll inside the block rather than wrap or widen the bubble.
     it('scrolls a long line instead of wrapping it', () => {
         render(<CodeBlock code={'x'.repeat(400)} />);
         const body = screen.getByText('x'.repeat(400));
@@ -65,7 +62,6 @@ describe('CodeBlock', () => {
         expect(body.parentElement?.className).toContain('overflow-x-auto');
     });
 
-    // MessageBubble wraps children in a <span>; a <pre> there would be invalid HTML nesting.
     it('uses no <pre> element', () => {
         const { container } = render(<CodeBlock code="x" lang="ts" onCopy={jest.fn()} />);
         expect(container.querySelector('pre')).toBeNull();
@@ -94,7 +90,6 @@ describe('InlineCode', () => {
         const { className } = screen.getByText('npm i');
 
         expect(className).toContain('group-data-[variant=mine]/bubble:bg-white/15');
-        // The accent is tuned for the theme's ground, not my navy bubble — there it would sink.
         expect(className).toContain('group-data-[variant=mine]/bubble:text-inherit');
     });
 });

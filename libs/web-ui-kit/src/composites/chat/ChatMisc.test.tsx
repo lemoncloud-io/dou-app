@@ -59,8 +59,6 @@ describe('MessageRow', () => {
         expect(screen.getByText('읽음')).toBeInTheDocument();
     });
 
-    // The cap is what a Block Kit message has to escape — callers assert they asked for it,
-    // so the kit has to be the place that proves asking works.
     it('caps the content column at 75% by default and releases it when wide', () => {
         const column = (node: HTMLElement) => node.parentElement as HTMLElement;
 

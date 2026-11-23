@@ -4,17 +4,6 @@ import type { Preview } from '@storybook/react';
 
 import './preview.css';
 
-/**
- * The widths this kit is drawn for, smallest first. A story frame is one of these, never an
- * arbitrary number: the kit ships into a phone-shaped app whose column fills the device up to the
- * phone-class upper bound, so "does this hold together" is only a meaningful question at a width
- * some real device actually has.
- *
- * `base` stays the default so existing stories frame exactly as they did before these presets
- * existed. `fold-open` and `duo-inner` are the widths where a surface is wider than any phone, and
- * they are the reason the others are listed at all — a layout that only ever renders at 390 hides
- * both ends.
- */
 const VIEWPORTS = {
     xs: { title: 'xs · 320 (iPhone SE 1)', width: 320 },
     'fold-cover': { title: 'fold-cover · 344 (Z Fold cover)', width: 344 },
@@ -26,10 +15,6 @@ const VIEWPORTS = {
 
 type ViewportName = keyof typeof VIEWPORTS;
 
-/**
- * A theme toolbar toggles the `.dark` class on <html> so every story renders in
- * the selected light/dark token set. A viewport toolbar picks the frame width.
- */
 const preview: Preview = {
     parameters: {
         layout: 'centered',

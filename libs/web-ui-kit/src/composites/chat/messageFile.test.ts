@@ -9,7 +9,6 @@ describe('splitFileName', () => {
         expect(splitFileName('minutes v1.2.hwpx')).toEqual({ base: 'minutes v1.2', extension: '.hwpx' });
     });
 
-    // The server's rule: a dot that opens or closes the name does not start an extension.
     it.each(['.env', 'notes.', 'README'])('keeps %p whole', name => {
         expect(splitFileName(name)).toEqual({ base: name, extension: '' });
     });
@@ -46,16 +45,16 @@ describe('messageFileKind', () => {
 describe('formatFileSize', () => {
     it.each([
         [0, '0 KB'],
-        [1, '1 KB'], // a non-empty file never reads as empty
+        [1, '1 KB'],
         [512, '1 KB'],
         [1536, '2 KB'],
         [1024 * 1023, '1023 KB'],
-        [1024 * 1023.6, '1 MB'], // decided on the rounded value, never "1024 KB"
+        [1024 * 1023.6, '1 MB'],
         [1024 * 1024, '1 MB'],
         [1.5 * 1024 * 1024, '1.5 MB'],
         [12.34 * 1024 * 1024, '12.3 MB'],
         [50 * 1024 * 1024, '50 MB'],
-        [300 * 1024 * 1024, '300 MB'], // the video ceiling reads as the number its refusal names
+        [300 * 1024 * 1024, '300 MB'],
         [1023.99 * 1024 * 1024, '1 GB'],
         [2.25 * 1024 * 1024 * 1024, '2.3 GB'],
     ])('formats %p bytes as %p', (bytes, expected) => {

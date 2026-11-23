@@ -8,7 +8,6 @@ import type { DomainChannel } from '@chatic/runtime';
 
 const updateJoin = vi.fn(async (_payload: unknown) => ({}));
 
-// The channel cache: one observer, re-emitted by `emit` the way a cache write re-emits.
 const cache = vi.hoisted(() => ({
     listener: null as ((result: { list: DomainChannel[] }) => void) | null,
 }));
@@ -86,7 +85,6 @@ describe('usePlaceNotifyInheritance', () => {
         expect(useNotificationPrefsStore.getState().channelNotify.G2).toBe('none');
         expect(useNotificationPrefsStore.getState().placeNotify['c1:p1'].known).toEqual(['G1', 'G2']);
 
-        // The next emit (a message, a read) finds it known and writes nothing more.
         emit([channel('G1', 'p1'), channel('G2', 'p1')]);
         await act(async () => undefined);
         expect(writtenIds()).toEqual(['G2']);

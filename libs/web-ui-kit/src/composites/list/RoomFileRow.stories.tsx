@@ -31,10 +31,8 @@ export default meta;
 
 type Story = StoryObj<typeof RoomFileRow>;
 
-/** Figma 6072:23145 — an audio file at rest. */
 export const Default: Story = {};
 
-/** Figma 6072:23132 — the one playing, with its position bar. */
 export const Playing: Story = {
     args: {
         leading: { kind: 'play', playing: true, onToggle: () => undefined },
@@ -42,7 +40,6 @@ export const Playing: Story = {
     },
 };
 
-/** Play, pause and drag the bar. */
 export const InteractivePlayback: Story = {
     render: function Render(args) {
         const [playing, setPlaying] = useState(true);
@@ -57,7 +54,6 @@ export const InteractivePlayback: Story = {
     },
 };
 
-/** A document row — the file-kind glyph in the leading tile. */
 export const FileRow: Story = {
     args: {
         leading: { kind: 'icon', icon: <IconFilePdf size={24} className="text-alert-red" /> },
@@ -66,7 +62,6 @@ export const FileRow: Story = {
     },
 };
 
-/** A link row. */
 export const LinkRow: Story = {
     args: {
         leading: { kind: 'icon', icon: <IconLink size={22} /> },
@@ -75,17 +70,14 @@ export const LinkRow: Story = {
     },
 };
 
-/** Figma 6082:23390 — selection mode, not picked. */
 export const SelectionUnselected: Story = {
     args: { selection: { selected: false, onToggle: () => undefined } },
 };
 
-/** Figma 6082:23417 — selection mode, picked. */
 export const SelectionSelected: Story = {
     args: { selection: { selected: true, onToggle: () => undefined } },
 };
 
-/** Tap to toggle in selection mode. */
 export const InteractiveSelection: Story = {
     render: function Render(args) {
         const [selected, setSelected] = useState(false);

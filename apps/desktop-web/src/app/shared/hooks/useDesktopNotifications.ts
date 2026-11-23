@@ -29,11 +29,6 @@ import {
     useSelectedChannelStore,
 } from '../stores';
 
-// DMs have no channel name — title with the sender instead. Named channels read as
-// `#name`, matching the cross-cloud push banner. A group-channel mention reads with
-// its kind first (`Mention · #name`, `@all · #name`); DMs and non-mentions keep the
-// old title. Translated at notify time via i18next, not a render-captured `t` —
-// the feed callback outlives the render that registered it.
 const notificationTitle = (channel: DomainChannel, sender: string, kind: MentionKind | null): string => {
     const target = channel.name ? `#${channel.name}` : sender || 'New message';
     if (isNotifyDm(channel)) return target;
@@ -47,62 +42,31 @@ const notificationTitle = (channel: DomainChannel, sender: string, kind: Mention
     return target;
 };
 
-/** Suppress only when you're actively looking at that channel in a focused window. */
 const isViewing = (channelId: string): boolean =>
     typeof document !== 'undefined' &&
     document.hasFocus() &&
     document.visibilityState === 'visible' &&
     useSelectedChannelStore.getState().selectedChannelId === channelId;
 
-/**
- * Desktop-only OS notifications. The shared chat-feed engine (useChannelChatFeeds) streams every
- * registered channel's genuinely-new messages here; when a newer message from someone else
- * arrives while the window is hidden, ask the shell to show an OS notification. Covers channels
- * across every place the user belongs to. The banners are a no-op where the page cannot raise one
- * (outside the Desktop Shell), and one an older shell cannot show is dropped, so plain-browser and
- * older-shell runs degrade gracefully.
- *
- * The per-channel notify mode is reverse-synced separately (`join.observeList`): another device
- * changing join.notify lands here as a join cache update — mirrored into the local prefs (which
- * win at notify time) so devices don't drift.
- */
 export const useDesktopNotifications = (): void => {
     const { channel: channelRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
     const { places } = usePlaces();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const { userId: myUid } = runtime.session.useSessionIdentity();
 
-    // Read identity at notify/mirror time via a ref so a changing profile doesn't re-run the
-    // join effect (which would drop every live join subscription).
     const myUidRef = useRef(myUid);
     myUidRef.current = myUid;
 
-    // OS-notification policy on each channel's genuinely-new messages. The shared hook already
-    // dropped optimistic own sentinels and skipped the cache warm-up baseline, so `chats` are
-    // persisted messages strictly above the previous high-water mark.
     useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
-        // No-op where the page cannot raise an OS banner (anywhere but the Desktop Shell) — checked
-        // first, so a plain browser does not run the preference and dedupe checks below for a banner
-        // that could never show.
         const localBanner = runtime.push.localBanner;
         if (!localBanner) return;
 
-        // The channel watermark gives us the latest message (chat content streams only for the
-        // focused room in v2, so background notifications ride the channel record instead).
         const top = chat.chatNo ?? 0;
-        // Join/leave (and, later, reactions) arrive here as ordinary feed rows with no
-        // readable body — banner them and the reader gets an empty notification.
         if (!isNotifiableChat(chat)) return;
-        // Respect the user's notification preferences (global off / channel mode).
         const prefs = useNotificationPrefsStore.getState();
-        // "Mine" is either id — the same rule the message list and the mentions inbox use (see below).
         const isDm = isNotifyDm(channel);
         const viewer = { uid: myUidRef.current, name: '', cloudUid: channel.$join?.userId ?? null };
         const viewerIds = [viewer.uid, viewer.cloudUid];
-        // Snooze silences every banner, breakthrough or not. Quiet hours break
-        // only for a message whose record names me directly — never for an
-        // everyone call, a text guess, or a 1:1. Everything after this point
-        // (global switch, channel level, viewing, cursor, own message) still applies.
         const now = Date.now();
         if (isSnoozed(prefs.snoozeUntil, now)) return;
         if (prefs.quietHours && isWithinQuietHours(prefs.quietHours, new Date(now))) {
@@ -110,64 +74,36 @@ export const useDesktopNotifications = (): void => {
         }
         const notifyMode = channelNotifyMode(prefs, channel.id, channel.$join?.notify, isDm);
         if (!prefs.desktopEnabled || notifyMode === 'none') return;
-        // Don't notify for a channel you're actively viewing (you can see it).
         if (isViewing(channel.id)) return;
-        // Don't re-notify a message already marked read (e.g. resync redelivery).
         const cursor = useReadCursorStore.getState().cursors[channel.id] ?? 0;
         if (top <= cursor) return;
 
-        // Don't notify my own message. Optimistic copies carry my account id as the owner, but a
-        // persisted message outside the relay is owned by my per-channel cloud user id, so "mine"
-        // is either id — the same rule the message list and the mentions inbox use.
         if (isOwnChat(chat, viewer)) return;
 
-        // Mentions-only channels: drop anything that doesn't mention me — by the message's
-        // mention record when it has one, else by its text (global profile name + this
-        // place's nick, plus @channel/@here).
-        // Flattened first: a mention lives in the block text, not in the JSON that
-        // carries it, and the raw payload would also match on field names.
-        // One evaluation serves both the filter and the title below (`mentionsMe`
-        // is this same answer as a boolean).
         const message = messagePlainText(chat.content);
         const names = resolveMyMentionNames();
         const kind = mentionKind(chat, viewerIds, message, names);
         if (notifyMode === 'mention' && kind === null) return;
 
-        // Named channel → prefix the sender so it's visible ("sender: message"); a DM's
-        // title already is the sender, so don't repeat it. The sender is named as the feed names them.
         const sender = chatSenderName(chat, placeId);
         const body = messagePreview(chat);
-        // A banner the shell cannot show is dropped by the port, never thrown at the renderer.
         localBanner.present({
             title: notificationTitle(channel, sender, kind),
             body: channel.name && sender ? `${sender}: ${body}` : body,
             channelId: channel.id,
-            // Clicking the notification routes here (place + channel, + thread root).
-            // `parentId` on a persisted record is already the root's chatNo string —
-            // the key the open-thread store and ThreadPanel take (see `threadRootId`).
             deeplink: buildOpenDeeplink({ placeId, channelId: channel.id, rootId: chat.parentId }),
         });
     });
 
-    // Join the place ids into a stable dependency so the effect re-runs only when the set changes.
     const placeIds = places.map(p => p.id).join(',');
 
-    // Reverse-sync the per-channel notify mode: another device changing join.notify lands as a
-    // join cache update — mirror it into the local prefs (which win at notify time). Not gated on
-    // the shell like the banners above: the level is the app's own state, and the channel list
-    // reads it in a plain browser too. Guarded on change: read receipts remap to join updates
-    // constantly. The shared chat-feed hook already registers each channel's sync target (which
-    // streams these join updates into the cache), so this only needs to observe the join cache.
     useEffect(() => {
         if (!isVerified || places.length === 0) return;
         let active = true;
 
-        // channelId → join observe teardown.
         const subs = new Map<string, () => void>();
         const byPlace = new Map<string, Set<string>>();
 
-        // channelId → my user id in that channel's cloud. Outside the relay my join is under that
-        // id, not my account id; the account id is what there is to go by until it is known.
         const cloudUids = new Map<string, string>();
 
         const mirrorJoinNotify = (channelId: string, list: DomainJoin[]) => {

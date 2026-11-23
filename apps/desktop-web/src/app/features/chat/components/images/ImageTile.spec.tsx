@@ -25,8 +25,6 @@ const openMore = () => {
 describe('ImageTile', () => {
     afterEach(cleanup);
 
-    // A disabled button is skipped by the tab order and by screen readers, so an upload
-    // in progress had no presence at all.
     it('keeps an uploading tile focusable and says it is uploading', () => {
         const { onOpen } = renderTile({ image: { id: 'i1', name: 'a.png', url: 'blob:a', isUploading: true } });
         const tile = screen.getByRole('button', { name: 'Uploading a.png' });
@@ -50,7 +48,6 @@ describe('ImageTile', () => {
         expect(screen.queryByRole('menuitem', { name: 'Delete file' })).toBeNull();
     });
 
-    // A failed upload was a disabled button too: nothing said it had failed.
     it('keeps a failed tile focusable and says it failed', () => {
         const { onOpen } = renderTile({ image: { id: 'i1', name: 'a.png', url: '', isFailed: true } });
         const tile = screen.getByRole('button', { name: "This image couldn't be loaded" });

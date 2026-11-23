@@ -49,6 +49,45 @@ once, and each listener tells its own payloads apart. No feature subscribes to t
 (`src/app/shared/hooks/useSocketWakeRecovery.ts`, `useSocketWedgeReload.ts`) run in the desktop app and
 never in a person's tab: reloading a tab the person opened would take their place in it from them.
 
+## Device token registration
+
+`useDeviceTokenRegistration` is only the shell's side of push registration. The policy (sign-in gating,
+once per install, retry) lives in `@chatic/runtime`'s push registration and is shared with the phone app;
+this hook hands it the pieces that depend on the host.
+
+- The token and its renewals come from the `push` port. The desktop app answers the token request itself
+  and announces each token it mints again, because it stays open for days and waiting for the next launch
+  to notice a rotation would leave the endpoint stale that long.
+- Where the app holds no token (a browser tab) the delegate is `null` and registration does nothing.
+- The token request resolves empty when push is not configured or is still registering. The runtime
+  treats an empty token as a failure and retries on the next trigger.
+- The device's platform, install id and stage are what the shell injected at boot, read from the host
+  profile. The stage is sent explicitly: without it the broker applies its own default (`dev`) and
+  registers a production desktop into the development push application.
+
+## What the page reads off `window.electronAPI`
+
+`src/app/shared/utils/electronApi.ts` is the one declaration of what the shell's preload exposes.
+`declare global` merges across the program, so two files asserting their own shape of
+`window.electronAPI` is a compile error, and `vite build` does not typecheck, so it would surface late.
+Features import the types and the `get…Api` readers from there. Every member is optional; outside the
+desktop app, or in an older shell, it is `undefined`.
+
+- The contracts shared with the main process (custom-UI, launch-at-login, downloads) are kept in step
+  by hand with their `apps/desktop/src/main/*Contract.ts` files. An app-to-app import is blocked by the
+  workspace rules and a shared library for a few fields was not worth it. A change to one needs the
+  other, and nothing checks that the preload object satisfies the page's declaration, which is inherent to
+  `contextBridge`.
+- **Launch at login** reports `enabled` as the OS read back after a write, never the requested value,
+  because the OS can leave the registration pending approval, and echoing the request would show a
+  switch that is on for an app that will not start. `supported` is false where Electron has no
+  login-item integration (it is true on macOS and Windows only), and the settings row hides.
+- **Download notices** report how a download the page started ended. A save whose dialog was dismissed
+  is not reported, so it says nothing, and `reveal` answers false when the shell no longer has the file.
+  Saves that end close together share one notice that counts them
+  (`useDownloadNotices`); the join window is shorter than the toast's life by half a second, because a
+  toast closes that long after it opened whatever it was updated to, and a closed one cannot be updated.
+
 ## Details that bite
 
 - **One object to `post`.** The shell bridge's `webClient.post` takes a single `{ type, data }` object.

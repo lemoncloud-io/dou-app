@@ -15,8 +15,6 @@ describe('useKnownChannelsStore.record', () => {
         expect(Object.keys(useKnownChannelsStore.getState().byCloud['cloud-1'])).toEqual(['place-a:ch-1']);
     });
 
-    // A 1:1 is listed in its own place, so it is filed there, with its person, since its room name
-    // is only what the server set.
     it('files a cloud 1:1 with its person under the place it was listed in', () => {
         useKnownChannelsStore
             .getState()
@@ -33,7 +31,6 @@ describe('useKnownChannelsStore.record', () => {
         });
     });
 
-    // My notes-to-self room is listed in every place too, so the switcher has to know it is one room.
     it('marks my notes-to-self room', () => {
         useKnownChannelsStore
             .getState()
@@ -53,7 +50,6 @@ describe('useKnownChannelsStore.record', () => {
         expect(useKnownChannelsStore.getState().byCloud['cloud-1']).toBeUndefined();
     });
 
-    // v1 keyed an entry by channel id alone; v2 entries stay valid as they are.
     it('drops a v1 index, whose keys could not tell places apart', () => {
         const { version, migrate } = useKnownChannelsStore.persist.getOptions();
         const filedDm = {

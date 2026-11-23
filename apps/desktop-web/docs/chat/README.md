@@ -15,6 +15,14 @@ stores in `src/app/shared/`.
 - [feed-windowing.md](./feed-windowing.md): which feed rows are mounted, how the reading position
   holds while rows are measured, how a jump reaches a row outside the window, and how older history is
   paged past deleted messages.
+- [feed-scrolling.md](./feed-scrolling.md): where a room opens, when the feed follows the newest message,
+  and when the "New messages" divider appears and clears.
+- [messages.md](./messages.md): which chats become rows, how author blocks and names are resolved, how
+  message text, mentions, link chips and reactions are drawn, and what edit and delete do.
+- [sidebar.md](./sidebar.md): the Home sidebar's rows, sections, ordering, dragging, keyboard walk, row menu
+  and the quick switcher.
+- [opening-rooms.md](./opening-rooms.md): how a notification, link, saved item or list pick selects a room,
+  what is deferred until data loads, and when a pending open is given up.
 - [jump-and-return.md](./jump-and-return.md): a jump to one message, and the "Back to …" that returns
   the reader to where they were reading.
 - [read-counts.md](./read-counts.md): the "Seen · Not seen" pill under each author block and the list of who read it — where it
@@ -46,6 +54,14 @@ stores in `src/app/shared/`.
   notifications, unread counts and previews treat it.
 - [notifications.md](./notifications.md): the OS banner's title for a mention, what the title promises,
   and how a push from another cloud or the relay is shown and opened.
+- [live-data.md](./live-data.md): where the channel list, the feed and the background features get their
+  data, and the traps in observing a cache across cloud switches.
+- [unread-badges.md](./unread-badges.md): how a channel's unread count is derived, the read receipt, the
+  place and cloud totals, and what keeps them fresh.
+- [send-outbox.md](./send-outbox.md): sending, retry and discard addressed to a cloud, and the automatic
+  resend of failed messages.
+- [push-routing.md](./push-routing.md): which cloud and place a forwarded push belongs to, when it shows,
+  and the link a click opens.
 
 Dialogs reached from the sidebar and the room header:
 

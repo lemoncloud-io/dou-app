@@ -13,8 +13,6 @@ const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{chi
 describe('ImageTile with an expired signed address', () => {
     afterEach(cleanup);
 
-    // A message from yesterday: its signed address has expired, so the browser fires `error` on the <img>.
-    // The tile must not be left showing the browser's broken-image icon with live actions on top.
     it('does not keep a broken <img> in the tile after the image fails to load', () => {
         render(
             <ImageTile

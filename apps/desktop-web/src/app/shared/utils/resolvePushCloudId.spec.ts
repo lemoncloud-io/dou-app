@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import type { CacheRecord } from './readCacheRecords';
 import { findPushChannel, resolvePushCloudIdFrom, type PushChannelData } from './resolvePushCloudId';
 
-// Channel ids are per-cloud sequences: "7" exists in both clouds, muted only in cloud B.
 const records: CacheRecord<PushChannelData>[] = [
     { type: 'channel', cid: 'cloud-a', data: { id: '7', sid: 's1', $join: { userId: 'ua', notify: 'all' } } },
     { type: 'channel', cid: 'cloud-b', data: { id: '7', sid: 's9', $join: { userId: 'ub', notify: 'none' } } },

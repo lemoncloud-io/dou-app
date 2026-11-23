@@ -1,15 +1,9 @@
 import * as React from 'react';
 
 export interface IconAudioWaveProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Five-bar waveform glyph — what an audio file shows in place of a play button when it cannot be
- * played, and the mark of an audio row in a file list (Figma "아이콘 · 파형", 6040:20752). Fills with
- * `currentColor` so the caller colours it.
- */
 export const IconAudioWave = ({ size = 20, className, ...props }: IconAudioWaveProps) => (
     <svg
         width={size}

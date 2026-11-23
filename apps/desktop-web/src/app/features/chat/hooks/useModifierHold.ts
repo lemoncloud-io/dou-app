@@ -6,15 +6,6 @@ import { type HeldModifier, MODIFIER_HOLD_MS, soleModifier } from '../utils/modi
 
 const MODIFIER_KEYS = new Set(['Meta', 'Control', 'Alt']);
 
-/**
- * The modifier the reader is holding down on its own, once they have held it for
- * `MODIFIER_HOLD_MS`; null otherwise.
- *
- * The wait is what keeps the hints out of the way. ⌘ goes down on every ⌘C, ⌘V and ⌘K, and a hint
- * that flashed on each would be noise; a reader who holds the key and waits is asking what it does.
- * Any other key, a click, or the window losing focus (⌘Tab) ends it, as does letting go. Nothing
- * shows over a dialog or a menu, where the app's chords do nothing either.
- */
 export const useModifierHold = (): HeldModifier | null => {
     const [held, setHeld] = useState<HeldModifier | null>(null);
 
@@ -34,8 +25,6 @@ export const useModifierHold = (): HeldModifier | null => {
                 reset();
                 return;
             }
-            // A held key repeats its keydown. The wait already running is the one that counts, and a
-            // repeat after a chord cancelled it is still the same press, so it starts nothing.
             if (event.repeat || modifier === pending) return;
             reset();
             pending = modifier;
@@ -52,8 +41,6 @@ export const useModifierHold = (): HeldModifier | null => {
             if (document.visibilityState === 'hidden') reset();
         };
 
-        // Capture, unlike the app's other key listeners: those act on their own chord, but this one has
-        // to see every key and click, including the ones a handler below stops from bubbling.
         window.addEventListener('keydown', onKeyDown, true);
         window.addEventListener('keyup', onKeyUp, true);
         window.addEventListener('mousedown', reset, true);

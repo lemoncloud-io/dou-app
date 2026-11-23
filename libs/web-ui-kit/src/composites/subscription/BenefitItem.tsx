@@ -3,19 +3,12 @@ import * as React from 'react';
 import { cn } from '@chatic/ui-kit';
 
 export interface BenefitItemProps {
-    /** 32px leading icon node. */
     icon?: React.ReactNode;
-    /** Benefit title. */
     title: string;
-    /** Supporting description below the title. */
     description?: string;
     className?: string;
 }
 
-/**
- * Subscription benefit row — the Figma "subscription benefit" item: a leading icon with a
- * title, and a description line beneath.
- */
 export const BenefitItem = ({ icon, title, description, className }: BenefitItemProps) => {
     return (
         <div className={cn('flex w-full flex-col gap-0.5 px-4', className)}>

@@ -19,14 +19,11 @@ describe('unreadIndicator', () => {
     });
 
     it('stays silent on the open row, DM or channel', () => {
-        // Pre-existing behaviour: the row you are reading never carries a badge.
         expect(unreadIndicator({ unread: 12, isDm: false, isActive: true })).toBe('none');
         expect(unreadIndicator({ unread: 12, isDm: true, isActive: true })).toBe('none');
     });
 
     it('treats a negative or absent count as nothing unread', () => {
-        // `unreadCount` is a derived value (computeChannelUnread) and can be
-        // undefined before the first sync; a row must not badge on garbage.
         expect(unreadIndicator({ unread: -3, isDm: true, isActive: false })).toBe('none');
         expect(unreadIndicator({ unread: undefined, isDm: true, isActive: false })).toBe('none');
     });

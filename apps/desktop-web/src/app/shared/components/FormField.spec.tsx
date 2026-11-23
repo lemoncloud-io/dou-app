@@ -48,7 +48,6 @@ describe('FormField', () => {
         expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    // Callers hardcode one error id per dialog; two fields never share one.
     it('keeps two fields on their own error nodes', () => {
         render(
             <>

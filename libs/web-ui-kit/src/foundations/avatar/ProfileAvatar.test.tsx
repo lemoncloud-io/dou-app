@@ -33,9 +33,6 @@ describe('ProfileAvatar', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    // The empty state is Figma's "1-person Profile" (3177-13120): the hand-authored solid silhouette on a
-    // brand-ink circle, rendered at the avatar's full size so its 42×42 viewBox lands
-    // circle-relative. It is NOT the grey lucide outline this component used to draw.
     it('renders the solid single-person silhouette on a brand-ink circle by default', () => {
         const { container } = render(<ProfileAvatar size={86} />);
 
@@ -46,7 +43,6 @@ describe('ProfileAvatar', () => {
         expect(container.querySelector('.lucide-user')).not.toBeInTheDocument();
     });
 
-    // The group placeholder is the hand-authored IconGroup, inset rather than full-bleed.
     it('renders the group glyph inset on the same brand-ink circle when glyph="group"', () => {
         const { container } = render(<ProfileAvatar size={86} glyph="group" />);
 
@@ -55,18 +51,13 @@ describe('ProfileAvatar', () => {
         expect(container.querySelector('.lucide-user')).not.toBeInTheDocument();
     });
 
-    // A place is a space, not a person, so its placeholder is the illustration rather than a glyph
-    // (Figma 3408-27419). It paints its own circle, hence an <img> and no inline svg.
     it('renders the place illustration when glyph="place"', () => {
-        // Queried by selector, not by role: the default empty alt makes the image presentational.
         const { container } = render(<ProfileAvatar glyph="place" />);
 
         expect(container.querySelector('img')).toBeInTheDocument();
         expect(container.querySelector('svg')).not.toBeInTheDocument();
     });
 
-    // The DoU character is the only light placeholder: it carries no circle of its own, so the shell
-    // switches to the light avatar-ring disc and the illustration is inset (58 of 86 in Figma).
     it('renders the DoU character inset on a light disc when glyph="home"', () => {
         const { container } = render(<ProfileAvatar size={86} glyph="home" />);
 
@@ -83,7 +74,6 @@ describe('ProfileAvatar', () => {
         expect(container.querySelector('img')).toHaveStyle({ width: '24px', height: '24px' });
     });
 
-    // A photo replaces the illustration, so the light-disc treatment must go with it.
     it('falls back to the dark shell when glyph="home" but a photo is set', () => {
         const { container } = render(<ProfileAvatar glyph="home" src="http://example.com/turtle.png" />);
 
@@ -97,15 +87,12 @@ describe('ProfileAvatar', () => {
         expect(container.querySelector('img')).toHaveAttribute('src', 'http://example.com/turtle.png');
     });
 
-    // Every placeholder this component can show is dark, so the badge is light-on-dark.
     it('renders the select badge light against the dark avatar', () => {
         const { container } = render(<ProfileAvatar onSelect={jest.fn()} />);
 
         expect(container.querySelector('.bg-muted')).toBeInTheDocument();
     });
 
-    // `bg-muted` (95% L) on `bg-avatar-ring` (96% L) is one lightness step — the badge would be
-    // invisible. The light disc is the only case where the badge has to invert.
     it('flips the select badge dark on the light home disc', () => {
         const { container } = render(<ProfileAvatar glyph="home" onSelect={jest.fn()} />);
 
@@ -127,7 +114,6 @@ describe('ProfileAvatar', () => {
         }
     });
 
-    // Figma draws the DoU Home disc with no stroke at all.
     it('draws no stroke on the light home disc', () => {
         const { container } = render(<ProfileAvatar glyph="home" />);
 

@@ -34,7 +34,6 @@ describe('MessageMediaTiles', () => {
         expect(screen.getByText('+3')).toBeInTheDocument();
     });
 
-    // One message never carries more than ten, so a longer list is a bug upstream, not ten more tiles.
     it('counts no more than ten in all', () => {
         render(<MessageMediaTiles items={tiles(14)} onOpen={jest.fn()} />);
         expect(screen.getByText('+6')).toBeInTheDocument();
@@ -53,7 +52,6 @@ describe('MessageMediaTiles', () => {
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    // A broken upload keeps its place so the count still matches what the sender picked.
     it('keeps a broken upload as a placeholder instead of an image', () => {
         const items: MessageMediaTileItem[] = [
             { key: 'a', kind: 'image', preview: 'https://example.com/a.jpg', state: 'ready' },
@@ -65,7 +63,6 @@ describe('MessageMediaTiles', () => {
         expect(container.firstChild?.childNodes).toHaveLength(2);
     });
 
-    // The host is still resolving the address — an empty tile, not the missing-image mark.
     it('draws a ready tile with no address yet as an empty tile', () => {
         const items: MessageMediaTileItem[] = [
             { key: 'a', kind: 'image', state: 'ready' },
@@ -95,7 +92,6 @@ describe('MessageMediaTiles', () => {
         expect(bar).toHaveAttribute('aria-valuenow', '42');
         expect(bar).toHaveTextContent('42%');
         expect(bar.querySelector('[data-progress-ring]')).toBeInTheDocument();
-        // The tile with no count yet keeps the spinner.
         expect(container.querySelectorAll('.animate-spin')).toHaveLength(1);
     });
 
@@ -119,7 +115,6 @@ describe('MessageMediaTiles', () => {
         expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
     });
 
-    // Signed addresses expire; the host fetches fresh ones, so the tile has to say which one failed.
     it('reports which image failed to load', () => {
         const onImageError = jest.fn();
         const { container } = render(<MessageMediaTiles items={tiles(3)} onImageError={onImageError} />);
@@ -130,7 +125,6 @@ describe('MessageMediaTiles', () => {
     });
 
     describe('video tiles', () => {
-        // `null` for a video with no poster — an explicit `undefined` would take the default.
         const video = (
             state: MessageMediaTileItem['state'],
             preview: string | null = 'https://example.com/poster.jpg'
@@ -144,8 +138,6 @@ describe('MessageMediaTiles', () => {
             expect(container.querySelector('[data-video-panel]')).not.toBeInTheDocument();
         });
 
-        // A browser-picked video has no poster at all; it still has to read as a video, not as a
-        // photo still loading.
         it('draws a video with no poster as a grey panel, still with the play mark', () => {
             const { container } = render(<MessageMediaTiles items={[video('ready', null)]} />);
 
@@ -154,7 +146,6 @@ describe('MessageMediaTiles', () => {
             expect(container.querySelector('[data-play-mark]')).toBeInTheDocument();
         });
 
-        // Playing belongs to the viewer; a <video> per tile would fetch every video scrolled past.
         it('puts no video element in the feed unless the host hands a tile a frame address', () => {
             const { container } = render(
                 <MessageMediaTiles
@@ -214,8 +205,6 @@ describe('MessageMediaTiles', () => {
             expect(container.querySelector('video')).toBeNull();
         });
 
-        // The shell's video has no local preview until its poster is made — the grey panel, under
-        // the same spinner a sending photo shows.
         it('draws a sending video with no poster as the grey panel under the spinner', () => {
             const { container } = render(<MessageMediaTiles items={[video('sending', null)]} />);
 
@@ -232,7 +221,6 @@ describe('MessageMediaTiles', () => {
             expect(container.querySelector('.bg-black\\/40 svg')).toBeInTheDocument();
         });
 
-        // It cannot be played, so it must not promise to be.
         it('draws a broken video as the same placeholder as a broken photo', () => {
             const { container } = render(
                 <MessageMediaTiles

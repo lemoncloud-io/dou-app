@@ -6,19 +6,12 @@ import { IconPlan } from '../../resources/icons';
 import { Badge } from './Badge';
 
 export interface PlanBadgeProps {
-    /** Tier label (e.g. "FREE", "PRO"). */
     label: string;
-    /** Leading icon; defaults to a sparkles glyph. */
     icon?: React.ReactNode;
-    /** Accent (green) outline — used for paid tiers (e.g. PRO). */
     accent?: boolean;
     className?: string;
 }
 
-/**
- * Subscription tier badge preset — the Figma "subscription status badge": an outline Badge with
- * a leading glyph and the tier label. `accent` switches the outline to brand green.
- */
 export const PlanBadge = ({ label, icon, accent = false, className }: PlanBadgeProps) => {
     return (
         <Badge

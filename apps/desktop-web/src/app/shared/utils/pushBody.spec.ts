@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-// Initialises i18next, so the labels read as the reader sees them.
 import '../../../i18n';
 
 import { pushBody } from './pushBody';
@@ -12,8 +11,6 @@ describe('pushBody', () => {
         expect(pushBody({ loc_key: 'push_chat_file_body' })).toBe('File');
     });
 
-    // The shell forwards FCM's loc_args untouched, a JSON string; its first item used to be the
-    // whole banner body, so several photos read "3".
     it('counts several from loc_args, as the JSON string FCM carries or as an array', () => {
         expect(pushBody({ loc_key: 'push_chat_images_body', loc_args: '["3"]' })).toBe('3 photos');
         expect(pushBody({ loc_key: 'push_chat_videos_body', loc_args: ['2'] })).toBe('2 videos');
@@ -27,7 +24,6 @@ describe('pushBody', () => {
         expect(pushBody({ loc_key: 'push_chat_files_body', loc_args: '["0"]' })).toBe('New message');
     });
 
-    // What an attachment-only message pushes until the server picks a kind key.
     it('says a new message came when the message push has no text', () => {
         expect(pushBody({ loc_key: 'push_chat_message_body' })).toBe('New message');
         expect(pushBody({ loc_key: 'push_chat_message_body', content: '  ' })).toBe('New message');
@@ -38,9 +34,7 @@ describe('pushBody', () => {
 
     it('leaves a message push with text, and any other push, to the body it arrived with', () => {
         expect(pushBody({ loc_key: 'push_chat_message_body', loc_args: '["hi"]', content: 'hi' })).toBeUndefined();
-        // An empty `content` is no text of its own; the text in `loc_args` still counts.
         expect(pushBody({ loc_key: 'push_chat_message_body', loc_args: '["hi"]', content: '' })).toBeUndefined();
-        // The shell also finds text in the notification's own body; that is text too.
         expect(pushBody({ loc_key: 'push_chat_message_body' }, 'hi')).toBeUndefined();
         expect(pushBody({ loc_key: 'push_cloud_activate_title' })).toBeUndefined();
         expect(pushBody({})).toBeUndefined();

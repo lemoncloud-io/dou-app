@@ -6,49 +6,27 @@ import { Checkbox } from '../../foundations/checkbox/Checkbox';
 import type { PhotoItemKind } from './types';
 import { VideoMark } from './VideoMark';
 
-/** How long a press on a tile has to rest before it counts as a long press. */
 export const ROOM_MEDIA_LONG_PRESS_MS = 500;
-/** How far a finger may drift during a press before it is a scroll, not a press. */
 const PRESS_SLOP_PX = 8;
 
 export interface RoomMediaGridItem {
-    /** Stable identifier, reported back by every callback. */
     key: string;
-    /** A thumbnail URL; a video's is its poster. Absent draws the bare grey tile. */
     src?: string;
     kind: PhotoItemKind;
-    /** A video's length, drawn in the corner mark. */
     durationSeconds?: number;
 }
 
 export interface RoomMediaGridProps {
     items: RoomMediaGridItem[];
-    /** A tile was tapped outside selection mode — open the viewer on it. */
     onOpen: (key: string) => void;
-    /** Selection mode: each tile carries a check circle and a tap toggles it. */
     selection?: { selectedKeys: ReadonlySet<string>; onToggle: (key: string) => void };
-    /** A tile held for {@link ROOM_MEDIA_LONG_PRESS_MS} outside selection mode — enter it with this tile. */
     onLongPress?: (key: string) => void;
-    /** Each tile's accessible name, localized by the host. */
     tileLabel?: (index: number, kind: PhotoItemKind) => string;
     className?: string;
 }
 
 const defaultTileLabel = (index: number, kind: PhotoItemKind) => `${kind === 'video' ? 'Video' : 'Photo'} ${index + 1}`;
 
-/**
- * The photos·videos tab of a room's file list: a three-column grid of square thumbnails with a 2px
- * gutter. The design drew only the audio tab, so this follows the kit's other grids — a video wears
- * the picker's `VideoMark` (play mark and length) in its bottom-left corner, and in selection mode the
- * top-right corner carries the same navy check circle the file rows use, a picked tile dimming under it.
- *
- * Not `PhotoGridTile`: that tile is the composer's picker, with a lime pick-order badge, a cap and a
- * skeleton cross-fade tuned for base64 previews. A room's history can hold thousands of remote
- * thumbnails, so these are plain `<img loading="lazy">` and the browser fetches only what scrolls near.
- *
- * Stateless apart from one gesture: a held press is timed so `onLongPress` can fire, and the click that
- * ends it is swallowed, whichever tile it lands on once the host has switched to selection mode.
- */
 export const RoomMediaGrid = ({
     items,
     onOpen,
@@ -148,8 +126,6 @@ export const RoomMediaGrid = ({
                                         tone="ink"
                                         size={22}
                                         interactive={false}
-                                        // A white rim in both states: a navy disc alone sinks into a
-                                        // dark photo.
                                         className={cn(
                                             'absolute right-1.5 top-1.5 border-white',
                                             !selected && 'bg-white/[0.32]'

@@ -11,11 +11,6 @@ import {
 } from './FileKindIcons';
 import { IconPlaySolid } from './IconPlaySolid';
 
-/**
- * The glyphs the message feed draws for attachments: the video tile's play mark and the document
- * card's file kinds. Grouped because the contract is the kit's glyph contract — square, `size`-driven,
- * `currentColor`, hidden from assistive tech — the tile or card decides the colour.
- */
 describe.each([
     ['IconPlaySolid', IconPlaySolid, 24, '0 0 24 24'],
     ['IconFilePdf', IconFilePdf, 32, '0 0 32 32'],
@@ -58,7 +53,6 @@ describe.each([
     });
 });
 
-// The tag is what tells the kinds apart for anyone the tint does not reach; the generic sheet has none.
 it.each([
     [IconFilePdf, 'PDF'],
     [IconFileDoc, 'DOC'],

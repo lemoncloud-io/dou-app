@@ -15,7 +15,6 @@ describe('AvatarFrame', () => {
         expect(root.className).not.toMatch(/\bborder\b/);
     });
 
-    // A positioned avatar would paint over static siblings it overlaps (a stack's "+N" chip).
     it('stacks its layers in one grid cell instead of positioning them', () => {
         const { container } = render(<AvatarFrame px={20} />);
         const root = container.firstElementChild as HTMLElement;

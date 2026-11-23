@@ -21,13 +21,10 @@ import {
 } from './ConversationList';
 
 interface DmListPanelProps {
-    /** The active place's channels; only its 1:1s and my notes-to-self room are listed. */
     channels: DomainChannel[];
     selectedChannelId: string | null;
     onSelect: SelectConversation;
-    /** Absent where a 1:1 cannot be started (no place, or the place does not allow it). */
     onCreateDm?: () => void;
-    /** While the place's channels load, an empty list is not yet an empty place. */
     isLoading?: boolean;
 }
 
@@ -42,14 +39,6 @@ const PersonAvatar = ({ seed, display }: { seed: string; display: ResolvedDispla
     </Avatar>
 );
 
-/**
- * The DM destination's sidebar column: the place's 1:1s, and my notes-to-self room among them,
- * most recently active first. Each row carries the person's avatar and name, the last message (mine
- * marked as mine — in a 1:1 the other sender needs no name, and in my notes-to-self room nothing
- * needs marking), its time and the unread count. The
- * search field narrows by the person's name. Previews come from one cache observation for the
- * whole list, shared with the Channels list (`useLastChats`).
- */
 export const DmListPanel = ({
     channels,
     selectedChannelId,
@@ -74,7 +63,6 @@ export const DmListPanel = ({
     const previewOf = (channel: DomainChannel, lastChat: DomainChat | undefined): string => {
         const preview = lastChat ? messagePreview(lastChat) : '';
         if (!lastChat || !preview) return t('lists.noMessages');
-        // In my notes-to-self room every message is mine, so none needs saying so.
         const mine =
             !isSelfChannel(channel) && isOwnChat(lastChat, { uid: myUid, name: '', cloudUid: channel.$join?.userId });
         return markThreadReply(lastChat, mine ? t('lists.previewMine', { text: preview }) : preview, t);
@@ -84,7 +72,6 @@ export const DmListPanel = ({
     const rows = ordered.flatMap(channel => {
         const identity = identityOf(channel);
         const pending = holdSection || identity.pending;
-        // A search matches what the rows show: a placeholder shows no name, so it matches nothing.
         if (needle && (pending || !identity.label.toLowerCase().includes(needle))) return [];
         if (pending) return [<PendingConversationRow key={channel.id} />];
         const lastChat = lastByChannel.get(channel.id);

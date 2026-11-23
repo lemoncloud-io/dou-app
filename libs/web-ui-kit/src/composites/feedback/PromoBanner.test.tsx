@@ -7,8 +7,6 @@ describe('PromoBanner', () => {
         const title = '나만의 클라우드에서 플레이스를\n만들고 함께 대화하세요!';
         render(<PromoBanner title={title} />);
 
-        // The newline must survive into the DOM — `whitespace-pre-line` is what renders it as a
-        // line break, so a collapsed-whitespace match here would hide a lost `\n`.
         expect(screen.getByText(title, { collapseWhitespace: false })).toBeInTheDocument();
         expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
@@ -32,7 +30,6 @@ describe('PromoBanner', () => {
         rerender(<PromoBanner title="copy" onDismiss={onDismiss} dismissLabel="닫기" />);
 
         const dismiss = screen.getByRole('button', { name: '닫기' });
-        // WCAG 2.5.8 minimum; the glyph itself is only 18px so the wrapper has to carry the size.
         expect(dismiss).toHaveClass('size-6');
         fireEvent.click(dismiss);
         expect(onDismiss).toHaveBeenCalledTimes(1);

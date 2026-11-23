@@ -41,7 +41,6 @@ import {
 import { type FenceSegment, splitFences } from '../../utils';
 import { $importWireMarkdown } from './wireMarkdown';
 
-/** Toggle the selection's block between code block and paragraph. */
 export const toggleCodeBlock = (editor: LexicalEditor): void => {
     editor.update(() => {
         const selection = $getSelection();
@@ -52,23 +51,9 @@ export const toggleCodeBlock = (editor: LexicalEditor): void => {
     });
 };
 
-// Module-level: AutoLinkPlugin re-registers whenever these arrays change identity.
 const URL_MATCHERS = [createLinkMatcherWithRegExp(new RegExp(LINK_URL_SOURCE))];
 const NOT_IN_CODE_BLOCK = [$isCodeNode];
 
-/**
- * Marks a typed or pasted URL as a link while it is still in the composer,
- * Slack-style. Uses the same URL pattern RichText links, so the composer does not
- * show a link that arrives as plain text. Code is left alone because RichText
- * does not link inside it: code blocks are excluded as parents, and a URL in
- * inline code is kept as an unlinked AutoLinkNode (a plain span). Lexical's
- * matcher only sees text, not its format, so it cannot skip inline code itself.
- *
- * Clicking a link opens it in a new window, as in Slack — in the desktop shell
- * that hands it to the system browser. Lexical's ClickableLinkPlugin would also
- * open the unlinked inline-code ones (they are still link nodes), hence the
- * listener here. A click that ends a drag-selection only selects.
- */
 export const ComposerAutoLinkPlugin = () => {
     const [editor] = useLexicalComposerContext();
 
@@ -76,7 +61,6 @@ export const ComposerAutoLinkPlugin = () => {
         const openLink = (event: MouseEvent) => {
             if (!(event.target instanceof Node)) return;
             const target = event.target;
-            // `{ editor }` lets the DOM-to-node lookup run outside an update callback.
             const url = editor.getEditorState().read(
                 () => {
                     const selection = $getSelection();
@@ -111,12 +95,6 @@ export const ComposerAutoLinkPlugin = () => {
 
 const FENCE = '```';
 
-/**
- * Keeps a link only where a message can carry it. A pasted web page brings its anchors along as
- * link nodes, with whatever address they had — a relative path, `mailto:`, a URL with parentheses —
- * and sent as `[words](address)` those would reach readers as raw markup. Such a link is unwrapped
- * to its words. Autolinks are left alone: they are bare URLs and export as such.
- */
 export const LinkGuardPlugin = () => {
     const [editor] = useLexicalComposerContext();
     useEffect(
@@ -131,16 +109,6 @@ export const LinkGuardPlugin = () => {
     return null;
 };
 
-/**
- * Typing ``` on a line of its own opens a code block there and then, as in Slack. Lexical's own
- * shortcut waits for a space or a plain Enter after the fence, and only on a message's first line:
- * Enter sends here, so after Shift+Enter the fence stayed literal text and went out that way.
- *
- * Detected from the update, the way Lexical's markdown shortcuts are, not from keydown: what
- * matters is that one backtick was just added to a line that now reads exactly ```. That excludes a
- * draft or an edit loading (the text arrives whole) and undo/redo (tagged historic). The conversion
- * is its own history step, so ⌘Z brings the three backticks back.
- */
 export const CodeFenceShortcutPlugin = () => {
     const [editor] = useLexicalComposerContext();
 
@@ -157,7 +125,6 @@ export const CodeFenceShortcutPlugin = () => {
                         if (node.getTextContent() !== FENCE || selection.anchor.offset !== FENCE.length) return null;
                         if (node.hasFormat('code') || !node.isSimpleText()) return null;
                         if (!$isParagraphNode(node.getParent())) return null;
-                        // Alone on its line: ``` typed in front of a mention or other text is not a fence.
                         const before = node.getPreviousSibling();
                         if (before && !$isLineBreakNode(before)) return null;
                         const after = node.getNextSibling();
@@ -172,8 +139,6 @@ export const CodeFenceShortcutPlugin = () => {
                     if (!grewByOne) return;
                     editor.update(() => $openCodeBlockAt(key), { tag: HISTORY_PUSH_TAG });
                 }),
-                // Enter sends, so a code block at the end of the message has no keyboard way out
-                // below it; ArrowDown on its last position makes the line after it.
                 editor.registerCommand(
                     KEY_ARROW_DOWN_COMMAND,
                     event => {
@@ -203,7 +168,6 @@ export const CodeFenceShortcutPlugin = () => {
     return null;
 };
 
-/** Replaces the ``` text node `key` with an empty code block, keeping the lines around it as text. */
 const $openCodeBlockAt = (key: string): void => {
     const fence = $getNodeByKey(key);
     const paragraph = fence?.getParent();
@@ -211,7 +175,6 @@ const $openCodeBlockAt = (key: string): void => {
 
     const before = fence.getPreviousSibling();
     const rest = fence.getNextSiblings();
-    // The line break that ended the fence's line goes with it, like the one before it.
     if ($isLineBreakNode(rest[0])) rest.shift()?.remove();
     if ($isLineBreakNode(before)) before.remove();
     fence.remove();
@@ -223,16 +186,6 @@ const $openCodeBlockAt = (key: string): void => {
     code.select();
 };
 
-/**
- * A plain-text paste that holds a fenced block — a command copied out of a message, a README or a
- * terminal note — goes in with the block as a code block and the rest as text, by the same rule
- * the message view reads fences with. Without this the fence went in as literal backticks, which
- * is how they came back out on send.
- *
- * Only plain text: a copy that carries HTML (a browser selection) goes through the editor's own
- * HTML import, which already turns `<pre>` into a code block. A paste inside a code block stays
- * raw, as code. Files never reach here — the composer takes those in the capture phase.
- */
 export const CodeFencePastePlugin = () => {
     const [editor] = useLexicalComposerContext();
 
@@ -250,8 +203,6 @@ export const CodeFencePastePlugin = () => {
                     if ($isCodeNode(selection.anchor.getNode().getTopLevelElement())) return false;
 
                     event.preventDefault();
-                    // Its own update, as the editor's paste does, so the change is reported and
-                    // recorded like any other paste.
                     editor.update(() => $insertFenceSegments(segments), { tag: PASTE_TAG });
                     return true;
                 },
@@ -262,14 +213,11 @@ export const CodeFencePastePlugin = () => {
     return null;
 };
 
-/** Inserts pasted text at the caret, fenced parts as code blocks. */
 const $insertFenceSegments = (segments: FenceSegment[]): void => {
     segments.forEach((segment, index) => {
         const caret = $getSelection();
         if (!$isRangeSelection(caret)) return;
         if (segment.type === 'text') {
-            // The newline that set a block apart from its neighbours is the block's
-            // own edge now; kept, it would leave an empty line beside the block.
             let text = segment.value;
             if (segments[index - 1]?.type === 'code') text = text.replace(/^\r?\n/, '');
             if (segments[index + 1]?.type === 'code') text = text.replace(/\r?\n$/, '');
@@ -279,7 +227,6 @@ const $insertFenceSegments = (segments: FenceSegment[]): void => {
         const code = $createCodeNode(segment.lang);
         $insertNodes([code]);
         if (segment.value) code.selectEnd().insertRawText(segment.value);
-        // Leave the caret on the line after the block, making one if it is last.
         let next = code.getNextSibling();
         if (!$isParagraphNode(next)) {
             next = $createParagraphNode();
@@ -289,11 +236,6 @@ const $insertFenceSegments = (segments: FenceSegment[]): void => {
     });
 };
 
-/**
- * Enter sends, Shift+Enter breaks the line. Registered at LOW priority: the
- * mention typeahead (NORMAL) wins while its menu is open, the rich-text
- * default (EDITOR) only sees Shift+Enter.
- */
 export const SubmitPlugin = ({ onSubmit }: { onSubmit: () => void }) => {
     const [editor] = useLexicalComposerContext();
     const onSubmitRef = useRef(onSubmit);
@@ -306,8 +248,6 @@ export const SubmitPlugin = ({ onSubmit }: { onSubmit: () => void }) => {
                 event => {
                     if (!event || event.shiftKey) return false;
                     event.preventDefault();
-                    // Mid-IME Enter (Hangul composition) commits the composition only —
-                    // consume it without sending, like Slack.
                     if (!event.isComposing) onSubmitRef.current();
                     return true;
                 },
@@ -318,7 +258,6 @@ export const SubmitPlugin = ({ onSubmit }: { onSubmit: () => void }) => {
     return null;
 };
 
-/** ⌘B bold · ⌘I italic · ⌘⇧X strike · ⌘⇧C inline code · ⌘⇧⌥C code block. */
 export const FormatShortcutsPlugin = () => {
     const [editor] = useLexicalComposerContext();
 
@@ -327,11 +266,7 @@ export const FormatShortcutsPlugin = () => {
             editor.registerCommand(
                 KEY_DOWN_COMMAND,
                 event => {
-                    // e.code (not e.key): macOS Option remaps e.key.
                     if (!(event.metaKey || event.ctrlKey)) return false;
-                    // ⌘B / ⌘I — bound explicitly (preventDefault suppresses the
-                    // browser's own beforeinput) instead of relying on Lexical's
-                    // built-in, which the desktop shell doesn't fire reliably.
                     if (!event.shiftKey && !event.altKey) {
                         if (event.code === 'KeyB') {
                             event.preventDefault();
@@ -366,33 +301,19 @@ export const FormatShortcutsPlugin = () => {
     return null;
 };
 
-/**
- * Load the channel's saved draft (the wire string) on
- * switch, then focus with the caret at the end.
- *
- * A room opened by a rail number is the one exception: the reader is stepping through clouds and
- * places with keys, and a caret in the box would make the next chord (Shift+digit) type its
- * character instead of moving. The request holds for the whole switch (HomePage clears it once the
- * switch settles), so every room a switch lands on — including a dev double-mount — stays put.
- */
 export const ChannelDraftPlugin = ({ channelId }: { channelId: string }) => {
     const [editor] = useLexicalComposerContext();
     useEffect(() => {
         const draft = useComposerDraftStore.getState().drafts[channelId] ?? '';
         const skipped = useComposerFocusStore.getState().skipNext;
-        // A channel switch can land after a panel opened for it — a thread from the inbox — has put
-        // focus inside; the room's box does not pull it back out.
         const panel = document.activeElement?.closest('[data-trailing-panel]');
         const focus = !skipped && !(panel && !panel.contains(editor.getRootElement()));
         editor.update(() => {
             $importWireMarkdown(draft);
-            // A selection in an editable root pulls DOM focus with it, so none is placed when focus stays put.
             if (focus) $getRoot().selectEnd();
             else $setSelection(null);
         });
         if (focus) editor.focus();
-        // Lexical restores the root's selection as it attaches and again as this update commits,
-        // which pulls DOM focus back in after the block above decided not to take it.
         else {
             const root = editor.getRootElement();
             root?.blur();

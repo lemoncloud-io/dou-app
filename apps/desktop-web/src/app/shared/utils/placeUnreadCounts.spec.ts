@@ -9,7 +9,6 @@ import { placeUnreadCounts } from './placeUnreadCounts';
 const ME = 'me';
 const PLACES = ['place-a', 'place-b', 'place-c'];
 
-// Three messages past my read boundary, the latest from someone else.
 const unread3 = { chatNo: 3, metaNo: 0, $join: { chatNo: 0, metaNo: 0 }, lastChat$: { ownerId: 'other' } };
 
 const group = (id: string, sid: string, memberIds: string[], fields = {}): DomainChannel =>
@@ -36,7 +35,6 @@ describe('placeUnreadCounts', () => {
         expect(total).toBe(3);
     });
 
-    // The peer is in place-b and place-c too; the room lives in the place it was opened in.
     it('counts an unread 1:1 under its own place only', () => {
         const channels = [
             group('gb', 'place-b', [ME, 'peer']),
@@ -71,7 +69,6 @@ describe('placeUnreadCounts', () => {
         expect(counts([group('g', '', [ME], unread3)])).toEqual({ byPlace: {}, total: 0 });
     });
 
-    // The row keeps its own dot; the place tile and the cloud tile above it stay clear.
     it('keeps a muted channel off its place and out of the total', () => {
         const muted = { ...unread3, $join: { ...unread3.$join, notify: 'none' } };
 
@@ -84,14 +81,12 @@ describe('placeUnreadCounts', () => {
         expect(counts([group('g', 'place-a', [ME], mentionOnly)])).toEqual({ byPlace: {}, total: 0 });
     });
 
-    // A 1:1 has no "mentions only": the server sends every message of it, so it counts as all.
     it('counts a 1:1 that was left on mentions only', () => {
         const mentionOnly = { ...unread3, $join: { ...unread3.$join, notify: 'mention' } };
 
         expect(counts([dm('dm-1', 'peer', 'place-a', mentionOnly)])).toEqual({ byPlace: { 'place-a': 3 }, total: 3 });
     });
 
-    // A mode set on this device wins over the join row, in both directions.
     it('follows the mode set on this device over the join row', () => {
         const mutedOnServer = { ...unread3, $join: { ...unread3.$join, notify: 'none' } };
         const loudOnServer = { ...unread3, $join: { ...unread3.$join, notify: 'all' } };
@@ -106,7 +101,6 @@ describe('placeUnreadCounts', () => {
         expect(total).toBe(3);
     });
 
-    // The map from before per-channel modes existed still mutes a channel that has no mode.
     it('keeps a channel muted in the legacy map off its place and out of the total', () => {
         const { byPlace, total } = counts([group('g', 'place-a', [ME], unread3)], PLACES, {
             channelNotify: {},
@@ -140,7 +134,6 @@ describe('placeUnreadCounts', () => {
         expect(total).toBe(3);
     });
 
-    // A cloud with no place lists its 1:1s anyway, so a room that names none still counts somewhere.
     it('counts a 1:1 that names no place in the total only, where a cloud with no place lists it', () => {
         const channels = [dm('me@peer', 'peer', '', unread3)];
         const listed = placeUnreadCounts(channels, {
@@ -154,7 +147,6 @@ describe('placeUnreadCounts', () => {
         expect(listed).toEqual({ byPlace: {}, total: 3 });
     });
 
-    // In a cloud with places no sidebar list holds it, so nothing could clear the count.
     it('leaves a 1:1 that names no place out entirely in a cloud with places', () => {
         expect(counts([dm('me@peer', 'peer', '', unread3)])).toEqual({ byPlace: {}, total: 0 });
     });
@@ -165,7 +157,6 @@ describe('placeUnreadCounts', () => {
 });
 
 describe('placeUnreadCounts mentions-only channels', () => {
-    // One message past the boundary, from someone else.
     const unread1 = { chatNo: 1, metaNo: 0, $join: { chatNo: 0, metaNo: 0 }, lastChat$: { ownerId: 'other' } };
     const mentionMode = { $join: { chatNo: 0, metaNo: 0, notify: 'mention' } };
 
@@ -198,7 +189,6 @@ describe('placeUnreadCounts mentions-only channels', () => {
         });
     });
 
-    // The inbox also holds 1:1 messages, replies and reactions; a mentions-only channel counts mentions only.
     it('adds nothing for an inbox item that is not a mention', () => {
         const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
         const others = (['dm', 'reply', 'reaction'] as const).map(kind => ({
@@ -217,7 +207,6 @@ describe('placeUnreadCounts mentions-only channels', () => {
             mention('g:3', 'g', 'place-a', 3),
         ];
 
-        // Channel unread here is 1 (head 1), so three inbox entries still add one.
         expect(countsWith(channels, mentions)).toEqual({ byPlace: { 'place-a': 1 }, total: 1 });
     });
 
@@ -242,7 +231,6 @@ describe('placeUnreadCounts mentions-only channels', () => {
         expect(countsWith(channels, [mention('g:1', 'g', 'place-b', 1)])).toEqual({ byPlace: {}, total: 0 });
     });
 
-    // Every cloud numbers its places and channels from the same start.
     it('leaves out another cloud’s channel of the same place and id', () => {
         const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
         const elsewhere = { ...mention('g:1', 'g', 'place-a', 1), cloudId: 'cloud-2' };

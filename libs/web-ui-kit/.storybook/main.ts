@@ -22,7 +22,6 @@ const config: StorybookConfig = {
     viteFinal: async config =>
         mergeConfig(config, {
             plugins: [react(), nxViteTsPaths()],
-            // Compile the lib's Tailwind + design tokens for the stories.
             css: {
                 postcss: {
                     plugins: [tailwind(join(here, '../tailwind.config.js')), autoprefixer()],

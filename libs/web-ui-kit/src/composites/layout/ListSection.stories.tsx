@@ -21,10 +21,6 @@ export default meta;
 
 type Story = StoryObj<typeof ListSection>;
 
-/**
- * Home "Place" section (Figma 2675:14545) composed from a ListSection header +
- * ListRow items — the default place uses PlaceAvatar + VerifiedBadge.
- */
 export const PlaceSection: Story = {
     render: () => (
         <ListSection title="Place" actions={<IconChevronDown className="size-[18px] text-foreground" />}>

@@ -26,13 +26,10 @@ export default meta;
 
 type Story = StoryObj<typeof KeyValueRows>;
 
-/** Card shell, every tone. */
 export const AllTones: Story = {};
 
-/** No shell — the shape used inside ProductCard's children. */
 export const Bare: Story = { args: { bare: true } };
 
-/** The narrowest column the app supports — long labels and values wrap instead of overflowing. */
 export const Narrow320: Story = {
     decorators: [
         Story => (

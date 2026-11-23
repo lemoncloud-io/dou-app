@@ -17,7 +17,6 @@ const song = (): ComposerAttachment => {
     return { id: 'song', key: 'song', name: file.name, url: 'blob:song.mp3', file, kind: 'file', size: file.size };
 };
 
-// jsdom implements no playback; the tile's player pauses when it unmounts.
 let pause: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
     pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);

@@ -9,7 +9,6 @@ const CLOUD_UID = 'cloud-user-9';
 
 let feedHandler: ((feed: unknown) => void) | null = null;
 
-// What this device has cached, by message id — a reaction is captured only when its target is here.
 const cache = vi.hoisted(() => new Map<string, Record<string, unknown>>());
 const cacheFails = vi.hoisted(() => ({ current: false }));
 const warn = vi.hoisted(() => vi.fn());
@@ -79,7 +78,6 @@ describe('useInboxCapture mentions', () => {
         expect(captured().map(item => [item.id, item.kind])).toEqual([['cloud-1:ch-1:5', 'direct']]);
     });
 
-    // Every cloud numbers its places, channels and messages from the same start.
     it('files the item under the cloud of its channel', () => {
         feedHandler?.(feed({}));
         expect(captured()[0]).toMatchObject({ cloudId: 'cloud-1', placeId: 'place-1' });
@@ -92,7 +90,6 @@ describe('useInboxCapture mentions', () => {
         expect(captured().map(item => item.cloudId)).toEqual(['cloud-1', 'cloud-2']);
     });
 
-    // A relay row may leave its cloud empty; the relay is the `'default'` cloud everywhere else.
     it('files a relay channel with no cloud under the relay', () => {
         const relay = feed({});
         feedHandler?.({ ...relay, channel: { ...relay.channel, cid: '' } });
@@ -109,7 +106,6 @@ describe('useInboxCapture mentions', () => {
         expect(captured()).toEqual([]);
     });
 
-    // Outside the relay a persisted message's owner is the per-cloud user id, not the account uid.
     it('skips my own message identified by my per-channel cloud user id', () => {
         feedHandler?.(feed({ ownerId: CLOUD_UID }));
         expect(captured()).toEqual([]);
@@ -139,7 +135,6 @@ describe('useInboxCapture mentions', () => {
         expect(captured()).toEqual([]);
     });
 
-    // The phone writes the name its list showed; the record carries my id either way.
     it('captures a message whose record names me though the text does not', () => {
         feedHandler?.(feed({ content: '@Nickname hello', mention$: { userIds: [CLOUD_UID] } }));
         expect(captured().map(item => item.id)).toEqual(['cloud-1:ch-1:5']);
@@ -155,7 +150,6 @@ describe('useInboxCapture mentions', () => {
         expect(captured()).toEqual([]);
     });
 
-    // I called everyone; the record's `all` covers me too, and my own message is still not my mention.
     it('skips my own message whose record calls everyone', () => {
         feedHandler?.(feed({ ownerId: CLOUD_UID, content: 'standup', mention$: { all: 1 } }));
         expect(captured()).toEqual([]);
@@ -186,7 +180,6 @@ describe('useInboxCapture direct messages', () => {
         expect(captured().map(item => [item.id, item.kind])).toEqual([['cloud-1:ch-1:5', 'dm']]);
     });
 
-    // One message, one item: a 1:1 message that also names me is the DM, not a second mention.
     it('files a 1:1 message that names me as the DM', () => {
         feedHandler?.(feed({ content: 'hello @Me' }, CLOUD_UID, 'dm'));
         expect(captured().map(item => item.kind)).toEqual(['dm']);
@@ -203,7 +196,6 @@ describe('useInboxCapture direct messages', () => {
         expect(captured()).toEqual([]);
     });
 
-    // A photo or a file sent on its own has no text, and is still a new message.
     it('captures a 1:1 message that is only an attachment, by its attachment label', () => {
         feedHandler?.(
             feed(
@@ -217,7 +209,6 @@ describe('useInboxCapture direct messages', () => {
         expect(item?.content).not.toBe('');
     });
 
-    // The list reads where an item happened long after its place's channels have gone out of memory.
     it('keeps the channel name with a channel item, and marks a 1:1 item as one instead', () => {
         feedHandler?.(feed({ id: 'ch-1:5' }));
         feedHandler?.(feed({ id: 'ch-1:6', chatNo: 6, content: 'hi' }, CLOUD_UID, 'dm'));
@@ -256,7 +247,6 @@ describe('useInboxCapture reactions', () => {
 
         const [item] = captured();
         expect(item).toMatchObject({ kind: 'reaction', emoji: '👍', ownerName: 'Ada', content: 'ship it', chatNo: 9 });
-        // Keyed by target, emoji and person: the reaction event's own id changes with every toggle.
         expect(item.id).toBe('cloud-1:reaction:ch-1:4:👍:u-ada');
     });
 
@@ -281,7 +271,6 @@ describe('useInboxCapture reactions', () => {
         expect(captured()).toEqual([]);
     });
 
-    // No server call for a reaction: a target this device never cached is left out.
     it('skips a reaction whose message this device has not cached', async () => {
         feedHandler?.(reaction('on'));
         await settle();
@@ -324,7 +313,6 @@ describe('captureInboxReply', () => {
         expect(captured().map(item => [item.id, item.kind, item.parentId])).toEqual([['cloud-1:ch-1:7', 'reply', '4']]);
     });
 
-    // A reply that names me is already in the inbox as a mention; it is not filed twice or downgraded.
     it('leaves a reply that also names me to the mention', () => {
         feedHandler?.(feed({ id: 'ch-1:7', chatNo: 7, content: 'agreed @Me', parentId: '4' }));
         captureInboxReply(reply({ content: 'agreed @Me' }));

@@ -16,7 +16,6 @@ describe('useImageAttachments', () => {
         URL.revokeObjectURL = vi.fn();
     });
 
-    // A toast said how many were refused but not which, and added the rest unasked.
     it('holds a batch with a refusal for the unsendable-files dialog, and adds the rest only from it', () => {
         const { result } = renderHook(() => useImageAttachments('C1'));
         act(() => result.current.addFiles([file('a.png'), file('a.png'), file('a.7z', 'application/x-7z-compressed')]));
@@ -32,7 +31,6 @@ describe('useImageAttachments', () => {
         expect(toast).not.toHaveBeenCalled();
     });
 
-    // The tray's preview opens a document from its object URL, so it gets one too, and gives it back on remove.
     it('gives a document an object URL and revokes it on remove', () => {
         const { result } = renderHook(() => useImageAttachments('D1'));
         act(() => result.current.addFiles([file('a.pdf', 'application/pdf')]));
@@ -43,14 +41,11 @@ describe('useImageAttachments', () => {
 
     beforeEach(() => vi.mocked(URL.revokeObjectURL).mockClear());
 
-    // Leaving a room (another channel, or another page that unmounts the pane) and coming back found
-    // the typed text but not the files waiting above it.
     it('keeps the waiting files when the composer leaves the room and comes back', () => {
         const first = renderHook(() => useImageAttachments('L1'));
         act(() => first.result.current.addFiles([file('a.png')]));
         first.unmount();
         const back = renderHook(() => useImageAttachments('L1'));
-        // The restored tile still draws: its object URL was not handed back on the way out.
         expect(URL.revokeObjectURL).not.toHaveBeenCalled();
         expect(back.result.current.attachments.map(item => item.name)).toEqual(['a.png']);
     });

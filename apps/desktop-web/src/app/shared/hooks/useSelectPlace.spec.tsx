@@ -2,16 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook } from '@testing-library/react';
 
-/**
- * There used to be TWO hooks called `useSiteSwitch` — the runtime's moved the SOCKET session
- * (SDK `auth.switch`), web-core's only re-issued the HTTP token. Importing the wrong one made every
- * switch show the previous place's channels, filtered out by sid, hence an empty sidebar until a
- * reload.
- *
- * ADR-0070 step 3 merged the pair — the socket-notifying version won and the other is gone, so the
- * "which one is wired" hazard no longer exists. What still needs pinning is the behavior that made
- * it matter: the switch must reach `switchSite`, and a click on the current place must not.
- */
 const switchSite = vi.fn();
 
 vi.mock('@chatic/runtime', async () =>
@@ -85,8 +75,6 @@ describe('useSelectPlace', () => {
         await expect(result.current.enterPlace('site-2')).rejects.toThrow('switch failed');
     });
 
-    // A cloud's first place is auto-selected the moment it shows up, which is before its creator
-    // asks to enter it: two switches for one place went out.
     it('joins a switch into the same place that is already running', async () => {
         switchSite.mockReset();
         let land!: () => void;

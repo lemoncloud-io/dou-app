@@ -43,7 +43,6 @@ export const Mine: Story = {
     ),
 };
 
-// My message with a read/unread receipt as the status node.
 export const MineWithReadReceipt: Story = {
     render: () => (
         <MessageRow

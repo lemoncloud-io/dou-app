@@ -19,7 +19,6 @@ const ALBUMS = [
     { id: 'new', title: '최근 추가된 항목', count: 2458, coverSrc: photo(3).src },
 ];
 
-/** A 2,000-photo album whose pages arrive a moment after the grid shows them, as the app's do. */
 const COUNT = 2000;
 const PAGE = 60;
 
@@ -30,11 +29,9 @@ const Demo = ({
 }: {
     initialPicked?: number;
     firstPageMs?: number;
-    /** Offer the edit button and the "one message" checkbox, as the app does. */
     editing?: boolean;
 }) => {
     const [open, setOpen] = useState(true);
-    // The first page's round trip: skeleton tiles until it lands.
     const [ready, setReady] = useState(firstPageMs === 0);
     useEffect(() => {
         if (ready) return;
@@ -92,7 +89,6 @@ const Demo = ({
                 onGroupedChange={editing ? setGrouped : undefined}
                 labels={{ camera: '카메라', close: '닫기', edit: '편집', grouped: '묶어 보내기' }}
             />
-            {/* The app opens its editor here; the story only says which photo it would open on. */}
             {lastEdit && <p className="mt-2 text-[13px]">Edit asked for: {lastEdit}</p>}
         </>
     );
@@ -102,5 +98,4 @@ export const Empty: Story = { render: () => <Demo /> };
 export const Picked: Story = { render: () => <Demo initialPicked={3} /> };
 export const AtTheCap: Story = { render: () => <Demo initialPicked={10} /> };
 export const FirstPageLoading: Story = { render: () => <Demo firstPageMs={2500} /> };
-/** The edit button and, from two picked photos, the "one message" checkbox above the send button. */
 export const WithEditAndGrouping: Story = { render: () => <Demo initialPicked={3} editing /> };

@@ -1,20 +1,9 @@
 import * as React from 'react';
 
 export interface IconPlaySolidProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Solid play triangle — the mark a chat video tile carries at its centre, and the one that tells a
- * poster frame apart from a photo. Only the triangle: the disc behind it belongs to the tile, so the
- * same glyph also sits on a bare surface.
- *
- * The triangle is nudged right of the frame's centre on purpose: a triangle centred by its box looks
- * left-heavy, and the eye centres it by its mass instead.
- *
- * Fills with `currentColor` so the caller colours it.
- */
 export const IconPlaySolid = ({ size = 24, className, ...props }: IconPlaySolidProps) => (
     <svg
         width={size}

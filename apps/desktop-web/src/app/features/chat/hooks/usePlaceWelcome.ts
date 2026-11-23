@@ -7,11 +7,6 @@ import { isChannelOwner } from '../../channels';
 import { isDmChannel, isSelfChannel, useSiteProfilesStore, useWelcomeStore, welcomeKey } from '../../../shared';
 import { isDmBucket, shouldShowWelcome, type WelcomeSignals } from '../utils';
 
-/**
- * The welcome page's state for the open place: whether it shows, how far its steps are along, and
- * Later. Every signal is read from what the app already holds — the place's channels, my profile in
- * it, and the invites this device sent — so nothing is fetched for it.
- */
 export const usePlaceWelcome = ({
     channels,
     placeId,
@@ -19,7 +14,6 @@ export const usePlaceWelcome = ({
     isDefaultMode,
 }: {
     channels: readonly DomainChannel[];
-    /** The open place; undefined where there is none to welcome to. */
     placeId: string | undefined;
     isLoading: boolean;
     isDefaultMode: boolean;

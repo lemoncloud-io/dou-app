@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 type MessageHandler = (message: unknown) => void;
 
-// The runtime's `onServerMessage` reads the engine, which throws until the entry point has handed it
-// over — the first call here stands for that.
 const connectionMocks = {
     handlers: [] as MessageHandler[],
     onServerMessage: vi.fn((handler: MessageHandler) => {
@@ -18,7 +16,6 @@ vi.mock('@chatic/runtime', async () =>
     })
 );
 
-/** A fresh copy of the store module, so its once-per-app guard starts unset. */
 const loadStore = async () => {
     vi.resetModules();
     return import('./useSocketFrameLogStore');
@@ -29,9 +26,6 @@ beforeEach(() => {
     connectionMocks.onServerMessage.mockClear();
 });
 
-// Each test resets modules and imports the subject again, which evaluates the real runtime graph
-// behind `fakeRuntimeModule` every time (about 2 s alone). Under a parallel run that passes the
-// default 5 s, so the suite gets room rather than a flaky timeout.
 describe('startSocketFrameLog', { timeout: 30_000 }, () => {
     it('records each inbound frame, split into domain and action', async () => {
         const { startSocketFrameLog, useSocketFrameLogStore } = await loadStore();

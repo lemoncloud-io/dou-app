@@ -5,34 +5,25 @@ import { BottomSheet } from '../overlay/BottomSheet';
 import { splitFileName } from './messageFile';
 
 export interface AudioSendSheetItem {
-    /** Stable identity, handed back to `onRemove`. */
     key: string;
-    /** The file's name, extension included. */
     name: string;
-    /** The line under the name, formatted by the host — `35:47 · 17.0MB`. */
     meta?: string;
 }
 
 export interface AudioSendSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** The files about to go, in the order they will be sent. */
     items: AudioSendSheetItem[];
-    /** The × on a row. Closing the sheet when the last row goes is the host's decision. */
     onRemove: (key: string) => void;
     onCancel: () => void;
     onSend: () => void;
-    /** The sheet's title, drawn and used as its accessible name (Figma 6072:22942). */
     title?: string;
-    /** The primary button's text — the host counts, e.g. `Send 2`. */
     sendLabel?: string;
     cancelLabel?: string;
-    /** The × button's accessible name for one row, so a list of rows is not a list of identical "Remove"s. */
     removeLabel?: (name: string) => string;
     className?: string;
 }
 
-/** One file to send (Figma "파일 행", 6072:22944): an ink tile with a waveform, the name and meta, a ×. */
 const AudioSendRow = ({
     item,
     onRemove,
@@ -53,7 +44,6 @@ const AudioSendRow = ({
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="sr-only">{item.name}</span>
-                {/* Cut in the middle so the extension stays in sight, as every file name in this kit is. */}
                 <span
                     aria-hidden="true"
                     className="flex min-w-0 text-[15px] font-semibold leading-[normal] text-foreground"
@@ -67,7 +57,6 @@ const AudioSendRow = ({
                     </span>
                 )}
             </span>
-            {/* A 24px disc drawn inside a 44px target, pulled back so the disc keeps the row's edge. */}
             <button
                 type="button"
                 onClick={() => onRemove(item.key)}
@@ -82,17 +71,6 @@ const AudioSendRow = ({
     );
 };
 
-/**
- * The confirmation before audio files are sent (Figma "음성 파일 · 전송 확인 시트", 6072:22979; in
- * place on screen 6044:20710): a titled sheet listing each file with its length and size, a × to
- * drop one, and Cancel / Send.
- *
- * Audio is asked about where a photo is not because a recording is long and large — a 70MB file
- * picked by mistake is minutes of upload — and the list is the last chance to see that before it
- * starts.
- *
- * Stateless: the list, what the counts read and what happens when it empties are the host's.
- */
 export const AudioSendSheet = ({
     open,
     onOpenChange,
@@ -114,7 +92,6 @@ export const AudioSendSheet = ({
         showHandle
         className={cn('rounded-t-[20px] shadow-[0_-2px_6px_rgba(0,0,0,0.12)]', className)}
         footer={
-            // The sheet already pads for the home indicator; this is only the gap the design keeps above it.
             <div className="flex gap-2 px-4 pb-4 pt-5">
                 <button
                     type="button"
@@ -135,7 +112,6 @@ export const AudioSendSheet = ({
         }
     >
         <div className="px-4 pt-8">
-            {/* The sheet's accessible name is the hidden header title; this copy is for the eye. */}
             <p aria-hidden className="truncate pb-4 text-[17px] font-semibold leading-[normal] text-foreground">
                 {title}
             </p>

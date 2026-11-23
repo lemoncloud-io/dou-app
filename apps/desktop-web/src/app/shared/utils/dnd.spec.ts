@@ -12,9 +12,9 @@ describe('isWithinQuietHours', () => {
     it('matches a same-day window (09:00–17:00)', () => {
         const q = { start: '09:00', end: '17:00' };
         expect(isWithinQuietHours(q, at(8, 59))).toBe(false);
-        expect(isWithinQuietHours(q, at(9, 0))).toBe(true); // inclusive start
+        expect(isWithinQuietHours(q, at(9, 0))).toBe(true);
         expect(isWithinQuietHours(q, at(16, 59))).toBe(true);
-        expect(isWithinQuietHours(q, at(17, 0))).toBe(false); // exclusive end
+        expect(isWithinQuietHours(q, at(17, 0))).toBe(false);
     });
 
     it('matches a midnight-crossing window (22:00–07:00)', () => {
@@ -91,9 +91,9 @@ describe('nextDndBoundary', () => {
 
     it('names the next quiet edge when the snooze already passed', () => {
         const now = at(21).getTime();
-        expect(
-            nextDndBoundary({ snoozeUntil: now - 1, quietHours: { start: '22:00', end: '07:00' } }, now)
-        ).toBe(at(22).getTime());
+        expect(nextDndBoundary({ snoozeUntil: now - 1, quietHours: { start: '22:00', end: '07:00' } }, now)).toBe(
+            at(22).getTime()
+        );
     });
 
     it('rolls a same-day window edge to tomorrow once passed', () => {

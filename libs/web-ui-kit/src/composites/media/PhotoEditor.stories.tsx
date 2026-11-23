@@ -12,7 +12,6 @@ export default meta;
 
 type Story = StoryObj<typeof PhotoEditor>;
 
-/** A photo of `width` × `height`, read as a rendition half that size, with the grid's square preview. */
 const photo = (i: number, width: number, height: number): PhotoEditorItem => ({
     id: `p${i}`,
     previewSrc: `https://picsum.photos/seed/dou-editor-${i}/240/240`,
@@ -55,16 +54,11 @@ const labels = {
     thumbnail: (position: number) => `사진 ${position}`,
 };
 
-/**
- * The host's side, reduced: the edits live here, the editor reports Apply, and ✕ throws away what
- * changed since the editor opened (the app asks first; the story does not).
- */
 const Demo = ({ initial, readMs = 0 }: { initial: PhotoEditorItem[]; readMs?: number }) => {
     const [open, setOpen] = useState(true);
     const [index, setIndex] = useState(0);
     const [edits, setEdits] = useState<Record<string, PhotoEdit>>({});
     const [snapshot, setSnapshot] = useState<Record<string, PhotoEdit>>({});
-    // A slow library: each photo's rendition arrives `readMs` after the editor shows it.
     const [read, setRead] = useState<ReadonlySet<string>>(() => new Set(readMs ? [] : initial.map(item => item.id)));
     useEffect(() => {
         const id = initial[index]?.id;
@@ -112,15 +106,12 @@ export const Several: Story = {
     render: () => <Demo initial={[photo(1, 1200, 900), photo(2, 900, 1200), photo(3, 1600, 900)]} />,
 };
 export const Single: Story = { render: () => <Demo initial={[photo(1, 1200, 900)]} /> };
-/** A video among the photos: shown with its poster, the tool greyed and a line saying why. */
 export const WithVideo: Story = {
     render: () => <Demo initial={[photo(1, 1200, 900), video, photo(2, 900, 1200)]} />,
 };
-/** Each photo is read as it is shown: its square preview and a spinner first, the tool greyed meanwhile. */
 export const SlowLibrary: Story = {
     render: () => <Demo initial={[photo(1, 1200, 900), photo(2, 900, 1200)]} readMs={1500} />,
 };
-/** A photo the library could not read. */
 export const Failed: Story = {
     render: () => <Demo initial={[{ ...photo(1, 1200, 900), failed: true }, photo(2, 900, 1200)]} />,
 };

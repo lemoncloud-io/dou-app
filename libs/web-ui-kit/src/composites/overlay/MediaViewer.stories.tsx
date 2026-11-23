@@ -15,7 +15,6 @@ export default meta;
 type Story = StoryObj<typeof MediaViewer>;
 
 const photoSrc = (i: number) => `https://picsum.photos/seed/dou-viewer-${i}/1200/1600`;
-// The same picture at tile size, standing in while the full one loads.
 const thumbSrc = (i: number) => `https://picsum.photos/seed/dou-viewer-${i}/60/80`;
 
 const photo = (i: number, withPreview: boolean): MediaViewerItem => ({
@@ -26,7 +25,6 @@ const photo = (i: number, withPreview: boolean): MediaViewerItem => ({
     state: 'ready',
 });
 
-// A short public sample clip, with a poster frame drawn from the photo seed.
 const video = (i: number): MediaViewerItem => ({
     key: `video-${i}`,
     kind: 'video',
@@ -39,7 +37,6 @@ const labels = { title: '사진', close: '닫기', previous: '이전', next: '�
 
 const Demo = ({ items, withActions = false }: { items: MediaViewerItem[]; withActions?: boolean }) => {
     const [index, setIndex] = useState<number | null>(0);
-    // Opened from the button below — a tap, so the browser lets the first video start on its own.
     const [autoPlay, setAutoPlay] = useState(false);
     return (
         <>
@@ -82,14 +79,8 @@ const photos = (count: number, withPreview = false) => Array.from({ length: coun
 
 export const Single: Story = { render: () => <Demo items={photos(1)} /> };
 export const Several: Story = { render: () => <Demo items={photos(4)} /> };
-/** Throttle the network to see the small copy stand in until the original arrives. */
 export const WithPlaceholders: Story = { render: () => <Demo items={photos(3, true)} /> };
-/** The host's buttons in the bottom bar — a share waiting while a save is in progress. */
 export const WithActions: Story = { render: () => <Demo items={photos(2)} withActions /> };
-/**
- * Photos and videos in one message, with a broken one counted among them. The video sits between the
- * bars with the browser's own controls; a drag on its seek bar scrubs rather than pages.
- */
 export const PhotosAndVideos: Story = {
     render: () => (
         <Demo

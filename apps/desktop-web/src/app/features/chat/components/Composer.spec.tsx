@@ -15,13 +15,11 @@ import { $createMentionNode } from './editor/MentionNode';
 
 const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
 
-// Lexical moves DOM focus after its own update cycle, a tick after mount.
 const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 100)));
 
 describe('Composer autoFocus', () => {
     afterEach(cleanup);
 
-    // Opening a thread left focus in the feed behind the panel.
     it('takes focus on mount when asked', async () => {
         const { container } = render(<Composer onSend={() => undefined} channelId="C1" autoFocus />, { wrapper });
         await settle();
@@ -34,8 +32,6 @@ describe('Composer autoFocus', () => {
         expect(document.activeElement).not.toBe(container.querySelector('[data-composer-input]'));
     });
 
-    // A rail chord opens the room from the keyboard: taking the caret would make the next chord
-    // type its character ("!" for Shift+1) into the box instead of moving.
     it('does not take the caret when the rail asked it not to', async () => {
         useComposerFocusStore.getState().requestSkip();
         const blur = vi.spyOn(HTMLElement.prototype, 'blur');
@@ -46,8 +42,6 @@ describe('Composer autoFocus', () => {
         useComposerFocusStore.getState().clearSkip();
     });
 
-    // A thread can open seconds after the click, once its channel loads; by then the reader
-    // may be typing in the channel's composer.
     it('does not take focus from a field the reader is typing in', async () => {
         const field = document.createElement('input');
         document.body.appendChild(field);
@@ -58,8 +52,6 @@ describe('Composer autoFocus', () => {
         field.remove();
     });
 
-    // A channel removal asks for focus when the server answers, about a second after the confirm;
-    // by then the reader can have opened the next room's More menu, and taking focus closed it.
     const focusInside = (role: string, state: 'open' | 'closed') => {
         const box = document.createElement('div');
         box.setAttribute('role', role);
@@ -79,8 +71,6 @@ describe('Composer autoFocus', () => {
         remove();
     });
 
-    // The image viewer's Reply closes the viewer as it opens the thread; the viewer keeps focus
-    // while it fades out, and the thread's box still takes it.
     it('takes focus from a dialog that is closing', async () => {
         const { remove } = focusInside('dialog', 'closed');
         const { container } = render(<Composer onSend={() => undefined} channelId="C5" autoFocus />, { wrapper });
@@ -93,7 +83,6 @@ describe('Composer autoFocus', () => {
 describe('Composer format row', () => {
     afterEach(cleanup);
 
-    // A format that was on drew exactly what hover draws, so the row never showed it.
     it('draws a format that is on apart from one that is off', async () => {
         render(<Composer onSend={() => undefined} channelId="C-format" autoFocus />, { wrapper });
         await settle();
@@ -119,8 +108,6 @@ describe('Composer paste', () => {
             },
         });
 
-    // Excel and Word put the cells' text and a picture of them on the clipboard together;
-    // taking the picture used to throw the text away.
     it('keeps the text of a paste that also carries an image', async () => {
         const onAddFiles = vi.fn();
         const { container } = render(
@@ -138,7 +125,6 @@ describe('Composer paste', () => {
         expect(input.textContent).toContain('Q3 total 1,204');
     });
 
-    // Finder and Explorer put a copied file's name on the clipboard as plain text.
     it('does not type the name of a copied file into the message', async () => {
         const { container } = render(
             <Composer onSend={() => undefined} channelId="P2" onAddFiles={vi.fn()} onRemoveAttachment={vi.fn()} />,
@@ -154,7 +140,6 @@ describe('Composer paste', () => {
         expect(input.textContent).not.toContain('IMG_1234.png');
     });
 
-    // The tray's preview is portalled out of the composer, but React still bubbles its paste here.
     it('does not add files pasted inside an attachment preview', async () => {
         const onAddFiles = vi.fn();
         const picked = new File(['x'], 'a.png', { type: 'image/png' });
@@ -190,7 +175,6 @@ describe('Composer paste', () => {
 describe('Composer empty code block', () => {
     afterEach(cleanup);
 
-    // A code block with nothing in it still exports its fences; that is not a message.
     it('neither keeps it as a draft nor offers to send it', async () => {
         useComposerDraftStore.setState({ drafts: { E1: '```\n```' } });
         const onSend = vi.fn();
@@ -246,7 +230,6 @@ describe('Composer send', () => {
         useComposerDraftStore.setState({ drafts: { 'ch-1': 'caption' } });
         const attachment = picked();
         const onSend = renderComposer([attachment]);
-        // The editor loads the channel's draft after it mounts.
         await screen.findByText('caption');
 
         await act(async () => fireEvent.click(sendButton()));
@@ -254,9 +237,6 @@ describe('Composer send', () => {
         expect(onSend).toHaveBeenCalledWith('caption', [attachment.file]);
     });
 
-    // The editor's markdown export backslash-escapes `_ * ~ \``; RichText has no escape syntax, so
-    // the reader would see the backslashes. The wire carries the text as typed; the text reaches
-    // the editor as a restored draft, which goes through the same import as an opened message.
     it.each(['snake_case_name', 'a * b', '\\\\server\\share'])(
         'sends %j without adding or dropping backslashes',
         async text => {
@@ -270,9 +250,7 @@ describe('Composer send', () => {
         }
     );
 
-    // Reaches the composer's own editor the way a pick does: the chip is what the list inserts.
     const insertPick = async (container: HTMLElement, name: string, userId: string) => {
-        // Lexical keeps its editor on the root element it was given; the DOM type does not say so.
         const root = container.querySelector('[data-composer-input]') as HTMLElement & {
             __lexicalEditor: LexicalEditor;
         };
@@ -315,9 +293,6 @@ describe('Composer send', () => {
     });
 });
 
-// The thread panel's 360px default left the reply box about 160px with the room's spacing, and
-// its placeholder wrapped to a second line. jsdom lays nothing out, so these pin the classes
-// that decide it; the width itself needs a browser.
 describe('Composer compact', () => {
     afterEach(cleanup);
 
@@ -341,7 +316,6 @@ describe('Composer compact', () => {
     });
 });
 
-// Slack's arrangement: formats above the text, the message's own actions along the bottom.
 describe('Composer layout', () => {
     beforeEach(() => useComposerDraftStore.setState({ drafts: {} }));
     afterEach(cleanup);

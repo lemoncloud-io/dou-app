@@ -13,7 +13,6 @@ describe('landingTarget', () => {
     });
 
     it('keeps the current selection while a pending channel is not listed yet', () => {
-        // A 1:1 that was just started: no snap to the remembered or first channel while it syncs.
         expect(
             landingTarget(rows('C1', 'C2'), {
                 pendingChannelId: 'dm-new',
@@ -48,8 +47,6 @@ describe('landingTarget', () => {
         expect(landingTarget([], { pendingChannelId: 'dm-new', selectedChannelId: null })).toBeNull();
     });
 
-    // The Self Channel is listed in the place being left as well, so "listed" alone would land the
-    // open there, before the place switch it is waiting for has finished.
     describe('while the place switch it waits for is unfinished', () => {
         it('lands nothing, even though the pending channel is listed', () => {
             expect(
@@ -71,10 +68,6 @@ describe('landingTarget', () => {
             ).toEqual({ kind: 'pending', channelId: 'self' });
         });
 
-        // The fallback waits with the open: mid-switch the list is the target place's cached one, and
-        // a fallback landing there would open and mark read a channel nobody picked. A switch that
-        // fails does not leave this hold behind — HomePage drops the wait (`abandonPending`), after
-        // which the selection is judged as usual.
         it('holds the fallback too when the selection left the list', () => {
             expect(
                 landingTarget(rows('C1', 'self'), {
@@ -118,7 +111,6 @@ describe('opensIntoKnownCloud', () => {
         expect(opensIntoKnownCloud({ cloudId: 'cl-2', chatNo: 4 }, here)).toBe(true);
         expect(opensIntoKnownCloud({ cloudId: 'default', chatNo: 4 }, here)).toBe(true);
         expect(opensIntoKnownCloud({ cloudId: 'cl-x', chatNo: 4 }, here)).toBe(false);
-        // A link to a reply names its message too; it is held to the same rule.
         expect(opensIntoKnownCloud({ cloudId: 'cl-x', chatNo: 4, rootId: '3' }, here)).toBe(false);
     });
 

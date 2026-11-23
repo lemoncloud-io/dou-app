@@ -26,7 +26,6 @@ describe('PickedFileStrip', () => {
         expect(screen.getByText('320 KB')).toBeInTheDocument();
     });
 
-    // The body truncates; the extension sits outside it, so two files that differ only in kind stay apart.
     it('truncates the name body and never the extension', () => {
         render(<PickedFileStrip files={[{ id: 'a', name: `${'long '.repeat(20)}.docx` }]} onRemove={jest.fn()} />);
 
@@ -75,7 +74,6 @@ describe('PickedFileStrip', () => {
         );
         const glyphs = container.querySelectorAll('[data-picked-file] > svg');
         expect(glyphs[0].getAttribute('class')).toContain('text-glyph-green');
-        // Anything the card has no family for is the generic, untagged glyph.
         expect(glyphs[1].querySelector('text')).toBeNull();
     });
 });

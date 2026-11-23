@@ -37,12 +37,10 @@ const Trigger = ({ items, restCount }: { items: UnsendableFile[]; restCount: num
     );
 };
 
-// Figma 6072:23076 — one file refused, one left to send.
 export const SomeLeft: Story = {
     render: () => <Trigger items={[{ key: 'a', name: '워크숍 전체 녹음.wav', reason: '412MB' }]} restCount={1} />,
 };
 
-// Several refused: the list scrolls inside the dialog past a few rows.
 export const ManyRefused: Story = {
     render: () => (
         <Trigger
@@ -58,7 +56,6 @@ export const ManyRefused: Story = {
     ),
 };
 
-// Nothing left to send: a single OK.
 export const NoneLeft: Story = {
     render: () => <Trigger items={[{ key: 'a', name: '워크숍 전체 녹음.wav', reason: '412MB' }]} restCount={0} />,
 };

@@ -5,41 +5,19 @@ import { cn } from '@chatic/ui-kit';
 import { IconClose, IconGalleryAdd } from '../../resources/icons';
 
 export interface PhotoAttachFieldProps {
-    /** Field label rendered above the dropzone. */
     label?: string;
-    /** Already-attached images, as anything an `<img src>` accepts (data URL or http URL). */
     value: string[];
-    /**
-     * Fired with the files the user picked. Receives every pick — enforcing `max`
-     * is the caller's job, so it can tell the user *why* a pick was refused
-     * instead of the field silently dropping it.
-     */
     onSelect: (files: File[]) => void;
-    /** Fired with the index to drop from `value`. */
     onRemove: (index: number) => void;
-    /** Two-line hint inside the dropzone. */
     hint?: React.ReactNode;
-    /** Caption under the field, e.g. "Up to 5 photos · jpg, png". */
     description?: string;
-    /** `accept` for the underlying file input. */
     accept?: string;
-    /** Hides the dropzone once this many images are attached. */
     max?: number;
-    /** Accessible label for a thumbnail's remove button; receives the 1-based index. */
     removeLabel?: (index: number) => string;
     disabled?: boolean;
     className?: string;
 }
 
-/**
- * Attach-photos field — the feedback screen's photo attachment area: a dashed dropzone
- * over a horizontal strip of removable thumbnails.
- *
- * Presentational on purpose. It hands raw `File`s straight back and renders
- * whatever `value` holds, so the owner decides how images are encoded, how big
- * they may be, and what happens when too many are picked. That keeps the
- * payload policy (these ship inline as base64) out of the design system.
- */
 export const PhotoAttachField = ({
     label,
     value,
@@ -58,14 +36,11 @@ export const PhotoAttachField = ({
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(event.target.files ?? []);
-        // Reset first so picking the same file twice in a row still fires a change event.
         event.target.value = '';
         if (files.length) onSelect(files);
     };
 
     return (
-        // 12px label→field and 16px field→caption, matching the labelled inputs this sits beside
-        // (TextField / Textarea use the same 12px) rather than inventing a third rhythm.
         <div className={cn('flex w-full flex-col gap-4 px-4', className)}>
             <div className="flex w-full flex-col gap-3">
                 {label && (
@@ -80,10 +55,6 @@ export const PhotoAttachField = ({
                         onClick={() => inputRef.current?.click()}
                         disabled={disabled}
                         className={cn(
-                            // Figma BK_200 — the kit has no token between --input-border (BK_100)
-                            // and --placeholder (BK_400).
-                            // 146 = 24 padding + 40 icon + 16 gap + 42 two-line hint + 24 padding,
-                            // so the box is exactly its content and `py-6` lands where Figma puts it.
                             'flex h-[146px] w-full flex-col items-center justify-center gap-4 rounded-[24px] border border-dashed border-[#DFE0E2] bg-surface px-2 py-6 transition-colors',
                             disabled ? 'opacity-50' : 'hover:border-focus-border'
                         )}

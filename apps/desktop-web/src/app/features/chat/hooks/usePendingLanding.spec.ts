@@ -107,8 +107,6 @@ describe('usePendingLanding', () => {
     });
 });
 
-// The path a newly started 1:1 takes through the home screen: the open target names no place, the
-// room is not listed yet, so the screen waits, keeps the open channel, and lands once the row arrives.
 describe('landing a 1:1 that was just started', () => {
     beforeEach(() => {
         vi.useFakeTimers();

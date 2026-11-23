@@ -22,7 +22,6 @@ interface Point {
     y: number;
 }
 
-// Where a source pixel lands under a plan — the canvas's and CSS's reading of the six numbers.
 const apply = ([a, b, c, d, e, f]: Matrix, p: Point): Point => ({ x: a * p.x + c * p.y + e, y: b * p.x + d * p.y + f });
 const invert = ([a, b, c, d, e, f]: Matrix): Matrix => {
     const det = a * d - b * c;
@@ -46,7 +45,6 @@ const expectSameEdit = (actual: PhotoEdit, expected: PhotoEdit) => {
     expectRect(actual.crop, expected.crop);
 };
 
-// A landscape photo whose sides split into whole pixels at every fraction the tests use.
 const source: EditSize = { width: 400, height: 300 };
 const unlimited = { maxArea: Infinity };
 const edit = (rotation: QuarterTurn, flipH: boolean, crop: EditRect = IDENTITY_PHOTO_EDIT.crop): PhotoEdit => ({
@@ -59,8 +57,6 @@ const edit = (rotation: QuarterTurn, flipH: boolean, crop: EditRect = IDENTITY_P
 const ROTATIONS: QuarterTurn[] = [0, 90, 180, 270];
 const COMBINATIONS = ROTATIONS.flatMap(rotation => [false, true].map(flipH => ({ rotation, flipH })));
 
-// The part of the source an edit keeps: its output's corners taken back through the plan. A crop is
-// axis-aligned in the displayed frame and turns are quarter turns, so it is an axis-aligned source rect.
 const sourceRegion = (photo: EditSize, photoEdit: PhotoEdit) => {
     const plan = planPhotoEdit(photo, photoEdit, unlimited);
     const back = invert(plan.matrix);
@@ -81,8 +77,6 @@ const expectSameRegion = (actual: ReturnType<typeof sourceRegion>, expected: Ret
     expect(actual.bottom).toBeCloseTo(expected.bottom, 6);
 };
 
-// Source points the transform tests follow: the four corners and one off-centre point, which tells
-// a turn from a mirror where the corners alone could coincide.
 const PROBES: Point[] = [
     { x: 0, y: 0 },
     { x: 400, y: 0 },
@@ -117,7 +111,6 @@ describe('isIdentityPhotoEdit', () => {
         expect(isIdentityPhotoEdit(edit(0, false, { x: 0, y: 0, width: 1, height: 0.99 }))).toBe(false);
         expect(isIdentityPhotoEdit(edit(90, false))).toBe(false);
         expect(isIdentityPhotoEdit(edit(0, true))).toBe(false);
-        // Half a turn while mirrored is a vertical flip, not the original.
         expect(isIdentityPhotoEdit(edit(180, true))).toBe(false);
     });
 });
@@ -140,9 +133,6 @@ describe('planPhotoEdit', () => {
         });
     });
 
-    // Where each source corner of the 400 × 300 photo ends up, worked out from the pictures rather than
-    // the matrices: a clockwise turn takes the top-left corner to the top-right, a mirror swaps left and
-    // right, and the mirror happens before the turn.
     const CORNERS: Record<string, { size: EditSize; tl: Point; tr: Point; br: Point; bl: Point }> = {
         '0 unflipped': {
             size: { width: 400, height: 300 },
@@ -214,9 +204,6 @@ describe('planPhotoEdit', () => {
     });
 
     it('frames a crop of the turned photo onto the whole output', () => {
-        // Turned 90°, the photo is 300 × 400 and this crop is its 150 × 200 at (60, 100). The displayed
-        // point (X, Y) is the source point (Y, 300 − X), so the crop's top-left is source (100, 240) and
-        // its bottom-right source (300, 90).
         const plan = planPhotoEdit(source, edit(90, false, { x: 0.2, y: 0.25, width: 0.5, height: 0.5 }));
 
         expect({ width: plan.width, height: plan.height }).toEqual({ width: 150, height: 200 });
@@ -241,7 +228,6 @@ describe('planPhotoEdit', () => {
     });
 
     it('scales a photo past the area cap down to fit it, keeping its shape', () => {
-        // A 48 MP photo is about 2.9 times the iOS canvas limit.
         const large = { width: 8000, height: 6000 };
         const plan = planPhotoEdit(large, IDENTITY_PHOTO_EDIT);
 
@@ -259,7 +245,6 @@ describe('planPhotoEdit', () => {
         const full = planPhotoEdit(large, edit(c.rotation, c.flipH, crop), unlimited);
 
         expect(capped.width * capped.height).toBeLessThanOrEqual(PHOTO_EDIT_MAX_AREA);
-        // The capped output is the uncapped one shrunk: every source point lands at the same fraction.
         for (const p of [
             { x: 0, y: 0 },
             { x: 8000, y: 6000 },
@@ -288,7 +273,6 @@ describe('planPhotoEdit', () => {
     });
 
     it('snaps the crop to whole source pixels so an unscaled export does not resample', () => {
-        // A third of 1000 px is 333.3: the crop snaps to 333 pixels, starting at pixel 333.
         const plan = planPhotoEdit(
             { width: 1000, height: 1000 },
             edit(0, false, { x: 1 / 3, y: 1 / 3, width: 1 / 3, height: 1 / 3 })
@@ -297,7 +281,6 @@ describe('planPhotoEdit', () => {
     });
 
     it('gives a crop the same pixel size wherever it sits', () => {
-        // 0.5625 of 400 is 225 pixels; at these positions the crop's edges fall on half pixels.
         const sizes = [0.21875, 0.21875 - 1e-15, 0.21875 + 1e-15, 0.4375].map(y => {
             const plan = planPhotoEdit(source, edit(90, false, { x: 0, y, width: 1, height: 0.5625 }));
             return plan.height;
@@ -308,7 +291,6 @@ describe('planPhotoEdit', () => {
     it('keeps at least one pixel of a crop squeezed to nothing', () => {
         const plan = planPhotoEdit(source, edit(0, false, { x: 1, y: 0.5, width: 0, height: 0 }));
         expect({ width: plan.width, height: plan.height }).toEqual({ width: 1, height: 1 });
-        // The pixel kept is the last column, the one the crop pointed at.
         expectPoint(apply(plan.matrix, { x: 399, y: 150 }), { x: 0, y: 0 });
     });
 
@@ -343,7 +325,6 @@ describe('planPhotoEdit', () => {
     });
 });
 
-// A spread of edits the toolbar tests start from: every turn and mirror, with an off-centre crop.
 const STARTS = COMBINATIONS.map(
     ({ rotation, flipH }): PhotoEdit => ({
         rotation,
@@ -370,8 +351,6 @@ describe('rotatePhotoEditLeft', () => {
     });
 
     it.each(STARTS)('turns the displayed picture a quarter left from $rotation°, flipped: $flipH', start => {
-        // Turned left, a point at (X, Y) of a W-wide picture moves to (Y, W − X): what was the top-right
-        // corner is now the top-left one. The crop turns with the picture, so it is the same picture.
         const before = planPhotoEdit(source, start, unlimited);
         const after = planPhotoEdit(source, rotatePhotoEditLeft(start), unlimited);
 
@@ -411,7 +390,6 @@ describe('flipPhotoEditHorizontal', () => {
     });
 
     it.each(STARTS)('mirrors the displayed picture left-right from $rotation°, flipped: $flipH', start => {
-        // Whatever the turn, the point at (X, Y) of a W-wide picture moves to (W − X, Y).
         const before = planPhotoEdit(source, start, unlimited);
         const after = planPhotoEdit(source, flipPhotoEditHorizontal(start), unlimited);
 
@@ -427,7 +405,7 @@ describe('flipPhotoEditHorizontal', () => {
     });
 
     it('negates the turn and mirrors the crop', () => {
-        const flipped = flipPhotoEditHorizontal(STARTS[2]); // 90°, unflipped
+        const flipped = flipPhotoEditHorizontal(STARTS[2]);
         expect(flipped.rotation).toBe(270);
         expect(flipped.flipH).toBe(true);
         expect(flipped.aspect).toBe('4:3');
@@ -443,7 +421,6 @@ describe('turning and mirroring together', () => {
     });
 
     it.each(STARTS)('shows the turned picture mirrored, from $rotation°, flipped: $flipH', start => {
-        // A turn then a mirror is the turned picture's mirror image, wherever the edit started.
         const turned = planPhotoEdit(source, rotatePhotoEditLeft(start), unlimited);
         const both = planPhotoEdit(source, flipPhotoEditHorizontal(rotatePhotoEditLeft(start)), unlimited);
         for (const p of PROBES) {
@@ -453,8 +430,7 @@ describe('turning and mirroring together', () => {
     });
 
     it('turns left then mirrors to the same picture as mirroring then turning right', () => {
-        // Mirror ∘ turn-left = turn-right ∘ mirror; a right turn is three left ones.
-        const start = STARTS[3]; // 90°, flipped
+        const start = STARTS[3];
         const a = flipPhotoEditHorizontal(rotatePhotoEditLeft(start));
         const b = [1, 2, 3].reduce(current => rotatePhotoEditLeft(current), flipPhotoEditHorizontal(start));
         expectSameEdit(a, b);
@@ -496,7 +472,6 @@ describe('setPhotoEditAspect', () => {
     });
 
     it('measures the original ratio on the turned photo', () => {
-        // Turned 90°, the displayed photo is 300 × 400, so "original" is 3:4 and fills it.
         const turnedSquare = setPhotoEditAspect(edit(90, false), '1:1', source);
         const original = setPhotoEditAspect(turnedSquare, 'original', source);
         expectRect(original.crop, { x: 0, y: 0, width: 1, height: 1 });

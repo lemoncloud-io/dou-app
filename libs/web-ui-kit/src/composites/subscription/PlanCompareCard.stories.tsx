@@ -18,9 +18,6 @@ export default meta;
 
 type Story = StoryObj<typeof PlanCompareCard>;
 
-// The two arg sets are declared as props so the Comparison story can spread them. A story's `args`
-// is a Partial, so spreading it into a component with required props does not type check — which is
-// what the `as never` casts here used to paper over.
 const freeArgs: PlanCompareCardProps = {
     name: 'DoU Home',
     tier: 'free',
@@ -54,13 +51,10 @@ const paidArgs: PlanCompareCardProps = {
     ),
 };
 
-/** Free plan: neutral header, hairline border, muted limitation rows. */
 export const Free: Story = { args: freeArgs };
 
-/** Paid plan: lime header, 24% lime border and a soft lime glow. */
 export const Paid: Story = { args: paidArgs };
 
-/** The two cards as the guide screen stacks them, with the descending-dot decoration between. */
 export const Comparison: Story = {
     decorators: [],
     render: () => (

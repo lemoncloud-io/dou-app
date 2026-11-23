@@ -6,9 +6,6 @@ import { logger } from '@chatic/bridges';
 import type { DataRepositories, DomainChat } from '@chatic/runtime';
 import { runtime } from '@chatic/runtime';
 
-// The engine outbox stays real — it is the contract these tests wire against. Only what the hook
-// reads per cloud is faked: each cloud's repository graph, its send, the uid in it, and which
-// clouds have a verified slot.
 const clouds = vi.hoisted(() => ({
     uids: {} as Record<string, string | null>,
     verified: [] as readonly string[],
@@ -39,8 +36,6 @@ import {
 } from './useChatOutbox';
 
 const MY_UID = 'u1';
-// Real wall clock: the outbox stamps `enqueuedAt` with Date.now(), and the landing probe's skew
-// window is relative to it — a fixed past constant would fall outside the window every time.
 const NOW = Date.now();
 
 const chat = (over: Partial<DomainChat>): DomainChat =>
@@ -85,15 +80,12 @@ describe('toSendPayload', () => {
         expect(toSendPayload(chat({})).parentId).toBeUndefined();
     });
 
-    // A failed row is the only copy of what was sent. Rebuilt without its mention, the resend
-    // reads the same and calls no one.
     it('puts back the members the message called', () => {
         expect(toSendPayload(chat({ mention$: { userIds: ['u-ada', 'u-bo'] } })).mention).toEqual({
             userIds: ['u-ada', 'u-bo'],
         });
     });
 
-    // A row written by a live `chat.sync` carries the model's `1`; the server takes only `true`.
     it.each([true, 1] as const)('sends everyone as true when the row holds %j', all => {
         expect(toSendPayload(chat({ mention$: { all } })).mention).toEqual({ all: true });
     });
@@ -141,8 +133,6 @@ describe('matchLandedRow', () => {
     });
 
     it('still matches a twin from a long outage — the window tracks the SEND time, not the reconnect', () => {
-        // The rotation case: sent at T, reconnect ~100min later. Anchoring the window to the
-        // enqueue time would reject this and resend an already-delivered message.
         const sentAt = NOW - 100 * 60_000;
         const landed = chat({ id: 'ch-1:7', chatNo: 7, createdAtMs: sentAt + 1_000 });
         expect(matchLandedRow([landed], query({ sentAt }), new Set())?.id).toBe('ch-1:7');
@@ -169,25 +159,20 @@ describe('createLandingBatch', () => {
     });
 
     it('leaves NO orphaned claim when a matched entry is retired without committing', () => {
-        // The manual retry path: outbox.remove() drops the entry between match and discard.
         const batch = createLandingBatch();
         const rows = [chat({ id: 'ch-1:7', chatNo: 7 })];
 
         expect(batch.match(rows, entry({ id: 'a' }), MY_UID)?.id).toBe('ch-1:7');
-        // 'a' never commits. The row must stay matchable for a later entry.
         expect(batch.match(rows, entry({ id: 'b' }), MY_UID)?.id).toBe('ch-1:7');
     });
 
     it('keeps claims across sweeps — a later drain cannot re-consume a committed row', () => {
-        // Lifetime is the OUTBOX INSTANCE: a drain after the ~100min rotation must not re-match
-        // a row an earlier drain already consumed.
         const batch = createLandingBatch();
         const rows = [chat({ id: 'ch-1:7', chatNo: 7 })];
 
         batch.match(rows, entry({ id: 'a' }), MY_UID);
         batch.commit('a');
 
-        // A brand-new sweep, new entry id, same cache — the committed row stays claimed.
         expect(batch.match(rows, entry({ id: 'a2' }), MY_UID)).toBeNull();
     });
 
@@ -195,7 +180,6 @@ describe('createLandingBatch', () => {
         const sentAt = NOW - 100 * 60_000;
         const rows = [chat({ id: 'ch-1:7', chatNo: 7, createdAtMs: sentAt + 1_000 })];
 
-        // Without record(), the enqueuedAt anchor (NOW) puts the twin far outside the window.
         expect(createLandingBatch().match(rows, entry({ id: 'a' }), MY_UID)).toBeNull();
 
         const recorded = createLandingBatch();
@@ -213,7 +197,6 @@ describe('createLandingBatch', () => {
 });
 
 describe('outbox + landing probe (the desktop wiring contract)', () => {
-    // Exactly the wiring useChatOutbox builds: match in hasLanded, claim in discard.
     const harness = (rows: DomainChat[], batch = createLandingBatch()) => {
         const send = vi.fn().mockResolvedValue(undefined);
         const discard = vi.fn().mockImplementation(async (entry: runtime.data.OutboxEntry) => {
@@ -233,8 +216,6 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
     };
 
     it('sends the second of two identical messages when only ONE of them landed', async () => {
-        // The defect this pins: content is not unique. Without the consumed set both entries
-        // match the same landed row and the user's second message is silently deleted.
         const { outbox, send, discard } = harness([chat({ id: 'ch-1:7', chatNo: 7, content: 'ok' })]);
 
         outbox.start();
@@ -265,8 +246,6 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
     });
 
     it('holds a committed claim across sweeps, so the next sweep sends instead of swallowing', async () => {
-        // Claims live for the outbox INSTANCE. After the rotation, a still-failed row with the same
-        // text is a DIFFERENT message (the first one's row was deleted on discard) and must be sent.
         const rows = [chat({ id: 'ch-1:7', chatNo: 7, content: 'ok' })];
 
         const first = harness(rows);
@@ -281,7 +260,6 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
         await first.outbox.flush();
         expect(first.discard).toHaveBeenCalledTimes(1);
 
-        // Second sweep after a rotation: same cache, same content, SAME batch (same outbox).
         const second = harness(rows, first.batch);
         second.outbox.start();
         second.outbox.enqueue({
@@ -298,8 +276,6 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
     });
 
     it('a failed discard leaves the row unclaimed, so the next sweep can still match it', async () => {
-        // Claim-on-commit: if the cache delete throws, nothing was consumed, and the message must
-        // not become permanently unmatchable (which would resend an already-delivered message).
         const rows = [chat({ id: 'ch-1:7', chatNo: 7, content: 'ok' })];
         const batch = createLandingBatch();
         const outbox = runtime.data.createChatOutbox({
@@ -329,10 +305,6 @@ describe('outbox + landing probe (the desktop wiring contract)', () => {
     });
 });
 
-/**
- * One cloud's partition as the sweep and the probe read it: its channels, its unsent rows (what a
- * `cursorNo: 1` read returns) and its server-persisted rows (the newest page).
- */
 const fakeCloud = ({ unsent = [] as DomainChat[], landed = [] as DomainChat[] } = {}) => {
     const cacheDelete = vi.fn().mockResolvedValue(undefined);
     const channelIds = [...new Set([...unsent, ...landed].map(row => row.channelId))];
@@ -374,7 +346,6 @@ describe('createCloudOutbox', () => {
     });
 
     it('judges "mine" by the uid in that cloud, not by another cloud\'s', async () => {
-        // The session uid belongs to the committed cloud; a row written in cloud-b is owned by uid-b.
         const b = fakeCloud({
             unsent: [
                 chat({ id: 'mine', ownerId: 'uid-b', isFailed: true }),
@@ -439,8 +410,6 @@ describe('createCloudOutbox', () => {
             warn.mockRestore();
         });
 
-        // The read failing is not the same fact as the channel holding no unsent rows: the first
-        // leaves rows in the cache that this sweep never saw.
         const failingChannel = (failing: Set<string>) => {
             const cloud = fakeCloud({
                 unsent: [
@@ -494,9 +463,6 @@ describe('createCloudOutbox', () => {
     });
 
     it('keeps landing claims per cloud, so equal row ids in two clouds do not collide', async () => {
-        // Both clouds hold a landed `ch-1:7` — ids are only unique inside a cloud. One shared claim
-        // set would let cloud-a's claim hide cloud-b's twin, and cloud-b's already-delivered message
-        // would be sent a second time.
         const landedIn = (ownerId: string) => chat({ id: 'ch-1:7', chatNo: 7, ownerId, content: 'ok' });
         const failedIn = (ownerId: string) => chat({ id: 'row-1', ownerId, content: 'ok', isFailed: true });
         const a = fakeCloud({ unsent: [failedIn('uid-a')], landed: [landedIn('uid-a')] });
@@ -528,7 +494,6 @@ describe('useChatOutbox', () => {
     });
 
     const verify = (cids: string[]) => {
-        // A new array per change, as useVerifiedClouds hands out one only when the set changed.
         clouds.verified = [...cids];
     };
 
@@ -539,7 +504,6 @@ describe('useChatOutbox', () => {
         const { rerender } = renderHook(() => useChatOutbox());
         await act(async () => getChatOutbox()?.flush());
 
-        // cloud-b has no verified slot: its failed row waits, and the outbox opens nothing for it.
         expect(clouds.sendInCloud).not.toHaveBeenCalled();
 
         verify(['default', 'cloud-a', 'cloud-b']);
@@ -573,7 +537,6 @@ describe('useChatOutbox', () => {
         verify(['default', 'cloud-a']);
         const { rerender } = renderHook(() => useChatOutbox());
         const outbox = getChatOutbox();
-        // Queued for a cloud with no slot, so it stays queued.
         outbox?.enqueue({
             id: 'row-c',
             cid: 'cloud-c',
@@ -581,8 +544,6 @@ describe('useChatOutbox', () => {
             payload: { channelId: 'ch-1', content: 'x' },
         });
 
-        // A switch to cloud-b: its slot comes up, the session commits to it (its uid is the session's
-        // now), and the relay account is unchanged.
         verify(['default', 'cloud-a', 'cloud-b']);
         rerender();
 

@@ -30,7 +30,6 @@ const setup = (scope: string) => {
     );
     return renderHook(() => useImageAttachments(scope)).result;
 };
-// The name is drawn as stem and extension, so the row is found by its text, not one node's.
 const rowOf = (name: string) =>
     screen.getAllByRole('listitem').find(row => row.textContent?.startsWith(name)) as HTMLElement;
 

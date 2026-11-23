@@ -31,9 +31,6 @@ const roundTrip = (wire: string): string => {
     return editor.read(() => $exportWireMarkdown());
 };
 
-// The wire has no escape syntax: RichText prints a backslash as a backslash. Lexical's markdown
-// import strips `\` + punctuation and its export adds `\` before `* _ ` ~`, so each row here is
-// a string that would come back different through the vendor functions alone.
 describe('wire markdown round trip', () => {
     const fence = (body: string, lang = '') => '```' + lang + '\n' + body + '\n```';
 
@@ -83,7 +80,6 @@ describe('wire markdown round trip', () => {
 });
 
 describe('wire markdown import', () => {
-    // A one-line fence is rewritten as a block; the lines after it must not lose their backslashes.
     it('keeps backslashes on the lines after a one-line fence', () => {
         expect(roundTrip('```x```\na\\\\b')).toBe('```\nx\n```\na\\\\b');
     });
@@ -215,8 +211,6 @@ describe('wire markdown labelled links', () => {
     });
 });
 
-// The server never reads the body to decide who was mentioned: only a pick from the list counts,
-// and a pick is a chip that still carries the member's id when the message is sent.
 describe('collected mention', () => {
     const pick = (name: string, userId: string) => $createMentionNode(`@${name}`, { userId });
 
@@ -280,7 +274,6 @@ describe('collected mention', () => {
         ).toEqual({ userIds: ['u-ada'], all: true });
     });
 
-    // `@all` typed by hand is drawn as a chip when a message is opened, and calls no one.
     it('is nothing for an everyone word that was not picked', () => {
         expect(collect(() => $importWireMarkdown('@all heads up', []))).toBeUndefined();
     });
@@ -304,7 +297,6 @@ describe('collected mention', () => {
         expect(collect(() => $importWireMarkdown('hi @Ada'))).toBeUndefined();
     });
 
-    // A chip restored from text (an opened message, a draft) shows the name but holds no pick.
     it('is nothing for a chip restored from text', () => {
         expect(collect(() => $importWireMarkdown('hi @Ada', ['Ada']))).toBeUndefined();
     });
@@ -330,9 +322,6 @@ describe('collected mention', () => {
         expect(editor.read(() => $collectMention())).toBeUndefined();
     });
 
-    // Backspace on a segmented chip takes one word, not the whole name: Lexical's `$removeSegment`
-    // rewrites the same node's text ("@Ada Lovelace" becomes "@Ada"), so the chip and its id live
-    // on. jsdom has no `Selection.modify` to press the key with, so this makes the same write.
     it('is nothing once the picked name has been cut short', () => {
         const editor = makeEditor();
         editor.update(
@@ -347,8 +336,6 @@ describe('collected mention', () => {
         expect(editor.read(() => $collectMention())).toBeUndefined();
     });
 
-    // Lexical clones a node on every write to it; a clone that dropped the id would send a
-    // message that reads as a mention and calls no one.
     it('keeps the id through a later change to the chip', () => {
         const editor = makeEditor();
         editor.update(
@@ -385,7 +372,6 @@ describe('collected mention', () => {
         expect(restored.read(() => $collectMention())).toEqual({ userIds: ['u-ada'] });
     });
 
-    // A state serialised before chips carried an id has no such field.
     it('reads a chip serialised without an id as a chip that picks no one', () => {
         const editor = makeEditor();
         editor.update(

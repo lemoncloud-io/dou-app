@@ -12,19 +12,13 @@ import type { PhotoItem } from './types';
 import { formatVideoDuration } from './VideoMark';
 import { anchoredScrollTop, gridMetrics } from './photoGridLayout';
 
-/** A row's pitch at 390px wide: three tiles of (390 − 2·4) / 3 and the 4px gap. */
 const ROW = (390 - 8) / 3 + 4;
 
 const photos = (count: number, prefix = 'p'): PhotoItem[] =>
     Array.from({ length: count }, (_, i) => ({ id: `${prefix}${i}`, src: `data:image/jpeg;base64,${prefix}${i}` }));
 
-/** A loaded list as the grid takes it: a count, and the photo at each index. */
 const grid = (list: PhotoItem[]) => ({ count: list.length, photoAt: (index: number) => list[index] });
 
-/**
- * jsdom lays nothing out, so every box is 0×0 and a virtual grid would render no row. Give every
- * element a phone-sized box: 390 wide (three tiles of about 127px), 600 tall.
- */
 const VIEW_WIDTH = 390;
 const VIEW_HEIGHT = 600;
 let scrollHeight = 0;
@@ -112,7 +106,6 @@ describe('RecentPhotoStrip', () => {
             expect(screen.getByRole('button', { name: '최근 4' })).toBeEnabled();
         });
 
-        // Without onToggle the row is the old shortcut into the grid, with no pick state to report.
         it('carries no pressed state when it only opens the grid', () => {
             render(strip({ onToggle: undefined, onSelect: jest.fn(), picked: ['p0'] }));
 
@@ -128,8 +121,6 @@ describe('RecentPhotoStrip', () => {
         });
     });
 
-    // The panel's tiles under the row must be where they will stay from the panel's first frame, before
-    // the shell has said whether it can read the library at all.
     describe('while the library has not answered', () => {
         const strip = (overrides: Partial<RecentPhotoStripProps> = {}) => (
             <RecentPhotoStrip
@@ -144,7 +135,6 @@ describe('RecentPhotoStrip', () => {
             />
         );
         const placeholders = () => Array.from(document.querySelectorAll<HTMLElement>('[data-recent-placeholder]'));
-        /** The row itself: inside the part that opens and closes, and the one that says it is busy. */
         const row = () => document.querySelector('[data-recent-strip]')?.firstElementChild?.firstElementChild;
 
         it('draws its title over skeleton tiles the size of the photos to come', () => {
@@ -157,7 +147,6 @@ describe('RecentPhotoStrip', () => {
                 expect(tile).toHaveAttribute('aria-hidden', 'true');
             }
             expect(row()).toHaveAttribute('aria-busy', 'true');
-            // Nothing to pick yet.
             expect(screen.queryAllByRole('button', { name: /최근/ })).toHaveLength(0);
         });
 
@@ -167,7 +156,6 @@ describe('RecentPhotoStrip', () => {
             expect(placeholders()).toHaveLength(3);
         });
 
-        // What "see all" would open may not exist: the shell may have no library to read.
         it('holds "see all" until the first photo is in', () => {
             const onSeeAll = jest.fn();
             const { rerender } = render(strip({ onSeeAll }));
@@ -187,11 +175,9 @@ describe('RecentPhotoStrip', () => {
             rerender(strip({ placeholderCount: 4, photos: photos(1) }));
 
             expect(screen.getAllByRole('button', { name: /최근/ })).toHaveLength(1);
-            // The same elements, not equal ones: every skeleton tile looks alike.
             const left = placeholders();
             expect(left).toHaveLength(3);
             [second, third, fourth].forEach((tile, i) => expect(left[i]).toBe(tile));
-            // The first real tile stands where the first skeleton stood.
             const scroller = second.parentElement as HTMLElement;
             expect(scroller.firstElementChild).toBe(screen.getByRole('button', { name: '최근 1' }));
         });
@@ -206,7 +192,6 @@ describe('RecentPhotoStrip', () => {
             expect(row()).not.toHaveAttribute('aria-busy');
         });
 
-        // Each photo fades in over the muted square its tile starts as, as PreviewImage does everywhere.
         it('fades each arriving photo in over its tile', () => {
             const { rerender } = render(strip());
 
@@ -226,7 +211,6 @@ describe('RecentPhotoStrip', () => {
     });
 
     describe('opening and closing', () => {
-        /** The row's natural height in these tests: the title row and a row of tiles. */
         const NATURAL = 144;
         const originalMatchMedia = window.matchMedia;
         const strip = () => document.querySelector('[data-recent-strip]') as HTMLElement | null;
@@ -283,7 +267,6 @@ describe('RecentPhotoStrip', () => {
             expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
         });
 
-        // The shell turned out to have no library to read: the tiles under the row rise as it goes.
         it('folds away from its height when nothing comes, still showing its skeletons, then draws nothing', () => {
             const { rerender, container } = render(recent({ loading: true, placeholderCount: 4 }));
 
@@ -297,7 +280,6 @@ describe('RecentPhotoStrip', () => {
             expect(strip()).toHaveAttribute('inert');
             expect(strip()).toHaveAttribute('aria-hidden', 'true');
 
-            // Only its own height ends the fold.
             transitionEnd(content(), 'transform');
             expect(strip()).toBeInTheDocument();
             transitionEnd(strip() as HTMLElement, 'height');
@@ -331,7 +313,6 @@ describe('RecentPhotoStrip', () => {
 
             rerender(recent({ photos: photos(3) }));
 
-            // Laid out closed first, so the height has somewhere to move from.
             expect(reads).toEqual(['false']);
             expect(strip()).toHaveAttribute('data-shown', 'true');
             expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
@@ -349,7 +330,6 @@ describe('RecentPhotoStrip', () => {
             expect(container).toBeEmptyDOMElement();
         });
 
-        // Space the host wants around the row opens and closes with it.
         it('puts the host’s class on the row, inside the part that opens and closes', () => {
             render(recent({ photos: photos(1), className: 'mb-2' }));
 
@@ -370,7 +350,6 @@ describe('PhotoGridTile', () => {
         expect(screen.getByText('3')).toBeInTheDocument();
     });
 
-    // At the cap only unpicked tiles lock: a picked one must stay tappable so it can be un-picked.
     it('locks an unpicked tile when disabled but never a picked one', () => {
         const onToggle = jest.fn();
         const { rerender } = render(<PhotoGridTile src="x" onToggle={onToggle} label="a" disabled />);
@@ -382,7 +361,6 @@ describe('PhotoGridTile', () => {
     });
 });
 
-/** jsdom has no `TransitionEvent`; React reads `propertyName` off whatever event arrives. */
 const transitionEnd = (element: Element, propertyName: string) => {
     const event = new Event('transitionend', { bubbles: true });
     Object.defineProperty(event, 'propertyName', { value: propertyName });
@@ -430,7 +408,6 @@ describe('SelectedPhotoStrip', () => {
         expect(onSelect).toHaveBeenCalledWith('p1');
         expect(onRemove).not.toHaveBeenCalled();
 
-        // Siblings, not nested: a button inside a button is invalid and swallows the inner one's taps.
         const remove = screen.getByRole('button', { name: 'Remove 2' });
         expect(screen.getByRole('button', { name: 'Open 2' })).not.toContainElement(remove);
         fireEvent.click(remove);
@@ -489,7 +466,6 @@ describe('SelectedPhotoStrip', () => {
         expect(surface()).toHaveAttribute('data-size', 'compact');
         expect(tiles).toHaveLength(2);
         expect(tiles[0]).toHaveClass('size-12');
-        // Hugging its tiles, rather than spanning its host as the grid's strip does.
         expect(surface()).toHaveClass('w-fit');
         expect(surface()).not.toHaveClass('w-full');
         fireEvent.click(screen.getByRole('button', { name: 'Open photo 2' }));
@@ -497,7 +473,6 @@ describe('SelectedPhotoStrip', () => {
         expect(onSelect).toHaveBeenCalledWith('p1');
         expect(onRemove).toHaveBeenCalledWith('p0');
 
-        // The grid's size is what it always was.
         rerender(<SelectedPhotoStrip photos={photos(2)} onRemove={onRemove} />);
         expect(surface()).toHaveAttribute('data-size', 'regular');
         expect(surface()).toHaveClass('w-full', 'p-3');
@@ -514,8 +489,6 @@ describe('SelectedPhotoStrip', () => {
         expect(screen.queryByRole('group')).not.toBeInTheDocument();
     });
 
-    // A margin the host gives the row has to open and close with it, so it goes on the row's surface,
-    // inside the box whose height moves.
     it('puts the host’s class on the row’s surface, inside the part that opens and closes', () => {
         const { container } = render(<SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} className="mb-2" />);
 
@@ -526,7 +499,6 @@ describe('SelectedPhotoStrip', () => {
     });
 
     describe('motion', () => {
-        /** The strip's natural height in these tests: the regular strip's 112px. */
         const NATURAL = 112;
         const originalMatchMedia = window.matchMedia;
 
@@ -537,7 +509,6 @@ describe('SelectedPhotoStrip', () => {
             slots().find(element => element.querySelector('img')?.getAttribute('src')?.endsWith(id)) as HTMLElement;
         const row = () => slots()[0].parentElement as HTMLElement;
 
-        /** Records every layout read: what the strip and its tiles looked like when one was taken. */
         const recordLayoutReads = () => {
             const reads: { shown: string | null; phases: (string | null)[] }[] = [];
             jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
@@ -571,7 +542,6 @@ describe('SelectedPhotoStrip', () => {
 
                 rerender(<SelectedPhotoStrip photos={photos(1)} onRemove={jest.fn()} />);
 
-                // Laid out closed first, so the height has somewhere to move from.
                 expect(reads.map(read => read.shown)).toEqual(['false']);
                 expect(strip()).toHaveAttribute('data-shown', 'true');
                 expect(strip()).toHaveStyle({ height: `${NATURAL}px` });
@@ -580,7 +550,6 @@ describe('SelectedPhotoStrip', () => {
                 expect(strip()).not.toHaveAttribute('inert');
             });
 
-            // The grid opened on picks made in the attach panel: the strip is part of the sheet's rise.
             it('is simply there at its own height when it mounts with photos', () => {
                 const reads = recordLayoutReads();
                 render(<SelectedPhotoStrip photos={photos(2)} onRemove={jest.fn()} />);
@@ -601,14 +570,11 @@ describe('SelectedPhotoStrip', () => {
                 expect(strip()).toHaveAttribute('data-shown', 'false');
                 expect(strip()).toHaveStyle({ height: '0px' });
                 expect(content()).toHaveClass('translate-y-2', 'opacity-0');
-                // The whole row closes; its last tile is drawn as it was rather than leaving on its own.
                 expect(strip()?.querySelector('img')).toHaveAttribute('src', photos(1)[0].src);
                 expect(slots().map(element => element.dataset.phase)).toEqual(['in']);
-                // Untouchable and unread on the way out.
                 expect(strip()).toHaveAttribute('inert');
                 expect(screen.queryByRole('button', { name: 'Remove photo 1' })).not.toBeInTheDocument();
 
-                // Only its own height ends the close, not the content's motion inside it.
                 transitionEnd(content(), 'transform');
                 expect(strip()).toBeInTheDocument();
                 expect(onExited).not.toHaveBeenCalled();
@@ -671,7 +637,6 @@ describe('SelectedPhotoStrip', () => {
 
                 rerender(<SelectedPhotoStrip photos={photos(3)} onRemove={jest.fn()} />);
 
-                // Laid out at no width first, so the widening is a transition.
                 expect(reads.map(read => read.phases)).toEqual([['in', 'in', 'enter']]);
                 expect(slots().map(element => element.dataset.phase)).toEqual(['in', 'in', 'in']);
                 expect(slots().map(element => [element.style.width, element.style.marginLeft])).toEqual([
@@ -690,14 +655,12 @@ describe('SelectedPhotoStrip', () => {
 
                 rerender(<SelectedPhotoStrip photos={[first, third]} onRemove={onRemove} />);
 
-                // Kept in its place, so the order on screen never shuffles.
                 expect(slots().map(element => element.dataset.phase)).toEqual(['in', 'leave', 'in']);
                 const leaving = slot(second.id);
                 expect(leaving).toHaveStyle({ width: '0px', marginLeft: '0px' });
                 expect(leaving.querySelector('[data-picked-tile]')).toHaveClass('scale-75', 'opacity-0');
                 expect(leaving).toHaveAttribute('inert');
                 expect(slot(third.id)).toHaveStyle({ width: '64px', marginLeft: '14px' });
-                // Positions count only what stays.
                 fireEvent.click(screen.getByRole('button', { name: 'Remove photo 2' }));
                 expect(onRemove).toHaveBeenCalledWith(third.id);
                 expect(screen.queryByRole('button', { name: 'Remove photo 3' })).not.toBeInTheDocument();
@@ -708,7 +671,6 @@ describe('SelectedPhotoStrip', () => {
                 expect(slots()).toHaveLength(2);
             });
 
-            // The space before the first tile is nothing; the space after it has to close with it.
             it('closes the space after a removed first photo too', () => {
                 const [first, second] = photos(2);
                 const { rerender } = render(<SelectedPhotoStrip photos={[first, second]} onRemove={jest.fn()} />);
@@ -758,13 +720,11 @@ describe('SelectedPhotoStrip', () => {
         });
 
         describe('keeping a new pick in view', () => {
-            /** Wide enough for two and a bit 64px tiles. */
             const VIEW = 200;
             beforeEach(() => {
                 jest.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(VIEW);
             });
 
-            // Four tiles and three gaps, then the 8px the remove chip hangs into, less what is on screen.
             const toFourth = 4 * 64 + 3 * 14 + 8 - VIEW;
 
             it('scrolls the row along with the new tile’s widening until the tile is in view', () => {
@@ -773,7 +733,6 @@ describe('SelectedPhotoStrip', () => {
 
                 rerender(<SelectedPhotoStrip photos={photos(4)} onRemove={jest.fn()} />);
                 act(() => jest.advanceTimersByTime(SLIDE_MS / 2));
-                // On the slide's curve: most of the way at half time, not there yet.
                 expect(row().scrollLeft).toBeGreaterThan(toFourth * 0.8);
                 expect(row().scrollLeft).toBeLessThan(toFourth);
 
@@ -944,7 +903,6 @@ describe('PhotoGridSheet', () => {
                 <PhotoGridSheet {...base({ photos: all, picked: [all[0]], grouped: true, onGroupedChange, labels })} />
             );
             expect(checkbox()).not.toBeInTheDocument();
-            // Nothing else for the row to hold: the footer is the send button alone.
             expect(footer()).not.toBeInTheDocument();
 
             rerender(
@@ -1038,7 +996,6 @@ describe('PhotoGridSheet', () => {
             const all = photos(2);
             render(<PhotoGridSheet {...base({ photos: all, picked: all, onEdit: jest.fn(), labels })} />);
 
-            // Every box measures 600 tall here; the button's own panel reads 0 from jsdom's rect.
             expect(document.documentElement.style.getPropertyValue('--toast-lift')).toBe(`${VIEW_HEIGHT}px`);
         });
     });
@@ -1053,7 +1010,6 @@ describe('PhotoGridSheet', () => {
 
         it('slides the send button up from below when the first item is picked', () => {
             const all = photos(2);
-            // Which position the footer had been laid out at when it was moved: the slide's start.
             const laidOutAt: (string | null)[] = [];
             const rect = HTMLElement.prototype.getBoundingClientRect;
             jest.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
@@ -1070,7 +1026,6 @@ describe('PhotoGridSheet', () => {
             expect(within(slide() as HTMLElement).getByRole('button', { name: '1장 보내기' })).toBeInTheDocument();
         });
 
-        // Opened on a pick made elsewhere (the attach panel's row), the footer rises with the sheet.
         it('is simply there when the sheet opens with something already picked', () => {
             const all = photos(2);
             render(<PhotoGridSheet {...base({ photos: all, picked: [all[0]] })} />);
@@ -1105,14 +1060,12 @@ describe('PhotoGridSheet', () => {
             expect(slide()).toHaveAttribute('data-shown', 'false');
         });
 
-        // The footer lies over the grid rather than shortening it; the last row has to scroll clear.
         it('lets the grid scroll its last row clear of the footer while the footer is up', () => {
             const all = photos(2);
             const { rerender } = render(<PhotoGridSheet {...base({ photos: all })} />);
             expect(spacer()).not.toBeInTheDocument();
 
             rerender(<PhotoGridSheet {...base({ photos: all, picked: [all[0]] })} />);
-            // Every box measures 600 tall here, the footer included.
             expect(spacer()).toHaveStyle({ height: `${VIEW_HEIGHT}px` });
             expect(screen.getByTestId('photo-grid-scroller')).toContainElement(spacer());
 
@@ -1140,7 +1093,6 @@ describe('PhotoGridSheet', () => {
         });
     });
 
-    // The strip closes rather than vanishing, which it can only do while the sheet still draws it.
     it('keeps the picked strip through the last un-pick so it can close', () => {
         jest.useFakeTimers();
         const all = photos(2);
@@ -1170,7 +1122,6 @@ describe('PhotoGridSheet', () => {
     describe('virtual grid', () => {
         const scroller = () => screen.getByTestId('photo-grid-scroller');
 
-        /** Scrolls the grid and lets its once-a-frame measure run. */
         const scrollTo = async (top: number) => {
             Object.defineProperty(scroller(), 'scrollTop', { value: top, configurable: true });
             fireEvent.scroll(scroller());
@@ -1181,10 +1132,8 @@ describe('PhotoGridSheet', () => {
             const photoAt = jest.fn((index: number) => ({ id: `p${index}`, src: `data:p${index}` }));
             render(<PhotoGridSheet {...base({ count: 3000, photoAt, onCamera: jest.fn() })} />);
 
-            // 600 / ~131 per row is five rows on screen, four more below: nine rows of three, camera included.
             expect(screen.getAllByRole('button', { name: /^사진 / })).toHaveLength(26);
             expect(Math.max(...photoAt.mock.calls.map(([index]) => index))).toBe(25);
-            // The grid is as tall as the whole album, so the scroll bar and a jump both see the real length.
             expect(parseFloat(screen.getByTestId('photo-grid').style.height)).toBeCloseTo(1001 * ROW - 4, 3);
         });
 
@@ -1203,7 +1152,6 @@ describe('PhotoGridSheet', () => {
 
             expect(onVisibleRangeChange).toHaveBeenLastCalledWith({ start: 0, end: 27, thumbSize: 128 });
 
-            // Row 100 at the top: rows 96–108 rendered (four either side of the five on screen).
             await scrollTo(ROW * 100);
             expect(onVisibleRangeChange).toHaveBeenLastCalledWith({ start: 288, end: 327, thumbSize: 128 });
         });
@@ -1248,7 +1196,6 @@ describe('PhotoGridSheet', () => {
                 fireEvent(handle, event);
             };
             pointer('pointerdown', 0);
-            // The track is 600 - 16 tall and the handle 48: dragging the handle its full travel is the end.
             pointer('pointermove', 600 - 16 - 48);
             pointer('pointerup', 600 - 16 - 48);
 
@@ -1270,9 +1217,7 @@ describe('PhotoGridSheet', () => {
                 />
             );
 
-            // 600 tall at ~131 a row is five rows of three, the camera tile first.
             expect(screen.getAllByTestId('photo-grid-placeholder')).toHaveLength(14);
-            // They stand for no photo: the range asks for nothing.
             expect(onVisibleRangeChange).toHaveBeenLastCalledWith(expect.objectContaining({ start: 0, end: 0 }));
         });
 
@@ -1293,7 +1238,6 @@ describe('PhotoGridSheet', () => {
         describe('with the sheet', () => {
             beforeEach(() => {
                 jest.useFakeTimers();
-                // The sheet's drag needs a height to measure and pointer capture, which jsdom lacks.
                 jest.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(VIEW_HEIGHT);
                 HTMLElement.prototype.setPointerCapture = jest.fn();
                 HTMLElement.prototype.hasPointerCapture = jest.fn(() => false);
@@ -1308,7 +1252,6 @@ describe('PhotoGridSheet', () => {
                 fireEvent(el, event);
             };
 
-            // Once the sheet captures a drag, the release goes to the sheet, not to the grid under it.
             it('still lets a swipe down from the grid’s top dismiss after an earlier press ended elsewhere', () => {
                 const onOpenChange = jest.fn();
                 render(<PhotoGridSheet {...base({ onOpenChange })} />);
@@ -1358,7 +1301,6 @@ describe('PhotoGridSheet', () => {
                 touch('touchstart', 100);
                 const move = touch('touchmove', 140);
                 expect(onColumnsChange).toHaveBeenLastCalledWith(2);
-                // The page must not zoom or scroll under the grid's own gesture.
                 expect(move.defaultPrevented).toBe(true);
 
                 rerender(<PhotoGridSheet {...base({ columns: 2, onColumnsChange })} />);
@@ -1396,7 +1338,6 @@ describe('PhotoGridSheet', () => {
                     />
                 );
 
-                // The rule itself is `anchoredScrollTop`'s, tested apart; here, that the grid applies it.
                 const expected = anchoredScrollTop({
                     scrollTop: ROW * 10,
                     anchorY: 300,
@@ -1413,7 +1354,6 @@ describe('PhotoGridSheet', () => {
 });
 
 describe('GridScrubber', () => {
-    // The photo grid's footer lies over the scroller's bottom; a handle dragged under it is lost.
     it('runs its track above what covers the scroller’s bottom, and still reaches the end', () => {
         scrollHeight = VIEW_HEIGHT * 20;
         const scroller = document.createElement('div');
@@ -1441,7 +1381,6 @@ describe('GridScrubber', () => {
             Object.defineProperty(event, 'pointerId', { value: 3 });
             fireEvent(handle, event);
         };
-        // The track is 600 - 100 - 16 tall and the handle 48: its full travel is the end of the content.
         pointer('pointerdown', 0);
         pointer('pointermove', 600 - 100 - 16 - 48);
         pointer('pointerup', 600 - 100 - 16 - 48);
@@ -1580,7 +1519,6 @@ describe('PreviewImage', () => {
         expect(img).toHaveClass('opacity-100');
     });
 
-    // A pinch to fewer columns hands the same tile a sharper copy: it must not blink back to a skeleton.
     it('keeps showing the image when the tile is handed a sharper copy of the same photo', () => {
         const { container, rerender } = render(<PreviewImage src="data:small" />);
         fireEvent.load(container.querySelector('img') as HTMLImageElement);
@@ -1599,7 +1537,6 @@ describe('PreviewImage', () => {
         expect(skeleton(container)).not.toHaveClass('motion-safe:animate-pulse');
     });
 
-    // A tile scrolled back into view over a preview the browser already holds decoded.
     it('shows an image the browser already holds at once, without the skeleton or the fade', () => {
         jest.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true);
         jest.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(368);

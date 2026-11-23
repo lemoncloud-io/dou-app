@@ -5,12 +5,9 @@ import { runtime, isEventChat, isInJoinWindow, type DomainChat } from '@chatic/r
 
 import { classifyWireError, extractErrorMessage, isNotifiableChat, threadRootNo } from '../../../shared';
 
-/** How many of a thread's newest replies a Threads page card shows. */
 export const THREAD_CARD_REPLIES = 3;
-/** The cached window a card reads its replies from — the same depth the my-threads scan reads. */
 export const THREAD_CARD_PAGE = 200;
 
-/** Why a card has no root to show — the same verdicts, and words, as the thread panel's. */
 export type ThreadCardRootNotice = 'beforeJoin' | 'gone';
 
 export type ThreadCardState =
@@ -20,7 +17,6 @@ export type ThreadCardState =
           root: DomainChat | null;
           rootNotice?: ThreadCardRootNotice;
           replies: DomainChat[];
-          /** Replies before the shown ones in the window; `'more'` when the window may cut the thread off. */
           earlier: number | 'more';
       };
 
@@ -28,21 +24,12 @@ interface ThreadCardArgs {
     cid: string;
     channelId: string;
     rootNo: string;
-    /** The newest reply the my-threads record has seen — a change means there is more to read. */
     lastReplyNo: number;
-    /** When the record last moved — my own reply moves it before the server numbers that reply. */
     lastActivityAt: number;
-    /** My current join, when the channel is loaded: a root before it is not shown, and not asked for. */
     joinedNo?: number;
-    /** The card has come near the screen: nothing is read before. */
     enabled: boolean;
 }
 
-/**
- * The root and newest replies of one thread on the Threads page. Read from the chat cache of the
- * thread's own cloud (a channel id means nothing across clouds), the root fetched from the server only
- * when the cache does not hold it. Read again whenever the record moves (a new reply, or mine).
- */
 export const useThreadCard = ({
     cid,
     channelId,
@@ -68,14 +55,12 @@ export const useThreadCard = ({
             const cached =
                 rows.find(row => !row.parentId && String(row.chatNo) === rootNo) ?? (await chat.cacheRead(rootId));
             if (cached) return { root: cached };
-            // The server windows reads by my join, so a root from before it can never arrive.
             if (!isInJoinWindow({ chatNo: Number(rootNo) }, joinedNo)) return { root: null, rootNotice: 'beforeJoin' };
             try {
                 const fetched = await chat.getChat({ id: rootId });
                 return fetched ? { root: fetched } : { root: null, rootNotice: 'gone' };
             } catch (error) {
                 const kind = classifyWireError(extractErrorMessage(error));
-                // Gone for good only when the server says so; anything else may pass, so it fails with a retry.
                 if (kind === 'notFound' || kind === 'denied') return { root: null, rootNotice: 'gone' };
                 throw error;
             }
@@ -96,7 +81,6 @@ export const useThreadCard = ({
                 const root = await readRoot(rows);
                 if (!active) return;
                 const earlierInWindow = Math.max(0, replies.length - THREAD_CARD_REPLIES);
-                // A full window may stop short of the thread's first replies, so it cannot count them.
                 const truncated = rows.length >= THREAD_CARD_PAGE && lastReplyNo > 0;
                 setState({
                     status: 'ready',

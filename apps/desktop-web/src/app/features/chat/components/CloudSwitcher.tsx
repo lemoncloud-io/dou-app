@@ -40,15 +40,9 @@ import {
 import { orderedRailClouds, selectRailCloud } from '../utils';
 import { RenameCloudDialog } from './RenameCloudDialog';
 
-/**
- * The menu acts on the cloud you are in, so it renames only the active, open cloud of yours. Any
- * other owned cloud is renamed from its account hub. A lapsed cloud cannot be opened, let alone
- * edited.
- */
 const canRename = (cloud: RailCloud, activeCloudId: string | null): boolean =>
     cloud.kind === 'owned' && cloud.id === activeCloudId && !isLapsedCloud(cloud);
 
-/** The word a cloud adds to its name when it cannot be opened as it is. */
 const STATUS_KEY: Partial<Record<string, string>> = {
     error: 'cloud.status.error',
     reserved: 'cloud.status.provisioning',
@@ -57,12 +51,6 @@ const STATUS_KEY: Partial<Record<string, string>> = {
     expired: 'cloud.status.expired',
 };
 
-/**
- * Deleting an owned cloud releases it on the server, with everything in it. A cloud that cannot be opened
- * as it is (the states the row labels: still being set up, failed, suspended, expired) is one the user
- * cannot even enter to check what they would lose, so it is not offered for removal. An invited cloud
- * is only forgotten on this device, which is safe in any state.
- */
 const canDelete = (cloud: RailCloud): boolean =>
     cloud.kind === 'invited' || (cloud.kind === 'owned' && !(cloud.status && STATUS_KEY[cloud.status]));
 
@@ -70,21 +58,14 @@ interface CloudSwitcherProps {
     clouds: RailCloud[];
     activeCloudId: string | null;
     hasUnread: boolean;
-    /** Clouds with a pending cross-cloud push (socket only covers the active
-     * cloud, so this is the only unread signal for the others). */
     badgedClouds?: Record<string, true>;
     onSelectCloud: (cloudId: string) => void;
-    /** A cloud/place switch is in flight — lock the switcher to block a second switch
-     * mid-handshake (the pipeline is serial). */
     isSwitching?: boolean;
-    /** The cloud list could not be read. Owned clouds are missing from `clouds` (or the list is stale)
-     * until a retry lands, and the menu says so. */
     isCatalogError?: boolean;
     isRetryingCatalog?: boolean;
     onRetryCatalog?: () => void;
 }
 
-/** A cloud's initial on its tile. Black with a lime initial when active, as the design draws it. */
 const CloudInitial = ({
     initial,
     size,
@@ -103,8 +84,6 @@ const CloudInitial = ({
             size === 'tile' ? 'h-12 w-12 rounded-[14px]' : 'h-7 w-7 rounded-lg text-caption',
             size === 'tile' && (Array.from(initial).length > 1 ? 'text-lead' : 'text-headline'),
             isActive ? 'bg-tile-active text-primary' : 'border border-hairline bg-background text-rail-foreground',
-            // A cloud that cannot be opened reads as set aside, not faded out: a dashed edge and muted
-            // ink at full opacity stay legible, where 50% opacity left the initial under text contrast.
             !isActive && isInactive && 'border-dashed border-muted-foreground text-muted-foreground'
         )}
     >
@@ -112,12 +91,6 @@ const CloudInitial = ({
     </span>
 );
 
-/**
- * The top of the left rail: the active cloud's tile with a chevron under it. The menu it opens lists
- * every cloud (Home first, then the stored order) to switch to, and holds what the old cloud tiles'
- * right-click menus did — renaming the active cloud and removing a cloud — plus the retry when the
- * cloud list could not be read.
- */
 export const CloudSwitcher = ({
     clouds,
     activeCloudId: sessionCloudId,
@@ -130,18 +103,12 @@ export const CloudSwitcher = ({
     onRetryCatalog,
 }: CloudSwitcherProps) => {
     const { t } = useTranslation();
-    // The session names no cloud while it sits on Home; HomePage reads that as Home, and the tile
-    // has to agree or it shows no cloud at all.
     const activeCloudId = sessionCloudId ?? 'default';
 
-    // Cloud removal: invited clouds are forgotten locally, owned clouds are
-    // deleted on the backend — both gated behind a confirm dialog.
     const { removeInvitedCloud, deleteOwnedCloud, isDeleting } = useRemoveCloud();
     const [pendingRemove, setPendingRemove] = useState<RailCloud | null>(null);
     const isOwnedRemoval = pendingRemove?.kind === 'owned';
     const [pendingRename, setPendingRename] = useState<RailCloud | null>(null);
-    // Why the last delete was refused, as a translation key so a language change redraws it. The
-    // dialog stays open for a retry, and says why.
     const [removeErrorKey, setRemoveErrorKey] = useState<string | null>(null);
 
     const closeRemoveDialog = () => {
@@ -163,15 +130,11 @@ export const CloudSwitcher = ({
             toastFailure(t(key), error);
             return;
         }
-        // A cloud released before this delete is not an error to retry; the list has been refreshed.
         if (alreadyGone) toast({ description: t('cloud.delete.alreadyGone') });
         if (id === activeCloudId) onSelectCloud('default');
         closeRemoveDialog();
     };
 
-    // An id reads as noise; a cloud without a real name is "Untitled", numbered when there are several
-    // so no two rows read the same. Named from the list as the sources give it, so a cloud's number is
-    // part of its cloud and does not change with the stored order.
     const tiles = cloudTiles(clouds, ordinal =>
         ordinal ? t('cloud.untitledNumbered', { number: ordinal }) : t('cloud.untitled')
     );
@@ -182,17 +145,12 @@ export const CloudSwitcher = ({
         return statusKey ? t('cloud.statusLabel', { name: label, status: t(statusKey) }) : label;
     };
 
-    // The order the user arranged the clouds in, kept from the old rail. Home is the way back from
-    // every cloud, so it is listed first whatever was stored. The number keys read the same order,
-    // so a digit names the row it is next to in this menu.
     const { storedIds } = useCloudOrder();
     const ordered = orderedRailClouds(clouds, storedIds);
 
     const active = clouds.find(cloud => cloud.id === activeCloudId);
     const activeTile = active ? tileByCloud.get(active.id) : undefined;
     const activeName = activeTile?.label ?? t('cloud.empty');
-    // Only the rows the menu lists: a push flag for a cloud with no row (one that was removed, or an
-    // id the backend stamped that is not ours) can never be opened, so it would hold the dot forever.
     const anyUnread = hasUnread || ordered.some(cloud => cloud.id !== activeCloudId && !!badgedClouds?.[cloud.id]);
     const renamable = active && canRename(active, activeCloudId) ? active : null;
     const removable = ordered.filter(canDelete);
@@ -267,11 +225,9 @@ export const CloudSwitcher = ({
                         );
                     })}
                     {isCatalogError && (
-                        // Owned clouds that did not load would otherwise just be missing.
                         <DropdownMenuItem
                             disabled={isRetryingCatalog}
                             onSelect={event => {
-                                // Stays open so the reloaded list lands where the reader is looking.
                                 event.preventDefault();
                                 onRetryCatalog?.();
                             }}

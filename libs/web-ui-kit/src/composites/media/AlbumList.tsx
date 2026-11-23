@@ -6,12 +6,10 @@ import type { PhotoAlbum } from './types';
 export interface AlbumListProps {
     albums: PhotoAlbum[];
     onSelect: (id: string) => void;
-    /** Formats the photo count under each title. Host supplies it so digits follow the locale. */
     formatCount?: (count: number) => string;
     className?: string;
 }
 
-/** The album chooser that replaces the grid while the title dropdown is open (Figma `3767:32638`). */
 export const AlbumList = ({ albums, onSelect, formatCount = count => String(count), className }: AlbumListProps) => (
     <ul className={cn('flex w-full flex-col gap-0.5 px-4 py-1', className)}>
         {albums.map(album => (

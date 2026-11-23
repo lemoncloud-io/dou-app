@@ -1,24 +1,15 @@
 import { cn } from '@chatic/ui-kit';
 
 export interface PlaybackRateChipProps {
-    /** The speed playing now, e.g. `1.5`. */
     rate: number;
-    /** Pressed. Which speed comes next is the host's rule. */
     onPress: () => void;
-    /** `onDark` on my navy bubble and the mini player, `onLight` on a light bubble, `outline` on a page. */
     tone?: 'onDark' | 'onLight' | 'outline';
-    /** Accessible name; the visible text is the speed itself. */
     label?: string;
     className?: string;
 }
 
-/** `1` → `1x`, `1.5` → `1.5x`. */
 export const formatPlaybackRate = (rate: number): string => `${rate}x`;
 
-/**
- * The playback speed chip — `1x`, `1.5x`, `2x` in a small rounded pill (Figma "배속", 6040:20730).
- * It only shows a speed and reports a press: the cycle and where the speed is kept belong to the host.
- */
 export const PlaybackRateChip = ({
     rate,
     onPress,

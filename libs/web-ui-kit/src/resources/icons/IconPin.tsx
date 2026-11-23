@@ -1,17 +1,10 @@
 import * as React from 'react';
 
 export interface IconPinProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (glyph is square). */
     size?: number;
-    /** Solid glyph for the pinned state; outline for un-pinned. */
     filled?: boolean;
 }
 
-/**
- * Pin glyph — the Figma "Interface essential/Pin" asset used by the chat-room management list
- * (outline 3410:51147 for un-pinned, solid 3410:51167 for pinned). Fills with `currentColor`,
- * so callers set the state color via `className`.
- */
 export const IconPin = ({ size = 16, filled = false, className, ...props }: IconPinProps) => (
     <svg
         width={size}

@@ -1,17 +1,9 @@
 import * as React from 'react';
 
 export interface IconGalleryWideProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Outline wide gallery — the "from album" entry of the chat attach source sheet. Exported from the
- * Figma "Outline / Video, Audio, Sound / Gallery Wide" instance in that sheet (node `3767:33276`);
- * {@link IconGalleryWideSolid} is the filled glyph the attach menu itself uses.
- *
- * The `viewBox` is the icon's own 24×24 frame. Fills with `currentColor` so the row colours it.
- */
 export const IconGalleryWide = ({ size = 24, className, ...props }: IconGalleryWideProps) => (
     <svg
         width={size}

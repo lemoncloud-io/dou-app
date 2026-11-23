@@ -4,10 +4,6 @@ import { IconClockSolid } from './IconClockSolid';
 import { IconImageSolid } from './IconImageSolid';
 import { IconUsersGroup } from './IconUsersGroup';
 
-/**
- * The three Figma duotone glyphs added for the invite accept screen (ADR-0037).
- * Grouped because the contract is identical: square, `currentColor`, `size`-driven.
- */
 describe.each([
     ['IconClockSolid', IconClockSolid, 20, '0 0 20 20'],
     ['IconUsersGroup', IconUsersGroup, 18, '0 0 18 18'],
@@ -51,7 +47,6 @@ describe('duotone layering', () => {
         const opacities = Array.from(container.querySelectorAll('path')).map(p => p.getAttribute('opacity'));
 
         expect(opacities).toContain('0.5');
-        // The hands stay fully opaque so they read against the dial.
         expect(opacities).toContain(null);
     });
 
@@ -61,7 +56,6 @@ describe('duotone layering', () => {
 
         expect(paths).toHaveLength(6);
         expect(paths.filter(p => p.getAttribute('opacity') === '0.4')).toHaveLength(4);
-        // Centre person (head + body) is solid.
         expect(paths.filter(p => p.getAttribute('opacity') === null)).toHaveLength(2);
     });
 
@@ -71,10 +65,7 @@ describe('duotone layering', () => {
             p => p.getAttribute('fill-rule') === 'evenodd'
         );
 
-        // Without evenodd the ridge cut-out would fill solid and the glyph would be a plain disc.
         expect(disc).toBeTruthy();
-        // ...and evenodd only cuts anything out if the second subpath is still there, so assert the
-        // shape has both: outer disc + the knocked-out ridge.
         expect(disc?.getAttribute('d')?.match(/M/g)).toHaveLength(2);
     });
 });

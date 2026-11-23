@@ -9,25 +9,8 @@ import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { WIRE_TRANSFORMERS } from './editorConfig';
 import { $createMentionNode, $isMentionNode } from './MentionNode';
 
-/**
- * The only place a message's wire string and the editor's document are converted. The wire is
- * RichText's dialect and RichText has no escape syntax: a backslash is a backslash, `snake_case`
- * has no marks to protect. Lexical's markdown functions disagree on both sides —
- *
- * - export puts a `\` before every `*`, `_`, `` ` `` and `~` in text that is not code
- *   (`exportTextFormat` in `@lexical/markdown`), which the reader would see as typed;
- * - import drops a `\` before any ASCII punctuation and turns `&#NN;` into that character
- *   (`unescapeText`), and it does so again on every nested format run, so `\\server\share`
- *   inside `**bold**` lost two slashes, not one.
- *
- * Each side cancels its half so that `export(import(wire)) === wire`; `wireMarkdown.spec.ts` is the
- * table, and it goes red if a Lexical upgrade changes either behavior. Export never writes `&#NN;`
- * (spaces around a formatted run are kept as spaces), so only the import side needs a guard for it.
- */
-
 const FENCE = /^[ \t]*```/;
 
-/** Applies `fn` to each line outside the fenced blocks the editor exports (always multi-line). */
 const mapOutsideFences = (text: string, fn: (line: string) => string): string => {
     let inFence = false;
     return text
@@ -44,11 +27,6 @@ const mapOutsideFences = (text: string, fn: (line: string) => string): string =>
 
 const ESCAPED_BY_EXPORT = '*_`~';
 
-/**
- * Removes the backslash Lexical put before a markup character, leaving inline code spans alone
- * (code is exported raw, so a backslash there is the author's). Limit: a text-ending `\` directly
- * followed by an inline code span reads as an escaped backtick, so that one backslash is dropped.
- */
 const stripExportEscapes = (line: string): string => {
     let out = '';
     for (let i = 0; i < line.length; i++) {
@@ -69,25 +47,15 @@ const stripExportEscapes = (line: string): string => {
     return out;
 };
 
-// Private-use characters that stand in for `\` and for the `&` of `&#` while the library parses.
-// Doubling the backslash is not enough (it is unescaped again inside every nested run), and a
-// stand-in is not punctuation, so the library leaves it alone at any depth.
 const PLACEHOLDER_CANDIDATES = Array.from({ length: 16 }, (_, i) => String.fromCharCode(0xe000 + i));
 
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/**
- * Turns `@name` in plain text into mention chips. A chip is display only (its text is the same
- * `@name` the wire carries), so this decides nothing about what is stored: it matches the listed
- * names exactly, longest first, and only where no token character follows, so `@Adalyn` stays text
- * when only `Ada` is listed. Code, inline or block, is left alone.
- */
 const $restoreMentions = (names: readonly string[]): void => {
     const listed = [...new Set([...names, ...GROUP_MENTIONS.map(group => group.slice(1))])]
         .filter(Boolean)
         .sort((a, b) => b.length - a.length);
     const pattern = new RegExp(
-        // Word-start `@`, as the composer's list opens: `medium.com/@Ada` is a link, not a mention.
         `(?<![^\\s([{])@(?:${listed.map(escapeRegExp).join('|')})(?!${MENTION_TOKEN_SOURCE})`,
         'gu'
     );
@@ -103,7 +71,6 @@ const $restoreMentions = (names: readonly string[]): void => {
             match.index + match[0].length,
         ]);
         if (ranges.length === 0) continue;
-        // Read the length first: splitting shrinks `node` to its first part.
         const size = node.getTextContentSize();
         const cuts = [...new Set(ranges.flat())].filter(at => at > 0 && at < size);
         const parts = cuts.length > 0 ? node.splitText(...cuts) : [node];
@@ -115,11 +82,6 @@ const $restoreMentions = (names: readonly string[]): void => {
     }
 };
 
-/**
- * Fills the editor from a message's wire string. Call inside `editor.update`. With `mentionNames`
- * (display names, without the `@`), `@name` and the group tokens become chips; without it the
- * text stays plain.
- */
 export const $importWireMarkdown = (wire: string, mentionNames?: readonly string[]): void => {
     const [backslash, ampersand] = PLACEHOLDER_CANDIDATES.filter(char => !wire.includes(char));
     if (backslash === undefined || ampersand === undefined) {
@@ -137,13 +99,6 @@ export const $importWireMarkdown = (wire: string, mentionNames?: readonly string
     if (mentionNames) $restoreMentions(mentionNames);
 };
 
-/**
- * Who the document calls, for the send's `mention`: the ids on the chips that are still in it,
- * and `all` when the everyone row's chip is.
- * A pick that was deleted is not here to be counted, one cut short by Backspace no longer answers
- * with its id (`MentionNode.getUserId`), and a name typed by hand or restored from text was never
- * a pick. Call inside `editor.read`.
- */
 export const $collectMention = (): ChatMentionBody | undefined => {
     const userIds = new Set<string>();
     let all = false;
@@ -154,19 +109,12 @@ export const $collectMention = (): ChatMentionBody | undefined => {
         if (node.isEveryone()) all = true;
     }
     if (userIds.size === 0 && !all) return undefined;
-    // `all` is sent as `true` or not at all: the server takes no other value for it.
     return { ...(userIds.size > 0 ? { userIds: [...userIds] } : {}), ...(all ? { all: true } : {}) };
 };
 
-/** The editor's document as a wire string. Call inside `editor.read` or `editor.update`. */
 export const $exportWireMarkdown = (): string =>
     mapOutsideFences($convertToMarkdownString(WIRE_TRANSFORMERS, undefined, true), stripExportEscapes);
 
-/**
- * Whether the document holds anything to send. Judged on the text, not the wire: a code block with
- * nothing in it still exports its fences, and an empty fenced block is not a message.
- */
 export const $hasMessageText = (): boolean => $getRoot().getTextContent().trim().length > 0;
 
-/** The document as the message to send or save — trimmed, and empty when it holds no text. */
 export const $exportMessage = (): string => ($hasMessageText() ? $exportWireMarkdown().trim() : '');

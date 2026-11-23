@@ -1,22 +1,14 @@
 import { cn } from '@chatic/ui-kit';
 
 export interface ProgressRingProps {
-    /** 0..1, already clamped. */
     ratio: number;
-    /** Outer size in px. The ring's stroke and inset scale with it. */
     size?: number;
-    /** A stop mark in the middle, for a ring that another press cancels. */
     stop?: boolean;
-    /** Stroke classes of the unfilled track and of the filled arc, and the stop mark's fill. */
     trackClassName?: string;
     fillClassName?: string;
     stopClassName?: string;
 }
 
-/**
- * A determinate progress ring, filling clockwise from twelve o'clock as every progress ring the OS
- * draws does. Decorative: the host gives the progress its accessible name and value.
- */
 export const ProgressRing = ({
     ratio,
     size = 28,

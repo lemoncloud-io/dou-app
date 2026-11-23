@@ -1,16 +1,9 @@
 import * as React from 'react';
 
 export interface IconFileCheckProps extends Omit<React.SVGProps<SVGSVGElement>, 'width' | 'height'> {
-    /** Rendered width/height in pixels (square). */
     size?: number;
 }
 
-/**
- * Outline file with a check mark — the "from files" entry of the chat attach source sheet. Exported
- * from the Figma "Outline / Files / File Check" instance in that sheet (node `3767:33245`).
- *
- * The `viewBox` is the icon's own 24×24 frame. Fills with `currentColor` so the row colours it.
- */
 export const IconFileCheck = ({ size = 24, className, ...props }: IconFileCheckProps) => (
     <svg
         width={size}

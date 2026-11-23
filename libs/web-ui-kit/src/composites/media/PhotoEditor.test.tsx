@@ -27,7 +27,6 @@ const props = (overrides: Partial<PhotoEditorProps> = {}): PhotoEditorProps => (
     ...overrides,
 });
 
-// jsdom's PointerEvent drops clientX/Y from the init, so the coordinates are hung on the event.
 const pointer = (type: string, [x, y]: [number, number], pointerId = 1, isPrimary = true) => {
     const event = new Event(type, { bubbles: true });
     Object.assign(event, { clientX: x, clientY: y, pointerId, isPrimary });
@@ -49,11 +48,8 @@ const cropBox = () => dialog().querySelector('[data-crop-box]') as HTMLElement;
 const handle = (name: string) => dialog().querySelector(`[data-crop-handle="${name}"]`) as HTMLElement;
 const lift = () => document.documentElement.style.getPropertyValue('--toast-lift');
 
-/** The edit the host was handed last. */
 const lastEdit = (onEditChange: jest.Mock): PhotoEdit => onEditChange.mock.calls.at(-1)?.[1];
 
-// jsdom lays nothing out. Every box is 400 × 600, so a 4000 × 3000 photo on the crop stage — 24px of
-// room around it — is drawn 352 × 264: a pixel of drag is 1/352 of the width and 1/264 of the height.
 const STAGE_PHOTO = { width: 352, height: 264 };
 beforeEach(() => {
     jest.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
@@ -88,7 +84,6 @@ describe('PhotoEditor', () => {
             page.querySelector('img')?.getAttribute('src')
         );
         expect(drawn).toEqual([undefined, undefined, 'blob:photo-2', 'blob:photo-3', 'blob:photo-4', undefined]);
-        // The neighbours are there for the swipe, but not for a screen reader.
         expect(dialog().querySelectorAll('[data-page]:not([aria-hidden])')).toHaveLength(1);
     });
 
@@ -115,7 +110,6 @@ describe('PhotoEditor', () => {
             expect(strip().style.transform).toBe('translate3d(calc(-200% + 0px), 0, 0)');
         });
 
-        // Leaving loses what was edited, so nothing but the ✕ and Done leaves.
         it('does not close or page on a tap, a short drag or a pull down', () => {
             const onIndexChange = jest.fn();
             const onCancel = jest.fn();
@@ -144,7 +138,6 @@ describe('PhotoEditor', () => {
             expect(strip().style.transform).toBe('translate3d(calc(-100% + 0px), 0, 0)');
         });
 
-        // A release outside the pager before the drag was captured never reaches it.
         it('starts afresh on the next press after a release it never saw', () => {
             const onIndexChange = jest.fn();
             render(<PhotoEditor {...props({ index: 1, onIndexChange })} />);
@@ -213,7 +206,6 @@ describe('PhotoEditor', () => {
             expect(onSend).toHaveBeenCalledTimes(1);
         });
 
-        // Android's back arrives as Escape; the host may want to confirm before anything closes.
         it('asks the host on Escape and stays open until the host closes it', () => {
             const onCancel = jest.fn();
             render(<PhotoEditor {...props({ onCancel })} />);
@@ -243,7 +235,6 @@ describe('PhotoEditor', () => {
                     <button type="button">toast action</button>
                 </>
             );
-            // Radix arms its outside-press listener on the next tick.
             await new Promise(resolve => setTimeout(resolve, 0));
 
             const action = screen.getByText('toast action');
@@ -331,8 +322,6 @@ describe('PhotoEditor', () => {
     });
 
     describe('closing', () => {
-        // jsdom runs no animations, so Radix would unmount at once. Report an exit animation on the
-        // closed state, as the browser does, so the editor stays up while it would be sliding away.
         beforeEach(() => {
             const real = window.getComputedStyle.bind(window);
             jest.spyOn(window, 'getComputedStyle').mockImplementation((element, pseudo) => {
@@ -365,7 +354,6 @@ describe('PhotoEditor', () => {
     describe('snackbar lift', () => {
         it('lifts the snackbar above the footer while open, and drops it once closed', () => {
             const { rerender } = render(<PhotoEditor {...props()} />);
-            // Every box measures 600 tall here.
             expect(lift()).toBe('600px');
 
             rerender(<PhotoEditor {...props({ open: false })} />);
@@ -418,7 +406,6 @@ describe('PhotoEditor', () => {
         it('resizes the box from a corner handle and reports it on Apply', () => {
             const { onEditChange } = openCrop();
 
-            // A tenth of the width in, from the bottom-right corner.
             drag(handle('se'), [376, 432], [376 - STAGE_PHOTO.width / 10, 432]);
             expect(onEditChange).not.toHaveBeenCalled();
             fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
@@ -428,7 +415,6 @@ describe('PhotoEditor', () => {
             expect(edit.crop.x).toBeCloseTo(0, 6);
             expect(edit.crop.width).toBeCloseTo(0.9, 6);
             expect(edit.crop.height).toBeCloseTo(1, 6);
-            // Back out of crop mode.
             expect(stage()).toBeNull();
         });
 
@@ -458,7 +444,6 @@ describe('PhotoEditor', () => {
 
             const { crop, aspect } = lastEdit(onEditChange);
             expect(aspect).toBe('1:1');
-            // Square in pixels: the normalised height is the width times 4000 / 3000.
             expect(crop.height).toBeCloseTo((crop.width * 4000) / 3000, 6);
             expect(crop.width).toBeLessThan(0.75);
         });
@@ -495,12 +480,10 @@ describe('PhotoEditor', () => {
 
             fireEvent.click(screen.getByRole('button', { name: 'Rotate left' }));
             fireEvent.click(screen.getByRole('button', { name: 'Flip' }));
-            // Turned, the photo is drawn 3000 wide by 4000 tall.
             const placed = dialog().querySelector('[data-crop-photo]') as HTMLElement;
             expect(parseFloat(placed.style.width)).toBeLessThan(parseFloat(placed.style.height));
             fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
 
-            // A left turn, then a mirror of what is shown: stored as a mirrored source turned right.
             expect(lastEdit(onEditChange)).toMatchObject({ rotation: 90, flipH: true });
         });
 
