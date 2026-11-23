@@ -19,7 +19,7 @@ open the one that applies and follow it.
 | `dou-failure-hunt` | before a release, after an incident, or asked to find what could break     |
 | `dou-ratchet`      | the same correction or the same CI failure came back                       |
 | `dou-cleanup`      | removing comments from a project, or lowering a ratchet baseline           |
-| `dou-ship`         | a change is finished: review, commit, PR, auto-merge eligibility           |
+| `dou-ship`         | a change is finished: review, commit, PR                                   |
 | `dou-metrics`      | harness or delivery metrics are asked for, or a lane has merged            |
 
 Where a task runs, on which model and effort: [`placement.md`](./docs/config/skills/dou-plan/references/placement.md), agents in `.claude/agents/`.
@@ -42,7 +42,7 @@ comments (a lint ratchet enforces it); allowed: published SDK public-API JSDoc, 
 Everything written into the repo or onto GitHub is English. Two exceptions, both by path: translation resources
 (`**/locales/**`, `**/i18n/**`) and the `.ko.md` author documents inside `libs/chatic-apps-sdk/` and
 `libs/chatic-apps-devtools/`, which change in the same PR as their English pair. Chat with the user is unaffected.
-The repo is public: no paths or issue/PR numbers from an internal store. Plans and reports go in the PR or an HTML artifact.
+Public repo: no internal paths or issue numbers. Over ~100 lines (plan, report) is an HTML artifact; short PR bodies link it.
 
 ## Module docs and ADRs
 
@@ -56,5 +56,5 @@ The repo is public: no paths or issue/PR numbers from an internal store. Plans a
 
 ## Reviewing a change
 
-Run the gate for `npx nx show projects --affected --base=origin/develop`, and check that set against the exclusions in
-`.github/workflows/verify.yml` — an excluded project is checked by hand and named in the PR. Detail: `dou-ship`.
+Gate `npx nx show projects --affected --base=origin/develop`; a project `.github/workflows/verify.yml` excludes is run
+by hand and named in the PR. Questions the diff triggers: [`REVIEW.md`](./REVIEW.md). Procedure: `dou-ship`.

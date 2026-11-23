@@ -22,13 +22,13 @@ A green unit suite is not the end. Choose by what the change touches, run it, an
 | Property          | state transitions, merging, ordering, parsing                 | [`dou-property`](../dou-property/SKILL.md)                                          |
 | Device (opt-in)   | native code, keyboard, safe area, splash, WebKit-on-device    | [`references/device.md`](./references/device.md)                                    |
 
-- Pick the smallest set that would catch the change being wrong. Docs-only or comment-only changes need the
-  gate alone; say so in the report.
+- Pick the smallest set that would catch the change being wrong; docs- or comment-only changes need the gate alone.
+- Check the result against the plan page: its scope, its non-goals, and the methods it chose.
 - Long runs (e2e suites, chaos, load) go to the `dou-verifier` agent; you read its report, not its logs.
 - A test written for a bug must fail without the fix: revert, watch it fail, restore, and say so.
+- A flaky test is never skipped, slept or retried: find the cause, or delete it and record why (commit, module doc).
 
 ## The report
 
-Write `verify-report-<topic>.html` in your scratchpad and publish it as an artifact; the Stop hook looks for
-that name. Format: [`references/report.md`](./references/report.md). Link it from the PR's `To Reviewers`.
-If nothing could be verified, the report says why and what the person should check.
+Publish `verify-report-<topic>.html` (the Stop hook looks for that name) per [`references/report.md`](./references/report.md),
+linking the plan page; link the report from the PR. Nothing verifiable: the report says why and what to check.

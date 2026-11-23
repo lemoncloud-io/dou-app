@@ -10,12 +10,27 @@
                         "timeout": 90
                     }
                 ]
+            },
+            {
+                "matcher": "Bash",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-escalation.cjs\"",
+                        "timeout": 10
+                    }
+                ]
             }
         ],
         "PreToolUse": [
             {
                 "matcher": "Bash",
                 "hooks": [
+                    {
+                        "type": "command",
+                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-escalation.cjs\"",
+                        "timeout": 10
+                    },
                     {
                         "type": "command",
                         "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate-before-commit.cjs\"",
@@ -31,6 +46,29 @@
                         "type": "command",
                         "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.cjs\"",
                         "timeout": 30
+                    }
+                ]
+            }
+        ],
+        "PostToolUseFailure": [
+            {
+                "matcher": "Bash",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-escalation.cjs\"",
+                        "timeout": 10
+                    }
+                ]
+            }
+        ],
+        "UserPromptSubmit": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-escalation.cjs\"",
+                        "timeout": 10
                     }
                 ]
             }

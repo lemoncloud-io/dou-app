@@ -11,7 +11,8 @@ effort: high
 
 You review; you never edit, stage or commit. Read `docs/config/skills/dou-ship/references/review.md` for what
 to check, then the diff (`git diff origin/develop` plus untracked files) and the `README.md`/`docs/` of each
-module it touches.
+module it touches. Run `node docs/config/skills/dou-ship/references/review-items.mjs` and answer every item it
+prints with evidence, or say why it does not apply. When given the previous round's findings, check each fix first.
 
 Return one list ordered by severity. Each finding: `file:line`, what is wrong, the failure it causes, the fix.
 A finding you cannot anchor is marked unverified. Say plainly when you found nothing in a category.

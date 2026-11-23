@@ -32,5 +32,12 @@ git --no-pager status --porcelain
 | Public surface | English, no internal paths or private issue numbers, no secrets             |
 | Branch name    | carries the domain noun of the work                                         |
 
+Diff-triggered questions: `node docs/config/skills/dou-ship/references/review-items.mjs` prints the `REVIEW.md`
+items the diff fires, read from `origin/develop` so a PR cannot edit its own checklist. Each fired item is answered
+with evidence or marked not applicable with the reason.
+
+Rounds: one reviewer. Each new round gets the previous round's findings, what was applied, and any gate or test
+failures since, so it checks the fixes instead of starting over.
+
 Hand back one list in the session. A finding without a `file:line` is marked unverified. Do not commit a
 review note as a file; what was applied goes in `Changes`, what was left alone goes in `To Reviewers`.

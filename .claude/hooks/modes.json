@@ -1,0 +1,6 @@
+{
+    "lint-edited-file": "observe",
+    "gate-before-commit": "observe",
+    "verify-before-stop": "observe",
+    "check-escalation": "observe"
+}

@@ -2,6 +2,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const { readInput, modeOf, decideBlock } = require('./lib.cjs');
+
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const SOURCE = /^(apps|libs|tools)\/.*\.(ts|tsx|js|jsx|mjs|cjs|kt|java|swift|m|mm)$/;
 const REPORT = /verify-report[^"'\s]*\.html/;
@@ -76,11 +78,18 @@ const readTranscript = file =>
         });
 
 if (require.main === module) {
-    const input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
+    const input = readInput();
     if (input.stop_hook_active || !input.transcript_path || !fs.existsSync(input.transcript_path)) process.exit(0);
     const root = process.env.CLAUDE_PROJECT_DIR || input.cwd || process.cwd();
     const verdict = evaluate(readTranscript(input.transcript_path), root);
-    if (verdict) process.stdout.write(`${JSON.stringify(verdict)}\n`);
+    const outcome = decideBlock({
+        name: 'verify-before-stop',
+        session: input.session_id,
+        mode: modeOf('verify-before-stop'),
+        block: Boolean(verdict),
+        detail: verdict ? { reason: verdict.reason.slice(0, 200) } : undefined,
+    });
+    if (outcome.blocked) process.stdout.write(`${JSON.stringify(verdict)}\n`);
 }
 
 module.exports = { isPrompt, thisTurn, shellEdits, evaluate };

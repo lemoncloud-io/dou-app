@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+const { readInput, modeOf, record } = require('./lib.cjs');
+
 const LINTED = /\.(ts|tsx|js|jsx|mjs|cjs)$/;
 const CONFIGS = ['eslint.config.mjs', 'eslint.config.js', 'eslint.config.cjs', 'eslint.config.ts'];
 
@@ -40,8 +42,15 @@ const lint = (input, root) => {
 
 if (require.main === module) {
     const root = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-    const message = lint(JSON.parse(fs.readFileSync(0, 'utf8') || '{}'), root);
-    if (message) {
+    const input = readInput();
+    const mode = modeOf('lint-edited-file');
+    const message = mode === 'off' ? null : lint(input, root);
+    if (message && mode === 'observe') {
+        record('lint-edited-file', { session: input.session_id, outcome: 'would-block', file: input.tool_input?.file_path });
+        process.stdout.write(
+            `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: message } })}\n`
+        );
+    } else if (message) {
         process.stderr.write(`${message}\n`);
         process.exit(2);
     }
