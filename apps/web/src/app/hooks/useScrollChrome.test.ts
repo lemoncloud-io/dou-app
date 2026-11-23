@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { scrollChromeOf, useScrollChrome } from './useScrollChrome';
 
 // jsdom lays nothing out, so each box is given the one coordinate the hook reads.
-const boxAt = (el: HTMLElement, top: number) => {
+const boxAt = <T extends HTMLElement>(el: T, top: number): T => {
     el.getBoundingClientRect = () => ({ top }) as DOMRect;
     return el;
 };

@@ -39,13 +39,7 @@ export const createLocalDataSources = (
     contextProvider: DataContextProvider,
     storages: LocalCacheStorages,
     options?: {
-        /**
-         * Identifies the storage routing `storages` were built under, stamped onto sync cursors so
-         * one written against a different routing cannot be trusted (ADR-0053). Only the assembler
-         * knows this — it is the layer that resolved the routing in the first place.
-         */
         routingFingerprint?: string;
-        /** The instant before which a sync cursor is not trusted — moved forward by a cache clear. */
         cursorsValidAfter?: () => number;
     }
 ): LocalDataSources => ({

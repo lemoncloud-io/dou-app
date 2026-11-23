@@ -1,7 +1,3 @@
-/**
- * `components/cost-monitor/CostSummary.tsx`
- * - The slot pool line and the four header cards: today, yesterday's estimate, its actual, the gap.
- */
 import { addDays, HOUR, utcDay } from '../lib/cost';
 import { pct, usd, type CostSummary as Summary } from '../lib/costRows';
 import { POOL_KEYS } from '../lib/display';
@@ -29,7 +25,6 @@ export const CostSummary = ({ date, summary, pool, actualsLoaded, actualsFailed 
     const yday = addDays(date, -1);
     const now = Date.now();
     const ydayOpen = now < utcDay(yday)[1];
-    // Cost Explorer fills the latest day late: 10-26 collected at 10-27 15:00 was about 17% short.
     const ydayFresh = now < utcDay(yday)[1] + 48 * HOUR;
     const calibrated = summary.calibratedOwn + summary.calibratedByAll > 0;
 

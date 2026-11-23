@@ -4,10 +4,6 @@ import { MemoryStore } from '@chatic/storage';
 
 import { createCoreSessionView } from './sessionView';
 
-// The view against the real stores and the real session signal, in memory: the order in which the
-// signal invalidates and notifies, and the writes that announce nothing, are what these check — a
-// mocked store cannot get either wrong.
-
 const relayToken = (uid: string, name: string) =>
     ({ uid, name, Token: { identityToken: `relay-${uid}` } }) as unknown as Parameters<
         typeof relayStore.saveRelayToken

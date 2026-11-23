@@ -2,22 +2,12 @@ import { isStatistic } from './recordKinds';
 
 import type { ReportLogRow } from './parseReportLog';
 
-/**
- * Statistics computed in the browser, over the population this screen already fetched.
- *
- * That population is a sample of the store: the server pages up to a cap and filters by date of
- * *arrival*. So every number here is "of what was fetched", and the screen says so — exact for a
- * narrow question (one trace, one version, a few days), a partial sample once the fetch hit its cap.
- * Long-range overviews and percentiles over everything are the server's job once it aggregates them.
- */
-
 export interface StatTagSummary {
     tag: string;
     kind: 'trace' | 'sample' | 'event';
     count: number;
 }
 
-/** The statistics tags present in the rows, busiest first. */
 export const statTagsOf = (rows: ReportLogRow[]): StatTagSummary[] => {
     const byTag = new Map<string, StatTagSummary>();
     for (const row of rows) {
@@ -29,7 +19,6 @@ export const statTagsOf = (rows: ReportLogRow[]): StatTagSummary[] => {
     return [...byTag.values()].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 };
 
-/** The measure a stat can be read by: a trace's duration, or one of its metrics. */
 export const DURATION = 'durationMs';
 
 export const measuresOf = (rows: ReportLogRow[]): string[] => {
@@ -41,7 +30,6 @@ export const measuresOf = (rows: ReportLogRow[]): string[] => {
     return [...names].sort((a, b) => (a === DURATION ? -1 : b === DURATION ? 1 : a.localeCompare(b)));
 };
 
-/** What a row can be grouped by: its attributes, and the context axes worth comparing. */
 const CONTEXT_GROUPS = ['appVersion', 'webVersion', 'platform', 'host', 'os', 'model', 'routeTemplate'] as const;
 
 export const groupKeysOf = (rows: ReportLogRow[]): string[] => {
@@ -59,15 +47,6 @@ const groupValueOf = (row: ReportLogRow, by: string): string => {
 const measureOf = (row: ReportLogRow, measure: string): number | undefined =>
     measure === DURATION ? row.durationMs : row.metrics?.[measure];
 
-/**
- * The value at a percentile of sorted values, by linear interpolation between the two closest ranks —
- * the definition spreadsheets use (`PERCENTILE.INC`), so a reader can check it by hand.
- *
- * Position `h = (n − 1) × p`; the value is `x[⌊h⌋] + (h − ⌊h⌋) × (x[⌊h⌋+1] − x[⌊h⌋])`. A single value is
- * every percentile of itself. Interpolating keeps a tail percentile from snapping to whichever record
- * happens to sit at the rank — on the small samples this view works with, that jump is most of the
- * difference between two runs of the same code.
- */
 export const percentile = (sorted: number[], p: number): number | undefined => {
     const n = sorted.length;
     if (!n) return undefined;
@@ -80,16 +59,9 @@ export const percentile = (sorted: number[], p: number): number | undefined => {
 
 export interface StatGroup {
     group: string;
-    /** Records in the fetched population. */
     n: number;
-    /**
-     * The count weighed by each record's sampling rate (`Σ 1/sr`) — an estimate of how many happened,
-     * when the policy kept only a share. Equal to `n` at 100%.
-     */
     estimated: number;
-    /** Distinct users among the records. */
     users: number;
-    /** Records that carry the measure. Percentiles are over these. */
     measured: number;
     p50?: number;
     p75?: number;
@@ -118,7 +90,6 @@ const summarize = (group: string, rows: ReportLogRow[], measure: string): StatGr
     };
 };
 
-/** One row per group value, busiest first, with an `(all)` total first when grouping. */
 export const statGroups = (rows: ReportLogRow[], measure: string, by: string): StatGroup[] => {
     const total = summarize('(all)', rows, measure);
     if (!by) return [total];
@@ -140,7 +111,6 @@ export interface HistogramBin {
     count: number;
 }
 
-/** Equal-width bins over the measure, for the distribution chart. Empty when nothing is measured. */
 export const histogram = (rows: ReportLogRow[], measure: string, bins = 20): HistogramBin[] => {
     const values = rows.map(row => measureOf(row, measure)).filter((v): v is number => v !== undefined);
     if (!values.length) return [];

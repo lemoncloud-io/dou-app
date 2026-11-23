@@ -12,79 +12,27 @@ import type { DataContext, DataContextProvider } from '../../repositories/types'
 import { stableHash } from '../stableHash';
 import { resolveScopedContext } from './policy';
 
-/**
- * The interface an actual storage implementation (IndexedDB, native, …) has to satisfy.
- * Every factory type above it connects through this interface.
- *
- * @template TType the cache domain type (e.g. 'channel', 'chat')
- */
 export interface CacheStorage<TType extends CacheType> {
     save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>>;
     saveAll(items: CacheModelOf<TType>[]): Promise<CacheModelOf<TType>[]>;
     load(id: string): Promise<CacheModelOf<TType> | null>;
-    /**
-     * Reads several rows by a list of ids. The result is the same as calling `load` per id.
-     *
-     * Ids that are absent are omitted from the result, so **the returned length and order do not match
-     * `ids`.** Callers have to re-index by id, e.g. `new Map(items.map(item => [item.id, item]))`.
-     * Pairing by position (`items[index]`) shifts everything after the first missing id.
-     */
     loadMany(ids: string[]): Promise<CacheModelOf<TType>[]>;
     loadAll(options?: CacheQueryOf<TType>): Promise<CacheModelOf<TType>[]>;
     delete(id: string): Promise<void>;
     deleteAll(ids: string[]): Promise<void>;
     clearAll(): Promise<void>;
     clearByChannelId(channelId: string): Promise<void>;
-    /**
-     * Reads, in one call, the latest preview per channel plus that channel's maximum chatNo (chat
-     * only, ADR-0057).
-     *
-     * Implementing it is optional. `null` means "this storage cannot provide this query" — an adapter
-     * that does not implement it (IndexedDB) and a transient native error both land here — and the caller (`ChatLocalDataSource`) falls back to a
-     * per-channel windowed read. Why IndexedDB does not implement it: the fallback path is in-process
-     * with no round-trip cost, so it is already the best option, and keeping two copies of the decision
-     * logic would only let the semantics drift.
-     *
-     * The returned array guarantees neither the requested order nor length — the caller re-indexes by
-     * channelId.
-     */
     loadLastPerChannel?(channelIds: string[]): Promise<LastChatItem[] | null>;
 
-    /**
-     * Whether this storage can answer the room media index queries below right now (chat only).
-     *
-     * Asked on every read, not once: the native storage learns what the installed shell handles from
-     * the handshake, whose answer can arrive after the storage was built. Absent or `false` means the
-     * caller pages through plain chat rows instead and indexes nothing — there is no index to fill.
-     */
     canQueryChatMedia?(): boolean;
 
-    /**
-     * One page of a room's media index for one kind: newest message first, entries of one message by
-     * `idx`, never splitting a message (`FetchChatMediaCacheDataPayload` states the rules). Each entry
-     * carries its message's row.
-     *
-     * The storage only reads what writes put there: the entries a chat row carries in `mediaEntries`.
-     * `null` is "cannot answer this read" (a transient native error), and the caller answers it the
-     * plain-row way.
-     */
     loadChatMedia?(query: ChatMediaQuery): Promise<ChatMediaPage | null>;
 
-    /** A room's index entries counted per kind, every kind present (0 for none). `null` as for `loadChatMedia`. */
     countChatMedia?(channelId: string): Promise<ChatMediaCounts | null>;
 
-    /**
-     * Writes entries for messages a room already had cached — the first-read fill — and never their rows.
-     * Per item, only while the message's row still exists and its `mediaEntriesVersion` (absent = 0) is
-     * below `version`; any other item is skipped, in the same transaction as the check. That is what
-     * keeps a write landing between the fill's read and this call — an edit, a delete mark, a delete, a
-     * clear — from being undone: it either stamped the row with the current version or removed it.
-     * Throws when the write did not happen, so the room is not marked filled.
-     */
     saveChatMediaEntries?(items: ChatMediaFillItem[], version: number): Promise<void>;
 }
 
-/** What `loadChatMedia` reads: one room, one kind, below `cursorNo` (newest when absent), about `limit` entries. */
 export interface ChatMediaQuery {
     channelId: string;
     kind: ChatMediaKind;
@@ -92,22 +40,14 @@ export interface ChatMediaQuery {
     limit: number;
 }
 
-/**
- * Shorthand for the model type held in a cache store.
- */
 export type CacheStorageItem<TType extends CacheType> = CacheModelOf<TType>;
 
-/**
- * The base schema for a record stored in the database.
- *
- * @template TType the cache domain type
- */
 export interface CacheSchema<TType extends CacheType> {
-    key: string; // Primary key (e.g., "channel:cid:uid:id")
-    type: TType; // CacheType (e.g., "channel")
+    key: string;
+    type: TType;
     cid: string;
     uid: string;
-    id: string; // Original ID
+    id: string;
     data: CacheModelOf<TType>;
 }
 
@@ -116,40 +56,10 @@ export type CacheStorageFactory = <TType extends CacheType>(
     contextProvider: DataContextProvider
 ) => CacheStorage<TType>;
 
-/**
- * One cache slot, handing out the storage for a given scope.
- *
- * **Why the scope is an argument.** An adapter picks its partition by asking its context provider at
- * call time. Handed the live provider, that means "whatever scope is current when the call lands" —
- * so a repository could capture its scope before a remote call and still have the answer written
- * wherever the session had moved on to. A cloud switch mid-refresh wrote cloud A's rows into cloud
- * B's partition (stamped `cid: A`), and a mid-sync switch let the stale prune read cloud B and delete
- * its channels. Asking the slot for a scope's storage is what makes the captured scope the one the
- * adapter sees.
- *
- * Only `cid` and `uid` are read — together they ARE the partition (`AdapterScope`). A context with no
- * `uid` gets a storage whose adapter has no scope and skips every operation, which is the
- * no-session rule `resolveBaseScope` states, unchanged.
- */
 export interface ScopedCacheStorage<TType extends CacheType> {
     forScope(context: DataContext): CacheStorage<TType>;
 }
 
-/**
- * Builds a slot that creates one storage per partition, on first use, and reuses it afterwards.
- *
- * The memo is keyed by the RESOLVED partition (`resolveScopedContext`), not by the raw context, so
- * contexts that land in the same partition share one instance — every context for `invitecloud`,
- * whose partition is fixed, and every uid-less context, which has none. Reuse is not only thrift: a
- * native adapter coalesces identical reads that are in flight at once, and it can only do that
- * across callers that share the instance.
- *
- * The map is not evicted. It holds one small object per partition the session has touched — one per
- * account and cloud visited — which stays small for the lifetime of a session.
- *
- * @param initialContext When given, the storage for this scope is built immediately (see
- *   {@link createCacheStorages} for why).
- */
 export const createScopedCacheStorage = <TType extends CacheType>(
     type: TType,
     storageFactory: CacheStorageFactory,
@@ -158,9 +68,6 @@ export const createScopedCacheStorage = <TType extends CacheType>(
     const byPartition = new Map<string, CacheStorage<TType>>();
 
     const forScope = (context: DataContext): CacheStorage<TType> => {
-        // A fixed provider, so the adapter's call-time read answers with THIS scope for the storage's
-        // whole life. Nothing but cid/uid is carried: they are all an adapter reads. Built here rather
-        // than with the repository layer's snapshot helper so this port depends on types alone.
         const scope: DataContext = { cid: context.cid, uid: context.uid };
         const provider: DataContextProvider = { getContext: () => scope, setContext: () => undefined };
         const partitionKey = stableHash(resolveScopedContext(type, provider));
@@ -188,16 +95,6 @@ export interface LocalCacheStorages {
     invite: ScopedCacheStorage<'invite'>;
 }
 
-/**
- * Assembles every cache slot.
- *
- * Each slot builds the storage for the scope current at assembly straight away. Nothing treats that
- * storage specially — it is simply the first entry of the slot's memo — but building it here keeps
- * the factory being called once per slot, in slot order, while the assembler is watching: that is
- * what the assembler's routing fingerprint (the stamp that retires sync cursors when a domain's
- * store moves) and its native-fallback report count. Left lazy, both would see nothing and the
- * fingerprint check would switch itself off.
- */
 export const createCacheStorages = (
     contextProvider: DataContextProvider,
     storageFactory: CacheStorageFactory

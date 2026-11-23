@@ -29,7 +29,10 @@ accounts live on. Sign-in goes through `/auth/debug`, the email
 sign-in a dev server offers and a build does not.
 
 A failure leaves a trace and a screenshot in `dist/.playwright/apps/desktop-web-e2e/test-results/`
-(`npx playwright show-trace <zip>` replays it).
+(`npx playwright show-trace <zip>` replays it). Every run also writes one self-contained HTML page of
+what ran — outcomes, and the screenshot of each failure — to
+`dist/.playwright/apps/desktop-web-e2e/evidence/index.html`, with web-e2e's evidence reporter
+([its README](../web-e2e/README.md) § Evidence report).
 
 ## Settings
 

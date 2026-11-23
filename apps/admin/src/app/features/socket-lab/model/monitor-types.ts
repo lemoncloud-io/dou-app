@@ -1,6 +1,3 @@
-/**
- * `model/monitor-types.ts`
- */
 export type RampMode = 'instant' | 'staged';
 
 export interface LoadConfig {

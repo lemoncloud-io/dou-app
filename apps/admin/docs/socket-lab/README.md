@@ -45,6 +45,12 @@ gate, not a new auth flow — it adds no sign-in code of its own.
 - **A cross-client latency matrix** (`A>B`, `B>A`, …) from those same markers.
 - **Loss**: a gap in one sender's sequence numbers is counted as messages lost on the way.
 
+The lab's auth gateway exposes only `update` and `linkAccount` — not the SDK gateway's `refresh`,
+`switch` or `logout`. A raw `refresh` packet would bypass everything that makes refresh safe (the
+epoch serialization, the controller's own token, the refresh timer rearm and the write-back that
+re-mints the AWS credentials), and `switch`/`logout` move session state the lab does not own, so
+leaving them out of the type is what keeps a caller from reaching them.
+
 A client only receives `chat.sync` for a channel it has declared it is viewing, so joining a
 channel with sync on declares viewing for it as the active channel. Where the server does not push `chat.sync`, the client
 falls back to reading `chat.feed` whenever channel sync shows the channel's `chatNo` has moved — so

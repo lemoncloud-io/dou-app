@@ -13,21 +13,6 @@ import {
 export interface IInviteLocalDataSource
     extends ILocalDataSource<DomainInvite, undefined, DomainListResult<DomainInvite>> {}
 
-/**
- * Persists the sender's own relay 1:1 invite cards locally (ADR-0052). Read-side of the
- * "render immediately, always revalidate" design: this class only ever answers with what is on disk —
- * revalidating against the server is `InviteRepository.list`'s job, not this class's.
- *
- * A plain field-spread merge on write is deliberate: `cacheWrite`/`cacheWriteMany` overwrite
- * every key the caller passes, but a key the caller never mentions (`dismissedAt`, stamped only
- * by `dismiss()`) survives untouched. The list-sync path (`InviteRepository.list`, via
- * `toCacheInviteView`) never emits `dismissedAt`, so a full list refresh naturally preserves it
- * without any special-cased field list — "response is authoritative for what it says, silent on
- * everything else" falls out of an ordinary merge.
- *
- * Rows outside the server's list window are never deleted by this class — there is no
- * `cacheDeleteMany` call on the list-sync path. Only debug tooling calls `cacheDelete` explicitly.
- */
 export class InviteLocalDataSource extends BaseLocalDataSource<'invite'> implements IInviteLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'invite'>) {
         super(contextProvider, storages);
@@ -43,8 +28,6 @@ export class InviteLocalDataSource extends BaseLocalDataSource<'invite'> impleme
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainInvite> | null> {
         const items = await this.storage(contextOverride).loadAll();
-        // Newest first, matching the server's `invite.list` order. Ties (equal/missing
-        // createdAt) break on `id` descending so ordering stays deterministic across reads.
         const list = [...items].sort((left, right) => {
             const byCreatedAt = (right.createdAt ?? 0) - (left.createdAt ?? 0);
             if (byCreatedAt !== 0) return byCreatedAt;

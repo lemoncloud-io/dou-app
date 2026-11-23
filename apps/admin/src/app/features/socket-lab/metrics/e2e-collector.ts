@@ -1,8 +1,3 @@
-/**
- * `metrics/e2e-collector.ts`
- * - A plain collector outside React. One instance is held per client.
- */
-/** The ratio-th percentile after sorting (rounded up). 0 for an empty array. */
 const percentile = (values: number[], ratio: number): number => {
     if (!values.length) return 0;
     const sorted = [...values].sort((a, b) => a - b);
@@ -14,9 +9,9 @@ export interface E2ESample {
     t0: number;
     t1: number;
     t2: number;
-    serverMs: number; // t1 - t0
-    renderMs: number; // t2 - t1
-    e2eMs: number; // t2 - t0
+    serverMs: number;
+    renderMs: number;
+    e2eMs: number;
 }
 
 export interface MetricsSummary {
@@ -50,7 +45,7 @@ export class E2ECollector {
     private readonly now: () => number;
     private readonly scheduleFrame: (cb: () => void) => void;
     private seq = 0;
-    private readonly pendingSend = new Map<number, number>(); // token -> t0
+    private readonly pendingSend = new Map<number, number>();
     private readonly sendSamples: E2ESample[] = [];
     private readonly recvSamples: E2ESample[] = [];
     private readonly rtts: number[] = [];

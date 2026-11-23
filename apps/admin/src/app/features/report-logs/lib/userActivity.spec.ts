@@ -73,7 +73,6 @@ describe('summarizeUser', () => {
             [report({ userName: '홍길동', timestamp: T0 + 2 * MIN })]
         );
         expect(summary).toMatchObject({ runs: 2, errors: 1, reports: 1, name: '홍길동', clouds: ['c1', 'c2'] });
-        // The newest value of each device field.
         expect(summary.device).toMatchObject({ model: 'iPhone15', appVersion: '0.29.2' });
         expect(summary.lastSeenAt).toBe(T0 + 2 * MIN);
     });

@@ -1,4 +1,3 @@
-/** Korean copy for the statistics tab's usage patterns view. */
 export const statsUsage = {
     empty: {
         title: '이 기간에는 사용 기록이 없어요',

@@ -66,7 +66,6 @@ describe('chatAttachmentFormat', () => {
         expect(chatAttachmentFormat({ name: 'a.doc', type: 'application/vnd.ms-excel' })).toBeNull();
     });
 
-    // The server has no alias for it: a CSV that Windows types as an Excel sheet is refused there with a 400.
     it('does not alias the type Windows gives a CSV to text/csv', () => {
         expect(chatAttachmentFormat({ name: 'a.csv', type: 'application/vnd.ms-excel' })).toBeNull();
     });
@@ -88,7 +87,6 @@ describe('chatAttachmentFormat', () => {
         expect(chatAttachmentFormat({ name: 'page.html', type: 'text/plain' })).toBeNull();
     });
 
-    // Most systems do not know HWP, and the browser hands such a file over with an empty type.
     it('reads an empty or generic type from the extension, in any case', () => {
         expect(chatAttachmentFormat({ name: '보고서.HWP', type: '' })).toEqual({
             type: 'application/x-hwp',
@@ -99,11 +97,9 @@ describe('chatAttachmentFormat', () => {
             'application/hwp+zip'
         );
         expect(chatAttachmentFormat({ name: 'logs.ZIP', type: '' })?.type).toBe('application/zip');
-        // An Android pick the system could not type arrives under the generic one.
         expect(chatAttachmentFormat({ name: 'a.zip', type: 'application/octet-stream' })?.type).toBe('application/zip');
     });
 
-    // Chromium on Windows types a `.zip` by the registry's name for it, not the registered one.
     it('maps the names a ZIP archive is sometimes typed with', () => {
         for (const type of ['application/x-zip-compressed', 'application/x-zip']) {
             expect(chatAttachmentFormat({ name: 'logs.zip', type })).toEqual({
@@ -121,9 +117,6 @@ describe('chatAttachmentFormat', () => {
         ['기안.hwpx', 'application/hwp+zip'],
     ];
 
-    // DOCX, XLSX, PPTX and HWPX are ZIP containers, and the browser types them by whichever app owns the
-    // extension on that machine: as a ZIP where none does, or under another suite's own name. The
-    // vendor-style type below is illustrative, not one observed on a failing machine.
     it('sends an office file typed as a ZIP or as a type the server does not know as its document', () => {
         for (const [name, sent] of OFFICE) {
             for (const type of [
@@ -168,8 +161,6 @@ describe('chatAttachmentFormat', () => {
         );
     });
 
-    // The server refuses a video or document whose name does not end in its format's extension.
-    // An audio file goes as `file`, under the server's type whatever alias it came with.
     it('takes an audio file under the names systems type it with, as a document', () => {
         for (const [name, type, sent] of [
             ['memo.m4a', 'audio/x-m4a', 'audio/mp4'],
@@ -184,7 +175,6 @@ describe('chatAttachmentFormat', () => {
         }
     });
 
-    // The server keeps four audio formats: AAC and WebM are not among them, however they are typed.
     it('refuses AAC and WebM audio, and an MP4 video named as audio', () => {
         expect(chatAttachmentFormat({ name: 'clip.aac', type: 'audio/aac' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'clip.aac', type: 'audio/x-aac' })).toBeNull();
@@ -197,7 +187,6 @@ describe('chatAttachmentFormat', () => {
         expect(chatAttachmentFormat({ name: 'report', type: 'application/pdf' })?.name).toBe('report.pdf');
         expect(chatAttachmentFormat({ name: 'minutes v1.2', type: 'text/plain' })?.name).toBe('minutes v1.2.txt');
         expect(chatAttachmentFormat({ name: '.pdf', type: 'application/pdf' })?.name).toBe('.pdf.pdf');
-        // A tail that is no format's extension would otherwise be saved as, say, a script.
         expect(chatAttachmentFormat({ name: 'run.js', type: 'text/plain' })?.name).toBe('run.js.txt');
         expect(chatAttachmentFormat({ name: 'logs', type: 'application/zip' })?.name).toBe('logs.zip');
     });
@@ -208,13 +197,11 @@ describe('chatAttachmentFormat', () => {
         expect(chatAttachmentFormat({ name: 'x.pdf', type: 'application/zip' })).toBeNull();
     });
 
-    // The server does not check an image's name, and renaming one would only confuse the sender.
     it('leaves an image name alone', () => {
         expect(chatAttachmentFormat({ name: 'photo', type: 'image/jpeg' })?.name).toBe('photo');
         expect(chatAttachmentFormat({ name: 'photo.jpeg', type: 'image/png' })?.name).toBe('photo.jpeg');
     });
 
-    // Only a type that says nothing is read from the name; a real type the server refuses stays refused.
     it('refuses a file typed as an unsupported format whatever its name says', () => {
         expect(chatAttachmentFormat({ name: 'x.png', type: 'image/heic' })).toBeNull();
         expect(chatAttachmentFormat({ name: 'x.png', type: 'image/svg+xml' })).toBeNull();
@@ -256,7 +243,6 @@ describe('isChatAttachmentNameTooLong', () => {
         expect(isChatAttachmentNameTooLong('😀'.repeat(64))).toBe(true);
     });
 
-    // macOS hands over Hangul decomposed (three jamo per syllable); the server measures it composed.
     it('measures a decomposed name composed, as the server does', () => {
         const name = '가'.repeat(85).normalize('NFD');
         expect(new TextEncoder().encode(name).length).toBeGreaterThan(CHAT_ATTACHMENT_MAX_NAME_BYTES);
@@ -265,7 +251,6 @@ describe('isChatAttachmentNameTooLong', () => {
 });
 
 describe('CHAT_ATTACHMENT_ACCEPT', () => {
-    // An OS picker filters by what `accept` names; HWP has no type it knows, so only `.hwp` lets it through.
     it('names every type and every extension, for a picker that knows only one of them', () => {
         const accept = CHAT_ATTACHMENT_ACCEPT.split(',');
         expect(accept).toEqual(
@@ -317,7 +302,6 @@ describe('chatAttachmentAccept', () => {
         );
     });
 
-    // An app that sends fewer formats than the server takes leaves them out of its picker.
     it('leaves out the formats the app does not send', () => {
         const accept = chatAttachmentAccept(['file'], format => format.type !== CHAT_ATTACHMENT_ZIP_TYPE).split(',');
 
@@ -326,7 +310,6 @@ describe('chatAttachmentAccept', () => {
         expect(accept).toEqual(expect.arrayContaining(['application/pdf', '.hwpx']));
     });
 
-    // Every app sends audio now, the phone included, so a picker for files offers all four.
     it('offers the four audio formats among files, by type and by extension', () => {
         const accept = chatAttachmentAccept(['file']).split(',');
 

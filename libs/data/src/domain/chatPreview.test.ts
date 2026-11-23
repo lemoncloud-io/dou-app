@@ -9,9 +9,6 @@ import {
     pickPreviewChat,
 } from './chatPreview';
 
-// The preview-decision cases that apps/web's useLastChat (the per-row subscription hook, retired by
-// ADR-0057) used to cover, ported to a pure-function unit. This decision is shared by the home and
-// admin list renders and by the last-chat fallback path.
 const chat = (chatNo: number, content: string, fields: Partial<DomainChat> = {}): DomainChat =>
     ({ chatNo, content, ...fields }) as unknown as DomainChat;
 
@@ -24,9 +21,6 @@ describe('pickPreviewChat', () => {
         expect(pickPreviewChat([chat(5, 'a'), chat(9, 'c'), chat(7, 'b')])).toEqual(chat(9, 'c'));
     });
 
-    // ADR-0047 decision 3 — when reactions pile onto one message and the newest rows are all reaction
-    // events, it still has to reach the last real message beneath them (guarding the blank-preview
-    // regression).
     it('reaches the real message beneath even when reaction events fill the window', () => {
         const burst = Array.from({ length: 25 }, (_, i) =>
             chat(10 + i, '', { ownerId: 'u1', stereo: 'system', subType: 'reaction' })
@@ -44,7 +38,6 @@ describe('pickPreviewChat', () => {
         expect(picked?.chatNo).toBe(3);
     });
 
-    // The room's feed leaves replies to the thread page, so the preview does too.
     it('skips a thread reply and keeps the newest top-level message', () => {
         const top = chat(3, 'hello', { ownerId: 'u1', stereo: 'user' });
         const reply = chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' });
@@ -97,8 +90,6 @@ describe('compareByChatNo', () => {
     });
 });
 
-// A revision notice is what the server writes each time a message is edited or deleted. It says
-// which message changed; it is not a message, and in the feed it would be an empty notice line.
 describe('isEventChat / isFeedVisible — revision notices', () => {
     const revision = (fields: Partial<DomainChat> = {}) =>
         chat(12, '', { stereo: 'system', subType: 'edit', edit$: { action: 'update', chatId: 'C1:4' }, ...fields });

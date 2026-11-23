@@ -54,7 +54,13 @@ jest.mock('../../../runtime/useLogoutCloudSession', () => ({
 }));
 
 const K = 'mypage.cloudManage';
-const cloud = { id: 'CL2', name: '작업용', email: 'b@example.com', status: 'active', createdAt: 1_700_000_000_000 };
+const cloud = {
+    id: 'CL2',
+    name: '작업용',
+    email: 'b@example.com',
+    status: 'active',
+    createdAt: 1_700_000_000_000,
+} satisfies Partial<CloudView>;
 
 /** Opens the confirm dialog from the destructive row and presses its confirm button. */
 const releaseCloud = () => {

@@ -1,6 +1,3 @@
-/**
- * `api/memberships/membershipsQuery.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { buildMembershipListParams, patchMembershipRow } from './membershipsQuery';
@@ -33,7 +30,6 @@ describe('buildMembershipListParams', () => {
         });
     });
 
-    // A missing key means no filter, but an empty string is still matched as-is.
     it('빈 문자열 필터는 아예 보내지 않는다', () => {
         expect(buildMembershipListParams({ status: '', productId: '', platform: '', userId: '' })).toEqual({
             page: 0,
@@ -70,7 +66,6 @@ describe('patchMembershipRow', () => {
         expect(next?.list[1]).toEqual({ userId: '1000905', status: 'active' });
     });
 
-    // The unfiltered page doesn't have that user — nothing changes, and total is left alone too.
     it('없는 유저면 목록을 그대로 둔다', () => {
         const next = patchMembershipRow(page(), '9999', { userId: '9999' } as MembershipView);
 

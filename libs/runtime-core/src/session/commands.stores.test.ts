@@ -4,10 +4,6 @@ import { MemoryStore } from '@chatic/storage';
 import { createCoreSessionCommands } from './commands';
 import { createCoreSessionView } from './sessionView';
 
-// The rule every command keeps — it resolves only once the session view shows its change — checked
-// for the core commands against the real stores: a screen that awaits a command and then reads the
-// session must not read the session from before it.
-
 beforeEach(() => {
     sessionStores.configure({ secret: new MemoryStore(), plain: new MemoryStore() });
     relayStore.configureEndpoints({ backend: () => 'https://relay', wss: () => 'wss://relay' });

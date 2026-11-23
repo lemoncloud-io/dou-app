@@ -1,11 +1,3 @@
-/**
- * `components/report-logs/ReportDetailPanel.spec.tsx`
- *
- * The panel shell is the genuinely new code in the drawer→panel change;
- * `ReportDetailBody.spec.tsx` covers the sections, which moved across unchanged. What is
- * tested here is the header: the three pin affordances and their active/unpin logic, the
- * lag badge, the clipboard payload, and the empty state.
- */
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
@@ -13,7 +5,6 @@ import { i18n } from '../../../i18n';
 import type { ReportLogRow } from '../lib/parseReportLog';
 import { ReportDetailPanel } from './ReportDetailPanel';
 
-// The assertions below read the English copy; Korean is the console's default.
 beforeAll(async () => {
     await i18n.changeLanguage('en');
 });
@@ -79,8 +70,6 @@ describe('ReportDetailPanel — 추적 핀', () => {
     });
 
     it('offers to unpin the axis that is already pinned', () => {
-        // The comparison that decides this is `pinned.uid === uid` — the kind of thing
-        // that silently inverts.
         const { onUnpin, onPin } = setup({}, { pinned: { uid: 'u1' } });
 
         fireEvent.click(screen.getByTitle('Untrack user — u1'));
@@ -127,8 +116,6 @@ describe('ReportDetailPanel — 시각', () => {
 
 describe('ReportDetailPanel — 헤더 동작', () => {
     it('copies the record with attachments redacted', async () => {
-        // A single attached screenshot is ~100 KB of base64; the Raw block on screen
-        // already redacts, and the clipboard must not diverge from it.
         const writeText = vi.fn().mockResolvedValue(undefined);
         Object.assign(navigator, { clipboard: { writeText } });
         const image = `data:image/png;base64,${'A'.repeat(500)}`;

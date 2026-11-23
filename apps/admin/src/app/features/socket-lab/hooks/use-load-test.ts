@@ -1,7 +1,3 @@
-/**
- * `hooks/use-load-test.ts`
- * - Probe/Load test simulation
- */
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { Cell, CurvePoint, LoadConfig, LoadReport, RunState, SavedRun, Verdict } from '../model/monitor-types';

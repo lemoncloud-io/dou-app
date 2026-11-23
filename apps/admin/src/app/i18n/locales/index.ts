@@ -1,11 +1,3 @@
-/**
- * `i18n/locales/index.ts`
- * - Every word the console shows, in both languages, collected in one place.
- *
- * One file per namespace per language. Each English file is typed as its Korean twin, so a key
- * missing from either side fails to compile, and `locales.spec.ts` checks the same at run time —
- * including for the event names, which are a plain map rather than i18next keys.
- */
 import { allLogs as allLogsEn } from './en/allLogs';
 import { common as commonEn } from './en/common';
 import { errors as errorsEn } from './en/errors';
@@ -71,8 +63,4 @@ export const resources = {
     },
 } as const;
 
-/**
- * Display names for log tags and their areas, by language. A plain map, not i18next keys: tags
- * carry dots (`perf.chat_room_open`), which i18next would read as nesting.
- */
 export const EVENT_NAMES = { ko: eventsKo, en: eventsEn } as const;

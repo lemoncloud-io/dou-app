@@ -24,16 +24,11 @@ export class DataManager implements IDataManager {
     private readonly repositoryOptions: DataRepositoriesOptions;
 
     constructor(repositoryOptions?: DataRepositoriesOptions, cacheOptions?: CacheAssemblyOptions) {
-        // One state outbox for every graph this manager builds — the app graph and each cloud's — so a
-        // value set in one is the same queued value wherever it is set again. Its writes go out through
-        // the scoped graph of the cloud they name.
         this.repositoryOptions = {
             ...repositoryOptions,
             outbox: repositoryOptions?.outbox ?? createRuntimeOutbox(cid => this.getScopedRepositories(cid)),
         };
         const { socketDataSources } = createSocketDataSources();
-        // Local sources get the SELECTED scope only — no `socketCid`. Their job is to key cache partitions
-        // (`${type}:${cid}:${uid}:${id}`), and the bound-socket view is a repository-level judgement.
         const selectedContextProvider: DataContextProvider = {
             getContext: deriveSelectedContext,
             setContext: () => undefined,
@@ -42,19 +37,8 @@ export class DataManager implements IDataManager {
             contextProvider: selectedContextProvider,
             cache: cacheOptions,
         });
-        // Late Step 2 (ADR-0070) — no app-visible change until Step 4, when the REST hooks actually
-        // move over: the repository is assembled with this data source present, but there is no
-        // consumer of it before Step 4.
         this.httpDataSources = createHttpDataSources().httpDataSources;
 
-        // Repositories see the scope, not the raw holder: it augments the intent with the live
-        // socket's bound cloud (socketCid), so a refresh/sync running while the socket still serves
-        // the OUTGOING cloud (cid already flipped optimistically) can detect the mismatch and skip
-        // the write instead of poisoning the target partition. Replaces the anonymous
-        // `socketAwareProvider` glue that used to live here (ADR-0070 Decision 7).
-        // `getSocketManager()` is resolved per call, not captured: the runtime is assembled lazily,
-        // so holding the instance from construction time would pin a manager that may not exist yet
-        // (and would miss a runtime re-configure). Mirrors the previous inline glue exactly.
         const scope = new ActiveScope(
             deriveSelectedContext,
             { getBoundCid: () => getSocketManager().getBoundCid() },
@@ -81,9 +65,6 @@ export class DataManager implements IDataManager {
     public getScopedRepositories(cid: string): DataRepositories {
         let repositories = this.scopedRepositories.get(cid);
         if (!repositories) {
-            // The local sources are the app graph's own, not a copy: an observer is registered on
-            // the data source instance, so a write made here has to reach the same instance to wake
-            // the screen watching that partition.
             const { socketDataSources } = createSocketDataSources(getSocketManager().getScopedClient(slotKeyOf(cid)));
             repositories = createRepositories({
                 socketDataSources,
@@ -98,8 +79,6 @@ export class DataManager implements IDataManager {
     }
 
     public getScopedContext(cid: string): DataContext {
-        // `socketCid` is the cloud itself because every socket call this graph makes goes through
-        // that cloud's slot, so there is no other socket whose answer could land here.
         return { cid, uid: getUidInCloud(cid) ?? undefined, socketCid: cid };
     }
 }

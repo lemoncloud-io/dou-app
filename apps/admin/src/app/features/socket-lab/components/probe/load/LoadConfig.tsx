@@ -68,7 +68,6 @@ export default function LoadConfig({ load }: LoadConfigProps) {
 
     return (
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 14, alignItems: 'start' }}>
-            {/* CONFIG */}
             <div
                 style={{
                     background: 'var(--sm-sidebar)',
@@ -233,7 +232,6 @@ export default function LoadConfig({ load }: LoadConfigProps) {
                 </div>
             </div>
 
-            {/* PRESETS + RUN */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div
                     style={{

@@ -27,8 +27,6 @@ describe('ReportHttpDataSource', () => {
         expect(gateway.uploadLogBatch).toHaveBeenCalledWith({ list: [{ id: 'a' }, { id: 'b' }] });
     });
 
-    // The uploader classifies a failed batch by HTTP status; an error re-wrapped here would lose it
-    // and every failure would read as "retry forever".
     it('re-throws the gateway error untouched — the status the uploader classifies must survive', async () => {
         const error = Object.assign(new Error('HTTP 400'), { response: { status: 400 } });
         gateway.uploadLogBatch.mockRejectedValue(error);

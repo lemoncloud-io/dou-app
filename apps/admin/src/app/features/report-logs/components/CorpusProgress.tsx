@@ -1,13 +1,3 @@
-/**
- * `components/report-logs/CorpusProgress.tsx`
- * - Says how much of the filtered range is actually in front of the operator.
- *
- * Every count, facet and chart on this screen is computed over the collected corpus, not
- * over the server's full result set. When the two differ, saying so is not a disclaimer —
- * it is the difference between "no errors on the new version" and "no errors in the
- * 5,000 rows I happened to read". So the truncated state names the fix (narrow the range)
- * rather than just flagging a limit.
- */
 import { useT } from '../../../i18n';
 import type { CorpusPhase } from '../hooks/use-log-corpus';
 import { formatAgo, formatDateTime, formatNumber } from '../lib/timeFormat';
@@ -18,17 +8,10 @@ interface CorpusProgressProps {
     total: number;
     cap: number;
     error: Error | null;
-    /**
-     * When the rows on screen were fetched. Only surfaced once they are old enough to
-     * matter: a count read as "now" when it is ten minutes old is the kind of quiet
-     * wrongness this screen is built to avoid, but stamping an age on rows that just
-     * arrived is noise.
-     */
     fetchedAt?: number;
     onRetry: () => void;
 }
 
-/** Below this the rows are current enough that stamping an age on them is just noise. */
 const HELD_NOTICE_MS = 60_000;
 
 export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, onRetry }: CorpusProgressProps) => {
@@ -47,8 +30,6 @@ export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, on
     }
 
     if (phase === 'collecting') {
-        // The denominator is the server's total, so the operator can see how much is left
-        // before deciding whether to wait or narrow the range now.
         const pct = total > 0 ? Math.min(100, Math.round((loaded / Math.min(total, cap)) * 100)) : 0;
         return (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -64,11 +45,8 @@ export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, on
         );
     }
 
-    // Appended to a settled state rather than replacing it: what was collected is still
-    // what is on screen, the only extra fact is when.
     const isHeld = fetchedAt !== undefined && Date.now() - fetchedAt >= HELD_NOTICE_MS;
     const held = isHeld ? t('progress.held', { ago: formatAgo(fetchedAt, lng) }) : '';
-    // The age is relative, so the instant it stands for sits in the tooltip.
     const heldTitle = isHeld ? formatDateTime(fetchedAt, lng, { seconds: true }) : undefined;
 
     if (phase === 'truncated') {

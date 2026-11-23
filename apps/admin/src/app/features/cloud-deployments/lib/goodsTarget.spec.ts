@@ -1,11 +1,7 @@
-/**
- * `lib/cloud-deployments/goodsTarget.spec.ts`
- */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { describeGoodsTarget, douBaseFor, goodsBaseFor } from './goodsTarget';
 
-// The two stages on different hosts, as they are once the dev stage moved domain.
 const stubStages = () => {
     vi.stubEnv('VITE_D1_GOODS_ENDPOINT', 'https://dev.example.com/cgs-d1');
     vi.stubEnv('VITE_V1_GOODS_ENDPOINT', 'https://prod.example.com/cgs-v1/');

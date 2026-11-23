@@ -12,11 +12,6 @@ export interface ICloudSocketDataSource {
     updateCloud(payload: CloudUpdateInput, context: DataContext): Promise<DomainCloud>;
 }
 
-/**
- * Cloud remote source. Single boundary where cloud API views become domain
- * models; callers receive domain shapes only. The request-time `context`
- * is supplied by the caller to keep a late response on its original scope.
- */
 export class CloudSocketDataSource implements ICloudSocketDataSource {
     constructor(private readonly gateway: CloudSocketDomainGateway) {}
 

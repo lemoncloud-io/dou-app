@@ -16,7 +16,7 @@ describe('snackbar (ui-kit Toaster in apps/web)', () => {
         raise();
 
         const viewport = screen.getByRole('region', { name: 'Notifications' }).querySelector('ol');
-        const classes = [...(viewport?.classList ?? [])];
+        const classes = Array.from(viewport?.classList ?? []);
         expect(classes).toEqual(expect.arrayContaining(['bottom-0', 'top-auto']));
         expect(classes).not.toContain('top-0');
         expect(viewport?.style.getPropertyValue('--snackbar-offset')).toBe(SNACKBAR_OFFSET);
@@ -32,7 +32,7 @@ describe('snackbar (ui-kit Toaster in apps/web)', () => {
         raise();
 
         const item = screen.getByText('Place notifications are off.').closest('li');
-        expect([...(item?.classList ?? [])]).toEqual(
+        expect(Array.from(item?.classList ?? [])).toEqual(
             expect.arrayContaining([
                 'data-[state=open]:animate-snackbar-in',
                 'data-[state=closed]:animate-snackbar-out',
@@ -44,7 +44,7 @@ describe('snackbar (ui-kit Toaster in apps/web)', () => {
         expect(item?.className).not.toMatch(/animate-(slide-in-from-top|slide-out-to-top|fade-in|fade-out)\b/);
         // Reduced motion has to name each state: a bare `motion-reduce:animate-none` loses to the
         // state rules on specificity.
-        expect([...(item?.classList ?? [])]).toEqual(
+        expect(Array.from(item?.classList ?? [])).toEqual(
             expect.arrayContaining([
                 'motion-reduce:data-[state=open]:animate-none',
                 'motion-reduce:data-[state=closed]:animate-none',

@@ -6,24 +6,8 @@ import { runtime } from '@chatic/runtime';
 import { useRelaySessionGuard } from '../hooks/useRelaySessionGuard';
 import { useSocketWakeRecovery } from '../hooks/useSocketWakeRecovery';
 
-/**
- * The user repository as the runtime hands it out. Derived from the hook rather than imported from
- * `@chatic/data`, so this console depends on `@chatic/runtime` alone — the runtime is the single
- * window an app looks through, and a type import is enough to make the second package part of this
- * app's build surface.
- */
 type UserRepository = ReturnType<typeof runtime.data.useRuntimeRepositories>['user'];
 
-/**
- * Optimistic profile read for the gate: the profile if the current token still works, else null.
- *
- * The swallow lives HERE, in the caller, on purpose. `data`'s own layers reject on failure and say
- * so (`UserHttpDataSource` — "errors bubble, matching the gateway (no swallow-and-null here
- * either)"), because null-vs-throw is a screen policy: this gate renders its retry state on null
- * and must never get an alert or a redirect out of the call. It used to be `tryFetchProfile` in
- * `@chatic/runtime`, which made one app's gate policy part of the shared runtime surface
- * (ADR-0070, decision 5, following option ②).
- */
 const tryFetchProfile = async (user: UserRepository) => {
     try {
         const data = await user.tryFetchProfile();
@@ -37,7 +21,6 @@ interface ProtectedRouteProps {
     children: React.ReactNode;
 }
 
-/** Full-screen centered card for the pre-entry gate states (checking permission / denied). */
 const GateScreen = ({ children }: { children: React.ReactNode }) => (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
         <div className="w-full max-w-md space-y-4 rounded-lg border border-border bg-card p-8 text-center">
@@ -46,12 +29,6 @@ const GateScreen = ({ children }: { children: React.ReactNode }) => (
     </div>
 );
 
-/**
- * Auth + admin gate for the console. Beyond the session flag, entry requires the relay profile's
- * `$role.role === 'admin'` (GET /users/0/profile) — the backend enforces the same role on the admin
- * endpoints (e.g. `/mocks/0/list`), so gating here keeps non-admins out of a console that would
- * only show 403s. `tryFetchProfile` never alerts/redirects; a null result renders the retry state.
- */
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const { userId } = runtime.session.useSessionIdentity();
@@ -59,16 +36,10 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     const navigate = useNavigate();
     const { user } = runtime.data.useRuntimeRepositories();
 
-    // Keep HTTP signing credentials fresh while the console is open (and kick truly dead
-    // sessions back to the login screen instead of leaving pages to 403).
     useRelaySessionGuard(isAuthenticated);
 
-    // And give that guard something to succeed with: a socket wedged by sleep or a dropped link
-    // cannot carry the refresh at all, so kick it the moment the console is back in front.
     useSocketWakeRecovery(isAuthenticated);
 
-    // Keyed by userId so a logout → login as another account never reuses the previous
-    // account's cached role.
     const {
         data: profile,
         isPending,

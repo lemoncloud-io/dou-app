@@ -1,7 +1,3 @@
-/**
- * `api/userApi.ts`
- * - List of observed users (real data).
- */
 import { runtime } from '@chatic/runtime';
 
 import { stageEndpoint, stageEndpointKey } from '../../../config/stageEndpoints';
@@ -44,10 +40,6 @@ export interface UserSearchPage {
 
 export type UsersStage = 'd1' | 'v1';
 
-/**
- * The socket service's user and presence base for a stage (`VITE_<STAGE>_PRESENCE_ENDPOINT`). Throws
- * when unset — an empty base would turn every call into a same-origin path.
- */
 export const getUsersBase = (stage: UsersStage): string => {
     const base = stageEndpoint('presence', stage);
     if (!base) throw new Error(`${stageEndpointKey('presence', stage)} is not set — no presence service on ${stage}.`);

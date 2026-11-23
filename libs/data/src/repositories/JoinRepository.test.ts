@@ -3,8 +3,6 @@ import { JoinRepository } from './JoinRepository';
 
 describe('JoinRepository', () => {
     const createRepository = () => {
-        // The socket, the cache and the outbox are each a seam, so which half of a write went where is
-        // explicit.
         const joinSocketDataSource = {
             readChat: jest.fn(),
             updateJoin: jest.fn(),

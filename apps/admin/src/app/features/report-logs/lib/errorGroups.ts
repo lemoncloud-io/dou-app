@@ -1,20 +1,3 @@
-/**
- * `lib/report-logs/errorGroups.ts`
- * - Errors grouped into incidents (one per tag), with how often, for how many people, since when.
- *
- * Two sources can answer "how many", and the honest answer depends on which one covers the period:
- *
- * - **The fetched rows**, when they hold the whole period. The fetch stops at one page, newest
- *   first, so it holds the whole period exactly when it was not cut short, or when it reaches back
- *   past the period's start. Then every number — count, people, first and last time, the trend — is
- *   exact for the window, at the minute, by occurrence time.
- * - **The server's aggregation** otherwise. It counts the whole match whatever the page size, but
- *   only over whole days by arrival time. Per-incident people and first/last times are not something
- *   it can give per tag, so those still come from the fetched rows and are marked partial.
- *
- * When the period is narrower than a day (`1h`, `24h`), the server's days are wider than the window,
- * and `wideSpan` says so rather than presenting a day's count as an hour's.
- */
 import type { LogListStats } from '../api/reportLogApi';
 import { eventAt } from './eventTime';
 import type { ReportLogRow } from './parseReportLog';
@@ -23,13 +6,10 @@ import { inWindow, type ResolvedPeriod } from './period';
 export interface ErrorGroup {
     tag: string;
     count: number;
-    /** Distinct users among the fetched rows of this incident. */
     users: number;
     firstAt?: number;
     lastAt?: number;
-    /** Counts per equal slice of the window, for a sparkline. */
     spark: number[];
-    /** The newest fetched row of the incident. */
     latest?: ReportLogRow;
 }
 
@@ -43,28 +23,20 @@ export interface ErrorOverview {
     total: number;
     users?: number;
     trend: TrendBucket[];
-    /** Where `count`, `total` and `users` come from. */
     source: 'rows' | 'server';
-    /** Per-incident people, first/last and sparklines are from part of the period only. */
     partial: boolean;
-    /** Server numbers cover whole days wider than the window. */
     wideSpan: boolean;
 }
 
 export interface ErrorOverviewInput {
-    /** Fetched error rows, newest arrival first. */
     rows: ReportLogRow[];
-    /** The fetch stopped before the end of the match. */
     truncated: boolean;
     period: Pick<ResolvedPeriod, 'fromMs' | 'toMs' | 'exact'>;
-    /** The server's aggregation, when it answered with one. */
     stats?: LogListStats;
-    /** Size of the whole match, from the server. */
     serverTotal?: number;
     sparkBuckets?: number;
 }
 
-/** True when the fetched rows hold every record of the window. */
 export const coversWindow = (rows: ReportLogRow[], truncated: boolean, fromMs: number): boolean =>
     !truncated || rows.some(row => row.createdAt !== undefined && row.createdAt <= fromMs);
 
@@ -78,7 +50,6 @@ const slices = (times: number[], fromMs: number, toMs: number, count: number): n
     return out;
 };
 
-/** Trend buckets for the window from the rows: hourly up to two days, daily beyond. */
 const rowTrend = (times: number[], fromMs: number, toMs: number): TrendBucket[] => {
     const hour = 3_600_000;
     const width = toMs - fromMs <= 2 * 24 * hour ? hour : 24 * hour;

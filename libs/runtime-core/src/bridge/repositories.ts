@@ -2,27 +2,6 @@ import type { PageAuthRepository, PagePairingRepository, PageRepositories } from
 import type { RuntimeData } from '../data/runtimeData';
 import type { CheckedCrossing, PromiseCrossing } from './wire';
 
-/**
- * How a repository method crosses, read off its signature so a table entry that disagrees with the
- * method does not compile:
- *
- * - `call` — the method returns a promise: one `RuntimeCall`, answered with what it resolves to;
- * - `receipt` — the method resolves with a write receipt (`{ delivered: Promise }`, `@chatic/data`'s
- *   outbox): the local half answers at once and the server's half settles later, which a promise in
- *   the result cannot carry. It crosses as a `RuntimeSubscribe` under the method's own name, whose
- *   events are `{ written }` once the local half is done and `{ delivered: true }` once the server has
- *   it; the method's failure, and a refused delivery, are the stream's `{ $ended: failure }`;
- * - `stream` — an `observe*` method, which returns its unsubscribe: a `RuntimeSubscribe` whose events
- *   are the callback's arguments, until the page unsubscribes;
- * - `send` — the method returns nothing: one `RuntimeCall` its caller does not wait for;
- * - `local` — the method answers synchronously with a value. That cannot cross: a page that mirrors
- *   another process's runtime has no answer to give in the same turn, so the method works only with the
- *   runtime in the page.
- *
- * A method whose promise resolves with anything else JSON cannot carry — a function, a promise, a `Map`
- * — has no crossing it can be listed with (`NotOnTheWire`): its entry fails to compile, with the part
- * that does not cross in the message.
- */
 type RepositoryCrossing = 'call' | 'receipt' | 'stream' | 'send' | 'local';
 
 type CrossingOf<Method> = Method extends (...args: never[]) => infer Result
@@ -35,7 +14,6 @@ type CrossingOf<Method> = Method extends (...args: never[]) => infer Result
             : 'local'
     : 'local';
 
-/** The crossing every method of `Repository` must be listed with. */
 type CrossingsOf<Repository> = { [Method in keyof Repository]: CrossingOf<Repository[Method]> };
 
 export const REPOSITORY_METHODS = {
@@ -245,9 +223,6 @@ export const REPOSITORY_METHODS = {
         setSyncedAt: 'call',
         cacheClear: 'call',
     } satisfies CrossingsOf<PageRepositories['syncMeta']>,
-    // Keyed by every repository, so one added to the graph and left out here does not compile. The
-    // mirror builds its graph from this table alone, so a repository missing from it is simply absent
-    // from a page whose session the shell owns — `webhook` was, and the room settings fell over on it.
 } as const satisfies { [Repository in keyof PageRepositories]: unknown };
 
 const repositoryMethodsCrossing = (...crossings: RepositoryCrossing[]): readonly string[] =>
@@ -257,45 +232,23 @@ const repositoryMethodsCrossing = (...crossings: RepositoryCrossing[]): readonly
             .map(([method]) => `${repository}.${method}`)
     );
 
-/**
- * The repository methods a `RuntimeCall` may name — `call` and `send` alike — as `<repository>.<method>`.
- * The `receipt` methods are here too, for a page from before they crossed as a stream: the write is
- * made and the page gets what it always got — the receipt with its delivery emptied by JSON — rather
- * than a refusal that would leave the write unmade.
- */
 export const REPOSITORY_CALL_METHODS: readonly string[] = repositoryMethodsCrossing('call', 'send', 'receipt');
 
-/** The repository methods a `RuntimeSubscribe` may name — every `observe*` — as `<repository>.<method>`. */
 export const REPOSITORY_STREAMS: readonly string[] = repositoryMethodsCrossing('stream');
 
-/**
- * The repository methods that answer with a write receipt, as `<repository>.<method>`: a page subscribes
- * to one under the method's name to call it (see `RepositoryCrossing`).
- */
 export const REPOSITORY_RECEIPTS: readonly string[] = repositoryMethodsCrossing('receipt');
 
-/** The `target` a `RuntimeCall` or `RuntimeSubscribe` names for the data: the repositories and the rest of `RuntimeData`. */
 export const DATA_TARGET = 'data';
 
-/**
- * The `target` for a repository method of one cloud's graph (`RuntimeData.cloudRepositories`) rather
- * than the live scope's: the same `<repository>.<method>` names, with the cloud id as the first argument.
- */
 export const DATA_CLOUD_TARGET = 'data@cloud';
 
 type DataCrossing = 'view' | 'call' | 'stream' | 'local';
 
-// Keyed by every member, so one added to `RuntimeData` and left out here does not compile.
-// Each `call` entry is checked against its member's result as well, so one that would not cross as
-// JSON does not compile (`CheckedCrossing`).
 const dataMembers: { [Member in keyof RuntimeData]: CheckedCrossing<RuntimeData[Member], DataCrossing> } = {
-    // The graphs themselves are the page's handles: their methods cross, one by one, as above.
     repositories: 'local',
     cloudRepositories: 'local',
     sendChatInCloud: 'call',
     waitForCloudSocket: 'call',
-    // Stands while subscribed, with no listener and no events, like the sync's `registerTarget`: a
-    // page's hold ends with its subscription, so a page that goes away mid-send leaves none behind.
     holdCloud: 'stream',
     recoverInvitedCloud: 'call',
     syncInvitedCloudName: 'call',
@@ -310,11 +263,9 @@ const dataMembers: { [Member in keyof RuntimeData]: CheckedCrossing<RuntimeData[
     registerDeviceToken: 'call',
 };
 
-/** The data methods a `RuntimeCall` may name, besides the repositories'. */
 export const DATA_CALL_METHODS = (Object.keys(dataMembers) as (keyof RuntimeData)[]).filter(
     member => dataMembers[member] === 'call'
 );
-/** The data streams a `RuntimeSubscribe` may name, besides the repositories' `observe*`. */
 export const DATA_STREAMS = (Object.keys(dataMembers) as (keyof RuntimeData)[]).filter(
     member => dataMembers[member] === 'stream'
 );

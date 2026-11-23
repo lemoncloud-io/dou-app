@@ -1,6 +1,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
+import type { ReactElement } from 'react';
+
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { logger } from '@chatic/bridges';
@@ -14,7 +16,7 @@ let currentLocation: { state: unknown } = { state: null };
 // by test id the way the real component would wrap translated words in them.
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k }),
-    Trans: ({ i18nKey, components }: { i18nKey: string; components?: Record<string, JSX.Element> }) => (
+    Trans: ({ i18nKey, components }: { i18nKey: string; components?: Record<string, ReactElement> }) => (
         <>
             {i18nKey}
             {Object.entries(components ?? {}).map(([name, element]) => (

@@ -39,7 +39,7 @@ const cancel = jest.fn();
 const reject = jest.fn();
 // Cache observer: never emits by default (empty local cache) — a test that wants a cache-first
 // render sets a different mock implementation for the individual case.
-const observeList = jest.fn(() => () => undefined);
+const observeList = jest.fn((_onSnapshot: (snapshot: unknown) => void) => () => undefined);
 // The one-shot relay gate a caller-driven refetch waits on (`waitUntilVerified(RELAY_SLOT)`).
 const mockWaitUntilVerified = jest.fn(async (..._args: unknown[]) => false);
 

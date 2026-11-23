@@ -25,7 +25,6 @@ jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { peekCachedCloud
 
 const payload = { channelId: 'ch-1', content: 'hello' };
 
-/** A scoped graph whose sendChat is controlled by the test, recording the holds at the moment it runs. */
 const graphWith = (sendChat: jest.Mock) => ({ chat: { sendChat } });
 
 beforeEach(() => {

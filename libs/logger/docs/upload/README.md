@@ -83,6 +83,12 @@ kind.
 | Drop order    | `debug → info → warn → error`, oldest first   | `sample → trace → event`, oldest first                                                               |
 | Loss reported | `onDrop`, `droppedCount()`                    | `onStatDrop`, `droppedStatCount()`                                                                   |
 
+**Statistics drop `sample` first.** Samples arrive in the largest numbers and each one matters
+least. Events are what usage counts are built from, so losing one undercounts with nothing to
+correct it. An entry of a kind this build does not know (a newer runtime's) ranks with samples and
+is dropped first, so it cannot escape the ceiling. The app's statistics share is smaller than the
+web's because MMKV holds its queue in memory as one value.
+
 **Neither share evicts the other.** With one shared budget the devices that log the most — the slow
 ones — would lose their measurements first and every percentile would read better than the truth;
 the other way round, a burst of measurements would push out the `warn`/`error` lines the queue is

@@ -29,7 +29,6 @@ describe('CloudRepository', () => {
 
         const result = await repository.cacheReadList();
 
-        // The local-first repository should still expose a stable empty list contract.
         expect(result).toEqual({ list: [], meta: { total: 0, source: 'local' } });
     });
 
@@ -82,13 +81,11 @@ describe('CloudRepository', () => {
 
         await expect(repository.updateCloud({ id: 'cloud-1', name: 'New' } as any)).rejects.toThrow('boom');
 
-        // First: the optimistic write applies the new name to the cache.
         expect(local.cacheWrite).toHaveBeenNthCalledWith(
             1,
             expect.objectContaining({ id: 'cloud-1', name: 'New' }),
             expect.anything()
         );
-        // Last: the failure restores the previously cached snapshot exactly.
         expect(local.cacheWrite).toHaveBeenLastCalledWith({ id: 'cloud-1', name: 'Old' }, expect.anything());
     });
 
@@ -101,7 +98,6 @@ describe('CloudRepository', () => {
         const repository = new CloudRepository(remote as any, local as any, contextProvider);
 
         const pending = repository.updateCloud({ id: 'cloud-1', name: 'New' } as any);
-        // Flush microtasks so the optimistic write lands while the remote call is still in flight.
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(remote.updateCloud).toHaveBeenCalled();
@@ -123,7 +119,6 @@ describe('CloudRepository', () => {
 
         await repository.updateCloud({ id: 'cloud-1', name: 'New' } as any);
 
-        // The optimistic write must not downgrade an invited cloud to the 'owner' default.
         expect(local.cacheWrite).toHaveBeenNthCalledWith(
             1,
             expect.objectContaining({ id: 'cloud-1', name: 'New', cloudType: 'invited' }),
@@ -140,8 +135,6 @@ describe('CloudRepository', () => {
 
         await repository.getCloud({ id: 'cloud-1' } as any);
 
-        // A new cloud reached via the command path is an owned/subscription cloud, so it must not
-        // fall back to the local source's 'invited' default (which would pollute useInvitedClouds).
         expect(local.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'cloud-1', name: 'Cloud One', cloudType: 'owner' }),
             expect.anything()
@@ -157,7 +150,6 @@ describe('CloudRepository', () => {
 
         await repository.getCloud({ id: 'cloud-1' } as any);
 
-        // An invited cloud (seeded by the invited-cloud flow) keeps its type across a name refresh.
         expect(local.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'cloud-1', name: 'Fresh', cloudType: 'invited' }),
             expect.anything()
@@ -179,8 +171,6 @@ describe('CloudRepository', () => {
         );
     });
 
-    // The mapper stamps `cid` from the request context — the ACTIVE cloud (`cloud-a` here). Renaming
-    // or reading another cloud from there must not file that cloud's row under the active one.
     it('keeps the renamed cloud its own cid when another cloud is active', async () => {
         const local = createLocalDataSource();
         local.cacheRead.mockResolvedValue(null);

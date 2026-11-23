@@ -1,10 +1,3 @@
-/**
- * `components/memberships/OverridePanel.tsx`
- * - The grant / block / release form, and the confirmation that stands between it and the relay.
- *
- * The form's own logic — validation, the request body, the confirmation wording — lives in
- * `lib/overrideForm.ts`. This file is the surface that collects it.
- */
 import { useState } from 'react';
 
 import { logger } from '@chatic/bridges';
@@ -46,11 +39,9 @@ import type { JSX } from 'react';
 interface OverridePanelProps {
     membership: MembershipView;
     onDone: (updated: MembershipView) => void;
-    /** The relay this write lands on — named in the confirmation, because it is switchable. */
     stage: RelayStage;
 }
 
-/** Spans an operator reaches for; the picker stays for anything else. */
 const UNTIL_PRESETS: { label: string; days: number }[] = [
     { label: '7d', days: 7 },
     { label: '30d', days: 30 },
@@ -71,11 +62,8 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
     const { data: plans } = useProductPlans();
     const { mutateAsync, isPending } = useUpdateMembershipByAdmin();
 
-    // Never fall back to `membership.id` — that is `MS<uid>`, and writing to it targets nothing.
     const userId = membership.userId ?? '';
     const target = describeTargetServer(targetEndpointFor(stage));
-    // One clock for the whole render: the `min` attribute, the presets and the validation all
-    // have to agree on what "today" is.
     const now = Date.now();
     const errors = validateOverrideForm(form, now);
     const untilAt = toEpochEndOfDay(form.until);
@@ -141,7 +129,6 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
                         id="override-until"
                         type="date"
                         className="h-9 px-3 py-0 text-sm"
-                        // The relay refuses a past `adminUntil`; today is the earliest that passes.
                         min={dayOffsetInput(0, now)}
                         value={form.until}
                         onChange={event => patch({ until: event.target.value })}
@@ -160,7 +147,6 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
                                 </Button>
                             );
                         })}
-                        {/* Indefinite is the absence of a date, not a sentinel far in the future. */}
                         <Button
                             size="sm"
                             variant={form.until ? 'outline' : 'secondary'}
@@ -226,8 +212,6 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
                 </ul>
             )}
 
-            {/* Shown for anything that fails before the dialog opens; the dialog renders its own
-                copy, because this one sits under the dialog's overlay once it is open. */}
             {failure && !confirming && <p className="text-destructive text-xs">{failure}</p>}
 
             <Button
@@ -249,8 +233,6 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
                                         <li key={line}>{line}</li>
                                     ))}
                                 </ul>
-                                {/* The console is not deployed, so whichever relay the local .env
-                                    names is the one being written to. Say which, here as well. */}
                                 <div className="flex items-center gap-1.5 pt-1">
                                     <span className="text-xs">Target server</span>
                                     <Badge variant={target.isProd ? 'destructive' : 'outline'}>{target.label}</Badge>

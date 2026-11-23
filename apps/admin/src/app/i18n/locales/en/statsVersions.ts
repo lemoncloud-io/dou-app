@@ -1,6 +1,5 @@
 import type { statsVersions as ko } from '../ko/statsVersions';
 
-/** English copy for the statistics tab's version adoption view. */
 export const statsVersions: typeof ko = {
     summary: {
         title: 'At a glance',

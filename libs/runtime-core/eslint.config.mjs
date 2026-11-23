@@ -2,15 +2,6 @@ import baseConfig from '../../eslint.config.mjs';
 
 export default [
     ...baseConfig,
-    // ---------------------------------------------------------------------------------------------
-    // The core packages' barrels are open to this package: it assembles the runtime from them, and
-    // the ports it collects are declared in them. The root config closes `@chatic/session`,
-    // `-transport`, `-sync` and `-auth` to everything else; these two blocks set the same rule again
-    // for this package's files — they replace the root's list, so each ban kept has to be repeated.
-    // Production code takes the barrels only. Tests may also name a file, so that a mock replaces it
-    // for every importer, the owning package's own modules included, and to reach a shared test
-    // fixture a package keeps outside its barrel (`@chatic/transport/testing/platform`).
-    // ---------------------------------------------------------------------------------------------
     {
         files: ['**/*.ts'],
         ignores: ['**/*.test.ts', '**/*.spec.ts'],

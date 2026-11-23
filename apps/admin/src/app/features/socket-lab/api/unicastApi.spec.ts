@@ -1,6 +1,3 @@
-/**
- * `api/unicastApi.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { buildSimplePush, buildUnicastEvent } from './unicastApi';

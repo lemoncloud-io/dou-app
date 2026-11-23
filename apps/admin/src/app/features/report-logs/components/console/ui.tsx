@@ -1,16 +1,5 @@
-/**
- * `components/report-logs/console/ui.tsx`
- * - The few layout pieces every purpose tab is built from, so the tabs read as one product.
- *
- * The rules they carry: content no wider than a comfortable reading line, one card surface for a
- * group of related facts, a heading per section with a one-line explanation under it, numbers with
- * their label above them, and colour only where it means something — red for errors, blue for
- * reports. Everything is drawn from the theme tokens (or a colour paired with its `dark:` twin), so
- * the tabs read the same in light and dark.
- */
 import type { ReactNode } from 'react';
 
-/** The scrolling page body, centred and capped so lines stay readable on a wide screen. */
 export const Page = ({ children, aside }: { children: ReactNode; aside?: ReactNode }) => (
     <div className="flex min-h-0 flex-1">
         <div className="min-w-0 flex-1 overflow-auto">
@@ -20,7 +9,6 @@ export const Page = ({ children, aside }: { children: ReactNode; aside?: ReactNo
     </div>
 );
 
-/** One surface for related facts. */
 export const Panel = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
     <section className={`rounded-2xl border border-border bg-card ${className}`}>{children}</section>
 );
@@ -44,7 +32,6 @@ const METRIC_TONE: Record<MetricTone, string> = {
     plain: 'text-foreground',
 };
 
-/** A number with its label above it, the way a card is scanned: what, then how many. */
 export const Metric = ({
     label,
     value,
@@ -94,7 +81,6 @@ export const Pill = ({
     </span>
 );
 
-/** A row of choices where exactly one is on — the period, the cloud. */
 export const ChoiceRow = <T extends string>({
     label,
     options,
@@ -126,10 +112,8 @@ export const ChoiceRow = <T extends string>({
     </div>
 );
 
-/** Secondary buttons inside lists and cards. */
 export const quietButton =
     'inline-flex shrink-0 items-center gap-1 rounded-lg border border-border bg-background px-3 py-1.5 text-[13px] font-medium text-foreground hover:bg-muted';
 
-/** The main action of a screen. */
 export const primaryButton =
     'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50';

@@ -42,7 +42,6 @@ export function useSandbox(endpoint: string): Sandbox {
     const addClient = useCallback(() => {
         const map = ctrlRef.current;
         if (!map || map.size >= MAX) return;
-        // Assign the empty slot (in A→D order) — always fills A, B first, so even removing one in the middle and adding again never duplicates a letter.
         const used = new Set([...map.values()].map(c => c.letter));
         const slot = LETTERS.findIndex(l => !used.has(l));
         if (slot < 0) return;

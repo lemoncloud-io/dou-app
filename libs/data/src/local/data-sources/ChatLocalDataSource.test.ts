@@ -23,7 +23,6 @@ describe('ChatLocalDataSource', () => {
         ]);
 
         const beforeClear = await dataSource.cacheReadList({ channelId: 'ch-1', limit: 50 } as any);
-        // The initial read should only include the requested channel.
         expect(beforeClear?.list.map(item => item.id)).toEqual(['m1', 'm2']);
 
         await dataSource.cacheClearByChannelId('ch-1');
@@ -31,13 +30,10 @@ describe('ChatLocalDataSource', () => {
         const afterClear = await dataSource.cacheReadList({ channelId: 'ch-1', limit: 50 } as any);
         const otherChannel = await dataSource.cacheReadList({ channelId: 'ch-2', limit: 50 } as any);
 
-        // Clearing one channel must not remove messages from other channels in the same scope.
         expect(afterClear?.list).toEqual([]);
         expect(otherChannel?.list.map(item => item.id)).toEqual(['m3']);
     });
 
-    // A message's state only moves forward. A copy the server wrote earlier than the cached one — a
-    // re-read that lands after the live change, or two quick edits answered out of order — is dropped.
     describe('an older copy of a cached row', () => {
         const read = async (dataSource: ChatLocalDataSource, id = 'm1') => dataSource.cacheRead(id);
         const fresh = () => new ChatLocalDataSource(contextProvider as any, createPartitionedMemoryStorage('chat'));
@@ -86,7 +82,6 @@ describe('ChatLocalDataSource', () => {
             expect(await read(dataSource)).toMatchObject({ readCount: 3 });
         });
 
-        // A row on its way and an inferred delete mark carry no server time; they are written as before.
         it('compares only when both copies carry the server time', async () => {
             const dataSource = fresh();
             await dataSource.cacheWrite(row({ content: 'cached', updatedAtMs: 200 }));
@@ -96,8 +91,6 @@ describe('ChatLocalDataSource', () => {
             expect(await read(dataSource)).toMatchObject({ hidden: true, hiddenByFeed: true });
         });
 
-        // The device's clock is never taken for the server's: a device running ahead would make every later
-        // server copy look older.
         it('does not stamp the device clock on a row written without a server time', async () => {
             const dataSource = fresh();
             await dataSource.cacheWrite(row({ content: 'edited here first' }));
@@ -117,8 +110,6 @@ describe('ChatLocalDataSource', () => {
             expect(await read(dataSource)).toMatchObject({ content: 'a', updatedAtMs: 200 });
         });
 
-        // An optimistic edit keeps the cached time, so putting the previous text back after a failed save
-        // compares equal and is written.
         it('lets a failed edit put the previous text back', async () => {
             const dataSource = fresh();
             await dataSource.cacheWrite(row({ content: 'before', updatedAtMs: 200 }));
@@ -171,14 +162,11 @@ describe('ChatLocalDataSource', () => {
         const chats = createPartitionedMemoryStorage('chat');
         const provider = { getContext: () => ({ cid: 'cloud-b', uid: 'me' }), setContext: () => undefined };
         const dataSource = new ChatLocalDataSource(provider, chats);
-        // Channel ids are per cloud, so the same id can name a room in each.
         await dataSource.cacheWrite({ id: 'a-1', channelId: 'ch-1', chatNo: 1 } as any, { cid: 'cloud-a', uid: 'me' });
         await dataSource.cacheWrite({ id: 'b-1', channelId: 'ch-1', chatNo: 1 } as any);
 
-        // A leave confirmed for cloud A, arriving after the switch to cloud B.
         await dataSource.cacheClearByChannelId('ch-1', { cid: 'cloud-a', uid: 'me' });
 
-        // Chat history cannot be fetched back once gone, so the wrong partition here is permanent.
         const idsIn = async (cid: string) =>
             (await chats.forScope({ cid, uid: 'me' }).loadAll({ channelId: 'ch-1' } as any)).map(row => row.id);
         expect(await idsIn('cloud-a')).toEqual([]);
@@ -199,7 +187,6 @@ describe('ChatLocalDataSource', () => {
             const chats = createPartitionedMemoryStorage('chat');
             const storage = chats.forScope(contextProvider.getContext());
             storage.loadLastPerChannel = jest.fn(async () => [
-                // The response order can differ from the requested order — returned reversed, per the contract.
                 {
                     channelId: 'ch-2',
                     lastNo: 7,
@@ -246,7 +233,6 @@ describe('ChatLocalDataSource', () => {
         it('reads a channel through the window when the app answers without an activity row', async () => {
             const chats = createPartitionedMemoryStorage('chat');
             const storage = chats.forScope(contextProvider.getContext());
-            // An app build that predates `activityItem`: its row may even be a reply under the old rule.
             storage.loadLastPerChannel = jest.fn(async () => [
                 { channelId: 'ch-1', lastNo: 3, item: { id: 'm3', channelId: 'ch-1', chatNo: 3 } as any },
             ]);
@@ -292,8 +278,6 @@ describe('ChatLocalDataSource', () => {
 
             await dataSource.cacheWriteMany([
                 { id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'a' } as any,
-                // The newest row is a reaction event: lastNo must still count it while the
-                // preview falls through to the real message below it.
                 { id: 'm2', channelId: 'ch-1', chatNo: 2, stereo: 'system', subType: 'reaction' } as any,
             ]);
 
@@ -308,7 +292,6 @@ describe('ChatLocalDataSource', () => {
             const chats = createPartitionedMemoryStorage('chat');
             const storage = chats.forScope(contextProvider.getContext());
             storage.loadLastPerChannel = jest.fn(async () => [
-                // The app (older semantics) answered with a reaction event as the preview — only this channel should fall back.
                 {
                     channelId: 'ch-1',
                     lastNo: 5,
@@ -332,14 +315,12 @@ describe('ChatLocalDataSource', () => {
             const result = await dataSource.cacheReadLastList(['ch-1', 'ch-2']);
 
             expect(result.map(row => row.chat?.id)).toEqual(['m4', 'ok']);
-            // ch-2 has to keep the fast path's answer — if the fallback overwrote lastNo from the cache
-            // (1 < 9) the head trigger would misread a row it already has as a shortfall.
             expect(result[1]?.lastNo).toBe(9);
         });
 
         it('a re-run in fallback mode re-reads every requested channel', async () => {
             const chats = createPartitionedMemoryStorage('chat');
-            const storage = chats.forScope(contextProvider.getContext()); // no loadLastPerChannel = fallback mode
+            const storage = chats.forScope(contextProvider.getContext());
             const loadAllSpy = jest.spyOn(storage, 'loadAll');
             const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
             await dataSource.cacheWriteMany([
@@ -349,14 +330,12 @@ describe('ChatLocalDataSource', () => {
 
             loadAllSpy.mockClear();
             await dataSource.cacheReadLastList(['ch-1', 'ch-2']);
-            // The first run has no baseline, so it reads every channel.
             expect(loadAllSpy).toHaveBeenCalledTimes(2);
 
             await dataSource.cacheWrite({ id: 'b2', channelId: 'ch-2', chatNo: 2, content: 'b2' } as any);
             loadAllSpy.mockClear();
             const result = await dataSource.cacheReadLastList(['ch-1', 'ch-2']);
 
-            // It now recomputes the requested set as given, with no per-channel dirty tracking.
             expect(loadAllSpy).toHaveBeenCalledTimes(2);
             expect(result.map(row => row.chat?.id)).toEqual(['a1', 'b2']);
         });
@@ -400,11 +379,11 @@ describe('ChatLocalDataSource', () => {
             const dataSource = new ChatLocalDataSource(contextProvider as any, chats);
 
             await dataSource.cacheWrite({ id: 'm1', channelId: 'ch-1', chatNo: 1, content: 'old' } as any);
-            await new Promise(resolve => setTimeout(resolve, 80)); // past the flush timer (50ms)
+            await new Promise(resolve => setTimeout(resolve, 80));
 
             const emissions: Array<Array<{ channelId: string; chat: { id?: string } | null }>> = [];
             const unsubscribe = dataSource.observeLastList(['ch-1', 'ch-2'], rows => emissions.push(rows));
-            await new Promise(resolve => setTimeout(resolve, 20)); // let the first subscription query settle
+            await new Promise(resolve => setTimeout(resolve, 20));
 
             expect(emissions[0]?.map(row => row.chat?.id)).toEqual(['m1', undefined]);
 
@@ -431,12 +410,9 @@ describe('ChatLocalDataSource', () => {
 
         const olderPage = await dataSource.cacheReadList({ channelId: 'ch-1', cursorNo: 3, limit: 2 } as any);
 
-        // A cursor should page older messages instead of repeating the live tail.
         expect(olderPage?.list.map(item => item.id)).toEqual(['m1', 'm2']);
     });
 
-    // A thread opened from far back fetches its root by id, which caches one old row beside a
-    // contiguous recent page. The feed reads the newest `limit` rows, so that row must stay out of it.
     it('keeps a single far-older cached row out of the newest page', async () => {
         const chats = createPartitionedMemoryStorage('chat');
         const dataSource = new ChatLocalDataSource(contextProvider as any, chats);

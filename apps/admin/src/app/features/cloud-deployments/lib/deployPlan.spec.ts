@@ -1,6 +1,3 @@
-/**
- * `lib/cloud-deployments/deployPlan.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { buildDeployParams, countClouds, planDeploys, type DeployPlanInput } from './deployPlan';

@@ -1,11 +1,3 @@
-/**
- * `components/memberships/CloudPanel.tsx`
- * - The selected user's clouds, with the status aggregation the relay returns alongside the list.
- *
- * This is where a grant or a block is actually confirmed: a grant should bring suspended clouds
- * back, and a block should push them into the hold/reclaim path. Neither is visible on the
- * membership row itself.
- */
 import { formatDate } from '@chatic/shared';
 import { Badge } from '@chatic/ui-kit/components/ui/badge';
 
@@ -17,7 +9,6 @@ import type { JSX } from 'react';
 
 interface CloudPanelProps {
     clouds: CloudView[] | undefined;
-    /** The relay may send one aggregation or a list of them. */
     aggr: AggrResult | AggrResult[] | undefined;
     isLoading: boolean;
 }

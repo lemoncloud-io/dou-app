@@ -21,8 +21,6 @@ import type {
 } from '@chatic/http';
 import type { SubscriptionHttpDomainGateway } from '../gateways';
 
-// Re-exported so app code reads the drops response type from `@chatic/data` like the rest of this
-// surface, without taking a dependency on the transport lib for one type.
 export type {
     AdminSubscriptionView,
     BillingIssueParams,
@@ -61,7 +59,6 @@ export interface ISubscriptionHttpDataSource {
         opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>>;
 
-    // The web subscription — one per account, billed through the payment provider.
     fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]>;
     issueBillingKey(productId: string, params?: SubscriptionSandboxParams): Promise<BillingIssueParams>;
     startSubscription(body: SubscriptionStartBody, params?: SubscriptionStartParams): Promise<WebSubscriptionView>;
@@ -72,36 +69,14 @@ export interface ISubscriptionHttpDataSource {
     removeCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
 }
 
-/**
- * Aims one call at a relay other than the configured one — the console's stage switch.
- *
- * Only the admin calls accept it. The app's own calls must never leave the relay they were
- * authenticated against, so this is opt-in per call rather than a mode on the client.
- */
 export interface AdminEndpointOptions {
-    /** Full relay base, e.g. `https://api.example.com/v1`. */
     endpoint?: string;
 }
 
-/** `auto` provisions clouds up to the raised quota immediately. Off unless the operator asks. */
 export interface AdminOverrideOptions extends AdminEndpointOptions {
     auto?: boolean;
 }
 
-/**
- * Remote-only source — no local data source, same shape as `AuthHttpDataSource`/
- * `DeviceSocketDataSource`. No domain model exists for this axis yet; views pass through
- * unchanged (alias-level, matching the precedent most existing domain models already follow —
- * see libs/data/docs/remote/http.md#httpdatasource-and-cache-semantics). A real `DomainProduct` /
- * `DomainMembership` mapping is future work, not this data source's job to invent.
- *
- * The admin console's reads (ADR-0101) land here too, `fetchAdminClouds` included — even though
- * clouds have their own repository. That one maps views through `toDomainCloud(view, context)`
- * using the CURRENT session's context, and `resolveCloudType` then labels ownership relative to
- * the viewer. Every row an admin lists belongs to somebody else, so that classification would be
- * quietly wrong. Passing through here keeps the views raw, and keeps `aggr` — which the domain
- * list result drops — intact.
- */
 export class SubscriptionHttpDataSource implements ISubscriptionHttpDataSource {
     constructor(private readonly gateway: SubscriptionHttpDomainGateway) {}
 
@@ -128,8 +103,6 @@ export class SubscriptionHttpDataSource implements ISubscriptionHttpDataSource {
         return this.gateway.adminMemberships(params, opts);
     }
 
-    // The `1`/absent encoding is the wire's, so it stays here rather than in a caller — same as
-    // `CloudHttpDataSource.makeCloud`'s `dryRun`. The console asks for `auto: true`.
     updateMembershipByAdmin(
         userId: string,
         body: MembershipBody,

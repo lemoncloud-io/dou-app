@@ -23,20 +23,9 @@ export type IChannelLocalDataSource = ILocalDataSource<
     DomainListResult<DomainChannel>
 >;
 
-/** Persists channels locally and fans out observer updates by scoped channel list keys. */
-/** A Self Channel with no place is stored under the account (see `ACCOUNT_CHANNEL_SID`). */
 const accountSid = (item: Partial<DomainChannel>): string | undefined =>
     item.stereo === 'self' ? ACCOUNT_CHANNEL_SID : undefined;
 
-/**
- * The place a cloud 1:1 is stored under (`isCloudDm`): the place its id names, its own field, then the
- * cached row's, and otherwise none — never the context's.
- *
- * An answer that carries no `stereo` (an update or invite answer) is mapped like a group row, so its
- * `sid` may be the context's rather than the room's; for such a partial the cached row's place wins
- * over the field. The id still comes first either way, which also puts back a row an older build
- * filed under the ambient place.
- */
 const cloudDmPlace = (item: Partial<DomainChannel>, existing: DomainChannel | null | undefined): string => {
     if (item.stereo) return dmPlaceOf(item) || existing?.sid || '';
     return placeOfDmId(item.id) || existing?.sid || dmPlaceOf(item);
@@ -45,11 +34,6 @@ const cloudDmPlace = (item: Partial<DomainChannel>, existing: DomainChannel | nu
 const isCloudDmRow = (item: Partial<DomainChannel>, existing: DomainChannel | null | undefined, cid: string) =>
     isCloudDm({ stereo: item.stereo ?? existing?.stereo, cid });
 
-/**
- * A relay 1:1 may be stored with no place: it is listed in the relay's one place whatever its field
- * says (`isRelayDm`), so a room the server filed under none is kept rather than refused. It still
- * takes the ordinary place chain first — an empty sid is only what is left when nothing names one.
- */
 const isRelayDmRow = (item: Partial<DomainChannel>, existing: DomainChannel | null | undefined, cid: string) =>
     isRelayDm({ stereo: item.stereo ?? existing?.stereo, cid });
 
@@ -63,7 +47,6 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainChannel | null> {
         const requiredId = this.assertRequiredString(id, 'id');
-        // Cache already holds normalized domain rows; return as-is without re-mapping.
         return this.storage(contextOverride).load(requiredId);
     }
 
@@ -73,9 +56,6 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
     ): Promise<DomainListResult<DomainChannel> | null> {
         const context = this.getContext(contextOverride);
         const allChannels = await this.storage(contextOverride).loadAll();
-        // No `sid` in the query means EVERY site of this cloud. It used to fall back to the ambient
-        // sid, which made the same call answer differently depending on which site happened to be
-        // selected — while the observer key could not see that difference (ADR-0085).
         const placeId = query.sid;
         const isDefaultCloud = context.cid === 'default';
         const scopedChannels =
@@ -85,8 +65,6 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
             return createDomainListResult([], { total: 0, source: 'local' });
         }
 
-        // Default ordering is by id (ascending, numeric-aware) so list output stays stable and
-        // predictable across reads, independent of activity timestamps.
         const sorted = [...scopedChannels].sort((left, right) =>
             String(left.id ?? '').localeCompare(String(right.id ?? ''), undefined, { numeric: true })
         );
@@ -124,18 +102,6 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
         );
     }
 
-    /**
-     * Writes one channel, resolving its place from the row, the cached row, then the context.
-     *
-     * That fallback chain is load-bearing: it keeps a place-scoped row from silently losing the
-     * list it belongs to, and the throw catches a caller that forgot to name a site.
-     *
-     * **A cloud 1:1 skips the context step** (`cloudDmPlace`). It belongs to the place the server
-     * stamped on it, which a place-keyed id names and the field otherwise carries; the
-     * context names whatever place the reader is in, which during a switch is already the next one.
-     * Such a row is stored with an empty sid rather than refused — a room from before places keyed
-     * 1:1s may name none, and refusing it would fail the whole sync it arrived in.
-     */
     public async cacheWrite(
         item: Partial<DomainChannel>,
         contextOverride?: LocalDataSourceContextOverride
@@ -233,8 +199,6 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
         const scope = this.resolveContext(contextOverride);
         const validIds = ids.filter(Boolean);
         if (validIds.length === 0) return;
-        // All that is needed is which sids' lists to re-read, so ids omitted because they are absent
-        // do not matter (`loadMany` guarantees neither result length nor order).
         const storage = this.storage(scope);
         const existingItems = await storage.loadMany(validIds);
         await storage.deleteAll(validIds);
@@ -272,14 +236,6 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
     ): string[] {
         const scopeKey = this.getScopeKey(contextOverride);
         const uniqueSids = Array.from(new Set(sids.map(sid => sid || '__all__')));
-        // Written sids, plus cloud-wide observers (`sid: ''`) which must hear about every sid — see
-        // the sid-independent routing test.
-        //
-        // Two traps, both from `flush` matching with `key.startsWith(prefix)`:
-        //  - A bare `${scopeKey}|channels` prefix matches EVERY channel observer, so one write woke
-        //    them all and each wake re-reads storage.
-        //  - Without the trailing `|`, `sid:site-1` also matches `sid:site-10`, and `sid:` matches
-        //    everything. The delimiter pins the match to a whole key segment.
         return [`${scopeKey}|channels|sid:|`, ...uniqueSids.map(sid => `${scopeKey}|channels|sid:${sid}|`)];
     }
 }

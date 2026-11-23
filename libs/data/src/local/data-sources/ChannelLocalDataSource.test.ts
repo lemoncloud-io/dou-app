@@ -17,8 +17,6 @@ describe('ChannelLocalDataSource', () => {
         const storage = createPartitionedMemoryStorage('channel');
         const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
 
-        // Seed two channels for the active place and one for another place.
-        // The local cache orders by id, not by activity.
         await dataSource.cacheWriteMany([
             { id: 'ch-2', sid: 'site-1', name: 'Newer' } as any,
             { id: 'ch-1', sid: 'site-1', name: 'Older' } as any,
@@ -27,7 +25,6 @@ describe('ChannelLocalDataSource', () => {
 
         const result = await dataSource.cacheReadList({ sid: 'site-1' } as any);
 
-        // Only the requested place should remain, ordered by id (not by latest activity).
         expect(result?.list.map(item => item.id)).toEqual(['ch-1', 'ch-2']);
     });
 
@@ -58,16 +55,11 @@ describe('ChannelLocalDataSource', () => {
 
         const result = await dataSource.cacheReadList({ sid: 'site-1' } as any);
 
-        // Deletes must affect subsequent list reads so higher layers never see resurrected channels.
         expect(result?.list.map(item => item.id)).toEqual(['ch-1']);
     });
 
-    // The channel cache is cloud-wide, so the observer scope must key by {cid, uid} only — NOT the
-    // transient active sid. Otherwise a cloud/site switch (which changes the provider sid) reemits
-    // under a scope the cloud-wide observer never subscribed to, and the rail stays stale until a
-    // manual refresh (the P1 bug). This locks the sid-independent reemit routing.
     describe('cloud-wide reemit routing is sid-independent (P1)', () => {
-        const flush = () => jest.advanceTimersByTimeAsync(60); // past the 50ms reemit debounce
+        const flush = () => jest.advanceTimersByTimeAsync(60);
 
         beforeEach(() => jest.useFakeTimers());
         afterEach(() => jest.useRealTimers());
@@ -86,13 +78,10 @@ describe('ChannelLocalDataSource', () => {
             const dataSource = new ChannelLocalDataSource(provider as any, storage);
 
             const cb = jest.fn();
-            // Cloud-wide subscription (sid: '') taken while the active place is site-1.
             dataSource.observeList({ sid: '' } as any, cb);
             await flush();
             cb.mockClear();
 
-            // Active place moves to site-2, then a channel for site-2 is written. A scope keyed by sid
-            // would route this reemit to a different key and miss the observer.
             provider.setContext({ cid: 'cloud-a', sid: 'site-2', uid: 'me' });
             await dataSource.cacheWrite({ id: 'ch-9', sid: 'site-2', name: 'New site channel' } as any);
             await flush();
@@ -113,8 +102,6 @@ describe('ChannelLocalDataSource', () => {
                 uid: 'me',
             });
 
-            // The override decides the partition too, so the row is read back under it — the
-            // provider's own cloud never saw it.
             const item = await dataSource.cacheRead('ch-1', { cid: 'cloud-b', uid: 'me' });
             expect(item).toMatchObject({ id: 'ch-1', cid: 'cloud-b', sid: 'site-2' });
             await expect(dataSource.cacheRead('ch-1')).resolves.toBeNull();
@@ -142,8 +129,6 @@ describe('ChannelLocalDataSource', () => {
         });
     });
 
-    // A cloud 1:1 belongs to the place the server stamped on it. The active place is the reader's,
-    // and during a place switch it already names the next one, so it never fills the field.
     describe('a cloud 1:1 keeps its own place', () => {
         it('keeps the place the row arrived with', async () => {
             const storage = createPartitionedMemoryStorage('channel');
@@ -173,7 +158,6 @@ describe('ChannelLocalDataSource', () => {
             expect((await dataSource.cacheRead('dm-1'))?.sid).toBe('site-9');
         });
 
-        // A row an older build filed under the ambient place is put back where its id says it lives.
         it('lets the place an id names correct a cached place', async () => {
             const storage = createPartitionedMemoryStorage('channel');
             const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
@@ -189,8 +173,6 @@ describe('ChannelLocalDataSource', () => {
             expect((await dataSource.cacheRead('site-7@u1@u2'))?.sid).toBe('site-7');
         });
 
-        // An update or invite answer carries no stereo, so the mapper may have filled its place from
-        // the context. A pair-key room keeps the place it was cached with.
         it("keeps a pair-key 1:1's cached place over a stereo-less answer's", async () => {
             const storage = createPartitionedMemoryStorage('channel');
             const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
@@ -215,8 +197,6 @@ describe('ChannelLocalDataSource', () => {
             expect((await dataSource.cacheReadList({ sid: 'site-1' } as any))?.list).toEqual([]);
         });
 
-        // A room from before 1:1s were keyed by place may name none. Refusing it would fail the whole
-        // sync it arrived in; it is stored, and no place lists it.
         it('stores a room that names no place with an empty place instead of refusing it', async () => {
             const storage = createPartitionedMemoryStorage('channel');
             const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
@@ -240,8 +220,6 @@ describe('ChannelLocalDataSource', () => {
             expect((await dataSource.cacheRead('u1@u2'))?.sid).toBe('0000');
         });
 
-        // A sync writes with no active place, and the relay's pair-keyed room may name none. The relay
-        // lists such a room in its one place anyway, so refusing it would only fail the whole sync.
         it('stores a relay 1:1 that names no place with an empty place, and still refuses a relay group', async () => {
             const storage = createPartitionedMemoryStorage('channel');
             const relayProvider = {
@@ -261,8 +239,6 @@ describe('ChannelLocalDataSource', () => {
         });
     });
 
-    // The Self Channel belongs to the account, not a place, and the relay sends it with an empty
-    // `$`. Refused for lack of a place, it never reached a desktop user's Home, which has none.
     describe('a Self Channel with no place', () => {
         const noSidProvider = {
             getContext: () => ({ cid: 'default', uid: 'me' }),

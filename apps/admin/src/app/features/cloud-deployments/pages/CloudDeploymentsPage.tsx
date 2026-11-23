@@ -1,16 +1,3 @@
-/**
- * `pages/cloud-deployments/CloudDeploymentsPage.tsx`
- * - Redeploys the subscription clouds after a server update: list them, pick, confirm, run.
- *
- * The page holds the picks; the rules — grouping, which calls a pick turns into, the paced run —
- * live in `lib/` where they are tested, and the run itself in `useDeployRun`.
- *
- * Unlike the other consoles, nothing here lives in the URL. Those screens read; this one deploys, and
- * a refreshed tab or a shared link that reopened on production with clouds picked is the wrong thing
- * to make easy. The screen opens on the stage the `.env` names, with nothing picked, every time.
- *
- * Nothing here polls. A queued deploy shows its progress on the product only after Refresh.
- */
 import { useMemo, useState } from 'react';
 
 import { Badge } from '@chatic/ui-kit/components/ui/badge';
@@ -43,7 +30,6 @@ import {
 } from '../lib/goodsTarget';
 import { openingStage, stageEndpointKey } from '../../../config/stageEndpoints';
 
-/** A copy of `set` with `items` added (`on`) or removed. */
 const withMembers = <T,>(set: ReadonlySet<T>, items: readonly T[], on: boolean): ReadonlySet<T> => {
     const next = new Set(set);
     items.forEach(item => (on ? next.add(item) : next.delete(item)));
@@ -57,7 +43,6 @@ export const CloudDeploymentsPage = () => {
     const { lists, errors, isLoading, isFetching, refetch: refetchLists } = useServiceProductLists(stage, base);
     const douBase = douBaseFor(stage);
     const dou = useDouClouds(stage, douBase);
-    // `refetch` ignores the query's `enabled`, so an unset relay key would send a relative request.
     const refetch = () => {
         refetchLists();
         if (douBase) void dou.refetch();
@@ -73,8 +58,6 @@ export const CloudDeploymentsPage = () => {
     const [sort, setSort] = useState<GroupSort>(DEFAULT_GROUP_SORT);
     const { run, running, start, stop, clear } = useDeployRun();
 
-    // A failed relay call leaves every row on its goods owner rather than holding the table back: the
-    // DoU details say whose cloud it is, not what gets deployed.
     const douClouds = dou.data;
     const grouping = useMemo(
         () =>
@@ -85,7 +68,6 @@ export const CloudDeploymentsPage = () => {
             ),
         [lists, douClouds]
     );
-    // The calls follow the table, so the sort shown is also the order the run deploys in.
     const groups = useMemo(() => (grouping ? sortCloudGroups(grouping.groups, sort) : []), [grouping, sort]);
     const visible = groups.filter(group => matchesCloudStage(group, stageFilter));
     const calls = planDeploys({ groups, selected, stageFilter, services, branches, force, slack });
@@ -94,7 +76,6 @@ export const CloudDeploymentsPage = () => {
 
     const changeStage = (next: GoodsStage) => {
         setStage(next);
-        // Project ids and results belong to the goods service they came from.
         setSelected(new Set());
         clear();
     };
@@ -111,8 +92,6 @@ export const CloudDeploymentsPage = () => {
     ) : errors.length > 0 ? (
         <div className="flex flex-col items-center gap-3 px-4 py-16">
             <p className="text-sm text-red-400">Failed to load the product lists</p>
-            {/* One failed list blocks the table: grouping without it would mark every cloud partial
-                and silently leave that service out of the run. */}
             <ul className="max-w-2xl space-y-1 text-xs text-red-400">
                 {errors.map(error => (
                     <li key={error.service} className="break-all">
@@ -188,7 +167,6 @@ export const CloudDeploymentsPage = () => {
                         Refresh
                     </Button>
 
-                    {/* admin is not deployed — a run calls whatever this resolves to. */}
                     <Badge variant={target.isProd ? 'destructive' : 'outline'}>{target.label}</Badge>
                     <span className="font-mono text-[10px] text-muted-foreground">{target.endpoint}</span>
                 </div>
@@ -206,8 +184,6 @@ export const CloudDeploymentsPage = () => {
                     onSlackChange={setSlack}
                 />
 
-                {/* A failed refresh keeps the last list, so what the table shows depends on whether one
-                    ever arrived. */}
                 {dou.error && (
                     <p className="break-all text-xs text-amber-400">
                         {douClouds
@@ -233,7 +209,6 @@ export const CloudDeploymentsPage = () => {
             </div>
 
             <div className="flex min-h-0 flex-1">
-                {/* A <section>, not a <main>: `PrivateLayout` already renders the page's `main`. */}
                 <section className="flex min-w-0 flex-1 flex-col overflow-auto">{main}</section>
                 <aside className="w-80 shrink-0 overflow-auto border-l border-border xl:w-96">
                     {run ? (

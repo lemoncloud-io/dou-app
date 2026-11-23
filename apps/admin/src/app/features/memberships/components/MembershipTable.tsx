@@ -1,14 +1,3 @@
-/**
- * `components/memberships/MembershipTable.tsx`
- * - The membership list. Rows are selectable; selection opens the detail column.
- *
- * A plain table rather than the ui-kit one: this console wants dense rows, a sticky header and its
- * own hover/selection states, none of which the shared table offers.
- *
- * There is no name or email column because the relay's `MembershipView` carries neither — a
- * membership identifies its user by id alone. Finding a specific person is done with the rail's
- * `userId` filter rather than by scanning.
- */
 import { formatDate } from '@chatic/shared';
 
 import { describeGrade, describeOverrideBadge, hasDerivationMismatch } from '../lib/membershipRow';
@@ -19,7 +8,6 @@ interface MembershipTableProps {
     rows: MembershipView[];
     selectedUserId?: string;
     onSelect: (membership: MembershipView) => void;
-    /** Passed in so every row in one render judges expiry against the same instant. */
     now: number;
 }
 
@@ -55,7 +43,6 @@ export const MembershipTable = ({ rows, selectedUserId, onSelect, now }: Members
             <tbody>
                 {rows.map(row => {
                     const badge = describeOverrideBadge(row, now);
-                    // `row.id` identifies the record (`MS<uid>`); only `userId` identifies the user.
                     const userId = row.userId ?? '';
                     const isSelected = selectedUserId === userId;
 
@@ -78,9 +65,6 @@ export const MembershipTable = ({ rows, selectedUserId, onSelect, now }: Members
                                     >
                                         {row.isValid ? 'valid' : 'invalid'}
                                     </span>
-                                    {/* The stored status and the live verdict disagree — almost always a
-                                        grant whose `adminUntil` has passed, since nothing on the server
-                                        rewrites `status` afterwards. */}
                                     {hasDerivationMismatch(row) && (
                                         <span
                                             className="cursor-help text-amber-400"

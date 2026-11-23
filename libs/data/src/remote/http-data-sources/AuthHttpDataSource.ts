@@ -16,7 +16,6 @@ import type { AdminEndpointOptions } from './SubscriptionHttpDataSource';
 
 export interface IAuthHttpDataSource {
     registerUser(body: UserBody, context: DataContext): Promise<DomainUser>;
-    /** `opts.endpoint` registers on another stage's relay — the admin console's user screen only. */
     registerUserV2(
         body: RegisterUserV2Body,
         email: boolean | undefined,
@@ -25,18 +24,9 @@ export interface IAuthHttpDataSource {
     ): Promise<DomainUser>;
     findAlias(body: FindAliasBody): Promise<FindAliasView>;
     verifyAlias(body: VerifyAliasBody): Promise<VerifyAliasView>;
-    /** Invite-code login — session material. It is not mapped to `DomainUser`: mapping drops `Token`
-     * and `cloudId`, and those two are exactly what the caller (the invite-acceptance flow) uses. */
     loginWithInviteCode(input: { code: string; delegatorId: string; backend?: string }): Promise<UserTokenView>;
     fetchInviteInfo(input: { code: string; backend: string }): Promise<MyInviteView>;
 
-    /**
-     * Session-material commands. Their responses pass through RAW — no `DomainUser` mapping, because
-     * mapping drops `Token` and `Token` is the whole point of calling them.
-     *
-     * `data` performs these; it does not interpret them. Same rule `confirmPhoneCode` already follows
-     * on the socket lane: the caller (`session/auth`) is what installs a token.
-     */
     registerDevice(deviceId: string): Promise<UserTokenView>;
     login(body: LoginUserBody, email?: boolean): Promise<UserTokenView>;
     verifyNativeToken(body: VerifyNativeTokenBody): Promise<UserTokenView>;
@@ -49,12 +39,6 @@ export interface IAuthHttpDataSource {
     }): Promise<UserTokenView>;
 }
 
-/**
- * Account/alias/invite command source. Single boundary where the wire's `UserView`-shaped register
- * responses become `DomainUser`; alias, invite-info and every session-material command pass their
- * view through unchanged. No local cache — these are one-shot commands, not something a repository
- * reads back.
- */
 export class AuthHttpDataSource implements IAuthHttpDataSource {
     constructor(private readonly gateway: AuthHttpDomainGateway) {}
 
@@ -88,8 +72,6 @@ export class AuthHttpDataSource implements IAuthHttpDataSource {
     fetchInviteInfo(input: { code: string; backend: string }): Promise<MyInviteView> {
         return this.gateway.inviteInfo(input);
     }
-
-    // --- session-material commands: perform, never interpret -------------------------------------
 
     registerDevice(deviceId: string): Promise<UserTokenView> {
         return this.gateway.registerDevice(deviceId);

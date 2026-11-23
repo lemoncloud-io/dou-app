@@ -6,18 +6,12 @@ import { useGlobalSession } from './useGlobalSession';
 import { useRuntimeProfile } from './useRuntimeProfile';
 import { useRuntimeRepositories } from '../../../../data/hooks/useRuntimeRepositories';
 
-// useRuntimeProfile sources uid/isCloudActive from useGlobalSession + the token seed accessor from
-// the session's reads module. Mocked by CONCRETE path, matching what the subject imports: mocking the
-// `../../session` barrel stopped working the day the barrel started publishing this hook (a barrel
-// re-exporting its own consumer is the cycle the facade groups avoid), and a barrel mock also drags
-// in transport's `import.meta`. The repositories hook is mocked locally.
 jest.mock('@chatic/runtime-client/session/sessionReads', () => ({ getActiveSessionUser: jest.fn() }));
 jest.mock('./useGlobalSession', () => ({ useGlobalSession: jest.fn() }));
 jest.mock('../../../../data/hooks/useRuntimeRepositories', () => ({ useRuntimeRepositories: jest.fn() }));
 
 const observeItemMock = jest.fn();
 
-// Emit `user` on subscribe (like the cache does on observe), or never emit when undefined.
 const emit = (user: unknown) => {
     observeItemMock.mockImplementation((_id: string, cb: (u: unknown) => void) => {
         if (user !== undefined) cb(user);
@@ -26,12 +20,10 @@ const emit = (user: unknown) => {
 };
 
 const setSession = (opts: { userId: string | null; sessionUser?: unknown; hasCloud?: boolean }) => {
-    // uid + isCloudActive are read straight from the web-core session.
     (useGlobalSession as jest.Mock).mockReturnValue({
         identity: { userId: opts.userId },
         cloud: { isActive: !!opts.hasCloud },
     });
-    // getActiveSessionUser is the synchronous seed source (active token's user fields).
     (getActiveSessionUser as jest.Mock).mockReturnValue(opts.sessionUser ?? null);
 };
 
@@ -66,9 +58,6 @@ describe('useRuntimeProfile', () => {
     });
 
     it('stops reporting guest once the session switches identity, even if only the OLD uid is cached', () => {
-        // The guest→main promotion shape (phone verification: applySessionToken commits a new token
-        // but writes no user row). observeItem never emits for the new uid, so the previous identity's
-        // row is the only one in hand — it must not keep answering, or the invite gate dead-ends.
         setSession({ userId: 'device-user', sessionUser: { userRole: 'guest', name: 'Guest' } });
         emit({ userRole: 'guest', name: 'Guest cache' });
 
@@ -76,7 +65,7 @@ describe('useRuntimeProfile', () => {
         expect(result.current.isGuest).toBe(true);
 
         setSession({ userId: 'main-user', sessionUser: { userRole: 'user', name: 'Main' } });
-        emit(undefined); // no cached row for the promoted uid yet
+        emit(undefined);
         rerender();
 
         expect(result.current.userRole).toBe('user');
@@ -84,8 +73,6 @@ describe('useRuntimeProfile', () => {
     });
 
     it('keeps guest when the cached row omits userRole (field-level fallback to the token seed)', () => {
-        // A partial cache refresh (no userRole) must not flip a guest to non-guest — userRole falls
-        // back to the token seed, while display fields still prefer the cached value.
         setSession({ userId: 'me', sessionUser: { userRole: 'guest', name: 'Seed' }, hasCloud: false });
         emit({ name: 'CacheNoRole' });
 

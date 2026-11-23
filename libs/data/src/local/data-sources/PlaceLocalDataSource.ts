@@ -11,30 +11,14 @@ import {
     type LocalDataSourceUnsubscribe,
 } from './types';
 
-// Place reuses the existing 'site' cache slot — site and place are the same entity.
 export interface IPlaceLocalDataSource
     extends ILocalDataSource<DomainPlace, UserMySiteInput | undefined, DomainListResult<DomainPlace>> {}
 
-/**
- * The relay's single personal place (mirrors apps/web's `HOME_PLACE_ID` in
- * `utils/resolvePlaceDisplayName.ts` — duplicated rather than imported, since apps/web depends on
- * this package and not the other way around). It can only legitimately live under the
- * relay/default partition.
- *
- * A row with this id tagged with any other `cid` is embedded-`$site` pollution: `UserRepository`
- * used to cache the relay's `$site` from `getMyProfile()` under whatever partition happened to be
- * active, so a fetch that landed while a cloud was active wrote this row into that cloud's own
- * partition (relay-default-place-scoping.md). A write-time gate (`persistEmbeddedSite`) now guards
- * against NEW rows, but does nothing for one already sitting in the store from before the guard
- * existed — filtering read-time is what actually keeps it from resurfacing, regardless of how or
- * when it got written.
- */
 const RELAY_HOME_PLACE_ID = '0000';
 
 const isMistaggedHomePlace = (item: Pick<DomainPlace, 'id' | 'cid'>): boolean =>
     item.id === RELAY_HOME_PLACE_ID && item.cid !== 'default';
 
-/** Stores place records in local cache and keeps list observers aligned with sorted place output. */
 export class PlaceLocalDataSource extends BaseLocalDataSource<'site'> implements IPlaceLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'site'>) {
         super(contextProvider, storages);
@@ -51,8 +35,6 @@ export class PlaceLocalDataSource extends BaseLocalDataSource<'site'> implements
         contextOverride?: LocalDataSourceContextOverride
     ): Promise<DomainListResult<DomainPlace> | null> {
         const items = (await this.storage(contextOverride).loadAll()).filter(item => !isMistaggedHomePlace(item));
-        // Default ordering is by id (ascending, numeric-aware) so the place rail stays stable
-        // and predictable regardless of server-provided order/name.
         const list = [...items].sort((left, right) =>
             String(left.id ?? '').localeCompare(String(right.id ?? ''), undefined, { numeric: true })
         );

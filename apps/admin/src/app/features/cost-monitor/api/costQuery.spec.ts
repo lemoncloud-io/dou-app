@@ -1,6 +1,3 @@
-/**
- * `api/cost-monitor/costQuery.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { foldRows, isDayOpen, rowDays } from './costQuery';
@@ -24,7 +21,6 @@ describe('rowDays', () => {
 
 describe('isDayOpen', () => {
     it('keeps a KST day open until an hour after it ends', () => {
-        // KST 2026-11-01 ends at 2026-11-01T15:00Z.
         expect(isDayOpen('2026-11-01', Date.parse('2026-11-01T15:59:00Z'))).toBe(true);
         expect(isDayOpen('2026-11-01', Date.parse('2026-11-01T16:01:00Z'))).toBe(false);
     });

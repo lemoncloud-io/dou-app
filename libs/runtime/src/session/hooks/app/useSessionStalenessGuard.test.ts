@@ -11,7 +11,6 @@ const mockCheck = jest.fn(() => Promise.resolve());
 const mockSetPolicy = jest.fn();
 const mockConstruct = jest.fn();
 
-// A fake engine: what this hook is about is asking the engine for its guard, not making one itself.
 beforeEach(() => {
     jest.clearAllMocks();
     initAppRuntime({

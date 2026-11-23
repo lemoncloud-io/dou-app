@@ -202,6 +202,9 @@ exactly and could not otherwise select "every socket log" once tags name events.
 | `socket.reconnect_failed` | `socket` — before the first dot       |
 | `SOCKET`                  | `socket` — the whole tag, lower-cased |
 
+A leading dot counts as no dot (`.x` has no area before it, and an empty area is a value no query asks
+for), so that tag is read whole; an empty tag has no area at all.
+
 So a per-area query spans the switch-over. `LOG_AREAS` mirrors the catalogue's area list (the 41
 legacy tags, lower-cased, plus `session` and `config`); like `KNOWN_LOG_TAGS` it is never a runtime
 gate. It lists the areas a **log** may use. Statistics bring two areas of their own through their

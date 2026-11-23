@@ -4,7 +4,7 @@
     "projectType": "application",
     "sourceRoot": "apps/desktop-web-e2e/src",
     "tags": [],
-    "implicitDependencies": ["desktop-web"],
+    "implicitDependencies": ["desktop-web", "web-e2e"],
     "targets": {
         "e2e": {
             "executor": "nx:run-commands",

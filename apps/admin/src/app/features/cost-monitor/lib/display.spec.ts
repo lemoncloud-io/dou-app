@@ -1,6 +1,3 @@
-/**
- * `lib/cost-monitor/display.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { cloudLabel, ownersOf, tenantKind, tenantTitle } from './display';

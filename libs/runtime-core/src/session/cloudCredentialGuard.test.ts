@@ -9,7 +9,6 @@ import { foregroundPlatform } from './foreground';
 const mockTimeToExpiry = jest.fn();
 const mockRenew = jest.fn();
 const mockLoggerWarn = jest.fn();
-/** The committed cloud, and the slots the manager has bound — what `guardedClouds` reads. */
 const mockGetCommittedCloudId = jest.fn();
 const mockGetSlotKeys = jest.fn();
 const mockIsSlotVerified = jest.fn();
@@ -29,7 +28,6 @@ jest.mock('@chatic/transport/socket/runtime', () => ({
 jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: (...args: unknown[]) => mockGetCommittedCloudId(...args),
 }));
-// The renewers reach these at module load; nothing here exercises them.
 jest.mock('@chatic/auth/session/cloudSession', () => ({ cloudSession: { clearStores: jest.fn() } }));
 jest.mock('@chatic/auth/session/relaySession', () => ({ relaySession: { clearAndRedirect: jest.fn() } }));
 jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
@@ -45,21 +43,17 @@ jest.mock('@chatic/logger', () => ({
 
 const MARGIN_MS = 5 * 60_000;
 
-/** A network and a foreground the test drives. */
 let online = true;
 let visible = true;
 let notifyForeground: () => void = () => undefined;
 
-/** Every start a test made, stopped after it. */
 const started: Array<() => void> = [];
 afterEach(() => started.splice(0).forEach(stop => stop()));
 
-/** Lets the evaluation's promises settle under fake timers. */
 const flush = async () => {
     for (let i = 0; i < 5; i += 1) await Promise.resolve();
 };
 
-/** Start a guard, let the immediate first tick settle, and hand back the guard and its stop. */
 const mount = async (policy: CloudCredentialPolicy = {}) => {
     const guard = new CloudCredentialGuard({ checkOnVisible: false, ...policy });
     const stop = guard.start();
@@ -73,7 +67,6 @@ beforeEach(() => {
     jest.useFakeTimers();
     mockTimeToExpiry.mockReturnValue(60 * 60_000);
     mockRenew.mockResolvedValue(true);
-    // One committed cloud, whose slot is bound — today's shape.
     mockGetCommittedCloudId.mockReturnValue('cloud-1');
     mockGetSlotKeys.mockReturnValue([RELAY_CLOUD_ID, 'cloud-1']);
     online = true;
@@ -93,7 +86,6 @@ afterEach(() => {
     jest.useRealTimers();
 });
 
-// The platform the link verdict reads, with a network the test drives.
 beforeEach(() =>
     transportPlatform.configure(
         fakeTransportPorts({ online: { read: () => online, subscribe: () => () => undefined } })
@@ -179,7 +171,6 @@ describe('CloudCredentialGuard — 판정', () => {
 });
 
 describe('CloudCredentialGuard — every cloud slot', () => {
-    /** The clouds measured so far, in order (the renewer passes `now` as a second argument). */
     const measured = (): string[] => mockTimeToExpiry.mock.calls.map(call => call[0] as string);
 
     it('measures each cloud on its own and renews only the one whose deadline arrived', async () => {
@@ -189,7 +180,6 @@ describe('CloudCredentialGuard — every cloud slot', () => {
 
         await mount();
 
-        // cloud-2 is measured twice: once to decide, once after its renewal to re-arm the timer.
         expect(measured()).toEqual(['cloud-1', 'cloud-2', 'cloud-2']);
         expect(mockRenew).toHaveBeenCalledTimes(1);
         expect(mockRenew).toHaveBeenCalledWith('cloud-2');
@@ -206,7 +196,6 @@ describe('CloudCredentialGuard — every cloud slot', () => {
 
     it('arms the timer on the EARLIEST deadline among the clouds', async () => {
         mockGetSlotKeys.mockReturnValue([RELAY_CLOUD_ID, 'cloud-1', 'cloud-2']);
-        // cloud-1 has an hour, cloud-2 has six minutes → the next look is in one minute, for cloud-2.
         mockTimeToExpiry.mockImplementation((cid: string) => (cid === 'cloud-2' ? 6 * 60_000 : 60 * 60_000));
         await mount();
 
@@ -233,7 +222,6 @@ describe('CloudCredentialGuard — every cloud slot', () => {
             data: { cid: 'cloud-1' },
         });
 
-        // The failed cloud bought a retry sleep (60s), and the guard is still alive to take it.
         mockTimeToExpiry.mockImplementation(() => 60 * 60_000);
         jest.advanceTimersByTime(60_000);
         await flush();
@@ -254,7 +242,6 @@ describe('CloudCredentialGuard — every cloud slot', () => {
 
 describe('CloudCredentialGuard — 트리거', () => {
     it('만료 마진까지 잠들었다가 스스로 깨어난다 (폴링이 아니다)', async () => {
-        // 6 minutes left, 5-minute margin → check again in 1 minute.
         mockTimeToExpiry.mockReturnValue(6 * 60_000);
         await mount();
 
@@ -344,7 +331,6 @@ describe('CloudCredentialGuard — 트리거', () => {
         jest.advanceTimersByTime(30 * 60_000);
         await flush();
 
-        // One more read for the renewal that finished; no tick after it.
         expect(mockTimeToExpiry.mock.calls.length).toBe(measuredBeforeStop + 1);
     });
 

@@ -9,26 +9,6 @@ export interface IReportRepository extends DisposableRepository {
     uploadLogBatch(body: LogBatchWireBody): Promise<void>;
 }
 
-/**
- * Diagnostics surface — user-written issue reports and log batches.
- *
- * Remote-only and HTTP-only, same shape as `SubscriptionRepository`: there is no cacheable entity
- * behind a report, so there is no local data source to compose and no socket lane either.
- *
- * **It composes the call, not the payload.** The report body is assembled in `@chatic/runtime`, which
- * owns the session facts a report describes (uid, role, active cloud) — this repository is the
- * boundary the call crosses, so that the last two data calls in the repo that built their own signed
- * request stop being exceptions to ADR-0036.
- *
- * **Failures are re-thrown untouched, and nothing here logs.** The log uploader classifies a failed
- * batch by HTTP status (4xx discard, everything else retry), so an error that lost its status would
- * silently become "retry forever"; and the batch call is the one request whose own failure must not
- * become a log entry.
- *
- * `IReportHttpDataSource` injection is optional for the same reason as its siblings — every
- * `createRepositories` call site (tests included) constructs this repository, wired or not — and
- * every method throws a clear "not wired yet" error until it is injected.
- */
 export class ReportRepository extends BaseRepository implements IReportRepository {
     constructor(
         contextProvider: DataContextProvider,

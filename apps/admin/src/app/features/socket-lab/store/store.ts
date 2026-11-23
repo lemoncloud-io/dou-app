@@ -1,14 +1,8 @@
-/**
- * `store/store.ts`
- */
-
 export interface Store<T> {
     upsert(key: string, value: T): void;
     read(key: string): T | undefined;
     readAll(): ReadonlyMap<string, T>;
-    /** Change notification (key-agnostic). Returns a function that unsubscribes. */
     subscribe(listener: () => void): () => void;
-    /** For `useSyncExternalStore`'s `getSnapshot` identity check — increments on change */
     version(): number;
     remove(key: string): void;
     clear(): void;
@@ -33,7 +27,6 @@ export const createMemoryStore = <T>(backing?: StoreBacking<T>): Store<T> => {
         upsert(key, value) {
             map.set(key, value);
             bump();
-            // Write-through to the cache DB — fire-and-forget (no need to await, since UI reads treat the mirror as the source of truth)
             backing?.write(key, value).catch(() => void 0);
         },
         read(key) {

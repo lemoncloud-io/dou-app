@@ -147,12 +147,6 @@ describe('createLogUploadQueue — remove와 복원', () => {
         expect(queue.snapshot().map(e => e.level)).toEqual(['warn', 'error']);
     });
 
-    /**
-     * id is both the server's dedup key and the key the host acks. Without it the upload still
-     * happens but nothing removes the entry from the queue, so it goes up again every cycle —
-     * records from a build whose persistence layer used to drop this field are already sitting
-     * on the device, so this fixes them on the way in.
-     */
     it('id 없는 레코드에 id를 발급한다 — 없으면 영원히 ack되지 않는다', () => {
         const queue = createLogUploadQueue();
         const { id: _dropped, ...idless } = entry('error');
@@ -161,7 +155,6 @@ describe('createLogUploadQueue — remove와 복원', () => {
 
         const [restored] = queue.snapshot();
         expect(restored.id).toBeTruthy();
-        // The ack path has to actually be able to remove it — that's the point of issuing one.
         queue.remove(queue.snapshot().filter(e => e.id && e.id === restored.id));
         expect(queue.size()).toBe(0);
     });
@@ -198,7 +191,6 @@ describe('createLogUploadQueue — pushAll 중복 제거', () => {
 });
 
 describe('LogUploadQueue — 바이트 상한', () => {
-    /** An entry whose data is padded to roughly `bytes` in size. */
     const fat = (id: string, bytes: number): LogEntry => ({
         id,
         level: 'info',
@@ -209,9 +201,6 @@ describe('LogUploadQueue — 바이트 상한', () => {
     });
 
     it('건수가 남아도 바이트를 넘으면 버린다 — 큰 data 몇 개가 예산을 삼키는 것을 막는다', () => {
-        // With only a count cap, this queue has 3 entries and would never trip it. But on the
-        // web this budget is shared across the whole origin, so if logs eat all of it, a
-        // feature that has nothing to do with logging breaks first.
         const dropped: LogEntry[][] = [];
         const queue = createLogUploadQueue({
             capacity: 100,
@@ -281,9 +270,6 @@ describe('LogUploadQueue — acceptDebug', () => {
     });
 
     it('상한에 닿으면 debug가 가장 먼저 버려진다 — 이 순서가 보관을 가능하게 한다', () => {
-        // Without this, a single burst of request logs would push out the warn/error entries
-        // that are the whole reason this window exists. That's exactly the failure the
-        // old policy of never accepting debug at all was avoiding.
         const queue = createLogUploadQueue({ acceptDebug: true, capacity: 3 });
 
         queue.push(entry('error'));

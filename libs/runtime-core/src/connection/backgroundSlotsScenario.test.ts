@@ -1,9 +1,3 @@
-/**
- * Background slots end to end through the real `SocketManager` and the real `SocketBinder`: only the
- * SDK client factory is fake, and bootstrap is reduced to the one thing it does before its first
- * `await` — `ensure`. What these cases prove is the connection count: moving between clouds that all
- * hold a slot creates no client and destroys none.
- */
 import { transportPlatform } from '@chatic/transport/platform';
 import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
@@ -45,7 +39,6 @@ const slot = (cid: string, wssType: 'relay' | 'cloud' = 'cloud') => ({
 });
 const relay = slot('default', 'relay');
 
-// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
 beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('background slots through the real manager and binder', () => {
@@ -61,7 +54,6 @@ describe('background slots through the real manager and binder', () => {
         });
     });
 
-    /** A binder that has applied `slots`; the returned function applies the next ones. */
     const startBinder = (slots: RuntimeSocketSlots) => {
         const binder = new SocketBinder(manager);
         binder.apply(slots, delegate);

@@ -66,8 +66,6 @@ describe('judgeChatImages', () => {
         expect(rejected[0].file.name).toBe('p10.jpg');
     });
 
-    // A file's own properties are judged before its place in the pick, so a HEIC past the limit is
-    // reported as the format problem it is, not as one too many.
     it('judges the file itself before its place in the pick', () => {
         const picked = [file('a.jpg', 'image/jpeg', 1, 1), file('b.heic', 'image/heic', 1, 2)];
 
@@ -96,7 +94,6 @@ describe('judgeChatAttachments', () => {
             file('g.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
             file('h.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
             file('i.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'),
-            // A system that does not know HWP hands it over untyped; the extension carries it.
             file('j.hwp', ''),
             file('k.hwpx', 'application/hwp+zip'),
             file('l.txt', 'text/plain'),
@@ -118,7 +115,6 @@ describe('judgeChatAttachments', () => {
         expect(rejected.map(r => r.reason)).toEqual(['unsupported', 'unsupported']);
     });
 
-    // For an app that sends fewer formats than the server takes; no app passes a filter today.
     it('refuses a format the app does not send, and takes it when nothing says so', () => {
         const picked = [file('a.zip', 'application/zip'), file('a.pdf', 'application/pdf')];
         const noArchive = judgeChatAttachments(picked, 10, format => format.type !== 'application/zip');
@@ -226,7 +222,6 @@ describe('chatAttachmentSummary', () => {
         expect(chatAttachmentSummary({ upload$$: slots('audio') })).toEqual({ kind: 'mixed', count: 1 });
     });
 
-    // Its kind is only in the type the slot kept; read as an image, a PDF being sent was a "Photo".
     it('names a video or document still being sent by the type its slot kept', () => {
         const sending = [
             {
@@ -239,8 +234,6 @@ describe('chatAttachmentSummary', () => {
         expect(chatAttachmentSummary({ upload$$: sending })).toEqual({ kind: 'file', count: 1 });
     });
 
-    // The server stores a voice file as `audio`; read as a document while sending, the row would flip
-    // from "File" to "Attachment" the moment the server had it.
     it('calls a voice file still being sent mixed, as it reads once sent', () => {
         const sending = [{ localStatus: 'sending', localName: 'memo.m4a', localContentType: 'audio/x-m4a' }] as never;
         expect(chatAttachmentSummary({ upload$$: sending })).toEqual({ kind: 'mixed', count: 1 });
@@ -250,8 +243,6 @@ describe('chatAttachmentSummary', () => {
         expect(chatAttachmentSummary({ upload$$: slots('image', 'video') })).toEqual({ kind: 'mixed', count: 2 });
     });
 
-    // A slot still being sent carries no stereo; reading it as anything but an image would flip a
-    // photo on its way into "attachments" for the moment it is sending.
     it('takes a slot without stereo for an image', () => {
         const sending = [{ localStatus: 'sending', localThumbUrl: 'blob:x' }] as never;
         expect(chatAttachmentSummary({ upload$$: sending })).toEqual({ kind: 'image', count: 1 });

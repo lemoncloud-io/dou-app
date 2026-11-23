@@ -7,11 +7,6 @@ describe('isSensitiveKey — 이름으로 판정한다', () => {
         }
     });
 
-    /**
-     * Partial matching is the default for good reason — a newly added `sessionToken2` gets
-     * caught without touching the list. The problem is `code`: it needs to be on the list (a
-     * one-time auth code) while also overlapping with core diagnostic field names.
-     */
     it('code로 끝나는 진단 필드는 잡지 않는다', () => {
         for (const key of ['errorCode', 'statusCode', 'httpStatusCode', 'countryCode', 'langCode', 'closeCode']) {
             expect(isSensitiveKey(key)).toBe(false);
@@ -25,11 +20,6 @@ describe('isSensitiveKey — 이름으로 판정한다', () => {
 });
 
 describe('isSensitiveField — 값을 같이 보고 판정한다', () => {
-    /**
-     * These flags are deliberately made **to avoid carrying the value**. Redacting them would
-     * also erase the very thing gained by not carrying the secret, and the leftover
-     * `[REDACTED]` would look as though a secret had been carried after all.
-     */
     it('boolean 존재 플래그는 통과시킨다', () => {
         for (const key of ['hasToken', 'hasCode', 'hasPassword', 'hasOfferToken', 'hasCachedToken', 'isCredentialed']) {
             expect(isSensitiveField(key, true)).toBe(false);
@@ -61,7 +51,6 @@ describe('sensitiveFamilyOf', () => {
         for (const key of ['deviceToken', 'delegationToken', 'identityToken', 'token']) {
             expect(sensitiveFamilyOf(key)).toBe('token');
         }
-        // A reset token is a one-time code, and a secret is a secret, whatever else the name says.
         expect(sensitiveFamilyOf('passwordResetToken')).toBeUndefined();
         expect(sensitiveFamilyOf('secretToken')).toBeUndefined();
     });

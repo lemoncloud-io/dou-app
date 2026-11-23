@@ -1,7 +1,3 @@
-/**
- * The scoped repository graph: what a sync plan (and later a cloud-addressed send) writes through
- * when the cloud it serves is not necessarily the selected one.
- */
 import type { DataContextProvider } from '@chatic/data';
 
 import { DataManager } from './DataManager';
@@ -74,7 +70,6 @@ describe('DataManager.getScopedRepositories', () => {
 
         expect(manager.getScopedRepositories('cloud-b')).toBe(first);
         expect(manager.getScopedRepositories('cloud-c')).not.toBe(first);
-        // One app graph plus the two scoped ones.
         expect(mockCreateRepositories).toHaveBeenCalledTimes(3);
     });
 
@@ -91,7 +86,6 @@ describe('DataManager.getScopedRepositories', () => {
 
         expect(mockGetScopedClient).toHaveBeenCalledWith('cloud-b');
         expect(assemblyOf(repositories).socketDataSources.client).toBe(mockScopedClients.get('cloud-b'));
-        // The app graph was assembled with the default (active-facade) client.
         expect(assemblyOf(manager.getRepositories()).socketDataSources.client).toBeUndefined();
     });
 
@@ -105,7 +99,6 @@ describe('DataManager.getScopedRepositories', () => {
         expect(scoped.localDataSources).toBe(mockLocalDataSources);
         expect(app.localDataSources).toBe(mockLocalDataSources);
         expect(scoped.httpDataSources).toBe(mockHttpDataSources);
-        // One options object for every graph, so every graph hands its state writes to the same outbox.
         expect(scoped.options).toBe(app.options);
         expect(scoped.options).toEqual({ user: {}, outbox: expect.objectContaining({ set: expect.any(Function) }) });
     });
@@ -124,7 +117,6 @@ describe('DataManager.getScopedRepositories', () => {
 
         expect(context.getContext()).toEqual({ cid: 'cloud-b', uid: undefined, socketCid: 'cloud-b' });
 
-        // The identity lands after the graph exists — the graph must see it without a rebuild.
         mockUids['cloud-b'] = 'uid-b';
         expect(context.getContext()).toEqual({ cid: 'cloud-b', uid: 'uid-b', socketCid: 'cloud-b' });
     });

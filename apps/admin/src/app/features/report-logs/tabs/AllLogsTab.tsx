@@ -1,26 +1,3 @@
-/**
- * `tabs/AllLogsTab.tsx`
- * - The all-logs tab, the developer's view: assembles the corpus, the filters and the five views.
- *
- * The page header above every tab owns the title and the server switch, so this tab starts at
- * its own controls.
- *
- * The screen's shape follows one constraint: the backend can only filter on the axes it
- * copied to the top of the record — `uid`, `sid`, `cid`, `runId`, `level`, `stereo`, a
- * `createdAt` range, and (for newer records) tag, versions, route and device. Everything else
- * lives inside `meta`, so the facets, the groups and the statistics here are computed over the
- * rows this page pulled down. The other tabs ask the server to count; this one shows rows.
- *
- * Hence the split this file is mostly about:
- *
- * - `useLogConsoleState` keeps the server axes and the client axes apart, in the URL.
- * - `useLogCorpus` walks the server-narrowed range page by page — changing a server axis
- *   restarts it; changing a client axis must not.
- * - `logFacets` + the memo below narrow and count what was collected.
- *
- * Nothing here re-fetches on a keystroke, and nothing silently presents a corpus-scoped
- * count as a dataset-wide one.
- */
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -52,7 +29,6 @@ import { StatsPanel } from '../components/StatsPanel';
 import type { ViewMode } from '../hooks/use-log-console-state';
 import type { PinKey } from '../lib/pinAxes';
 
-/** The views, in switch order; each is named by the `tab.views.<value>` key. */
 const VIEWS: ViewMode[] = ['list', 'group', 'time', 'timeline', 'stats'];
 
 export const AllLogsTab = () => {
@@ -79,9 +55,6 @@ export const AllLogsTab = () => {
 
     const [selected, setSelected] = useState<ReportLogRow | null>(null);
 
-    // The wire params. `kind` maps to a `stereo` value rather than being passed through —
-    // errors and log entries share `stereo='log'`, so the client-side pass below is what
-    // finally separates them.
     const corpusParams = useMemo<CorpusParams>(
         () => ({
             stage: server.stage,
@@ -92,8 +65,6 @@ export const AllLogsTab = () => {
             uid: server.uid || undefined,
             cid: server.cid || undefined,
             runId: server.runId || undefined,
-            // Empty means "no filter": an empty string would be matched literally against
-            // `<field>.keyword` and come back with nothing.
             ...Object.fromEntries(ROUND_2_AXES.map(axis => [axis, server[axis] || undefined])),
         }),
         [server]
@@ -101,8 +72,6 @@ export const AllLogsTab = () => {
 
     const corpus = useLogCorpus(corpusParams);
 
-    // Newest arrival in the corpus, which is the probe's watermark. Read from the rows
-    // rather than tracked separately so a merge advances it for free.
     const headCreatedAt = useMemo(
         () => corpus.rows.reduce<number | undefined>((max, row) => Math.max(max ?? 0, row.createdAt ?? 0), undefined),
         [corpus.rows]
@@ -110,16 +79,6 @@ export const AllLogsTab = () => {
 
     const probe = useNewLogProbe(corpusParams, headCreatedAt, { enabled: !corpus.isCollecting });
 
-    /**
-     * Client-side narrowing over the corpus, plus the kind split the server cannot do.
-     *
-     * The query matcher is built once rather than per row: `matchesQuery` re-parses the
-     * query on every call, which is invisible for a handful of rows and wasteful across a
-     * 5,000-row corpus.
-     */
-    // Every client narrowing except the record filter. The timeline and the statistics view start
-    // from these: the timeline shows a run's logs and statistics together (with its own toggles),
-    // and the statistics view is about statistics whatever the list is set to show.
     const unrecorded = useMemo(() => {
         const matchesText = makeQueryMatcher(client.query);
         return corpus.rows
@@ -135,10 +94,7 @@ export const AllLogsTab = () => {
     const filtered = useMemo(() => {
         const matchesText = makeQueryMatcher(client.query);
         const rows = corpus.rows.filter(row => {
-            // Statistics share the store with logs; the list shows logs unless asked otherwise.
             if (!matchesRecord(row, client.record)) return false;
-            // Records written before reports carried a stereo are all `log`, so a legacy
-            // issue lands in the `error` bucket server-side; this drops those rows.
             if (server.kind !== 'all' && row.type !== server.kind) return false;
             if (!matchesFacets(row, client.facets)) return false;
             if (!matchesText(row)) return false;
@@ -147,10 +103,8 @@ export const AllLogsTab = () => {
         return rows.sort(byEventAtDesc);
     }, [corpus.rows, server.kind, client.facets, client.query, client.record]);
 
-    /** The same narrowing, reusable for anything that must predict what will show up. */
     const isVisible = useMemo(() => {
         const matchesText = makeQueryMatcher(client.query);
-        // The timeline and the statistics view ignore the record filter, so the banner does too there.
         const recordApplies = mode !== 'timeline' && mode !== 'stats';
         return (row: ReportLogRow) =>
             (!recordApplies || matchesRecord(row, client.record)) &&
@@ -159,10 +113,6 @@ export const AllLogsTab = () => {
             matchesText(row);
     }, [server.kind, client.facets, client.query, client.record, mode]);
 
-    // Facets are built from the corpus, not from `filtered`: a facet list that shrank as
-    // you selected from it would strand you with no way back to the other values.
-    // Over the records the list can show: a value only statistics carry (`perf.chat_room_open`)
-    // offered while the list shows logs would empty it with no hint why.
     const facets = useMemo(
         () =>
             buildFacets(
@@ -183,31 +133,8 @@ export const AllLogsTab = () => {
 
     const onObserve = (uid: string) => navigate(`/socket-lab?observe=${encodeURIComponent(uid)}`);
 
-    /**
-     * What the operator will actually see appear.
-     *
-     * The probe only knows the server axes, so a strict count of its finds can promise
-     * rows the client-side narrowing then hides — click it, nothing changes, and the
-     * merge looks broken. Counting through the same predicate keeps the promise true;
-     * every fetched row is still merged, so nothing is dropped from the corpus.
-     */
     const incomingVisible = useMemo(() => probe.rows.filter(isVisible).length, [probe.rows, isVisible]);
 
-    /**
-     * Take the banner's rows, or re-collect when the probe's window overflowed.
-     *
-     * An overflowed window means there are more arrivals than one page holds, so merging
-     * would advance the watermark past the rows that did not fit and strand them
-     * permanently. A fresh walk is the only way to get them.
-     */
-    /**
-     * Collect again from scratch — what the operator means by refreshing.
-     *
-     * The probe is reset as part of it, not left alone: its finds are measured against the
-     * watermark of the corpus that is being replaced, so keeping them would announce rows the new
-     * walk is already bringing in. A banner offering rows that are about to appear anyway reads as
-     * the merge being broken.
-     */
     const reload = () => {
         probe.reset();
         corpus.reload();
@@ -221,7 +148,6 @@ export const AllLogsTab = () => {
         corpus.appendHead(probe.take());
     };
 
-    /** Range bounds in ms, so rows outside them can say so. Dates are local-day starts. */
     const range = useMemo(() => {
         const startOf = (date: string) => (date ? new Date(`${date}T00:00:00`).getTime() : undefined);
         const endOf = (date: string) => (date ? new Date(`${date}T23:59:59.999`).getTime() : undefined);
@@ -251,8 +177,6 @@ export const AllLogsTab = () => {
                                 key={view}
                                 type="button"
                                 onClick={() => setMode(view)}
-                                // Without this the active view is conveyed by background
-                                // colour alone.
                                 aria-pressed={mode === view}
                                 className={`rounded px-3 py-1 ${
                                     mode === view
@@ -267,14 +191,11 @@ export const AllLogsTab = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            // The range is optional, so the filename says `all` rather than
-                            // trailing a bare dash when no start date is set.
                             downloadTextFile(
                                 `log-console-${server.stage}-${server.from || 'all'}.csv`,
                                 rowsToCsv(filtered)
                             )
                         }
-                        // The statistics view has its own table; the export is of the list.
                         disabled={filtered.length === 0 || mode === 'stats'}
                         title={t('tab.csvTitle')}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
@@ -291,9 +212,6 @@ export const AllLogsTab = () => {
                     </button>
                 </div>
             </div>
-            {/* `uidCaveat`: Slack reports are not stamped with a `uid`, so a uid pin reaches
-                the user's log entries but not their own issue reports. Said only when it
-                could actually mislead — a uid is pinned and reports are in scope. */}
             <TrackingPins pins={pins} onUnpin={unpin} uidCaveat={server.kind === 'all' || server.kind === 'issue'} />
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <MonitorStrip rows={filtered} corpusSize={corpus.loaded} />

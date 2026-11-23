@@ -6,7 +6,6 @@ describe('UserRepository', () => {
         options?: UserRepositoryOptions,
         context: DataContext = { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
     ) => {
-        // User repository mixes cache writes and helper passthroughs, so keep each collaborator fully isolated.
         const userSocketDataSource = {
             fetchUsers: jest.fn(),
             getMyProfile: jest.fn(),
@@ -79,7 +78,6 @@ describe('UserRepository', () => {
 
         const syncedAt = await repository.syncChannelUsers({ channelId: 'ch-1' } as any);
 
-        // Users and joins from the same response are both persisted under the active scope.
         expect(userLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
             [expect.objectContaining({ id: 'u1', cid: 'cloud-a' })],
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -88,7 +86,6 @@ describe('UserRepository', () => {
             [expect.objectContaining({ id: 'ch-1@u1', channelId: 'ch-1', userId: 'u1', readNo: 7 })],
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
-        // The returned cursor is what the caller passes back as `since`.
         expect(syncedAt).toBe(1700);
     });
 
@@ -108,8 +105,6 @@ describe('UserRepository', () => {
 
     it('hydrates both the user cache and the join cache on refreshList', async () => {
         const { repository, userSocketDataSource, userLocalDataSource, joinLocalDataSource } = createRepository();
-        // The read cursor rides in on the roster response but never on the user record — the
-        // data source hands it over separately (see ChannelUsersFetchResult).
         userSocketDataSource.fetchUsers.mockResolvedValue({
             users: {
                 list: [
@@ -145,13 +140,11 @@ describe('UserRepository', () => {
 
         const profile = await repository.getMyProfile();
 
-        // The mapped user is returned and written so observeItem subscribers see it.
         expect(profile).toMatchObject({ id: 'me', cid: 'cloud-a' });
         expect(userLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'me', cid: 'cloud-a' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
         );
-        // The embedded $site is persisted to the place cache under the active scope.
         expect(placeLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'site-1', cid: 'cloud-a' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -180,8 +173,6 @@ describe('UserRepository', () => {
 
         await repository.getMyProfile();
 
-        // The cloud context is vetoed, so the default place never lands in the cloud partition —
-        // while the user write itself stays untouched (ADR-0094).
         expect(userLocalDataSource.cacheWrite).toHaveBeenCalled();
         expect(placeLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
@@ -216,7 +207,6 @@ describe('UserRepository', () => {
 
         await expect(repository.updateProfile({ userId: 'u1', name: 'After' } as any)).rejects.toThrow('boom');
 
-        // The rollback should restore the original cached user after the failed mutation.
         expect(userLocalDataSource.cacheWrite).toHaveBeenLastCalledWith(
             expect.objectContaining({ id: 'u1', name: 'Before' }),
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -228,7 +218,6 @@ describe('UserRepository', () => {
         userSocketDataSource.requestInvite.mockResolvedValue({ code: 'invite-1' });
         userSocketDataSource.inviteBatch.mockResolvedValue({ list: [{ code: 'invite-2' }] });
 
-        // Invite helpers should remain passthroughs so callers see the backend contract directly.
         await expect(repository.requestInvite({ alias: 'a' } as any)).resolves.toEqual({ code: 'invite-1' });
         await expect(
             repository.requestInviteBatch({ to: ['+821011112222'], channelId: 'ch-1' } as any)
@@ -244,8 +233,6 @@ describe('UserRepository', () => {
             channelId: 'ch-1',
         } as any);
 
-        // Folding the list into one comma-joined string is what made the server read it as a single
-        // phone and reject it (`@phone[a,b] is invalid format`); dropping channelId lost the target.
         expect(userSocketDataSource.inviteBatch).toHaveBeenCalledWith({
             to: ['+821011112222', '+821033334444'],
             channelId: 'ch-1',
@@ -351,7 +338,6 @@ describe('UserRepository.listPlaceMembers', () => {
     const createRepository = (context: DataContext = { cid: 'cloud-a', uid: 'me' }) => {
         const holder = { context };
         const userSocketDataSource = { fetchPlaceUsers: jest.fn() };
-        // Both profile entry points are present so a test can prove the delta sync is never the one used.
         const profileRepository = {
             syncProfilesOf: jest.fn().mockResolvedValue({ updatedCount: 0, removedCount: 0 }),
             syncProfiles: jest.fn(),
@@ -377,7 +363,6 @@ describe('UserRepository.listPlaceMembers', () => {
 
     it('reads every page until total, and a short page is not taken as the end', async () => {
         const { repository, userSocketDataSource } = createRepository();
-        // The server drops members who left after slicing, so pages come back short of the limit.
         userSocketDataSource.fetchPlaceUsers
             .mockResolvedValueOnce(page(ids(0, 8), 25, 0))
             .mockResolvedValueOnce(page(ids(8, 10), 25, 1))
@@ -395,7 +380,6 @@ describe('UserRepository.listPlaceMembers', () => {
 
     it('stops at an empty page even when total still promises more', async () => {
         const { repository, userSocketDataSource } = createRepository();
-        // `total` is counted before departed members are dropped, so it can overstate the list.
         userSocketDataSource.fetchPlaceUsers
             .mockResolvedValueOnce(page(ids(0, 10), 40, 0))
             .mockResolvedValueOnce(page([], 40, 1));
@@ -428,7 +412,6 @@ describe('UserRepository.listPlaceMembers', () => {
             [ids(0, 10), 'site-1'],
             [ids(10, 3), 'site-1'],
         ]);
-        // The by-id load must not touch the background cursor; the delta sync is the only thing that does.
         expect(profileRepository.syncProfiles).not.toHaveBeenCalled();
         expect(result.profiles).toBe('loaded');
     });
@@ -457,8 +440,6 @@ describe('UserRepository.listPlaceMembers', () => {
 
         const result = await repository.listPlaceMembers({ placeId: 'site-1', sessionPlaceId });
 
-        // profile.sync answers for the SESSION's place and its rows are stamped with the place named
-        // here — calling it now would file another place's profiles under site-1.
         expect(profileRepository.syncProfilesOf).not.toHaveBeenCalled();
         expect(result.members.map(m => m.id)).toEqual(['u0', 'u1']);
         expect(result.profiles).toBe('skipped');
@@ -496,8 +477,6 @@ describe('UserRepository.listPlaceMembers', () => {
         userSocketDataSource.fetchPlaceUsers
             .mockImplementationOnce(async () => page(ids(0, 10), 15, 0))
             .mockImplementationOnce(async () => {
-                // The switch lands while page 1 is in flight: its profiles would be answered by the
-                // new session and filed under the new cloud.
                 contextProvider.setContext({ cid: 'cloud-b', uid: 'me' });
                 return page(ids(10, 5), 15, 1);
             });

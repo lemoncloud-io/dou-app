@@ -166,6 +166,30 @@ thing built on top of it. The fix belongs to the backend repo — an admin-role 
   only applies inside the `view=mine` branch; the admin filter is `CloudModel.ownerId`.
 - **`GET /clouds/0/list` for admin fixes `valid: 0`**, the opposite of the ordinary default (`1`) —
   an operator needs to see expired clouds too, which the default view would otherwise drop.
+- **The list filters are also applied in the browser.** `status`, `platform`, `userId`, `productId` and
+  `isSuper` are sent to the relay, but the list route did not narrow by them when the console was
+  built, so the same values are applied over the rows that came back and the filter rail says which
+  reach the server and which do not. Ids match on substring (a pasted partial id is a search);
+  status and platform match exactly. Text fields settle into the URL after a pause rather than on
+  every keystroke.
+- **The status strip counts the rows on screen.** The membership list returns no aggregation, unlike
+  the cloud list, so a count that looked like a total would be wrong; the caption says so. There is
+  no name or email column for the same reason the filter by `userId` exists: a membership identifies
+  its user by id alone.
+- **`adminUntil` is the last millisecond of the chosen day, local time.** A grant "until" a date is
+  still in force during that day, and picking today passes the relay's "no past `adminUntil`" rule.
+  The day presets count calendar days, not 24-hour steps, so a DST change moves the clock and not
+  the day.
+- **The mandatory reason is a house rule.** The relay accepts an empty `adminReason`; only this
+  console requires one, because who changed what and why is the whole audit trail (the relay keeps
+  only the latest entry). A direct call to the endpoint can still land an override with no reason.
+- **The cloud panel accepts the relay's aggregation either as one object or a list**, and merges
+  every top-level key rather than only `status`, so it does not render blank if the relay renames
+  the key.
+- **The plan catalog is read without `limit`**; the relay returns the whole catalog regardless.
+- **Aim calls at the relay, not the backend base.** The session's relay is `VITE_DOU_ENDPOINT`
+  (`.../dou-XX`); `VITE_BACKEND_ENDPOINT` (`.../d1`) is a different service, so these routes are not
+  served there.
 - **Checking the residual `isSuper` field is a required step before removing the read for it in
   `apps/web`.** Filter the list by `isSuper=1`; every row returned needs an active override before
   that removal ships, or that user loses entitlement the moment the read is gone.

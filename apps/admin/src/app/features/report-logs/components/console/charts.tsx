@@ -1,11 +1,3 @@
-/**
- * `components/report-logs/console/charts.tsx`
- * - The three chart shapes the statistics views use, drawn with plain elements.
- *
- * Columns over time, shares as horizontal bars, and a distribution. No chart library: the views
- * need little more than bars with labels, and plain elements take the theme tokens, render in tests
- * and stay accessible (each chart carries a label, each bar a title with its exact value).
- */
 import type { ReactNode } from 'react';
 
 export type ChartTone = 'primary' | 'error' | 'good' | 'muted';
@@ -19,18 +11,12 @@ const FILL: Record<ChartTone, string> = {
 
 export interface Column {
     key: string | number;
-    /** Shown under the column; leave empty to label only some columns. */
     label?: string;
     value: number;
-    /** Full text for the tooltip. */
     title?: string;
     tone?: ChartTone;
 }
 
-/**
- * Vertical columns, one per bucket — days, hours. Values are printed above the columns when there
- * are few enough to read.
- */
 export const ColumnChart = ({
     columns,
     label,
@@ -88,15 +74,10 @@ export interface Share {
     key: string;
     label: ReactNode;
     value: number;
-    /** A second line under the label (e.g. a count or a median). */
     sub?: ReactNode;
     tone?: ChartTone;
 }
 
-/**
- * Horizontal bars for "how is it split": versions, screens, outcomes. Each row shows its label, its
- * value and its share of `total` (the sum of the values when not given).
- */
 export const ShareBars = ({
     shares,
     label,
@@ -144,10 +125,6 @@ export interface Bin {
     count: number;
 }
 
-/**
- * A distribution: equal-width bins with the range printed at both ends, and an optional marker
- * (a target) drawn where it falls.
- */
 export const Histogram = ({
     bins,
     label,
@@ -195,7 +172,6 @@ export const Histogram = ({
     );
 };
 
-/** The table style every statistics view uses for per-group numbers. */
 export const tableClass = {
     table: 'w-full text-sm',
     head: 'border-b border-border text-left text-[13px] font-medium text-muted-foreground',

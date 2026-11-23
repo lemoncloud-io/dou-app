@@ -3,6 +3,8 @@ import { writeFile } from 'node:fs/promises';
 import { test as base, expect, type TestInfo } from '@playwright/test';
 
 import { FakeBackend } from '../fixtures/backend';
+import { Chaos } from './chaos';
+import { Evidence } from './evidence';
 import { FakeShell, type FakeShellOptions, type ShellPlatform } from './fake-shell/fakeShell';
 
 interface Fixtures {
@@ -13,6 +15,8 @@ interface Fixtures {
     shell: FakeShell;
     /** The relay, answered from fixtures. */
     backend: FakeBackend;
+    chaos: Chaos;
+    evidence: Evidence;
 }
 
 export interface E2EOptions {
@@ -60,6 +64,19 @@ export const test = base.extend<Fixtures & E2EOptions>({
         },
         { auto: true },
     ],
+    chaos: async ({ page, backend }, use, testInfo) => {
+        const chaos = new Chaos(page, backend);
+        await use(chaos);
+        await chaos.attachTo(testInfo);
+        if (testInfo.status === testInfo.expectedStatus) {
+            expect(chaos.unfired(), 'faults injected that no request ever met').toEqual([]);
+        }
+    },
+    evidence: async ({ page }, use, testInfo) => {
+        const evidence = new Evidence(page, testInfo);
+        await use(evidence);
+        await evidence.attach();
+    },
     // Automatic too: a scenario that never names the shell still runs inside one, as the app would.
     shell: [
         async ({ page, shellPlatform, inApp, shellAppVersion, shellCapabilities }, use, testInfo) => {

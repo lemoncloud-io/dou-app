@@ -1,7 +1,3 @@
-/**
- * `api/unicastApi.ts`
- * - Unicast sends from the Observe tab — for verifying push delivery per device state.
- */
 import { runtime } from '@chatic/runtime';
 
 import type { PushPayload, UnicastEvent, UnicastResult, ViewingTarget } from '@lemoncloud/chatic-sockets-api';
@@ -22,7 +18,6 @@ export interface UnicastInput {
 export const buildUnicastEvent = (input: UnicastInput): UnicastEvent => ({
     id: `adm-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     type: input.type,
-    // The app's former name, kept on purpose: receivers may already read this label.
     source: 'admin-v2',
     ts: Date.now(),
     version: 1,

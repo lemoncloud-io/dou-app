@@ -1,6 +1,3 @@
-/**
- * `lib/report-logs/eventTime.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -38,8 +35,6 @@ describe('eventAt', () => {
     });
 
     it('treats timestamp 0 as a real value rather than falling back', () => {
-        // `??` and not `||`: epoch 0 is nonsense as a date but it is still the value the
-        // record carries, and silently swapping in `createdAt` would hide a bad client clock.
         expect(eventAt(row({ timestamp: 0, createdAt: 900 }))).toBe(0);
     });
 });
@@ -111,7 +106,6 @@ describe('comparators', () => {
     });
 
     it('orders by occurrence even when arrival order is the reverse', () => {
-        // The case the whole module exists for: one batch upload, arrival order scrambled.
         const rows = [
             row({ id: 'late-event', timestamp: 900, createdAt: 1_000 }),
             row({ id: 'early-event', timestamp: 100, createdAt: 1_001 }),

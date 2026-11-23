@@ -6,9 +6,6 @@ import { createPartitionedMemoryStorage } from '../local/data-sources/__mocks__/
 import { ChannelRepository } from './ChannelRepository';
 import { DataContextHolder } from './types';
 
-// The swallowed purge failure is only observable through the logger, and the real one routes to a
-// sink that is not installed under jest — asserting on `console.warn` would pass or fail depending
-// on sink wiring rather than on this repository's behavior.
 jest.mock('@chatic/logger', () => ({
     ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
@@ -16,7 +13,6 @@ jest.mock('@chatic/logger', () => ({
 
 describe('ChannelRepository', () => {
     const createRepository = () => {
-        // Mock remote and local collaborators independently so orchestration behavior is easy to assert.
         const channelSocketDataSource = {
             fetchChannel: jest.fn(),
             syncChannel: jest.fn(),
@@ -44,8 +40,6 @@ describe('ChannelRepository', () => {
             cacheClearByChannelId: jest.fn(),
         };
         const contextProvider = {
-            // No `sid`: the producer stopped seeding one (ADR-0085), so a repository that still needed
-            // an ambient site would fail here rather than quietly borrow the fixture's.
             getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
             setContext: () => undefined,
         };
@@ -72,7 +66,6 @@ describe('ChannelRepository', () => {
         await repository.cacheDelete('ch-1');
         await repository.cacheClear();
 
-        // Helper methods should stay thin wrappers so hooks can rely on a consistent context-bound API.
         expect(channelLocalDataSource.cacheRead).toHaveBeenCalledWith('ch-1', { cid: 'cloud-a', uid: 'me' });
         expect(channelLocalDataSource.cacheReadList).toHaveBeenCalledWith(
             { sid: 'site-1' },
@@ -90,7 +83,6 @@ describe('ChannelRepository', () => {
     it('inviteChannel — optimistically writes the invited ids into memberIds before the round trip', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelLocalDataSource.cacheRead.mockResolvedValue({ id: 'ch-1', sid: 'site-1', memberIds: ['me'] });
-        // Even when the server response omits the member list, the invited ids must not be lost (the same guard as leaveChannel).
         channelSocketDataSource.inviteChannel.mockResolvedValue({ id: 'ch-1', sid: 'site-1' });
 
         const result = await repository.inviteChannel({ channelId: 'ch-1', userIds: ['u-2', 'u-3'] } as any);
@@ -135,9 +127,6 @@ describe('ChannelRepository', () => {
 
         await repository.refreshList({ sid: 'site-1', detail: true, limit: 100 } as any);
 
-        // The mapping context carries the site the CALLER named — that is what tags rows whose
-        // response has no site of its own. The cache write below goes under the request context,
-        // which has no sid at all (ADR-0085).
         expect(channelSocketDataSource.fetchChannel).toHaveBeenCalledWith(
             { sid: 'site-1', detail: true, limit: 100 },
             { cid: 'cloud-a', sid: 'site-1', uid: 'me' }
@@ -153,7 +142,6 @@ describe('ChannelRepository', () => {
 
     it('refreshList — excludes left channels and rows with no id from the merge', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
-        // Leaving marks the channel locally; a lagging server snapshot must not resurrect it.
         channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-left' });
         await repository.leaveChannel({ channelId: 'ch-left' } as any);
         channelLocalDataSource.cacheWriteMany.mockClear();
@@ -172,9 +160,6 @@ describe('ChannelRepository', () => {
 
     it('the leave guard is time-bounded — after it expires refreshList/syncChannels accept a rejoined channel again', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
-        // The guard covers ONE race (a snapshot issued before the leave answering after it). Held
-        // forever it would also block a re-invite from ever reaching the cache — the room would stay
-        // invisible for the rest of the session (ADR-0067).
         const now = Date.now();
         const clock = jest.spyOn(Date, 'now').mockReturnValue(now);
         channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-left' });
@@ -187,7 +172,6 @@ describe('ChannelRepository', () => {
             syncedAt: 1,
         });
 
-        // Still inside the window: both ingestion paths drop it.
         await repository.refreshList({ sid: 'site-1' } as any);
         await repository.syncChannels(0);
         expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
@@ -212,8 +196,6 @@ describe('ChannelRepository', () => {
 
     it('syncChannels keeps the Self Channel, which has no place, and still drops other place-less rows', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
-        // The relay sends a new user's Self Channel with an empty `$`: it belongs to the account, not
-        // to a place. Dropping it with the other place-less rows left Home with no channel at all.
         channelSocketDataSource.syncChannel.mockResolvedValue({
             list: [
                 { id: 'U:1001', stereo: 'self', $: {} },
@@ -230,8 +212,6 @@ describe('ChannelRepository', () => {
         );
     });
 
-    // A cloud 1:1's place comes from its own field or its id, never the reader's; one that names
-    // none is kept too, for a desktop cloud with no place to list.
     it('syncChannels keeps a cloud 1:1 whose row carries no place field', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelSocketDataSource.syncChannel.mockResolvedValue({
@@ -251,8 +231,6 @@ describe('ChannelRepository', () => {
         ]);
     });
 
-    // A relay 1:1 is one room per pair, handed back on every re-invite with whatever place the session
-    // that first opened it had — possibly none. Dropping it lost a room the reader had just accepted.
     it('syncChannels keeps a relay 1:1 whose row carries no place field', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelSocketDataSource.syncChannel.mockResolvedValue({
@@ -284,8 +262,6 @@ describe('ChannelRepository', () => {
 
     it('leaveChannel — a failed leave leaves the chat cache untouched', async () => {
         const { repository, channelSocketDataSource, chatLocalDataSource } = createRepository();
-        // Messages are not restorable: the feed is windowed by joinedNo, so anything dropped in
-        // error is gone for good. The purge therefore waits for the server to confirm the leave.
         channelSocketDataSource.leaveChannel.mockRejectedValue(new Error('nope'));
 
         await expect(repository.leaveChannel({ channelId: 'ch-1' } as any)).rejects.toThrow('nope');
@@ -304,24 +280,17 @@ describe('ChannelRepository', () => {
 
     it('leaveChannel — the leave still succeeds when the chat cache cleanup fails', async () => {
         const { repository, channelSocketDataSource, chatLocalDataSource } = createRepository();
-        // The leave already happened server-side; reporting it as failed would be the bigger lie.
-        // Rows that outlive their room are covered by isInJoinWindow on every screen.
         (logger.warn as jest.Mock).mockClear();
         channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
         chatLocalDataSource.cacheClearByChannelId.mockRejectedValue(new Error('bridge timeout'));
 
         await expect(repository.leaveChannel({ channelId: 'ch-1' } as any)).resolves.toEqual({ id: 'ch-1' });
 
-        // Swallowed, but not silently — a purge that never happened has to be findable in the logs.
         expect(logger.warn).toHaveBeenCalled();
     });
 
     it('refreshList — does not clear the cache of a site when the response holds no list for the requested site', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
-        // `channel.mine` answers for the site the socket session is on and ignores the payload's
-        // sid, so asking about another site returns a list that shares no ids with it. Treating
-        // that as "site-2 has no channels anymore" wiped the switched-to place's cache and left
-        // the sidebar empty until a reload.
         channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [{ id: 'ch-1', sid: 'site-1' }] });
         channelLocalDataSource.cacheReadList.mockResolvedValue({ list: [{ id: 'ch-9', sid: 'site-2' }] });
 
@@ -362,8 +331,6 @@ describe('ChannelRepository', () => {
 
     it('leaveChannel — kicking a member (userId present) does not evict my channel cache', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
-        // Owner kicking another member: I stay in the room, so the channel must remain cached
-        // and must not be marked as left (a lagging snapshot must still resurrect it for me).
         channelSocketDataSource.leaveChannel.mockResolvedValue({ id: 'ch-1' });
 
         await repository.leaveChannel({ channelId: 'ch-1', userId: 'other-user' } as any);
@@ -374,7 +341,6 @@ describe('ChannelRepository', () => {
             { cid: 'cloud-a', uid: 'me' }
         );
 
-        // The kicked channel is NOT filtered out of a subsequent snapshot merge.
         channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [{ id: 'ch-1', sid: 'site-1' }] });
         await repository.refreshList({ sid: 'site-1' } as any);
         expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
@@ -385,7 +351,6 @@ describe('ChannelRepository', () => {
 
     it('evictLeftChannels — each channel the server took me out of loses its row and its messages, under the scope given', async () => {
         const { repository, channelLocalDataSource, chatLocalDataSource, channelSocketDataSource } = createRepository();
-        // The scope the place leave was asked in — not the repository's live one.
         const asked = { cid: 'cloud-x', uid: 'me-x' };
 
         await repository.evictLeftChannels(['ch-1', 'ch-2', 'ch-1'], asked);
@@ -398,7 +363,6 @@ describe('ChannelRepository', () => {
             ['ch-1', asked],
             ['ch-2', asked],
         ]);
-        // No round trip of its own: the server has already answered.
         expect(channelSocketDataSource.leaveChannel).not.toHaveBeenCalled();
     });
 
@@ -474,7 +438,6 @@ describe('ChannelRepository', () => {
         expect(channelLocalDataSource.cacheWrite.mock.calls).toEqual([
             [{ id: 'ch-1', memberIds: ['me', 'u-3'] }, asked],
         ]);
-        // I stay in those rooms: nothing of mine is evicted.
         expect(channelLocalDataSource.cacheDelete).not.toHaveBeenCalled();
         expect(chatLocalDataSource.cacheClearByChannelId).not.toHaveBeenCalled();
     });
@@ -501,14 +464,10 @@ describe('ChannelRepository', () => {
         expect(channelLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
     });
 
-    // ADR-0085 — the site is named by the caller, never taken off the ambient context. The provider
-    // above sits on 'site-1', so a caller naming 'site-2' proves which of the two wins.
     it('refreshList refuses a query with no sid rather than falling back to the ambient one', async () => {
         const { repository, channelSocketDataSource } = createRepository();
 
         await expect(repository.refreshList({} as any)).rejects.toThrow(/query\.sid/);
-        // It must give up BEFORE asking the server: an unattributed answer is what opens the prune
-        // gate that would delete another site's cached channels.
         expect(channelSocketDataSource.fetchChannel).not.toHaveBeenCalled();
     });
 
@@ -541,8 +500,6 @@ describe('ChannelRepository', () => {
         expect(result.id).toBe('dm-1');
     });
 
-    // The answer for a room the call has just created carries no site field; a place-keyed id names
-    // the place the server filed it under.
     it('startDm caches a new room under the place its id names', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelSocketDataSource.startDm.mockResolvedValue({ id: 'site-7@me@u2', sid: '' });
@@ -556,7 +513,6 @@ describe('ChannelRepository', () => {
         );
     });
 
-    // The ambient place is the reader's, not the room's: it is never handed to the mapper.
     it('startDm maps the answer without the ambient place', async () => {
         const { repository, channelSocketDataSource } = createRepository();
         channelSocketDataSource.startDm.mockResolvedValue({ id: 'site-7@me@u2', sid: '' });
@@ -566,8 +522,6 @@ describe('ChannelRepository', () => {
         expect(channelSocketDataSource.startDm.mock.calls[0][1]).toEqual(expect.objectContaining({ sid: undefined }));
     });
 
-    // A room that names no place — no field, and a pair key from before places keyed 1:1s — is not
-    // cached: the local write needs a place, and the next sync brings the row with one.
     it('startDm returns a room that names no place and leaves its row to the next sync', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelSocketDataSource.startDm.mockResolvedValue({ id: 'me@u2', sid: '', stereo: 'dm' });
@@ -584,8 +538,6 @@ describe('ChannelRepository', () => {
 
         await repository.startDm({ peerId: 'u2' } as any);
 
-        // The contract carries one peer and nothing else; a site would have to come from the ambient
-        // context, which is the failure this whole path exists to avoid.
         expect(channelSocketDataSource.startDm.mock.calls[0][0]).toEqual({ peerId: 'u2' });
     });
 
@@ -604,12 +556,10 @@ describe('ChannelRepository', () => {
             id: 'self-channel',
             sid: 'site-1',
         });
-        // The response carries no site of its own, so the caller's is what reaches the mapper.
         expect(channelSocketDataSource.getSelfChannel).toHaveBeenCalledWith(
             {},
             expect.objectContaining({ sid: 'site-1' })
         );
-        // The self channel must land in the cache so the channel list observers pick it up.
         expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
             { id: 'self-channel', sid: 'site-1' },
             expect.anything()
@@ -624,7 +574,6 @@ describe('ChannelRepository', () => {
             id: 'ch-1',
             sid: 'site-1',
         });
-        // The response carries no site of its own, so the caller's site tags the mapping.
         expect(channelSocketDataSource.getChannel).toHaveBeenCalledWith(
             { id: 'ch-1' },
             expect.objectContaining({ sid: 'site-1' })
@@ -651,7 +600,6 @@ describe('ChannelRepository', () => {
         await repository.leaveChannel({ channelId: 'ch-1' } as any);
 
         await expect(repository.refreshOne('ch-1', 'site-1')).resolves.toMatchObject({ id: 'ch-1' });
-        // A stale push must not resurrect the row the leave just removed.
         expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
 
@@ -688,9 +636,6 @@ describe('ChannelRepository', () => {
     });
 
     describe('a list fetched before a create or delete, answering after it', () => {
-        // `channel.mine` and `channel.sync` describe the server as it was when they were asked. One
-        // asked just before a mutation and answering just after it is out of date about that one room.
-
         it('deleteChannel — a snapshot that still lists the deleted channel does not bring it back', async () => {
             const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
             channelSocketDataSource.deleteChannel.mockResolvedValue({ id: 'ch-gone' });
@@ -810,11 +755,6 @@ describe('ChannelRepository', () => {
     });
 });
 
-/**
- * The repository against real local data sources on partitioned storage, so an assertion is about
- * where a row ended up rather than what a mock was called with. Every case turns on an answer that
- * arrives after the context moved.
- */
 describe('ChannelRepository — the scope an answer is written under', () => {
     const deferred = <T>() => {
         let resolve!: (value: T) => void;
@@ -862,7 +802,6 @@ describe('ChannelRepository — the scope an answer is written under', () => {
         await pending;
 
         expect(await idsIn('cloud-a')).toEqual(['a-1']);
-        // The stale prune reads the partition the answer describes; cloud B's own rows survive it.
         expect(await idsIn('cloud-b')).toEqual(['b-1', 'b-2']);
     });
 
@@ -890,7 +829,6 @@ describe('ChannelRepository — the scope an answer is written under', () => {
         socket.startDm.mockReturnValue(remote.promise);
 
         const pending = repository.startDm({ peerId: 'u2' } as any);
-        // The switch starts while the request is in flight: cid flips, the socket has not rebound.
         context.setContext({ cid: 'cloud-b', uid: 'me', socketCid: 'cloud-a' });
         remote.resolve({ id: 'dm-1', sid: 's-a' });
         await pending;
@@ -899,8 +837,6 @@ describe('ChannelRepository — the scope an answer is written under', () => {
         expect(await idsIn('cloud-b')).toEqual([]);
     });
 
-    // A place switch moves the context before the server answers. The room stays in the place the
-    // server filed it under, which its id names, and not the one the context moved to.
     it('startDm files a room answered during a place switch under the place its id names', async () => {
         const { context, repository, socket, channels } = createScopedRepository({
             cid: 'cloud-a',
@@ -930,7 +866,6 @@ describe('ChannelRepository — the scope an answer is written under', () => {
         socket.startDm.mockReturnValue(remote.promise);
 
         const pending = repository.startDm({ peerId: 'u2' } as any);
-        // The socket rebinds before the answer arrives; the answer still came from cloud A.
         context.setContext({ cid: 'cloud-b', uid: 'me', socketCid: 'cloud-b' });
         remote.resolve({ id: 'dm-from-a', sid: 's-a' });
 

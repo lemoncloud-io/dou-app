@@ -318,7 +318,7 @@ const failedRow = (over: Partial<ClientChatView> = {}): Partial<ClientChatView> 
 
 beforeEach(() => {
     mockVoiceCanRecord = true;
-    mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer'] };
+    mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'private', memberIds: ['peer'] };
     mockMessages = [];
     mockMyJoin = null;
     mockNavigationType = 'PUSH';
@@ -380,7 +380,7 @@ describe('ChannelRoomPage — unread on entry', () => {
         }) as Partial<ClientChatView>;
 
     beforeEach(() => {
-        mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer'], chatNo: 14 };
+        mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'private', memberIds: ['peer'], chatNo: 14 };
         mockMessages = [from(10), from(11), from(12, true), from(13), from(14)];
     });
 
@@ -634,7 +634,7 @@ describe('ChannelRoomPage — the cloud a write is addressed to', () => {
     });
 
     it('falls back to the selected cloud when the row names none', () => {
-        mockChannel = { id: 'ch1', cid: '', stereo: 'group', memberIds: [] };
+        mockChannel = { id: 'ch1', cid: '', stereo: 'private', memberIds: [] };
 
         render(<ChannelRoomPage />);
         fireEvent.click(screen.getByTestId('send'));
@@ -674,7 +674,7 @@ describe("ChannelRoomPage — recognising me by the room's cloud", () => {
     });
 
     it("reads me as a member when the roster holds my uid in the room's cloud", () => {
-        mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer', 'uid-b'] };
+        mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'private', memberIds: ['peer', 'uid-b'] };
 
         render(<ChannelRoomPage />);
 
@@ -683,7 +683,7 @@ describe("ChannelRoomPage — recognising me by the room's cloud", () => {
     });
 
     it("does not read me as a member on the strength of another cloud's uid", () => {
-        mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer', 'uid-a'] };
+        mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'private', memberIds: ['peer', 'uid-a'] };
 
         render(<ChannelRoomPage />);
 

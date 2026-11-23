@@ -13,7 +13,6 @@ import {
     slowestSamples,
 } from './perfCompare';
 
-// 2026-10-26 12:00 KST.
 const NOON = Date.parse('2026-10-26T12:00:00+09:00');
 const DAY = 86_400_000;
 
@@ -69,7 +68,6 @@ describe('goalSamples', () => {
 describe('compareVersions', () => {
     it('orders versions by their numeric parts', () => {
         expect(compareVersions('0.30.10', '0.30.9')).toBeGreaterThan(0);
-        // A pre-release or build suffix is not part of the order — the same rule as the adoption view.
         expect(compareVersions('0.30.0-rc.1', '0.30.0')).toBe(0);
         expect(['0.29.2', '0.30.1', '0.3.0'].sort(compareVersions)).toEqual(['0.3.0', '0.29.2', '0.30.1']);
     });
@@ -105,7 +103,6 @@ describe('compareBy', () => {
 
 describe('dailyReadings', () => {
     it('groups by Korean day of occurrence, oldest first, and flags days over the target', () => {
-        // 23:30 KST on the 25th is still the 25th in Korea, though the 25th's UTC date ends earlier.
         const lateOn25th = Date.parse('2026-10-25T23:30:00+09:00');
         const rows = [
             ...boots([2_000, 2_000, 2_000, 2_000, 2_000], { timestamp: lateOn25th }),
@@ -113,7 +110,6 @@ describe('dailyReadings', () => {
             ...boots([9_000], { timestamp: NOON - 3 * DAY }),
         ];
         const days = dailyReadings(goalSamples(goal('boot'), rows), goal('boot'));
-        // A day with fewer than five measurements is shown without a verdict, as in the table.
         expect(days.map(d => [d.day, d.n, d.over, d.tooFew])).toEqual([
             ['2026-10-23', 1, false, true],
             ['2026-10-25', 5, true, false],

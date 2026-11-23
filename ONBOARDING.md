@@ -38,6 +38,12 @@ copy or link each file to the same path here; `git pull` there picks up changed 
 cannot open it, ask a repository admin for read access. Values change there, by pull request —
 not by passing files around.
 
+A new `git worktree` starts without any of them. `yarn worktree:setup`, run inside it, gives it the main
+checkout's files at the same paths — a link where the main checkout has a link, a copy where it has a
+file, nothing overwritten — then checks `node_modules` against `yarn.lock` (installing when
+`NODE_AUTH_TOKEN` is set) and runs `nx sync`. It prints paths only, never values; `--dry-run` shows the
+plan without writing.
+
 The backend's addresses — the endpoints, the project, the stage — are one fact per stage, so web,
 landing and desktop-web take them from shared files at the repository root rather than from a copy
 each:

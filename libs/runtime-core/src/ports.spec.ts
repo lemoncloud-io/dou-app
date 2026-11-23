@@ -48,7 +48,6 @@ describe('AllRequired', () => {
     });
 
     it('is true for a required field that may hold undefined', () => {
-        // Being allowed to hold `undefined` is not being allowed to be left out.
         expect(isTrue<AllRequired<{ value: string | undefined }>>()).toBe(true);
     });
 

@@ -34,7 +34,7 @@ const mockAckPendingReports = jest.fn().mockResolvedValue(undefined);
 
 import { schedulePendingReportFlush } from './pendingReportFlusher';
 
-const report = (overrides: Partial<PendingReportInfo>): PendingReportInfo => ({
+const report = (overrides: Partial<PendingReportInfo> & { logs?: unknown[] }): PendingReportInfo => ({
     id: 'r-1',
     category: 'webview-crash',
     detectedAt: 1_000,

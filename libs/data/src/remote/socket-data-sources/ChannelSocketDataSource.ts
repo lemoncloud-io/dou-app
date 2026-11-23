@@ -19,7 +19,6 @@ import { createDomainListResult, toDomainChannel } from '../../domain';
 import type { DataContext } from '../../repositories/types';
 import type { ChannelSocketDomainGateway } from '../gateways';
 
-/** Result of a channel sync: domain rows plus the server's active-id/cursor metadata. */
 export interface ChannelSyncResult {
     list: DomainChannel[];
     ids?: string[];
@@ -27,39 +26,19 @@ export interface ChannelSyncResult {
 }
 
 export interface IChannelSocketDataSource {
-    /** Requests the list of channels I belong to and returns it as domain models. */
     fetchChannel(payload: ChannelMineInput, context: DataContext): Promise<DomainListResult<DomainChannel>>;
-    /** Requests an edit to the channel's information (name, settings, …). */
     updateChannel(payload: ChannelUpdateInput, context: DataContext): Promise<DomainChannel>;
-    /**
-     * Requests one channel's authoritative snapshot (`channel.get`) and returns it as a domain
-     * model. The response carries no site, so the caller stamps it via `context` — same contract
-     * as `getSelfChannel`.
-     */
     getChannel(payload: ChannelGetRequestData, context: DataContext): Promise<DomainChannel>;
-    /** Requests deletion (or closure) of the channel. */
     deleteChannel(payload: ChannelDeleteInput, context: DataContext): Promise<DomainChannel>;
-    /** Starts a new room, or requests its initial state. */
     createChannel(payload: ChannelCreateInput, context: DataContext): Promise<DomainChannel>;
-    /** Opens the 1:1 with one peer, or returns the existing one. The row comes back with no place. */
     startDm(payload: ChannelStartDmInput, context: DataContext): Promise<DomainChannel>;
-    /** Invites a specific user to the channel. */
     inviteChannel(payload: ChatInviteInput, context: DataContext): Promise<DomainChannel>;
-    /** Leaves the channel. */
     leaveChannel(payload: ChatLeaveInput, context: DataContext): Promise<DomainChannel>;
-    /** Requests a channel sync and returns the result as a list of domain models. */
     syncChannel(payload: ChannelSyncInput, context: DataContext): Promise<ChannelSyncResult>;
 
-    /** Requests one's own personal (self-chat) channel and returns it as a domain model. */
     getSelfChannel(payload: ChannelGetSelfInput, context: DataContext): Promise<DomainChannel>;
 }
 
-/**
- * Channel remote source. This is the single boundary where channel API views
- * become domain models; callers (repositories) receive domain shapes only.
- * The request-time `context` is passed in by the caller so a late response can
- * never read a switched global scope.
- */
 export class ChannelSocketDataSource implements IChannelSocketDataSource {
     constructor(private readonly gateway: ChannelSocketDomainGateway) {}
 
@@ -104,13 +83,6 @@ export class ChannelSocketDataSource implements IChannelSocketDataSource {
         return toDomainChannel((remote || {}) as ChannelView, context);
     }
 
-    /**
-     * A 1:1 opened by peer id, which belongs to the place the session was in when it asked.
-     *
-     * Mapped like any other channel. The repository calls this without the ambient place and takes
-     * the room's own (`dmPlaceOf`): the place a place-keyed id names, else the server's field. The
-     * ambient place is not the room's — during a place switch it already names the next one.
-     */
     public async startDm(payload: ChannelStartDmInput, context: DataContext): Promise<DomainChannel> {
         const remote = await this.gateway.startDm<ChannelView>(payload);
         return toDomainChannel((remote || {}) as ChannelView, context);

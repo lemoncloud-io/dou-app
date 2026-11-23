@@ -1,18 +1,3 @@
-/**
- * `stats/VersionAdoption.tsx`
- * - The statistics tab's version view: "which versions and devices are people on, and how many of
- *   them can send statistics?"
- *
- * Every number here is the server's, over all records — logs included. Every app version sends
- * logs, while statistics exist only from 0.29.2, so counting statistics alone would hide exactly
- * the people still on an older version. The server counts records per value (`groupBy`) but not
- * people per value, so the view asks once per value for distinct users, for the few values with
- * the most records. A person who updated during the period is counted under both versions; the
- * copy says so wherever that makes a sum run high.
- *
- * Records without the field being split on (the browser web has no app version) fall in no row,
- * and the shares are of all users, so the rows need not add up to the total.
- */
 import { useT } from '../../../i18n';
 import { ShareBars, tableClass, type Share } from '../components/console/charts';
 import { EmptyState } from '../components/console/EmptyState';
@@ -36,13 +21,10 @@ export const VERSION_DIMS = ['appVersion', 'os', 'model', 'webVersion'] as const
 
 export type VersionDim = (typeof VERSION_DIMS)[number];
 
-/** How many values the server ranks per field; the view asks users for the top few of them. */
 const GROUP_SIZE = 10;
 
-/** The server's ceiling on values per `groupBy` field. */
 const ALL_VERSIONS = 100;
 
-/** Versions shown side by side in the day-by-day table. */
 const ADOPTION_COLUMNS = 3;
 
 const formatShare = (share: number): string =>
@@ -72,12 +54,7 @@ export const VersionAdoption = ({ nav }: { nav: ConsoleNav }) => {
     const dim: VersionDim = (VERSION_DIMS as readonly string[]).includes(raw) ? (raw as VersionDim) : 'appVersion';
     const base = { stage: nav.stage, from: period.fromDate, to: period.toDate };
 
-    // Everyone in the period, and per day — the same query the overview's usage asks, so it is shared.
     const total = useLogStats({ ...base, interval: 'day', users: true });
-    // Records per app version always (coverage, the newest version), per the chosen field as well;
-    // with the app version chosen the two are one query.
-    // Every version the server will count (its maximum), not the busiest few: a release in its first
-    // hours has few records and would otherwise never be found as the newest.
     const versionGroups = useLogStats({ ...base, groupBy: ['appVersion'], aggrSize: ALL_VERSIONS });
     const dimGroups = useLogStats({ ...base, groupBy: [dim], aggrSize: GROUP_SIZE });
 
@@ -86,8 +63,6 @@ export const VersionAdoption = ({ nav }: { nav: ConsoleNav }) => {
     const versionsAsked = valuesToAsk(versionBuckets, true);
     const dimAsked = dim === 'appVersion' ? versionsAsked : valuesToAsk(dimBuckets, false);
 
-    // Distinct users per value, with the daily split. Both lists use the same shape, so with the
-    // app version chosen they are the same queries and are fetched once.
     const versionUsers = useLogStatsMany(
         versionsAsked.map(appVersion => ({ ...base, appVersion, interval: 'day' as const, users: true }))
     );
@@ -131,7 +106,6 @@ export const VersionAdoption = ({ nav }: { nav: ConsoleNav }) => {
         );
     }
 
-    // --- At a glance: everyone, statistics coverage, the newest version.
     const versionsLoading = versionGroups.isLoading || versionUsers.some(result => result.isLoading);
     const versionsError = versionGroups.error ?? firstError(versionUsers);
     const coverage = statsCoverage(perVersion);
@@ -140,7 +114,6 @@ export const VersionAdoption = ({ nav }: { nav: ConsoleNav }) => {
     const newestSeen = firstSeenDay(newestEntry?.trend);
     const fromStart = newestSeen !== undefined && newestSeen <= kstDayStart(period.fromDate);
 
-    // --- People per value of the chosen field.
     const dimLoading = dimGroups.isLoading || dimUsers.some(result => result.isLoading);
     const dimError = dimGroups.error ?? firstError(dimUsers);
     const recordsOf = new Map(dimBuckets.map(bucket => [bucket.key, bucket.val]));
@@ -161,10 +134,8 @@ export const VersionAdoption = ({ nav }: { nav: ConsoleNav }) => {
                 ),
             sub: t('people.records', { n: formatNumber(recordsOf.get(value) ?? 0, lng) }),
         }));
-    // Approximate counts can put one value a little above the total; never draw a bar past full.
     const shareBase = Math.max(totalUsers, ...shares.map(share => share.value));
 
-    // --- Adoption by day, app versions only.
     const columns = [...perVersion]
         .sort((a, b) => b.users - a.users)
         .slice(0, ADOPTION_COLUMNS)

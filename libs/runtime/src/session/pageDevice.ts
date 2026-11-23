@@ -1,11 +1,6 @@
 import { pairingClientOf as pairingClientOfDevice } from '@chatic/auth';
 import { hostProfile } from '@chatic/bridges';
 
-/**
- * This page's device as a pairing's other side is told it: the shell's platform (as injected at boot,
- * from the host profile) and the page's own user agent, read from the page itself — not from the runtime's transport, which a page whose session
- * runs in the app's process never configures.
- */
 export const pairingClientOf = () =>
     pairingClientOfDevice({
         appPlatform: hostProfile().globals.CHATIC_APP_PLATFORM,

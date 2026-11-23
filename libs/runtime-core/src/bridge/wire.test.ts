@@ -1,7 +1,5 @@
 import type { CheckedCrossing, NotOnTheWire, PromiseCrossing } from './wire';
 
-// These are checks on types: each assignment compiles only when the type works out as the test says,
-// and a test file that does not compile fails. The runtime assertion only makes the case visible.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
 type Brand = string & { readonly __brand: 'cloud-id' };
@@ -36,7 +34,6 @@ describe('PromiseCrossing', () => {
             PromiseCrossing<{ onTap: () => void } | null>,
             'result does not cross the bridge — onTap: a function'
         > = true;
-        // A receipt that may be null is no receipt: in-process the caller gets null, the mirror an object.
         const maybeReceipt: Same<
             PromiseCrossing<{ delivered: Promise<void> } | null>,
             'result does not cross the bridge — delivered: a promise'

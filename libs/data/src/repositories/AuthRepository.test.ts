@@ -2,7 +2,6 @@ import { AuthRepository } from './AuthRepository';
 
 describe('AuthRepository', () => {
     const createRepository = () => {
-        // Remote-only: session-identity commands have no cached counterpart.
         const authSocketDataSource = {
             updateSocketAuth: jest.fn(),
             sendPhoneCode: jest.fn().mockResolvedValue({ sent: true }),
@@ -51,7 +50,6 @@ describe('AuthRepository', () => {
 
         const result = await repository.verifyPhoneCode('01012345678', '123456', { mode: 'link' });
 
-        // The blocking reason arrives in a response slot only on verify — confirm throws 409/403 for the same situation.
         expect(result).toBe(blocked);
     });
 
@@ -68,7 +66,6 @@ describe('AuthRepository', () => {
 
         const result = await repository.confirmPhoneCode('01012345678', '123456', { mode: 'login' });
 
-        // Installing the token belongs to @chatic/runtime's session/auth (libs/runtime/docs/session/architecture.md).
         expect(result).toBe(confirmResult);
     });
 

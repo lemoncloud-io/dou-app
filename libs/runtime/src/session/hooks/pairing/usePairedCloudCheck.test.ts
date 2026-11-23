@@ -7,8 +7,6 @@ import { emptySessionSnapshot, fakeSessionView } from '@chatic/runtime-core/test
 import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 import { usePairedCloudCheck } from './usePairedCloudCheck';
 
-// The round itself — the guest rule, re-issuing each cloud — is the engine's `checkPairedClouds`;
-// what is left here is when the hook runs it.
 const checkPairedClouds = jest.fn();
 const session = fakeSessionView();
 const paired = (cloudIds: string[]) => session.set({ pairing: { ...emptySessionSnapshot().pairing, cloudIds } });

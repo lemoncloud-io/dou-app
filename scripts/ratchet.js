@@ -11,7 +11,10 @@ const KINDS = {
     source: () => require('./ratchet/source'),
     knip: () => require('./ratchet/knip'),
     jscpd: () => require('./ratchet/jscpd'),
+    testTypecheck: () => require('./ratchet/test-typecheck'),
 };
+
+const PER_FILE_KINDS = ['source', 'testTypecheck'];
 
 const MODES_FILE = path.join(__dirname, 'ratchet/modes.json');
 const MODES = ['off', 'observe', 'enforce'];
@@ -26,7 +29,7 @@ const readModes = (text = fs.readFileSync(MODES_FILE, 'utf8')) => {
 };
 
 const USAGE = `Usage:
-  node scripts/ratchet.js check [--only source,knip,jscpd] [--reference <ref>]
+  node scripts/ratchet.js check [--only source,knip,jscpd,testTypecheck] [--reference <ref>]
   node scripts/ratchet.js update [--only ...] [--base <ref>]   # follows renames since the merge base with origin/develop
   node scripts/ratchet.js verify-baseline --base <ref>
   node scripts/ratchet.js init [--only ...] [--force]`;
@@ -108,7 +111,7 @@ const check = (options, modes = readModes()) => {
             console.log(`✓ ${kind} (${seconds}s, ${mode})`);
             continue;
         }
-        const underMode = kind === 'source' ? mode : 'observe';
+        const underMode = PER_FILE_KINDS.includes(kind) ? mode : 'observe';
         failed = failed || (mode === 'enforce' && over.length > 0) || (underMode === 'enforce' && under.length > 0);
         const label = mode === 'enforce' ? '✗' : '! (observe)';
         if (over.length) {

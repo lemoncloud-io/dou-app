@@ -1,10 +1,3 @@
-/**
- * `lib/report-logs/corpusPaging.spec.ts`
- *
- * Ported from the hand-written fetch loop these rules used to live in. The loop is gone
- * (react-query drives the walk now) but the stop conditions and the dedupe are the part
- * that was worth keeping, so the assertions came across.
- */
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -26,7 +19,6 @@ const row = (id: string): ReportLogRow => ({
     parseError: false,
 });
 
-/** A page of `count` rows with ids prefixed by `prefix`. */
 const page = (prefix: string, count: number, total: number, returned = count): CorpusPage => ({
     rows: Array.from({ length: count }, (_, i) => row(`${prefix}${i}`)),
     total,
@@ -43,8 +35,6 @@ describe('corpusStatus', () => {
     });
 
     it('counts a record once when deep paging repeats it', () => {
-        // The `from`/`size` window shifts under a `createdAt` sort when records share a
-        // timestamp, so a page can repeat a row from the previous one.
         const first = page('a', 2, 3);
         const second: CorpusPage = { rows: [first.rows[1], row('b0')], total: 3, returned: 2 };
 
@@ -64,13 +54,10 @@ describe('corpusStatus', () => {
     });
 
     it('is not truncated when the ceiling happens to equal the whole set', () => {
-        // Hitting the cap is only truncation if something is left behind.
         expect(corpusStatus([page('a', 4, 4)], 4).truncated).toBe(false);
     });
 
     it('takes the total from the first page only', () => {
-        // Later pages restate it, and a value that moved mid-walk would make the progress
-        // readout jump backwards.
         const pages = [page('a', 2, 4), { ...page('b', 2, 999), total: 999 }];
 
         expect(corpusStatus(pages).total).toBe(4);
@@ -80,8 +67,6 @@ describe('corpusStatus', () => {
         expect(corpusStatus([])).toEqual({ rows: [], total: 0, truncated: false });
     });
 
-    // Truncation used to require hitting the ceiling, which made every other early stop silent —
-    // the screen claimed a complete corpus while holding a fraction of the set.
     it('reports truncation whenever the server holds more, ceiling or not', () => {
         const status = corpusStatus([page('a', 100, 7_700, 100)], 1_000);
 
@@ -100,7 +85,6 @@ describe('nextCorpusPage', () => {
     });
 
     it('stops on a short page even when the total says otherwise', () => {
-        // Trusting a stale total here is what would make the walk endless.
         expect(nextCorpusPage([page('a', 2, 99, 2)], 1_000, 100)).toBeUndefined();
     });
 
@@ -115,20 +99,12 @@ describe('nextCorpusPage', () => {
     });
 
     it('keeps walking when a full page was all repeats', () => {
-        // The page was full, so the server has more — the distinct count just did not grow.
         const first = page('a', 100, 10_000, 100);
         const repeats: CorpusPage = { rows: first.rows, total: 10_000, returned: 100 };
 
         expect(nextCorpusPage([first, repeats], 1_000, 100)).toBe(2);
     });
 
-    /**
-     * One repeated page is tolerated (above); a run of them is the endless walk.
-     *
-     * Batch upload stamps a whole batch with one `createdAt`, and `from`/`size` over a non-unique
-     * sort key is unstable inside a tie band — so "a full page of rows we already have" is a
-     * shape this server really produces.
-     */
     it('gives up after a second consecutive page that added nothing', () => {
         const first = page('a', 100, 10_000, 100);
         const repeats: CorpusPage = { rows: first.rows, total: 10_000, returned: 100 };
@@ -145,19 +121,11 @@ describe('nextCorpusPage', () => {
     });
 
     it('stops at the request ceiling however full the pages look', () => {
-        // The backstop. Every other condition reads the response, so a response that always looks
-        // like "there is more" defeats it; this one counts requests.
         const pages = Array.from({ length: MAX_CORPUS_PAGES }, (_, i) => page(`p${i}-`, 100, 1_000_000, 100));
 
         expect(nextCorpusPage(pages, 1_000_000, 100)).toBeUndefined();
     });
 
-    /**
-     * The property that matters more than any single condition: the walk ends. Without it,
-     * `hasNextPage` never goes false, and the console derives "collecting" from it — which
-     * disables both the re-collect button and the new-log probe, so the screen can neither
-     * refresh nor notice arrivals.
-     */
     it('terminates on a server that always answers with a full page of repeats', () => {
         const stuck = (): CorpusPage => ({
             rows: Array.from({ length: CORPUS_PAGE_SIZE }, (_, i) => row(`dup${i}`)),
@@ -183,8 +151,6 @@ describe('nextCorpusPage', () => {
 
 describe('shipped defaults', () => {
     it('reaches the ceiling in a single round trip', () => {
-        // The cap is one page, which is what lets the range default to open: a walk that
-        // cannot exceed one request costs the same whether the operator bounded it or not.
         const full = page('a', CORPUS_PAGE_SIZE, 100_000, CORPUS_PAGE_SIZE);
 
         expect(nextCorpusPage([full])).toBeUndefined();
@@ -192,8 +158,6 @@ describe('shipped defaults', () => {
     });
 
     it('stays inside the Elasticsearch result window', () => {
-        // `from = limit * page`; past 10,000 the backend would need a different pagination
-        // mode, which is out of scope (ADR-0083).
         const pagesNeeded = Math.ceil(CORPUS_CAP / CORPUS_PAGE_SIZE);
         expect(CORPUS_PAGE_SIZE * pagesNeeded).toBeLessThanOrEqual(10_000);
     });

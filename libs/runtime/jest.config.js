@@ -1,20 +1,10 @@
 module.exports = {
     testEnvironment: '<rootDir>/../../tools/jest/jsdom-environment.js',
-    // `uuid` ships ESM-only; the migrated `useDynamicDeviceId` pulls it in, so it must be transformed
-    // rather than passed through as CommonJS.
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     moduleNameMapper: {
-        // Mirrors the `@chatic/ui-kit/*` path alias so subpath imports resolve to real files instead
-        // of the greedy `libs/$1/src/index.ts` fallback below.
         '^@chatic/ui-kit/(.*)$': '<rootDir>/../ui-kit/src/$1',
-        // `@chatic/assets` lives at the repo ROOT (not libs/), so the greedy fallback would miss it.
         '^@chatic/assets$': '<rootDir>/__mocks__/assetsMock.js',
-        // Before the generic rule: it would capture `config/react` and resolve a path that does not
-        // exist (`libs/config/react/src`). Same rule as libs/shared/jest.config.js.
         '^@chatic/config/(.*)$': '<rootDir>/../config/src/$1/index.ts',
-        // Tests only. A test that used to mock `session/store/stores` or `socket/runtime` still names
-        // that exact file, so the mock still replaces it for every importer — the package's own
-        // modules included. The barrel would not: mocking it leaves the package's internal imports on
         // the real module. Production code imports the barrels alone; eslint keeps it that way.
         '^@chatic/session/(.*)$': '<rootDir>/../session/src/$1',
         '^@chatic/transport/(.*)$': '<rootDir>/../transport/src/$1',

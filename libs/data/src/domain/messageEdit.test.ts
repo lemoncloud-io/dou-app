@@ -25,7 +25,6 @@ describe('canModifyMessage', () => {
         expect(canModifyMessage(chat(), false)).toBe(false);
     });
 
-    // Both operations address the message by its server id, so a row that has none is out.
     it('refuses a message the server has not confirmed', () => {
         expect(canModifyMessage(chat({ id: '' }), true)).toBe(false);
         expect(canModifyMessage(chat({ isPending: true }), true)).toBe(false);
@@ -43,8 +42,6 @@ describe('canModifyMessage', () => {
         expect(canModifyMessage(chat({ hidden: true }), true)).toBe(false);
     });
 
-    // The server models `hidden` as 0/1; only the view type narrows it. `=== true` would let a
-    // deleted message be edited the first time a 1 arrives on the wire.
     it('treats a numeric hidden as deleted, not just a boolean one', () => {
         expect(canModifyMessage(chat({ hidden: 1 as unknown as boolean }), true)).toBe(false);
     });
@@ -59,8 +56,6 @@ describe('isMessageEdited', () => {
         expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 2000 }))).toBe(true);
     });
 
-    // A delete is a PUT on the same row, so it moves updatedAt too — but
-    // "This message was deleted. (edited)" is nonsense.
     it('says no for a deleted message even though its timestamp moved', () => {
         expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 2000, hidden: true }))).toBe(false);
         expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 2000, hidden: 1 as unknown as boolean }))).toBe(
@@ -72,13 +67,11 @@ describe('isMessageEdited', () => {
         expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 2000, isPending: true }))).toBe(false);
     });
 
-    // No basis to judge — say no rather than guess.
     it('says no when the timestamps are missing', () => {
         expect(isMessageEdited(chat({ createdAt: undefined, updatedAt: undefined }))).toBe(false);
         expect(isMessageEdited(chat({ createdAt: 0, updatedAt: 2000 }))).toBe(false);
     });
 
-    // A server that records edits stamps editedAt only when the text changes.
     it('says yes from editedAt, whatever the timestamps say', () => {
         expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 1000, editedAt: 1500 } as never))).toBe(true);
     });
@@ -88,7 +81,6 @@ describe('isMessageEdited', () => {
         expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 1000, editedAt: 0 } as never))).toBe(false);
     });
 
-    // A message edited and then deleted keeps its editedAt on the server; it is a tombstone, not "edited".
     it('says no for a deleted message even with editedAt', () => {
         expect(isMessageEdited(chat({ createdAt: 1000, updatedAt: 3000, editedAt: 2000, hidden: true } as never))).toBe(
             false

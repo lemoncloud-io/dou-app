@@ -61,7 +61,6 @@ export default function LoadReport({ load }: LoadReportProps) {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* VERDICT */}
             <div
                 style={{
                     display: 'flex',
@@ -132,7 +131,6 @@ export default function LoadReport({ load }: LoadReportProps) {
                 </div>
             </div>
 
-            {/* KPI 6 */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10 }}>
                 {kpi('Peak N', rep.peakN)}
                 {kpi('Fan-out p95', rep.fanoutP95 + ' ms', rep.fanoutP95 < rep.slo ? 'var(--sm-text)' : '#f85149')}
@@ -145,7 +143,6 @@ export default function LoadReport({ load }: LoadReportProps) {
                 {kpi('Connect fail', rep.connFail, rep.connFail > 0 ? '#f85149' : 'var(--sm-text)')}
             </div>
 
-            {/* HEADLINE */}
             <div
                 style={{
                     background: 'var(--sm-sidebar)',
@@ -233,7 +230,6 @@ export default function LoadReport({ load }: LoadReportProps) {
                 ) : null}
             </div>
 
-            {/* Distribution + fairness */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div
                     style={{
@@ -326,7 +322,6 @@ export default function LoadReport({ load }: LoadReportProps) {
                 </div>
             </div>
 
-            {/* throughput + completeness */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <div
                     style={{
@@ -381,7 +376,6 @@ export default function LoadReport({ load }: LoadReportProps) {
                 </div>
             </div>
 
-            {/* connection */}
             <div
                 style={{
                     background: 'var(--sm-sidebar)',
@@ -422,7 +416,6 @@ export default function LoadReport({ load }: LoadReportProps) {
                 </div>
             </div>
 
-            {/* saved runs */}
             {savedRuns.length ? (
                 <div
                     style={{

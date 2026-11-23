@@ -1,6 +1,3 @@
-/**
- * `lib/report-logs/logFacets.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { buildFacets, matchesFacets, matchesQuery } from './logFacets';

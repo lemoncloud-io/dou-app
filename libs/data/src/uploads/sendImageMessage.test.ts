@@ -37,14 +37,12 @@ const ticket = (slot: number, generation = 1, withThumb = true): PresignedUpload
 
 const OK: PutResult = { kind: 'responded', httpStatus: 200 };
 
-/** Ports where every call succeeds unless a test overrides it. */
 const createPorts = (count: number) => {
     const ports = {
         prepare: jest.fn(async (source: File) => prepared(source)),
         start: jest.fn(
             async (input: Parameters<SendImagePorts['start']>[0]): Promise<PresignedUploadStartResult> => ({
                 list: input.list.map((intent, i) =>
-                    // A re-issue names the upload it renews; answer it with a second-generation ticket.
                     intent.id
                         ? ticket(Number(intent.id.slice(3)), 2, !!intent.thumbnail)
                         : ticket(i, 1, !!intent.thumbnail)
@@ -71,7 +69,6 @@ const putLabels = (put: jest.Mock) => put.mock.calls.map(call => call[2]);
 describe('sendImageMessage', () => {
     it('sends three images as one message: one start, six PUTs, one complete, ids in picking order', async () => {
         const { ports, files } = createPorts(3);
-        // Finish the PUTs out of order to show the message order does not follow completion order.
         ports.put.mockImplementation(async (_target, _file, label) => {
             if (label === 'slot-0/original') await new Promise(resolve => setTimeout(resolve, 5));
             return OK;
@@ -288,7 +285,6 @@ describe('sendImageMessage', () => {
 
         const run = async (ports: SendImagePorts, files: File[]) => {
             const pending = sendImageMessage(files, ports, { log: () => undefined });
-            // Walk the clock forward step by step so every awaited timer is released in turn.
             for (let i = 0; i < 20; i++) await jest.advanceTimersByTimeAsync(500);
             return pending;
         };
@@ -499,7 +495,6 @@ describe('sendImageMessage progress', () => {
 
         await sendImageMessage(files, ports, options);
 
-        // 100-byte original + 10-byte thumbnail; each attempt opens with 0.
         expect(reports).toEqual([
             [0, 0, 110],
             [0, 0, 110],
@@ -564,7 +559,6 @@ describe('sendImageMessage progress', () => {
         await sendImageMessage(files, ports, options);
 
         expect(reports.every(([slot]) => slot === 0)).toBe(true);
-        // Unknown at the end, not frozen at the count it reached and never full.
         expect(reports.at(-1)).toEqual([0, 0, 0]);
         expect(reports.some(([, sent, total]) => total > 0 && sent === total)).toBe(false);
     });

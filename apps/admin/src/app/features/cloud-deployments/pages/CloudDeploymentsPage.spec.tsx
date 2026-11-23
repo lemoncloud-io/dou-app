@@ -1,15 +1,3 @@
-/**
- * `pages/cloud-deployments/CloudDeploymentsPage.spec.tsx`
- *
- * Drives the assembled screen against fake goods calls. The lib specs cover the rules; what only
- * shows up here is the wiring — that a confirmed pick becomes those calls on that goods service, that
- * a failed call is logged and shown, that a cloud's owner and status come from its DoU record when
- * there is one, that each product shows its last result time, that the slack switch reaches the
- * dialog and the calls, and that both the Stop button and leaving the screen keep the next call from
- * going out.
- *
- * The screen sits behind an admin OAuth gate, so this stands in for clicking through it.
- */
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -29,7 +17,6 @@ const fetchServiceProducts = vi.fn<(base: string, service: CloudService) => Prom
 const postAutoDeploy = vi.fn<(base: string, call: DeployCall) => Promise<GoodsApi.GoodsProduct>>();
 const fetchDouClouds = vi.fn<(base: string) => Promise<DouCloudsApi.DouCloud[]>>();
 
-// Mocked at the module edge: the real calls are signed AWS requests, which is not what this is about.
 vi.mock('../api/goodsApi', async () => {
     const actual = await vi.importActual<typeof GoodsApi>('../api/goodsApi');
     return {
@@ -44,8 +31,6 @@ vi.mock('../api/douCloudsApi', async () => {
     return { ...actual, fetchDouClouds: (base: string) => fetchDouClouds(base) };
 });
 
-// No real 1.5-second pauses. The stand-in ignores the stop signal; the runner's own checks are what
-// keep the next call from going out.
 vi.mock('../lib/runDeploys', async () => {
     const actual = await vi.importActual<typeof RunDeploys>('../lib/runDeploys');
     return { ...actual, abortableDelay: () => Promise.resolve() };
@@ -55,7 +40,6 @@ const { CloudDeploymentsPage } = await import('./CloudDeploymentsPage');
 
 const SERVICES: CloudService[] = ['backend', 'sockets', 'socials'];
 
-/** Two prod clouds, p1 and p2, with all three services each. `over` adjusts a product by its id. */
 const serveClouds = (over: (productId: string) => Partial<GoodsApi.GoodsProduct> = () => ({})) => {
     fetchServiceProducts.mockImplementation(async (_base, service) => ({
         list: ['p1', 'p2'].map(projectId => ({
@@ -73,7 +57,6 @@ const serveClouds = (over: (productId: string) => Partial<GoodsApi.GoodsProduct>
     }));
 };
 
-/** A deploy call that resolves only when the test says so. */
 const deferredDeploy = () => {
     let release: () => void = () => undefined;
     postAutoDeploy.mockImplementationOnce(
@@ -94,7 +77,6 @@ const renderPage = () =>
         </QueryClientProvider>
     );
 
-/** Picks cloud p1 and confirms, which starts a three-call run. */
 const startRunOnP1 = async () => {
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Select p1' }));
     fireEvent.click(screen.getByRole('button', { name: 'Deploy 3 products' }));
@@ -117,7 +99,6 @@ afterEach(() => vi.unstubAllEnvs());
 describe('CloudDeploymentsPage', () => {
     it('lists each service on the goods stage the env names, and deploys the confirmed pick there', async () => {
         renderPage();
-        // Each service's box reads as a branch field and names the default it falls back to.
         expect(await screen.findAllByPlaceholderText('branch (default: develop)')).toHaveLength(3);
         await startRunOnP1();
 
@@ -208,7 +189,6 @@ describe('CloudDeploymentsPage', () => {
         unmount();
         release();
 
-        // Give the runner every chance to send the next call before checking that it did not.
         await new Promise(resolve => setTimeout(resolve, 20));
         expect(postAutoDeploy).toHaveBeenCalledTimes(1);
     });
@@ -231,7 +211,6 @@ describe('CloudDeploymentsPage', () => {
         expect(fetchDouClouds).toHaveBeenCalledWith('https://api.example.com/dou-d1');
         expect(screen.getByText('suspended')).toBeTruthy();
         expect(screen.getByText('123456789012')).toBeTruthy();
-        // p2 has no DoU record: it keeps the goods owner, says so, and sorts after the DoU-owned cloud.
         expect(screen.getByText('not in DoU')).toBeTruthy();
         expect(screen.getByText('goods owner')).toBeTruthy();
         expect(
@@ -287,7 +266,6 @@ describe('CloudDeploymentsPage', () => {
         expect(screen.getByText('active')).toBeTruthy();
     });
 
-    // `refetch` ignores `enabled`; without the guard this sent a relative `/clouds/0/list`.
     it('refreshes the goods lists but asks no relay when the relay key is unset', async () => {
         vi.stubEnv('VITE_D1_RELAY_ENDPOINT', '');
         renderPage();

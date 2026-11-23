@@ -1,6 +1,3 @@
-/**
- * `hooks/use-watchlist.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { patchDevice, worstPresence } from './use-watchlist';

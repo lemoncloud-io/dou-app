@@ -15,7 +15,6 @@ const mockSync = {
 };
 jest.mock('@chatic/sync', () => ({ getSyncManager: () => mockManager, ...mockSync }));
 
-// Required after the mock: its factory reads `mockManager` above.
 const { createCoreRuntimeSync } = require('./runtimeSync') as typeof RuntimeSyncModule;
 
 describe('the core runtime sync', () => {

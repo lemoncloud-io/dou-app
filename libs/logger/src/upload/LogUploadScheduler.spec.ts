@@ -11,7 +11,6 @@ const entry = (level: LogLevel = 'info'): LogEntry => {
     return { id: `id-${seq}`, level, tag: 'TEST', message: `${level}-${seq}`, timestamp: seq };
 };
 
-/** Minimal deterministic clock + timer so timing rules are asserted, not awaited. */
 const createHarness = () => {
     let clock = 0;
     let pending: { at: number; run: () => void; id: number } | undefined;
@@ -27,9 +26,7 @@ const createHarness = () => {
         cancel: ((handle: number) => {
             if (pending?.id === (handle as unknown as number)) pending = undefined;
         }) as never,
-        /** Delay the currently armed timer is waiting for. */
         dueIn: () => (pending ? pending.at - clock : undefined),
-        /** Runs the armed timer and lets its promise chain settle. */
         async fire() {
             const due = pending;
             if (!due) throw new Error('no timer armed');
@@ -70,8 +67,6 @@ describe('createLogUploadScheduler — 주기 트리거', () => {
     });
 
     it('엔트리가 아무리 쌓여도 주기 전에는 보내지 않는다 — 크기 트리거는 없다', async () => {
-        // A consequence of notify being gone. Since the uploader doesn't observe entries
-        // (principle 16), it has no way to know how full the queue is, and no need to.
         const h = createHarness();
         const queue = createLogUploadQueue();
         const send = jest.fn(async (): Promise<UploadOutcome> => 'ok');
@@ -252,9 +247,9 @@ describe('createLogUploadScheduler — 시도 상한 (무한 재전송 차단)',
         scheduler.start();
         queue.push(entry());
 
-        await scheduler.flushNow(); // attempt 1
-        await h.fire(); // attempt 2
-        await h.fire(); // attempt 3 → cap exhausted
+        await scheduler.flushNow();
+        await h.fire();
+        await h.fire();
 
         expect(send).toHaveBeenCalledTimes(3);
         expect(queue.size()).toBe(0);
@@ -394,10 +389,6 @@ describe('createLogUploadScheduler — onSettled (영속화 훅)', () => {
 
 describe('createLogUploadScheduler — 백오프 무단 통과 방지 (회귀)', () => {
     it('백오프 중에 엔트리가 아무리 쌓여도 사다리를 뛰어넘지 않는다', async () => {
-        // This regression originally happened because notify's size trigger ignored the
-        // backoff and fired again, burning the attempt budget all at once. That path is gone
-        // now that notify is gone, but the property is pinned down here anyway — if a way to
-        // send outside the cycle ever reappears, it gets caught here.
         const h = createHarness();
         const queue = createLogUploadQueue();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('retry');
@@ -417,7 +408,6 @@ describe('createLogUploadScheduler — 백오프 무단 통과 방지 (회귀)',
         expect(send).toHaveBeenCalledTimes(1);
         expect(h.dueIn()).toBe(120_000);
 
-        // Busy app: entries keep arriving while the ladder is counting down.
         for (let i = 0; i < 8; i += 1) {
             queue.push(entry());
             await Promise.resolve();
@@ -429,10 +419,6 @@ describe('createLogUploadScheduler — 백오프 무단 통과 방지 (회귀)',
     });
 
     it('포기할 때 실제로 보낸 그 배치만 버린다 — 다시 구성하면 안 보낸 것까지 지운다', async () => {
-        // `attempts` is per-scheduler, not per-batch, so a batch recomposed on a
-        // later attempt legitimately includes newer entries — they were sent.
-        // What must not happen is give-up recomposing a *fresh* batch and
-        // dropping entries the failed request never carried.
         const h = createHarness();
         const queue = createLogUploadQueue();
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('retry');
@@ -455,7 +441,6 @@ describe('createLogUploadScheduler — 백오프 무단 통과 방지 (회귀)',
 
         const lastSent = send.mock.calls.at(-1)?.[0] ?? [];
         expect(onGiveUp.mock.calls[0][0]).toEqual(lastSent);
-        // Only the attempted batch left; the rest of the queue survives.
         expect(queue.size()).toBe(4 - lastSent.length);
     });
 });
@@ -487,10 +472,6 @@ describe('createLogUploadScheduler — 저장소 포트', () => {
     });
 
     it('전송 성공 후 ack이 실패해도 파이프라인이 멈추지 않는다', async () => {
-        // An ack failure is swallowed. The store keeps holding the entry, so it goes out again
-        // next cycle, and the server's id upsert absorbs the duplicate. If it were thrown
-        // instead, the timer would never get scheduled and the pipeline would go silent
-        // forever — a worse outcome than a duplicate request.
         const h = createHarness();
         const held = [entry()];
         const send = jest.fn<Promise<UploadOutcome>, [LogEntry[]]>().mockResolvedValue('ok');
@@ -517,9 +498,6 @@ describe('createLogUploadScheduler — 저장소 포트', () => {
     });
 
     it('겹친 flush가 같은 배치를 두 번 보내지 않는다 — 비파괴 peek의 함정', async () => {
-        // Since peek is non-destructive, without something blocking a flush already in
-        // progress, two cycles would grab the same batch and send it twice. The server
-        // survives it via id upsert, but the bandwidth and attempt count are on us.
         const h = createHarness();
         const held = [entry()];
         let resolveSend: ((outcome: UploadOutcome) => void) | undefined;
@@ -545,7 +523,6 @@ describe('createLogUploadScheduler — 저장소 포트', () => {
         const first = scheduler.flushNow();
         await Promise.resolve();
         await Promise.resolve();
-        // Attempt a second flush while the first cycle is still waiting inside send.
         await scheduler.flushNow();
 
         expect(send).toHaveBeenCalledTimes(1);

@@ -7,7 +7,6 @@ import {
     toRuntimeFailure,
 } from './errors';
 
-/** What a caller on the page gets for `error` thrown in the shell: serialized, sent as JSON, revived. */
 const acrossTheBridge = (error: unknown): Error =>
     reviveRuntimeError(JSON.parse(JSON.stringify(toRuntimeFailure(error))));
 

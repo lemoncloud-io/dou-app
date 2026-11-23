@@ -61,7 +61,6 @@ describe('AuthHttpDataSource', () => {
         ).resolves.toEqual({});
     });
 
-    // It is a login, so it is not mapped — `Token` and `cloudId` have to come out intact for the invite-acceptance flow to use.
     it('loginWithInviteCode — passthrough, no domain mapping (session material)', async () => {
         const view = { id: 'u3', name: 'Invited', cloudId: 'acct-9', Token: { identityToken: 'jwt' } };
         gateway.loginInvite.mockResolvedValue(view as any);

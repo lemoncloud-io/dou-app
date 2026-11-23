@@ -5,7 +5,6 @@ import type { DeviceTokenDelegate } from './useDeviceTokenRegistration';
 import { coreEngine } from '@chatic/runtime-core/engine';
 import { initAppRuntime, resetRuntimeEngine } from '@chatic/runtime-client';
 
-// The hooks start their work from the engine the entry point hands over; these use the core one.
 beforeEach(() => initAppRuntime(coreEngine));
 afterEach(() => resetRuntimeEngine());
 

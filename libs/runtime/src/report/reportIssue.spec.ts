@@ -1,8 +1,3 @@
-/**
- * This page's binding of runtime-client's `submitIssueReport`: the two things only the page knows —
- * whether it runs inside an app shell, and where it is — read when the report is filed. What the
- * report carries is runtime-client's to test.
- */
 import { reportIssue } from './reportIssue';
 
 const mockSubmitIssueReport = jest.fn(async () => undefined);

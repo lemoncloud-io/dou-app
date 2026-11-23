@@ -23,7 +23,6 @@ describe('revisionNotices', () => {
         expect(result.failed.map(failure => failure.id)).toEqual(['b']);
     });
 
-    // A message the reader can no longer see will never read; anything else may next time.
     it('treats a 403 or 404 as gone and anything else as passing trouble', () => {
         expect(isGoneFailure(new Error('404 NOT FOUND - chat/C1:4'))).toBe(true);
         expect(isGoneFailure('403 FORBIDDEN')).toBe(true);

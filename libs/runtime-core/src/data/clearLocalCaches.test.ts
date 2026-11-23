@@ -21,7 +21,6 @@ jest.mock('@chatic/logger', () => ({
 
 const DOMAINS = ['channel', 'chat', 'cloud', 'invite', 'join', 'place', 'profile', 'user', 'syncMeta'] as const;
 
-/** One scoped graph per cloud, each domain's cacheClear a separate mock so a test can tell them apart. */
 const graphs = new Map<string, Record<(typeof DOMAINS)[number], { cacheClear: jest.Mock }>>();
 const graphOf = (cid: string) => {
     let graph = graphs.get(cid);

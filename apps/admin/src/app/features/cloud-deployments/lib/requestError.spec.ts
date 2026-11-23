@@ -1,6 +1,3 @@
-/**
- * `lib/cloud-deployments/requestError.spec.ts`
- */
 import { describe, expect, it } from 'vitest';
 
 import { asRequestError, describeRequestError } from './requestError';
