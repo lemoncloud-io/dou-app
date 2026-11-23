@@ -3,7 +3,6 @@ import type { WebHostFacts } from '@chatic/runtime-web';
 import { appBridge } from '../../app/bridge/appBridge';
 import { webPush } from './push';
 
-// The phone app's events, captured so a test can play a notification back.
 const mockEvents: Record<string, (message: unknown) => void> = {};
 const mockOnEvent = jest.fn((type: string, handler: (message: unknown) => void) => {
     mockEvents[type] = handler;
@@ -17,7 +16,6 @@ jest.mock('../../app/bridge/appBridge', () => ({ appBridge: { fetchFcmToken: jes
 
 const fetchFcmToken = appBridge.fetchFcmToken as jest.Mock;
 
-// Neither side reads the facts; the implementations decide from the side alone.
 const facts = {} as WebHostFacts;
 const phone = () => webPush.shell({ kind: 'shell' }, facts);
 const browser = () => webPush.browser({ kind: 'browser' }, facts);

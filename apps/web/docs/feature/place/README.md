@@ -224,6 +224,52 @@ sends only what changed:
 - Leaving with unsaved changes opens the exit guard; `isDirty` is the OR of the three fields, so
   editing only the introduction still arms it.
 
+### Chat-room management and the profile screens
+
+- **Removal is decided per row, not per place.** `PlaceChannelManagePage` asks `removalActionFor` for each
+  selected room, the same function the room's own settings screen reads: a 1:1 is always left, never
+  deleted, even when its owner id is me (that id is a by-product of creating the room, not a permission
+  over it), and a group is deleted only by its own owner (my join's role) and left by everyone else. A place
+  owner normally owns every group in the place but not necessarily every room. There is no bulk endpoint,
+  so rooms are removed one by one; both repository calls evict the room from the cache optimistically and
+  roll back on failure, so the observed list updates itself and a partial failure is counted and toasted.
+- **The button's copy follows what the selection will do.** It says "delete" only when every selected row
+  really is a delete, and speaks of leaving for a mixed selection, which is the milder and always-true
+  half. The self chat can be neither deleted nor left, so it has no checkbox. Selections are dropped for
+  rooms that left the list (removed here or by sync), so the count and the confirm dialog never name a
+  room that is not shown.
+- **Mark read advances the join read cursor to each room's head**, the same `chatNo` the room view marks
+  on entry; with no selection it reads every unread room. Each read goes through its room's own cloud
+  repository and the outbox, so the local cursor and every count on screen move at once and the server half
+  is resent until it lands: the press is done when it is made, and only a read that cannot be sent at all
+  is reported as failed.
+- **The page reads the shared observations.** It takes rooms, previews and 1:1 peers from the same
+  cloud-wide observation the home list uses (one place-level profile subscription for every DM), so a room
+  sits in the position and carries the name the person expects; only the read-cursor sync is registered by
+  the page itself. Sort and pins are scoped by `placeScopeKey`, whose cloud half comes from the session.
+- **Sent relay invites** appear above the manageable rooms only on the default (relay) cloud, whose rooms
+  are invited that way; a custom cloud invites through the cloud invite flow. The gate is on rendering,
+  not on the fetch. They are outside the selection: an invite id is not a channel id and the delete-or-leave
+  branch does not apply; tapping one goes to the waiting screen, which owns cancel and reissue.
+- **`PlaceProfilePage` waits for what it seeds from.** The shared form seeds its fields exactly once, so the
+  page renders the form only when the read has settled (`usePlaceProfileAbsent` is not `undefined`) and,
+  when a profile exists, when its row has arrived. The absent flag resolves from a direct read while the row
+  comes through the observer, whose re-emit after the cache write is debounced, so on a cold row the flag
+  lands first; mounting then would latch a blank name over a real profile and let the person overwrite
+  their nick without ever seeing it. An absent profile falls through to an empty form: creating one is
+  allowed here.
+- **`PlaceEditPage` makes room for the keyboard by folding the photo block's caption**, not by shrinking
+  the photo (a photo that resized on every focus read as the screen changing under the person). The fold
+  animates a `0fr`/`1fr` grid row instead of unmounting, because a removed node cannot animate and a `max-h`
+  cap animates toward the cap rather than the caption's real height. The introduction box is 116 px tall (96 cut off the last line),
+  sized so a full 100 characters still fits unscrolled in the worst case (all CJK wraps to four lines).
+  The scaffold does not pad above `PageHeader`, which frosts its own notch strip.
+- **The information screen keys its name off the URL's place**, never the session's selected cloud.
+  `resolvePlaceDisplayName` ORs its default-cloud flag with the id check, so passing the session's flag
+  would brand any place row viewed while the relay is active, including a cloud place reached by direct
+  URL, as "DoU Home". After a successful leave the row disappears from the cache, which would turn the
+  screen into "not found" under the leave notice, so the row as it was is held while the notice is up.
+
 ### The channel sort preference
 
 Sort is a client preference with no server side. It is stored as the `ui.channelSort` setting

@@ -19,26 +19,11 @@ import { runtime } from '@chatic/runtime';
 
 const MAX_NAME_LENGTH = 20;
 const MAX_DESC_LENGTH = 100;
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
-// Shorter than Textarea's 198px default, which is sized for long-form input (feedback's 5000
-// characters). Sized so a FULL 100 characters still fits without scrolling: worst case is all-CJK,
-// which wraps to four 20.3px lines (81px) inside the box's 16px vertical padding — measured, not
-// guessed. At 96px the last line was cut off and a maxed-out field had to be scrolled to reread.
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 const DESC_BOX_HEIGHT = 116;
 
-/**
- * Timing shared by every part of the photo block's collapse, so the caption and the padding around
- * the photo move as one. 250ms is matched to the keyboard's own rise — long enough to read as the
- * block stepping aside, short enough not to trail behind it.
- */
 const SHRINK_TRANSITION = 'duration-[250ms] ease-out motion-reduce:transition-none';
 
-/**
- * Edit a place's own name, introduction text and profile image — owner-only (server `isOwner`).
- * Reached from the settings
- * hub, whose row is already disabled for non-owners; the redirect here is a defensive backstop.
- * Save goes through the shared {@link useUpdatePlace} (optimistic cache write). See ADR-0031.
- */
 export const PlaceEditPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -48,8 +33,6 @@ export const PlaceEditPage = () => {
 
     const { updatePlace, isPending } = useUpdatePlace();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    // The photo block is the least useful thing on screen while someone is typing into the fields
-    // below it, and on a short phone it is what pushes the introduction box behind the keyboard.
     const isTyping = useKeyboardOpen();
 
     const [place, setPlace] = useState<MySiteView | null>(null);
@@ -71,15 +54,12 @@ export const PlaceEditPage = () => {
         return placeRepo.observeItem(placeId, setPlace);
     }, [placeRepo, placeId]);
 
-    // Owner-only screen: a non-owner who reaches it directly is sent back.
     useEffect(() => {
         if (place && !place.isOwner) {
             navigate(-1);
         }
     }, [place, navigate]);
 
-    // Seed the form once per place when it first loads. Keyed by placeId so a later background
-    // re-emit of the observed place (sync / another device) can't clobber the user's in-progress edits.
     const seededPlaceIdRef = useRef<string | null>(null);
     useEffect(() => {
         if (place && seededPlaceIdRef.current !== placeId) {
@@ -112,14 +92,9 @@ export const PlaceEditPage = () => {
 
         try {
             const { avatar: base64 } = await prepareImage(file, AVATAR_IMAGE);
-            // A record field has nothing to fall back to, so a preview that could not be made is
-            // an error here, not a degraded result.
             if (!base64) throw new Error('Failed to prepare avatar image');
             setImageUrl(base64);
         } catch (error) {
-            // The screen shows the same "too large" message it shows for an oversized file, so a
-            // codec failure and a size refusal are indistinguishable to the user AND to us. The
-            // file's size and type are what separate them; its contents are never recorded.
             logger.warn('PLACE', 'place image encoding failed', {
                 error,
                 data: { sizeBytes: file.size, type: file.type },
@@ -128,7 +103,6 @@ export const PlaceEditPage = () => {
         }
     };
 
-    // Back with unsaved edits asks first; a clean form leaves straight away.
     const requestClose = () => {
         if (isDirty) setIsExitGuardOpen(true);
         else navigate(-1);
@@ -141,17 +115,11 @@ export const PlaceEditPage = () => {
                 id: placeId,
                 sid: placeId,
                 name,
-                // Sent only when touched, so saving a name edit never rewrites the other two
-                // fields. An emptied box sends `''` on purpose — that is how a place clears its
-                // introduction.
                 ...(isDescDirty && { desc }),
                 ...(isImageDirty && { thumbnail: imageUrl }),
             });
             navigate(-1);
         } catch (error) {
-            // The toast says "unknown error" literally, and until now that was also true of what
-            // was left behind. Which fields were in play matters: a name-only save and one carrying
-            // a fresh thumbnail fail for different reasons (ADR-0099).
             logger.error('PLACE', 'place save failed', {
                 error,
                 data: { placeId, descChanged: isDescDirty, imageChanged: isImageDirty },
@@ -179,9 +147,6 @@ export const PlaceEditPage = () => {
     return (
         <KeyboardAwareLayout
             className={fixedViewportScreen}
-            // PageHeader frosts its own notch strip, so the scaffold must not pad above it —
-            // that would push the glass down and leave the inset bare, with the avatar scrolling
-            // through it unblurred.
             headerSafeArea={false}
             header={<PageHeader title={title} onBack={requestClose} />}
             footer={
@@ -193,15 +158,6 @@ export const PlaceEditPage = () => {
                 />
             }
         >
-            {/* Centered photo above the name field (Figma 3408-27580) — the place profile reads as a
-                profile screen, not a details list, so there is no created-date row.
-
-                The block tightens while the keyboard is up: the caption folds away and the
-                surrounding padding shrinks — animated, so it reads as the block stepping aside
-                rather than the form jumping. The photo itself keeps its size: folding the text
-                alone frees enough height, and a photo that shrank on every focus read as the
-                screen changing under the user. Heights and paddings are what move (not a `scale`
-                transform), because the point is to hand the reclaimed height to the fields below. */}
             <div
                 className={cn(
                     'flex flex-col transition-[gap,padding]',
@@ -222,10 +178,6 @@ export const PlaceEditPage = () => {
                         onSelect={handleImageClick}
                         selectLabel={t('placeEdit.changeImage')}
                     />
-                    {/* Folded through a 0fr<->1fr grid row rather than unmounted: a removed node
-                        cannot animate, and the caption has to give its height back as smoothly as it
-                        took it. Not a `max-h` cap — that animates toward the cap, not the caption's
-                        real height, so the fold stalled before snapping shut. */}
                     <div
                         className={cn(
                             'grid transition-[grid-template-rows,opacity]',
@@ -262,9 +214,6 @@ export const PlaceEditPage = () => {
                     description={t('placeEdit.nameDescription')}
                 />
 
-                {/* `Textarea` deliberately ships no counter and no hard cap — its doc comment sends
-                    callers that need one to clamp in `onChange`, which is what the feedback form
-                    does too. Adding a counter belongs in the component as an opt-in prop, not here. */}
                 <Textarea
                     label={t('placeEdit.descLabel')}
                     value={desc}

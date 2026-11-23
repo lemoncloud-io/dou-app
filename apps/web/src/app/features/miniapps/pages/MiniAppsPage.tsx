@@ -17,13 +17,6 @@ import { useCloudMiniApps } from '../hooks/useCloudMiniApps';
 import { useMiniAppEditor } from '../hooks/useMiniAppEditor';
 import { useMiniAppOpener, type MiniAppOpenOutcome } from '../hooks/useMiniAppOpener';
 
-/**
- * The mini app tab: the hub first, then the open cloud's mini apps.
- *
- * A member sees the active ones; the owner sees all of them, the ones members do not see marked with
- * a chip, and reaches the management screen from the header. An active row opens its mini app; an
- * owner's row that is off or held opens its sheet instead, since there is nothing for anyone to open.
- */
 export const MiniAppsPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -67,7 +60,6 @@ export const MiniAppsPage = () => {
             </header>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
-                {/* The Default Cloud has no owner and no list: its place shows what a member of an empty cloud sees. */}
                 {cloudId === null ? (
                     <EmptyState owner={false} />
                 ) : (

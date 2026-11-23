@@ -35,7 +35,6 @@ jest.mock('../hooks/useShareDestinations', () => ({
     ...jest.requireActual('../hooks/useShareDestinations'),
     useShareDestinations: () => ({ destinations: mockDestinations, isLoading: false }),
 }));
-// The room's own send is exercised by `useShareSend`; here a picked room only has to be mounted.
 jest.mock('../components/DestinationSender', () => ({ DestinationSender: () => null }));
 
 const id = '3f2b8c1e-9a4d-4c7b-8e21-5d6f7a8b9c0d';
@@ -83,7 +82,6 @@ beforeEach(() => {
 
 const pdf = (name: string) => ({ uri: `${dir}/${name}`, name, type: 'application/pdf', size: 1, kind: 'file' });
 
-/** Opens the "To" list, ticks the named rooms and confirms. */
 const pick = (...titles: string[]) => {
     fireEvent.click(screen.getByRole('button', { name: /share\.to\b/ }));
     for (const title of titles) fireEvent.click(screen.getByRole('checkbox', { name: new RegExp(title) }));
@@ -147,7 +145,6 @@ describe('SharePage — what was shared', () => {
 });
 
 describe('SharePage — leaving', () => {
-    // Discarding the copies as the page goes is `useShareSend`'s, and tested there.
     it('cancel goes home', async () => {
         (fetchShareIntake as jest.Mock).mockResolvedValue({
             items: [{ uri: `${dir}/a.pdf`, name: 'a.pdf', type: 'application/pdf', size: 1, kind: 'file' }],
@@ -293,8 +290,6 @@ describe('SharePage — sending', () => {
         expect(mockSend.mock.calls[0][0].files).toEqual(many.slice(0, 10));
     });
 
-    // A voice memo shared from another app goes like any document, under an alias too; a format the
-    // server does not take is still named as not sent.
     it('sends a shared audio file and names one the server would refuse as not sent', async () => {
         const memo = { uri: `${dir}/memo.m4a`, name: 'memo.m4a', type: 'audio/x-m4a', size: 1, kind: 'file' };
         const clip = { uri: `${dir}/clip.aac`, name: 'clip.aac', type: 'audio/aac', size: 1, kind: 'file' };
@@ -370,7 +365,6 @@ describe('SharePage — cloud and place', () => {
 
     it('drops the picked rooms once the place has changed', async () => {
         (fetchShareIntake as jest.Mock).mockResolvedValue({ items: [pdf('a.pdf')], refused: [] });
-        // One client and one router across the rerender, so the page stays mounted and keeps its picks.
         const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         const tree = () => (
             <QueryClientProvider client={client}>

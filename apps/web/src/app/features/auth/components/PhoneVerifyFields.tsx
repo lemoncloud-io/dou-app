@@ -4,33 +4,17 @@ import { AlertDialog, TextField } from '@chatic/web-ui-kit';
 import { cn } from '@chatic/ui-kit';
 
 import { formatCountdown } from '../../../utils';
-// Concrete module, not the ui/components barrel: CountrySelect is deliberately kept out of it so
-// libphonenumber's metadata stays off the eager path.
 import { CountrySelect } from '../../../ui/components/CountrySelect';
 import { InlineAction } from '../../../ui/components/InlineAction';
 import type { PhoneVerifyFieldsState } from '../hooks/usePhoneVerify';
 
-/** Below this the countdown turns red (Figma 3428-60171 / 3432-61204 / 3430-60970). */
 const IMMINENT_SECONDS = 60;
 
 interface PhoneVerifyFieldsProps {
     state: PhoneVerifyFieldsState;
-    /**
-     * Focus the phone field on mount. Full-screen only: in a bottom sheet the keyboard would open
-     * over the pinned footer CTA the moment the sheet appears.
-     */
     autoFocusPhone?: boolean;
 }
 
-/**
- * The phone-verification input body — the two fields the design shares between its full-screen and
- * bottom-sheet presentations (Figma 3421-59180 · 3586-16255 hold an identical "General Input" pair).
- * Chrome (title, hero copy, submit placement) belongs to the shell; this renders only the fields,
- * the dev delivery switches and the over-limit dialog.
- *
- * The design puts each field's action inside the border (`trailing`) and the countdown opposite the
- * helper text (`helperTrailing`) — both are TextField slots, so no bespoke input markup is needed.
- */
 export const PhoneVerifyFields = ({ state, autoFocusPhone = false }: PhoneVerifyFieldsProps) => {
     const { t } = useTranslation();
     const secondsLeft = state.countdown?.secondsLeft ?? 0;
@@ -49,8 +33,6 @@ export const PhoneVerifyFields = ({ state, autoFocusPhone = false }: PhoneVerify
                     autoFocus={autoFocusPhone}
                     error={state.phoneError || undefined}
                     description={t('phoneVerify.digitsOnly')}
-                    // The country lives INSIDE the field's border, so the pair reads as one input
-                    // group and the focus ring covers both (Figma "General Input" stays one row).
                     leading={<CountrySelect value={state.country} onChange={state.onCountryChange} />}
                     trailing={
                         <InlineAction
@@ -106,8 +88,6 @@ export const PhoneVerifyFields = ({ state, autoFocusPhone = false }: PhoneVerify
                             {t('phoneVerify.devDelivery')}
                         </span>
                         <label className="flex items-center gap-2 text-[13px] text-label">
-                            {/* The id is how the device scenarios find it on Android, whose WebView
-                                exposes a checkbox without its label. */}
                             <input
                                 id="dev-delivery-dry-run"
                                 type="checkbox"
@@ -125,10 +105,6 @@ export const PhoneVerifyFields = ({ state, autoFocusPhone = false }: PhoneVerify
                             />
                             {t('phoneVerify.devSlack')}
                         </label>
-                        {/* Not a client-side skip: this proves with the code development backends
-                            accept, through the same calls a typed code takes. Needs a code to have
-                            been requested first — with dryRun on, that request sends no SMS, so the
-                            two together take the phone out of the loop completely. */}
                         <button
                             type="button"
                             onClick={state.onDevBypass}

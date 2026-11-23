@@ -6,9 +6,6 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (o: unknown)
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() },
 }));
-// This callback runs outside React (no `useTranslation` hook available) and the app's own i18n
-// singleton isn't initialized in this unit test, so a real `i18next.t()` call here would just
-// return `undefined`. Stub it the same way component tests stub `react-i18next`'s `t`.
 jest.mock('i18next', () => ({
     t: (key: string, options?: Record<string, unknown>) => (options ? `${key}:${JSON.stringify(options)}` : key),
 }));
@@ -16,8 +13,6 @@ jest.mock('i18next', () => ({
 describe('config 포트 콜백 — 실패 표시 (ADR-0080 결정 10)', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    // A write is something the person just did, and if the shell rejects it the setting silently
-    // fails to stick. That's the "the screen says it's off but it's actually not" state decision 10 exists to prevent.
     it('셸 쓰기 실패는 로그와 토스트를 둘 다 낸다', () => {
         onShellWriteFailed('ui.theme', new Error('bridge down'));
 
@@ -27,7 +22,6 @@ describe('config 포트 콜백 — 실패 표시 (ADR-0080 결정 10)', () => {
         );
     });
 
-    // A duplicate key is a registry-authoring mistake — there's nothing the person holding the phone can do about it.
     it('중복 키는 로그만 낸다 — 사용자에게 띄우지 않는다', () => {
         onDuplicateKey('ui.theme');
 

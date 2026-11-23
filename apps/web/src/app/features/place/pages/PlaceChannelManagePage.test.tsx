@@ -10,7 +10,6 @@ const readInCloud = jest.fn().mockResolvedValue(undefined);
 const toggle = jest.fn();
 const toast = jest.fn();
 
-// Mutable per-test values.
 let placeValue: any;
 let channelsValue: any[];
 let unreadByChannel: Record<string, number>;
@@ -25,7 +24,6 @@ jest.mock('react-router-dom', () => ({ useParams: () => ({ placeId: 'place-1' })
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => navigate,
-    // Pinned channels moved to @chatic/shared — stub the hook (needs the config store).
     usePinnedChannels: () => ({ pinnedIds, toggle, reorder: jest.fn() }),
 }));
 jest.mock('../../invite/hooks/useInviteListRows', () => ({
@@ -36,7 +34,6 @@ jest.mock('../../invite/components/InviteChannelRow', () => ({
 }));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
-        // Surface interpolated counts so the button/dialog labels stay assertable.
         t: (key: string, options?: any) =>
             options && typeof options.count === 'number' ? `${key}:${options.count}` : key,
         i18n: { language: 'ko' },
@@ -45,7 +42,6 @@ jest.mock('react-i18next', () => ({
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 
-// The runtime pulls the socket lib (needs TextEncoder, unavailable in jsdom) — stub the repos.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
@@ -57,7 +53,6 @@ jest.mock('@chatic/runtime', () =>
                     },
                 },
             }),
-            // The room cloud's join repository; `readInCloud(cid, input)` stands for its outbox receipt.
             getCloudRepositories: (cid: string) => ({
                 join: { readChat: (input: unknown) => Promise.resolve({ delivered: readInCloud(cid, input) }) },
             }),
@@ -69,7 +64,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 
-// Avoid the ui barrel (it imports @chatic/assets, unmapped in jest).
 jest.mock('../../../ui', () => ({
     PageHeader: (p: any) => (
         <div>
@@ -81,8 +75,6 @@ jest.mock('../../../ui', () => ({
 
 jest.mock('../../channels/hooks', () => ({
     useChannelMutations: () => ({ deleteChannel, leaveChannel }),
-    // DM rows are named from one page-level profile subscription (useDmPeers.test.ts covers it);
-    // this list has no DM rows, so an empty map is the whole contract here.
     useDmPeers: () => new Map(),
 }));
 jest.mock('../../channels/components', () => ({
@@ -98,8 +90,6 @@ jest.mock('../../channels/components', () => ({
 jest.mock('../../../hooks', () => ({
     useMyProfile: () => ({ profile: { nick: '내프로필' } }),
     useHomeChannels: () => ({ channels: channelsValue, isLoading: false }),
-    // This screen reads join/unread from the observation the whole app shares, and registers only its
-    // own cursor sync.
     useActiveCloudData: () => ({
         channels: channelsValue,
         isLoaded: true,
@@ -114,7 +104,6 @@ jest.mock('../../../hooks', () => ({
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
 }));
 
-// Kit stubs — the row exposes its selection and pin as separate buttons.
 jest.mock('@chatic/web-ui-kit', () => ({
     Badge: ({ children }: any) => <span>{children}</span>,
     Button: ({ children, onClick, disabled }: any) => (
@@ -179,7 +168,6 @@ describe('PlaceChannelManagePage', () => {
 
         fireEvent.click(screen.getByRole('checkbox', { name: 'ch-1' }));
         fireEvent.click(screen.getByText('channelManage.deleteRooms'));
-        // Confirm dialog is titled with the selected count.
         expect(screen.getByText('channelManage.deleteDialog.title:1')).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('channelManage.deleteDialog.confirm'));
@@ -189,8 +177,6 @@ describe('PlaceChannelManagePage', () => {
         await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'channelManage.deleteDone:1' }));
     });
 
-    // "Member" is now decided per channel rather than per place — a group I did not create is
-    // one I leave, whoever owns the place around it.
     it('leaves a group room I do not own', async () => {
         channelsValue = [channel('ch-1', { ownerId: 'someone-else' }), channel('ch-2', { ownerId: 'someone-else' })];
         render(<PlaceChannelManagePage />);
@@ -218,7 +204,6 @@ describe('PlaceChannelManagePage', () => {
         expect(toast).toHaveBeenCalledWith({ title: 'channelManage.deleteFailed:1', variant: 'destructive' });
     });
 
-    // The room's text flattened as the home list flattens it, not the composer's raw markup.
     it('previews the last message with its markup flattened', () => {
         lastChatsValue = new Map([
             ['ch-1', { content: '배포는 `yarn deploy` 로, [가이드](https://example.com/a) 참고' }],
@@ -228,7 +213,6 @@ describe('PlaceChannelManagePage', () => {
         expect(screen.getByTestId('subtitle:ch-1')).toHaveTextContent('배포는 yarn deploy 로, 가이드 참고');
     });
 
-    // The home list's line: a soft delete keeps its body, and the row must not print it.
     it('previews a deleted last message as the deleted-message phrase, not its kept body', () => {
         lastChatsValue = new Map([['ch-1', { content: '지워진 원문', hidden: true }]]);
         render(<PlaceChannelManagePage />);
@@ -248,14 +232,11 @@ describe('PlaceChannelManagePage', () => {
         expect(screen.queryByTestId('subtitle:ch-1')).not.toBeInTheDocument();
     });
 
-    // The label splits into delete/leave with the selection (removalActionFor), so accept either.
     it('disables the remove button when nothing is selected', () => {
         render(<PlaceChannelManagePage />);
         expect(screen.getByRole('button', { name: /channelManage\.(delete|leave)Rooms/ })).toBeDisabled();
     });
 
-    // A 1:1 is left, never deleted, on every screen. That holds even when ownerId is me because
-    // I sent the invite — that id is a by-product of creating the room, not a permission over it.
     it('leaves a 1:1 instead of deleting it, even when I am the owner', async () => {
         channelsValue = [channel('dm-1', { stereo: 'dm', ownerId: 'me', memberIds: ['me', 'peer'] })];
         render(<PlaceChannelManagePage />);
@@ -272,7 +253,6 @@ describe('PlaceChannelManagePage', () => {
         unreadByChannel = { 'ch-1': 2, 'ch-2': 5 };
         render(<PlaceChannelManagePage />);
 
-        // No selection → the label is "read all" and every unread room is marked.
         fireEvent.click(screen.getByText('channelManage.readAll'));
         await waitFor(() => expect(readInCloud).toHaveBeenCalledTimes(2));
 

@@ -4,7 +4,6 @@ import { render, screen } from '@testing-library/react';
 
 import { LoginPage } from './LoginPage';
 
-// Mutable per-test fixture (must be `mock`-prefixed to be usable inside jest.mock factories).
 let mockSearch = '';
 
 jest.mock('react-router-dom', () => ({
@@ -16,8 +15,6 @@ const forwardedTo = () => screen.getByText(/^navigated:/).textContent?.replace('
 
 describe('LoginPage — 배포된 딥링크 호환 심', () => {
     it('초대 딥링크는 쿼리를 온전히 달고 루트로 넘긴다 (수락 페이지 판단은 게이트가 한다)', () => {
-        // Shortcutting straight to /invite/accept here would skip the first-run onboarding priority —
-        // that decision lives in exactly one place, InviteEntryGate.
         mockSearch = '?code=abc&provider=invite&version=2&relay=1';
         render(<LoginPage />);
 

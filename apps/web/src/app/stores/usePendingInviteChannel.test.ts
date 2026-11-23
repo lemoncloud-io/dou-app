@@ -22,10 +22,6 @@ describe('usePendingInviteChannel', () => {
     });
 
     it('brings the room back after the page is loaded again', async () => {
-        // What a reload, or a rewind onto an entry from a document that is gone, leaves behind: an
-        // empty in-memory store and the id still in the tab's sessionStorage.
-        // (`beforeEach` has already emptied the in-memory store; setting it here would write over the
-        // item, since every set is persisted.)
         sessionStorage.setItem(KEY, JSON.stringify({ state: { channelId: 'ch-invited' }, version: 0 }));
 
         await usePendingInviteChannel.persist.rehydrate();

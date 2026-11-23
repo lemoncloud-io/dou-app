@@ -15,8 +15,6 @@ describe('normalizeChannelSort', () => {
     });
 
     it('cid 없이 저장된 레거시(bare placeId) 항목은 버린다', () => {
-        // A bare placeId can't be attributed to a cloud, so honoring it would leak one cloud's
-        // setting into another cloud's same-id place.
         expect(normalizeChannelSort({ 'place-1': 'unread', 'cloud-1:place-1': 'unread' })).toEqual({
             'cloud-1:place-1': 'unread',
         });
@@ -41,7 +39,6 @@ describe('normalizeHomeSectionsCollapsed', () => {
     });
 
     it('drops unknown section ids and values other than true', () => {
-        // `false` is not a stored state — an open section has no entry — so it is noise, not intent.
         expect(normalizeHomeSectionsCollapsed({ channels: false, favorites: true, places: 'yes' })).toEqual({});
     });
 
@@ -81,7 +78,6 @@ describe('normalizeCloudPromoDismissedAt', () => {
     });
 
     it('숫자가 아니거나 0 이하인 값은 0으로 강등한다', () => {
-        // A corrupt write must not be able to hide the banner forever.
         expect(normalizeCloudPromoDismissedAt('not-a-number', NOW)).toBe(0);
         expect(normalizeCloudPromoDismissedAt('0', NOW)).toBe(0);
         expect(normalizeCloudPromoDismissedAt('-5', NOW)).toBe(0);
@@ -94,8 +90,6 @@ describe('normalizeCloudPromoDismissedAt', () => {
     });
 
     it('미래 시각도 0으로 강등한다', () => {
-        // Only a clock change or a bad write can produce this; honoring it would hide the banner
-        // until that future date.
         expect(normalizeCloudPromoDismissedAt(String(NOW + 1), NOW)).toBe(0);
     });
 });

@@ -3,8 +3,6 @@ import { screen, waitFor } from '@testing-library/react';
 import { renderAt } from '../testing/setup';
 import { MiniAppRoutes } from './index';
 
-/** The routes open only while `feature.miniApp.tab` is on; otherwise — a production build — they go home. */
-
 let mockMiniAppTab = false;
 
 jest.mock('@chatic/runtime', () =>
@@ -12,7 +10,6 @@ jest.mock('@chatic/runtime', () =>
         settings: { useConfigValue: (key: string) => (key === 'feature.miniApp.tab' ? mockMiniAppTab : undefined) },
     })
 );
-// The screens themselves are their own tests'; here only which one the address reaches matters.
 jest.mock('../pages/MiniAppsPage', () => ({ MiniAppsPage: () => <p>tab</p> }));
 jest.mock('../pages/MiniAppManagePage', () => ({ MiniAppManagePage: () => <p>manage</p> }));
 

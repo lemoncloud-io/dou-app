@@ -25,7 +25,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
-// One packet (`auth.link-account`) behind four calls; the two social ones are unused by this shell.
 jest.mock('../../../hooks/useLinkAccount', () => ({
     useLinkAccount: () => ({
         send: mockSend,
@@ -45,15 +44,12 @@ import { PhoneVerifySheet } from './PhoneVerifySheet';
 import { seedPhoneCountry } from '../../../../testing/phoneCountry';
 
 const PHONE = '01012345678';
-// The field shows the local form; the packet carries E.164 now (ADR-0044 §5 correction).
 const PHONE_E164 = '+821012345678';
 
-/** jsdom's locale is `en-US`; seed the remembered pick so these Korean numbers validate (ADR-0044 §4). */
 const seedCountry = () => {
     seedPhoneCountry('KR');
 };
 
-/** The sheet serves both sides: the issue/guest gate logs in, the mypage account row links. */
 const renderSheet = (mode: AccountLinkMode = 'login') => {
     const props = { mode, onVerified: jest.fn(), onClose: jest.fn() };
     render(<PhoneVerifySheet {...props} />);
@@ -83,8 +79,6 @@ describe('PhoneVerifySheet', () => {
     it('발급 흐름이라 계정 갈라짐 방어 배너를 렌더하지 않는다 (ADR-0034 결정 4)', () => {
         renderSheet();
 
-        // The full-screen shell owns this warning; the sheet design deliberately leaves it out. If a
-        // future edit moves the banner into the shared body, this fails instead of silently drifting.
         expect(screen.queryByText('phoneVerify.socialFirstTitle')).not.toBeInTheDocument();
     });
 
@@ -93,8 +87,6 @@ describe('PhoneVerifySheet', () => {
 
         expect(screen.getByText('phoneVerify.sheetTitle')).toBeInTheDocument();
         expect(screen.getByText('phoneVerify.complete')).toBeInTheDocument();
-        // Twice on purpose: the visible copy is aria-hidden, and BottomSheet also renders it sr-only
-        // so Radix can link it as the dialog's description (screen readers hear it once).
         expect(screen.getAllByText('phoneVerify.sheetDescription')).toHaveLength(2);
 
         fireEvent.click(screen.getByLabelText('common.close'));

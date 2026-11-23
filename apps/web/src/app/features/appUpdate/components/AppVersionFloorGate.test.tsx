@@ -15,7 +15,6 @@ jest.mock('@chatic/bridges', () => ({
     ...jest.requireActual('@chatic/bridges'),
     logger: { info: (...args: unknown[]) => mockInfo(...args), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
-// The phone app's store listing, as the host's `appShell` port offers it.
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({

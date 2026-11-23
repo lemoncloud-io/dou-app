@@ -12,7 +12,6 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('../../app/bridge/appBridge', () => ({ appBridge: { readVideoFrame: jest.fn() } }));
 
-// Neither side reads the facts; the implementations decide from the side alone.
 const facts = {} as WebHostFacts;
 const shell = () => webFiles.shell({ kind: 'shell' }, facts);
 const browser = () => webFiles.browser({ kind: 'browser' }, facts);
@@ -40,8 +39,6 @@ describe('webFiles — the phone app moves the files', () => {
     });
 
     it("sends an upload through the app's transfer module, not the page's PUT", async () => {
-        // The module writes an image to a temp file before it starts the transfer; a refusal there
-        // settles the PUT without any further request.
         request.mockRejectedValue(Object.assign(new Error('NOT_FOUND'), { code: 'NOT_FOUND' }));
         const file = new File(['abc'], 'a.jpg', { type: 'image/jpeg' });
 
@@ -55,7 +52,6 @@ describe('webFiles — the phone app moves the files', () => {
     });
 
     it('starts a transfer of a file the app keeps from where it lies, writing no temp file', async () => {
-        // The start is refused, so the PUT settles on the reply instead of waiting for a terminal state.
         request.mockRejectedValue(Object.assign(new Error('SOURCE'), { code: 'SOURCE' }));
         const file = {
             uri: 'file:///pick/a.pdf',

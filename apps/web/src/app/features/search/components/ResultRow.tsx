@@ -1,25 +1,15 @@
 import type { ReactNode } from 'react';
 
 interface ResultRowProps {
-    /** Avatar or icon. Circular avatars come from the caller (ImageAvatar / DefaultAvatar). */
     leading: ReactNode;
     title: ReactNode;
     subtitle?: ReactNode;
-    /** Where the row lives, e.g. "Cloud › Place › Channel". Rendered as its own muted line. */
     context?: ReactNode;
     badge?: ReactNode;
     trailing?: ReactNode;
     onClick: () => void;
 }
 
-/**
- * One clickable search result row, shared across the cloud/place/channel/message sections.
- *
- * Purely presentational on purpose: every value is passed in, because a search result usually
- * belongs to a NON-ACTIVE cloud and any hook that reads data (useLastChats, useChannelSync, …)
- * would query the active cloud's partition instead — coming back empty and registering sync
- * targets on the wrong cloud's socket. See docs/specs/search/web-search-page.md.
- */
 export const ResultRow = ({ leading, title, subtitle, context, badge, trailing, onClick }: ResultRowProps) => (
     <button
         type="button"
@@ -39,11 +29,6 @@ export const ResultRow = ({ leading, title, subtitle, context, badge, trailing, 
     </button>
 );
 
-/**
- * Placeholder row shown while the first results of a keyword are still being scanned. Mirrors the
- * home list's skeleton (ChannelList.tsx) so the two lists settle into the same shape, and keeps the
- * page from rendering an empty container — which is what it did before, reading as "no results".
- */
 export const ResultRowSkeleton = () => (
     <div className="flex items-center gap-3 px-4 py-3" aria-hidden>
         <div className="size-[42px] animate-pulse rounded-full bg-muted" />

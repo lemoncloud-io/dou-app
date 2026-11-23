@@ -18,21 +18,15 @@ import { bootSplash } from '../runtime/bootSplash';
 export const Router = () => {
     const { isAuthenticated, isInitialized } = runtime.session.useSessionAuth();
 
-    // Boot timeline: the router unblocking is the moment the first real screen
-    // can render (markBoot ignores repeat calls). The native shell gets the
-    // completed web snapshot shortly after.
     useEffect(() => {
         if (!isInitialized) return;
         markBoot('session-initialized');
         scheduleBootMetricsReport();
-        // RouterProvider rendered its first route in this same commit, so this is where the boot
-        // cover may start counting down to the first painted screen.
         bootSplash.markRouteMounted();
     }, [isInitialized]);
 
     const handleRouterError = useCallback((error: Error): void => {
         logger.error('ROUTER', 'Router Error', { error });
-        // An error screen is a screen: lift the cover so it is seen instead of waiting for the cap.
         bootSplash.release('error');
     }, []);
 
@@ -49,12 +43,7 @@ export const Router = () => {
         return createBrowserRouter(routesWithErrorElement);
     }, [isAuthenticated, handleRouterError]);
 
-    // Route observers for issue diagnostics: the trail (where the user has been — the feedback
-    // screen is reached from MyPage, so its own pathname says nothing about where the bug was hit)
-    // and the reconstructed history stack (what the back button will do). Both are fed from one
-    // subscription here; see `stackObserver` for why this is the only place that can do it.
     useEffect(() => observeRouterRoutes(router), [router]);
-    // Screen statistics (screen_view, per-screen long tasks) follow the same router.
     useEffect(() => observeScreenViews(router), [router]);
 
     if (!isInitialized) {

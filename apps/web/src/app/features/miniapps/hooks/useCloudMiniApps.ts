@@ -6,7 +6,6 @@ import { useInvitedClouds } from '../../../hooks';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { cloudDisplayName } from '../../../utils/cloudDisplayName';
 
-/** The list query of one cloud. Keyed by the cloud so a switch never shows the previous cloud's rows. */
 export const miniAppsKey = (cloudId: string) => [...runtime.data.cloudsKeys.detail(cloudId), 'miniApps'] as const;
 
 export interface MiniAppFields {
@@ -15,20 +14,6 @@ export interface MiniAppFields {
     enabled?: boolean;
 }
 
-/**
- * The open cloud's mini apps, as the relay keeps them, and the owner's writes to them.
- *
- * - `cloudId` is `null` on the Default Cloud (Home): it is the relay's, with no owner and no list.
- * - Owner only on positive evidence: the cloud is in the account's owned catalog. A cloud in neither
- *   catalog list (a paired one) is not mine, and the catalog starts empty on every mount, so the
- *   owner's controls fail closed until it has answered (`ownerKnown`).
- * - `visible` is what this person sees: every mini app for the owner, only the active ones for a
- *   member. `active` is what the hub is handed and what it may name back.
- * - Each write that succeeds puts its answer into the list query rather than reading the list
- *   again; a change made on another device is read the next time the tab opens (`staleTime: 0`).
- *   A write first cancels a read of that list still in flight: one that started before the write
- *   would land after it and put the old list back.
- */
 export const useCloudMiniApps = () => {
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const cloudId = selectedCloudId && selectedCloudId !== 'default' ? selectedCloudId : null;
@@ -50,11 +35,9 @@ export const useCloudMiniApps = () => {
     const apps = query.data ?? [];
     const active = apps.filter(app => app.status === 'active');
 
-    /** Writes `change` into `forCloud`'s list — the cloud the write was made in, whatever is open now. */
     const patchList = (forCloud: string, change: (list: DomainMiniApp[]) => DomainMiniApp[]) =>
         queryClient.setQueryData<DomainMiniApp[]>(miniAppsKey(forCloud), list => (list ? change(list) : list));
 
-    // A read that started before the write would answer with the list as it was, over the patch.
     const holdReads = ({ cloudId: forCloud }: { cloudId: string }) =>
         queryClient.cancelQueries({ queryKey: miniAppsKey(forCloud) });
 
@@ -81,7 +64,6 @@ export const useCloudMiniApps = () => {
         cloudId,
         cloudName,
         isOwner,
-        /** The owned catalog has answered, so `isOwner` is the answer and not the fail-closed stand-in. */
         ownerKnown: hasCloudCatalog,
         apps,
         visible: isOwner ? apps : active,

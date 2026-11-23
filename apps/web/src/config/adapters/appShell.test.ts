@@ -24,7 +24,6 @@ jest.mock('../../app/bridge/appBridge', () => ({
 
 const bridge = appBridge as unknown as Record<keyof typeof appBridge, jest.Mock>;
 
-// Neither side reads the facts; the shell's side reads the phone platform from `base.os`.
 const facts = {} as WebHostFacts;
 const phone = (os: 'ios' | 'android' | null = 'ios') => webAppShell.shell({ kind: 'shell', os }, facts);
 const browser = () => webAppShell.browser({ kind: 'browser', os: null }, facts);
@@ -128,7 +127,6 @@ describe('webAppShell — the phone app’s icon badge', () => {
     });
 
     describe('Android', () => {
-        // notifee's badge API is iOS-only, so on Android the real value lives only in the shared counter.
         it('reads the shared counter, never notifee’s badge', async () => {
             bridge.fetchBadgeBase.mockResolvedValue({ success: true, data: { base: 6 } });
 
@@ -142,8 +140,6 @@ describe('webAppShell — the phone app’s icon badge', () => {
             await expect(phone('android').iconBadge?.read()).resolves.toBeNull();
         });
 
-        // The web ships ahead of the app, so some shells do not know this message; the facade hands
-        // back the raw response, so a refusal can arrive as success: false rather than a rejection.
         it('is null when the shell answers success: false', async () => {
             bridge.fetchBadgeBase.mockResolvedValue({ success: false, error: { code: 'BADGE_ERROR' } });
 

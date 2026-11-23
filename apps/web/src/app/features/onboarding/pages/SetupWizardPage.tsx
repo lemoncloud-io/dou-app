@@ -24,7 +24,6 @@ import { WizardProgress } from '../components';
 const NAME_MAX = 20;
 const TOTAL_STEPS = 3;
 
-/** What each step collects. The cloud has no image field on the server, so it takes a name only. */
 interface Draft {
     cloudName: string;
     placeName: string;
@@ -41,18 +40,6 @@ const EMPTY: Draft = {
     profileThumbnail: '',
 };
 
-/**
- * First-run setup after a subscription clears: name the cloud, make a place in it, then a profile
- * for that place (Figma 3037-19884 · -19927 · -19970).
- *
- * Each step commits as it is completed rather than batching to the end, because the steps depend on
- * each other — the profile is a profile *of* the place created a moment earlier. That also means a
- * failure leaves the earlier steps done, which is why a retry resumes where it stopped instead of
- * starting over.
- *
- * Step 1 has no photo: `CloudModel` carries no image field, so there is nowhere to put one. The
- * cloud settings screen omits it for the same reason.
- */
 export const SetupWizardPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -61,9 +48,6 @@ export const SetupWizardPage = () => {
     const [step, setStep] = useState(1);
     const [draft, setDraft] = useState<Draft>(EMPTY);
     const [busy, setBusy] = useState(false);
-    // A place step 2 created but has not switched into yet. The two are separate server calls, so a
-    // switch can fail after the create went through; a retry then resumes the switch instead of
-    // creating a second place.
     const [unswitchedPlaceId, setUnswitchedPlaceId] = useState<string | null>(null);
 
     const { selectedCloudId } = runtime.session.useSessionSelection();
@@ -93,8 +77,6 @@ export const SetupWizardPage = () => {
 
     const commit = async () => {
         if (step === 1) {
-            // Without a selected cloud there is nothing to rename; the subscription just created one,
-            // so this only happens if the session has not caught up yet.
             if (!selectedCloudId) throw new Error('no cloud selected');
             await updateCloudName({ id: selectedCloudId, name: draft.cloudName.trim() });
             return;
@@ -109,9 +91,6 @@ export const SetupWizardPage = () => {
                 placeId = created.id;
                 setUnswitchedPlaceId(placeId);
             }
-            // Step 3's profile can only be written from inside the new place: the server stores a
-            // profile on the site the session is on, whatever site the request names. Without this
-            // switch the profile overwrote the one on the place that was active before the wizard.
             await switchSite(placeId);
             setUnswitchedPlaceId(null);
             return;
@@ -154,8 +133,6 @@ export const SetupWizardPage = () => {
                             />
                         ) : undefined
                     }
-                    // No way out of step 1: the subscription is already paid for and the cloud needs a
-                    // name before anything else can be made in it.
                     onClose={step > 1 ? () => navigate(ROUTES.home, { replace: true }) : undefined}
                 />
             }
@@ -180,7 +157,6 @@ export const SetupWizardPage = () => {
                     </p>
                 </div>
 
-                {/* The cloud has no image on the server, so only the later two steps offer a photo. */}
                 {step > 1 && (
                     <div className="flex flex-col items-center gap-4">
                         <ProfileAvatar

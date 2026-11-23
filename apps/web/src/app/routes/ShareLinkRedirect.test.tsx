@@ -4,12 +4,6 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { ShareLinkRedirect } from './ShareLinkRedirect';
 import { ROUTES } from './paths';
 
-// Two deliberate choices here:
-// - Mounted directly, not via `commonRoutes`: importing that barrel pulls in AuthRoutes and the whole
-//   auth feature tree, which this jest config cannot resolve. The wiring is a one-line entry in
-//   CommonRoutes.tsx; the conversion + redirect behaviour is what matters.
-// - MemoryRouter, not createMemoryRouter: a data router needs the `Request` global, absent in this
-//   jsdom env (see the note in PublicRoutes.test.tsx). <Navigate> works the same on either.
 const LandedAt = () => {
     const { pathname, search } = useLocation();
     return (
@@ -29,7 +23,6 @@ const landOn = async (initialPath: string) => {
             </Routes>
         </MemoryRouter>
     );
-    // jest-dom matchers are not wired up in this project, so assert on the query result directly.
     await waitFor(() => expect(screen.queryByTestId('landed')).not.toBeNull());
     const landed = screen.getByTestId('landed');
     return {
@@ -38,12 +31,8 @@ const landOn = async (initialPath: string) => {
     };
 };
 
-// The destination is always '/'. Deciding whether to hand off to the accept page belongs solely to
-// InviteEntryGate — shortcutting that here would silently skip first-run onboarding priority.
 describe('ShareLinkRedirect — /s 공유 링크 리다이렉트', () => {
     it('주소 파라미터가 없는 code-only 릴레이 링크를 relay=1 초대 진입으로 바꿔 보낸다', async () => {
-        // This is the link an un-updated mobile WebView hands over verbatim; without this route it
-        // hits the router's '*' fallback and the whole query string is dropped.
         const { pathname, params } = await landOn('/s?code=invt%3A1000072-2%3Ae3faf0d0');
 
         expect(pathname).toBe(ROUTES.root);

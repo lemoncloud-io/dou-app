@@ -15,7 +15,6 @@ type FindMeFilter = (typeof FIND_ME_FILTERS)[number];
 const NO_ITEMS: NotificationItem[] = [];
 const noop = () => undefined;
 
-// A reaction has no chip of its own: it shows under "All" only.
 const inFilter = (item: NotificationItem, filter: FindMeFilter): boolean =>
     filter === 'all' ? true : filter === 'mention' ? MENTION_KINDS.has(item.kind) : THREAD_KINDS.has(item.kind);
 
@@ -24,17 +23,6 @@ export interface FindMeSheetProps {
     onOpenChange: (open: boolean) => void;
 }
 
-/**
- * "나를 찾는 알림" — what is looking for the reader right now (Figma 6027:21566): the unread mentions
- * of them, replies to their messages and reactions to their messages where the session is, newest
- * first. New 1:1 messages and threads they only joined stay in the notifications tab. Reading an
- * item — here or in its room — takes it off this list; it stays in the tab.
- *
- * "Select" (or a long press) enters selection mode (Figma 6036:21053 · 6202:25055 · 6036:22061): the
- * filter row gives way to "Select all", and the sheet's foot to the mark-read / delete bar. Items
- * marked read there stay listed and picked until the mode closes, so they can be deleted next.
- * Closing the sheet ends the mode.
- */
 export const FindMeSheet = ({ open, onOpenChange }: FindMeSheetProps) => {
     const { t } = useTranslation();
     const items = useScopedNotifications();
@@ -45,16 +33,13 @@ export const FindMeSheet = ({ open, onOpenChange }: FindMeSheetProps) => {
     const { active, exit } = selection;
 
     const all = useMemo(() => findMe(items), [items]);
-    // Marked read in selection mode, an item leaves `findMe`; held ones are put back until the mode ends.
     const listed = useMemo(() => withHeld(all, items, selection.held), [all, items, selection.held]);
     const visible = useMemo(() => listed.filter(item => inFilter(item, filter)), [listed, filter]);
-    // Read only while the sheet is open: a closed sheet stays mounted under home.
     const avatarOf = useNotificationAvatars(open ? visible : NO_ITEMS);
     const count = (id: FindMeFilter) => all.filter(item => inFilter(item, id)).length;
     const picked = pickedIn(visible, selection.selected);
     const now = Date.now();
 
-    // A sheet opened again starts browsing, whichever way it was closed.
     useEffect(() => {
         if (!open && active) exit();
     }, [open, active, exit]);
@@ -88,18 +73,12 @@ export const FindMeSheet = ({ open, onOpenChange }: FindMeSheetProps) => {
             <BottomSheet
                 open={open}
                 onOpenChange={onOpenChange}
-                // Always the design's full height (the top just under home's header), whatever the
-                // list holds: a sheet that fits its content jumps as a filter, a read or selection
-                // mode changes the list. The list scrolls inside instead. Same expression as the
-                // kit's max height, so the two stay equal while a keyboard is up.
                 className="h-[calc(90vh-var(--keyboard-height,0px))]"
                 title={
                     selection.active
                         ? t('notifications.inbox.selectedCount', { count: picked.ids.length })
                         : t('notifications.findMe.title')
                 }
-                // The X closes the sheet — in selection mode too, which has no "Cancel" and ends with
-                // the sheet. Passing `onClose` is what draws it; the close itself is `onOpenChange`.
                 onClose={noop}
                 closeLabel={t('notifications.findMe.close')}
                 footer={

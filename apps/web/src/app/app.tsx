@@ -19,16 +19,10 @@ import { bootSplash } from './runtime/bootSplash';
 import { DebugOverlayHost } from './features/debug/overlay/DebugOverlayHost';
 import { markBoot } from './features/debug/metrics/bootMarks';
 
-/** Resource-bearing elements whose load failures are worth logging (ADR-0097). */
 const RESOURCE_TAGS = new Set(['img', 'script', 'link', 'audio', 'video', 'source']);
 
 if (typeof window !== 'undefined') {
     window.addEventListener('error', event => {
-        // Cross-origin script exceptions arrive with a null `event.error` and an
-        // opaque "Script error." message, so the Error below is ours, not the
-        // browser's — its stack points at this handler and means nothing. That is
-        // what `errorWasNull` records, and it is why `filename`/`lineno`/`colno`
-        // ride along: for an opaque exception they are the only location left.
         const error = event.error ?? new Error(event.message);
         logger.error('GLOBAL', `[window.onerror] ${event.message}`, {
             error,
@@ -41,14 +35,9 @@ if (typeof window !== 'undefined') {
         });
     });
     window.addEventListener('unhandledrejection', event => {
-        // event.reason is often a raw DOM Event (e.g. lemon-model's WebSocket connect races —
-        // see toError's doc comment), which String() collapses to a useless "[object Event]".
         const error = toError(event.reason);
         logger.error('GLOBAL', `[unhandledrejection] ${error.message}`, { error });
     });
-    // Resource load failures (img/script/link/...) fire on the element and do
-    // NOT bubble — only a capture-phase window listener sees them. There is no
-    // JS Error object; synthesize one carrying the element/URL (ADR-0097).
     window.addEventListener(
         'error',
         event => {
@@ -62,8 +51,6 @@ if (typeof window !== 'undefined') {
         },
         true
     );
-    // CSP violations never reach window.onerror; a blocked script inside the
-    // WebView is a prime "Script error." root-cause correlate (ADR-0097).
     window.addEventListener('securitypolicyviolation', event => {
         const detail = `${event.violatedDirective} blocked ${event.blockedURI || '(inline)'}`;
         logger.error('GLOBAL', `[csp-violation] ${detail}`, {
@@ -95,19 +82,13 @@ const queryClient = new QueryClient({
     },
 });
 
-/**
- * Provider assembly only. Session readiness and the runtime connection are both owned by
- * `AppRuntime` (see `./runtime`).
- */
 export function App() {
-    // Boot timeline: first React commit of the provider tree.
     useEffect(() => {
         markBoot('app-render');
     }, []);
 
     const handleError = useCallback((error: Error, info: ErrorInfo): void => {
         logger.error('APP', '[error-boundary] Application Error', { error, data: info });
-        // The fallback rendered under the boot cover; lift it so the error is seen now, not at the cap.
         bootSplash.release('error');
     }, []);
 
@@ -115,17 +96,14 @@ export function App() {
         <HelmetProvider>
             <I18nextProvider i18n={i18n}>
                 <QueryClientProvider client={queryClient}>
-                    {/* Theme state lives in @chatic/config's ui.theme; ThemeApplier only mirrors it to <html>. */}
                     <ThemeApplier />
                     <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
-                        {/* An app below the floor sees the update screen and nothing else. */}
                         <AppVersionFloorGate>
                             <GlobalBridgeListener />
                             <AppUpdatePromptHost />
                             <Suspense fallback={<LoadingFallback />}>
                                 <AppRuntime />
                             </Suspense>
-                            {/* Inside the gate: its screens assume a shell at the floor or above. */}
                             <DebugOverlayHost />
                         </AppVersionFloorGate>
                     </ErrorBoundary>

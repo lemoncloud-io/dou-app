@@ -13,7 +13,6 @@ jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
             useGlobalCacheSearch: jest.fn(),
-            // useCachedCloudNames observes the cloud cache through the repositories.
             useRuntimeRepositories: () => ({ cloud: { observeList: () => () => undefined } }),
         },
         session: {
@@ -60,9 +59,6 @@ describe('useGlobalSearch', () => {
     });
 
     it('debounces the search call by 300ms', async () => {
-        // Starts empty (as the real search input does on mount) so the initial debounced value
-        // is genuinely below the trigger threshold — useDebounce seeds its state from the first
-        // render's value, so starting non-empty would fire immediately and not exercise the delay.
         const { rerender } = renderHook(({ query }) => useGlobalSearch(query), { initialProps: { query: '' } });
 
         rerender({ query: 'le' });
@@ -75,8 +71,6 @@ describe('useGlobalSearch', () => {
 
         act(() => jest.advanceTimersByTime(300));
         await waitFor(() => expect(search).toHaveBeenCalledTimes(1));
-        // Scoped to the active cloud: rows of other clouds are written under those clouds' uid and
-        // are unreachable from this session anyway (see the hook's doc comment).
         expect(search).toHaveBeenCalledWith('lemon', { cid: 'cloud-a' });
     });
 
@@ -107,7 +101,6 @@ describe('useGlobalSearch', () => {
         expect(result.current.hasResults).toBe(true);
     });
 
-    // A reaction event's content is its emoji, which the feed never draws as a row.
     it('drops reaction events from the results', async () => {
         search.mockResolvedValue({
             channels: [],
@@ -126,8 +119,6 @@ describe('useGlobalSearch', () => {
         expect(result.current.results.messages.map(chat => chat.id)).toEqual(['message']);
     });
 
-    // A soft delete keeps the body on the cached row and both cache sources match on it, so a
-    // deleted message would otherwise still be found by its words.
     it('drops deleted messages from the results before capping them', async () => {
         search.mockResolvedValue({
             channels: [],
@@ -167,9 +158,6 @@ describe('useGlobalSearch', () => {
     });
 
     it('searches once even when the cloud sources hand back a new array identity on every render', async () => {
-        // Both real hooks rebuild their array each render (useInvitedClouds filters, and
-        // useCloudSessionCatalog falls back to a fresh `[]`), which previously re-ran the search
-        // effect on every render — an endless search/setState loop that flickered the results.
         (useCloudSessionCatalog as jest.Mock).mockImplementation(() => ({
             clouds: [{ id: 'c1', cid: 'c1', name: 'Lemon Cloud' }],
         }));
@@ -183,7 +171,6 @@ describe('useGlobalSearch', () => {
         act(() => jest.advanceTimersByTime(300));
         await waitFor(() => expect(result.current.isSearching).toBe(false));
 
-        // Let any queued re-render settle: a looping effect would keep firing new searches here.
         await act(async () => {
             jest.advanceTimersByTime(1000);
         });

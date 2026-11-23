@@ -18,8 +18,6 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => mockNavigate,
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
-// Haptics play only where the frame has them (the host's `appShell` port); this page is in a browser,
-// which has none.
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({ appShell: browserAppShell() });
@@ -63,7 +61,6 @@ describe('FindMeSheet', () => {
             p: item({ id: 'p', kind: 'participatedThread', content: 'joined' }),
             o: item({ id: 'o', content: 'old mention', read: true }),
         };
-        // The items as the feed would have worked them out from the rows, with nothing done to them yet.
         useNotificationStore.setState({ computed: items, items, overlay: { entries: {}, threads: {}, baselineAt: 0 } });
     });
 
@@ -165,7 +162,6 @@ describe('FindMeSheet', () => {
             );
             expect(useNotificationStore.getState().items.m).toBeUndefined();
             expect(useNotificationStore.getState().items.r).toBeUndefined();
-            // The mode closed with it.
             expect(screen.getByText('notifications.findMe.title')).toBeInTheDocument();
         });
 

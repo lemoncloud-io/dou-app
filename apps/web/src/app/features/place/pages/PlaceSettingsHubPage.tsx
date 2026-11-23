@@ -15,18 +15,6 @@ import { HOME_PLACE_ID } from '../../../utils/resolvePlaceDisplayName';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
-/**
- * Place settings hub — the landing screen reached from the home profile dropdown. Two titled
- * cards: "설정" (my profile / place profile / place information, previewing its introduction) and
- * "대화방" (chat sort / chat management). The place-profile row writes, so it is owner-only and
- * disabled for non-owners (server `isOwner` is the authority); the place-information row only reads,
- * so it stays open to everyone. There is no place notification card: place push has no backend, and a
- * switch that cannot be turned on is not offered.
- *
- * The "Members" row exists only for a member of a real place — not on the relay's own place, a system
- * place nobody joins, and not for a guest — and opens the member screen for everyone in the place.
- * Leaving and deleting the place live on the place information screen.
- */
 export const PlaceSettingsHubPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -68,9 +56,6 @@ export const PlaceSettingsHubPage = () => {
                         disabled={!isOwner}
                         onClick={placeId ? go(ROUTES.place.settingsEdit(placeId)) : undefined}
                     />
-                    {/* Read-only, so no owner gate — a member is entitled to see whose place this is.
-                        The introduction previews here as the subtitle; `ListRow` truncates it to one
-                        line on its own, so the row keeps its height whatever the place wrote. */}
                     <ListRow
                         title={t('placeSettings.placeDetail')}
                         subtitle={place?.desc || undefined}

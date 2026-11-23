@@ -29,7 +29,6 @@ beforeEach(() => {
         { id: 'ch-1', cid: 'cloud-a', sid: 'place-1', stereo: 'public', name: 'General' },
         { id: 'dm-1', cid: 'cloud-a', sid: 'place-1', stereo: 'dm', memberIds: ['me', 'alice'] },
         { id: 'ch-2', sid: 'place-1', stereo: 'private', name: 'Design' },
-        // Another account's notes-to-self, left over from the previous sign-in.
         { id: 'self-old', cid: 'default', sid: 'place-1', stereo: 'self', ownerId: 'someone-else' },
     ];
 });

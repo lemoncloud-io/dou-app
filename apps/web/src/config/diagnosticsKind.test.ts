@@ -16,7 +16,6 @@ jest.mock('@chatic/runtime-web', () => ({
     resolveDiagnosticsMethod: () => mockResolve(),
 }));
 
-/** A fresh copy of the module for each test, so the answer it read before the publish starts unset. */
 const load = (): typeof DiagnosticsKindModule => {
     let loaded: typeof DiagnosticsKindModule | undefined;
     jest.isolateModules(() => {
@@ -62,7 +61,6 @@ describe('diagnosticsKind', () => {
         const { diagnosticsKind } = load();
         const nested: Array<'shell' | 'browser'> = [];
         mockResolve.mockImplementation(() => {
-            // The resolver's warning is a log entry, and stamping it reads this again.
             nested.push(diagnosticsKind());
             return 'browser';
         });

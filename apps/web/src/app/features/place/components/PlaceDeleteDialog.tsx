@@ -13,19 +13,11 @@ export interface PlaceDeleteRoom {
 interface PlaceDeleteDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** The place's chat rooms as this device holds them — what the owner is about to take away. */
     rooms: PlaceDeleteRoom[];
     onConfirm: () => void;
     isPending?: boolean;
 }
 
-/**
- * The owner's "delete this place?" confirm: the place confirm, plus a card listing the place's chat
- * rooms with their member counts, so the owner sees what members lose before saying yes.
- *
- * The confirm keeps the dialog up while the request runs; the caller closes it once the delete
- * settles.
- */
 export const PlaceDeleteDialog = ({
     open,
     onOpenChange,

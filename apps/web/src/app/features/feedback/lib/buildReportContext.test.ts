@@ -10,7 +10,6 @@ const device = {
     deviceModel: 'iPhone',
     lang: 'ko',
     uniqueDeviceId: 'uniq-1',
-    // Persistent identifiers that must NOT be forwarded to the report channel:
     deviceId: 'legacy-id',
     firebaseInstallationId: 'fb-1',
     installId: 'inst-1',
@@ -52,8 +51,6 @@ describe('buildReportContext — 컨텍스트 조합', () => {
         expect(ctx.version).toBeUndefined();
     });
 
-    // Logs are uploaded to the server one-by-one by the batch uploader. Attaching a copy to the
-    // report would store the same log twice, and that copy alone would also go out to the shared Slack channel.
     it('로그는 첨부하지 않는다', () => {
         const ctx = buildReportContext({ deviceInfo: device, versionInfo: version });
         expect(ctx).not.toHaveProperty('logs');

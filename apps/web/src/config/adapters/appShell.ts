@@ -4,23 +4,11 @@ import type { ShellOrBrowserImplementations } from '@chatic/runtime-web';
 
 import { appBridge } from '../../app/bridge/appBridge';
 
-/**
- * Who runs the frame around the page in the web app: the shell or the page. Its shell is the phone app,
- * reached through `appBridge`; the page uses what any browser offers.
- *
- * The phone app plays haptics, keeps its own preference store for its native surfaces, takes the back
- * gesture, reports the keyboard's height, shows an icon badge the page reads, offers alternate icons,
- * is updated from its store, and opens its own page in the OS settings. It paints no dock badge and
- * does not update itself. A browser tab has
- * none of that: every member it lacks is `null`, and the tab is the person's, not the page's.
- */
 export const webAppShell: ShellOrBrowserImplementations<'appShell'> = {
     shell: base => ({
         ...base,
         ownsWindow: true,
         reportsKeyboardHeight: true,
-        // Every haptic is a one-way post the shell plays without answering: a reply would be a trip back
-        // across the bridge on the UI thread, in the middle of the gesture that asked for it.
         haptics: { play: kind => appBridge.postHaptic(kind) },
         preferences: {
             save: async (key, value) => {
@@ -30,21 +18,15 @@ export const webAppShell: ShellOrBrowserImplementations<'appShell'> = {
         },
         backGesture: { setCanGoBack: canGoBack => appBridge.setCanGoBack(canGoBack) },
         iconBadge: {
-            // Two platforms, two sources. iOS answers the live icon badge, which the app process can read.
-            // Android has no readable icon badge — notifee's badge API resolves a constant 0 off iOS — so
-            // the count is read from the app's shared counter instead, by a separate message.
             read: async () => {
                 try {
                     if (base.os === 'ios') {
                         const response = await appBridge.fetchBadgeCount();
-                        // The bridge facade answers the raw response, so a refused round trip can arrive
-                        // as `success: false` rather than a rejection. Either way the value is unknown.
                         if (!response?.success) return null;
                         return response.data?.count ?? null;
                     }
                     const response = await appBridge.fetchBadgeBase();
                     if (!response?.success) return null;
-                    // `base: null` means "this platform cannot answer".
                     return response.data?.base ?? null;
                 } catch {
                     return null;
@@ -93,5 +75,4 @@ export const webAppShell: ShellOrBrowserImplementations<'appShell'> = {
     }),
 };
 
-/** `appShell.host` follows what the host declared; `.shell` and `.browser` force a side the host allows. */
 export const { host: appShellHost, shell: appShellShell, browser: appShellBrowser } = appShellAdapters(webAppShell);

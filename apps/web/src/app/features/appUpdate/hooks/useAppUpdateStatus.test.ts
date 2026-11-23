@@ -1,11 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
 
 const mockIsNative = jest.fn();
-// Every level, not just what the hook happened to use before: a partial logger mock turns a new
-// entry into a TypeError inside the effect.
 const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 const mockCheckAppUpdate = jest.fn();
-// The store the frame checks for a newer build, as the host's `appShell` port offers it; a browser has none.
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({
@@ -116,7 +113,6 @@ describe('useAppUpdateStatus — 기록 (ADR-0099)', () => {
         mockIsNative.mockReturnValue(true);
     });
 
-    // Even on failure the last state stays visible, so on screen it's indistinguishable from "no update".
     it('체크 실패를 warn으로 남긴다', async () => {
         mockCheckAppUpdate.mockRejectedValue(new Error('bridge boom'));
         renderHook(() => useAppUpdateStatus());
@@ -138,7 +134,6 @@ describe('useAppUpdateStatus — 기록 (ADR-0099)', () => {
         });
     });
 
-    // This hook runs on every mount and foreground return, so logging the state every time would pile up the same line all day.
     it('상태가 그대로면 다시 남기지 않는다', async () => {
         mockCheckAppUpdate.mockResolvedValue(updateResponse('1.4.0'));
         renderHook(() => useAppUpdateStatus());

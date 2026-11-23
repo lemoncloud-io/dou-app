@@ -7,11 +7,6 @@ import { MiniAppManagePage } from './MiniAppManagePage';
 
 import type { DomainMiniApp } from '@chatic/runtime';
 
-/**
- * The owner's management screen: a switch per mini app, the add row while the cloud has room, and the
- * sheet that adds, edits and removes — with the relay's refusals shown where they belong.
- */
-
 const mockToast = jest.fn();
 const mockNavigate = jest.fn();
 let mockOwned: { id: string; name?: string }[] = [];
@@ -52,17 +47,14 @@ const HELD = miniApp('coupon', { status: 'held' });
 const show = async (apps: DomainMiniApp[], state?: unknown) => {
     mockRepo.listMiniApps.mockResolvedValue(apps);
     const view = renderAt(<MiniAppManagePage />, '/miniapps/manage', { state });
-    // `hidden`: a sheet that opens at once hides the page from the accessibility tree.
     if (apps.length > 0) await screen.findByRole('button', { name: new RegExp(apps[0].name), hidden: true });
     else await waitFor(() => expect(mockRepo.listMiniApps).toHaveBeenCalled());
     return view;
 };
 
-/** The switch in the row of the mini app with this id. */
 const switchIn = (id: string) =>
     within(document.querySelector(`[data-mini-app-id="${id}"]`) as HTMLElement).getByRole('switch');
 
-/** What crosses the bridge for a refusal: a plain `Error` carrying only its name, message and code. */
 const bridged = (code: string) => Object.assign(new Error('save refused'), { name: 'MiniAppSaveRefused', code });
 
 const fillAndSubmit = async ({ name, url }: { name?: string; url?: string }, submit = 'miniApps.sheet.submitAdd') => {
@@ -108,7 +100,6 @@ describe('MiniAppManagePage — the switch', () => {
 
         await waitFor(() => expect(mockRepo.updateMiniApp).toHaveBeenCalledWith('lunch', { enabled: true }));
         expect(switchIn('lunch')).toHaveAttribute('aria-checked', 'true');
-        // Still a live control, so focus stays on it; the row says it is busy instead.
         expect(switchIn('lunch')).not.toBeDisabled();
         expect(document.querySelector('[data-mini-app-id="lunch"]')).toHaveAttribute('aria-busy', 'true');
         fireEvent.click(switchIn('lunch'));
@@ -206,7 +197,6 @@ describe('MiniAppManagePage — adding', () => {
         expect(mockRepo.addMiniApp).not.toHaveBeenCalled();
     });
 
-    // The relay's refusals, as the page receives them across the bridge.
     it.each([
         ['nameMissing', 'miniApps.sheet.nameLabel', 'miniApps.error.nameMissing:30'],
         ['nameTooLong', 'miniApps.sheet.nameLabel', 'miniApps.error.nameTooLong:30'],
@@ -221,7 +211,6 @@ describe('MiniAppManagePage — adding', () => {
         await fillAndSubmit({ name: 'Poll', url: 'https://poll.example/' });
 
         await screen.findByText(message);
-        // The field names its own error, so the message is read out with the field it belongs to.
         expect(screen.getByLabelText(field)).toHaveAccessibleDescription(message);
         expect(screen.getByLabelText(field)).toHaveAttribute('aria-invalid', 'true');
         expect(mockToast).not.toHaveBeenCalled();

@@ -1,7 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
 const mockIsNative = jest.fn();
-// The store the frame checks for a newer build, as the host's `appShell` port offers it; a browser has none.
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({
@@ -13,8 +12,6 @@ jest.mock('@chatic/runtime', () => {
     });
 });
 jest.mock('@chatic/bridges', () => ({
-    // `useAppUpdateStatus` logs the check result; a partial logger mock breaks this suite even
-    // though it asserts nothing about logging.
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
@@ -120,7 +117,6 @@ describe('useAppUpdatePrompt', () => {
 
         expect(mockSet).toHaveBeenCalledWith('ui.dismissedUpdateVersion', '1.2.0', { lane: 'local' });
         expect(result.current.open).toBe(false);
-        // dismiss() must not re-trigger the mount-check effect with a fresh bridge round-trip.
         expect(mockCheckAppUpdate).toHaveBeenCalledTimes(1);
     });
 

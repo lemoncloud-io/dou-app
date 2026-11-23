@@ -17,7 +17,7 @@ describe('appStores', () => {
     });
 
     it('routes a store taken before configuration to the configured one', () => {
-        const taken = deviceStore; // what a store created at import time holds
+        const taken = deviceStore;
         const device = new MemoryStore();
         configureAppStores({ device, tab: new MemoryStore() });
         taken.set('d', '1');

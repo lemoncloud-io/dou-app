@@ -1,10 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/**
- * The wizard renders every string through a key, and a typo'd key renders as the key itself — only
- * visible to whoever walks that exact step in that locale. This is what stops that shipping.
- */
 const load = (locale: string): Record<string, unknown> =>
     JSON.parse(readFileSync(join(__dirname, `../../../../public/locales/${locale}/translation.json`), 'utf-8'));
 
@@ -43,10 +39,8 @@ describe('설정 위자드 문구', () => {
 
     it.each(LOCALES)('%s가 치환 변수를 유지한다', locale => {
         const bundle = load(locale);
-        // If it's dropped, the sentence still renders but the number silently disappears.
         expect(read(bundle, 'setupWizard.nameHint')).toContain('{{max}}');
         expect(read(bundle, 'setupWizard.nameTooLong')).toContain('{{max}}');
-        // Step 3's title calls out the name of the place just created.
         expect(read(bundle, 'setupWizard.profile.title')).toContain('{{place}}');
     });
 

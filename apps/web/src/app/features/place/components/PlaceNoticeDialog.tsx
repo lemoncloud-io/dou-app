@@ -11,20 +11,12 @@ import { PLACE_DIALOG_TEXT } from './PlaceConfirmDialog';
 
 interface PlaceNoticeDialogProps {
     open: boolean;
-    /** May hold a line break; it is kept. */
     title: string;
-    /** The red body under the title. Without one, the title is all the dialog says. */
     description?: string;
     confirmLabel: string;
-    /** The only way out — there is no cancel, and the backdrop and Escape do not close it. */
     onConfirm: () => void;
 }
 
-/**
- * A one-button notice about a place: "you left it" and "its owner deleted it". Same frame as the
- * confirm dialogs on the place screens — 311 px card, title over an optional red body, one full-width
- * action — but nothing to decide, so the action is the only exit.
- */
 export const PlaceNoticeDialog = ({ open, title, description, confirmLabel, onConfirm }: PlaceNoticeDialogProps) => (
     <AlertDialog open={open}>
         <AlertDialogContent

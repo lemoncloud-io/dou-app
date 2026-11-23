@@ -11,7 +11,6 @@ interface ShareOptionSheetProps {
     onSelect: (id: string) => void;
 }
 
-/** A one-of list in a sheet — the cloud or the place the share goes into. */
 export const ShareOptionSheet = ({
     open,
     onOpenChange,

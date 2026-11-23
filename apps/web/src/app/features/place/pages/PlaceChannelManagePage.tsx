@@ -37,57 +37,25 @@ import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 import { lastChatPreview } from '../../channels/utils/lastChatPreview';
 
-/**
- * Chat-room management (Figma 3408-28373) — reached from the place settings hub. Rooms are
- * multi-selected and then removed in bulk, or marked read; each row can also be pinned.
- *
- * Removal is decided PER ROW by `removalActionFor`, the same function the room's own settings
- * screen reads: a 1:1 always leaves, and a group is deleted only by its own owner
- * (my join's role — `isRoomOwner`) and left by everyone else. A place owner normally does own every
- * group room in their place — they are the only role that can create one — so in the ordinary case
- * this reads the same as `place.isOwner` did, while no longer sending `channel.delete` at a 1:1 or
- * at a group the place owner had merely joined.
- *
- * Pinning is CLIENT-ONLY: neither ChannelModel nor JoinModel carries a pin field, so pins live in
- * the local `pinnedChannels` preference — keyed by cloud+place (placeScopeKey) — and only affect
- * list ordering on this device.
- */
 export const PlaceChannelManagePage = () => {
     const { t } = useTranslation();
     const { placeId } = useParams<{ placeId: string }>();
     const { toast } = useToast();
 
-    // The place row itself is no longer read here. It existed only to answer `place.isOwner`, and
-    // removal is now decided per channel (`removalActionFor`), so observing the place would be a
-    // subscription nothing renders.
-
     const { channels, isLoading } = useHomeChannels(placeId ?? null);
-    // Same source as home (see ActiveCloudData): the cloud-wide aggregation already holds this
-    // place's rows, so this page reads them instead of opening its own observer per channel. The
-    // read-cursor SYNC still belongs to this screen, so it registers that itself.
     const { myJoins, unreads } = useActiveCloudData();
     const { byChannel: unreadByChannel } = unreads;
     useJoinSyncRegistration(channels);
     const { profile: myProfile } = useMyProfile();
     const { userId: uid } = runtime.session.useSessionIdentity();
-    // 1:1 peers for every DM row, from ONE place-level profile subscription — the same source the
-    // home list uses, so both lists name a DM identically (ADR-0039).
     const dmPeers = useDmPeers(placeId ?? null, channels, uid);
-    // Last-message previews from ONE combined observation (ADR-0057) — the same source as the home
-    // list, replacing the per-row cache-window subscription this page used to make per rendered row.
     const lastChats = useLastChats(channels, myJoins);
     const lastActivities = useLastActivities(channels, myJoins);
-    // Whether I own this room — my own join's role, the rule every room surface reads.
     const amRoomOwner = (channel: DomainChannel) => isRoomOwner(channel, channel.$join, uid);
 
-    // Sort + pins are scoped to cid:sid (see placeScopeKey) — the route only carries the sid, so the
-    // cloud half comes from the active session.
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const placeScope = placeScopeKey(selectedCloudId, placeId);
 
-    // Sent relay invites (ADR-0089 Track B) only apply to the default (relay) cloud's place — a
-    // custom cloud's channels are invited via the cloud invite flow (ADR-0016) instead. Gate the
-    // rendering, not the fetch (useInviteListRows runs the same react-query hook regardless).
     const isDefaultCloud = selectedCloudId === 'default';
     const navigate = useNavigateWithTransition();
     const { invites: sentInvitesAll } = useInviteListRows();
@@ -96,7 +64,6 @@ export const PlaceChannelManagePage = () => {
     const { pinnedIds, toggle: togglePinned } = usePinnedChannels(placeScope);
     const pinnedChannelIds = useMemo(() => new Set(pinnedIds), [pinnedIds]);
 
-    // Same ordering as the home list so a room sits in the position the user expects.
     const sortedChannels = useMemo(
         () =>
             sortChannels({
@@ -109,16 +76,12 @@ export const PlaceChannelManagePage = () => {
         [channels, lastActivities, unreadByChannel, placeScope, sortMethodMap, pinnedChannelIds]
     );
 
-    // Self-chat can be neither deleted nor left, so it is not selectable (Figma: the MY row has no
-    // checkbox). Everything else in the place is fair game.
     const isSelectable = (channel: DomainChannel) => channel.stereo !== 'self';
 
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isRemoving, setIsRemoving] = useState(false);
 
-    // Drop selections for rooms that left the list (removed here, or elsewhere via sync) so the
-    // count and the confirm dialog can never refer to a room that is no longer shown.
     const selectableKey = sortedChannels
         .filter(isSelectable)
         .map(channel => channel.id)
@@ -142,23 +105,11 @@ export const PlaceChannelManagePage = () => {
         });
 
     const handleTogglePin = (channelId: string) => {
-        // toggle flips the hook's own view of the scope, which is what the rows render from — the
-        // checkbox's `pinned` argument carried the same information second-hand.
         const willPin = !pinnedChannelIds.has(channelId);
         togglePinned(channelId);
         toast({ title: willPin ? t('channelManage.pinned') : t('channelManage.unpinned') });
     };
 
-    /**
-     * Mark rooms read by advancing the join read cursor to each channel head — the same `chatNo`
-     * the room view marks on entry (useReadMarker). With no selection this reads every room,
-     * matching the button's "모두 읽음" state.
-     *
-     * Each read goes through its room's cloud's repository and the outbox: the local cursor, and with it every
-     * count on screen, moves at once, and the server half is resent until it lands. So the press is
-     * done the moment it is made and nothing waits on the socket; only a read the server refused for
-     * good (the room left or gone) is reported, whenever that answer comes.
-     */
     const handleMarkRead = () => {
         const targets = (
             selectedIds.size > 0 ? sortedChannels.filter(channel => selectedIds.has(channel.id)) : sortedChannels
@@ -185,17 +136,6 @@ export const PlaceChannelManagePage = () => {
         });
     };
 
-    /**
-     * Remove the selected rooms one by one — there is no bulk endpoint. Both repository calls evict
-     * the room from the local cache optimistically (rolling back on failure), so the observed list
-     * updates itself.
-     *
-     * **Per row, not per place.** What removal means is answered by `removalActionFor` — the same
-     * function the room's own settings screen reads — so a 1:1 always leaves and never deletes, and
-     * a group is judged by ITS owner (my join role, `isRoomOwner`) rather than by who owns the place.
-     * This branched on `place.isOwner` alone before, which sent `channel.delete` at whatever was
-     * checked: a DM included, and a group the place owner had merely joined.
-     */
     const handleRemoveSelected = async () => {
         const targets = sortedChannels.filter(channel => selectedIds.has(channel.id));
         if (targets.length === 0) return;
@@ -204,8 +144,6 @@ export const PlaceChannelManagePage = () => {
         const results = await Promise.allSettled(
             targets.map(channel => {
                 const action = removalActionFor(channelKindOf(channel.stereo), amRoomOwner(channel));
-                // `none` is unreachable — a self chat is not selectable (see isSelectable) — but a
-                // resolved promise keeps the success/failure tally honest if that ever changes.
                 if (action === 'none') return Promise.resolve(undefined);
                 return action === 'delete'
                     ? deleteChannel({ channelId: channel.id })
@@ -247,15 +185,6 @@ export const PlaceChannelManagePage = () => {
 
     const selectedCount = selectedIds.size;
 
-    /**
-     * Whether the copy speaks of deleting or of leaving.
-     *
-     * Derived from what the SELECTION will actually do, not from who owns the place. Now that the
-     * action is decided per row (`removalActionFor`), a place owner who checks only 1:1 rooms will
-     * leave them — a button reading "삭제" would be describing something that is not about to
-     * happen. "Delete" is claimed only when every selected row really is a delete; a mixed
-     * selection speaks of leaving, which is the milder and always-true half.
-     */
     const removesByDeleting =
         selectedIds.size > 0 &&
         sortedChannels
@@ -280,10 +209,6 @@ export const PlaceChannelManagePage = () => {
             />
 
             <div className="min-h-0 flex-1 overflow-y-auto py-2">
-                {/* Sent-invite rows (default cloud only) float above the manageable channels —
-                    tapping goes to the waiting screen, which owns cancel/reissue (see
-                    InviteChannelRow). Not part of the checkbox/bulk-delete selection below: an
-                    invite id isn't a channel id, and the delete-vs-leave branching doesn't apply. */}
                 {sentInvites.map(invite => {
                     const id = invite.id;
                     if (!id) return null;
@@ -333,7 +258,6 @@ export const PlaceChannelManagePage = () => {
                         ))}
             </div>
 
-            {/* Bottom actions — mark read (all, or just the selection) and remove the selection. */}
             <div className="flex shrink-0 gap-2 px-4 pb-safe-bottom pt-3">
                 <Button variant="outline" tone="gray" size="md" fullWidth onClick={handleMarkRead}>
                     {hasSelection
@@ -380,14 +304,10 @@ interface ManageChannelRowProps {
     channel: DomainChannel;
     uid?: string;
     myNick?: string;
-    /** My place-profile photo — the self-chat row's avatar (see resolveChannelAvatar). */
     myThumbnail?: string;
     joinNick?: string;
-    /** The 1:1 peer for this row (from the page-level useDmPeers). Undefined for non-DM rows. */
     dmPeer?: DmPeer;
-    /** This row's last-message preview, from the page-level useLastChats (ADR-0057). */
     lastChat?: DomainChat;
-    /** The room's latest activity, a thread reply included — the time printed and the order, not the line. */
     lastActivity?: DomainChat;
     unread: number;
     selectable: boolean;
@@ -397,7 +317,6 @@ interface ManageChannelRowProps {
     onTogglePin: (pinned: boolean) => void;
 }
 
-/** One management row — presentation only; the preview arrives as a prop from the page. */
 const ManageChannelRow = ({
     channel,
     uid,
@@ -429,8 +348,6 @@ const ManageChannelRow = ({
         dmUnnamedLabel: t('chat.dm.unnamedPeer'),
     });
 
-    // Self → my place-profile photo, DM → the peer's, else the channel photo; the same rule also
-    // picks the placeholder glyph (group rooms get the two-person one). See resolveChannelAvatar.
     const { src: avatarSrc, glyph } = resolveChannelAvatar({ channel, myThumbnail, peerThumbnail: dmPeer?.thumbnail });
 
     const activity = lastActivity ?? lastChat;
@@ -460,8 +377,6 @@ const ManageChannelRow = ({
                     <span className="truncate">{name}</span>
                 </>
             }
-            // The home list's line — a tombstone as the deleted-message phrase, text flattened, an
-            // attachment-only message as what it carries.
             subtitle={lastChatPreview(lastChat, t) || undefined}
             time={time}
             unread={unread}

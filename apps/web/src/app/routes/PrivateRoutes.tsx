@@ -28,23 +28,17 @@ const ShareRoutes = lazy(() => import('../features/share').then(m => ({ default:
 const NotificationRoutes = lazy(() =>
     import('../features/notifications').then(m => ({ default: m.NotificationRoutes }))
 );
-// Registered whatever the toggle says: the routes read `feature.miniApp.tab` themselves and send a
-// production build, where it is off, home — so an address typed by hand opens nothing either.
 const MiniAppRoutes = lazy(() => import('../features/miniapps').then(m => ({ default: m.MiniAppRoutes })));
 const FindMeSheetHost = lazy(() => import('../features/notifications').then(m => ({ default: m.FindMeSheetHost })));
 
 const RouteFallback = () => {
-    // A lazy route still loading is not the first screen: keep the boot cover over this skeleton,
-    // so a cold start lands on the route itself (no-op once the cover is gone).
     useBootSplashHold();
     return (
         <div className="flex h-full flex-col bg-background px-5 pt-safe-top">
-            {/* Header skeleton */}
             <div className="flex items-center gap-3 py-4">
                 <div className="h-5 w-5 animate-pulse rounded bg-muted" />
                 <div className="h-5 w-24 animate-pulse rounded bg-muted" />
             </div>
-            {/* Content skeleton */}
             <div className="flex flex-col gap-4 pt-4">
                 <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
                 <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
@@ -80,29 +74,15 @@ const withSuspense = (Component: React.ComponentType) => (
     </Suspense>
 );
 
-/**
- * The private shell plus the flows the router composes on top of it.
- *
- * `AddCloudFlowHost` is mounted here rather than in `AppRuntime` because it navigates (a guest is
- * sent to login) and therefore needs router context; and it is composed here rather than imported
- * by home because features do not import each other (ADR-0046 §3). It renders nothing — and runs no
- * queries — until something raises a request through `stores/useAddCloudRequest`.
- *
- * `EmailBindRequestHost` is the same seam for `stores/useEmailBindRequest` — answers cloud
- * management's request to register a recovery email on a cloud.
- */
 const PrivateShell = () => {
     usePreloadOnIdle(loadChannelRoutes);
     return (
         <>
             <UnifiedLayout />
-            {/* Above every private screen, home and chat rooms alike: the owner deleting the place
-                the user is in reaches them wherever they are. */}
             <PlaceDeletedNotice />
             <Suspense fallback={null}>
                 <AddCloudFlowHost />
                 <EmailBindRequestHost />
-                {/* Home's "messages looking for you" entry raises this through stores/useFindMeSheetRequest. */}
                 <FindMeSheetHost />
             </Suspense>
         </>
@@ -114,8 +94,6 @@ export const privateRoutes = [
         path: '/',
         element: <PrivateShell />,
         children: [
-            // The gate forwards an invite landing to `/invite/accept` instead of rendering home —
-            // `/?provider=invite&…` is the address every already-installed native app still builds.
             {
                 index: true,
                 element: (
@@ -124,8 +102,6 @@ export const privateRoutes = [
                     </InviteEntryGate>
                 ),
             },
-            // Device pairing sits under `/mypage` in the address bar but is its own feature; a static
-            // path outranks `mypage/*`, so the router picks these first.
             { path: 'mypage/login/pair', element: withSuspense(PairingCodePage) },
             { path: 'mypage/pairing/approve', element: withSuspense(PairingApprovePage) },
             { path: 'mypage/devices', element: withSuspense(PairingDevicesPage) },
@@ -139,7 +115,6 @@ export const privateRoutes = [
             { path: 'notifications/*', element: withSuspense(NotificationRoutes) },
             { path: 'miniapps/*', element: withSuspense(MiniAppRoutes) },
             { path: 'onboarding/*', element: withSuspense(OnboardingRoutes) },
-            // Another app's share, opened by the app on `/share?id=` (iOS share extension, Android share intent).
             { path: 'share/*', element: withSuspense(ShareRoutes) },
         ],
     },

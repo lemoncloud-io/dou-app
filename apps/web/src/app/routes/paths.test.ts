@@ -22,7 +22,6 @@ describe('ROUTES — 상수 경로', () => {
 
     it('channels 경로와 상수 root를 노출한다', () => {
         expect(ROUTES.channels.root).toBe('/channels');
-        // One segment under /channels, so it can never be read as a `:channelId/...` route.
         expect(ROUTES.channels.startDm).toBe('/channels/start-dm');
     });
 
@@ -85,7 +84,6 @@ describe('ROUTES — 파라미터 빌더', () => {
     });
 
     it('주어진 인수를 그대로 보간한다', () => {
-        // Guards against accidental double-encoding or fixed segments.
         expect(ROUTES.channels.room('a/b')).toBe('/channels/a/b/room');
     });
 

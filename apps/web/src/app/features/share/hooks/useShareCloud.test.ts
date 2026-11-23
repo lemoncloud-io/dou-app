@@ -151,7 +151,6 @@ describe('useShareCloud — the place row', () => {
         const { result, rerender } = renderHook(() => useShareCloud());
         await waitFor(() => expect(result.current.isSwitching).toBe(false));
         await waitFor(() => expect(mockToast).toHaveBeenCalledTimes(1));
-        // The session as a failing switch leaves it on the way: the target shown, then rolled back.
         mockSelection = { selectedCloudId: 'cloud-b', selectedSiteId: 'place-9' };
         rerender();
         mockSelection = { selectedCloudId: 'cloud-b', selectedSiteId: null };
@@ -173,7 +172,6 @@ describe('useShareCloud — the place row', () => {
         await waitFor(() => expect(mockSwitchSite).toHaveBeenCalledTimes(1));
         await waitFor(() => expect(result.current.isSwitching).toBe(false));
         rerender();
-        // Later the person comes back to this cloud and it arrives without a place again.
         mockSelection = { selectedCloudId: 'cloud-b', selectedSiteId: null };
         rerender();
 

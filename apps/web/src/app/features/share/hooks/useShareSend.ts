@@ -11,35 +11,14 @@ import { releaseShareIntake } from '../../../bridge/shareIntake';
 import { ROUTES } from '../../../routes/paths';
 import type { ShareDestination } from './useShareDestinations';
 
-/** A room's file send — the room's own `sendImages`, held by its `DestinationSender`. */
 export type SendFiles = (files: ChatAttachmentSource[], options?: { content?: string }) => Promise<void>;
 
 export interface ShareSendInput {
     destinations: ShareDestination[];
-    /** What goes as attachments: already judged, at most one message's worth. */
     files: ShellFileRef[];
-    /** The caption, or the whole message when nothing but text was shared. */
     content: string;
 }
 
-/**
- * Sends a share to each of its destinations, independently, then leaves the composer.
- *
- * Photos are read first, once for every destination: an item comes as the shell's address, and a photo
- * goes up the way a photo from the album does — read into the page, resized and given a thumbnail —
- * not raw. A photo that cannot be read is named and left out; a read that fails outright sends
- * nothing and leaves the composer as it was, for another try.
- *
- * Files go through each room's own attachment send — one `DestinationSender` per destination
- * registers it here, since that send is bound to one room. Text alone goes as a plain message. Each
- * send is started, not awaited: a file send resolves only when every upload is done, which can be
- * minutes, and it keeps going after the composer is gone. A failure lands where any failed message
- * does, as the room's failed row; one destination failing does not hold up another.
- *
- * The share is released without discarding its copies, which the uploads are still reading; the app
- * sweeps them later. Leaving the composer any other way — Cancel, the system back, another share
- * arriving — discards them.
- */
 export const useShareSend = (intakeId: string | null) => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -53,9 +32,6 @@ export const useShareSend = (intakeId: string | null) => {
         mountedRef.current = true;
         return () => {
             mountedRef.current = false;
-            // Checked a tick later: a development remount runs this cleanup and the effect again at once,
-            // and a share discarded then would be gone before the page could read it. A send under way or
-            // done keeps the copies: its uploads read them.
             setTimeout(() => {
                 if (!mountedRef.current && !sentRef.current && intakeId) {
                     void releaseShareIntake(intakeId, { discard: true });
@@ -73,11 +49,9 @@ export const useShareSend = (intakeId: string | null) => {
 
     const send = useCallback(
         async ({ destinations, files, content }: ShareSendInput) => {
-            // Once: a second tap while the first is leaving the page would send everything twice.
             if (sentRef.current || destinations.length === 0 || (files.length === 0 && !content)) return;
             sentRef.current = true;
             setIsSending(true);
-            // Every way out that sends nothing hands the composer back as it was.
             const stay = (notice?: string) => {
                 if (notice) toast({ title: notice });
                 sentRef.current = false;
@@ -85,8 +59,6 @@ export const useShareSend = (intakeId: string | null) => {
             };
 
             try {
-                // A room without its send would be dropped while the share still reads as sent — so
-                // check every one before a single photo crosses the bridge.
                 if (files.length > 0 && destinations.some(destination => !sendersRef.current.has(destination.id))) {
                     logger.warn('chat.share_send_failed', 'share: a picked room has no sender mounted', {
                         rooms: destinations.length,
@@ -119,7 +91,6 @@ export const useShareSend = (intakeId: string | null) => {
                     const data = { cid: destination.cid, channelId: destination.id, files: sources.length };
                     const sendFiles = sendersRef.current.get(destination.id);
                     if (sources.length === 0) {
-                        // A text send that fails leaves the room's failed row, which says so itself.
                         runtime.data
                             .sendChatInCloud(destination.cid, { channelId: destination.id, content })
                             .catch((error: unknown) =>
@@ -133,12 +104,9 @@ export const useShareSend = (intakeId: string | null) => {
                                 )
                             );
                     } else if (!sendFiles) {
-                        // Its sender went while the photos were read.
                         logger.warn('chat.share_send_failed', 'share: a room lost its sender during the read', data);
                         toast({ title: t('share.sendFailedSome') });
                     } else {
-                        // A file send rejects only where no failed row was left — no row written, or one
-                        // stuck before its upload — so the person hears of it here or not at all.
                         sendFiles(sources, content ? { content } : {}).catch((error: unknown) => {
                             logger.warn('chat.share_send_failed', `share: send to a ${destination.kind} room failed`, {
                                 error,
@@ -150,7 +118,6 @@ export const useShareSend = (intakeId: string | null) => {
                 }
 
                 if (intakeId) void releaseShareIntake(intakeId, { discard: false });
-                // One notice: the toaster shows one at a time, so a second would replace the first at once.
                 if (destinations.length === 1) {
                     if (refusedNote) toast({ title: refusedNote });
                     navigate(ROUTES.channels.room(destinations[0].id), {

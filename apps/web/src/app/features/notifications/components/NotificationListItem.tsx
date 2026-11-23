@@ -7,9 +7,7 @@ import { notificationRowParts, splitMentions } from '../utils/rowParts';
 
 export interface NotificationListItemProps {
     item: NotificationItem;
-    /** "Now", for the time column — one value per render of the list, so every row agrees. */
     now: number;
-    /** The author's photo, resolved by the list (`useNotificationAvatars`); the default glyph without one. */
     avatarUrl?: string;
     selectable?: boolean;
     selected?: boolean;
@@ -17,7 +15,6 @@ export interface NotificationListItemProps {
     onLongPress?: (item: NotificationItem) => void;
 }
 
-/** One inbox item as the kit's notification row — shared by the notifications screen and the find-me sheet. */
 export const NotificationListItem = ({
     item,
     now,

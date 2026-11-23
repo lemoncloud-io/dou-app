@@ -26,14 +26,6 @@ const REMOVE_FAILURE_KEY = {
     other: 'placeMembers.removeFailed',
 } as const;
 
-/**
- * The members of one place — everyone the server lists for it, including people with no room and
- * invitees who have not accepted yet. Open to every member; only the place's owner gets a Remove
- * button, on every row but their own and the owner's, and this screen is the only place a member
- * is removed from.
- *
- * Who owns the place is the place row's `isOwner`, as on every other place screen.
- */
 export const PlaceMembersPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -42,7 +34,6 @@ export const PlaceMembersPage = () => {
     const { place: placeRepo } = runtime.data.useRuntimeRepositories();
     const { userId } = runtime.session.useSessionIdentity();
     const cid = useSelectedCloudId();
-    // The place list names me by my id in this cloud; the session id is checked too in case the two differ.
     const myUid = runtime.session.useUidInCloud(cid);
 
     const [place, setPlace] = useState<DomainPlace | null>(null);
@@ -53,15 +44,12 @@ export const PlaceMembersPage = () => {
 
     const { members, status, retry, dropMember } = usePlaceMembers(placeId ?? null);
 
-    // Not a member: nothing here to show, so back to the place's settings.
     useEffect(() => {
         if (status !== 'forbidden' || !placeId) return;
         toast({ title: t('placeMembers.notMember') });
         navigate(ROUTES.place.settings(placeId), { replace: true });
     }, [status, placeId, navigate, toast, t]);
 
-    // The place's profiles as the cache holds them. No ids: the member list already loaded what it
-    // could, and a sync per member of the whole place is a request per person.
     const { profileMap } = useChannelProfiles(placeId ?? null, NO_PROFILE_TARGETS);
 
     const isMe = useCallback((id: string) => !!id && (id === myUid || id === userId), [myUid, userId]);
@@ -114,8 +102,6 @@ export const PlaceMembersPage = () => {
             <div className="flex flex-1 flex-col overflow-y-auto pb-safe-bottom">
                 {status === 'ready' ? (
                     <>
-                        {/* The rows received, not the server's `total`, which can count people the
-                            list then left out. */}
                         <GroupLabel label={t('placeMembers.count', { count: ordered.length })} />
                         {ordered.map(member => {
                             const name = resolveUserName(member.id, nameSources);

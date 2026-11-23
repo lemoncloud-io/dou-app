@@ -5,27 +5,19 @@ import { useTranslation } from 'react-i18next';
 
 import { LiveQrOpenError, LiveQrScanner, type LiveQrOpenFailure } from '../lib/liveQrScanner';
 
-/** How long "this is not a DoU QR" stays up after the last such frame. */
 const NOT_OURS_NOTE_MS = 2000;
 
 interface QrScannerSheetProps {
     onCode: (code: string) => void;
     onClose: () => void;
-    /** The camera could not be opened; the sheet is done and the caller decides what comes instead. */
     onUnavailable: (reason: LiveQrOpenFailure) => void;
 }
 
-/**
- * The approving app's live QR scanner: the back camera full screen, a guide square, and a pairing code
- * the moment one is in view. Mounted only while scanning — unmounting releases the camera.
- */
 export const QrScannerSheet = ({ onCode, onClose, onUnavailable }: QrScannerSheetProps) => {
     const { t } = useTranslation();
     const videoRef = useRef<HTMLVideoElement>(null);
     const [ready, setReady] = useState(false);
     const [notOurs, setNotOurs] = useState(false);
-    // The camera opens once per mount, so the latest callbacks are read through a ref rather than
-    // reopening it whenever the parent renders new ones.
     const callbacks = useRef({ onCode, onClose, onUnavailable });
     callbacks.current = { onCode, onClose, onUnavailable };
 
@@ -50,8 +42,6 @@ export const QrScannerSheet = ({ onCode, onClose, onUnavailable }: QrScannerShee
                 if (active) callbacks.current.onUnavailable(error instanceof LiveQrOpenError ? error.reason : 'failed');
             });
 
-        // A backgrounded app loses the camera (iOS suspends it), and coming back to a frozen picture
-        // reads as broken; closing hands the person back the screen they were on.
         const onVisibility = () => document.hidden && callbacks.current.onClose();
         document.addEventListener('visibilitychange', onVisibility);
         return () => {
@@ -82,7 +72,6 @@ export const QrScannerSheet = ({ onCode, onClose, onUnavailable }: QrScannerShee
                 </button>
             </div>
             <div className="relative flex-1 overflow-hidden">
-                {/* `playsInline` keeps iOS from handing the stream to its full-screen player. */}
                 <video
                     ref={videoRef}
                     playsInline

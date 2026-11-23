@@ -40,12 +40,6 @@ if (!isDevelopment) {
     }
 }
 
-// The language is resolved here rather than by i18next-browser-languagedetector. The detector read
-// its own stored key first and wrote whatever it detected back into it, so the language a device happened
-// to report on first launch was kept forever and the device setting was never looked at again — and on
-// iOS that first report was English for everyone (see `deviceLanguageCandidates`). Only an explicit
-// choice in Settings is remembered now; `system` is resolved from the device on every boot.
-
 i18n.use(ChainedBackend)
     .use(initReactI18next)
     .init({
@@ -66,13 +60,9 @@ i18n.use(ChainedBackend)
             backends: [LocalStorageBackend, Backend],
             backendOptions: [
                 {
-                    // The translation cache lives in the device store, not in a web storage the plugin
-                    // picks for itself — the same `localStorage` it defaulted to.
                     store: asDomStorage(deviceStore),
                     prefix: `i18next_res_${I18N_VERSION}_`,
-                    expirationTime: isDevelopment
-                        ? 5 * 60 * 1000 // dev: 5 min
-                        : 60 * 60 * 1000, // production: 1 hour
+                    expirationTime: isDevelopment ? 5 * 60 * 1000 : 60 * 60 * 1000,
                     versions: {
                         en: I18N_VERSION,
                         ko: I18N_VERSION,

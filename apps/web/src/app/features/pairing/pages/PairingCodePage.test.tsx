@@ -42,8 +42,6 @@ jest.mock('@chatic/runtime', () =>
             isInOwnCloudSession: () => mockInOwnCloud,
             pairingClientOf: () => ({ name: 'Chrome · macOS', platform: 'web' }),
         },
-        // Which side of a pairing this device takes, as the host's `signIn` port says: the phone app holds
-        // its own device's sign-in and approves; a browser tab's sign-in ends with the tab.
         get signIn() {
             const tab = require('@chatic/runtime/testing').browserSignIn();
             return mockNative ? { ...tab, sessionScope: 'device', approvesPairing: true } : tab;

@@ -10,7 +10,6 @@ import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
 
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 
-/** Selectable channel sort methods, in display order. Labels resolve at render (i18n). */
 const SORT_METHODS: ReadonlyArray<{ method: ChannelSortMethod; labelKey: string }> = [
     { method: 'recent', labelKey: 'channelSort.recent' },
     { method: 'unread', labelKey: 'channelSort.unread' },
@@ -22,14 +21,8 @@ interface ChannelSortSheetProps {
     placeId?: string;
 }
 
-/**
- * Channel sort picker — chooses how the home channel list is ordered for THIS place. The choice is
- * saved per cloud+place scope (localStorage, client-only) and applied immediately; there is no
- * explicit save, so picking an option closes the sheet. See ADR-0031.
- */
 export const ChannelSortSheet = ({ open, onOpenChange, placeId }: ChannelSortSheetProps) => {
     const { t } = useTranslation();
-    // The cloud half of the scope comes from the active session; callers only know the route's placeId.
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const scope = placeScopeKey(selectedCloudId, placeId);
     const { channelSort: channelSortMap, setChannelSort } = useChannelSort();

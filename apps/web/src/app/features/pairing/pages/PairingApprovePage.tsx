@@ -28,15 +28,6 @@ import { formatPairingCode, formatRemaining } from '../lib/pairingCode';
 import { pairingClouds, pairingTargetOptions, type PairingTargetOption } from '../lib/pairingTargets';
 import { scanPairingQr, type PairingQrScan } from '../lib/scanPairingQr';
 
-/**
- * The approving device's screen: a code from a browser (or another phone) typed or scanned in, its
- * requester shown, and an approval for one target.
- *
- * Only inside the app (`runtime.signIn` says this device approves pairings), signed in to an account, on a
- * session that is not itself a secondary device. The server would accept an approval from a browser's
- * phone login, and a guest app's approval of its invited clouds, too — the rule that approvals come
- * from signed-in apps is the screen's, so the entry and this page are where it is kept.
- */
 export const PairingApprovePage = () => {
     const enabled = useDevicePairingEnabled();
     const paired = runtime.session.useIsPairedSession();
@@ -61,7 +52,6 @@ const PairingApproveScreen = () => {
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const { invitedClouds } = useInvitedClouds();
     const cloudName = useCloudName();
-    // Named the way the devices screen and the sign-out confirm name them, so the scope reads the same.
     const clouds = pairingClouds(ownedClouds, invitedClouds).map(cloud => ({
         ...cloud,
         name: cloudName(cloud.id),
@@ -72,7 +62,6 @@ const PairingApproveScreen = () => {
     const [liveScan, setLiveScan] = useState(false);
     const [cameraRefused, setCameraRefused] = useState(false);
 
-    // The selection is seeded once from `defaultKey`, so rebuilding the options each render is harmless.
     const { options, defaultKey } = pairingTargetOptions({ isRelayGuest, clouds, activeCloudId: selectedCloudId });
 
     useEffect(() => {
@@ -85,7 +74,6 @@ const PairingApproveScreen = () => {
         }
     }, [state.step, t, toast, navigate]);
 
-    // A live scan first; a page that cannot open a camera stream falls back to taking a photo.
     const scan = () => {
         setScanNote(null);
         if (canScanLive()) setLiveScan(true);
@@ -99,9 +87,6 @@ const PairingApproveScreen = () => {
 
     const onLiveUnavailable = (reason: LiveQrOpenFailure) => {
         setLiveScan(false);
-        // A refusal is the person's answer, so the photo camera is not put in front of them next; any
-        // other failure (no stream, a camera in use) still has the photo bridge to try. Only Settings can
-        // undo a refusal, so the way there is offered at once; the note stays for after it is closed.
         if (reason === 'denied') {
             setScanNote(t('pairing.approve.scanDenied'));
             setCameraRefused(true);
@@ -237,7 +222,6 @@ const ConfirmStep = ({
     const choice = options.find(option => option.key === selected) ?? null;
     const relayOptions = options.filter(option => option.target.type === 'relay');
     const cloudOptions = options.filter(option => option.target.type === 'cloud');
-    // A relay approval carries the owned clouds and not the invited ones, so say so where it matters.
     const hasInvited = cloudOptions.some(option => option.cloudKind === 'invited');
 
     return (
@@ -358,7 +342,6 @@ const ConfirmStep = ({
     );
 };
 
-/** One kind of approval: a heading, what that kind means, and its options. */
 const TargetSection = ({
     id,
     title,

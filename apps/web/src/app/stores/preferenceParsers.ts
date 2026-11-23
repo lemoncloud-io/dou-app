@@ -2,25 +2,8 @@ import { isPlaceScopeKey } from '@chatic/shared';
 
 import type { ChannelSortMethod, HomeSectionId, Theme } from './preferenceKeys';
 
-// ---------------------------------------------------------------------------
-// Defensive parsers for the `json`-typed `ui.*` config keys.
-//
-// `@chatic/config` only validates that a `type: 'json'` value is parseable JSON — it has no way to
-// know that a "channel sort map" must have `ChannelSortMethod` values, or that a "pinned channels
-// map" must have non-empty string arrays. That product-shape validation lives here, applied to
-// whatever `runtime.settings.get()`/`useConfigValue()` returns (already-decoded, so these take the real value,
-// not a raw string) and to the old key's value during the one-time legacy migration, which does its
-// own `JSON.parse` first.
-// ---------------------------------------------------------------------------
-
 const VALID_CHANNEL_SORTS: readonly ChannelSortMethod[] = ['recent', 'unread'];
 
-/**
- * Keep only recognized per-place values, so a corrupt/tampered entry can't leave the sort picker
- * with no selection or feed an unknown method downstream. Legacy entries keyed by a bare placeId
- * are dropped: they can't be attributed to a cloud, so honoring them would leak one cloud's sort
- * into another's same-id place.
- */
 export const normalizeChannelSort = (value: unknown): Record<string, ChannelSortMethod> => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
     const result: Record<string, ChannelSortMethod> = {};
@@ -34,12 +17,6 @@ export const normalizeChannelSort = (value: unknown): Record<string, ChannelSort
 
 const HOME_SECTION_IDS: readonly HomeSectionId[] = ['places', 'channels', 'cloudDm'];
 
-/**
- * The record stores the sections a person folded shut, not the open ones, so the default — every
- * section open — needs no entry. A corrupt value therefore degrades to "all open", the state home
- * had before this was remembered. Unknown ids and anything other than `true` are dropped, so a
- * retired section id cannot linger in the record.
- */
 export const normalizeHomeSectionsCollapsed = (value: unknown): Partial<Record<HomeSectionId, true>> => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
     const result: Partial<Record<HomeSectionId, true>> = {};
@@ -49,22 +26,11 @@ export const normalizeHomeSectionsCollapsed = (value: unknown): Partial<Record<H
     return result;
 };
 
-/**
- * A corrupt or non-array value resets to an empty list so a single bad write can never break the
- * search page — it just starts with no history. Non-string entries are dropped rather than failing
- * the whole parse.
- */
 export const normalizeRecentSearches = (value: unknown): string[] => {
     if (!Array.isArray(value)) return [];
     return value.filter((item): item is string => typeof item === 'string');
 };
 
-/**
- * Anything unusable degrades to 0 so the banner SHOWS rather than staying hidden: a corrupt value
- * must not be able to suppress it permanently. A timestamp in the future is treated the same way —
- * it can only come from a clock change or a bad write, and honouring it would hide the banner for as
- * long as that future date is away.
- */
 export const normalizeCloudPromoDismissedAt = (value: unknown, now: number = Date.now()): number => {
     const parsed = Number(value);
     if (value == null || value === '' || !Number.isFinite(parsed) || parsed <= 0) return 0;
@@ -73,14 +39,6 @@ export const normalizeCloudPromoDismissedAt = (value: unknown, now: number = Dat
 
 const THEME_VALUES: readonly string[] = ['dark', 'light', 'system'];
 
-/**
- * Normalize a value coming off the legacy `FetchPreference` bridge (`PreferenceLoader`'s fallback
- * for an app build too old to inject the `@chatic/config` boot envelope) into a valid `Theme`, or
- * null when unrecognized. Two shapes must be accepted: the plain string this app used to write
- * ('dark'), and the zustand-persist JSON envelope the mobile app stores under the same native key
- * (`{"state":{"theme":"dark"},"version":0}`) — a bridge fetch on native returns whichever shape was
- * persisted last.
- */
 export const parseThemeBridgeValue = (value: unknown): Theme | null => {
     if (typeof value !== 'string') return null;
     if (THEME_VALUES.includes(value)) return value as Theme;

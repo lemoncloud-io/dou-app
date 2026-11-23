@@ -6,11 +6,6 @@ import { ROUTES } from '../../../routes/paths';
 import { MiniAppManagePage } from '../pages/MiniAppManagePage';
 import { MiniAppsPage } from '../pages/MiniAppsPage';
 
-/**
- * The mini app tab's routes. They read `feature.miniApp.tab` themselves rather than relying on the
- * bottom nav hiding the tab: with the toggle off — a production build — an address typed by hand
- * goes home instead of opening the screens.
- */
 export const MiniAppRoutes = () => {
     const enabled = runtime.settings.useConfigValue<boolean>('feature.miniApp.tab') === true;
     if (!enabled) return <Navigate to={ROUTES.home} replace />;

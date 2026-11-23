@@ -8,7 +8,6 @@ import { BottomSheet, Button, Switch, TextField } from '@chatic/web-ui-kit';
 
 import { saveErrorOf, saveErrorOfProblem, type MiniAppSaveError } from '../utils/saveError';
 
-/** The mini app the owner's sheet edits: one in the list, or `'new'` for one being added. */
 export type MiniAppEditing = DomainMiniApp | 'new';
 
 export interface MiniAppSheetFields {
@@ -19,19 +18,12 @@ export interface MiniAppSheetFields {
 
 interface FormProps {
     onClose: () => void;
-    /** Save the form: add when `target` is `null`, else change `target`. Rejects as the save did. */
     onSubmit: (fields: MiniAppSheetFields, target: DomainMiniApp | null) => Promise<void>;
     onRemove: (target: DomainMiniApp) => Promise<void>;
 }
 
-/**
- * The owner's sheet to add a mini app or edit one: its name and address, whether members see it, and
- * (editing) removing it. A held mini app says so at the top and keeps its switch locked.
- */
 export const MiniAppSheet = ({ editing, ...props }: { editing: MiniAppEditing | null } & FormProps) => {
     const { t } = useTranslation();
-    // What the sheet last showed. Its content stays mounted while it slides away, so it keeps that
-    // mini app (or the blank add form) until then rather than turning into another form on its way out.
     const [shown, setShown] = useState<MiniAppEditing>('new');
     if (editing !== null && editing !== shown) setShown(editing);
     const target = editing ?? shown;
@@ -44,7 +36,6 @@ export const MiniAppSheet = ({ editing, ...props }: { editing: MiniAppEditing | 
             description={t('miniApps.sheet.description')}
             closeLabel={t('common.close')}
         >
-            {/* Keyed by what it edits, so each opening starts from that mini app (or blank) on its first paint. */}
             <MiniAppForm key={existing?.id ?? 'new'} existing={existing} {...props} />
         </BottomSheet>
     );
@@ -66,7 +57,6 @@ const MiniAppForm = ({ existing, onClose, onSubmit, onRemove }: { existing: Doma
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         if (busy) return;
-        // Checked by the same rule the relay applies, so most mistakes are caught before a round trip.
         const problem = checkMiniAppLink(name, url);
         if (problem) {
             setError(saveErrorOfProblem(problem));
@@ -85,7 +75,6 @@ const MiniAppForm = ({ existing, onClose, onSubmit, onRemove }: { existing: Doma
         onClose();
     };
 
-    // No confirmation, as in the Lab: the list is the owner's and a removed one is quickly added again.
     const handleRemove = async () => {
         if (!existing || busy) return;
         setBusy(true);
@@ -149,7 +138,6 @@ const MiniAppForm = ({ existing, onClose, onSubmit, onRemove }: { existing: Doma
                     </span>
                     <span className="text-[13px] text-description">{t(visibleHint)}</span>
                 </span>
-                {/* A held mini app cannot be turned on by its owner, so the switch shows it off and locked. */}
                 <Switch
                     checked={held ? false : enabled}
                     onCheckedChange={setEnabled}

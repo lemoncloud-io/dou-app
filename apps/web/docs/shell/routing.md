@@ -42,6 +42,46 @@ the screen opened most, and without the preload the first room of a session wait
 for this chunk before it could mount. A preload that fails is swallowed; the route meets the same
 failure when it loads, and reports it there.
 
+## Entry guards, ranking and boot marks
+
+- **`/invite/accept` outranks `invite/*` on purpose.** The private set has an `invite/*` splat and the
+  common set adds the accept path after it. React Router ranks by score (a static segment adds, a splat
+  subtracts), not by array order, so the accept screen wins although the splat is registered first. If a
+  router upgrade or a path change ever flipped that, the sender routes would swallow the accept screen and
+  the invite would vanish without an error. `inviteAcceptRoute.test.ts` mirrors the shape of both sets to
+  pin it; keep it in step with `CommonRoutes.tsx` and `PrivateRoutes.tsx`.
+- **The accept route is not lazy.** It is the invitee's first screen, so there is no chunk fetch to put on
+  that path.
+- **Share and encoded links are separate routes.** `/s?code=…` and `/i?t=…` carry the invite differently
+  enough that one component would branch on the query anyway, and `/s` must keep reading its links exactly
+  as it does. Both redirect to `/` with the query, never straight to the accept page: whether to hand off
+  belongs to `InviteEntryGate` alone, and shortcutting it would skip first-run onboarding priority. The
+  encoded redirect logs the token's shape, never the query: a bare `?t=…` escapes the logger's URL
+  masking, and the token holds the invite code. A payload with no coordinates must not be read as relay;
+  where it should land instead (home, or a screen saying the link is incomplete) is a product decision not
+  yet made.
+- **`InviteEntryGate` holds the redirect, not the accept screen.** During first run it renders its children
+  and leaves the query alone, so completing onboarding re-renders the gate and the invite proceeds from
+  there. It sits at the root of both route sets; the signed-out one renders nothing while it holds.
+- **Mini app routes are registered whatever the toggle says.** They read `feature.miniApp.tab` themselves
+  and send a build where it is off to home, so an address typed by hand opens nothing.
+- **A lazy route still loading is not the first screen.** The private shell keeps the boot cover over its
+  skeleton, so a cold start lands on the route itself.
+- **Device pairing is its own feature but lives under `/mypage` in the address bar.** A static path
+  outranks `mypage/*`, so the router picks the pairing routes first.
+- **Boot marks.** The router unblocking (`isInitialized`) marks `session-initialized` and tells the boot
+  cover the first route has mounted, which is when it may start counting down to the first painted
+  screen. A router error screen is a screen: it releases the cover so the error is seen instead of
+  waiting for the cap.
+- **Route observers live here because nothing above can reach the router.** One effect feeds both the
+  route trail (where the person has been; the feedback screen is reached from MyPage, so its own pathname
+  says nothing about where the bug was hit) and the reconstructed history stack (what back will do); a
+  second feeds screen statistics (`screen_view`, per-screen long tasks).
+- **Overlays mounted in the private shell** (`AddCloudFlowHost`, the place-deleted notice, the find-me
+  sheet host) are here because they navigate or must show above every private screen, and because
+  features do not import each other. They render nothing and run no queries until something raises a
+  request.
+
 ## The `ROUTES` builder — the one source of absolute paths
 
 `apps/web/src/app/routes/paths.ts` is the single source of truth for every absolute path. A path

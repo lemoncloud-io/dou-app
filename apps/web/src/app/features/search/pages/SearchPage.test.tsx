@@ -17,8 +17,6 @@ jest.mock('@chatic/shared', () => ({
 }));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
-        // No resource bundle in this unit test, so `t` just echoes what it was called with — a
-        // plain key by itself, or the key plus its interpolation values when there are any.
         t: (key: string, options?: Record<string, unknown>) => (options ? `${key}|${JSON.stringify(options)}` : key),
         i18n: { language: 'ko' },
     }),
@@ -66,9 +64,7 @@ describe('SearchPage', () => {
         renderAt('/search?q=lemon');
 
         expect(screen.getByDisplayValue('lemon')).toBeTruthy();
-        // HighlightText splits the matched part into its own element, so assert on the row itself.
         expect(screen.getByRole('button', { name: 'Lemon HQ' })).toBeTruthy();
-        // The search hook must see the restored keyword, not an empty box.
         expect(useGlobalSearch).toHaveBeenCalledWith('lemon');
     });
 
@@ -84,7 +80,6 @@ describe('SearchPage', () => {
 
         const { container } = renderAt('/search?q=lemon');
 
-        // The photo renders as an <img>; the placeholder is an inline svg disc (not the person glyph).
         expect(container.querySelectorAll('img')).toHaveLength(1);
         const rows = screen.getAllByRole('button').filter(node => node.textContent?.includes('No Photo'));
         expect(rows[0].querySelector('svg')).toBeTruthy();

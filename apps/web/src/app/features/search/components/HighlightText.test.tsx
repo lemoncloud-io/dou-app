@@ -5,8 +5,6 @@ import { render } from '@testing-library/react';
 import { messageSearchText } from '../../channels/utils/messagePlainText';
 import { HighlightText } from './HighlightText';
 
-// A message row highlights inside the flattened body `useSearchContext` hands it, so the query has
-// to be findable there once the markup is gone.
 describe('HighlightText over a flattened message body', () => {
     const body = messageSearchText('[가이드](https://example.com/a) 참고\n```sh\nnx build web\nnx deploy web\n```');
 
@@ -20,8 +18,6 @@ describe('HighlightText over a flattened message body', () => {
         expect(container.querySelector('strong')).toHaveTextContent('가이드');
     });
 
-    // The scan matched the raw body, so a query on the link address finds the message; the row then
-    // shows it without a highlight rather than printing the address back.
     it('shows the body unhighlighted when the query only matched markup', () => {
         const { container } = render(<HighlightText text={body} query="example.com" />);
         expect(container.querySelector('strong')).toBeNull();
