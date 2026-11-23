@@ -14,12 +14,6 @@ const entry = (over: Partial<LogEntry> = {}): LogEntry => ({
     ...over,
 });
 
-/**
- * Feeds the store the only way it can be fed now: through the hub.
- *
- * `charge` is gone — there is no door into the store that bypasses publication,
- * which is what makes "the store is a listener" true rather than aspirational.
- */
 const publish = (...entries: LogEntry[]) => entries.forEach(ingestLogEntry);
 
 const createPersistence = (initial: LogEntry[] = [], initialLastLogAt?: number) => {
@@ -63,10 +57,6 @@ describe('LogUploadQueueService — 수집', () => {
     });
 
     it('같은 엔트리를 두 번 발행하면 두 번 쌓인다 — 한 번만 발행되는 것이 불변식이다', () => {
-        // `charge` used to dedup ids at the batch level, because a charge whose response was lost
-        // could be retried. Now that path is gone, an entry only ever arrives once, so there's
-        // nothing to guard against. Rather than paying the ongoing cost of scanning the whole queue
-        // to compare ids on every log line, we rely on the server's id upsert as the last line of defense.
         const p = createPersistence();
         const service = new LogUploadQueueService(p.port);
         service.init();
@@ -92,9 +82,6 @@ describe('LogUploadQueueService — 수집', () => {
     });
 
     it('수집은 즉시 영속화하지 않는다 — 로그 한 줄마다 큐 전체를 다시 쓰지 않는다', () => {
-        // Since `save` re-serializes the whole queue, writing synchronously on every publish would
-        // turn every `logger.*` line into an O(queue) MMKV write. Instead we debounce, and write
-        // immediately only at moments that must flush before closing (teardown, ack).
         const p = createPersistence();
         const service = new LogUploadQueueService(p.port);
         service.init();
@@ -211,8 +198,6 @@ describe('LogUploadQueueService — 수명', () => {
 });
 
 describe('LogUploadQueueService — 네이티브 dispatch 수집', () => {
-    // The collection path is a hub subscription, so every service built here has
-    // to be torn down or it keeps receiving entries from the next case.
     let service: LogUploadQueueService | undefined;
 
     afterEach(() => {
@@ -241,14 +226,10 @@ describe('LogUploadQueueService — 네이티브 dispatch 수집', () => {
     });
 
     it("source:'web' 엔트리도 똑같이 적재한다 — 릴레이된 웹 로그가 네이티브와 한 저장소에 섞인다", () => {
-        // This used to be skipped. Web entries used to arrive twice (hub publish + charge), and a
-        // filter picked which one to count. Now that the batch path is gone, an entry arrives only
-        // once, so `source` is once again just an origin label, not a routing basis.
         const p = createPersistence();
         service = new LogUploadQueueService(p.port);
         service.init();
 
-        // What the bridge handler does for a relayed entry.
         ingestLogEntry({ id: 'w-1', level: 'info', tag: 'WEBVIEW', message: 'relayed', timestamp: 1, source: 'web' });
 
         expect(service.fetch().map(item => item.message)).toEqual(['relayed']);
@@ -298,11 +279,6 @@ describe('LogUploadQueueService — 네이티브 dispatch 수집', () => {
     });
 });
 
-/**
- * The crash-time approximation (S4). A process killed by a signal leaves no
- * timestamp, so the previous run's last log is the closest thing available —
- * and it has to survive the entries themselves being acked away.
- */
 describe('LogUploadQueueService — lastLogAt', () => {
     it('부팅 시 읽은 값을 직전 실행의 시각으로 돌려준다', () => {
         const p = createPersistence([], 555);
@@ -336,7 +312,6 @@ describe('LogUploadQueueService — lastLogAt', () => {
         service.init();
 
         publish(entry({ timestamp: 10 }), entry({ timestamp: 30 }));
-        // The ingestion path debounces persistence, so flush before checking the on-disk value.
         service.teardown();
 
         expect(p.lastLogAt).toBe(30);

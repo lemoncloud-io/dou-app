@@ -5,7 +5,6 @@ import { NativeStorageService, VAULT_SUMMARY_NAME } from './NativeStorageService
 
 const logService = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } as unknown as ILogService;
 
-/** A database whose answers are scripted per SQL statement prefix. */
 const createDatabase = (handlers: { pragma?: (table: string) => string[]; select?: (sql: string) => object }) => {
     const execute = jest.fn(async (sql: string) => {
         const pragma = /^PRAGMA table_info\((\w+)\)$/.exec(sql);
@@ -48,7 +47,6 @@ describe('NativeStorageService', () => {
                 count: 3,
                 bytes: 120,
             });
-            // The size covers every column, so a NULL in one of them must not null the whole row's sum.
             expect(database.execute).toHaveBeenCalledWith(
                 `SELECT COUNT(*) AS count, IFNULL(SUM(IFNULL(LENGTH("id"), 0) + IFNULL(LENGTH("data"), 0)), 0) AS bytes FROM ${TABLES.CHATS}`
             );
@@ -141,7 +139,6 @@ describe('NativeStorageService', () => {
             expect(database.execute).toHaveBeenCalledWith(`DELETE FROM ${TABLES.INVITE_CLOUDS}`);
         });
 
-        // Invite dismissals exist only on this device; no option of this clear may reach them.
         it('never empties the invites table, even with invited clouds included', async () => {
             const database = createDatabase({});
             const service = new NativeStorageService(logService, database, createStorage({}));

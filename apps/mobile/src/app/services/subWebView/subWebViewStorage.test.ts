@@ -11,8 +11,6 @@ describe('subWebViewStorageId', () => {
         expect(subWebViewStorageId('https://quiz.apps-dev.chatic.io')).not.toBe(quiz);
     });
 
-    // Changing the id would leave every page's data behind under the old name. The value is the
-    // first 32 hex characters of the origin's SHA-256, as Node's crypto computes it too.
     it('never changes for an origin', () => {
         expect(subWebViewStorageId('https://sample.apps-dev.chatic.io')).toMatchInlineSnapshot(
             `"subwebview.3063f4a0ad5c8850cbed57a3de299a18"`
@@ -38,13 +36,13 @@ describe('SubWebViewStorage', () => {
     it('counts usage as the characters of keys and serialized values', () => {
         const storage = new SubWebViewStorage(memoryFile());
 
-        storage.set({ ab: 'xyz' }); // 2 + '"xyz"'.length (5)
+        storage.set({ ab: 'xyz' });
         expect(storage.info()).toEqual({
             ok: true,
             value: { keys: ['ab'], used: 7, limit: SUB_WEBVIEW_STORAGE_LIMIT },
         });
 
-        storage.set({ ab: 1 }); // replaces: 2 + 1
+        storage.set({ ab: 1 });
         expect(storage.info()).toEqual(expect.objectContaining({ value: expect.objectContaining({ used: 3 }) }));
     });
 
@@ -92,7 +90,6 @@ describe('SubWebViewStorage', () => {
             value: { used: 2, limit: SUB_WEBVIEW_STORAGE_LIMIT },
         });
         expect(file.getAllKeys()).toEqual(['b']);
-        // A trim drops MMKV's memory cache; a page removing a key at a time must not pay for it.
         expect(file.trims).toBe(0);
     });
 

@@ -133,6 +133,10 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
   copied into `attach-pick` and handed to the web's share page by id.
 - [photo-library.md](./photo-library.md) — the in-app photo picker's library reads (photos and videos),
   PhotoKit and MediaStore, and keeping a picked video for its upload.
+- [logging.md](./logging.md) — the log hub and its three listeners, the upload queue, Crashlytics, the
+  reports the shell queues for the web to relay, and native performance traces.
+- [device-services.md](./device-services.md) — the rules behind the permission, sign-in, SMS,
+  link-preview and in-app purchase services.
 - [app-icons.md](./app-icons.md) — the icons a user can pick, generated from one logo master, how
   switching keeps exactly one launcher entry on Android, and how Android push banners follow the
   active icon.

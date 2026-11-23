@@ -109,7 +109,6 @@ describe('BootMetricsService — 부팅 기록', () => {
 
         const records = (await storage.get('bootMetrics.records')) as BootRecord[];
         expect(records).toHaveLength(2);
-        // Newest first.
         expect(records[0]).toMatchObject({ type: 'reload', totalMs: 700 });
         expect(records[1].type).toBe('cold');
     });
@@ -167,7 +166,6 @@ describe('BootMetricsService — Firebase boot trace', () => {
         advance(999);
         service.mark('web-app-ready');
 
-        // Stopped at the mark, not after the web snapshot's grace window — that wait is not boot.
         expect(backend.stop).toHaveBeenCalledTimes(1);
         expect(backend.stop.mock.calls[0][0]).toMatchObject({
             name: 'boot',
@@ -206,7 +204,6 @@ describe('BootMetricsService — Firebase boot trace', () => {
         service.mark('web-app-ready');
         advance(350);
         service.recordReveal('first-screen');
-        // Android re-arms the splash on a warm start: that reveal is not the launch.
         advance(5000);
         service.recordReveal('first-screen');
 
@@ -254,7 +251,6 @@ describe('BootMetricsService — Firebase boot trace', () => {
 
         advance(100);
         service.mark('load-start');
-        // A content-process reload persists the aborted session before starting over.
         service.startReloadSession();
         await flush();
 

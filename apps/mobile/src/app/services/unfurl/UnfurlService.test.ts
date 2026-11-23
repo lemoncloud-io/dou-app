@@ -4,11 +4,6 @@ const UNFURL_MAX_BYTES = 256 * 1024;
 
 type Listener = (event?: any) => void;
 
-/**
- * Stand-in for RN's XMLHttpRequest, driven manually by the tests. Mirrors the two behaviours the
- * production code depends on: `abort()` clears the response buffer, and progress events carry a
- * cumulative `loaded` byte count.
- */
 class FakeXhr {
     static instances: FakeXhr[] = [];
 
@@ -55,7 +50,6 @@ class FakeXhr {
 
     abort() {
         this.aborted = true;
-        // RN's abort() resets the internal buffer — this is why the cap branch must snapshot first.
         this.responseText = '';
         this.onabort?.();
     }
@@ -63,8 +57,6 @@ class FakeXhr {
     private emit(type: string, event?: any) {
         (this.listeners[type] ?? []).forEach(cb => cb(event));
     }
-
-    // --- test drivers ---
 
     receiveHeaders(options: { status?: number; contentType?: string | null; responseURL?: string } = {}) {
         if (options.status !== undefined) this.status = options.status;
@@ -103,7 +95,6 @@ describe('parseUrl', () => {
     });
 
     it('userinfo 뒤의 실제 호스트를 고른다', () => {
-        // A URL that looks like `trusted.example` but actually connects to 127.0.0.1.
         expect(parseUrl('http://trusted.example@127.0.0.1/')?.hostname).toBe('127.0.0.1');
         expect(parseUrl('http://a@b@127.0.0.1/')?.hostname).toBe('127.0.0.1');
     });
@@ -149,7 +140,6 @@ describe('isPrivateHost', () => {
     );
 
     it('점4옥텟이 아닌 IP 표기도 차단한다', () => {
-        // 2130706433 == 0x7f000001 == 127.0.0.1. Rejected without decoding.
         expect(isPrivateHost('2130706433')).toBe(true);
         expect(isPrivateHost('0x7f000001')).toBe(true);
         expect(isPrivateHost('017700000001')).toBe(true);
@@ -213,7 +203,6 @@ describe('parseOgMetadata', () => {
     it('HTML 엔티티를 디코드하고 &amp;를 마지막에 처리한다', () => {
         const html = `<meta property="og:title" content="A &amp; B &lt;c&gt; &quot;d&quot; &#39;e&#39;">`;
         expect(parseOgMetadata(html, url, url).title).toBe(`A & B <c> "d" 'e'`);
-        // &amp;lt; must remain as the literal &lt; (no double decoding).
         const doubled = `<meta property="og:title" content="&amp;lt;script&amp;gt;">`;
         expect(parseOgMetadata(doubled, url, url).title).toBe('&lt;script&gt;');
     });
@@ -322,13 +311,11 @@ describe('fetchHtml', () => {
         const xhr = firstXhr();
         xhr.receiveHeaders();
         xhr.receiveChunk('<head><title>Big</title>', 1024);
-        // Cap reached: abort() clears responseText, so the snapshot must survive.
         xhr.receiveChunk('x'.repeat(16), UNFURL_MAX_BYTES);
 
         const page = await promise;
         expect(xhr.aborted).toBe(true);
         expect(page?.html).toContain('<title>Big</title>');
-        // The point of keeping the partial body: the <head> is still parseable.
         const url = 'https://example.com/huge';
         expect(parseOgMetadata(page?.html ?? '', url, page?.landedUrl ?? url).title).toBe('Big');
     });

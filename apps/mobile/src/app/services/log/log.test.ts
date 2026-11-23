@@ -3,12 +3,6 @@ import { LogService } from './LogService';
 
 import type { LogEntry } from '@chatic/logger';
 
-/**
- * The hub is the only way to observe an entry now: the ring buffer, its
- * persistence port and the `LogBufferService` facade over them are gone. A
- * subscriber installed before the action under test is therefore the assertion
- * surface — same pattern as `libs/logger/src/runtime.spec.ts`.
- */
 const collect = () => {
     const entries: LogEntry[] = [];
     const unsubscribe = logHub.subscribe(entry => entries.push(entry));

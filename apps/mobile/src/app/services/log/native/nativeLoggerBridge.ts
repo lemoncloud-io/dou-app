@@ -12,14 +12,6 @@ interface NativeLogEventPayload {
 
 const LEVELS: ReadonlySet<string> = new Set(['debug', 'info', 'warn', 'error']);
 
-/**
- * Subscribes to pure-native log events (`ChaticNativeLog` from the
- * ChaticNativeLogger module) and publishes them to the core log hub with
- * `source: 'native'` (ADR-0097). `ready()` is signaled AFTER subscribing so
- * the native cold-start queue flushes into a live listener. Returns a
- * teardown; a missing native module (tests, simulators without the build)
- * degrades to a no-op.
- */
 export const attachNativeLoggerBridge = (): (() => void) => {
     const nativeLogger = NativeModules.ChaticNativeLogger;
     if (!nativeLogger) return () => undefined;

@@ -1,11 +1,3 @@
-/**
- * Whether the app's runtime holds the session in this process, as the host reports it
- * (`NativeRuntimeHost.holdsSession`), for the offer injected into the next page load.
- *
- * A module of its own, with no imports, because the WebView reads it on every launch: the host's
- * module loads the whole runtime and stays off the startup path, so the host writes here and the
- * WebView only reads.
- */
 export interface RuntimeHold {
     read(): boolean;
     set(held: boolean): void;
@@ -31,5 +23,4 @@ export const createRuntimeHold = (): RuntimeHold => {
     };
 };
 
-/** The process's one hold. */
 export const runtimeHold = createRuntimeHold();

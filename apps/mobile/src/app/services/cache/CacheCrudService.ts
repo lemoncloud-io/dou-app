@@ -13,15 +13,6 @@ import type { ICacheCrudService } from './types';
 import type { ILogService } from '../log';
 import type { ICacheDataSource, IChatCacheDataSource } from '../../data/cache';
 
-/**
- * CacheTypes this app can actually persist — the `switch` arms below, as data.
- *
- * Reported to the web in the bridge handshake (`useBaseBridge`) because the web deploys ahead of
- * the app: a web build that knows a NEW CacheType would otherwise send it here, fall into the
- * `default` arm, and get `null` back with `success: true` — a permanently empty cache, not an error.
- * Keep this list in sync with the arms; adding a type here without a data source makes the web
- * trust a store that drops writes.
- */
 export const SUPPORTED_CACHE_TYPES: readonly CacheType[] = [
     'chat',
     'channel',
@@ -57,7 +48,6 @@ export class CacheCrudService implements ICacheCrudService {
         siteDataSource: ICacheDataSource<CacheModelMap['site'], CacheQueryMap['site']>,
         userDataSource: ICacheDataSource<CacheModelMap['user'], CacheQueryMap['user']>,
         inviteCloudDataSource: ICacheDataSource<CacheModelMap['invitecloud'], CacheQueryMap['invitecloud']>,
-        // Appended last so existing positional call sites stay valid.
         profileDataSource: ICacheDataSource<CacheModelMap['profile'], CacheQueryMap['profile']>,
         metaDataSource: ICacheDataSource<CacheModelMap['meta'], CacheQueryMap['meta']>,
         inviteDataSource: ICacheDataSource<CacheModelMap['invite'], CacheQueryMap['invite']>
@@ -74,16 +64,6 @@ export class CacheCrudService implements ICacheCrudService {
         this.inviteDataSource = inviteDataSource;
     }
 
-    /**
-     * Type → data source. Only `fetchMany` uses this.
-     *
-     * The other operations spell out their own switch because each domain's argument order/shape
-     * differs (`fetchAll` takes (cid, query, uid), `save` takes (id, item, cid, uid)), whereas every
-     * domain's `fetchMany` takes the same (ids, cid, uid), so the only branching needed is picking
-     * the data source. The rule of answering unsupported types with `null` here matches the existing
-     * `default` arm elsewhere — since the web ships ahead of the app, an unknown type can arrive,
-     * and throwing on it would turn into a bridge error that makes the web's fallback decision harder.
-     */
     private getDataSource<K extends CacheType>(type: K): ICacheDataSource<CacheModelMap[K], CacheQueryMap[K]> | null {
         switch (type) {
             case 'chat':
@@ -122,10 +102,6 @@ export class CacheCrudService implements ICacheCrudService {
             const dataSource = this.getDataSource(type);
             if (!dataSource) return [];
 
-            // `fetchMany` is optional to implement. If it's absent, we fall back to repeated
-            // `fetch` calls — the bridge round trip is still just 1, so the goal (folding round
-            // trips) is still met. All that slows down is the number of in-process SQLite queries,
-            // which is negligible next to a round trip.
             if (dataSource.fetchMany) {
                 return await dataSource.fetchMany(ids, cid, uid);
             }
@@ -250,14 +226,6 @@ export class CacheCrudService implements ICacheCrudService {
         }
     }
 
-    /**
-     * [Fetch] One latest preview per channel plus the max chat_no (chat only, ADR-0057).
-     *
-     * `null` means "cannot answer" — the web falls back to a per-channel windowed query for just
-     * that one read. Answering with null instead of throwing follows the same rationale as the
-     * other operations' error rules: since the web ships ahead of the app, a bridge error would
-     * only make the fallback decision harder.
-     */
     public async fetchLastChats(payload: {
         type: 'chat';
         channelIds: string[];
@@ -275,10 +243,6 @@ export class CacheCrudService implements ICacheCrudService {
         }
     }
 
-    /**
-     * [Fetch] One page of a room's media index. Unlike `fetchLastChats` a failure is thrown, so the
-     * handler can answer it `items: null` while an empty page stays an honest empty page.
-     */
     public async fetchChatMedia(payload: {
         type: 'chat';
         channelId: string;
@@ -293,7 +257,6 @@ export class CacheCrudService implements ICacheCrudService {
         return this.chatDataSource.fetchMediaPage({ channelId, kind, cursorNo, limit }, cid, uid);
     }
 
-    /** [Fetch] A room's media index entries per kind. Throws on failure, as `fetchChatMedia`. */
     public async countChatMedia(payload: {
         type: 'chat';
         channelId: string;
@@ -305,7 +268,6 @@ export class CacheCrudService implements ICacheCrudService {
         return this.chatDataSource.countMedia(channelId, cid, uid);
     }
 
-    /** [Save] A room fill's entries. Throws on failure, so the web does not mark the room filled. */
     public async saveChatMedia(payload: {
         type: 'chat';
         items: ChatMediaFillItem[];
@@ -411,7 +373,6 @@ export class CacheCrudService implements ICacheCrudService {
             }
 
             const ids = items.map((i: any) => i.id);
-            // Meta table save logic has been removed
             return ids;
         } catch (error) {
             this.logService.error('CACHE', `SaveAll error for type: ${type}`, error as Error);
@@ -543,17 +504,6 @@ export class CacheCrudService implements ICacheCrudService {
         }
     }
 
-    /**
-     * Removes only the rows for one channel (ADR-0067). Leaving a room should also make that
-     * room's messages disappear, which `clear` (which wipes the whole scope) can't express.
-     *
-     * Only accepts chat. The `channel_id` extracted column also exists on join, but there's no
-     * path for the web to send this message for join, so we'll add another arm if that ever happens.
-     *
-     * Unlike `clear`, this does not swallow errors — the caller (the handler) has to signal the
-     * failure through the response's `success` field so the web doesn't wrongly believe it was
-     * deleted. For the same reason, an empty channelId isn't silently allowed through either.
-     */
     public async clearByChannel<K extends CacheType>(payload: {
         type: K;
         channelId: string;

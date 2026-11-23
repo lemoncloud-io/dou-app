@@ -11,7 +11,6 @@ beforeEach(() => {
     delete mockConfig.VITE_SESSION_OWNER_DEFAULT;
 });
 
-/** A fresh copy of the module, so each test starts before the owner was read. */
 const load = (): typeof LaunchSessionOwnerModule.launchSessionOwner => {
     let launchSessionOwner: typeof LaunchSessionOwnerModule.launchSessionOwner = () => 'web';
     jest.isolateModules(() => {

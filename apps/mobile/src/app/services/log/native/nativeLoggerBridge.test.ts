@@ -23,10 +23,6 @@ jest.mock('react-native', () => ({
     },
 }));
 
-/**
- * The hub replaced the ring buffer as the only way to observe an entry, so a
- * subscriber installed before the native event fires is the assertion surface.
- */
 const collect = () => {
     const entries: LogEntry[] = [];
     const unsubscribe = logHub.subscribe(entry => entries.push(entry));
