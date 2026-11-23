@@ -25,7 +25,6 @@ jest.mock('@react-native-community/netinfo', () => ({
 
 const facts = { platform: 'android', userAgent: 'chatic-ua' } as const;
 
-/** A key-value file in memory. */
 const memoryFile = (): KeyValueFile => {
     const values = new Map<string, string>();
     return {

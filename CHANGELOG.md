@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-23] - No version updates
+
+### Chores
+
+- (comments) remove comments from the small libs and shell-adapter
+
 ## [2026-11-23] - root@0.173.0, @chatic/web@0.101.0
 
 ### Features

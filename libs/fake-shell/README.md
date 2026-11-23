@@ -38,6 +38,26 @@ a contract the app no longer speaks. `ShellFailure` answers `success: false` wit
 leaving a type out answers the host's own `NOT_FOUND`, which the web reads as an app built before
 that message.
 
+## Why the boot answers are what they are
+
+- **Platform decides where a push is dispatched.** react-native-webview delivers a native → web message
+  on `window` on iOS and on `document` on Android, and the web listens on both, so a fake shell runs the
+  path its platform's WebView takes.
+- **The reported app version is current.** No update prompt then covers a scenario, and the web's version
+  floor lets it in. Keep `FAKE_SHELL_APP_VERSION` at or above the web's `APP_VERSION_FLOOR`.
+- **Left-out handlers answer `NOT_FOUND` on purpose.** The photo grid, file transfers, push tokens and the
+  per-channel chat preview are handled by every app at the web's version floor, so the web has no fallback
+  for them any more: a scenario that reaches one adds its handler.
+- **The cache is answered because the web keeps it in the shell.** Inside the app the web's cache lives in
+  the shell's SQLite, not IndexedDB, for every domain an installed app has stored; a shell that does not
+  answer those messages leaves the home screen waiting on failed reads. `MemoryCache` follows the part of
+  the real service's query rules the web relies on: rows scoped by cloud and user, each domain filtered on
+  the fields its data source filters on (profiles are not filtered by place; that is the web's job), chat
+  lists sorted by `chatNo` and paged below `cursorNo`. It does not derive a save's computed columns.
+- **The boot script is the app's own builder, never a copy.** The globals it sets (device info, the
+  `ChaticMessageHandler` relay, the config bag, safe-area variables) are what the web reads at boot, and a
+  copy would drift from what the app injects.
+
 ## The transport
 
 ```ts

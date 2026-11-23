@@ -254,10 +254,7 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
     const runtime = options.data ?? {};
     const runtimeStreams = new Map<string, { seq: number; stop: () => void }>();
     const sentMessages: MockSentMessage[] = [];
-    // Numbers each send as it is asked for, so sends in flight together get their own ids.
     let sendNo = 0;
-    // With `chatSend`, the send is open whatever `calls` holds — as in the app, where the permission
-    // opens it — and answers with a made-up message unless `calls` gives its own answer.
     const sends = permissions.includes('chatSend');
     const calls: { [method: string]: ((...args: never[]) => unknown) | undefined } = { ...runtime.calls };
     const ownSendAnswer = calls[SEND_METHOD];
@@ -278,7 +275,6 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
     };
     if (sends && !ownSendAnswer) calls[SEND_METHOD] = madeUpSend as (...args: never[]) => unknown;
     if (!sends) delete calls[SEND_METHOD];
-    // With `chatReact`, the same for a reaction: open, recorded, and answered with the message's row.
     const reacts = permissions.includes('chatReact');
     const reactions: MockReaction[] = [];
     const ownReactAnswer = calls[REACT_METHOD];
@@ -298,10 +294,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
     if (reacts && !ownReactAnswer) calls[REACT_METHOD] = madeUpReaction as (...args: never[]) => unknown;
     if (!reacts) delete calls[REACT_METHOD];
     let cloudChanged = false;
-    // Each device starts unasked, as on a fresh install.
     const devices: Record<DeviceKind, PermissionState> = { camera: 'prompt', microphone: 'prompt' };
     const origin = window.location.origin;
-    // The global is a snapshot, as the app's is; a change reaches the page as a push only.
     const context: ChaticAppsContext = {
         protocolVersion: 1,
         viewId: 'mock-view',
@@ -314,10 +308,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         display: 'clean',
         ...options.context,
     };
-    // An immersive page lies under the system bars; a padded one never meets them.
     const immersive = context.display === 'immersive';
     let portrait = true;
-    // Given as `undefined`, a field stays absent, as from an app older than 2.30.0.
     if (!(options.context && 'safeArea' in options.context)) context.safeArea = immersive ? PORTRAIT_INSETS : NO_INSETS;
     for (const field of ['display', 'safeArea'] as const) if (context[field] === undefined) delete context[field];
     const applyInsets = (insets: SafeArea | undefined) => {
@@ -357,7 +349,6 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
             held.push(raw);
             return;
         }
-        // Asynchronous, as the WebView is.
         setTimeout(() => window.dispatchEvent(new MessageEvent('message', { data: raw })), 0);
     };
     const push = (type: string, data: object) =>
@@ -388,7 +379,6 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
             );
         }
         log('←', type, data);
-        // The view is gone: the app answers `NOT_OPEN` to a second finish, and nothing else at all.
         if (closed) {
             if (type === 'FinishSubWebView') {
                 return fail('OnFinishSubWebView', refId, 'NOT_OPEN', 'The view has closed.');
@@ -521,7 +511,6 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                 }
                 if (type === 'RequestSubWebViewPermission' && devices[kind] === 'prompt') {
                     const answer = options.deviceAnswers?.[kind] ?? 'allow';
-                    // A refusal leaves the OS willing to ask again, as the app's `prompt` says.
                     devices[kind] = answer === 'allow' ? 'granted' : answer === 'deny' ? 'prompt' : 'blocked';
                     log('the user answered', kind, answer);
                 }
@@ -582,8 +571,6 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                             error => fail(reply, refId, 'RUNTIME_ERROR', String((error as Error)?.message ?? error))
                         );
                 }
-                // The app's own checks on a send's shape: one argument, only a room and plain text. The
-                // room's place and the send budget are the app's alone.
                 const input = args[0] as { channelId?: unknown; content?: unknown } | undefined;
                 const room = input?.channelId;
                 const text = input?.content;
@@ -610,7 +597,6 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                     .then(() => (ownSendAnswer ? call(...args) : madeUpSend({ channelId: room, content: text }, no)))
                     .then(
                         value => {
-                            // Recorded once it went through: a send the answer failed was not sent.
                             sentMessages.push({ channelId: room, text });
                             log('message sent', room, text);
                             ok(reply, refId, { value: value ?? null });
@@ -646,8 +632,6 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         }
     }
 
-    // The app's own checks on a reaction's shape: one argument, only a message, one emoji and on or off.
-    // The message's place, whether it takes reactions, and the reaction budget are the app's alone.
     function answerReaction(
         reply: string,
         refId: unknown,
@@ -737,8 +721,6 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
             Object.assign(current, change);
             push('OnSubWebViewContextChanged', { ...current });
         },
-        // The phone's own insets, upright and turned, whatever `context.safeArea` started with; pushed at
-        // once, where the app waits for the insets to hold still for 200 ms.
         rotate: () => {
             portrait = !portrait;
             if (!immersive || !current.safeArea) return;

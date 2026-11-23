@@ -1,6 +1,5 @@
 import type { KeyValueStore } from './types';
 
-/** A store that lives as long as the page: nothing survives a reload. */
 export class MemoryStore implements KeyValueStore {
     private readonly values = new Map<string, string>();
 

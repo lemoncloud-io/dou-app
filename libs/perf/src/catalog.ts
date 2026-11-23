@@ -1,21 +1,6 @@
 import type { TelemetryCatalog } from '@chatic/logger';
 import type { PerfTraceName, PerfTraceResult } from './types';
 
-/**
- * What a trace may carry, and what of it Firebase receives.
- *
- * `attributes` and `metrics` are every dimension and measurement the trace is allowed to record on
- * the log pipeline; the pipeline drops anything else, because each key becomes a field the server
- * stores. Attribute values are not enumerated — a performance dimension such as a request type is an
- * open value — so `true` accepts any short string.
- *
- * `firebase` is what Firebase is sent, and it is **exactly what Firebase received before the log
- * pipeline carried traces too**: the same trace names, the same attribute keys (never more than its
- * cap of five), the same metrics. Firebase's numbers are compared against the pipeline's over the
- * same period, so a dimension added for the pipeline must not change them. `null` means the trace is
- * pipeline-only and Firebase never hears of it; `only` restricts a trace to some attribute values —
- * `web_vitals` reaches Firebase for FCP and LCP, the two vitals it has always had.
- */
 export interface PerfTraceCatalogEntry {
     kind: 'trace' | 'sample';
     attributes: Readonly<Record<string, true>>;
@@ -31,7 +16,6 @@ export type PerfTraceCatalog = Readonly<Record<PerfTraceName, PerfTraceCatalogEn
 
 const attrs = (...keys: string[]): Record<string, true> => Object.fromEntries(keys.map(key => [key, true]));
 
-/** A trace Firebase receives in full: every attribute and metric it records. */
 const everywhere = (
     kind: 'trace' | 'sample',
     attributeKeys: readonly string[],
@@ -43,14 +27,8 @@ const everywhere = (
     firebase: { attributes: attributeKeys, metrics },
 });
 
-/**
- * The run dimension both shells stamp on the pipeline (`PipelinePerfTraceBackend`'s ambient
- * attributes): which side holds the session — `web` (the page) or `native` (the phone app's own
- * runtime). Listed on the traces that are compared between the two ways of running.
- */
 export const SESSION_OWNER_ATTRIBUTE = 'session_owner';
 
-/** `everywhere`, plus `session_owner` on the pipeline only: Firebase keeps the attributes it had. */
 const everywhereByOwner = (
     kind: 'trace' | 'sample',
     attributeKeys: readonly string[],
@@ -82,11 +60,6 @@ const MEDIA_PHASES = [
     'sent',
 ];
 
-/**
- * Every trace name. The existing fourteen are listed as their call sites record them today — see
- * `apps/web/docs/observability/performance.md` and `apps/mobile/docs/boot/boot-metrics.md` — and
- * Firebase keeps receiving all of it. The ones after them are pipeline-only.
- */
 export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
     boot: everywhereByOwner(
         'trace',
@@ -100,7 +73,6 @@ export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
         kind: 'sample',
         attributes: attrs('vital'),
         metrics: ['value_ms'],
-        // INP, CLS and TTFB are recorded for the pipeline only (CLS as ×1000, an integer).
         firebase: { attributes: ['vital'], metrics: ['value_ms'], only: { vital: ['fcp', 'lcp'] } },
     },
     chat_room_open: everywhereByOwner(
@@ -110,8 +82,6 @@ export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
     ),
     chat_room_sync: {
         kind: 'trace',
-        // `session_owner` reads launches whose session the page holds apart from those whose phone shell
-        // holds it. The pipeline's alone: Firebase keeps the five it always had.
         attributes: attrs('entry', 'start', 'switch', 'cache', 'outcome', SESSION_OWNER_ATTRIBUTE),
         metrics: ROOM_SYNC_METRICS,
         firebase: { attributes: ['entry', 'start', 'switch', 'cache', 'outcome'], metrics: ROOM_SYNC_METRICS },
@@ -135,46 +105,34 @@ export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
         ['lane', 'outcome', 'step', 'room'],
         ['login', 'cloud', 'site', 'profile_check', 'invite_read', 'accepted', 'room']
     ),
-    // ── Pipeline only ──
-    /** The long tasks of one screen, summed when the screen is left. */
     long_tasks: {
         kind: 'sample',
         attributes: attrs('screen'),
         metrics: ['count', 'total_ms', 'max_ms'],
         firebase: null,
     },
-    /** One `libs/http` request, per endpoint template. */
     api_request: {
         kind: 'sample',
         attributes: attrs('endpoint', 'method', 'status_class', 'outcome', 'backend'),
         metrics: ['rtt_ms', 'res_bytes'],
         firebase: null,
     },
-    /** A route's entry to its first meaningful paint. */
     screen_render: { kind: 'trace', attributes: attrs('screen', 'cache'), metrics: ['mount'], firebase: null },
-    /** One chat image the page's image cache resolved: where it came from, and what each step cost. */
     image_load: {
         kind: 'sample',
         attributes: attrs('variant', 'source', 'store', 'fallback'),
         metrics: ['value_ms', 'store_ms', 'fetch_ms', 'bytes_kb'],
         firebase: null,
     },
-    /** One message read again because an image's (or a file's) signed address stopped loading. */
     image_refresh: { kind: 'sample', attributes: attrs('kind', 'outcome'), metrics: ['value_ms'], firebase: null },
 };
 
-/**
- * Whether this build's catalogue knows the trace name. A runtime built later can send one it does
- * not — see `isPipelineOnlyTrace` for why that matters on the native side.
- */
 export const isKnownPerfTrace = (name: string, catalog: PerfTraceCatalog = PERF_TRACE_CATALOG): boolean =>
     Object.prototype.hasOwnProperty.call(catalog, name);
 
-/** Whether the catalogue says Firebase never receives this trace. An unknown name is not pipeline-only. */
 export const isPipelineOnlyTrace = (name: string, catalog: PerfTraceCatalog = PERF_TRACE_CATALOG): boolean =>
     isKnownPerfTrace(name, catalog) && !(catalog as Record<string, PerfTraceCatalogEntry>)[name].firebase;
 
-/** Whether Firebase receives this trace at all. An unknown name — from a newer runtime — does not. */
 export const isFirebaseTrace = (name: string, catalog: PerfTraceCatalog = PERF_TRACE_CATALOG): boolean =>
     !!(catalog as Record<string, PerfTraceCatalogEntry | undefined>)[name]?.firebase;
 
@@ -184,11 +142,6 @@ const pick = <T>(source: Record<string, T>, keys: readonly string[]): Record<str
     return out;
 };
 
-/**
- * A stop cut down to what Firebase receives, or `null` when Firebase does not get this one — a
- * pipeline-only name, or a value outside the trace's `only` list. The result has exactly the shape a
- * stop had before (`sample` and `endedAt` are pipeline-side and left off).
- */
 export const firebaseResultOf = (
     result: PerfTraceResult,
     catalog: PerfTraceCatalog = PERF_TRACE_CATALOG
@@ -209,10 +162,6 @@ export const firebaseResultOf = (
     };
 };
 
-/**
- * The same catalogue as `@chatic/logger`'s `TelemetryRecorder` reads it: keyed `perf.<name>`, with the
- * record kind each trace is. Hosts pass it (merged with the usage catalogue) to the recorder.
- */
 export const PERF_TELEMETRY_CATALOG: TelemetryCatalog = Object.fromEntries(
     Object.entries(PERF_TRACE_CATALOG).map(([name, entry]) => [
         `perf.${name}`,

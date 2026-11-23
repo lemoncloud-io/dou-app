@@ -4,7 +4,6 @@ import type { AppStateSource } from './foreground';
 
 jest.mock('react-native', () => ({ AppState: {} }));
 
-/** An `AppState` stand-in whose state and `change` events the test sets. */
 const fakeAppState = (initial: string | null) => {
     const handlers = new Set<() => void>();
     const remove = jest.fn();

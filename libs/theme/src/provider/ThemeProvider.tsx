@@ -10,11 +10,6 @@ type ThemeProviderProps = {
     children: React.ReactNode;
     defaultTheme?: Theme;
     storageKey?: string;
-    /**
-     * Where the choice is kept — the app's store for state that outlives the window. Left out, this
-     * origin's `localStorage`, tolerant of a full or blocked one: the key is shared across apps on the
-     * same origin (`vite-ui-theme`), which their pre-paint scripts read from there.
-     */
     storage?: Pick<KeyValueStore, 'get' | 'set'>;
 };
 
@@ -46,11 +41,8 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
     const [theme, setTheme] = useState<Theme>(() => (storage.get(storageKey) as Theme) || defaultTheme);
     const [systemIsDark, setSystemIsDark] = useState(prefersDark);
-    // Whether there is a shell bridge to tell, as the host profile recorded it at boot.
     const isOnMobileApp = hostProfile().bridge !== null;
 
-    // While the choice is 'system', follow the OS as it changes, not only as it was at launch.
-    // The read on subscribe catches a change made while another choice was active.
     useEffect(() => {
         if (theme !== 'system') return;
 
@@ -70,7 +62,6 @@ export function ThemeProvider({
         root.classList.add(resolvedTheme);
     }, [resolvedTheme]);
 
-    // Sync theme preference to native storage, where there is a bridge to post it through.
     useEffect(() => {
         if (!isOnMobileApp) return;
 

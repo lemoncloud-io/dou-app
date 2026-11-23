@@ -2,7 +2,6 @@ import { nativeOnlineSignal, nativeSocketFactory, nativeTransportPorts } from '.
 
 import type { NetInfoSource } from './transport';
 
-// Kept outside a jest mock, so `clearAllMocks` between tests does not forget the process's listener.
 const mockNetInfoListeners: unknown[] = [];
 jest.mock('@react-native-community/netinfo', () => ({
     __esModule: true,
@@ -12,7 +11,6 @@ jest.mock('react-native', () => ({ Platform: { OS: 'ios' } }));
 
 type Report = (state: { isConnected: boolean | null }) => void;
 
-/** A NetInfo stand-in whose reports the test sends. */
 const fakeNetInfo = () => {
     let report: Report = () => undefined;
     const source = {

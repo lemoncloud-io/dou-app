@@ -6,7 +6,6 @@ import { LISTENER, browserRuntime, runtimeOver } from './runtime';
 import type { CloudChannel, CloudList, CloudProfile, CloudSession } from './runtimeTypes';
 import type { Transport } from './transport';
 
-/** Lets the mock's asynchronous replies and pushes land. */
 const settle = () => new Promise(resolve => setTimeout(resolve, 5));
 
 const rooms: CloudChannel[] = [{ id: 'ch1', cid: 'c1', sid: 's1', isNotificationEnabled: true, name: 'General' }];
@@ -608,7 +607,6 @@ describe('apps.data, called untyped as before the types', () => {
         });
         apps = await connect({ reportErrors: false });
 
-        // The untyped spelling, typed by the caller.
         await expect(apps.data.call<{ list: unknown[] }>('channel.cacheReadList', { sid: 's1' })).resolves.toEqual(
             listOf(rooms)
         );
@@ -678,7 +676,6 @@ describe('apps.data.connect, against a slow answer', () => {
         const connecting = runtime.connect();
         const outcome = jest.fn();
         connecting.then(outcome, outcome);
-        // The app is showing the consent question; a request with the default timeout would have failed.
         await jest.advanceTimersByTimeAsync(60_000);
         expect(outcome).not.toHaveBeenCalled();
 
