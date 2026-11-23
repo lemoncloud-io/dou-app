@@ -20,7 +20,7 @@ Chaos runs on the same fakes as [`dou-e2e`](../dou-e2e/SKILL.md), through the `c
    `{ tag: '@chaos' }` and mark each recovery with `chaos.recovered(what)`; a fault no request met fails the run.
 3. **Assert both sides**: what the user sees (no stuck spinner, no duplicate, the right error copy) and what
    the relay received (`backend.sent(...)` count and order, connection number).
-4. **Run** `npx nx run web-e2e:e2e-chaos`; repeat timing-sensitive ones with
-   `-- --repeat-each=20 --project=webkit-ios`. One failure in twenty is a real race: report it with the trace.
+4. **Run only the changed spec** (`npx playwright test <spec>` in `apps/web-e2e`; CI runs every `@chaos` one);
+   repeat timing-sensitive ones with `--repeat-each=20 --project=webkit-ios`. One failure in twenty is a real race: report it with the trace.
 5. **Report** the fault matrix (fault × outcome) and link the evidence page's chaos timelines
    (`dist/.playwright/apps/web-e2e/evidence/index.html`).

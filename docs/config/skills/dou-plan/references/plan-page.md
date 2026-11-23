@@ -16,5 +16,5 @@ Rules:
 - The plan is always an HTML page; so is any report or write-up over ~100 lines. Its URL is passed to every
   implementation brief and subagent, and the verification report links back to it.
 - Real paths and real names; no placeholder content.
-- The page is a working artifact. It never gets committed; link it from the PR's `To Reviewers`.
+- The page is a working artifact. It never gets committed and is never linked from a PR; the PR body stands on its own.
 - Republish the same file to the same URL when the plan changes; say what changed in one line.

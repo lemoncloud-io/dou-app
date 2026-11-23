@@ -10,8 +10,8 @@ const MAX_BYTES = 3 * 1024 * 1024;
 const usage = `usage:
   pr-assets.mjs --pr <number> <image>... [--remote origin]
   pr-assets.mjs --pr <number> --remove [--remote origin]
-Each PR gets its own orphan branch pr-assets/pr-<number>. Only screenshots of fake data
-(web-e2e, fake shell, component harness): the repository is public and git keeps them.`;
+Each PR gets its own orphan branch pr-assets/pr-<number>. Only dev or fake-data screens, never
+production: the repository is public and git keeps them.`;
 
 const parse = argv => {
     const options = { remote: 'origin', files: [], remove: false };

@@ -21,7 +21,7 @@ Review before the commit, so a fix for a finding lands in the same commit as wha
    before committing.
 4. **Commit** in this repo's shape with a `Verified-by:` trailer ([`references/commit.md`](./references/commit.md)).
    The commit hook runs the gate; never skip hooks.
-5. **PR** against `develop`, assigned to the person, with a mermaid diagram and fake-data screenshots inline
-   ([`references/pr.md`](./references/pr.md)); report and plan links go in `To Reviewers`.
+5. **PR** against `develop`, assigned to the person, its body opening with a diagram and/or dev screenshots
+   and carrying a short results table ([`references/pr.md`](./references/pr.md)). No artifact links.
 
 Asked only to commit: steps 1–4.
