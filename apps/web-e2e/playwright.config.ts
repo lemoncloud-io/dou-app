@@ -22,7 +22,7 @@ export default defineConfig<E2EOptions>({
     outputDir: '../../dist/.playwright/apps/web-e2e/test-results',
     snapshotPathTemplate: '{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}',
     expect: {
-        toHaveScreenshot: { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.001 },
+        toHaveScreenshot: { animations: 'disabled', caret: 'hide', maxDiffPixels: 50 },
     },
     fullyParallel: true,
     forbidOnly: CI,

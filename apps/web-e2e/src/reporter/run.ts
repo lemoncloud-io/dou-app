@@ -41,9 +41,9 @@ export interface RunRecord {
 }
 
 export interface VisualResult {
-    status: 'pass' | 'fail' | 'not-run';
+    status: 'pass' | 'fail' | 'error' | 'not-run';
     compared: number;
-    failures: { screen: string; project: string; reason: string }[];
+    failures: { screen: string; project: string; kind: 'diff' | 'missing' | 'error'; reason: string }[];
 }
 
 export const visualResult = (run: RunRecord): VisualResult => {
@@ -54,9 +54,17 @@ export const visualResult = (run: RunRecord): VisualResult => {
         .map(scenario => ({
             screen: scenario.title,
             project: scenario.project,
+            kind: failureKind(scenario),
             reason: firstLine(scenario.error) || scenario.status,
         }));
-    return { status: failures.length ? 'fail' : 'pass', compared: visual.length, failures };
+    const status = failures.some(failure => failure.kind !== 'error') ? 'fail' : failures.length ? 'error' : 'pass';
+    return { status, compared: visual.length, failures };
+};
+
+const failureKind = (scenario: ScenarioRecord): VisualResult['failures'][number]['kind'] => {
+    if (/snapshot doesn't exist/i.test(scenario.error ?? '')) return 'missing';
+    if (scenario.visual.some(image => image.caption.endsWith('-diff.png'))) return 'diff';
+    return 'error';
 };
 
 const firstLine = (text: string | undefined): string => (text ?? '').split('\n').find(line => line.trim()) ?? '';

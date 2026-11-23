@@ -72,7 +72,7 @@ messages the shell answered `NOT_FOUND`). Both are also attached to the test's r
 | `src/reporter/`           | The evidence reporter: one self-contained HTML page per run, `summary.json`, `visual-result.json`                                          |
 | `src/feature-map/`        | The feature map's check, shared by `feature-coverage` and the report                                                                       |
 | `feature-map.json`        | Each `apps/web` feature folder and the scenarios that exercise it                                                                          |
-| `scripts/`                | `visual-docker.sh`: the visual scenarios with the browsers in Playwright's Linux image                                                     |
+| `scripts/`                | `visual-docker.sh` (visual scenarios in Playwright's Linux image), `pr-verification.mjs` (the run into its pull request) and its test      |
 | `src/specs/`              | The scenarios; `chaos/`, `load/` and `visual/` hold the tagged kinds                                                                       |
 
 **Two browser projects, one per platform.** `webkit-ios` emulates an iPhone and the shell delivers
@@ -329,8 +329,17 @@ baseline or has none, and the reporter writes `visual-result.json` beside the ev
 removes it):
 
 ```json
-{ "status": "fail", "compared": 14, "failures": [{ "screen": "MY", "project": "webkit-ios", "reason": "…" }] }
+{
+    "status": "fail",
+    "compared": 14,
+    "failures": [{ "screen": "MY", "project": "webkit-ios", "kind": "diff", "reason": "…" }]
+}
 ```
+
+`status` is `fail` when at least one screen differs (`diff`) or has no baseline (`missing`), and
+`error` when scenarios failed only before comparing (a timeout on a loaded machine, say) — a broken
+run, not a visual change. The limit is 50 differing pixels per screen; the screens render at the
+devices' 3× scale, where a ratio such as 0.1% is about 3,000 pixels and let a changed label through.
 
 `compared` counts scenarios: the cloud scenario holds two screens, and compares the second even when
 the first differs. Under GitHub Actions each failure is also an `::error title=visual-regression::`
@@ -358,8 +367,41 @@ timeline, the feature map with this run's results, and every scenario with its c
 (`evidence.shot(caption)`, JPEG), and a failed scenario's last screen. A passing scenario that takes
 no captioned shot shows none: capturing every scenario made the page of one full run over 20 MB.
 `summary.json` beside it holds the
-same without the images. `WEB_E2E_EVIDENCE_DIR` moves it. desktop-web-e2e writes the same report,
+same without the images, which go to `images/` beside it as files. `WEB_E2E_EVIDENCE_DIR` moves it. desktop-web-e2e writes the same report,
 without the feature map, to its own `dist` folder.
+
+## Verification results in the pull request
+
+`scripts/pr-verification.mjs` puts a run into its pull request. It needs only `node` and `git` (no
+install), so a CI job can run it straight from a checkout:
+
+```bash
+node apps/web-e2e/scripts/pr-verification.mjs publish --pr <n> --run <run id> \
+    --evidence <evidence dir> [--evidence <evidence dir>...] [--dry-run]
+node apps/web-e2e/scripts/pr-verification.mjs cleanup --pr <n>
+```
+
+`publish` reads each evidence folder's `summary.json` and the images the reporter writes beside it
+(`evidence/images/`), and picks at most 24: every visual difference (baseline, actual, diff), one end
+state per chaos scenario, and the last screen of each other failure. It pushes them to the orphan
+branch `pr-assets/pr-<n>` — replacing its own `web-e2e-*` files and keeping anything else there, such
+as the images a pull request body links — and creates or updates one comment, marked
+`<!-- web-e2e-verification -->`, titled "Verification results": the verdict, counts per platform,
+what failed, the visual diffs side by side, the chaos scenarios with their end states, the load
+medians, and every scenario's result. Image addresses carry `?run=<id>` so GitHub does not show a
+cached image from an earlier run. `--dry-run` prints the picked files and the comment instead.
+`cleanup` deletes the branch, for when the pull request closes. The token is `GITHUB_TOKEN` (or
+`GH_TOKEN`), which needs `contents: write` and `pull-requests: write`.
+
+The images come from fake-data runs only, which is all this suite has: the repository is public, and
+a pushed image stays in git history after the branch is deleted. `npx nx run web-e2e:test` runs the
+script's own tests (`node --test`), one of which pushes to and deletes from a local bare repository.
+
+The CI wiring is not in `.github/workflows/verify.yml` yet. It is: upload each e2e job's
+`dist/.playwright/apps/web-e2e/evidence` as an artifact whatever the result; a job after both (and
+after the visual job) that downloads them and runs `publish` with one `--evidence` per artifact; and
+a workflow on `pull_request: closed` that runs `cleanup`. A pull request from a fork has no token
+that can write, so both skip it.
 
 ## The scenarios
 
