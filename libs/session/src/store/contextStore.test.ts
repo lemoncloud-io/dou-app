@@ -48,9 +48,6 @@ jest.mock('./stores', () => ({
     },
 }));
 
-// `mockNotify` now stands for `sessionSignal.emit` — the store announces a KIND instead of
-// broadcasting (ADR-0076 Decision 2), so "was the session announced" is "was emit called". `batch` runs
-// its callback straight through: the collapsing itself is covered by signal.test.ts.
 jest.mock('./signal', () => ({
     sessionSignal: {
         emit: (...a: unknown[]) => mockNotify(...a),
@@ -60,8 +57,6 @@ jest.mock('./signal', () => ({
     },
 }));
 
-// Relay-only session (cloud inactive) with a fixed identity. buildIdentityContext derives uid from
-// the active token (relay here), so mutating the relay token's uid is how we simulate a real change.
 const seedRelayOnly = (relayToken: Record<string, unknown> | null = { uid: 'u1', Token: 't1' }) => {
     mockRelayGetBackend.mockReturnValue('relay-backend');
     mockRelayGetWss.mockReturnValue('wss://relay');
@@ -89,11 +84,11 @@ describe('rebuildSessionIdentity — notify 게이팅 (#8)', () => {
     it('관측 컨텍스트가 그대로면(예: 백그라운드 credential 재기록) notify를 생략한다', () => {
         jest.isolateModules(() => {
             const store = require('./contextStore');
-            store.getSessionAuthSnapshot?.(); // no-op guard for tree-shaken exports
-            store.sessionContextStore.getGlobalSessionContext(); // prime the cached context
+            store.getSessionAuthSnapshot?.();
+            store.sessionContextStore.getGlobalSessionContext();
             mockNotify.mockClear();
 
-            store.rebuildSessionIdentity(); // nothing in core changed
+            store.rebuildSessionIdentity();
 
             expect(mockNotify).not.toHaveBeenCalled();
         });
@@ -102,10 +97,9 @@ describe('rebuildSessionIdentity — notify 게이팅 (#8)', () => {
     it('uid가 바뀌면 notify한다', () => {
         jest.isolateModules(() => {
             const store = require('./contextStore');
-            store.sessionContextStore.getGlobalSessionContext(); // prime with uid=u1
+            store.sessionContextStore.getGlobalSessionContext();
             mockNotify.mockClear();
 
-            // A genuine identity change (a new token carrying a different uid) must fan out.
             mockRelayGetRelayToken.mockReturnValue({ uid: 'u2', Token: 't2' });
             store.rebuildSessionIdentity();
 
@@ -113,12 +107,8 @@ describe('rebuildSessionIdentity — notify 게이팅 (#8)', () => {
         });
     });
 
-    // The gate now looks at IDENTITY only (ADR-0076 Decision 2). The token swap itself is announced
-    // by the store as `cloud:token`, so this function must stay quiet on a credential refresh where
-    // uid is unchanged — that's the whole point.
     it('cloud 토큰만 교체되고 uid가 그대로면 identity를 알리지 않는다', () => {
         jest.isolateModules(() => {
-            // Activate a cloud session so the cloud token is part of the observable context.
             mockCloudGetSelectedCloudId.mockReturnValue('cloud-1');
             mockCloudGetBackend.mockReturnValue('cloud-backend');
             mockCloudGetWss.mockReturnValue('wss://cloud');
@@ -129,15 +119,11 @@ describe('rebuildSessionIdentity — notify 게이팅 (#8)', () => {
             store.sessionContextStore.getGlobalSessionContext();
             mockNotify.mockClear();
 
-            // A cloud credential refresh replaces the stored token object. The uid does not move, so
-            // the DERIVED identity is unchanged and this function stays quiet — the token change was
-            // already announced as `cloud:token` by `cloudStore.saveCloudToken`.
             mockCloudGetCloudToken.mockReturnValue({ uid: 'u1', Token: 'cloud-t2' });
             store.rebuildSessionIdentity();
 
             expect(mockNotify).not.toHaveBeenCalled();
 
-            // …and a uid change in the cloud token DOES move identity, so that still announces.
             mockCloudGetCloudToken.mockReturnValue({ uid: 'u2', Token: 'cloud-t3' });
             store.rebuildSessionIdentity();
 
@@ -260,7 +246,6 @@ describe('getRelaySessionUser / patchRelaySessionUser — 계정(relay) 프로�
                 email: 'me@relay.io',
                 Token: 'relay-t',
             });
-            // Cloud active: getActiveSessionUser would answer with the cloud record from here on.
             mockCloudGetSelectedCloudId.mockReturnValue('cloud-1');
             mockCloudGetBackend.mockReturnValue('cloud-backend');
             mockCloudGetWss.mockReturnValue('wss://cloud');
@@ -276,7 +261,6 @@ describe('getRelaySessionUser / patchRelaySessionUser — 계정(relay) 프로�
                 photo: 'relay.png',
                 email: 'me@relay.io',
             });
-            // The auth carrier is never part of the display view.
             expect(store.getRelaySessionUser()).not.toHaveProperty('Token');
         });
     });
@@ -342,7 +326,6 @@ describe('getRelaySessionUser / patchRelaySessionUser — 계정(relay) 프로�
     });
 });
 
-// Cloud-active session. `getCloudSessionSnapshot` needs all four cloud fields present.
 const seedCloudActive = () => {
     seedRelayOnly();
     mockCloudGetSelectedCloudId.mockReturnValue('c1');
@@ -381,17 +364,12 @@ describe('getCloudSessionSnapshot — 같은 tick 안의 일관성 (ADR-0076 배
         });
     });
 
-    // This is what A12 fixed. The old implementation called `buildCloudContext()` directly, so if
-    // storage changed while the cache was still alive, only this accessor would see the new value
-    // while other readers saw the stale cached one — the same session answered differently depending
-    // on who asked. Now both go through the cache, so they're guaranteed to agree within the same tick.
     it('캐시가 프라임된 뒤 스토리지가 바뀌어도 다른 독자와 같은 답을 낸다 (notify 없이는 안 움직인다)', () => {
         seedCloudActive();
         jest.isolateModules(() => {
             const store = require('./contextStore');
-            store.sessionContextStore.getGlobalSessionContext(); // prime the cache
+            store.sessionContextStore.getGlobalSessionContext();
 
-            // Storage moves WITHOUT a session notify — nothing may observe it yet.
             mockCloudGetSelectedCloudId.mockReturnValue('c2');
 
             expect(store.sessionContextStore.getCloudSessionSnapshot()?.cloudId).toBe('c1');

@@ -13,44 +13,13 @@ export const getActiveServerContext = (): ActiveServerContext =>
 
 export const getGlobalSessionContext = (): GlobalSessionContext => sessionContextStore.getGlobalSessionContext();
 
-/**
- * The narrowed snapshot for socket-slot derivation — see `SocketSlotContext` in `contextStore.ts`
- * for why it is narrow (ADR-0076 E5).
- */
 export const getSocketSlotContext = (): SocketSlotContext => sessionContextStore.getSocketSlotContext();
 
-// The active session token's user fields — the synchronous seed for useProfileFacts.
 export { getActiveSessionUser };
 
-// The RELAY token's user fields, and the patch that writes them back — the account-level profile
-// source, which must not follow the active slot into a cloud. See contextStore for why the local
-// cache cannot serve this.
 export { getRelaySessionUser, patchRelaySessionUser };
 
-/**
- * The COMMITTED cloud id — the cloud whose tokens are actually in the store, as opposed to
- * `getGlobalSessionContext().cloud.cloudId`, which is the SELECTED id and flips optimistically at the
- * start of a switch (`committed`, one of the three views in ADR-0070 Decision 7).
- *
- * Read off the delegation token rather than recorded separately: `switchCloudSession` writes the
- * delegation token only when the exchange SUCCEEDS, and leaves it untouched on failure/rollback, so
- * its `cloudId` already is "the cloud we are committed to". That also means no backfill — every
- * existing session already has this field (no retroactive migration needed, unlike the risk
- * design doc §Risk 4 was concerned about).
- *
- * `null` means no cloud is committed (relay/default).
- */
 export const getCommittedCloudId = (): string | null => cloudStore.getDelegationToken()?.cloudId ?? null;
 
-/**
- * The place the committed cloud's session is actually on, as its token names it — NOT the selection.
- *
- * The two usually agree, but nothing makes them: a token the server issues without being asked for a
- * place (a credential renewal) re-registers the session on whichever place the server picked, and the
- * selection stays. Anything the server files under "the session's place" — a place invite carries no
- * site of its own — has to check this one.
- *
- * `null` when no cloud is committed, or when the stored token predates the field.
- */
 export const getCommittedSessionSiteId = (): string | null =>
     getCommittedCloudId() ? (cloudStore.getCloudToken()?.$site?.id ?? null) : null;

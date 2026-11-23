@@ -33,18 +33,9 @@ export interface RetryFailureEvent {
 }
 
 export interface RetryHooks {
-    /**
-     * Fired synchronously the moment classification says the request needs a logout — before the
-     * fatal/exhausted checks below. Throwing here aborts the retry loop (the throw propagates out of
-     * `withRetry`, matching the previous `handleAuthError` behavior); a hook that does not throw
-     * lets the loop fall through to the ordinary shouldRetry check.
-     */
     onAuthFailure?: (error: unknown, message: string) => void;
-    /** A non-retryable classification (other than shouldLogout) short-circuited the loop. */
     onFatal?: (event: RetryFailureEvent) => void;
-    /** The final attempt failed and no attempts remain. */
     onExhausted?: (event: RetryFailureEvent & { attempts: number }) => void;
-    /** About to sleep and retry. */
     onRetry?: (event: RetryAttemptEvent) => void;
 }
 
@@ -62,21 +53,17 @@ export const withRetry = async <T>(
         } catch (error) {
             lastError = error;
             const classification = classifyError(error);
-            // Authentication error
             if (classification.shouldLogout) {
                 hooks.onAuthFailure?.(error, `${context} - ${classification.message}`);
             }
-            // A non-retryable error fails immediately
             if (!classification.shouldRetry) {
                 hooks.onFatal?.({ error, message: classification.message });
                 throw error;
             }
-            // last try
             if (attempt === maxRetries) {
                 hooks.onExhausted?.({ error, message: classification.message, attempts: attempt + 1 });
                 throw error;
             }
-            // retry with exponential backoff (1s, 2s, 4s, ...)
             const delay = Math.pow(2, attempt) * 1000;
             hooks.onRetry?.({
                 attempt: attempt + 1,

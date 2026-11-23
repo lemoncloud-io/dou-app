@@ -23,11 +23,6 @@ export const msUntilExpiration = (expiration: unknown, now: number): number | nu
 
 const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 
-/**
- * Decodes a base64url segment to text, or null when it is not one. Written out rather than taken from
- * `atob`: this layer runs outside a browser too, and a JWT payload is plain ASCII JSON, so a byte per
- * character is all the decoding it needs.
- */
 const decodeBase64Url = (segment: string): string | null => {
     let bits = 0;
     let value = 0;
@@ -45,15 +40,6 @@ const decodeBase64Url = (segment: string): string | null => {
     return out;
 };
 
-/**
- * Milliseconds until a token's own `exp` — the JWT claim in seconds — or null when the token is absent
- * or its payload cannot be read. Negative means already lapsed.
- *
- * A cloud token is measured by this, not by an AWS credential: a cloud server answers with an identity
- * token and no credential at all, and nothing signs with a cloud credential anyway. The identity token
- * is what the cloud socket authenticates and refreshes with, so its `exp` is when the stored token
- * stops being usable.
- */
 export const msUntilTokenExpiry = (token: unknown, now: number): number | null => {
     if (typeof token !== 'string') return null;
     const payload = token.split('.')[1];

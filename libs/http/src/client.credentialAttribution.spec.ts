@@ -5,12 +5,6 @@ import { staleCredentialMarker } from './error/credentialStale';
 import type { RequestBuilder, RequestSurface } from './adapters/requestExecutor';
 import type { HttpRoute, HttpRuntimePorts } from './ports';
 
-/**
- * Failure ATTRIBUTION: a signed request that dies with no status, while this route's credential was
- * already past its expiry, is a signature rejection — not the network outage every status-based rule
- * would read it as (the API Gateway 403 carrying it has no CORS header, so the browser withholds the
- * response). What this file pins is which failures earn that verdict and which must not.
- */
 const execute = jest.fn();
 const builder: RequestBuilder = {
     setBody: jest.fn(() => builder),
@@ -23,10 +17,8 @@ const lemonSurface: jest.Mocked<RequestSurface> = {
     buildSignedRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
 };
 
-/** Axios' shape for "the request never came back with a response". */
 const networkError = () => Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' });
 
-/** `.catch(e => e)` hands back `unknown`; the cases below assert on the axios error's own fields. */
 type ThrownAxiosError = Error & { code?: string };
 
 const portsWith = (isCredentialStale?: (route: HttpRoute) => boolean): HttpRuntimePorts => ({
@@ -145,15 +137,11 @@ describe('signed request failure — credential attribution', () => {
         expect(classifyError(error)).toMatchObject({
             type: ErrorType.AUTHENTICATION,
             shouldRetry: false,
-            // Expiry doesn't mean the session is dead — reissuing credentials is the answer, not logging out.
             shouldLogout: false,
             refreshRoute: 'relay',
         });
     });
 
-    // Negative control. What flips the classification is the marker, not the error's shape — this
-    // check used to live paired in `reportCategory.spec.ts`, and moved here when that file was
-    // removed by the automatic error report's retirement (ADR-0073).
     it('표시가 없는 같은 모양의 에러는 그대로 NETWORK다', async () => {
         execute.mockRejectedValue(networkError());
         const client = createHttpClient(
@@ -166,7 +154,6 @@ describe('signed request failure — credential attribution', () => {
             .catch(e => e);
 
         expect(classifyError(error)).toMatchObject({ type: ErrorType.NETWORK, shouldRetry: true });
-        // No reissue target should be named — a connectivity failure shouldn't trigger a refresh.
         expect(classifyError(error).refreshRoute).toBeUndefined();
     });
 

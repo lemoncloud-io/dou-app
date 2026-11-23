@@ -1,9 +1,6 @@
 import { classifyError, ErrorType } from './classify';
 
 describe('classifyError — 서명 오류 분류 (2026-08 session audit §5-6)', () => {
-    // The Error that throwIfApiError creates has no HTTP status — a signature verification
-    // failure used to get classified as UNKNOWN, which made withRetry a runaway booster that
-    // re-signed and retried with the same broken material.
     it.each(['invalid signature', 'Signature Mismatch detected', 'signature is not valid', 'no auth model'])(
         'status 없는 "%s" 에러는 재시도·로그아웃 없이 AUTHENTICATION으로 분류한다',
         message => {
