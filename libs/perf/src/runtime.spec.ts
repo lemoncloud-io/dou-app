@@ -45,7 +45,6 @@ describe('perf runtime', () => {
         const backend = createBackend();
         configurePerfTraces(backend);
 
-        // Started natively 1.5s before the WebView took it over.
         const trace = adoptPerfTrace('chat_room_open', 'native-1', 8_500);
         jest.setSystemTime(10_200);
         trace.mark('mount');

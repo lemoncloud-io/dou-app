@@ -118,7 +118,6 @@ const MOCK = resolve(__dirname, '../../chatic-apps-sdk/src/mock.ts');
 
 describe('verify', () => {
     it('says one thing to fix once, however many scenarios met it', async () => {
-        // A throwaway built page that never shows what its scenario file waits for.
         const root = mkdtempSync(join(tmpdir(), 'chatic-apps-verify-'));
         try {
             mkdirSync(join(root, 'dist/.well-known'), { recursive: true });

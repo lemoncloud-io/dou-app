@@ -63,7 +63,8 @@ makes it a worthwhile target, so moving its release to CI is still open.
 `chatic-apps bundle` packs the build folder into the zip that is handed over: its contents at the top of
 the archive (`index.html`, `.well-known/chatic-app.json`, `assets/…`) and nothing else. Add it as the
 project's `bundle` script, as `verify`; it writes `<project folder>.zip` unless `--out` names another
-file, refuses a folder that is not built or holds a link, and packs the same build to the same bytes —
+file, refuses a folder that is not built or holds a link, refuses an `--out` inside the build folder (the next
+bundle would pack the earlier zip too), and packs the same build to the same bytes —
 entries sorted and dated 1980-01-01. It checks nothing else: run `verify` first.
 
 ## Inside: `check` and `scenarios`

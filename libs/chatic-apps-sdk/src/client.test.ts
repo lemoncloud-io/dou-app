@@ -2,7 +2,6 @@ import { createBridgeClient, SDK_BRIDGE_VERSION } from './client';
 import { ChaticAppsError } from './errors';
 import type { Transport } from './transport';
 
-/** A channel the test plays the app's side of. */
 const fakeTransport = () => {
     const sent: Array<Record<string, any>> = [];
     let listener: ((message: string) => void) | undefined;
@@ -45,7 +44,6 @@ describe('createBridgeClient', () => {
         await expect(pending).resolves.toEqual({ ok: 1 });
     });
 
-    // A refusal comes in two shapes; only `success` and `error.code` decide.
     it.each([
         [
             'from a handler',
@@ -70,7 +68,6 @@ describe('createBridgeClient', () => {
         client.onPush('OnBackPressed', onBack);
 
         deliver({ type: 'OnBackPressed', success: true, data: {}, refId: 'push-1' });
-        // A late reply to a request this client never made is a push nobody listens for.
         deliver({ type: 'OnSetSubWebViewTitle', success: true, data: {}, refId: 'old-load' });
 
         expect(onBack).toHaveBeenCalledTimes(1);
@@ -109,7 +106,6 @@ describe('createBridgeClient', () => {
         await expect(pending).resolves.toEqual({ action: 'sharedAction' });
     });
 
-    // On Android nothing reaches a hidden page; its replies land when it shows again.
     it('holds a timeout while the page is hidden, and gives the reply time to land after', async () => {
         jest.useFakeTimers();
         const { transport, sent, deliver } = fakeTransport();

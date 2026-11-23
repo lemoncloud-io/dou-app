@@ -3,12 +3,6 @@ import { join } from 'node:path';
 
 import { POINTER_LINES, firstLine, shapeOf } from '@chatic/chatic-apps-sdk/internal';
 
-/**
- * This package's README ships in English and in Korean, as the SDK's author documents do, and is held
- * to the same check the SDK's are: the same headings and code blocks, each pointing at the other on
- * its first line. The English file is the canonical one.
- */
-
 const PACKAGE = join(__dirname, '..');
 const read = (file: string) => readFileSync(join(PACKAGE, file), 'utf8');
 

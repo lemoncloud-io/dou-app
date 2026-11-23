@@ -158,7 +158,6 @@ export const verify = async (options: VerifyOptions): Promise<VerifyResult> => {
             for (const issue of result.issues) {
                 const explained = text.issues[issue.kind];
                 const problem = explained.problem(issue);
-                // One thing to fix is said once, however many scenarios met it.
                 if (items.some(item => item.problem === problem && item.where === issue.screen)) continue;
                 items.push({
                     group: SCENARIO_GROUPS[result.name],

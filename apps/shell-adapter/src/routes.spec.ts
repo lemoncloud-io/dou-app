@@ -2,11 +2,6 @@ import { resolveDeepLink, resolvePushTapPath } from 'shell-adapter/mobile-deepli
 
 import { deepLinkNavigation, mobileRoutes, pushTapNavigation } from './routes';
 
-/**
- * The mobile app's own functions, called through the same alias the shell page uses. Nothing else
- * checks them against the app: the types in `mobile.d.ts` are written by hand, so a change in what the
- * app returns for these inputs has to fail here.
- */
 const token = (payload: object) => Buffer.from(JSON.stringify(payload)).toString('base64url');
 
 beforeAll(() => {

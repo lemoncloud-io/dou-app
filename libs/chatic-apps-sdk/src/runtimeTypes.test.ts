@@ -36,10 +36,8 @@ export const typedCalls = async (runtime: ChaticAppsData) => {
     // @ts-expect-error -- a stream is not a call
     await runtime.call('channel.observeList', {});
 
-    // A name this library does not know answers `unknown`, so a typo cannot be read as a row.
     const misspelled = await runtime.call('channel.cacheReadLst', {});
     expectType<Equal<typeof misspelled, unknown>>();
-    // The untyped spelling, with an explicit type, still compiles against a known name.
     const untyped = await runtime.call<{ list: unknown[] }>('channel.cacheReadList', {});
     expectType<Equal<typeof untyped, { list: unknown[] }>>();
 };
@@ -51,7 +49,6 @@ export const typedStreams = async (runtime: ChaticAppsData) => {
     await runtime.subscribe('chat.observeFeedCoverage', ['ch1'], covered => {
         expectType<Equal<typeof covered, (readonly [low: number, high: number])[]>>();
     });
-    // The untyped spelling, with the marker, still compiles.
     await runtime.subscribe('channel.observeItem', ['ch1', LISTENER], () => undefined);
 
     // @ts-expect-error -- wrong argument for a known stream
@@ -67,7 +64,6 @@ export const typedMock: MockData = {
         'channel.cacheRead': id => ({ id, cid: 'c1', sid: 's1', isNotificationEnabled: true }),
         // @ts-expect-error -- an answer of the wrong shape fails here, not in the app
         'channel.cacheReadList': () => ({ list: [] }),
-        // A method this library does not know answers anything.
         'channel.fromANewerApp': () => 'anything',
     },
     streams: {

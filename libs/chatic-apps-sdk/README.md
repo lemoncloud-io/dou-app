@@ -117,7 +117,9 @@ Plus `apps.context` (the app's language, theme, platform — `ios`, `android` or
 
 - **`share`** resolves `'shared'` or `'dismissed'` on iOS. On Android it resolves `'shared'` as soon as
   the chooser opens, whatever the user then does. It needs a non-blank `message` or a `url`; `url` must
-  be `http(s)`; `title`, `message` and `url` are at most 100, 4,000 and 2,048 characters.
+  be `http(s)`; `title`, `message` and `url` are at most 100, 4,000 and 2,048 characters. In a browser,
+  only the user's own cancel resolves `'dismissed'`; any other Web Share failure (no user gesture, a refused
+  payload) falls back to copying the text and resolves `'copied'`.
 - **`link(params)`** takes what the link should carry as an object and gives
   `https://app.chatic.io/apps/<app id>?level=3&seed=7` for `link({ level: 3, seed: 7 })`. A tap opens
   your page in the app **at its root** with that query — read it from `location.search`; a link carries
@@ -131,7 +133,9 @@ Plus `apps.context` (the app's language, theme, platform — `ios`, `android` or
   to another phone. Your site gets 1,048,576 characters in all (keys plus values as JSON) — past it a
   write fails with `QUOTA_EXCEEDED` and changes nothing — keys of 1–200 characters (not `__proto__`),
   and at most 64 KiB in one call (`TOO_LARGE`). A value is written in one call, so one value stays
-  under 64 KiB; split anything bigger across keys.
+  under 64 KiB; split anything bigger across keys. A value must survive JSON: `undefined`, a function or a
+  symbol would be dropped without a word and store nothing, so `set` refuses them with `INVALID` (remove
+  the key instead).
 - **`permissions`** is for the camera and the microphone, which a page uses with the browser's own
   `getUserMedia` — the OS asks the user the first time, under DoU's name, so the user's answer is for
   every page, not yours alone. `query(kind)` reports `'granted'`, `'prompt'` (not asked, or refused and
@@ -141,7 +145,10 @@ Plus `apps.context` (the app's language, theme, platform — `ios`, `android` or
   the OS settings, the way back for `'blocked'`. Ask when the user reaches for the feature, not at
   start, and do not time `request` out: it waits for the user. A page can skip all this and call
   `getUserMedia`; it then meets the prompt in the middle of the capture. In a browser the same calls
-  read and ask the browser's own permission, and `openSettings()` is `NOT_IN_APP`.
+  read and ask the browser's own permission, and `openSettings()` is `NOT_IN_APP`. There, `query` reads
+  `'prompt'` where the browser cannot tell (no Permissions API, or none for that kind), and `request`
+  fails with `INTERNAL_ERROR` when the device is busy or the page is insecure — not an answer from the
+  user, and reading it as `'prompt'` would have the page ask again, forever.
 - **Uncaught errors are reported for you.** `connect()` listens for `error` and `unhandledrejection` and
   sends them to DoU's log. An `Error` sends its message and stack, a string itself, anything else only
   its type. Pass `connect({ reportErrors: false })` to turn it off.
@@ -469,6 +476,11 @@ to DoU's own hub only; your page never receives them.
   `getUserKey()`.
 - **No popups**: `window.open` and `target="_blank"` load in the same view, so a login that answers
   through `window.opener` does not work. Use a redirect login.
+- **Back-forward cache**: a page restored from it keeps its handlers but not its claims, and meets a fresh
+  host. The SDK shakes hands again, takes the context as it is now (the theme may have changed while the
+  page was away) and sets the `onBack` and `onCloseRequest` claims again; data streams end with
+  `DISCONNECTED`, so subscribe again.
+- **Android back without a claim** goes to the view's own history, and closes the view when none is left.
 - **Downloads**: a file download is not handled on iOS, nor on the desktop. Show the content instead.
 - **On the desktop** (`platform: 'desktop'`) the page opens in a window over DoU with a bar: the
   base requests only (`finish`, `setTitle`, error reports), no camera or microphone, and a site that is
