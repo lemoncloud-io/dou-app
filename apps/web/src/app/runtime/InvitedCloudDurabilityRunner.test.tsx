@@ -9,7 +9,6 @@ const cloudRepository = { name: 'cloud-repository' };
 const mockIsNativeApp = jest.fn();
 type ReceivePayload = { notification?: { data?: Record<string, unknown> } };
 let captured: ((payload: ReceivePayload) => void) | undefined;
-// What the app hands the page: the one listener the runner subscribed.
 const mockNotifications = {
     onReceive: (listener: typeof captured) => {
         captured = listener;
@@ -36,13 +35,11 @@ jest.mock('@chatic/runtime', () =>
 const recoverMock = runtime.data.recoverInvitedCloudIfMissing as jest.Mock;
 const isNativeAppMock = mockIsNativeApp;
 
-/** Hands the runner a foreground push, the way the bridge would. */
 const deliver = (data: Record<string, unknown>) => {
     if (!captured) throw new Error('the runner did not subscribe to the notifications');
     captured({ notification: { data } });
 };
 
-/** A foreground push whose cloud id rides in the `payload` JSON string, as chat pushes send it. */
 const receive = (cid: string) => deliver({ payload: JSON.stringify({ cid, channelId: 'ch1' }) });
 
 const mount = () => render(<InvitedCloudDurabilityRunner />);
@@ -108,7 +105,6 @@ describe('InvitedCloudDurabilityRunner', () => {
         receive('cloud_2');
         expect(recoverMock.mock.calls.map(([cid]) => cid)).toEqual(['cloud_1', 'cloud_2']);
 
-        // Once the first settles, a later push for the same cloud is checked again.
         await act(async () => settle());
         receive('cloud_1');
         expect(recoverMock.mock.calls.map(([cid]) => cid)).toEqual(['cloud_1', 'cloud_2', 'cloud_1']);

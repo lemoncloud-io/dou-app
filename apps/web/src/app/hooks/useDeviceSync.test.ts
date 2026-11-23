@@ -21,7 +21,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 
-// The bridge hook is unit-tested on its own; here we only need to drive its handler.
 jest.mock('../bridge', () => ({
     useAppVisibility: jest.fn(),
 }));
@@ -34,8 +33,6 @@ const useAppVisibilityMock = useAppVisibility as jest.Mock;
 const syncDevice = jest.fn();
 const syncStatus = jest.fn();
 
-// Drive the hook by the channel currently matched by the route. The hook matches two patterns
-// (room and thread), so the mock answers per pattern — `surface` picks which one hits.
 const setChannel = (channelId: string | null, surface: 'room' | 'thread' = 'room') =>
     useMatchMock.mockImplementation((pattern: string) => {
         if (!channelId) return null;
@@ -43,7 +40,6 @@ const setChannel = (channelId: string | null, surface: 'room' | 'thread' = 'room
         return isThreadPattern === (surface === 'thread') ? { params: { channelId } } : null;
     });
 
-// Fire the visibility handler captured from the latest render, as the bridge would.
 const emitVisibility = (isForeground: boolean) => {
     const calls = useAppVisibilityMock.mock.calls;
     act(() => calls[calls.length - 1][0](isForeground));
@@ -66,12 +62,10 @@ describe('useDeviceSync — 라우트 기반 viewing 통지', () => {
     it('채널 룸 진입 시 channel 짝으로, 목록 복귀 시 빈 짝으로 통지한다', () => {
         const { rerender } = renderHook(() => useDeviceSync());
 
-        // home → channel A
         setChannel('A');
         rerender();
         expect(syncDevice).toHaveBeenNthCalledWith(1, 'channel', 'A');
 
-        // channel A → home (clear)
         setChannel(null);
         rerender();
         expect(syncDevice).toHaveBeenNthCalledWith(2, '', '');
@@ -89,8 +83,6 @@ describe('useDeviceSync — 라우트 기반 viewing 통지', () => {
         expect(syncDevice).toHaveBeenCalledTimes(2);
     });
 
-    // A thread is the same room from another angle, so the server must keep filtering that
-    // channel's pushes while the user reads one (docs/specs/mobile/push-notification-scenarios.md).
     it('스레드 화면도 그 채널을 viewing으로 통지한다', () => {
         setChannel('A', 'thread');
         renderHook(() => useDeviceSync());
@@ -123,7 +115,6 @@ describe('useDeviceSync — 라우트 기반 viewing 통지', () => {
         const { rerender } = renderHook(() => useDeviceSync());
         expect(syncDevice).not.toHaveBeenCalled();
 
-        // re-auth while still in channel A → re-assert viewing
         useRuntimeSocketStateMock.mockReturnValue({ isVerified: true });
         rerender();
         expect(syncDevice).toHaveBeenCalledWith('channel', 'A');
@@ -140,7 +131,7 @@ describe('useDeviceSync — 가시성 기반 status 통지', () => {
 
     it('백그라운드 전환 시 yellow, 포그라운드 복귀 시 green을 전송한다', () => {
         renderHook(() => useDeviceSync());
-        syncStatus.mockClear(); // drop the initial catch-up green
+        syncStatus.mockClear();
 
         emitVisibility(false);
         expect(syncStatus).toHaveBeenNthCalledWith(1, 'yellow');
@@ -164,7 +155,6 @@ describe('useDeviceSync — 가시성 기반 status 통지', () => {
         emitVisibility(false);
         syncStatus.mockClear();
 
-        // Socket drops: the reconnect never replays status, so the hook must.
         useRuntimeSocketStateMock.mockReturnValue({ isVerified: false });
         rerender();
         expect(syncStatus).not.toHaveBeenCalled();
@@ -180,11 +170,9 @@ describe('useDeviceSync — 가시성 기반 status 통지', () => {
         const { rerender } = renderHook(() => useDeviceSync());
         expect(syncStatus).not.toHaveBeenCalled();
 
-        // Disconnected: a visibility change records intent only — nothing is sent over a dead socket.
         emitVisibility(false);
         expect(syncStatus).not.toHaveBeenCalled();
 
-        // Re-connect → the catch-up asserts the current (yellow) status exactly once.
         useRuntimeSocketStateMock.mockReturnValue({ isVerified: true });
         rerender();
         expect(syncStatus).toHaveBeenCalledTimes(1);
@@ -206,7 +194,7 @@ describe('useDeviceSync — 가시성 기반 viewing 통지', () => {
     it('포그라운드 복귀 시 현재 채널 viewing을 복원한다', () => {
         setChannel('A');
         renderHook(() => useDeviceSync());
-        emitVisibility(false); // clears to ('', '')
+        emitVisibility(false);
         syncDevice.mockClear();
 
         emitVisibility(true);
@@ -226,10 +214,10 @@ describe('useDeviceSync — 가시성 기반 viewing 통지', () => {
     it('백그라운드에서 이미 비운 viewing은 중복 신호로 재통지하지 않는다', () => {
         setChannel('A');
         renderHook(() => useDeviceSync());
-        emitVisibility(false); // ('', '')
+        emitVisibility(false);
         syncDevice.mockClear();
 
-        emitVisibility(false); // same direction — no re-clear
+        emitVisibility(false);
         expect(syncDevice).not.toHaveBeenCalled();
     });
 });

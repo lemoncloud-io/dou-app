@@ -3,7 +3,6 @@ import type { PendingReportInfo } from '@chatic/bridge-messages';
 const mockIsNative = jest.fn(() => true);
 const mockIngestLogEntry = jest.fn();
 
-// Where the `diagnostics` port has the app's queue, the flusher drains it; a watched one stands in for the app's.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
@@ -44,7 +43,6 @@ const report = (overrides: Partial<PendingReportInfo> & { logs?: unknown[] }): P
 const flushNow = async (): Promise<void> => {
     schedulePendingReportFlush();
     jest.advanceTimersByTime(3_000);
-    // Drain the async flush chain.
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -85,14 +83,9 @@ describe('schedulePendingReportFlush', () => {
             tag: 'GLOBAL',
             message: '[native-error] boom',
             source: 'native',
-            // The whole reason this uses `ingest` and not `logger.error`: the crash
-            // happened in a run that is already gone, so dispatch-time stamping
-            // would date it to this boot.
             timestamp: 42,
         });
         expect(entry.error.stack).toBe('Error: boom\n  at native');
-        // Old shells still ship the snapshot, but the delegated send doesn't carry it over —
-        // the uploader already sent the same entry individually.
         expect(entry).not.toHaveProperty('logs');
         expect(mockAckPendingReports).toHaveBeenCalledWith(['a']);
     });
@@ -110,8 +103,6 @@ describe('schedulePendingReportFlush', () => {
 
         await flushNow();
 
-        // A wrong `runId` is worse than a missing one — it folds a dead run's
-        // crash into this one.
         const [entry] = mockIngestLogEntry.mock.calls[0];
         expect(entry.runId).toBeUndefined();
         expect(entry.uid).toBeUndefined();

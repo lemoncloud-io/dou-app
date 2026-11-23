@@ -13,7 +13,6 @@ import {
 } from './useAttachPanelSlot';
 
 let mockNative = true;
-// Whether the frame reports the keyboard's height to the page, as the host's `appShell` port says.
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({
@@ -23,14 +22,9 @@ jest.mock('@chatic/runtime', () => {
     });
 });
 
-/** One frame of the fake clock: jest's fake `requestAnimationFrame` runs every 16 ms. */
 const FRAME_MS = 16;
 const SAFE = 34;
 
-/**
- * The shell's keyboard: a write of `--keyboard-height` to the root's inline style, as its injection
- * script does. The memory hook hears it a microtask later, so the write is flushed before going on.
- */
 const keyboard = async (px: number) => {
     await act(async () => {
         document.documentElement.style.setProperty('--keyboard-height', `${px}px`);
@@ -40,11 +34,6 @@ const keyboardHeight = () => parseFloat(document.documentElement.style.getProper
 
 const advance = (ms: number) => act(() => jest.advanceTimersByTime(ms));
 
-/**
- * The hook with what the page and the kit hand it: a composer field to focus, the composer's bar it
- * writes the panel's share of the padding on, and the panel's handle — its sliding surface and the
- * `settle` that tells it a slide is over.
- */
 const setup = () => {
     const field = document.createElement('textarea');
     const composer = document.createElement('div');
@@ -57,18 +46,13 @@ const setup = () => {
     );
     hook.result.current.panel.ref.current = { surface, settle };
 
-    /** px the composer keeps clear for the panel. */
     const inset = () => parseFloat(composer.style.getPropertyValue(ATTACH_INSET_VAR)) || 0;
-    /** How far below its place the panel is drawn, in % of its own height; null where nothing was written. */
     const below = () => {
         const match = /^translateY\((-?[\d.e-]+)%\)$/.exec(surface.style.transform);
         return match ? parseFloat(match[1]) : null;
     };
-    /** Where the composer's bottom actually sits: it pads by the larger of the keyboard and the panel. */
     const offset = () => Math.max(keyboardHeight(), inset());
-    /** The panel's whole height: the body the slot measured, and the safe area under it. */
     const whole = () => hook.result.current.panel.height + SAFE;
-    /** Each frame of the next `count`, as drawn: [panel % below its place, composer inset]. */
     const frames = (count: number) =>
         Array.from({ length: count }, () => {
             jest.advanceTimersByTime(FRAME_MS);
@@ -77,7 +61,6 @@ const setup = () => {
     return { field, composer, surface, settle, onComposerSlide, inset, below, offset, whole, frames, ...hook };
 };
 
-/** Each frame drew the panel's top edge and the composer's from one position: they never part. */
 const expectTogether = (drawn: readonly (readonly [number, number])[], whole: number) => {
     for (const [below, inset] of drawn) expect(inset).toBeCloseTo((1 - below / 100) * whole, 6);
 };
@@ -104,8 +87,6 @@ describe('COMPOSER_PADDING_BOTTOM', () => {
     });
 });
 
-// The keyboard memory lasts for the page's life: from the first test that shows a keyboard on, every
-// panel opens at 336 (302 + the 34 safe area).
 describe('useAttachPanelSlot — opening', () => {
     it('slides up with no keyboard, moving the panel and the composer together on every frame', () => {
         const { result, below, inset, whole, frames, settle, onComposerSlide } = setup();
@@ -114,7 +95,6 @@ describe('useAttachPanelSlot — opening', () => {
 
         expect(result.current.open).toBe(true);
         expect(result.current.panel).toMatchObject({ open: true, enter: 'slide', height: PANEL_FALLBACK_HEIGHT });
-        // The slide's first frame is drawn in the commit that opens it: below its place, nothing held.
         expect(below()).toBe(100);
         expect(inset()).toBe(0);
         expect(onComposerSlide.mock.calls).toEqual([[true]]);
@@ -122,12 +102,10 @@ describe('useAttachPanelSlot — opening', () => {
         const drawn = frames(Math.ceil(SLIDE_MS / FRAME_MS) + 1);
 
         expectTogether(drawn, whole());
-        // Rising all the way, on the slide's curve: most of the way in its first half.
         const insets = drawn.map(([, value]) => value);
         expect(insets).toEqual([...insets].sort((a, b) => a - b));
         expect(insets[Math.floor(insets.length / 2)]).toBeGreaterThan(whole() * 0.75);
         expect(drawn.at(-1)).toEqual([0, whole()]);
-        // Over: the panel is told, and the page stops following frame by frame.
         expect(settle).toHaveBeenCalledTimes(1);
         expect(onComposerSlide.mock.calls).toEqual([[true], [false]]);
     });
@@ -141,12 +119,10 @@ describe('useAttachPanelSlot — opening', () => {
 
         expect(result.current.panel).toMatchObject({ open: true, enter: 'instant', height: 302 });
         expect(offset()).toBe(before);
-        // The panel puts itself in place: the slot draws nothing on it, now or on a later frame.
         jest.advanceTimersByTime(SLIDE_MS);
         expect(below()).toBeNull();
         expect(onComposerSlide).not.toHaveBeenCalled();
         expect(settle).not.toHaveBeenCalled();
-        // The keyboard slides away and reveals the panel, which holds the composer where it was.
         await keyboard(0);
         expect(offset()).toBe(before);
     });
@@ -192,8 +168,6 @@ describe('useAttachPanelSlot — the field takes focus', () => {
 
         act(() => result.current.handOver());
 
-        // Closed as far as the person is concerned — the + is back, the pick moves above the field —
-        // but still in place, and still holding the composer up.
         expect(result.current.open).toBe(false);
         expect(result.current.panel.open).toBe(true);
         expect(inset()).toBe(held);
@@ -206,7 +180,6 @@ describe('useAttachPanelSlot — the field takes focus', () => {
         await advance(1);
 
         expect(result.current.panel).toMatchObject({ open: false, exit: 'instant' });
-        // Gone in the same commit, with nothing sliding: the keyboard holds the composer from here.
         expect(inset()).toBe(0);
         expect(offset()).toBe(336);
         expect(onComposerSlide).not.toHaveBeenCalled();
@@ -221,7 +194,6 @@ describe('useAttachPanelSlot — the field takes focus', () => {
         await keyboard(336);
         await advance(200);
 
-        // The height came in time: the wait gave way to the cover, which is still running.
         expect(result.current.panel.open).toBe(true);
         await advance(KEYBOARD_COVER_MS);
         expect(result.current.panel).toMatchObject({ open: false, exit: 'instant' });
@@ -250,19 +222,15 @@ describe('useAttachPanelSlot — the field takes focus', () => {
 
     it('counts only a keyboard arriving after the focus, not one still reported from before', async () => {
         const { result } = setup();
-        // A keyboard on its way down: + was pressed with it up, and its 0 has not come yet.
         await keyboard(336);
         act(() => result.current.show());
         act(() => result.current.handOver());
 
-        // The shell writes the root's style again with the old height still in it — every injection
-        // writes all its variables — which is no keyboard arriving.
         await act(async () => {
             document.documentElement.style.setProperty('--safe-bottom', '34.5px');
         });
         await advance(KEYBOARD_COVER_MS + 100);
         expect(result.current.panel.open).toBe(true);
-        // It goes down, and the one the focus raised comes up.
         await keyboard(0);
         await keyboard(336);
         await advance(KEYBOARD_COVER_MS);
@@ -305,7 +273,6 @@ describe('useAttachPanelSlot — the field takes focus', () => {
         act(() => result.current.show());
         await advance(KEYBOARD_WAIT_MS + KEYBOARD_COVER_MS);
 
-        // In place all along, under the keyboard the + now drops, and the handover's timers are gone.
         expect(result.current.open).toBe(true);
         expect(result.current.panel).toMatchObject({ open: true, enter: 'instant' });
     });
@@ -351,12 +318,10 @@ describe('useAttachPanelSlot — closing', () => {
 
         act(() => result.current.hide());
 
-        // Drawn again where it stood: no jump to either end.
         expect([below(), inset()]).toEqual([reachedBelow, reachedInset]);
         const down = frames(Math.ceil(SLIDE_MS / FRAME_MS) + 1);
         expectTogether(down, whole());
         expect([below(), inset()]).toEqual([100, 0]);
-        // One movement, start to stop, and only the close it ended on is settled.
         expect(onComposerSlide.mock.calls).toEqual([[true], [false]]);
         expect(settle).toHaveBeenCalledTimes(1);
     });
@@ -370,7 +335,6 @@ describe('useAttachPanelSlot — closing', () => {
         await keyboard(336);
         await advance(KEYBOARD_COVER_MS);
 
-        // The keyboard arriving now is no handover's to finish: the slide down runs its course.
         expect(result.current.panel).toMatchObject({ open: false, exit: 'slide' });
         act(() => result.current.show());
         await advance(KEYBOARD_WAIT_MS);
@@ -387,13 +351,11 @@ describe('useAttachPanelSlot — closing', () => {
         settle.mockClear();
         await keyboard(336);
 
-        // + with the keyboard up while the panel is on its way down: in place at once.
         act(() => result.current.show());
 
         expect(result.current.panel).toMatchObject({ open: true, enter: 'instant' });
         expect(inset()).toBe(whole());
         expect(onComposerSlide.mock.calls).toEqual([[false]]);
-        // The slide down is over for good: no later frame draws on.
         frames(Math.ceil(SLIDE_MS / FRAME_MS) + 1);
         expect(inset()).toBe(whole());
         expect(settle).not.toHaveBeenCalled();
@@ -436,7 +398,6 @@ describe('useAttachPanelSlot — reduced motion', () => {
 
         expect(inset()).toBe(0);
         jest.advanceTimersByTime(SLIDE_MS);
-        // The panel puts itself in place, or takes itself away, as for any instant change.
         expect(below()).toBeNull();
         expect(onComposerSlide).not.toHaveBeenCalled();
     });

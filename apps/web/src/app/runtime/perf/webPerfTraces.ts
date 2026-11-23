@@ -15,64 +15,31 @@ import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 import type { Logger } from '@chatic/logger';
 import type { PerfTelemetryRecorder, PerfTraceBackend } from '@chatic/perf';
 
-/**
- * Forwards traces to the native shell, where Firebase Performance records them.
- *
- * Each end is posted the moment it happens because Firebase times a trace itself. No logging on
- * this path: it is a bridge send, and a log line here would ride the same bridge back out.
- */
 export const bridgePerfTraceBackend: PerfTraceBackend = {
     start: ({ id, name }) => appBridge.startPerfTrace({ id, name }),
     stop: ({ id, name, attributes, metrics }) => appBridge.stopPerfTrace({ id, name, attributes, metrics }),
 };
 
-/**
- * The log pipeline's recorder for traces, set by the telemetry runtime once it has the run's
- * sampling policy. Until then — and in every build where nobody sets it — the pipeline branch
- * records nothing, which is the "statistics off" default.
- */
 let pipelineRecorder: PerfTelemetryRecorder | undefined;
 
 export const setPerfTelemetryRecorder = (recorder: PerfTelemetryRecorder | undefined): void => {
     pipelineRecorder = recorder;
 };
 
-/**
- * The pipeline branch every host gets. Reads the recorder on each stop, so it can arrive late, and
- * stamps who holds the session on the traces the catalog compares between the two ways of running.
- */
 export const pipelinePerfTraceBackend: PerfTraceBackend = new PipelinePerfTraceBackend(
     () => pipelineRecorder,
     () => ({ [SESSION_OWNER_ATTRIBUTE]: readLaunchSessionOwner() })
 );
 
-/**
- * Turns tracing on for this WebView, before its destination is known.
- *
- * Returns the one decision left: once the WebAppReady report arrives, `resolveWith` points every
- * trace — the ones already held and all later ones — at the destinations this host has:
- *
- * - the app: Firebase over the bridge (cut down to exactly what Firebase has always received)
- *   **and** the log pipeline, side by side;
- * - a plain browser tab (`null` report): the log pipeline alone.
- *
- * The deferring buffer wraps the whole fan-out, so held calls reach both branches in one order.
- *
- * `logger` and `runId` are no longer read — the old log fallback that used them is gone, and the
- * pipeline's sampling follows the server's policy instead of a constant — and are kept only so the
- * boot code calling this need not change in the same step.
- */
 export const configureWebPerfTraces = (_options: { logger?: Logger; runId?: string } = {}) => {
     const deferred = new DeferredPerfTraceBackend();
     configurePerfTraces(deferred);
     let resolved = false;
 
     return {
-        /** Whether traces still wait in the hold for `resolveWith`, which caps how many it keeps. */
         isHeld: (): boolean => !resolved,
         resolveWith(report: OnWebAppReadyPayload | null): void {
             resolved = true;
-            // An app below the version floor stops at the update screen and may not handle the traces.
             const traced = report && !isBelowAppVersionFloor(readShellVersion());
             deferred.resolve(
                 traced

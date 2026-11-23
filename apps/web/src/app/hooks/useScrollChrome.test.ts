@@ -2,7 +2,6 @@ import { act, renderHook } from '@testing-library/react';
 
 import { scrollChromeOf, useScrollChrome } from './useScrollChrome';
 
-// jsdom lays nothing out, so each box is given the one coordinate the hook reads.
 const boxAt = <T extends HTMLElement>(el: T, top: number): T => {
     el.getBoundingClientRect = () => ({ top }) as DOMRect;
     return el;
@@ -61,7 +60,6 @@ describe('useScrollChrome', () => {
     });
 
     it('measures the anchor against the container, not the viewport', () => {
-        // Container top at 100: an anchor at 140 is 40 below it, at 100 it has arrived.
         const { view, scrollTo } = setUp(160);
 
         scrollTo(20, 140);
@@ -97,8 +95,6 @@ describe('useScrollChrome', () => {
             act(() => view.result.current.track(container));
         }
 
-        // React may render once more before it settles on the unchanged state; what matters is that
-        // twenty scroll events do not cost twenty renders.
         expect(renders - afterFirstFlip).toBeLessThanOrEqual(1);
     });
 });

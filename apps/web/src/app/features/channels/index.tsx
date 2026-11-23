@@ -15,12 +15,8 @@ import {
 export const ChannelRoutes = () => {
     return (
         <>
-            {/* The room's one audio player, above the routes so moving between the room, a thread,
-                an audio file and the file list never interrupts it; leaving the channel stops it. */}
             <RoomAudioHost />
             <Routes>
-                {/* Static, so it outranks `:channelId` — and it is one segment deep where every
-                    other route here is two, so the two cannot meet. */}
                 <Route path="start-dm" element={<CloudDmPickerPage />} />
                 <Route path=":channelId/room" element={<ChannelRoomPage />} />
                 <Route path=":channelId/thread/:rootNo" element={<ThreadPage />} />

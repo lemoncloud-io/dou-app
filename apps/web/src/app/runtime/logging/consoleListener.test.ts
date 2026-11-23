@@ -40,8 +40,6 @@ describe('attachConsoleListener — 실행당 콘솔 하나', () => {
     });
 
     it('하이브리드 dev에서는 찍는다 — 웹 debug를 볼 곳이 여기뿐이다', () => {
-        // debug never crosses the bridge (principle 13), so it can't show up in the app console.
-        // There's no exception in release, so "one console per run" is upheld where it's costly to.
         mockIsNative = true;
 
         detach = attachConsoleListener({ isDev: true });

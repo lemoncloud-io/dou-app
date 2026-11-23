@@ -9,12 +9,6 @@ import { useChannelJoins } from './useChannelJoins';
 import { useChannelMembers } from './useChannelMembers';
 import { useChannelProfiles } from './useChannelProfiles';
 
-/**
- * Names a message's sender the way the room's rows do (`resolveChatOwnerName`: the room's place
- * profile, then the member's nick and name, then the row's own snapshot) — for the screens that show
- * one of the room's files outside the room, so the detail and the file list never name a person
- * differently from the bubble they came from.
- */
 export const useRoomSenderName = (channel: DomainChannel | null | undefined, uid: string | undefined) => {
     const { t } = useTranslation();
     const { selectedSiteId } = runtime.session.useSessionSelection();

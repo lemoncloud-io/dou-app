@@ -4,7 +4,6 @@ import { __resetUrlMetadataCache, requestUrlMetadata as request, useUrlMetadata 
 
 const mockIsNative = jest.fn();
 const fetchUrlMetadata = jest.fn();
-// The app's preview reader where the host has one; a browser has none.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
@@ -107,12 +106,9 @@ describe('requestUrlMetadata', () => {
         }
         expect(fetchUrlMetadata).toHaveBeenCalledTimes(500);
 
-        // Fills the cap, pushing out /0.
         await requestUrlMetadata('https://example.com/500');
-        // /499 is still cached...
         await requestUrlMetadata('https://example.com/499');
         expect(fetchUrlMetadata).toHaveBeenCalledTimes(501);
-        // ...but /0 was evicted and has to be fetched again.
         await requestUrlMetadata('https://example.com/0');
         expect(fetchUrlMetadata).toHaveBeenCalledTimes(502);
     });
@@ -160,7 +156,6 @@ describe('useUrlMetadata', () => {
         unmount();
         resolve(ok('https://example.com/a'));
 
-        // An update after unmount would surface as a console error from React.
         await waitFor(() => expect(fetchUrlMetadata).toHaveBeenCalled());
     });
 });

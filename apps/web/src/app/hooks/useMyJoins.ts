@@ -6,34 +6,9 @@ import type { CloudPartition } from './useAccessiblePlaceIds';
 import { useSelectedCloudId } from './useCloudScope';
 
 interface UseMyJoinsOptions {
-    /**
-     * Register a per-channel join (read-state) sync while mounted (default true). Set false for
-     * observe-only consumers so registration stays SCOPED to the surface that wants it and is torn
-     * down the moment that surface unmounts — otherwise the always-mounted shared observation would
-     * keep the registrations alive on every route. See {@link useJoinSyncRegistration}.
-     */
     sync?: boolean;
 }
 
-/**
- * Registers a join (read-state) sync for MY cursor on every channel in `channels`, for as long as
- * the calling surface is mounted. A join registration refcounts by `${channelId}@${uid}`, so overlapping
- * registrations (the room registering every member, home registering me) dedup into one poll.
- *
- * The targets are the selected cloud's, named explicitly, and `uid` is the one this account has in
- * THAT cloud. Every cloud gives the account a different uid, and the session's uid is only the
- * committed cloud's — during a switch the selection has already moved and the session has not, so a
- * join id built from it would name somebody else's row in the new cloud. The effect re-runs on that
- * per-cloud uid for the same reason `useSyncTarget` does: a target only runs while the uid it was
- * tagged with is still the account's uid there, so an account change retires it. It waits for that
- * cloud's own slot rather than the active one, because that is where the target runs.
- *
- * Split out of {@link useMyJoins} because the two halves have different owners: the join MAP is
- * observed once for the whole app (`ActiveCloudDataProvider`), while REGISTRATION must stay scoped
- * to the screen that wants it so it tears down on navigation. A surface that needs both now takes
- * the map from the shared context and calls this hook, instead of opening a second observer per
- * channel to get the registration as a side effect.
- */
 export const useJoinSyncRegistration = (
     channels: DomainChannel[],
     { enabled = true }: { enabled?: boolean } = {}
@@ -51,65 +26,33 @@ export const useJoinSyncRegistration = (
             runtime.sync.registerSyncTarget({ type: 'join', id: `${id}@${uid}` }, { cid })
         );
         return () => disposers.forEach(dispose => dispose());
-        // channelKey captures the set; channelIds is read once per key.
     }, [channelKey, cid, uid, verified, enabled]);
 };
 
-/**
- * Loads MY join (read cursor) for every channel in `channels` so unread badges read the subscribed
- * join list rather than each channel's embedded `$join` snapshot — the embedded copy lags the live
- * read state (a room read advances the join cache immediately, but `channel.$join` only catches up
- * on the next channel sync).
- *
- * The app mounts this ONCE, observe-only, inside `ActiveCloudDataProvider` — every badge surface
- * reads that shared map instead of opening its own observers (see {@link ActiveCloudData}). Screens
- * that additionally want MY cursor kept live call {@link useJoinSyncRegistration} for their own
- * channel set. The chat room separately registers every member's join while open (useJoinPositions)
- * for read receipts; a join registration refcounts by key, so any overlapping registration dedups.
- *
- * Returns a channelId → my {@link DomainJoin} map; channels with no synced join row are simply
- * absent (the consumer treats them as "no read boundary yet").
- */
 export const useMyJoins = (channels: DomainChannel[], options: UseMyJoinsOptions = {}): Map<string, DomainJoin> => {
     const { sync: shouldSync = true } = options;
-    // The observation is scoped to the selected cloud, so "my row" is the row with my uid IN that
-    // cloud — see useJoinSyncRegistration for why the session uid is the wrong one mid-switch.
     const cid = useSelectedCloudId();
     const uid = runtime.session.useUidInCloud(cid) ?? undefined;
 
-    // Registration is a separate hook so a surface can own it WITHOUT opening its own observers —
-    // home reads the shared cloud-wide join map (ActiveCloudDataProvider) and calls that hook
-    // directly. `enabled: false` here keeps the observe-only contract of `sync: false`.
     useJoinSyncRegistration(channels, { enabled: shouldSync });
 
     return useCloudJoins(channels, { cid, uid });
 };
 
-/**
- * MY join row per channel of a named cloud, observe-only — {@link useMyJoins} without the
- * registration, for a cloud that may not be the selected one. Registration is left out on purpose:
- * a sync target runs on its cloud's socket, and a cloud off screen is kept current by its background
- * receive loop instead, which writes channel rows (with their `$join`), never join rows.
- */
 export const useCloudJoins = (channels: DomainChannel[], { cid, uid }: CloudPartition): Map<string, DomainJoin> => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
 
     const [joinByChannel, setJoinByChannel] = useState<Map<string, DomainJoin>>(new Map());
 
-    // Stable channel-id key so the effects only re-run when the channel set actually changes,
-    // not on every render's new array identity.
     const channelIds = channels.map(ch => ch.id);
     const channelKey = channels.map(ch => `${ch.id}:${ch.sid ?? ''}`).join(',');
     const channelById = useMemo(() => new Map(channels.map(channel => [channel.id, channel] as const)), [channelKey]);
 
-    // Observe the join cache per channel and collect my join row into the channelId → join map.
-    // A shared mutable map is rebuilt into a fresh identity on each emit so consumers re-render.
     const mapRef = useRef(new Map<string, DomainJoin>());
     useEffect(() => {
         if (!joinRepository || !uid) return;
         const current = mapRef.current;
         const activeIds = new Set(channelIds);
-        // Drop cursors for channels no longer in the set so stale entries can't linger.
         for (const id of current.keys()) {
             if (!activeIds.has(id)) current.delete(id);
         }

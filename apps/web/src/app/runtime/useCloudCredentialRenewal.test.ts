@@ -1,14 +1,5 @@
 import { renderHook } from '@testing-library/react';
 
-/**
- * The deadline/renew BODY is runtime-core's `CloudCredentialGuard` (started by
- * `runtime.session.useCloudCredentialGuard`; its own tests cover the margin, the offline skip, the
- * self-arming timer and the failure path).
- *
- * apps/web's POLICY is the one thing here: the WebView foreground trigger the hub cannot see, and
- * NOT gating it on the cloud socket — unlike the relay half, cloud renewal is a re-issue over relay
- * HTTP, so a dead cloud socket is the reason to renew rather than a reason to wait.
- */
 const mockGuard = jest.fn(() => ({ check: mockCheck }));
 const mockCheck = jest.fn();
 const mockPairedCheck = jest.fn();

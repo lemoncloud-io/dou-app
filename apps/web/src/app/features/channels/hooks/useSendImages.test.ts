@@ -13,7 +13,6 @@ jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({
         data: { useSendImages: jest.fn(() => ({})), waitForCloudSocket: jest.fn() },
-        // The host's media port: the app's video conversion when the case runs in the app, none in a browser.
         get media() {
             return mockNative
                 ? { ...testing.browserMedia(), kind: 'shell', videoConverter: { prepare: jest.fn() } }

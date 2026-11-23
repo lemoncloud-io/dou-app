@@ -7,38 +7,6 @@ interface ReadCount {
     unreadCount: number;
 }
 
-/**
- * Per-message read positions for a channel. Kept entirely in this hook so the shared
- * data/cache layers stay untouched.
- *
- * `activeMemberIds` is the active-membership set (join rows with `joined !== 0`), derived
- * upstream in {@link useChannelJoins}. It is the unread denominator (total active members).
- *
- * `memberIds` is the FULL channel roster (channel.memberIds + me). The room registers a join
- * (read-state) sync for EVERY member off this set so all participants' read cursors stay live
- * while the room is mounted — the home surface (useJoinSyncRegistration) only keeps MY join
- * current, which
- * leaves other members' cursors stale for read receipts. A join registration refcounts by key, so
- * re-registering my own join here dedups with the home registration (no double polling).
- *
- * `isMember` gates that registration (see `isChannelMember`). The server refuses another member's
- * join to anyone outside the channel, so a room I am not in — somebody else's self-chat reached
- * through a stale push, a group URL I never joined — must not poll its roster: every id would
- * come back 403 and raise a server-side alarm. Until membership is known nothing is registered;
- * the effect re-runs on the false→true edge like it does for verification.
- *
- * `cid` is the cloud the channel belongs to. The targets are registered for it by name and wait for
- * its own slot, so a registration made while the selection is moving cannot land on the other cloud.
- *
- * `cursorByUser` (userId → `max(readNo, chatNo)`) comes from {@link useChannelJoins}, the screen's
- * single join observer — this hook no longer observes the join cache itself. What stays here is the
- * registration above plus the counting below, which is the part nothing else wants.
- *
- * `getReadCount(chatNo)` returns how many active members have read up to `chatNo` vs. not
- * yet; a member whose join row hasn't synced yet counts as unread until it lands. A
- * message's own sender has necessarily read it (sending auto-advances their cursor), so
- * they never inflate the unread count.
- */
 export const useJoinPositions = (
     cid: string,
     channelId: string | null,
@@ -48,16 +16,8 @@ export const useJoinPositions = (
     isMember: boolean
 ) => {
     const isVerified = runtime.connection.useCloudVerified(cid);
-    // Targets are tagged with the uid the account has in their cloud and only run while it still
-    // matches, so an account change must re-register them — see the same note in `useSyncTarget`.
-    // The ids below embed OTHER members' uids, but the tag that matters is MINE in this cloud.
     const uid = runtime.session.useUidInCloud(cid);
 
-    // Register a join (read-state) sync for every channel member so all read cursors stay live
-    // while the room is mounted. Network-bound, so gated on isVerified (auto-retries on the
-    // false→true edge after re-auth/reconnect), and permission-bound, so gated on isMember (the
-    // server answers 403 for a non-member). memberKey represents the member set so the effect
-    // only re-runs when the roster actually changes (memberIds read once per key).
     const memberKey = memberIds.join(',');
     useEffect(() => {
         if (!channelId || !isVerified || !isMember || memberIds.length === 0) return;
@@ -81,7 +41,6 @@ export const useJoinPositions = (
         [activeMemberIds, cursorByUser, memberCount]
     );
 
-    /** The active members whose cursor has reached `chatNo` — the faces the group receipt shows. */
     const getReaders = useCallback(
         (chatNo: number): string[] => activeMemberIds.filter(userId => (cursorByUser.get(userId) ?? 0) >= chatNo),
         [activeMemberIds, cursorByUser]

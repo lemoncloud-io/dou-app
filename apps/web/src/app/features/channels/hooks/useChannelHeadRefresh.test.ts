@@ -25,7 +25,6 @@ const pageUpTo = (latestNo: number) => ({ fetchedCount: 1, latestNo, total: late
 
 const base: ChannelHeadRefreshParams = { channelId: 'ch-1', channelChatNo: 5, cachedNewestNo: 4, isCacheRead: true };
 
-// Renders and lets the fetch chain (two awaits deep at most) settle.
 const render = async (initial: ChannelHeadRefreshParams) => {
     let hook!: ReturnType<typeof renderHook<void, ChannelHeadRefreshParams>>;
     await act(async () => {
@@ -82,7 +81,6 @@ describe('useChannelHeadRefresh', () => {
 
     it('asks once per number, even while the cache never catches up to it', async () => {
         const hook = await render(base);
-        // A cache emission that did not bring the number in (it was a deleted message, say).
         await hook.rerender({ ...base, cachedNewestNo: 4 });
         await hook.rerender({ ...base });
 
@@ -99,7 +97,6 @@ describe('useChannelHeadRefresh', () => {
     });
 
     it('sends one fresh request when the joined page stops short of the number', async () => {
-        // A page that finished just before the number moved, handed back to a joining caller.
         fetchRoomFeed.mockResolvedValueOnce(pageUpTo(4)).mockResolvedValueOnce(pageUpTo(5));
 
         await render(base);
@@ -113,7 +110,6 @@ describe('useChannelHeadRefresh', () => {
         fetchRoomFeed.mockReturnValueOnce(new Promise(resolve => (answer = resolve)));
         const hook = await render(base);
 
-        // A push brings the row in before the joined page comes back without it.
         await hook.rerender({ ...base, cachedNewestNo: 5 });
         await act(async () => {
             answer(pageUpTo(4));
@@ -145,7 +141,6 @@ describe('useChannelHeadRefresh', () => {
         fetchRoomFeed.mockReturnValueOnce(new Promise(resolve => (answer = resolve)));
         const hook = await render(base);
 
-        // The next room is level with its record, so it asks for nothing itself.
         await hook.rerender({ ...base, channelId: 'ch-2', channelChatNo: 3, cachedNewestNo: 3 });
         await act(async () => {
             answer(pageUpTo(4));
@@ -159,7 +154,6 @@ describe('useChannelHeadRefresh', () => {
         const hook = await render(base);
         expect(fetchRoomFeed).toHaveBeenCalledTimes(1);
 
-        // The next chance: any change to either side re-runs the check.
         await hook.rerender({ ...base, cachedNewestNo: 3 });
 
         expect(fetchRoomFeed).toHaveBeenCalledTimes(2);

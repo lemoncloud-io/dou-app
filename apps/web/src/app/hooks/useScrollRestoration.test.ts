@@ -2,11 +2,6 @@ import { renderHook } from '@testing-library/react';
 
 import { stashScroll, useScrollRestoration } from './useScrollRestoration';
 
-// Mirrors the sequencing `useChatScroll.test.ts` uses for its own restoration cases: the container
-// is attached AFTER the initial render (nothing is mounted yet to attach it to), so the apply
-// effect must be given a REAL `ready` transition afterwards to see it — attaching the ref and then
-// re-rendering with an UNCHANGED `ready` does nothing, since React skips an effect whose deps
-// didn't change.
 const mount = (key: string | null | undefined, scrollHeight = 2000, clientHeight = 500) => {
     const container = document.createElement('div');
     Object.defineProperty(container, 'scrollHeight', { value: scrollHeight, configurable: true });
@@ -20,10 +15,6 @@ const mount = (key: string | null | undefined, scrollHeight = 2000, clientHeight
 };
 
 describe('useScrollRestoration', () => {
-    // Test ids are unique per case: the memory is a module-level map keyed by string, and an
-    // unmount re-populates it (RTL's automatic cleanup included), so reusing an id would leak one
-    // test's state into the next.
-
     it('applies a saved offset once `ready`, not before', () => {
         stashScroll('r-basic', -640);
         const { container, becomeReady } = mount('r-basic');
@@ -49,7 +40,7 @@ describe('useScrollRestoration', () => {
     it('is a no-op end to end when key is null/undefined', () => {
         const { view, container, becomeReady } = mount(undefined);
 
-        view.result.current.onScroll(); // reads containerRef — must not throw or write anywhere
+        view.result.current.onScroll();
         expect(view.result.current.hasPendingRestore()).toBe(false);
         becomeReady();
         expect(container.scrollTop).toBe(0);
@@ -68,8 +59,6 @@ describe('useScrollRestoration', () => {
         expect(second.container.scrollTop).toBe(-820);
     });
 
-    // Without `manualConsume`, the hook clears the pending claim itself once applied — a caller
-    // with no competing scroll behaviour (a plain list) needs no extra step.
     it('auto-clears the pending claim once applied by default', () => {
         stashScroll('r-auto', -300);
         const { view, becomeReady } = mount('r-auto');
@@ -78,8 +67,6 @@ describe('useScrollRestoration', () => {
         expect(view.result.current.hasPendingRestore()).toBe(false);
     });
 
-    // With `manualConsume`, the claim survives the apply so a caller with a competing effect (an
-    // auto-scroll pin) can check it in ITS OWN commit before releasing it.
     it('keeps the pending claim visible after applying it when manualConsume is set', () => {
         stashScroll('r-manual', -300);
         const container = document.createElement('div');
@@ -101,18 +88,16 @@ describe('useScrollRestoration', () => {
 
     it('does not apply against a container with nothing to scroll (scrollHeight <= clientHeight)', () => {
         stashScroll('r-short', -300);
-        const { container, becomeReady } = mount('r-short', 200, 500); // shorter than the viewport
+        const { container, becomeReady } = mount('r-short', 200, 500);
 
         becomeReady();
         expect(container.scrollTop).toBe(0);
     });
 
-    // A claim taken on mount but never applied (unmounted before `ready`) must go back untouched —
-    // not be overwritten with whatever the container defaults to.
     it('hands an unspent claim back on an early unmount instead of losing it', () => {
         stashScroll('r-strict', -300);
         const first = mount('r-strict');
-        first.view.unmount(); // never called becomeReady — the claim was never applied
+        first.view.unmount();
 
         const second = mount('r-strict');
         second.becomeReady();
@@ -120,12 +105,9 @@ describe('useScrollRestoration', () => {
         expect(second.container.scrollTop).toBe(-300);
     });
 
-    // The claim stays unspent while the list is too short to scroll; once it grows (with `ready`
-    // already true, so no retry) the reader scrolls it. That position is newer than the claim and
-    // must be what the next visit gets.
     it('keeps a position scrolled during the visit over a claim that was never applied', () => {
         stashScroll('r-newer', 640);
-        const first = mount('r-newer', 200, 500); // too short: the claim stays pending
+        const first = mount('r-newer', 200, 500);
         first.becomeReady();
         expect(first.container.scrollTop).toBe(0);
 

@@ -21,8 +21,6 @@ const syncChannelUsers = jest.fn();
 const join = (userId: string, joined: number, fields: Partial<DomainJoin> = {}): DomainJoin =>
     ({ userId, joined, ...fields }) as unknown as DomainJoin;
 
-// Seed the user observe stream to emit synchronously and return a disposer spy. Join rows are NOT
-// observed here any more — the screen observes them once (useChannelJoins) and passes them in.
 const seedUsers = (rows: Array<{ id: string }>) =>
     userObserveList.mockImplementation((_q, cb) => {
         cb({ list: rows });
@@ -55,9 +53,6 @@ describe('useChannelMembers — 멤버 적재 + active 파생', () => {
         expect(syncChannelUsers).not.toHaveBeenCalled();
     });
 
-    // Membership is decided by the roster/join (both have a sync plan); the user cache only
-    // decorates identity. The old derivation (`users.map`) lost a member outright when it had no
-    // user row — in a self-chat, that's the entire membership.
     describe('멤버십 축', () => {
         it('user 캐시가 비어도 로스터만으로 멤버를 만든다 (self 방: 나 혼자)', () => {
             seedUsers([]);
@@ -99,7 +94,7 @@ describe('useChannelMembers — 멤버 적재 + active 파생', () => {
         });
 
         it('join 스트림만 emit해도 로딩이 풀린다 (user 캐시는 sync plan이 없다)', () => {
-            userObserveList.mockImplementation(() => () => undefined); // Never emits
+            userObserveList.mockImplementation(() => () => undefined);
 
             const { result } = renderHook(() => useChannelMembers({ channelId: 'c1', joins: [join('me', 1)] }));
 

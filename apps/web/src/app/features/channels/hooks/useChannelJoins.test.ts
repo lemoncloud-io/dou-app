@@ -105,8 +105,6 @@ describe('useChannelJoins — 방의 단일 join 관측', () => {
     });
 
     it("never answers a new channel with the previous channel's rows", () => {
-        // A room-to-room move keeps the screen mounted: the render carrying the new id runs before
-        // the observer is re-subscribed, and rows read there became join targets of the wrong room.
         observeList.mockImplementation((query, cb) => {
             cb({ list: query.channelId === 'c1' ? [join('me'), join('old-member')] : [] });
             return jest.fn();

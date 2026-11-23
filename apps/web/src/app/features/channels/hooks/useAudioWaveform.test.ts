@@ -9,7 +9,6 @@ import { useAudioWaveform } from './useAudioWaveform';
 const me = { cid: 'c1', uid: 'u1' };
 const input = { scope: me, uploadId: 'up-1', url: 'https://cdn/a.m4a' };
 
-/** A fetch and a decode the test controls: the decode answers with a rising ramp of samples. */
 const fakeDeps = () => {
     const fetch = jest.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
     const decode = jest.fn(async () => ({
@@ -77,7 +76,6 @@ describe('useAudioWaveform', () => {
         await flush();
         expect(readWaveform(me, 'up-1')).toBeUndefined();
 
-        // The server's copy of the message brings a new signed address for the same upload.
         rerender({ ...input, url: 'https://cdn/a-fresh.m4a' });
         await waitFor(() => expect(result.current).toHaveLength(WAVEFORM_BARS));
         expect(deps.fetch).toHaveBeenLastCalledWith('https://cdn/a-fresh.m4a', expect.anything());

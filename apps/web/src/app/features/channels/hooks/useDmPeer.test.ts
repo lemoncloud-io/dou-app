@@ -42,8 +42,6 @@ describe('useDmPeer', () => {
         expect(result.current).toMatchObject({ id: 'peer', profileNick: 'Profile Nick', thumbnail: 'profile.png' });
     });
 
-    // The member's own record is a separate field, not folded into profileNick: only a cloud 1:1's
-    // title reads it, so a relay title must still see "no profile" here.
     it('leaves profileNick undefined when no profile is cached', () => {
         const { result } = renderHook(() =>
             useDmPeer(
@@ -86,7 +84,6 @@ describe('useDmPeer', () => {
         expect(notLoaded.result.current?.cloudName).toBeUndefined();
     });
 
-    // A profile is per-place: the account-wide avatar is not a photo the peer chose for this place.
     it('leaves thumbnail undefined when no profile photo is cached', () => {
         const { result } = renderHook(() =>
             useDmPeer(

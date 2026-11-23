@@ -6,7 +6,6 @@ import { useUserMutations } from './useUserMutations';
 jest.mock('./useUserMutations', () => ({ useUserMutations: jest.fn() }));
 jest.mock('../../../hooks/useMyProfile', () => ({ useMyProfile: () => ({ profile: { nick: '보내는이' } }) }));
 jest.mock('react-i18next', () => ({
-    // Echo the key with its interpolations so the SMS body is assertable.
     useTranslation: () => ({
         t: (key: string, options?: Record<string, unknown>) => (options ? `${key}|${JSON.stringify(options)}` : key),
     }),
@@ -45,7 +44,6 @@ describe('useCreateInviteBatch.createSingleInvite', () => {
             '+821011112222',
             expect.stringContaining('https://dou.link/abc')
         );
-        // The body names the sender from my place profile, not the account record.
         expect(sendInviteMessageMock.mock.calls[0][1]).toContain('보내는이');
         expect(channel).toBe('sms');
     });
@@ -75,7 +73,6 @@ describe('useCreateInviteBatch.createPlaceInvite', () => {
 
         await place()({ name: '민수', phone: '+821011112222', placeName: '레몬' });
 
-        // Not even `channelId: undefined`: the server reads the key's absence as "no room".
         expect(requestInviteMock).toHaveBeenCalledWith({ name: '민수', phone: '+821011112222' });
     });
 
@@ -123,8 +120,6 @@ describe('useCreateInviteBatch.createBatchInvite', () => {
     it('번호 목록을 to 배열로 그대로 보낸다 (콤마로 잇지 않는다)', async () => {
         await batch()({ channelId: 'ch-1', phones: ['+821011112222', '+821033334444'] });
 
-        // Joining the list into one alias made the server parse it as a single phone and reject it
-        // (`@phone[a,b] is invalid format`).
         expect(requestInviteBatchMock).toHaveBeenCalledWith({
             to: ['+821011112222', '+821033334444'],
             channelId: 'ch-1',
@@ -154,8 +149,6 @@ describe('useCreateInviteBatch.createBatchInvite', () => {
     });
 });
 
-// The sheet and the contact tab hand over E.164 for every country; nothing on the way to the packet
-// or the SMS composer may reshape it back into a local form.
 describe('useCreateInviteBatch with international numbers', () => {
     beforeEach(() => requestInviteMock.mockResolvedValue({ Location: 'https://dou.link/abc' }));
 

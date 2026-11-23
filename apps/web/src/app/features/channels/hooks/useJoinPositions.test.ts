@@ -20,7 +20,6 @@ jest.mock('@chatic/runtime', () =>
 
 const registerSyncTarget = runtime.sync.registerSyncTarget as jest.Mock;
 
-/** The cursor map is now built by useChannelJoins — this hook just takes that result and handles registration and counting. */
 const cursors = (entries: Record<string, number>) => new Map(Object.entries(entries));
 
 beforeEach(() => {
@@ -32,7 +31,6 @@ beforeEach(() => {
 
 describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
     it('전체 멤버(memberIds)에 대해 join sync를 등록한다 — join 캐시는 관측하지 않는다', () => {
-        // active (the denominator) is u1/u2, but registration happens against the full roster (u1/u2/u3).
         renderHook(() => useJoinPositions('cloud-a', 'c1', ['u1', 'u2'], ['u1', 'u2', 'u3'], cursors({}), true));
 
         expect(registerSyncTarget).toHaveBeenCalledTimes(3);
@@ -41,17 +39,12 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
         expect(registerSyncTarget).toHaveBeenCalledWith({ type: 'join', id: 'c1@u3' }, { cid: 'cloud-a' });
     });
 
-    // The server only returns someone else's join to a member of that channel. Polling the
-    // roster from a room you're not a member of (e.g. landing in someone else's self-chat via a
-    // push) fires a 403 and a server alarm for every member — an alarm that actually happened.
     it('멤버가 아니면(isMember=false) 로스터 폴링을 등록하지 않는다', () => {
         renderHook(() => useJoinPositions('cloud-a', 'c1', ['u1', 'u2'], ['u1', 'u2', 'me'], cursors({}), false));
 
         expect(registerSyncTarget).not.toHaveBeenCalled();
     });
 
-    // Membership can only be determined once the channel row and my join row have arrived.
-    // Registration is deferred until then, and happens as soon as the determination is made.
     it('멤버 판정이 false→true로 바뀌면 그때 등록한다', () => {
         const { rerender } = renderHook(
             ({ isMember }) => useJoinPositions('cloud-a', 'c1', ['u1'], ['u1', 'me'], cursors({}), isMember),
@@ -83,21 +76,17 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
         );
         expect(registerSyncTarget).toHaveBeenCalledTimes(1);
 
-        // A new Map identity but the same roster — the registration effect only re-runs on memberKey.
         rerender({ byUser: cursors({ u1: 7 }) });
 
         expect(registerSyncTarget).toHaveBeenCalledTimes(1);
     });
 
     it('커서는 넘겨받은 max(readNo, chatNo) 맵을 그대로 쓴다', () => {
-        // u1 has read up to 5, u2 up to 4.
         const { result } = renderHook(() =>
             useJoinPositions('cloud-a', 'c1', ['u1', 'u2'], ['u1', 'u2'], cursors({ u1: 5, u2: 4 }), true)
         );
 
-        // People who read up to chatNo 5: u1(5) → 1 person, u2(4) falls short
         expect(result.current.getReadCount(5)).toEqual({ readCount: 1, unreadCount: 1 });
-        // up to chatNo 4: u1(5), u2(4) → 2 people
         expect(result.current.getReadCount(4)).toEqual({ readCount: 2, unreadCount: 0 });
     });
 
@@ -106,7 +95,6 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
             useJoinPositions('cloud-a', 'c1', ['u1', 'u2', 'u3'], ['u1', 'u2', 'u3'], cursors({ u1: 10 }), true)
         );
 
-        // Only u1 has read, denominator 3 → unread 2
         expect(result.current.getReadCount(10)).toEqual({ readCount: 1, unreadCount: 2 });
     });
 
@@ -124,7 +112,6 @@ describe('useJoinPositions — 읽음 커서/안읽음 계산', () => {
         expect(result.current.getReadCount(9).readCount).toBe(0);
     });
 
-    // With no cursors at all (joins haven't arrived yet), the read marker can't be rendered.
     it('isReady는 active 멤버와 커서가 모두 있을 때만 참이다', () => {
         const { result: empty } = renderHook(() =>
             useJoinPositions('cloud-a', 'c1', ['u1'], ['u1'], cursors({}), true)
