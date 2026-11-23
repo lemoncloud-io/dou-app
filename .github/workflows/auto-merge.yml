@@ -1,0 +1,278 @@
+name: auto-merge
+
+# Decides, per pull request, whether it may merge without another reviewer, and if so turns
+# GitHub's auto-merge on so it merges once the required checks pass. The rules, their reasons and
+# the admin setup this depends on are in scripts/auto-merge/README.md.
+#
+# `pull_request_target`, because labelling, commenting and enabling auto-merge need a write token.
+# That event runs with the base branch's workflow and secrets, so nothing from the pull request's
+# branch is ever executed here: the job checks out `develop`, fetches the pull request's commits as
+# git objects, and the classifier from `develop` reads their files. TypeScript comes from a pinned
+# npm install, not from the pull request's lockfile.
+
+on:
+    pull_request_target:
+        types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled, edited]
+    # A finished verify run can carry the visual regression result, so the verdict is taken again.
+    workflow_run:
+        workflows: [verify]
+        types: [completed]
+    # The classifier's own tests. A plain `pull_request` run with a read-only token.
+    pull_request:
+        paths:
+            - 'scripts/auto-merge/**'
+            - '.github/workflows/auto-merge.yml'
+            - '.github/workflows/revert-ratchet.yml'
+
+permissions: {}
+
+jobs:
+    test:
+        if: github.event_name == 'pull_request'
+        name: auto-merge classifier tests
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  persist-credentials: false
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+            - name: Install TypeScript
+              run: npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/ts" typescript@5.9.3
+            - name: Test
+              env:
+                  NODE_PATH: ${{ runner.temp }}/ts/node_modules
+              run: node --test 'scripts/auto-merge/__tests__/*.test.js'
+
+    classify:
+        # Label events only matter for the kill switch; this job's own label edits use the default
+        # token, which starts no workflow, so they cannot loop. An edit only matters when it moved
+        # the base branch.
+        if: >-
+            (github.event_name == 'pull_request_target'
+                && (github.event.action != 'labeled' && github.event.action != 'unlabeled' || github.event.label.name == 'no-auto-merge')
+                && (github.event.action != 'edited' || github.event.changes.base))
+            || (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request')
+        name: auto-merge eligibility
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            pull-requests: write
+            issues: write
+            statuses: read
+            checks: read
+        concurrency:
+            group: auto-merge-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.head_sha }}
+            cancel-in-progress: true
+        env:
+            GH_TOKEN: ${{ github.token }}
+            REPO: ${{ github.repository }}
+            # The commit status (or check run) a visual regression step in the e2e suite is expected
+            # to report. A `failure` there keeps the pull request out of auto-merge; until a step
+            # reports it, the state reads `missing` and blocks nothing.
+            VISUAL_REGRESSION_CONTEXT: web-e2e/visual-regression
+            # Check names the develop ruleset has to require before auto-merge is turned on —
+            # without them `--auto` would merge without waiting for CI.
+            REQUIRED_CHECKS: |
+                doc links · doc language · code comment language · lint · typecheck · test
+                web e2e · webkit-ios
+                web e2e · chromium-android
+            HAS_MERGE_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN != '' }}
+            # `observe` (the default) labels and comments "would auto-merge" and never turns
+            # auto-merge on; the repository variable AUTO_MERGE_MODE=enforce switches it on.
+            MODE: ${{ vars.AUTO_MERGE_MODE == 'enforce' && 'enforce' || 'observe' }}
+        steps:
+            - name: Which pull request
+              id: pr
+              env:
+                  EVENT_PR: ${{ github.event.pull_request.number }}
+                  RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+              run: |
+                  number="$EVENT_PR"
+                  if [ -z "$number" ]; then
+                      number=$(gh api "repos/$REPO/commits/$RUN_SHA/pulls" --jq '[.[] | select(.state == "open")][0].number // empty')
+                  fi
+                  if [ -z "$number" ]; then
+                      echo "No open pull request for this run."
+                      echo "skip=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  gh pr view "$number" -R "$REPO" --json number,state,labels,isDraft,isCrossRepository,baseRefName,headRefOid,autoMergeRequest > "$RUNNER_TEMP/view.json"
+                  state=$(jq -r .state "$RUNNER_TEMP/view.json")
+                  head=$(jq -r .headRefOid "$RUNNER_TEMP/view.json")
+                  if [ "$state" != "OPEN" ]; then
+                      echo "skip=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  if [ -n "$RUN_SHA" ] && [ "$RUN_SHA" != "$head" ]; then
+                      echo "The verify run is for an older commit; the newer one gets its own run."
+                      echo "skip=true" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  echo "number=$number" >> "$GITHUB_OUTPUT"
+                  echo "head=$head" >> "$GITHUB_OUTPUT"
+                  echo "auto=$(jq -r 'if .autoMergeRequest then "on" else "off" end' "$RUNNER_TEMP/view.json")" >> "$GITHUB_OUTPUT"
+                  echo "ours=$(jq -r 'if any(.labels[]; .name == "auto-merge:eligible") then "true" else "false" end' "$RUNNER_TEMP/view.json")" >> "$GITHUB_OUTPUT"
+                  echo "killed=$(jq -r 'if any(.labels[]; .name == "no-auto-merge") then "true" else "false" end' "$RUNNER_TEMP/view.json")" >> "$GITHUB_OUTPUT"
+
+            # Before anything that can fail: the kill switch always turns auto-merge off, and new
+            # commits, a move to draft or a base change pause the auto-merge this workflow turned on
+            # (the pull request carries `auto-merge:eligible`), so nothing merges in the gap before
+            # the new verdict. Auto-merge a person turned on, on a pull request never found
+            # eligible, is left alone.
+            - name: Pause auto-merge
+              if: >-
+                  steps.pr.outputs.skip != 'true' && steps.pr.outputs.auto == 'on'
+                  && (steps.pr.outputs.killed == 'true'
+                      || (steps.pr.outputs.ours == 'true' && contains(fromJSON('["synchronize","converted_to_draft","edited"]'), github.event.action)))
+              env:
+                  NUMBER: ${{ steps.pr.outputs.number }}
+              run: gh pr merge "$NUMBER" -R "$REPO" --disable-auto
+
+            - uses: actions/checkout@v4
+              with:
+                  ref: develop
+                  fetch-depth: 0
+                  persist-credentials: false
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Fetch the pull request's commits
+              if: steps.pr.outputs.skip != 'true'
+              env:
+                  NUMBER: ${{ steps.pr.outputs.number }}
+              run: git fetch --no-tags origin "+refs/pull/$NUMBER/head:refs/remotes/pr/head"
+
+            - name: Install TypeScript
+              if: steps.pr.outputs.skip != 'true'
+              run: npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/ts" typescript@5.9.3
+
+            - name: Visual regression state
+              if: steps.pr.outputs.skip != 'true'
+              id: visual
+              env:
+                  HEAD: ${{ steps.pr.outputs.head }}
+              run: |
+                  state=$(gh api "repos/$REPO/commits/$HEAD/status" \
+                      --jq "[.statuses[] | select(.context == \"$VISUAL_REGRESSION_CONTEXT\") | .state][0] // empty")
+                  if [ -z "$state" ]; then
+                      state=$(gh api "repos/$REPO/commits/$HEAD/check-runs" -f check_name="$VISUAL_REGRESSION_CONTEXT" -X GET \
+                          --jq '[.check_runs[] | (.conclusion // "pending")][0] // empty')
+                  fi
+                  case "$state" in
+                      success|neutral|skipped) state=success ;;
+                      failure|error|cancelled|timed_out|action_required) state=failure ;;
+                      '') state=missing ;;
+                      *) state=pending ;;
+                  esac
+                  echo "state=$state" >> "$GITHUB_OUTPUT"
+
+            - name: Classify
+              if: steps.pr.outputs.skip != 'true'
+              id: verdict
+              env:
+                  NODE_PATH: ${{ runner.temp }}/ts/node_modules
+                  HEAD: ${{ steps.pr.outputs.head }}
+                  VISUAL: ${{ steps.visual.outputs.state }}
+              run: |
+                  node scripts/auto-merge/cli.js classify --base origin/develop --head "$HEAD" \
+                      --pr "$RUNNER_TEMP/view.json" --visual "$VISUAL" --out "$RUNNER_TEMP/result.json"
+                  echo "eligible=$(jq -r .eligible "$RUNNER_TEMP/result.json")" >> "$GITHUB_OUTPUT"
+
+            # A push during this run makes the verdict stale; the push's own run labels and
+            # comments instead, so this one must not overwrite it.
+            - name: Still the head
+              if: steps.pr.outputs.skip != 'true'
+              id: current
+              env:
+                  NUMBER: ${{ steps.pr.outputs.number }}
+                  HEAD: ${{ steps.pr.outputs.head }}
+              run: |
+                  now=$(gh pr view "$NUMBER" -R "$REPO" --json headRefOid --jq .headRefOid)
+                  echo "ok=$([ "$now" = "$HEAD" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+            - name: Turn auto-merge on or off
+              if: steps.pr.outputs.skip != 'true' && steps.current.outputs.ok == 'true'
+              id: act
+              env:
+                  NUMBER: ${{ steps.pr.outputs.number }}
+                  HEAD: ${{ steps.pr.outputs.head }}
+                  ELIGIBLE: ${{ steps.verdict.outputs.eligible }}
+                  OURS: ${{ steps.pr.outputs.ours }}
+                  MERGE_TOKEN: ${{ secrets.AUTO_MERGE_TOKEN }}
+              run: |
+                  auto=$(gh pr view "$NUMBER" -R "$REPO" --json autoMergeRequest --jq 'if .autoMergeRequest then "on" else "off" end')
+                  if [ "$ELIGIBLE" != "true" ]; then
+                      if [ "$auto" = "on" ] && [ "$OURS" = "true" ]; then gh pr merge "$NUMBER" -R "$REPO" --disable-auto; fi
+                      echo "action=not-eligible" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  if [ "$MODE" != "enforce" ]; then
+                      echo "action=observe" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  required=$(gh api "repos/$REPO/rules/branches/develop" \
+                      --jq '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context]')
+                  missing=0
+                  while IFS= read -r check; do
+                      [ -z "$check" ] && continue
+                      jq -e --arg c "$check" 'index($c) != null' <<<"$required" > /dev/null || { echo "develop does not require: $check"; missing=1; }
+                  done <<<"$REQUIRED_CHECKS"
+                  if [ "$missing" = 1 ]; then
+                      echo "action=no-required-checks" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  if [ "$HAS_MERGE_TOKEN" != "true" ]; then
+                      echo "action=no-token" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  if GH_TOKEN="$MERGE_TOKEN" gh pr merge "$NUMBER" -R "$REPO" --auto --merge --match-head-commit "$HEAD"; then
+                      echo "action=enabled" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "action=enable-failed" >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Label
+              if: steps.pr.outputs.skip != 'true' && steps.current.outputs.ok == 'true'
+              env:
+                  NUMBER: ${{ steps.pr.outputs.number }}
+                  ELIGIBLE: ${{ steps.verdict.outputs.eligible }}
+              run: |
+                  gh label create 'auto-merge:eligible' -R "$REPO" --color 0e8a16 \
+                      --description 'The auto-merge classifier found no reviewer is needed' 2>/dev/null || true
+                  gh label create 'no-auto-merge' -R "$REPO" --color b60205 \
+                      --description 'Keep this pull request out of auto-merge' 2>/dev/null || true
+                  if [ "$ELIGIBLE" = "true" ]; then
+                      gh pr edit "$NUMBER" -R "$REPO" --add-label 'auto-merge:eligible'
+                  else
+                      gh pr edit "$NUMBER" -R "$REPO" --remove-label 'auto-merge:eligible' 2>/dev/null || true
+                  fi
+
+            - name: Comment
+              if: steps.pr.outputs.skip != 'true' && steps.current.outputs.ok == 'true'
+              env:
+                  NUMBER: ${{ steps.pr.outputs.number }}
+                  ACTION: ${{ steps.act.outputs.action }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  node scripts/auto-merge/cli.js comment --result "$RUNNER_TEMP/result.json" \
+                      --action "$ACTION" --run-url "$RUN_URL" > "$RUNNER_TEMP/comment.md"
+                  id=$(gh api --paginate "repos/$REPO/issues/$NUMBER/comments" \
+                      --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- auto-merge-eligibility -->"))) | .id' | head -n 1)
+                  if [ -n "$id" ]; then
+                      gh api -X PATCH "repos/$REPO/issues/comments/$id" -F "body=@$RUNNER_TEMP/comment.md" > /dev/null
+                  else
+                      gh api -X POST "repos/$REPO/issues/$NUMBER/comments" -F "body=@$RUNNER_TEMP/comment.md" > /dev/null
+                  fi
+
+            # A failed step must not leave this workflow's auto-merge on.
+            - name: Turn auto-merge off after a failure
+              if: failure() && steps.pr.outputs.number != '' && steps.pr.outputs.ours == 'true'
+              env:
+                  NUMBER: ${{ steps.pr.outputs.number }}
+              run: gh pr merge "$NUMBER" -R "$REPO" --disable-auto || true
