@@ -30,10 +30,6 @@ describe('ConfirmDialog — closing on confirm', () => {
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 
-    // The regression this file exists for. `AlertDialogAction` is Radix's `DialogPrimitive.Close`,
-    // so the press used to close the dialog before the work it started could report as in flight.
-    // A caller driving `isPending` from its own state therefore never got to render the spinner —
-    // the message delete looked like nothing had happened for the whole round trip.
     it('stays open on confirm when the caller owns the closing, so a pending state can render', () => {
         const onOpenChange = jest.fn();
         const onConfirm = jest.fn();
@@ -45,8 +41,6 @@ describe('ConfirmDialog — closing on confirm', () => {
 
         expect(onConfirm).toHaveBeenCalledTimes(1);
         expect(onOpenChange).not.toHaveBeenCalled();
-        // Still mounted: with no `description` the title is drawn twice (heading + description
-        // fallback), so this counts rather than fetching one.
         expect(screen.getAllByText('title').length).toBeGreaterThan(0);
     });
 

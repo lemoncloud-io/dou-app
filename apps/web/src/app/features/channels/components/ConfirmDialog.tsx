@@ -19,16 +19,6 @@ interface ConfirmDialogProps {
     onConfirm: () => void;
     isPending?: boolean;
     variant?: 'danger' | 'warning';
-    /**
-     * Whether the confirm press closes the dialog by itself. Default true, which is what a
-     * confirm that starts no round trip wants.
-     *
-     * Pass false when the caller drives `isPending`. `AlertDialogAction` is Radix's
-     * `DialogPrimitive.Close`, so the press closes the dialog before the work it started can
-     * report as in flight — `isPending` then flips true against an unmounted dialog and the
-     * spinner, the disabled buttons and the back-close guard below are all unreachable. A caller
-     * that passes false closes the dialog itself once the work settles.
-     */
     closeOnConfirm?: boolean;
 }
 
@@ -62,15 +52,6 @@ export const ConfirmDialog = ({
                         <AlertDialogTitle className="text-[18px] font-semibold leading-[1.5] text-foreground">
                             {title}
                         </AlertDialogTitle>
-                        {/* `overflow-wrap: anywhere`, not `break-words`. Since this dialog started
-                            quoting message text back to the user, the description can be a run with
-                            no space in it — a URL, an id, a line of code. An unbroken run's
-                            min-content width is the WHOLE run, and min-content beats the box's
-                            the variant's own width, so the panel and the button row below it stretch to fit
-                            it: measured 644px of text pushing the confirm button to x 388-732 on a
-                            375px screen, entirely off-screen and unreachable. `break-words` does not
-                            fix that (it wraps but leaves min-content intact); `anywhere` reduces
-                            min-content, which is what has to shrink. */}
                         <AlertDialogDescription
                             className={cn(
                                 'text-[16px] font-medium leading-[1.45] tracking-[-0.16px]',
@@ -92,9 +73,6 @@ export const ConfirmDialog = ({
                         </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={event => {
-                                // Radix composes its own close handler after this one and skips it
-                                // when the default is prevented, so this is what keeps the dialog
-                                // mounted for a caller that reports progress.
                                 if (!closeOnConfirm) event.preventDefault();
                                 onConfirm();
                             }}

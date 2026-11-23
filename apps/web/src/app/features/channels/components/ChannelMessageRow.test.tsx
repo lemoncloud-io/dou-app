@@ -8,26 +8,16 @@ import { openExternalUrl } from '../utils/openExternalUrl';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
-// Mocked rather than spied on: the real module reaches the bridge barrel, which pulls the whole
-// runtime in at import time.
 jest.mock('../utils/openExternalUrl', () => ({ openExternalUrl: jest.fn() }));
 
-// Same reason: the clipboard helper reaches the bridge barrel at import time.
 jest.mock('../utils/copyMessageToClipboard', () => ({ copyMessageToClipboard: jest.fn().mockResolvedValue(true) }));
 
-// Stubbed so these cases assert what the row decides — whether a preview is mounted and for which
-// URL — rather than how the card resolves its metadata.
 jest.mock('./MessageLinkPreview', () => ({
     MessageLinkPreview: ({ url }: any) => <div data-testid="link-preview" data-url={url} />,
 }));
 
-// Lightweight web-ui-kit stand-ins so assertions target ChannelMessageRow's own
-// wiring (which avatar/size, which read-receipt counts) rather than library internals.
 jest.mock('@chatic/web-ui-kit', () => ({
     InlineCode: ({ children }: any) => <code data-testid="inline-code">{children}</code>,
-    // Faithful about the one thing the row cares about: buttonProps must land on the real button,
-    // because that is what keeps a press on it away from the bubble's long-press gesture. That the
-    // REAL CodeBlock forwards them is pinned in the kit's own test.
     CodeBlock: ({ code, lang, onCopy, copyLabel, buttonProps }: any) => (
         <span data-testid="code-block" data-lang={lang ?? ''}>
             {onCopy && (
@@ -38,16 +28,11 @@ jest.mock('@chatic/web-ui-kit', () => ({
             <code>{code}</code>
         </span>
     ),
-    // `data-expandable` surfaces the row's decision to offer "view all" — the real bubble
-    // renders that affordance only when it gets an onExpand.
     MessageBubble: ({ children, onExpand }: any) => (
         <div data-testid="bubble" data-expandable={onExpand ? 'true' : 'false'}>
             {children}
         </div>
     ),
-    // `data-wide` surfaces the row's decision to release the 75% bubble cap — a Block Kit
-    // message lays itself out and has no bubble to cap. The REAL MessageRow honouring the
-    // prop is pinned in the kit's own test.
     MessageRow: ({ avatar, status, children, wide }: any) => (
         <div data-testid="message-row" data-wide={wide ? 'true' : 'false'}>
             <div data-testid="avatar-slot">{avatar}</div>
@@ -70,13 +55,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
 
 jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boolean).join(' ') }));
 
-// Stubbed so the image cases assert what the row decides — whether images are drawn, and in place of
-// the bubble or under it — rather than how the tiles lay themselves out (pinned in the kit's tests).
-// The tile is a real button so the long-press cases can tell a swallowed tap from one that opens the
-// viewer, and the viewer is portalled to the body as the real Radix one is — React still bubbles its
-// events through the row, which is the case the gesture has to ignore.
-// `data-hidden` surfaces which slots the row told the tiles to leave out — the tiles honouring it is
-// pinned in MessageImages' own test.
 const mockOpenTile = jest.fn();
 jest.mock('./MessageImages', () => {
     const { createPortal } = jest.requireActual('react-dom');
@@ -205,7 +183,6 @@ describe('ChannelMessageRow', () => {
         expect(screen.queryByTestId('read-receipt')).not.toBeInTheDocument();
     });
 
-    // The list scrolls behind the bubbles, so the press handlers must leave the pan gesture alone.
     describe('the scroll gesture over a bubble', () => {
         const withContent = (content: string) => ({
             ...baseProps,
@@ -213,9 +190,6 @@ describe('ChannelMessageRow', () => {
         });
         const bubbleTrigger = () => screen.getByTestId('bubble').parentElement as HTMLElement;
 
-        // jsdom has no PointerEvent, so testing-library builds a plain Event and drops
-        // `pointerType` and the coordinates off the init — they have to be hung on the native
-        // event by hand, or every assertion here reads a pointer with no type and no position.
         const pointer = (
             type: 'pointerdown' | 'pointermove',
             init: { pointerType?: string; x?: number; y?: number } = {}
@@ -230,9 +204,6 @@ describe('ChannelMessageRow', () => {
                 })
             );
 
-        // fireEvent returns false when a listener called preventDefault. Cancelling a touch
-        // pointerdown cancels the browser's panning with it, which is what stopped the thread
-        // from scrolling wherever a finger landed on a message.
         it('does not cancel the default of a touch pointerdown', () => {
             render(<ChannelMessageRow {...withContent('안녕')} />);
 
@@ -292,7 +263,6 @@ describe('ChannelMessageRow', () => {
             message: { ...message, content } as unknown as ClientChatView,
         });
 
-        // The span wrapping the bubble carries the long-press handlers.
         const bubbleTrigger = () => screen.getByTestId('bubble').parentElement as HTMLElement;
 
         it('renders a URL in the message as a tappable link', () => {
@@ -370,7 +340,6 @@ describe('ChannelMessageRow', () => {
             message: { ...message, content } as unknown as ClientChatView,
         });
 
-        // The span wrapping the bubble carries the long-press handlers.
         const bubbleTrigger = () => screen.getByTestId('bubble').parentElement as HTMLElement;
 
         it('renders inline backticks as inline code', () => {
@@ -405,8 +374,6 @@ describe('ChannelMessageRow', () => {
             expect(screen.getByTestId('code-copy')).toBeInTheDocument();
         });
 
-        // The riskiest interaction in this feature: the whole bubble is a long-press target, so a
-        // press that starts on the copy button must not also open the action sheet.
         it('a long press ON THE COPY BUTTON does not open the action sheet', () => {
             jest.useFakeTimers();
             try {
@@ -441,10 +408,6 @@ describe('ChannelMessageRow', () => {
             }
         });
 
-        // The copy button must not swallow the CANCEL half of the gesture. A press begun on the code
-        // text and released on the button would otherwise never reach clearTimer, and the sheet
-        // would open on top of the copy — the exact outcome the button exists to prevent. Touch
-        // hides this via implicit pointer capture; a mouse reproduces it.
         it('a press started on the code and released on the button cancels the long press', () => {
             jest.useFakeTimers();
             try {
@@ -472,8 +435,6 @@ describe('ChannelMessageRow', () => {
             expect(props.onLongPress).not.toHaveBeenCalled();
         });
 
-        // A fence cut open by the 200-char bubble limit renders as a block rather than leaking
-        // three stray backticks into the message.
         it('renders a fence left open by truncation as a block', () => {
             const long = `${'가'.repeat(190)}\n\`\`\`ts\nconst x = 1;\nconst y = 2;`;
             render(<ChannelMessageRow {...withContent(long)} />);
@@ -531,9 +492,6 @@ describe('ChannelMessageRow', () => {
         });
     });
 
-    // A message another client soft-deleted (ADR-0047 decision 6). `apps/web` can only ever
-    // read these — its own delete is a cache eviction for failed/pending rows — so the whole
-    // contract here is "show that something was said, reveal none of it".
     describe('deleted message (tombstone)', () => {
         const deleted = (fields: Partial<ClientChatView> = {}) => ({
             ...baseProps,
@@ -550,8 +508,6 @@ describe('ChannelMessageRow', () => {
         it('keeps the row in place rather than closing the gap', () => {
             render(<ChannelMessageRow {...deleted()} />);
 
-            // Bubble and author line survive: what is missing is the content, not the fact
-            // that somebody spoke here.
             expect(screen.getByTestId('bubble')).toBeInTheDocument();
             expect(screen.getByText('친구')).toBeInTheDocument();
         });
@@ -581,8 +537,6 @@ describe('ChannelMessageRow', () => {
             expect(screen.getByTestId('bubble')).toHaveAttribute('data-expandable', 'false');
         });
 
-        // The action sheet's Copy reads the original `content`, so leaving the gesture live
-        // would hand the deleted text straight back to the clipboard.
         it('does not open the action sheet on long press', () => {
             jest.useFakeTimers();
             try {
@@ -603,10 +557,6 @@ describe('ChannelMessageRow', () => {
         });
     });
 
-    // A webhook send (`stereo: 'webhook'`) can carry its Block Kit as JSON in `content`. Without
-    // this branch the row hands that JSON to MessageText and the reader sees the payload.
-    // A webhook stored before `blocks$` kept its card in `attach$`, which this row no longer draws:
-    // the message reads as the plain-text summary the sender put in `content`.
     it('shows an attach$-only message as its plain summary, with no attachment card', () => {
         const legacy = {
             ...message,
@@ -625,8 +575,6 @@ describe('ChannelMessageRow', () => {
         const blockMessage = (blocks: unknown[]) =>
             ({ ...message, stereo: 'webhook', content: JSON.stringify({ blocks }) }) as unknown as ClientChatView;
 
-        // Only an integration's post is a card. A person who pastes a payload wrote that text, and a
-        // card from the composer would look exactly like an alert.
         it("keeps a person's pasted payload as the text they sent, in a bubble", () => {
             const pasted = {
                 ...blockMessage([{ type: 'header', text: { type: 'plain_text', text: '배포 실패' } }]),
@@ -661,8 +609,6 @@ describe('ChannelMessageRow', () => {
             expect(screen.queryByTestId('bubble')).not.toBeInTheDocument();
         });
 
-        // Two shapes of failure, one rule (SPEC §5): nothing drawable falls back to the original
-        // body rather than stacking JSON fragments — and on this app the body is a bubble.
         it('falls back to the plain body when no block can be drawn', () => {
             render(<ChannelMessageRow {...baseProps} message={blockMessage([{ type: 'image', image_url: 'x' }])} />);
 
@@ -670,8 +616,6 @@ describe('ChannelMessageRow', () => {
             expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'false');
         });
 
-        // That fallback bubble is a bubble like any other, so a long one still truncates —
-        // the card is the only thing exempt, and exempting it must not exempt this too.
         it('still truncates the fallback bubble when the payload is long', () => {
             const long = blockMessage([{ type: 'image', image_url: 'x'.repeat(400) }]);
 
@@ -687,8 +631,6 @@ describe('ChannelMessageRow', () => {
             expect(screen.getByTestId('message-row')).toHaveAttribute('data-wide', 'false');
         });
 
-        // The badge and the card's accent come from `source$`, the server's copy of the sender's channel
-        // name and colour, kept beside the blocks.
         it("badges the card with the sender's channel and gives it the sender's colour", () => {
             const { container } = render(
                 <ChannelMessageRow
@@ -708,7 +650,6 @@ describe('ChannelMessageRow', () => {
             expect(container.innerHTML).not.toContain('good');
         });
 
-        // A hidden message carries `source$: null`; it must read as "no source", not throw.
         it('draws the card with no badge when source$ is null', () => {
             render(
                 <ChannelMessageRow
@@ -726,9 +667,6 @@ describe('ChannelMessageRow', () => {
             expect(document.querySelector('.rounded-full')).toBeNull();
         });
 
-        // The unfurl reads what the reader can see, not the payload. A Slack link token
-        // (`<url|label>`) shows only its label, so the URL inside it was never on screen —
-        // unfurling it would card a page nobody was offered.
         it('unfurls a URL the blocks actually show, not one hidden in a link token', () => {
             render(
                 <ChannelMessageRow
@@ -744,8 +682,6 @@ describe('ChannelMessageRow', () => {
             expect(preview).toHaveAttribute('data-url', 'https://status.example.com');
         });
 
-        // The card's links follow the bubble's rule. Left to the anchor's default, the native
-        // shell loads the page into this WebView: DoU is replaced by it, with no way back.
         describe('links in the card', () => {
             const linkMessage = () =>
                 blockMessage([
@@ -754,22 +690,17 @@ describe('ChannelMessageRow', () => {
                         elements: [{ type: 'mrkdwn', text: '<https://s3.example.com/r.json|원문 보기>' }],
                     },
                 ]);
-            // The span wrapping the card carries the long-press handlers.
             const cardTrigger = () => screen.getByRole('link').closest('.inline-flex') as HTMLElement;
 
             it('opens a tapped link outside the webview instead of following the anchor', () => {
                 render(<ChannelMessageRow {...baseProps} message={linkMessage()} />);
 
-                // The server's `원문 보기` element is drawn as the card's own source line.
                 const followed = fireEvent.click(screen.getByRole('link', { name: 'chat.room.attachment.openSource' }));
 
                 expect(followed).toBe(false);
                 expect(openExternalUrl).toHaveBeenCalledWith('https://s3.example.com/r.json');
             });
 
-            // The server writes the sender's `meta.sourceUrl` as the card's last link; the card draws it
-            // as its own line at the foot of the card instead, and it leaves the app the way a body
-            // link does.
             it("draws the server's source link as the card's last line and opens it outside the webview", () => {
                 render(
                     <ChannelMessageRow
@@ -858,9 +789,6 @@ describe('ChannelMessageRow', () => {
             });
         });
 
-        // Three states the card must not take. A tombstone shows nothing of the body; a
-        // pending or failed send is drawn BY the bubble (spinner, retry, destructive tint), and
-        // a card would present an unlanded message as a finished one.
         it.each([
             ['deleted', { hidden: true }],
             ['pending', { isPending: true }],
@@ -890,7 +818,6 @@ describe('ChannelMessageRow — image messages', () => {
 
     beforeEach(() => jest.clearAllMocks());
 
-    // An image message with no text of its own must not leave an empty bubble beside its photos.
     it('draws the images in place of the bubble when there is no text', () => {
         render(<ChannelMessageRow {...baseProps} message={imageRow({})} />);
 
@@ -928,7 +855,6 @@ describe('ChannelMessageRow — image messages', () => {
             });
         };
 
-        // The images are the message: a photo gets the same sheet — reactions, a thread — as text.
         it('opens the action sheet on an image-only message', () => {
             const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({}) };
             render(<ChannelMessageRow {...props} />);
@@ -961,15 +887,12 @@ describe('ChannelMessageRow — image messages', () => {
             render(<ChannelMessageRow {...props} />);
 
             hold(screen.getByTestId('image-tile'));
-            // `detail: 1` — a click a pointer produced, as the release of a hold does.
             fireEvent.click(screen.getByTestId('image-tile'), { detail: 1 });
 
             expect(props.onLongPress).toHaveBeenCalledTimes(1);
             expect(mockOpenTile).not.toHaveBeenCalled();
         });
 
-        // A right-click leaves the flag set with no click to consume it; Enter on the focused tile
-        // afterwards is a new act and must open the photo.
         it('does not swallow a keyboard activation after a right-click', () => {
             const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({}) };
             render(<ChannelMessageRow {...props} />);
@@ -980,8 +903,6 @@ describe('ChannelMessageRow — image messages', () => {
             expect(mockOpenTile).toHaveBeenCalledTimes(1);
         });
 
-        // A sheet from the images would offer Edit again, which re-seeds the composer's draft and
-        // drops what was typed.
         it('does not open the sheet from the images of a message being edited', () => {
             const props = {
                 ...baseProps,
@@ -1009,7 +930,6 @@ describe('ChannelMessageRow — image messages', () => {
             expect(mockOpenTile).toHaveBeenCalledTimes(1);
         });
 
-        // The viewer is portalled out of the row's DOM but not out of its React tree.
         it('ignores a hold or right-click inside the open viewer', () => {
             const props = { ...baseProps, onLongPress: jest.fn(), message: imageRow({}) };
             render(<ChannelMessageRow {...props} />);
@@ -1029,7 +949,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
 
     const avatarButton = () => screen.queryByRole('button', { name: 'chat.room.openProfile' });
 
-    // The profile opened from a row must introduce the person exactly as the row did.
     it('hands the profile the name and photo the row drew, from the avatar', () => {
         const onOpenProfile = jest.fn();
         render(
@@ -1059,7 +978,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
         expect(onOpenProfile).toHaveBeenCalledWith({ id: 'u2', name: '친구', avatar: undefined });
     });
 
-    // The avatar sits outside the bubble's press target, so a tap on it is not a hold.
     it('does not open the action sheet from the avatar', () => {
         render(<ChannelMessageRow {...baseProps} onOpenProfile={jest.fn()} />);
 
@@ -1081,7 +999,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
         expect(avatarButton()).not.toBeInTheDocument();
     });
 
-    // A webhook's sender is not a member; its system account has no profile behind the avatar.
     it('is inert for a webhook message', () => {
         render(
             <ChannelMessageRow
@@ -1094,7 +1011,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
         expect(avatarButton()).not.toBeInTheDocument();
     });
 
-    // A grouped follow-up draws a spacer where the avatar would be — nothing to press.
     it('is inert on a grouped follow-up row', () => {
         render(<ChannelMessageRow {...baseProps} showProfileAndName={false} onOpenProfile={jest.fn()} />);
 
@@ -1131,8 +1047,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             ({ ...message, content: '@레인 @Minsu 확인해 줘', ...fields }) as ClientChatView;
         const mark = (word: string) => screen.queryByText(word, { selector: 'span, button' });
 
-        // How it is written, not whom it calls: a member's name after `@` reads as a mention.
-        // A message with no record — sent before mentions travelled with it — is read by its text.
         it("draws every member's mention, and mine louder by the text when there is no record", () => {
             render(<ChannelMessageRow {...baseProps} message={mentioning({})} mentionViewer={viewer} />);
 
@@ -1140,7 +1054,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             expect(mark('@레인')).toHaveClass('bg-primary/40');
         });
 
-        // With a record, the record decides: the sender picked me in their composer, or did not.
         it('draws my name louder only when the record names one of my ids', () => {
             const { unmount } = render(
                 <ChannelMessageRow
@@ -1163,7 +1076,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             expect(mark('@레인')).not.toHaveClass('bg-primary/40');
         });
 
-        // My own message does not call me out; its mentions take the mark that reads on my dark bubble.
         it('draws my own message in the mark for my bubble, even one calling everyone', () => {
             render(
                 <ChannelMessageRow
@@ -1177,7 +1089,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             expect(mark('@레인')).not.toHaveClass('bg-primary/40');
         });
 
-        // The profile the member's avatar opens.
         it("opens the named member's profile on a tap of their mention", () => {
             const onOpenProfile = jest.fn();
             render(
@@ -1205,7 +1116,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
         });
     });
 
-    // The edit is typed in the composer; the row only says it is the one being edited.
     describe('the message being edited', () => {
         const mine = { ...message, isOwner: true, updatedAt: 2, createdAt: 1 } as unknown as ClientChatView;
         let scrollIntoView: jest.Mock;
@@ -1230,8 +1140,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             expect(trigger).toHaveAttribute('data-edit-target', 'true');
         });
 
-        // The keyboard the edit raises can bury the message; it is brought back once, not on every
-        // render, which would fight the reader scrolling away.
         it('brings itself into view once when the edit starts', () => {
             const { rerender } = render(<ChannelMessageRow {...baseProps} message={mine} />);
             expect(scrollIntoView).not.toHaveBeenCalled();
@@ -1256,7 +1164,6 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             }
         });
 
-        // "Edited" is a statement about a settled message; this one is mid-change.
         it('hides the edited marker while it is being edited', () => {
             const { rerender } = render(<ChannelMessageRow {...baseProps} message={mine} />);
             expect(screen.getByText('chat.room.edited')).toBeInTheDocument();
@@ -1307,7 +1214,6 @@ describe('ChannelMessageRow — items hidden on this device', () => {
         expect(screen.getByTestId('message-images')).toHaveAttribute('data-hidden', '');
     });
 
-    // A link's key comes after the uploads': with one attachment the first link is slot 1.
     it('drops the preview card of a hidden link, keeping the text and the attachment', () => {
         renderRow({ content: 'look https://one.com' }, ['ch-1:5:1']);
 
@@ -1343,8 +1249,6 @@ describe('ChannelMessageRow — a failed audio message of mine', () => {
 
     beforeEach(() => jest.clearAllMocks());
 
-    // The audio bubble draws the failure with its own retry and delete chips; the row saying it again
-    // would put two sets of the same buttons on one message.
     it('leaves the failure and its buttons to the bubble', () => {
         render(
             <ChannelMessageRow {...baseProps} message={failed(failedSlot('audio/mp4', 'voice-20261102-101500.m4a'))} />

@@ -43,7 +43,6 @@ describe('MessageText', () => {
 
         const event = fireEvent.click(screen.getByRole('link'));
 
-        // fireEvent returns false when a listener called preventDefault.
         expect(event).toBe(false);
         expect(openExternalUrl).toHaveBeenCalledWith('https://example.com/a');
     });
@@ -80,7 +79,6 @@ describe('MessageText', () => {
         expect(container).toHaveTextContent(/^굵게 기울임 취소$/);
     });
 
-    // The desktop composer's B and I buttons together send `***x***`.
     it('draws a message sent bold and italic as both, with no asterisks left over', () => {
         const { container } = render(<MessageText text="***123123***" />);
 
@@ -129,15 +127,12 @@ describe('MessageText', () => {
             expect(mentionSpan(container, '@Minsu')).toHaveClass('text-brand-ink');
         });
 
-        // My bubble is dark; the blue of a light bubble would not read on it.
         it('draws the mentions on my own message in a colour that reads on my bubble', () => {
             const { container } = render(<MessageText text="@Minsu hello" mentions={marks({ own: true })} />);
 
             expect(mentionSpan(container, '@Minsu')).toHaveClass('text-primary');
         });
 
-        // A thread's root sits on the page's white, with no bubble behind it — and on my own root,
-        // lime text would not read at all.
         it('puts a chip behind every mention on text drawn on the page, mine still louder', () => {
             const { container } = render(
                 <MessageText text="@레인 @Minsu @channel" mentions={marks({ self: ['@레인'], own: true })} onPage />
@@ -165,7 +160,6 @@ describe('MessageText', () => {
             expect(screen.queryByRole('button')).not.toBeInTheDocument();
         });
 
-        // A name inside a link or a code span belongs to that link or that code.
         it('does not mark a word inside a link or a code span', () => {
             const { container } = render(<MessageText text="`@레인` https://x.test/@레인 @레인" mentions={marks()} />);
 

@@ -15,31 +15,6 @@ import { type DisplayNameSources, resolveUserName } from '../utils/displayName';
 const AVATAR_SIZE = 40;
 const NO_PROFILE_TARGETS: string[] = [];
 
-/**
- * Pick the person to open a cloud 1:1 with — reached from the ＋ on home's 1:1 section.
- *
- * **The people are the members of the place the session is on** (`place.list-user`), the list the
- * place's member screen shows. A cloud 1:1 belongs to the place it is opened in, so a candidate from
- * anywhere else would open a room in this place with somebody who is not in it. Desktop's picker
- * reads the same list.
- *
- * **One tap, not a selection.** An invite collects several people and confirms; this opens one room,
- * so a row IS the action and there is no confirm step to get wrong.
- *
- * **Provisional layout.** No design exists for this screen, so it is assembled from web-ui-kit
- * primitives. What is settled is the behaviour; when a comp arrives the rows and the shell change.
- *
- * Names come from `resolveUserName` under this place's profiles — the place the room will name the
- * peer under once it opens.
- *
- * When the list cannot be had it shows an error and a retry, and never a stand-in such as the union of
- * my rooms' rosters: those span places, and a wrong candidate opens a room in this place with someone
- * outside it.
- *
- * **Reachable only where a cloud 1:1 can open.** Home offers it from a cloud place, but the route can
- * still be reached elsewhere — back after a push moved the session to the relay, or with no place — so
- * there the screen goes home instead of listing people a tap could never reach.
- */
 export const CloudDmPickerPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -47,7 +22,6 @@ export const CloudDmPickerPage = () => {
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const { userId } = runtime.session.useSessionIdentity();
     const cid = useSelectedCloudId();
-    // The place list names me by my id in this cloud; the session id is checked too in case the two differ.
     const myUid = runtime.session.useUidInCloud(cid);
     const isMe = useCallback((id: string) => !!id && (id === myUid || id === userId), [myUid, userId]);
 
@@ -58,7 +32,6 @@ export const CloudDmPickerPage = () => {
     }, [isAvailable, navigate]);
 
     const { members, status, retry } = usePlaceMembers(isAvailable ? (selectedSiteId ?? null) : null);
-    // The cached profiles of this place. No ids: the member list already loaded what it could.
     const { profileMap } = useChannelProfiles(selectedSiteId ?? null, NO_PROFILE_TARGETS);
 
     const [search, setSearch] = useState('');
@@ -134,9 +107,6 @@ export const CloudDmPickerPage = () => {
                 }
                 title={candidate.name}
                 disabled={isStarting}
-                // `startDm` navigates on success and says so itself on failure; its re-entry guard
-                // makes a second tap while one is in flight a no-op. The room replaces this screen, so
-                // back from it returns to home rather than to the picker.
                 onClick={() => void startDm(candidate.id, { replace: true })}
             />
         ));

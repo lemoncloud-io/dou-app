@@ -11,17 +11,11 @@ import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 
 interface InviteLinkViewProps {
     inviteLink: string;
-    /** What the invite is into — the room's, or the place's, name and picture. */
     name: string;
     avatarSrc?: string;
-    /** Leaves the whole invite flow: the close button, and the second tap after sharing. */
     onClose: () => void;
 }
 
-/**
- * The invite link screen's body: the link card, copy, and share. Shared by the room invite and the
- * place invite, whose pages only decide what the card names and where closing returns to.
- */
 export const InviteLinkView = ({ inviteLink, name, avatarSrc, onClose }: InviteLinkViewProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -38,14 +32,11 @@ export const InviteLinkView = ({ inviteLink, name, avatarSrc, onClose }: InviteL
     };
 
     const handleShare = async () => {
-        // Once shared, the CTA turns into "Share complete" (Figma node 3153-25568) — a second tap
-        // means done, not re-share, so it leaves the whole invite flow.
         if (shared) {
             onClose();
             return;
         }
         try {
-            // The OS share sheet where the host has one (`runtime.links.shareSheet`); a copy otherwise.
             const { shareSheet } = runtime.links;
             if (shareSheet) {
                 shareSheet.open(inviteLink);

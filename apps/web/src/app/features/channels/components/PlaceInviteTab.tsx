@@ -22,27 +22,11 @@ const NO_PROFILE_TARGETS: string[] = [];
 
 interface PlaceInviteTabProps {
     channelId: string;
-    /** The target channel's site. Candidates and their profiles are both scoped to it. */
     sid: string | null;
-    /** One invite adds at most this many people — shared with the contact tab's batch cap. */
     maxSelection: number;
-    /**
-     * Says why a pick past `maxSelection` was refused. Without it the tab toasts its own batch-cap
-     * line; a host whose cap is something else (a room's remaining seats) explains it instead.
-     */
     onLimitReached?: () => void;
 }
 
-/**
- * Add people who are already in this place to the channel.
- *
- * The pool comes from {@link useInviteCandidates} — the place's member list, or the union of my
- * rooms' rosters when that list cannot be had — and each row is drawn with that person's PLACE
- * profile, so somebody picked here reads the same as they will in the room's member list.
- * Confirming calls `channel.invite` once for the whole selection; the repository owns the
- * optimistic membership write and its rollback, so this component only has to report the outcome.
- * See ADR-0075.
- */
 export const PlaceInviteTab = ({ channelId, sid, maxSelection, onLimitReached }: PlaceInviteTabProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -50,19 +34,6 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection, onLimitReached }:
 
     const { inviteChannel } = useChannelMutations();
     const { candidateIds, memberById, fromPlaceList, isLoading } = useInviteCandidates(channelId, sid);
-    /**
-     * Same machinery the room uses for its member list: observe the site's profiles and one-shot
-     * the ones the cache is missing, so a never-seen candidate still gets a name instead of an id.
-     *
-     * On the LIST cadence, not the room's. One sync target is registered per candidate, and this
-     * pool is the whole place — larger than any single member list. A nick
-     * changing while somebody picks people does not matter, so the picker polls at the slow rate
-     * the other list surfaces use; first paint still comes from the one-shot bootstrap.
-     */
-    //
-    // Only for the fallback pool. The place list loaded its own profiles a page at a time, and its
-    // pool is the whole place: a bootstrap and a poll per person there is a request per member.
-    // Without ids the hook still observes the place's profiles, which is all this tab reads.
     const { profileMap } = useChannelProfiles(
         sid,
         fromPlaceList ? NO_PROFILE_TARGETS : candidateIds,
@@ -73,23 +44,9 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection, onLimitReached }:
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isInviting, setIsInviting] = useState(false);
 
-    // Middle rung of the name chain below — see `useUserRecords`, which the 1:1 picker shares. A
-    // member the user cache has never seen (no room in common) is named by the place list's own
-    // row instead; the cached row wins where both exist, as it always has.
     const userRecords = useUserRecords(candidateIds);
     const memberRecords = useMemo(() => new Map([...memberById, ...userRecords]), [memberById, userRecords]);
 
-    /**
-     * Display name for a candidate — `resolveUserName`, the same call every other surface makes.
-     *
-     * It used to be a hand-copied chain ending in `|| userId`, which is how a candidate with no
-     * place profile and no cached name rendered as a raw UUID. That is the exact value the shared
-     * chain exists to reject (it is what the server seeds an unnamed user's `name` with), so the
-     * picker was showing what the member list right next to it refuses to.
-     *
-     * `userId` is left out on purpose: candidates are people NOT yet in this channel, and I am in
-     * it, so the "me" rung is unreachable here.
-     */
     const nameSources: DisplayNameSources = useMemo(
         () => ({
             profileMap,
@@ -106,19 +63,15 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection, onLimitReached }:
             candidateIds.map(id => ({
                 id,
                 name: nameOf(id),
-                // The place profile's picture, else the user's own from the place list.
                 avatarSrc: profileMap.get(id)?.thumbnail || memberById.get(id)?.thumbnail || undefined,
             })),
         [candidateIds, nameOf, profileMap, memberById]
     );
 
-    // Picked people stay pinned above the filtered rest, matching the contact tab.
     const visible = useMemo(() => {
         const picked = candidates.filter(c => selectedIds.has(c.id));
         let rest = candidates.filter(c => !selectedIds.has(c.id));
         const query = search.trim().toLowerCase();
-        // The id is matched too: pasting a user id is the way to reach somebody whose nick you do
-        // not know, which is the only thing the removed manual-id entry would have bought.
         if (query) rest = rest.filter(c => c.name.toLowerCase().includes(query) || c.id.toLowerCase().includes(query));
         return [...picked, ...rest];
     }, [candidates, selectedIds, search]);
@@ -128,8 +81,6 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection, onLimitReached }:
     const handleToggle = useCallback(
         (userId: string, next: boolean) => {
             if (isInviting) return;
-            // Judged on the rendered selection, outside the updater: the host's explanation is a state
-            // change of its own, which an updater must not make.
             if (next && selectedIds.size >= maxSelection && !selectedIds.has(userId)) {
                 if (onLimitReached) onLimitReached();
                 else toast({ title: t('inviteFriends.limitToast', { max: maxSelection }) });
@@ -170,9 +121,6 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection, onLimitReached }:
         }
     };
 
-    // A place whose every member is already here — or, on the fallback, where I have no other
-    // room — has nothing to offer. Say so and point at the tab that can still reach someone,
-    // rather than a blank panel.
     if (!isLoading && candidateIds.length === 0) {
         return (
             <div className="flex flex-1 flex-col items-center justify-center gap-1 px-8">
@@ -224,9 +172,6 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection, onLimitReached }:
 
             <div className="flex flex-1 flex-col overflow-y-auto overscroll-none px-2 pt-2">
                 {visible.length === 0 ? (
-                    // Only a search can empty this list once loaded — an unsearched empty pool took
-                    // the early return above. While the pool is still loading the panel stays blank
-                    // rather than claiming a search found nothing.
                     <div className="flex flex-1 items-center justify-center">
                         {!isLoading && search.trim() && (
                             <p className="text-center text-[16px] text-description">
@@ -255,8 +200,6 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection, onLimitReached }:
                 onClick={handleInvite}
                 wrapperClassName="shrink-0"
             />
-            {/* This tab has a search field too, so the CTA needs the same home-indicator inset and
-                keyboard lift the contact tab gets. */}
             <KeyboardSafeAreaSpacer />
         </>
     );

@@ -23,8 +23,6 @@ jest.mock('@chatic/runtime', () =>
 );
 
 const updateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
-// Stable channel reference so the prefill effect (`useEffect([open, channel])`) runs once.
-// Off only to stage a reopen before the channel has emitted.
 let mockChannelLoaded = true;
 const mockChannel = { $join: { nick: '내 메모', userId: 'me-join' }, thumbnail: '' };
 const updateChannel = jest.fn().mockResolvedValue({});
@@ -33,8 +31,6 @@ jest.mock('../hooks', () => ({
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
     useChannelMutations: () => ({ updateChannel, isPending: { update: false } }),
 }));
-// The dialog surfaces my place-profile nick as the placeholder. Mock the app-level hooks barrel
-// so the test doesn't pull in the real runtime (socket lib) transitively.
 jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: '플레이스닉' } }) }));
 
 describe('JoinNickDialog', () => {
@@ -53,7 +49,6 @@ describe('JoinNickDialog', () => {
         fireEvent.change(screen.getByTestId('self-chat-photo-input'), { target: { files: [file] } });
     };
 
-    // 'Done' is for a change: with nothing changed it stays off, in both variants.
     describe('the done button', () => {
         it('is disabled while nothing has changed', () => {
             render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" />);
@@ -87,8 +82,6 @@ describe('JoinNickDialog', () => {
         });
     });
 
-    // Reopened before the channel emits, the dialog has nothing to seed from — it must not show the
-    // name typed last time, nor count it as a change.
     it('opens fresh after a close, not with what was typed last time', () => {
         const { rerender } = render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" />);
         fireEvent.change(screen.getByRole('textbox'), { target: { value: '버린 이름' } });
@@ -208,8 +201,6 @@ describe('JoinNickDialog', () => {
         await waitFor(() => expect(updateJoin).toHaveBeenCalledWith({ channelId: 'c1', userId: 'me-join', nick: '' }));
     });
 
-    // ADR-0039: the DM variant is the same write with different copy, plus a caller-supplied
-    // placeholder (the name the room falls back to) instead of my own profile nick.
     describe('dm 변형', () => {
         it('dmChat 카피를 쓴다', () => {
             render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" variant="dm" />);

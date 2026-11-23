@@ -61,7 +61,6 @@ describe('SaveShareButtons', () => {
 
         const save = screen.getByRole('button', { name: 'chat.attach.export.save' });
         const share = screen.getByRole('button', { name: 'chat.attach.export.share' });
-        // The working one stays focusable and ignores presses; the other is off.
         expect(save).toHaveAttribute('aria-disabled', 'true');
         expect(share).toBeDisabled();
         expect(save).toHaveAttribute('aria-busy', 'true');

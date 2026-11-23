@@ -15,9 +15,7 @@ const mockCountRoomMedia = jest.fn();
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         data: {
-            // One graph object, as the runtime hands out: a new one per render would resubscribe forever.
             useRuntimeRepositories: (() => {
-                // Built on first use: the mock it holds is initialised after this factory runs.
                 let graph: unknown;
                 return () =>
                     (graph ??= { chat: { countRoomMedia: mockCountRoomMedia, observeList: () => () => undefined } });

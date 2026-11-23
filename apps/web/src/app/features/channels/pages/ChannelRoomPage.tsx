@@ -114,25 +114,14 @@ import { RoomMiniPlayer } from '../components/RoomMiniPlayer';
 import { useRoomAudioSurface } from '../hooks/useRoomAudioSurface';
 import { readCursorOf, readPositionOf, unreadOf } from '../../../utils/countUnread';
 
-// Maximum number of characters allowed in the input
 const MAX_INPUT_LENGTH = 5000;
 
-/** px the message list keeps clear above the composer, on top of the composer's own height. */
 const LIST_COMPOSER_GAP = 16;
 
-/**
- * The list's bottom padding for a composer `height` px tall, written straight onto the list — for the
- * frames the composer moves without the page rendering them (`followFooter`).
- */
 const clearComposer = (list: HTMLElement | null, height: number) => {
     if (list) list.style.paddingBottom = `${height + LIST_COMPOSER_GAP}px`;
 };
 
-/**
- * A read of the room on screen, through that room's cloud — its join cache, its socket. The
- * repository writes the cursor locally and hands the server half to the outbox; this resolves when
- * the server has it.
- */
 const readInRoomCloud = (cid: string, input: { channelId: string; chatNo: number }): Promise<void> =>
     runtime.data
         .getCloudRepositories(cid)
@@ -141,46 +130,28 @@ const readInRoomCloud = (cid: string, input: { channelId: string; chatNo: number
 
 export const ChannelRoomPage = () => {
     const navigate = useNavigateWithTransition();
-    // Only for leaving a room I am not in — see the not-a-member effect.
     const enterStack = useStackNavigate();
     const { t } = useTranslation();
     const { channelId } = useParams<{ channelId: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
     const location = useLocation();
 
-    // UI state management
-    // The composer's text is this room's draft: kept when the room is left, and swapped when the route
-    // moves to another room without remounting. Keyed like `stableChannelId` below.
     const [content, setContent] = useComposerDraft(channelId || 'default');
     const [expandedMessage, setExpandedMessage] = useState<{ content: string; ownerName: string } | null>(null);
-    // The long-pressed message the action sheet targets (null = sheet closed).
     const [actionMessage, setActionMessage] = useState<ClientChatView | null>(null);
     const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-    // The chip whose reactors are being inspected: the message it belongs to plus the fold key
-    // of the chip that was long-pressed (which tab the sheet opens on).
     const [reactorTarget, setReactorTarget] = useState<{ messageId: string; key: string } | null>(null);
     const [isCopyingMessage, setIsCopyingMessage] = useState(false);
-    // The person whose profile was last opened over the room: a snapshot of what the row or the
-    // header showed when it was tapped, so the profile names them the way the tap target did. It is
-    // kept after closing so the dialog still shows them while it slides away; `profileOpen` is the
-    // open state.
     const [profileTarget, setProfileTarget] = useState<MessageSender | null>(null);
     const [profileOpen, setProfileOpen] = useState(false);
 
-    // State for the floating pill that shows the date group crossing the top edge while scrolling
     const [floatingDate, setFloatingDate] = useState('');
     const [showFloatingDate, setShowFloatingDate] = useState(false);
     const floatingHideTimerRef = useRef<number | null>(null);
-    // The mention composer's way to put back the picks of a caption that came back unsent. The attach
-    // flow is set up before the composer is, so it reaches the composer through this ref.
     const restoreCaptionPicksRef = useRef<(() => void) | null>(null);
 
-    // Ref for DOM access (the scroll container ref is owned by useChatScroll)
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    // Header/composer float as z-index overlays above the full-bleed message list (the translucent
-    // glass treatment) instead of being flex-col siblings that push it down — the rest is corrected
-    // via padding measured off their actual rendered height.
     const {
         headerRef,
         footerRef: composerRef,
@@ -188,27 +159,16 @@ export const ChannelRoomPage = () => {
         footerHeight: composerHeight,
         followFooter: followComposer,
     } = useChromeInsets();
-    // The composer floats over the list; the snackbar rests above it rather than behind it.
     useBottomChromeToastLift(composerHeight);
 
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
-    // The place this reader is standing in. Only a room that names no place needs it — see
-    // `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
 
-    // --- Data-fetching hooks ---
     const stableChannelId = useMemo(() => channelId || 'default', [channelId]);
     const stableChannelIdForChannelHook = useMemo(() => channelId || null, [channelId]);
 
-    // The home row hands its channel across the navigation (ADR-0058) — same reason openThread
-    // passes rootChat: the cache's first emission is asynchronous even when warm, and the header
-    // showing a skeleton (or, under a congested bridge, the resolve-timeout error page) for a room
-    // whose row was on screen a moment ago reads as a broken app. Display-only; useChannel keeps
-    // resolution semantics on the observer.
     const seedChannel = (location.state as { channel?: DomainChannel } | null)?.channel ?? null;
 
-    // Resolved before the member hook so its roster (`channel.memberIds`) can seed the member list —
-    // the two have no dependency on each other beyond that.
     const {
         channel,
         isLoading: isChannelLoading,
@@ -216,55 +176,26 @@ export const ChannelRoomPage = () => {
         isForbidden: isChannelForbidden,
     } = useChannel(stableChannelIdForChannelHook, { seed: seedChannel });
 
-    // The cloud this room belongs to: the row's own, or the selection until the row is here. A send
-    // and the join targets below are addressed to it by name, so a cloud switch landing mid-write
-    // cannot carry them into the other cloud.
     const roomCid = toCloudId(channel?.cid || selectedCloudId);
-    // Who "I" am in this room — the uid this account has in the room's cloud. Every cloud gives the
-    // account a different uid, and the session's is only the committed cloud's, so during a switch
-    // the two disagree. Every use below compares it against ids the room's cloud minted — the roster,
-    // join rows, owner ids, profile keys, reaction owners — or builds a sync id out of it
-    // (`<channelId>@<uid>`), so none of them can take the session's uid: a mismatch there registers
-    // somebody else's cursor, or reads me as a stranger in my own room and bounces me out of it.
     const userId = runtime.session.useUidInCloud(roomCid);
-    // A member's profile can open a 1:1 with them — see `canStartDmFromProfile` for where.
     const { startDm, isAvailable: canStartDm } = useStartDm();
 
-    // ONE join-cache subscription for this screen. My row (nick / notify / the read baseline), every
-    // member's read cursor and the active-membership set are all readings of the same rows, and each
-    // used to open its own observer of the same query (see useChannelJoins).
     const { joins, myJoin, activeMemberIds, cursorByUser } = useChannelJoins(stableChannelIdForChannelHook);
 
-    // Loads member user identities (name/avatar fallback) and merges them with the join rows above.
     const { members } = useChannelMembers({
         channelId: stableChannelId,
         detail: true,
         memberIds: channel?.memberIds,
         joins,
-        // A 1:1 keeps its departed peer on the roster — the header still names them and `useDmPeer`
-        // still resolves, which is what the departure notice and the re-invite CTA hang off. The
-        // stereo is read inline because this call sits above the `isDmChat` derivation.
         keepLeftMembers: channel?.stereo === 'dm',
     });
 
-    // A 1:1's peer needs a profile target even after they leave, because the header keeps naming them
-    // (Figma 4041-33606). `activeMemberIds` drops them, and while `profileMap` is the site-wide cache
-    // — so a peer seen earlier stays resolvable — a cold cache would otherwise never fetch them and
-    // the header would fall to "대화 상대" HERE while the settings screen (whose member list keeps
-    // departed peers, so it registers them) shows the real name. Two screens, two answers, which is
-    // exactly what ADR-0039 exists to prevent.
-    //
-    // The peer id is taken straight off the roster rather than from `useDmPeer`: that hook consumes
-    // `profileMap`, so reading it here would be circular.
     const profileTargetIds = useMemo(() => {
         if (channel?.stereo !== 'dm') return activeMemberIds;
         const peerId = pickDmPeerId(channel.memberIds ?? [], userId);
         return peerId && !activeMemberIds.includes(peerId) ? [...activeMemberIds, peerId] : activeMemberIds;
     }, [channel?.stereo, channel?.memberIds, activeMemberIds, userId]);
 
-    // The room's own place names its people (`profilePlaceOf`), a cloud 1:1's included. Every surface
-    // that draws a name in this room reads the same answer, or the header and the list disagree about
-    // who the room is with.
     const { profileMap } = useChannelProfiles(profilePlaceOf(channel, selectedSiteId), profileTargetIds);
 
     const memberById = useMemo(() => {
@@ -273,8 +204,6 @@ export const ChannelRoomPage = () => {
         return map;
     }, [members]);
 
-    // The one naming chain (see resolveUserName) — the chip a11y labels and the reactor sheet
-    // have to reach the same name the message rows do.
     const nameSources: DisplayNameSources = useMemo(
         () => ({
             profileMap,
@@ -287,26 +216,17 @@ export const ChannelRoomPage = () => {
     );
     const nameOfUser = useCallback((id: string) => resolveUserName(id, nameSources), [nameSources]);
 
-    // Same precedence for faces as for names, so the thread footer's avatars match the
-    // bubbles right above them (ADR-0047 decision 5). Returning undefined lets the footer
-    // fall through to the reply row's embedded `owner$` thumbnail.
     const avatarOfUser = useCallback(
         (id: string) => profileMap.get(id)?.thumbnail ?? memberById.get(id)?.thumbnail,
         [profileMap, memberById]
     );
 
-    // Full channel roster (source of truth: channel.memberIds), always including me. This drives
-    // the per-member join sync registration so every participant's read cursor stays live — the
-    // read-count denominator (activeMemberIds) is a separate, active-only set.
     const allMemberIds = useMemo(() => {
         const ids = new Set<string>(channel?.memberIds ?? []);
         if (userId) ids.add(userId);
         return [...ids];
     }, [channel?.memberIds, userId]);
 
-    // Am I actually in this room? Read off the roster the server itself authorizes with, or my own
-    // active join row. Gates the per-member join polling above: a room I am not in (a stale push
-    // into somebody else's self-chat, a group URL I never joined) gets 403 per member otherwise.
     const isMember = isChannelMember(channel, myJoin, userId);
 
     const {
@@ -315,27 +235,13 @@ export const ChannelRoomPage = () => {
         isReady: isJoinReady,
     } = useJoinPositions(roomCid, stableChannelIdForChannelHook, activeMemberIds, allMemberIds, cursorByUser, isMember);
 
-    // One reading of the room's kind for the whole screen, off `stereo` alone — never off the head
-    // count, and never as `!self && !dm` (that negative form is what swallowed `public` elsewhere).
-    // The booleans below are presentation flags derived FROM the kind, which is the shape this
-    // screen is supposed to have; what is banned is deciding the kind at each use.
     const channelKind = channel ? channelKindOf(channel.stereo) : undefined;
     const isSelfChat = channel?.isSelfChat ?? false;
-    // 1:1 DM. Header shows the peer's profile; no rename, no participant stack (ADR-0032).
     const isDmChat = channelKind === 'dm';
-    // Within a 1:1 there is a second axis `stereo` cannot see: a relay room was reached by inviting
-    // a phone number, a cloud one by naming a member. Only what hangs off the invite reads this.
     const dmHasInviteFlow = hasDmInviteFlow(channel);
-    // The header participant stack is group-only; self / 1:1 DM headers stay single-line.
     const isGroupChat = channelKind === 'group';
-    // DM peer (the other participant) for the header title/avatar — resolved from the roster, nick
-    // from the site profile, `cloudName` from their member record (a cloud 1:1's title and intro
-    // read it). Null for non-DM channels.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
 
-    // The `@` lookup is a group room's alone: a 1:1 always notifies and has one person to call, and a
-    // self chat has nobody to call. Members are the active ones other than me, under the name every
-    // row in this room draws them by — which is what the text will read after the pick.
     const mentionCandidates = useMemo(
         () =>
             isGroupChat
@@ -351,11 +257,8 @@ export const ChannelRoomPage = () => {
                 : [],
         [isGroupChat, activeMemberIds, userId, nameOfUser, avatarOfUser, t]
     );
-    // Message editing — its draft borrows the composer's field (see the composer below).
     const editing = useMessageEditing(stableChannelId);
     const mentionComposer = useMentionComposer({
-        // Off while a message is being edited: the edit borrows this field, and its text is not a
-        // message being written, so it must not raise the `@` list or leave a query behind.
         enabled: isGroupChat && !editing.isEditing,
         candidates: mentionCandidates,
         content,
@@ -367,38 +270,26 @@ export const ChannelRoomPage = () => {
         restoreCaptionPicksRef.current = mentionComposer.restoreClearedPicks;
     }, [mentionComposer.restoreClearedPicks]);
 
-    // Me as a mention needs me: my uid in this room's cloud (what the room's member ids are) and the
-    // account's, and every name a sender's list could have shown me under.
     const { userId: sessionUid } = runtime.session.useSessionIdentity();
     const mentionViewer = useMemo(() => {
         const me = userId ? memberById.get(userId) : undefined;
         const names = [userId ? profileMap.get(userId)?.nick : undefined, me?.nick, me?.name];
-        // Every member's `@name` is drawn as a mention, by the name the list writes it with.
         const memberNames = isGroupChat
             ? [
                   ...mentionCandidates.filter(row => !row.everyone).map(row => row.label),
                   userId ? nameOfUser(userId) : undefined,
               ]
             : undefined;
-        // A mention opens the member it names, by the same row the list offers.
         const people = mentionCandidates
             .filter(row => !row.everyone)
             .map(row => ({ id: row.id, name: row.label, avatar: row.thumbnail }));
         return mentionViewerOf({ roomUid: userId, sessionUid, names, memberNames, people });
     }, [userId, sessionUid, memberById, profileMap, isGroupChat, mentionCandidates, nameOfUser]);
-    // `myJoin` (above, from the join cache stream) is NOT `channel.$join`, which is a projection that
-    // lags the cache. The DM title reads the nick off it, so a rename in settings has to land here
-    // immediately or the header disagrees with every other surface.
-    // One title chain for every surface (see useChannelTitle): the header must read exactly what
-    // the home list row reads, so neither the branch nor the fallback label lives here.
     const roomTitle = useChannelTitle(channel, {
         joinNick: myJoin?.nick,
         peerNick: dmPeer?.profileNick,
         peerCloudName: dmPeer?.cloudName,
     });
-    // Whether there is still somebody on the other side, and where their invite stands (ADR-0068).
-    // `present` for every room with no invite behind it — a group, a self chat, and a cloud 1:1 —
-    // and the invite read stands itself down there, so none of them costs anything here.
     const {
         state: dmInviteState,
         countdown: dmInviteCountdown,
@@ -411,33 +302,18 @@ export const ChannelRoomPage = () => {
         channel,
         userId,
     });
-    // One flag behind both the footer and the composer lock, so they cannot disagree about whether
-    // there is anyone to talk to.
     const isPeerGone = dmInviteState.kind !== 'present';
-    // Read receipts need somebody who can do the reading. Two conditions, and they are different
-    // questions: a self chat never has a reader (kind), and a 1:1 whose peer is gone no longer has
-    // one (state). The head count is not consulted for either — it used to carry both by accident,
-    // reading 1 for a self chat and 1 again for an emptied 1:1, which is the same number standing
-    // for two unrelated facts. `activeCount` survives as what it actually is: the denominator the
-    // count-vs-tick mode is chosen by.
     const activeCount = activeMemberIds.length;
     const showReadReceipt = channelKind !== 'self' && !isPeerGone && activeCount >= 2;
 
-    // Whether the reader is away from the bottom, reading history: written by useChatScroll on every
-    // scroll and list change, read by useChats to decide whether arriving rows may push the oldest
-    // rows out of the window. A ref, because nothing renders off it.
     const readingHistoryRef = useRef(false);
 
-    // `joinedNo` windows the feed to my CURRENT membership (ADR-0067) — cached rows from before a
-    // leave stay in the chat cache, and the server stops serving them after a re-join.
     const memoizedChatParams = useMemo(
         () => ({
             channelId: stableChannelId,
             limit: 100,
             joinedNo: myJoin?.joinedNo,
             readingHistoryRef,
-            // Only the record of this room: on a switch without a remount, `channel` is the previous
-            // room's for a render.
             channelChatNo: channel?.id === stableChannelId ? channel.chatNo : undefined,
         }),
         [stableChannelId, myJoin?.joinedNo, channel?.id, channel?.chatNo]
@@ -461,7 +337,6 @@ export const ChannelRoomPage = () => {
         isFetched,
     } = useChats(memoizedChatParams);
 
-    // Audio: what this device hid, and stopping what plays once its message or file is gone.
     const { hiddenMedia } = useRoomAudioSurface({
         cid: roomCid,
         uid: userId ?? undefined,
@@ -469,16 +344,8 @@ export const ChannelRoomPage = () => {
         messages,
     });
 
-    // Debug mode only: hands what this room holds to the overlay's Room screen.
     useDebugRoomMirror('room', { channelId, channel, rendered: messages, rows: rawChats, focused: actionMessage });
 
-    /**
-     * Push-tap entry chain (ADR-0099). Only rooms reached by tapping a push record anything: the
-     * registry hands over that push's id and how long the routing took, and the second effect closes
-     * the chain when messages actually appear. Two entries, one correlation key — which is what makes
-     * "tapped a push and the conversation never showed" answerable, by saying whether the room even
-     * opened and whether it was routing or loading that took the time.
-     */
     const pushEntryRef = useRef<{ messageId?: string } | null>(null);
     const pushReadyLoggedRef = useRef(false);
     useEffect(() => {
@@ -503,22 +370,10 @@ export const ChannelRoomPage = () => {
         });
     }, [channelId, isChatLoading, messages]);
 
-    /**
-     * The room's very first message is loaded, so the intro block belongs at the top of the thread.
-     *
-     * `chatNo` is a per-channel sequence that starts at 1, so holding row 1 is proof we are at the
-     * start rather than an inference from "nothing older came back" — which flipped around during
-     * hydration and made the intro appear, move and disappear as pages landed. Once row 1 is in the
-     * window it stays, so this only ever turns on. Read from the UNFILTERED window: row 1 is
-     * typically the channel's own creation notice, which `messages` hides.
-     */
     const hasThreadStart = useMemo(() => rawChats.some(chat => chat.chatNo === 1), [rawChats]);
 
-    // Hold the room behind a skeleton until it can show its own name and its first messages. Either
-    // half arriving alone is what produced the "unnamed channel" flash and the empty list under it.
     const isRoomLoading = isChannelLoading || isChatLoading;
 
-    // Closes the `chat_room_open` trace the tap into this room began (list, banner or push).
     useRoomOpenTrace({
         channelId,
         isRoomLoading,
@@ -526,23 +381,16 @@ export const ChannelRoomPage = () => {
         messageCount: messages.length,
         atThreadStart: hasThreadStart,
     });
-    // Closes the `chat_room_sync` trace begun alongside it: the room showing its synced, latest page.
     useRoomSyncTrace({ channelId, rawChats });
 
     const { sendMessage, retryMessage, deleteMessage } = useChatMutations();
-    // The Lab's input lock this person put on the room, so nothing goes out of it by accident.
     const inputLock = useChatInputLock(channelId);
-    // The composer's lock, shared by the text field and the attach button: a photo sent into an
-    // empty 1:1 would strand the same unread badge a text would.
     const composerLocked = isPeerGone || editing.isEditing || inputLock.isLocked;
     const unlockInput = useCallback(() => {
         inputLock.setLocked(false);
         toast({ title: t('chat.inputLock.unlocked') });
     }, [inputLock.setLocked, t]);
-    // Photos go to the room's own cloud, the same one a text sent from here goes to.
     const imageSend = useSendImages({ cid: roomCid, channelId: stableChannelId });
-    // A voice message goes to the same cloud as a photo, as a message of its own, under the composer's
-    // lock. It is recorded in a sheet the attach panel's voice entry opens.
     const voice = useVoiceMessage({
         sendImages: imageSend.sendImages,
         disabled: composerLocked,
@@ -551,18 +399,12 @@ export const ChannelRoomPage = () => {
     const attach = useChatImageAttach({
         sendImages: imageSend.sendImages,
         disabled: composerLocked,
-        // The route keeps this page mounted from one room to the next; what waits is this room's.
         scope: stableChannelId,
         onVoice: voice.canRecord ? voice.open : undefined,
         inputRef,
         composerRef,
-        // The attach panel's slide moves the composer on every frame. The list keeps clear of it in the
-        // same frame, its padding written straight from the composer's size rather than rendered — a
-        // render of this whole page per frame is what that spares. The list is `messagesEndRef`, the
-        // scroller `useChatScroll` hands back further down; this runs only once a slide starts.
         onComposerSlide: sliding =>
             followComposer(sliding ? height => clearComposer(messagesEndRef.current, height) : null),
-        // A caption whose photos all failed the check comes back, unless something new was typed since.
         onUnsentText: text => {
             setContent(current => (current.trim() ? current : text));
             restoreCaptionPicksRef.current?.();
@@ -571,76 +413,25 @@ export const ChannelRoomPage = () => {
     const { toggleReaction, failedId: reactionFailedId } = useReactions();
     const rememberEmoji = useRecentEmojiStore(s => s.remember);
 
-    // Derived from the UNFILTERED window: reaction events and replies are hidden feed
-    // rows, so folding the visible `messages` would silently yield nothing (ADR-0093).
     const reactions = useMemo(() => foldReactions(rawChats, userId ?? null), [rawChats, userId]);
     const threadIndex = useMemo(() => buildThreadIndex(rawChats), [rawChats]);
 
-    /**
-     * My read cursor snapshotted at entry — the unseen-reply dot baseline. The LIVE
-     * cursor is useless for this: useReadMarker advances it to the channel head within
-     * a beat of entering (stage 1), which would clear every dot instantly. Leaving and
-     * re-entering the room takes a fresh snapshot, so a thread visited in between
-     * loses its dot — exactly the read semantics the cursor already has.
-     */
     const [baselineReadNo, setBaselineReadNo] = useState<number | null>(null);
     useEffect(() => setBaselineReadNo(null), [stableChannelId]);
     const myReadNo = myJoin?.readNo;
     useEffect(() => {
-        // First join-cache emission wins; later ones already carry the entry marker's echo.
         if (baselineReadNo === null && myReadNo !== undefined) setBaselineReadNo(myReadNo);
     }, [baselineReadNo, myReadNo]);
 
-    /**
-     * Leave for home when the channel is GONE — the row was there and disappeared (left the channel,
-     * cache cleared). `useChannel` only reports an absence once it has actually resolved one, so this
-     * no longer fires while a push-opened room is still being fetched; doing so used to unmount the
-     * sync that was fetching it and made the room permanently unenterable.
-     *
-     * Also leave when the channel is somebody ELSE's self-chat (`isSomeoneElsesSelfChat`): only its
-     * owner can ever read it, so the room would show nothing but refusals — and it used to poll the
-     * owner's join on the way, raising a server alarm. This is how a stale push lands after switching
-     * accounts on one device. Decided only once both ids are known; a legitimate room is never
-     * bounced while the identity is still resolving.
-     *
-     * An unresolvable channel (`isChannelError`) is NOT redirected: the error screen below explains
-     * itself and its "go back" action keeps the history entry the user came from. A REFUSED one is,
-     * because there the cause is known — the server said I am not a member — and a load-failure
-     * screen would blame the network for a membership fact.
-     */
     const isForeignSelfChat = isSomeoneElsesSelfChat(channel, userId);
-    // The row itself can say I am not in this room, and it has to — the server keeps serving the
-    // room and its messages to somebody who left (measured 2026-09-21), so nothing else closes it.
-    // Read off `memberIds`, which drops a departed member, with the cap and my own join row as the
-    // two guards against closing a room on somebody who belongs in it. See `isNotMyChannel`.
     const isNotMine = isNotMyChannel(channel, myJoin, userId);
-    // One exit per room, even if the effect re-runs before the redirect unmounts this screen. Toasts
-    // stack, so a repeat would put the same sentence on screen two and three times; and the exit can
-    // be a rewind, which lands asynchronously, so a second one issued before the first has landed
-    // would rewind past home.
     const leftNotMyRoomRef = useRef<string | null>(null);
     useEffect(() => {
-        // A refusal is an answer, so it does not wait for the loading window to close — that window
-        // exists for a fetch that might still arrive, and this one already came back.
         if (!isChannelForbidden && (isChannelLoading || isChannelError)) return;
         if (!channel || isForeignSelfChat || isNotMine || isChannelForbidden) {
             if (leftNotMyRoomRef.current === stableChannelId) return;
             leftNotMyRoomRef.current = stableChannelId;
-            // Say something on the way out. A notification outlives the membership it was sent
-            // for: leaving a room drops it from this device's list and cache, while the push that
-            // announced it stays in the OS tray and in the in-app notification list — both of
-            // which are deliberately NOT withdrawn on leave, because withdrawing them is
-            // unreliable per platform and a tap can be answered safely instead. This is where it
-            // is answered. A silent redirect looked identical to the app losing the tap.
-            //
-            // One line, not a dialog: nothing is being confirmed or prevented, and no way back in
-            // is offered — returning to a 1:1 takes the other side's invite, so a button here
-            // would be one that cannot work.
             toast({ title: t('chat.notAMember') });
-            // An eviction, not a plain replace: a push tap PUSHES the room above the home the
-            // reader was on, and overwriting the room with home there would leave home above home,
-            // so the first back press rewinds into an identical screen. The stack policy rewinds
-            // onto home when it is directly underneath and replaces the room everywhere else.
             enterStack('eviction', ROUTES.root);
         }
     }, [
@@ -655,9 +446,6 @@ export const ChannelRoomPage = () => {
         stableChannelId,
     ]);
 
-    // Read handling (stage 1: channel.chatNo right on entry, stage 2: correction after messages
-    // load / on foreground return) is owned by useReadMarker. Marking read right after sending
-    // is handled by markSent.
     const channelChatNo = channel?.chatNo;
     const lastMessage = useMemo(() => (messages.length > 0 ? messages[messages.length - 1] : null), [messages]);
     const lastChatNo = lastMessage?.isPending || lastMessage?.isFailed ? undefined : lastMessage?.chatNo;
@@ -670,18 +458,9 @@ export const ChannelRoomPage = () => {
         markRead: readInRoomCloud,
     });
 
-    // Auto-scroll to bottom is paused while a jump into this room is pending — if both are alive
-    // at once, the bottom pin overwrites the jump (`suppressAutoScroll` in
-    // apps/web/docs/feature/channels/chat-room.md). A jump to one of its thread replies is the
-    // thread page's, so it does not hold the room.
     const isJumpPending = useMessageJumpStore(s => isJumpTargetFor(s.target, stableChannelId));
-    // Until the room has decided where to open (below), the first page's bottom pin waits: it is
-    // deferred to a frame that runs after every effect, so it would undo a landing decided in the
-    // same flush. A room that decides not to land pins itself then. Only a member's room decides.
     const [isLandingPending, setLandingPending] = useState(true);
 
-    // Scrolling (following new messages to the bottom, holding a reader in history in place,
-    // resize/focus correction, prefetching older pages) is owned by useChatScroll.
     const {
         containerRef: messagesEndRef,
         handleScroll: handleChatScroll,
@@ -695,23 +474,13 @@ export const ChannelRoomPage = () => {
         loadMore,
         inputRef,
         suppressAutoScroll: isJumpPending || (isLandingPending && isMember),
-        // While a message is being edited: opening the edit focuses the composer and grows it, and
-        // either would pin the list to the bottom, away from the message being changed.
         holdBottomPin: editing.isEditing,
-        // Restores the offset stashed by openThread when coming back from a thread.
         channelId: stableChannelId,
-        // Growing composer = keyboard up (or a multi-line draft); the only such signal a native
-        // WebView gives, since it injects `--keyboard-height` instead of firing `window.resize`.
         composerHeight,
         readingHistoryRef,
-        // Old cached rows show at once and are re-checked with the server as the reader reaches them.
         onReadingRow: revalidateAround,
     });
 
-    // When entering via a message click from search results (?chatNo=), a request is registered
-    // in the jump store and the query is removed (to prevent re-jumping on refresh). The actual
-    // scroll/highlight/older-page loading is owned by useMessageJump
-    // (apps/web/docs/feature/channels/data-layer.md).
     useEffect(() => {
         const raw = searchParams.get('chatNo');
         if (!raw || !channelId) return;
@@ -720,9 +489,6 @@ export const ChannelRoomPage = () => {
 
         useMessageJumpStore.getState().request(channelId, chatNo);
         setSearchParams(
-            // A copy, not the params this effect read: the router hands the updater that same object,
-            // so deleting from it in place hid `chatNo` from the effect's own re-run, and a re-run
-            // that follows the jump's cleanup (StrictMode's mount check) lost the request for good.
             params => {
                 const next = new URLSearchParams(params);
                 next.delete('chatNo');
@@ -741,16 +507,11 @@ export const ChannelRoomPage = () => {
         loadMore,
         canLoadMore,
         loadUntil,
-        // The same cursor the feed is windowed by, so a jump cannot aim at a row this screen is
-        // never going to render.
         joinedNo: myJoin?.joinedNo,
         isFetched,
         fetchThrough,
     });
 
-    // Floating date pill: while scrolling, finds and shows the label of the date group crossing
-    // the container's top edge, then hides it a moment after scrolling stops. A lightweight
-    // observation independent of useChatScroll's own scroll logic.
     const handleFloatingDateScroll = useCallback(() => {
         const container = messagesEndRef.current;
         if (!container) return;
@@ -759,7 +520,6 @@ export const ChannelRoomPage = () => {
         const groups = container.querySelectorAll<HTMLElement>('[data-date-label]');
         for (const group of Array.from(groups)) {
             const rect = group.getBoundingClientRect();
-            // The group straddling the top edge owns the currently-visible date.
             if (rect.top <= containerTop + 1 && rect.bottom > containerTop) {
                 const label = group.dataset.dateLabel;
                 if (label) setFloatingDate(label);
@@ -772,10 +532,6 @@ export const ChannelRoomPage = () => {
         floatingHideTimerRef.current = window.setTimeout(() => setShowFloatingDate(false), 1200);
     }, [messagesEndRef]);
 
-    // The floating shortcuts over the list: the reader's unread mentions here, or the messages that
-    // arrived while they read history (Figma 6002:40133 · 6002:41749). See useRoomJumpPills.
-    // The unread divider and where the room lands on entry (Figma 6170:26376). Both are worked out
-    // once per visit, from the read cursor as it stood when the room opened — entering moves it.
     const [unreadDivider, setUnreadDivider] = useState<{ chatNo: number; count: number } | null>(null);
     const [awayFromCursor, setAwayFromCursor] = useState<number | undefined>(undefined);
     const entryRef = useRef({
@@ -801,18 +557,12 @@ export const ChannelRoomPage = () => {
         setAwayFromCursor(undefined);
         setLandingPending(true);
     }, [stableChannelId]);
-    // A return (a back press) to a remembered offset, or a visit that opens on a message someone asked
-    // for (a search hit, a notification, a push), keeps that position: the room lands on its own only
-    // when nothing else decided where to look. A remembered offset alone does not count — every room
-    // visited before has one, and coming back in from the home list is a fresh look at what is new.
-    // Read in a layout effect, after the restore claim is taken and before anything spends it.
     const navigationType = useNavigationType();
     useLayoutEffect(() => {
         entryRef.current.skipLanding =
             (navigationType === 'POP' && hasPendingScrollRestore()) ||
             isJumpTargetFor(useMessageJumpStore.getState().target, stableChannelId) ||
             searchParams.has('chatNo');
-        // Once per visit: the channel id names the visit.
     }, [stableChannelId]);
 
     const {
@@ -825,15 +575,10 @@ export const ChannelRoomPage = () => {
         containerRef: messagesEndRef,
         isAwayFromBottom,
         scrollToBottom: scrollChatToBottom,
-        // Unknown until the join stream answers: the pills take the first cursor known as the entry.
         readCursor: myJoin ? (readCursorOf(readPositionOf(myJoin, channel?.$join)) ?? 0) : undefined,
         awayFromCursor,
     });
 
-    // Lands the room once its rows and my cursor are known: at the oldest unread mention, highlighted,
-    // when there is one; else at the first unread message, with the divider just above it on screen.
-    // Few unread messages leave the list at the bottom anyway — a row near the end cannot scroll to
-    // the top. Nothing unread, nothing happens.
     useEffect(() => {
         const entry = entryRef.current;
         if (entry.decided || !myJoin || !channel || entry.channelId !== stableChannelId) return;
@@ -842,12 +587,8 @@ export const ChannelRoomPage = () => {
             entry.count = unreadOf(channel, myJoin);
         }
         if (messages.length === 0) return;
-        // Decided by the rows, not by the badge alone: the channel row's head can lag the messages
-        // the chat sync has already cached, and a badge of 0 would then hide unread rows on screen.
         let at = unreadEntryOf(messages, entry.cursor, hasMore && !entry.widened);
         if (at.kind === 'unknown') {
-            // The first unread row may be cached above the window: widen once, and decide on the
-            // next render; a row that is not cached at all is not worth a network page here.
             entry.widened = true;
             if (loadUntil(entry.cursor + 1)) return;
             at = unreadEntryOf(messages, entry.cursor, false);
@@ -855,7 +596,6 @@ export const ChannelRoomPage = () => {
         entry.decided = true;
         setLandingPending(false);
         if (at.kind !== 'at') {
-            // Nothing unread: open at the newest message, as the pin held above would have.
             if (!entry.skipLanding) scrollChatToBottom();
             return;
         }
@@ -865,7 +605,6 @@ export const ChannelRoomPage = () => {
         ).length;
         setUnreadDivider({ chatNo: at.chatNo, count: Math.max(entry.count, drawn) });
         if (entry.skipLanding) return;
-        // Either way the reader starts above unread messages, so the latest pill counts them.
         setAwayFromCursor(entry.cursor);
         if (firstMentionNo !== undefined && firstMentionNo >= at.chatNo) {
             useMessageJumpStore.getState().request(stableChannelId, firstMentionNo);
@@ -882,7 +621,6 @@ export const ChannelRoomPage = () => {
         checkMentionsInView();
     }, [handleChatScroll, handleFloatingDateScroll, checkMentionsInView]);
 
-    // Clear the pending hide timer on unmount.
     useEffect(() => {
         return () => {
             if (floatingHideTimerRef.current !== null) window.clearTimeout(floatingHideTimerRef.current);
@@ -890,17 +628,9 @@ export const ChannelRoomPage = () => {
     }, []);
 
     const handleSend = (raw: string) => {
-        // The disabled composer already refuses a locked room; this holds even if a path to the send
-        // is ever added that does not go through the field.
         if (inputLock.isLocked) return;
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
-        // Read at the press, before the field clears: who the text's names mean goes with this message.
-        // The picks are forgotten only once something is actually sent — a press that sends nothing
-        // keeps them for the next one.
         const mention = mentionComposer.mentionFor(trimmed);
-        // Photos picked in the attach panel take the press — the panel open, or closed with them waiting
-        // above the field — and what is typed goes in their message as its caption rather than as a
-        // message of its own.
         if (attach.sendReady && attach.sendPicked(trimmed, mention)) {
             mentionComposer.clearPicks();
             setContent('');
@@ -911,8 +641,6 @@ export const ChannelRoomPage = () => {
         mentionComposer.clearPicks();
         setContent('');
 
-        // Read now, at the press: the cloud the user was looking at when they sent is the one the
-        // message is for, whatever the selection does while it is in flight.
         const cid = roomCid;
         sendMessage(cid, { channelId: stableChannelId, content: trimmed, ...(mention ? { mention } : {}) })
             .then(newChat => {
@@ -926,25 +654,14 @@ export const ChannelRoomPage = () => {
             });
     };
 
-    // An unsent row lives in the partition of the cloud it was sent to, which is the row's own `cid`.
     const handleDeleteMessage = async (message: ClientChatView) => {
         if (!message.id) return;
-        // An image row's picked files are held for a retry; deleting the row lets them go. A no-op
-        // for any other row.
         imageSend.discard(message.id);
         await deleteMessage(message.cid, message.id);
     };
 
-    // Resent to the row's own cloud, with its thread target and content type intact (see retryMessage).
     const handleRetryMessage = async (message: ClientChatView) => {
         if (!message.id) return;
-        // An image row goes back through the image send, on the same row with the same files. The
-        // text path below would resend its empty `content` — a blank message.
-        //
-        // Asked at the tap, not while drawing: whether the files are still held is not React state,
-        // and the send marks the row failed a moment before it lets a retry in, so a render-time read
-        // could hide the button on the very row that just failed. A row whose files are gone — a
-        // reload left it behind — can only be deleted, and says so.
         if (isPendingImageChat(message)) {
             if (imageSend.canRetry(message.id)) void imageSend.retry(message.id);
             else toast({ title: t('chat.attach.cannotRetry') });
@@ -969,8 +686,6 @@ export const ChannelRoomPage = () => {
         setActionMessage(message);
     };
 
-    /** Copies what the message SAYS, not what it is made of: a Block Kit body is flattened
-     *  here rather than at the call site, so its payload cannot reach the clipboard. */
     const handleCopyMessage = async (message?: ClientChatView | null) => {
         const text = message ? chatPlainText(message) : '';
         if (!text || isCopyingMessage) return;
@@ -988,15 +703,9 @@ export const ChannelRoomPage = () => {
         }
     };
 
-    // The reader's place in the list is remembered by useChatScroll's unmount stash — every exit
-    // from the room goes through it, so this hop does not have to save anything itself.
     const openThread = useCallback(
         (message: ClientChatView) => {
             if (!message.chatNo) return;
-            // Hand the root across with the navigation. The thread derives everything from the
-            // chat cache, whose first emission is asynchronous even when it is warm, so without
-            // this the thread opens on a bare spinner for a beat — long enough to see, and long
-            // enough that the translucent header has nothing behind it to blur.
             void navigate(ROUTES.channels.thread(stableChannelId, message.chatNo), {
                 state: { rootChat: message },
             });
@@ -1004,10 +713,6 @@ export const ChannelRoomPage = () => {
         [navigate, stableChannelId]
     );
 
-    // A sender's avatar or name, or a 1:1's header. My own profile is never opened here: my rows
-    // are inert and a 1:1 peer is by definition not me, so reaching this with my id is a roster
-    // glitch. Opening it would offer "profile settings" without the editor behind it, which this
-    // room does not mount — that path stays on the settings screen.
     const openMemberProfile = useCallback(
         (sender: MessageSender) => {
             if (!sender.id || sender.id === userId) return;
@@ -1017,9 +722,6 @@ export const ChannelRoomPage = () => {
         [userId]
     );
 
-    // One tap on the action sheet's quick row (or a pick from the full sheet): toggle
-    // against the folded state — hasMyReaction matches on the normalised fold key, so
-    // an emoji differing only by variation selector still turns mine off.
     const handlePickEmoji = (emoji: string) => {
         const target = actionMessage;
         setActionMessage(null);
@@ -1029,9 +731,6 @@ export const ChannelRoomPage = () => {
         toggleReaction(target.id, emoji, hasMyReaction(reactions.get(target.id), emoji));
     };
 
-    // The chip row's add button. Setting the target and opening the picker in one step is
-    // what lets `handlePickEmoji` serve both entry points unchanged — the action sheet stays
-    // suppressed while the picker is open, so it never flashes on the way through.
     const handleAddReaction = (message: ClientChatView) => {
         setActionMessage(message);
         setEmojiPickerOpen(true);
@@ -1057,11 +756,8 @@ export const ChannelRoomPage = () => {
         if (target) editing.requestDelete(target);
     };
 
-    // A one-line quote of the message being deleted, cut short so the dialog stays a dialog.
     const deleteConfirmPreview = deleteConfirmQuote(editing.deleteTarget?.content);
 
-    // Only the textarea may take the caret away from the textarea. Shared by the bottom bar's
-    // pointer and mouse handlers — see the wrapper below for why both are needed.
     const keepCaretOnInput = (e: React.PointerEvent<HTMLDivElement> | React.MouseEvent<HTMLDivElement>) => {
         if (e.target !== inputRef.current) e.preventDefault();
     };
@@ -1069,7 +765,6 @@ export const ChannelRoomPage = () => {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (!isSendKey(e.nativeEvent)) return;
         e.preventDefault();
-        // While a message is being edited the field holds its draft, and the same key saves it.
         if (editing.composer) {
             editing.composer.onSave();
             return;
@@ -1077,9 +772,6 @@ export const ChannelRoomPage = () => {
         handleSend(content);
     };
 
-    // What the composer's field is told in each mode. Editing: the draft, saved by the send button,
-    // and locked only while the save is in flight — the room's other locks are about sending
-    // something new, and an edit sends nothing new.
     const composerFieldProps: Omit<MessageInputProps, 'inputRef' | 'onKeyDown'> = editing.composer
         ? {
               value: editing.composer.draft,
@@ -1097,11 +789,7 @@ export const ChannelRoomPage = () => {
               sendReady: attach.sendReady,
               placeholder: inputLock.isLocked ? t('chat.inputLock.placeholder') : t('chat.room.inputPlaceholder'),
               sendLabel: t('common.send'),
-              // Nobody left to receive it: a message sent into an empty 1:1 would carry an
-              // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 decision 5).
               disabled: composerLocked,
-              // A locked composer takes no photos either, so the padlock that lifts the lock
-              // stands where the attach button was.
               leadingSlot: inputLock.isLocked ? (
                   <ComposerLockButton onClick={unlockInput} label={t('chat.inputLock.unlock')} />
               ) : (
@@ -1160,8 +848,6 @@ export const ChannelRoomPage = () => {
         return t('chat.room.dateFormat', { year, month, day, weekday });
     };
 
-    // Compact label for the scroll-time floating pill, e.g. "7. 01 월".
-    // The weekday is the first character of the localized weekday name (a single Korean character).
     const formatFloatingDate = (date: Date) => {
         const month = date.getMonth() + 1;
         const day = String(date.getDate()).padStart(2, '0');
@@ -1174,8 +860,6 @@ export const ChannelRoomPage = () => {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     };
 
-    // A group room shows its read receipt on my newest message only (Figma 5978:37669): one line
-    // that says how far the room has caught up with me, instead of a count beside every bubble.
     const lastMineChatNo = useMemo(() => {
         let last: number | undefined;
         for (const message of messages) {
@@ -1191,7 +875,6 @@ export const ChannelRoomPage = () => {
             if (!showReadReceipt || chatNo === undefined || chatNo !== lastMineChatNo) {
                 return { show: false, isReady: isJoinReady, readCount: 0, unreadCount: 0, mode: 'readers' };
             }
-            // Mine is read by definition; the line counts everyone else.
             const readers = getReaders(chatNo).filter(id => id !== userId);
             const others = activeMemberIds.filter(id => id !== userId).length;
             return {
@@ -1220,10 +903,6 @@ export const ChannelRoomPage = () => {
         );
     }, [messages]);
 
-    // Each gap's divider sits above the first message the feed draws on its newer side. That is not
-    // always the row the gap was found at: the gap is worked out over every cached row, and the row
-    // right above it can be a reply or a reaction the feed never draws.
-    // Two gaps with only undrawn rows between them land on the same message; both get a divider.
     const gapsAboveMessageId = useMemo(() => {
         const byId = new Map<string, ChatGap[]>();
         let index = 0;
@@ -1235,10 +914,6 @@ export const ChannelRoomPage = () => {
         return byId;
     }, [gaps, messages]);
 
-    // Rows render newest-first inside a `flex-col-reverse` group, so a divider placed right after a
-    // row's element in the DOM shows directly above it. Keyed by the gap and by how much of it is
-    // still unanswered: a page of deleted messages moves neither edge, and the divider has to mount
-    // anew to ask for the next one.
     const withGapDividers = (rows: ClientChatView[], elements: ReactNode[]): ReactNode[] =>
         elements.flatMap((element, index) => {
             const above = rows[index]?.id ? gapsAboveMessageId.get(rows[index].id as string) : undefined;
@@ -1266,8 +941,6 @@ export const ChannelRoomPage = () => {
             ];
         });
 
-    // Only the channel itself failing to resolve takes the room down. An older page that does not
-    // arrive is retried by useChats while the conversation stays on screen.
     if (isChannelError) {
         return (
             <div className="flex h-full items-center justify-center bg-background">
@@ -1281,12 +954,6 @@ export const ChannelRoomPage = () => {
         );
     }
 
-    // Header avatar — self shows MY place-profile photo, DM the peer's, otherwise the channel
-    // thumbnail (one shared rule with the home list / settings, see resolveChannelAvatar). With none
-    // set, the ChatRoomHeader fallback glyph (person for self/direct, group for the rest).
-    // The self-chat photo comes from the same profileMap the DM peer does — a self chat's only
-    // member is me, so my profile is already synced into it.
-    // Only the photo is read here: the header's own `kind` already selects its fallback glyph.
     const headerAvatarSrc = channel
         ? resolveChannelAvatar({
               channel,
@@ -1302,12 +969,6 @@ export const ChannelRoomPage = () => {
         />
     ) : undefined;
 
-    // Group header meta — an owner-first participant stack (max 5) plus the total member count.
-    // Self / 1:1 DM headers stay single-line (no meta), so this is group-only.
-    // Photos are the place profile's only, like the header avatar above: the member cache's
-    // account-wide avatar is not a photo anyone chose for this place, so a member without a
-    // profile photo gets the default avatar. The name (alt text) still falls back to the cache.
-    // Built inline (plain code, not a hook) since it sits past the error return.
     const headerMeta = !isGroupChat
         ? undefined
         : (() => {
@@ -1326,17 +987,11 @@ export const ChannelRoomPage = () => {
               return <AvatarGroup avatars={avatars} count={channel?.memberCount ?? 1} max={5} />;
           })();
 
-    // The peer as their profile introduces them: the same naming chain the rows use and the peer's
-    // place-profile photo, the one the header already shows. Null outside a 1:1, or while the roster
-    // has not named the peer yet.
     const dmProfile: MessageSender | null =
         isDmChat && dmPeer?.id
             ? { id: dmPeer.id, name: resolveUserName(dmPeer.id, nameSources), avatar: dmPeer.thumbnail }
             : null;
 
-    // The thread's opening description block — one per stereo (see RoomIntro). It is not an empty
-    // state: it renders in the empty branch AND at the top of a live thread, so it survives the
-    // first message. A DM cannot be invited into, and a guest / inactive cloud cannot issue one.
     const roomIntro = (
         <RoomIntro
             variant={isSelfChat ? 'self' : isDmChat ? 'dm' : 'group'}
@@ -1344,29 +999,16 @@ export const ChannelRoomPage = () => {
             isGroupOwner={!!channel?.isOwner}
             onInvite={
                 !isGuest && isCloudActive
-                    ? // roomDistance carries how many hops the invite flow is from this room screen, so
-                      // its final "done" step can pop straight back here instead of stacking on top of it.
-                      () => navigate(ROUTES.channels.invite(stableChannelId), { state: { roomDistance: 1 } })
+                    ? () => navigate(ROUTES.channels.invite(stableChannelId), { state: { roomDistance: 1 } })
                     : undefined
             }
         />
     );
 
-    // The header clearance, as the last DOM child of the reversed list — i.e. the topmost thing in
-    // it. This is the scroll container's own `padding-top` moved into the content, because in a
-    // `flex-col-reverse` scroller that padding is not dependable scrollable overflow (see the
-    // container's style). `12` is the list's `gap-3`, which now sits between this spacer and the
-    // first row and would otherwise add itself on top of the clearance.
     const headerSpacer = (
         <div aria-hidden className="shrink-0" style={{ height: Math.max(0, headerHeight + 8 - 12) }} />
     );
 
-    // Everything the room says about a peer who left, plus the way back (ADR-0068). Renders nothing
-    // while the peer is here, so it can sit in the stream unconditionally.
-    //
-    // The CTA is withheld from a guest for the same reason the group invite is: issuing takes a main
-    // user and the server answers 403 (ADR-0034). Unlike the group invite it does NOT ask for an
-    // active cloud — a 1:1 lives on relay, so requiring one would disable the normal case.
     const dmInviteFooter = (
         <DmInviteFooter
             state={dmInviteState}
@@ -1380,8 +1022,6 @@ export const ChannelRoomPage = () => {
                               state: {
                                   reinvite: {
                                       channelId: stableChannelId,
-                                      // The peer's own nick is the fallback when this device never
-                                      // issued the invite (so the log has no name for them).
                                       name: prefill.name ?? dmPeer?.profileNick,
                                       phone: prefill.phone,
                                   },
@@ -1392,8 +1032,6 @@ export const ChannelRoomPage = () => {
         />
     );
 
-    // The room's settings, which also list its members. `roomDistance: 1` is how far settings sits
-    // from this room, so an invite started there can pop back onto this room's history entry.
     const openSettings = () => navigate(ROUTES.channels.settings(stableChannelId), { state: { roomDistance: 1 } });
 
     return (
@@ -1404,20 +1042,12 @@ export const ChannelRoomPage = () => {
                     title={roomTitle}
                     avatar={headerAvatar}
                     meta={headerMeta}
-                    // Placeholders until the channel resolves — `roomTitle` has to fall back to the
-                    // "unnamed channel" label while there is no channel to read a name off, and
-                    // showing that for a beat reads as having opened the wrong room.
                     loading={isChannelLoading}
                     onBack={() => navigate(-1)}
-                    // A 1:1's avatar and title are the peer, so they open the peer's profile.
                     onIdentityClick={dmProfile ? () => openMemberProfile(dmProfile) : undefined}
                     identityLabel={dmProfile ? t('chat.room.openProfile', { name: dmProfile.name }) : undefined}
-                    // A group's participant stack opens the screen that lists everyone — settings,
-                    // the same place the ⋯ button goes.
                     onMetaClick={isGroupChat ? openSettings : undefined}
                     metaLabel={isGroupChat ? t('chat.room.openMembers') : undefined}
-                    // ⋯ goes straight to settings rather than opening a menu: settings was the
-                    // menu's only item, so the menu only cost an extra tap.
                     onMore={openSettings}
                     moreLabel={t('chat.room.openSettings')}
                     className="border-b border-border"
@@ -1430,60 +1060,24 @@ export const ChannelRoomPage = () => {
                     onScroll={handleMessagesScroll}
                     className="absolute inset-0 flex flex-col-reverse overflow-y-auto overflow-x-hidden overscroll-none gap-3"
                     style={{
-                        // NO padding-top here — the header clearance is a spacer ELEMENT at the end
-                        // of the list (see `headerSpacer`). In a `flex-col-reverse` scroller the
-                        // content overflows towards the top, and the padding on that side is not
-                        // reliably part of the scrollable overflow: WebKit (the app's WebView)
-                        // leaves it out, so a thread taller than the viewport by less than the
-                        // header simply reports `scrollHeight === clientHeight` and does not scroll
-                        // AT ALL, with its oldest message stuck behind the header. A child element
-                        // is content, and content always scrolls.
-                        //
-                        // Border-box composer height, so it already carries the input field, its
-                        // padding and — when the keyboard is up — `--keyboard-height`. The list
-                        // therefore always clears the composer and gains extra room to scroll the
-                        // last message above a raised keyboard. This side is the scroller's start
-                        // edge, where padding IS honoured, so it stays padding.
                         paddingBottom: composerHeight + LIST_COMPOSER_GAP,
                     }}
                 >
                     {isRoomLoading ? (
                         <>
-                            {/* Same spacer trick as the live list below, so the placeholder rows
-                                start at the top and the real messages replace them in place. */}
                             <div aria-hidden className="flex-1" />
                             <RoomSkeleton />
                             {headerSpacer}
                         </>
                     ) : isChatEmpty ? (
-                        <div
-                            className="flex min-h-full flex-1 flex-col"
-                            // The empty room carries the clearance as its own padding rather than
-                            // the spacer: `min-h-full` is border-box, so it stays exactly one
-                            // viewport tall instead of overflowing by a spacer with nothing to
-                            // scroll to.
-                            style={{ paddingTop: headerHeight + 8 }}
-                        >
+                        <div className="flex min-h-full flex-1 flex-col" style={{ paddingTop: headerHeight + 8 }}>
                             <DateDivider label={formatDateSeparator(new Date())} />
                             {roomIntro}
-                            {/* A 1:1 whose peer left before anyone said anything is a real room, and
-                                this branch is a separate tree from the live list below — mounting the
-                                footer only there would leave it invisible here. */}
                             {dmInviteFooter}
                         </div>
                     ) : (
                         <>
-                            {/* A thread that does not fill the screen reads from the top, like any
-                                other list — only once it overflows does the newest message belong at
-                                the bottom. This flex-grow spacer is the first DOM child, so in the
-                                flex-col-reverse container it sits at the visual bottom and absorbs the
-                                free space that would otherwise push short threads down. It collapses
-                                to 0 as soon as the messages overflow, so tall threads scroll normally
-                                — unlike `justify-end`, which clips overflowing content. */}
                             <div aria-hidden className="flex-1" />
-                            {/* Second DOM child, so it lands directly above the spacer — i.e. below
-                                the newest message, which is what "pinned to the bottom of the stream"
-                                means in a `flex-col-reverse` container. */}
                             {dmInviteFooter}
                             {Object.entries(groupedMessages)
                                 .sort(([a], [b]) => b.localeCompare(a))
@@ -1494,10 +1088,6 @@ export const ChannelRoomPage = () => {
                                         <div
                                             key={dateKey}
                                             data-date-label={formatFloatingDate(dateMessages[0].timestamp)}
-                                            // The row the room lands on keeps the unread divider
-                                            // above it in view when it is scrolled to the top: the
-                                            // list runs under the header, so the margin is the
-                                            // header, then the divider and the gap around it.
                                             className="flex flex-col-reverse gap-3 [&_[data-chat-no]:has(+[data-unread-divider])]:scroll-mt-[var(--unread-divider-margin)]"
                                             style={
                                                 {
@@ -1509,15 +1099,6 @@ export const ChannelRoomPage = () => {
                                                 reversedMessages,
                                                 reversedMessages.map((message, index) => {
                                                     if (message.isSystem) {
-                                                        // Wrapped for `data-chat-no` like every other row: a
-                                                        // legacy notice keeps its whole sentence in `content`,
-                                                        // which search matches, and a jump to a row with no
-                                                        // anchor ended in "couldn't find that message" while
-                                                        // the notice sat on screen.
-                                                        //
-                                                        // New model: system messages carry no text — render the
-                                                        // localized clause from `subType` with the subject's name
-                                                        // (profile nick preferred) as a bold prefix.
                                                         const suffixKey = systemMessageSuffixKey(message.subType);
                                                         if (suffixKey) {
                                                             const systemProfile = message.ownerId
@@ -1525,11 +1106,6 @@ export const ChannelRoomPage = () => {
                                                                 : undefined;
                                                             const systemName = systemProfile?.nick ?? message.ownerName;
                                                             return (
-                                                                // A 1:1 losing its only other participant
-                                                                // is the one notice this room is not
-                                                                // neutral about, so Figma reddens it and
-                                                                // drops the pill. A group leave stays a
-                                                                // plain chip.
                                                                 <div key={message.id} data-chat-no={message.chatNo}>
                                                                     <SystemNotice
                                                                         tone={
@@ -1546,7 +1122,6 @@ export const ChannelRoomPage = () => {
                                                                 </div>
                                                             );
                                                         }
-                                                        // Legacy fallback: older rows stored the full sentence in content.
                                                         const systemMatch = (message.content ?? '').match(
                                                             /^(.+?)(님이.+)$/
                                                         );
@@ -1580,8 +1155,6 @@ export const ChannelRoomPage = () => {
                                                     const showTimeAndStatus =
                                                         !isSameAsNext || message.isPending || message.isFailed;
 
-                                                    // Site profile (nick/avatar) takes precedence over the
-                                                    // user-cache name fallback computed in useChats.
                                                     const ownerProfile = message.ownerId
                                                         ? profileMap.get(message.ownerId)
                                                         : undefined;
@@ -1593,33 +1166,19 @@ export const ChannelRoomPage = () => {
                                                             ? getReadCount(message.chatNo)
                                                             : { readCount: 0, unreadCount: 0 };
 
-                                                    // Thread footer: loaded-reply aggregate keyed by the
-                                                    // root's chatNo string (buildThreadIndex).
                                                     const threadMeta = message.chatNo
                                                         ? threadIndex.get(String(message.chatNo))
                                                         : undefined;
-                                                    // How many replies are new, not merely whether
-                                                    // any are — the footer prints the number. Zero
-                                                    // until the baseline snapshot lands, so a thread
-                                                    // never flashes an unseen count it then retracts.
                                                     const unseen =
                                                         threadMeta && baselineReadNo !== null
                                                             ? unseenReplies(threadMeta, baselineReadNo, userId ?? null)
                                                             : [];
                                                     const unseenReplyCount = unseen.length;
-                                                    // The footer's "Mentions me": an unseen reply calls
-                                                    // the reader, by the same record the row's @me uses.
                                                     const unseenRepliesMentionMe = unseen.some(entry =>
                                                         isMentioningViewer(entry, mentionViewer.ids)
                                                     );
 
                                                     return (
-                                                        // The wrapper carries `data-chat-no` for the
-                                                        // search jump (useMessageJump scrolls to it).
-                                                        // Keyed by `tempId` first: a send swaps its
-                                                        // optimistic id for the server's, and a key
-                                                        // that changed with it would remount the row
-                                                        // and play its entrance a second time.
                                                         <StackInRow
                                                             key={message.tempId ?? message.id}
                                                             data-chat-no={message.chatNo}
@@ -1694,9 +1253,6 @@ export const ChannelRoomPage = () => {
                                         </div>
                                     );
                                 })}
-                            {/* Last DOM child before the loader, so the reversed container puts it
-                                above every date group — the room's own opening entry, at the top of
-                                the thread rather than tucked inside the oldest day. */}
                             {hasThreadStart && roomIntro}
                             {isLoadingMore && (
                                 <div className="flex justify-center py-3">
@@ -1723,7 +1279,6 @@ export const ChannelRoomPage = () => {
                 </div>
 
                 {jumpPill && (
-                    // Centred over the list, just above the composer.
                     <div
                         className="pointer-events-none absolute inset-x-0 flex justify-center"
                         style={{ bottom: composerHeight + 16 }}
@@ -1743,58 +1298,24 @@ export const ChannelRoomPage = () => {
 
             <div
                 ref={composerRef}
-                // Extend the keep-keyboard-open tolerance to the whole bottom bar — a finger
-                // slipping off the input onto the surrounding padding shouldn't blur the
-                // textarea. Only the textarea itself keeps the caret. `mousedown` as well as
-                // `pointerdown`: on iOS WKWebView the focus move is the `mousedown` default
-                // action, so cancelling `pointerdown` alone does not hold the caret (the same
-                // reason MessageInput cancels both).
                 onPointerDown={keepCaretOnInput}
                 onMouseDown={keepCaretOnInput}
-                // The keyboard takes the attach panel's place: focusing the field closes the panel.
                 onFocus={event => {
-                    // React types a bubbled focus target as the element listening, which it need not be.
                     if ((event.target as EventTarget) === inputRef.current) attach.closePanel();
                 }}
-                // Floating composer (Figma 2948-28188 / 2948-29566): the bar itself has NO surface —
-                // the translucent pill is the only chrome, so the message list stays visible right up
-                // to the screen edge and scrolls behind it.
-                // No transition, ever: the keyboard's changes land the moment the shell reports them, and
-                // the attach panel's slide moves it frame by frame, together with the panel.
                 className="absolute inset-x-0 bottom-0 z-20 bg-transparent px-4 pt-2"
                 style={{
-                    // 8px above the keyboard — or the attach panel standing in its place — when it is
-                    // up, otherwise clear the home indicator. max(), never a sum — the keyboard already
-                    // reaches the screen edge, so adding the safe-bottom inset on top of it is what
-                    // made the bottom gap look oversized. The panel's share (`--attach-inset`, which
-                    // the panel's slot writes on this element) carries its safe area for the same
-                    // reason. The list clears the composer by its measured height, so this one padding
-                    // is what keeps both above the panel.
                     paddingBottom: COMPOSER_PADDING_BOTTOM,
                 }}
             >
-                {/* While a message is being edited the composer is its editor: the bar says which message
-                    and holds the way out, and the field below holds the draft. The new message typed
-                    before the edit is kept aside, untouched, and comes back when the edit closes. The
-                    edit is text only, so the picked photos and the `@` list step aside with it. */}
                 {editing.composer ? (
                     <ComposerEditBar edit={editing.composer} inputRef={inputRef} />
                 ) : (
                     <>
-                        {/* Photos picked in the attach panel wait here whenever the panel is not showing
-                            them all — once it has closed, most often — above the field their caption is
-                            typed in. Inside the bar, so its measured height — what the list clears —
-                            carries them, and they ride up with the keyboard as the pill does. Always
-                            rendered: the row folds itself away when it empties. */}
                         {attach.strip}
-                        {/* Right above the field, inside the measured bar like the strip: it rides up with the
-                            keyboard and the list clears it, and the keyboard stays up while a name is picked. */}
                         <MentionSuggestions candidates={mentionComposer.suggestions} onPick={mentionComposer.pick} />
                     </>
                 )}
-                {/* One field for both modes, so writing and editing share one textarea: the keyboard stays
-                    up as an edit opens and closes, and the listeners bound to the field at mount (the
-                    focus pin, the `@` list) stay attached to the element the person is typing in. */}
                 <MessageInput inputRef={inputRef} onKeyDown={handleKeyDown} {...composerFieldProps} />
             </div>
             {attach.overlays}
@@ -1802,10 +1323,6 @@ export const ChannelRoomPage = () => {
 
             <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
 
-            {/* View and report only. Removing a member stays on the settings screen, where the
-                roster it changes is in view; my own profile is never opened from here (see
-                `openMemberProfile`), so the self row and its editor are not wired. */}
-            {/* Mounted from the first tap on, so a room nobody opens a profile in never builds it. */}
             {profileTarget && (
                 <MemberProfileDialog
                     open={profileOpen}
@@ -1840,13 +1357,8 @@ export const ChannelRoomPage = () => {
                 fileMessage={actionMessage}
                 onOpenChange={open => !open && setActionMessage(null)}
                 tallies={actionMessage?.id ? reactions.get(actionMessage.id) : undefined}
-                // Persisted rows only (chatNo > 0): a reaction / reply targeting an
-                // optimistic temp id would 404 and orphan once the persisted swap lands.
                 canReact={!!actionMessage?.chatNo}
                 canReply={!!actionMessage?.chatNo}
-                // The shared verdict, so the room and the thread gate on exactly the same rule.
-                // Authorship stays this app's own `isOwner` — the value already deciding which
-                // side of the feed the bubble sits on.
                 canModify={!!actionMessage && canModifyMessage(actionMessage, actionMessage.isOwner)}
                 hasText={!!actionMessage && hasMessageText(actionMessage)}
                 isCopying={isCopyingMessage}
@@ -1861,14 +1373,10 @@ export const ChannelRoomPage = () => {
                 open={!!editing.deleteTarget}
                 onOpenChange={open => !open && editing.cancelDelete()}
                 title={t('chat.room.deleteMessageTitle')}
-                // Shows WHICH message is going: the sheet is long-pressed open from a wall of
-                // bubbles, and delete sits next to edit.
                 description={deleteConfirmPreview || t('chat.room.deleteMessageDescription')}
                 confirmLabel={t('chat.room.deleteMessageConfirm')}
                 onConfirm={() => void editing.confirmDelete()}
                 isPending={editing.isDeleting}
-                // Nothing is removed until the server answers, so the dialog IS the only feedback
-                // there is. It stays up and spins; `confirmDelete` clears the target either way.
                 closeOnConfirm={false}
             />
             <ConfirmDialog
@@ -1881,8 +1389,6 @@ export const ChannelRoomPage = () => {
                 variant="warning"
             />
             <ReactionDetailSheet
-                // Read from the live fold, not snapshotted: a reaction toggled away while the
-                // sheet is open should drop out of it too.
                 open={!!reactorTarget}
                 onOpenChange={open => !open && setReactorTarget(null)}
                 tallies={(reactorTarget && reactions.get(reactorTarget.messageId)) || []}

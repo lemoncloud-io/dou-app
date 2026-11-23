@@ -58,12 +58,10 @@ import {
     type RoomFilesTab,
 } from '../utils/roomFiles';
 
-/** How long the "hidden" toast offers its undo. */
 const UNDO_MS = 4000;
 
 const dayFormat = (locale: string) => new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric' });
 
-/** An audio row: its own player state, so only the row that plays re-renders on every tick. */
 const AudioRow = ({
     entry,
     cid,
@@ -132,16 +130,6 @@ const AudioRow = ({
     );
 };
 
-/**
- * The room's files (Figma 6067:22415 for the audio tab): photos·videos, files, audio and links shared
- * in this room, found in this device's message cache through the media index — the server keeps no
- * such list. So the list is "what this device has seen": at its end, "Find older files" loads the
- * room's older messages, which the index takes in, and reads on, until the server has no more.
- *
- * Selecting (the header's "Select", or a long press) acts on several at once: save and share up to ten
- * — share one at a time, as the app's share sheet takes a single file — and delete, which only hides
- * them on this device (with an undo), as nothing here can remove a file from the room for others.
- */
 export const RoomFilesPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -156,13 +144,11 @@ export const RoomFilesPage = () => {
 
     const { counts } = useRoomMediaCounts(cid, channelId);
     const files = useRoomFiles({ cid, uid, channelId, tab });
-    // A PDF pressed in a browser opens in the document viewer rather than downloading.
     const [previewing, setPreviewing] = useState<DocumentPreviewTarget | null>(null);
     const downloads = useFileDownloads({ cid, onPreview: (file, chatId) => setPreviewing({ file, chatId }) });
     const exports = useImageExports({ cid });
 
     const [query, setQuery] = useState('');
-    // Search sits behind the header's search button (Figma 6067:22415), one field for whichever tab is open.
     const [searchOpen, setSearchOpen] = useState(false);
     const [selected, setSelected] = useState<ReadonlySet<string> | null>(null);
     const [moreFor, setMoreFor] = useState<RoomFileEntry | null>(null);
@@ -170,7 +156,6 @@ export const RoomFilesPage = () => {
     const [viewerAt, setViewerAt] = useState<number | null>(null);
     const listRef = useRef<HTMLDivElement>(null);
 
-    // Senders named as the room's rows name them, before the search looks at them.
     const nameOf = useRoomSenderName(channel, uid);
     const shown = useMemo(
         () =>
@@ -184,8 +169,6 @@ export const RoomFilesPage = () => {
     const picked = shown.filter(entry => selected?.has(entry.key));
     const allowed = selectionActionState(picked.length);
     const viewable = shown.filter(entry => entry.media && entry.media.state === 'ready' && entry.media.src);
-    // Closing the viewer stops a share still downloading, so its sheet never opens over the list — as
-    // the room's viewer does. Only on the close itself: a selection being saved is left to finish.
     const { stopOnClose } = exports;
     const viewerOpen = viewerAt !== null;
     const wasViewerOpen = useRef(false);
@@ -206,7 +189,6 @@ export const RoomFilesPage = () => {
             return next;
         });
 
-    // Subscribed, so a length the player learns shows on its row at once.
     const durations = useRoomAudioStore(state => state.durations);
     const metaOf = (entry: RoomFileEntry) => {
         const parts = [entry.senderName, entry.sentAt ? dayFormat(i18n.language).format(new Date(entry.sentAt)) : ''];
@@ -232,11 +214,9 @@ export const RoomFilesPage = () => {
                   url: entry.media.src,
                   name: entry.media.name,
                   kind: entry.media.kind,
-                  // The list mixes messages: an expired address is signed again through this item's own.
                   chatId: entry.chatId,
               }
             : undefined;
-    // A photo or video where share cannot happen (a browser that shares no files) is not offered it.
     const shareUnavailable = (entry: RoomFileEntry) => !!exportableOf(entry) && !exports.canShare;
 
     const save = (entries: readonly RoomFileEntry[]) => {
@@ -382,7 +362,6 @@ export const RoomFilesPage = () => {
                 />
             )}
             <RoomFilesTabs
-                // The design numbers only the tab that is open.
                 tabs={ROOM_FILES_TABS.map(key => ({
                     key,
                     label: t(`chat.files.tab.${key}`),
@@ -558,8 +537,6 @@ export const RoomFilesPage = () => {
                 autoPlay
                 onIndexChange={setViewerAt}
                 onClose={() => setViewerAt(null)}
-                // The same share and save the room's viewer offers, for the showing item alone: the
-                // list's own selection is how several are saved here.
                 renderFooter={
                     exports.canExport
                         ? at => {

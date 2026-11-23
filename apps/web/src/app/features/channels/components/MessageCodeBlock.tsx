@@ -6,7 +6,6 @@ import { CodeBlock } from '@chatic/web-ui-kit';
 
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 
-/** How long the button reads "copied" before returning to its normal label. */
 const COPIED_FEEDBACK_MS = 1500;
 
 export interface MessageCodeBlockProps {
@@ -14,26 +13,6 @@ export interface MessageCodeBlockProps {
     lang?: string;
 }
 
-/**
- * A fenced code block in a chat bubble, with a button that copies JUST THE CODE.
- *
- * The message action sheet already offers "copy", but that copies the whole message — fine for a
- * sentence, useless when what you wanted was the snippet. The two coexist.
- *
- * **The pointer boundary is the delicate part.** The entire bubble is a long-press target, so a
- * press starting on this button would also start the timer and open the action sheet on top of the
- * copy. Links solve their version of this after the fact, by swallowing the click that follows a
- * fired long-press; a button can do better and stop the gesture from ever starting.
- *
- * Only the two events that START a gesture are stopped. ChannelMessageRow wires pointerdown to the
- * timer and pointerup/leave/cancel to CLEARING it, so stopping those three would do the opposite of
- * the intent: a press begun on the code text and released on this button would have its cancel
- * swallowed and fire the action sheet anyway. (Touch hides this — implicit pointer capture
- * retargets pointerup to the element that saw pointerdown — but a mouse reproduces it.)
- *
- * `stopPropagation` only — not `preventDefault`. The click still has to reach this button's own
- * handler, and on touch the browser still needs to synthesise it.
- */
 export const MessageCodeBlock = ({ code, lang }: MessageCodeBlockProps) => {
     const { t } = useTranslation();
     const [copied, setCopied] = useState(false);
@@ -49,8 +28,6 @@ export const MessageCodeBlock = ({ code, lang }: MessageCodeBlockProps) => {
     const handleCopy = () => {
         void (async () => {
             try {
-                // Returns false rather than throwing on the native path, so the result has to be
-                // checked — otherwise the button claims success on a copy that did not happen.
                 if (!(await copyMessageToClipboard(code))) return;
                 setCopied(true);
                 if (timerRef.current !== null) window.clearTimeout(timerRef.current);

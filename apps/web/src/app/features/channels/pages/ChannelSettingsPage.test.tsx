@@ -10,38 +10,21 @@ const updateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() })
 const navigate = jest.fn();
 const toast = jest.fn();
 
-// Mutable hook return values, set per test.
 let channelValue: any;
 let membersValue: any;
 let myJoinValue: any;
 let dmPeerValue: any;
-// The Lab's input lock on this room, as `useChatInputLock` answers it.
 let mockInputLock = { isAvailable: false, isLocked: false };
 const mockSetInputLocked = jest.fn();
-// Site profiles by userId — what the MEMBER ROW reads (useChannelProfiles). Defaults to "I have a
-// profile" so only the nudge tests opt out; an empty map would silently route every my-row assertion
-// through the profile-setup branch.
 let profilesValue: any;
-// What the TITLE CHAIN reads (useMyProfile). Deliberately a different nick from the member row's: the
-// two are separate sources by design (they trade immediacy against safety), so a test that conflates
-// them would hide a real drift.
 let myProfileValue: any;
-// The server's verdict on MY profile in the active place (usePlaceProfileAbsent): `true` only once
-// `profile.get-mine` answered with none, `undefined` while it is out. Separate from `profilesValue`,
-// which is only what the local cache holds.
 let absentValue: { absent: boolean | undefined; markPresent: jest.Mock };
 const markPresent = jest.fn();
-// The session's place. The fixtures' rooms live in `s1`, so they are read in the active place.
 let selectedSiteIdValue = 's1';
-/** Only a main user may issue an invite (ADR-0034), so this gates the friend sheet's re-invite CTA. */
 let mockIsGuest = false;
-/** What `useDmInviteState` reports — the friend sheet's "대화방 나감" line and the re-invite prefill. */
 let dmInviteStateValue: any;
-/** The room's join rows, when a test needs more than my own (the owner rule reads members' roles). */
 let joinsValue: any[] | undefined;
-/** My uid in the room's cloud — can differ from the session's (`me`). */
 let uidInCloudValue = 'me';
-/** The room's place row (`observeItem(channel.sid)`) — whether I own it, and who does. */
 let placeValue: any;
 const removePlaceMember = jest.fn().mockResolvedValue({ leftChannelIds: ['ch1'] });
 const placeRepository = {
@@ -52,10 +35,8 @@ const placeRepository = {
     removeMember: (...args: unknown[]) => removePlaceMember(...args),
 };
 
-// The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
 const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
 
-// The room files area has its own suite; here it only has to be placed.
 jest.mock('../components/RoomFilesEntry', () => ({
     RoomFilesEntry: ({ channelId }: { channelId: string }) => <div data-testid="room-files-entry">{channelId}</div>,
 }));
@@ -64,8 +45,6 @@ jest.mock('react-router-dom', () => ({
     useLocation: () => ({ state: null }),
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-// Every level, not just `error`: the page's divergence check logs `warn`, and a partial logger mock
-// turns that into a TypeError inside an effect cleanup.
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
@@ -74,16 +53,11 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigate,
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-// One factory for the whole module: the page reads the session identity here, and the role gate too
-// (only a main user gets the re-invite CTA). Importing the real module would load the data layer,
-// whose IndexedDB open crashes outside a browser.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
-            // A room that names no place is named from this place (`profilePlaceOf`), and my-row prompts are
-            // offered only when the room's place is this one.
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: selectedSiteIdValue }),
             useUidInCloud: () => uidInCloudValue,
         },
@@ -91,11 +65,8 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 
-// Avoid pulling the ui barrel (which imports @chatic/assets, unmapped in jest).
 jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.title}</div> }));
 
-// Shared hooks barrel + cross-feature dialog import both pull @chatic/runtime (socket lib
-// needs TextEncoder, unavailable in jsdom) — stub them to keep the suite runtime-free.
 jest.mock('../../../hooks', () => ({
     useActivePlaceName: () => 'MyPlace',
     useMyProfile: () => myProfileValue,
@@ -117,9 +88,6 @@ jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
     },
 }));
 
-// web-ui-kit stubs — ListRow exposes onClick as a button so rows are clickable/queryable. The
-// notification sheet is the real NotifyModeSheet over these BottomSheet/SheetOption stubs: the sheet
-// renders only while open, and each option is a radio carrying its checked state and its pick.
 jest.mock('@chatic/web-ui-kit', () => ({
     ListRow: ({ title, leading, trailing, onClick, destructive }: any) => {
         const body = (
@@ -159,17 +127,14 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ImageAvatar: ({ alt }: any) => <img alt={alt} />,
 }));
 
-// The webhook section reaches the runtime for its list; the gate that mounts it is what the page tests check.
 jest.mock('../components/ChannelWebhooksSection', () => ({
     ChannelWebhooksSection: (p: any) => <div data-testid="webhooks" data-channel={p.channelId} />,
 }));
 
-// Prop-capturing stubs so we can assert wiring without deep dialog rendering.
 let profileProps: any;
 jest.mock('../components/UpdateChannelDialog', () => ({
     UpdateChannelDialog: (p: any) => <div data-testid="update" data-open={String(p.open)} />,
 }));
-// One component, two mounts (self / dm) — key the testid off the variant so each can be asserted.
 jest.mock('../components/JoinNickDialog', () => ({
     JoinNickDialog: (p: any) => (
         <div
@@ -224,7 +189,6 @@ const SELF_CHANNEL = {
     },
     isError: false,
 };
-// 1:1 room. The inviter owns it, which is why the owner/member title branch is wrong for a DM.
 const DM_CHANNEL = {
     channel: {
         isOwner: true,
@@ -232,7 +196,6 @@ const DM_CHANNEL = {
         stereo: 'dm',
         ownerId: 'me',
         name: '서버 이름',
-        // The relay cloud — `cid` is what the lineage reads.
         cid: 'default',
         sid: 's1',
     },
@@ -251,7 +214,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     mockInputLock = { isAvailable: false, isLocked: false };
     membersValue = MEMBERS;
-    myJoinValue = { userId: 'me' }; // my join row from the stream; notify undefined → All messages
+    myJoinValue = { userId: 'me' };
     dmPeerValue = null;
     profileProps = undefined;
     placeCreateProps = undefined;
@@ -275,15 +238,12 @@ jest.mock('../hooks', () => ({
     useDmPeer: () => dmPeerValue,
     useDmInviteState: () => dmInviteStateValue,
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
-    // The room's single join observation: my row (nick/notification) and the roster row list come from one source.
     useChannelJoins: () => ({
         joins: joinsValue ?? (myJoinValue ? [myJoinValue] : []),
         myJoin: myJoinValue,
         activeMemberIds: myJoinValue?.userId ? [myJoinValue.userId] : [],
         cursorByUser: new Map<string, number>(),
     }),
-    // The title chain is what these tests are checking, so run the real hook — only the barrel
-    // around it (which drags in the socket runtime) is stubbed.
     useChannelTitle: jest.requireActual('../hooks/useChannelTitle').useChannelTitle,
     useChatInputLock: () => ({ ...mockInputLock, setLocked: mockSetInputLocked }),
 }));
@@ -319,7 +279,6 @@ describe('ChannelSettingsPage — the input lock row', () => {
         expect(toast).toHaveBeenCalledWith({ title: 'chat.inputLock.unlocked' });
     });
 
-    // Nothing sent in a self chat reaches anyone else, and its settings have no settings group.
     it('is not offered in a self chat', () => {
         channelValue = SELF_CHANNEL;
         mockInputLock = { isAvailable: true, isLocked: false };
@@ -354,7 +313,6 @@ describe('ChannelSettingsPage', () => {
         channelValue = SELF_CHANNEL;
         render(<ChannelSettingsPage />);
 
-        // Title comes from the self-chat derivation (join nick → my name), not channel.name.
         expect(screen.getByText('내프로필')).toBeInTheDocument();
         expect(screen.getByText('chat.settings.roomMembers')).toBeInTheDocument();
         expect(screen.getByTestId('member-me')).toBeInTheDocument();
@@ -373,8 +331,6 @@ describe('ChannelSettingsPage', () => {
         expect(screen.getByTestId('self-name')).toHaveAttribute('data-open', 'true');
     });
 
-    // ADR-0039: brought back DM room renaming. join.nick sits at the top of the title chain, and
-    // without a way to write it, that step would be a permanently dead branch.
     describe('1:1(DM) 방', () => {
         it('제목이 상대 프로필 닉이고 channel.name이 아니다', () => {
             channelValue = DM_CHANNEL;
@@ -402,12 +358,9 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-open', 'false');
             fireEvent.click(screen.getByText('토끼'));
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-open', 'true');
-            // Not the group dialog, which uses channel.name.
             expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'false');
         });
 
-        // A cloud 1:1's title skips `join.nick`, so an editor for it would save a name no screen
-        // ever shows. The row stays (it is the title) and stops being a button.
         it('클라우드 1:1은 이름 행이 버튼이 아니다 — 저장해도 보이지 않을 값이라', () => {
             channelValue = { ...DM_CHANNEL, channel: { ...DM_CHANNEL.channel, cid: '1000001' } };
             dmPeerValue = { id: 'peer', profileNick: '치이카와' };
@@ -428,9 +381,6 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-fallback', '토끼');
         });
 
-        // Offering "reinvite" while the peer is already in the room would, once tapped, issue
-        // another live code to someone who's already there. Locked by the same rule the room
-        // footer uses (canReinviteDm).
         it('상대가 참여 중이면 친구 정보 시트에 재초대를 내밀지 않는다', () => {
             channelValue = DM_CHANNEL;
             dmPeerValue = { id: 'peer', profileNick: '토끼' };
@@ -454,7 +404,6 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('dm-name')).toHaveAttribute('data-reinvite', 'on');
         });
 
-        // While one live invite exists, don't create a second even if the peer left.
         it('초대가 진행 중이면 나갔어도 재초대를 내밀지 않는다', () => {
             channelValue = DM_CHANNEL;
             dmPeerValue = { id: 'peer', profileNick: '토끼' };
@@ -500,9 +449,6 @@ describe('ChannelSettingsPage', () => {
         expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'true');
     });
 
-    // A group is titled by its shared name for everyone — the name its push carries — and only the
-    // owner sets that, so a member's row has nothing to edit. The row stays (it is the title) and
-    // stops being a button, as a cloud 1:1's does.
     it("makes a group member's room-name row not a button", () => {
         channelValue = MEMBER_CHANNEL;
         render(<ChannelSettingsPage />);
@@ -514,9 +460,6 @@ describe('ChannelSettingsPage', () => {
         expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'false');
     });
 
-    // The goal itself: no member gets a pending-invite badge. Since the join counter represents
-    // both "not yet joined" and "left" as the same 0 and can't tell them apart, rather than
-    // guessing, the badge isn't drawn at all.
     it('어떤 멤버에게도 초대 대기 배지를 달지 않는다', () => {
         channelValue = OWNER_CHANNEL;
         membersValue = {
@@ -543,11 +486,7 @@ describe('ChannelSettingsPage', () => {
         expect(navigate).toHaveBeenCalledWith('/channels/ch1/invite', { state: { roomDistance: 2 } });
     });
 
-    // The per-room level lives on my join row (`notify`): a row showing the level, and a sheet to
-    // pick another. Groups offer three levels; a 1:1 offers two, because the server delivers a 1:1
-    // stored as `mention` exactly like `all`.
     describe('room notification level', () => {
-        /** The notification row — the stub ListRow renders a tappable row as one button. */
         const notifyRow = () => screen.getByText('chat.settings.roomNotification').closest('button') as HTMLElement;
         const openSheet = () => fireEvent.click(notifyRow());
         const optionLabels = () => screen.getAllByRole('radio').map(option => option.textContent);
@@ -592,8 +531,6 @@ describe('ChannelSettingsPage', () => {
             );
         });
 
-        // Shown as what the server does with it, and offered without the level that would mean the
-        // same thing — but opening the screen must not rewrite what is stored.
         it('shows a 1:1 stored as mention as All messages and offers only two levels', () => {
             channelValue = DM_CHANNEL;
             dmPeerValue = { id: 'peer', profileNick: '토끼' };
@@ -611,8 +548,6 @@ describe('ChannelSettingsPage', () => {
             expect(updateJoin).not.toHaveBeenCalled();
         });
 
-        // The join row can land before the channel does; until the stereo is known a 1:1's `mention`
-        // reads as a group's, and the arriving channel has to correct it.
         it('corrects a 1:1 stored as mention once the channel arrives after the join row', () => {
             channelValue = { channel: undefined, isError: false };
             myJoinValue = { userId: 'me', notify: 'mention' };
@@ -651,8 +586,6 @@ describe('ChannelSettingsPage', () => {
             expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
         });
 
-        // Re-picking "All messages" in a 1:1 stored as `mention` is not a change either — writing it
-        // would rewrite the stored value behind the user's back.
         it('writes nothing when a 1:1 stored as mention re-picks All messages', async () => {
             channelValue = DM_CHANNEL;
             dmPeerValue = { id: 'peer', profileNick: '토끼' };
@@ -665,8 +598,6 @@ describe('ChannelSettingsPage', () => {
             expect(updateJoin).not.toHaveBeenCalled();
         });
 
-        // A state write: the level shows at once and waits in the outbox; only a server refusal comes
-        // back, through the receipt, after the sheet has closed.
         it('keeps the picked level while it waits, and says why if the server later refuses it', async () => {
             updateJoin.mockImplementationOnce(async () => ({ delivered: Promise.reject(new Error('403 FORBIDDEN')) }));
             channelValue = OWNER_CHANNEL;
@@ -740,7 +671,6 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('member-owner1')).toHaveAttribute('data-owner', 'false');
         });
 
-        // The inviter's join says owner on the server; a 1:1 still has no owner.
         it('puts no owner badge on anyone in a 1:1, the inviter included', () => {
             channelValue = DM_CHANNEL;
             membersValue = {
@@ -794,11 +724,7 @@ describe('ChannelSettingsPage', () => {
         expect(placeSettingsProps.placeName).toBe('MyPlace');
     });
 
-    // ADR-0040: when profile.nick is missing, my row puts a nudge message where a person's name
-    // would go. It does not fall back to the user record's name (***1234 for a phone signup, or
-    // a raw UUID otherwise).
     describe('프로필 미설정 유도 (내 행)', () => {
-        // The server says I have no profile here, and the cache holds none either.
         const noProfile = () => {
             profilesValue = { profileMap: new Map() };
             absentValue = { absent: true, markPresent };
@@ -812,13 +738,9 @@ describe('ChannelSettingsPage', () => {
             const me = screen.getByTestId('member-me');
             expect(me).toHaveTextContent('chat.settings.profileSetupRequired');
             expect(me).toHaveAttribute('data-needs-profile', 'true');
-            // '나' (me) is the user-cache name — it must not show up here.
             expect(me).not.toHaveTextContent('나');
         });
 
-        // The chain this row draws is now `resolveUserName`, not a copy of it. The copy re-read
-        // `member.name` with no raw-id guard, so a member whose cached name IS their account id
-        // (what the server seeds an unnamed user with) rendered as that id.
         it('유저 레코드 name이 자기 id면 id가 아니라 라벨로 떨어진다', () => {
             channelValue = OWNER_CHANNEL;
             membersValue = {
@@ -864,18 +786,12 @@ describe('ChannelSettingsPage', () => {
             expect(other).toHaveTextContent('유저2');
         });
 
-        // Regression guard: isMembersLoading turns false on the user cache's first emit and knows
-        // nothing about profiles. useChannelProfiles depends downstream on channel.sid, so the
-        // window where "members have arrived, profile hasn't" opens on every mount. Reading that
-        // window as "no profile" would nudge a user who does have one, and tapping that row would
-        // let an empty-form save overwrite the real nick.
         it('프로필 읽기가 끝나기 전에는 멤버가 도착해 있어도 유도하지 않는다', () => {
             channelValue = OWNER_CHANNEL;
             profilesValue = { profileMap: new Map() };
             absentValue = { absent: undefined, markPresent };
             render(<ChannelSettingsPage />);
 
-            // The member row does render — it's not hidden behind a loading spinner.
             const me = screen.getByTestId('member-me');
             expect(me).toHaveAttribute('data-needs-profile', 'false');
             expect(screen.queryByText('chat.settings.profileSetupRequired')).not.toBeInTheDocument();
@@ -891,8 +807,6 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('profile-create')).toHaveAttribute('data-open', 'false');
         });
 
-        // The reported bug, reproduced in the browser: with my row missing from IndexedDB the prompt
-        // showed although the server held my profile, and a tap opened a blank create form.
         it('does not prompt when the cache lacks my row but the server says I have a profile', () => {
             channelValue = OWNER_CHANNEL;
             profilesValue = { profileMap: new Map() };
@@ -964,7 +878,6 @@ describe('ChannelSettingsPage', () => {
 
             expect(screen.getByTestId('profile-create')).toHaveAttribute('data-open', 'true');
             expect(screen.getByTestId('profile')).toHaveAttribute('data-open', 'false');
-            // Passes the resolved place name and the exit-guard copy.
             expect(placeCreateProps.placeName).toBe('MyPlace');
             expect(placeCreateProps.exit.description).toBe('placeProfileCreate.exitDescription');
         });
@@ -978,7 +891,6 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('profile-create')).toHaveAttribute('data-open', 'false');
         });
 
-        // The member list is shared code — it isn't gated by stereo.
         it.each([
             ['self', () => SELF_CHANNEL, null],
             ['dm', () => DM_CHANNEL, { id: 'peer', profileNick: '토끼' }],
@@ -992,7 +904,6 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByTestId('member-me')).toHaveAttribute('data-needs-profile', 'true');
         });
 
-        // The channel name row is not a nudge point — self has a valid label even with no profile.
         it('self 방의 이름 행은 프로필이 없어도 유도가 아니라 라벨을 쓴다', () => {
             channelValue = SELF_CHANNEL;
             noProfile();
@@ -1000,7 +911,6 @@ describe('ChannelSettingsPage', () => {
             render(<ChannelSettingsPage />);
 
             expect(screen.getByText('channelList.selfChannel')).toBeInTheDocument();
-            // The nudge only lives on the member row.
             expect(screen.getByTestId('member-me')).toHaveTextContent('chat.settings.profileSetupRequired');
         });
     });

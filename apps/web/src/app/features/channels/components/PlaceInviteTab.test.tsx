@@ -13,7 +13,6 @@ let mockCandidateIds: string[] = [];
 let mockIsLoading = false;
 let mockProfiles: Array<[string, Partial<DomainProfile>]> = [];
 let mockUsers: Array<{ id: string; name?: string }> = [];
-// Rows the place member list returned, by id. Replaced (not mutated) per test so its identity is stable within one.
 let mockMemberById = new Map<string, { id: string; name?: string; thumbnail?: string }>();
 let mockFromPlaceList = false;
 const useChannelProfiles = jest.fn((_sid: string | null, _ids: string[], _interval?: number) => ({
@@ -31,9 +30,6 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigate,
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-// The real `useRuntimeRepositories` returns DataManager's same object every time. If the mock
-// returned a new object on every render, the user-cache effect's dependency would keep changing
-// and cause an infinite render loop — pin it to a stable reference.
 const repositories = { user: { cacheRead } };
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
@@ -53,8 +49,6 @@ jest.mock('../hooks', () => ({
     }),
     useChannelProfiles: (sid: string | null, ids: string[], interval?: number) =>
         useChannelProfiles(sid, ids, interval),
-    // The real one: it is the user-cache fallback these tests exercise, and it reads through
-    // the mocked repositories above. Stubbing it would test the stub instead of the chain.
     useUserRecords: jest.requireActual('../hooks/useUserRecords').useUserRecords,
 }));
 jest.mock('@chatic/web-ui-kit', () => ({
@@ -102,17 +96,12 @@ describe('PlaceInviteTab — 표시', () => {
         expect(screen.getByTestId('cand-아리')).toBeInTheDocument();
     });
 
-    // Same chain as the settings screen's member row: profile nick → user record name → label.
-    // The user record is a one-shot cacheRead per candidate, so it lands a tick later.
     it('프로필이 없으면 유저 레코드 name으로 떨어진다', async () => {
         setup();
 
         expect(await screen.findByTestId('cand-***5678')).toBeInTheDocument();
     });
 
-    // The id is NOT a rung. This chain used to end in `|| userId`, so a candidate with neither a
-    // place profile nor a cached name rendered as a raw account UUID — the exact value the shared
-    // chain rejects, and the one the member list right next to this picker already refuses.
     it('둘 다 없으면 id가 아니라 라벨로 떨어진다', () => {
         mockProfiles = [];
         mockUsers = [];
@@ -122,8 +111,6 @@ describe('PlaceInviteTab — 표시', () => {
         expect(screen.queryByTestId('cand-u1')).not.toBeInTheDocument();
     });
 
-    // The empty case above is the easy half. The server seeds an unnamed user's `name` with their
-    // own account id, so the cached name can BE the id — it has to fall through as well.
     it('유저 레코드 name이 자기 id면 라벨로 떨어진다', async () => {
         mockProfiles = [];
         mockUsers = [{ id: 'u2', name: 'u2' }];
@@ -141,7 +128,6 @@ describe('PlaceInviteTab — 표시', () => {
         expect(screen.getByTestId('cand-아리')).toHaveAttribute('data-avatar', 'data:image/png;base64,AAA');
     });
 
-    // A nick that's only whitespace is as good as an empty name, so it must fall through to the next step.
     it('닉이 공백뿐이면 다음 폴백으로 내려간다', async () => {
         mockProfiles = [['u2', { nick: '   ' }]];
         setup();
@@ -151,8 +137,6 @@ describe('PlaceInviteTab — 표시', () => {
 });
 
 describe('PlaceInviteTab — members from the place list', () => {
-    // The list loaded its profiles a page at a time; a bootstrap and a poll per person on top would
-    // be one request per member of the place.
     it('registers no per-person profile targets for a pool from the place list', () => {
         mockFromPlaceList = true;
         setup();
@@ -166,8 +150,6 @@ describe('PlaceInviteTab — members from the place list', () => {
         expect(useChannelProfiles).toHaveBeenCalledWith('site-1', ['u1', 'u2'], expect.any(Number));
     });
 
-    // Somebody who shares no room with me is in no cache row, so the place list's own row is the
-    // only name there is when they have no place profile either.
     it("names a member the user cache has never seen by the place list's row", async () => {
         mockProfiles = [];
         mockUsers = [];
@@ -234,7 +216,6 @@ describe('PlaceInviteTab — 선택과 검색', () => {
         expect(screen.queryByTestId('cand-***5678')).not.toBeInTheDocument();
     });
 
-    // The path for reaching someone whose nick you don't know — same as what desktop leaves in place of manual id entry.
     it('검색은 userId로도 필터한다', async () => {
         setup();
         await screen.findByTestId('cand-***5678');
@@ -283,7 +264,6 @@ describe('PlaceInviteTab — 확정', () => {
         expect(toast).toHaveBeenCalledWith({ title: 'inviteFriends.placeSuccess:1' });
     });
 
-    // The server can block this as owner-only (ADR-0075, unresolved) — that rejection must be shown to the user.
     it('실패하면 화면을 떠나지 않고 에러 토스트를 띄운다', async () => {
         inviteChannel.mockRejectedValue(new Error('denied'));
         setup();
@@ -305,7 +285,6 @@ describe('PlaceInviteTab — 후보 없음', () => {
         expect(screen.queryByTestId('cta')).not.toBeInTheDocument();
     });
 
-    // Still loading and genuinely empty are different things — showing "none" while loading would be a lie.
     it('로딩 중에는 후보 없음 안내를 띄우지 않는다', () => {
         mockCandidateIds = [];
         mockIsLoading = true;
@@ -316,8 +295,6 @@ describe('PlaceInviteTab — 후보 없음', () => {
 });
 
 describe('PlaceInviteTab — 로딩 중', () => {
-    // While candidates are still being read, the list is empty — rendering "no search results" at
-    // that point would be a lie to a user who hasn't even searched yet.
     it('로딩 중 빈 목록에 검색 결과 없음 문구를 그리지 않는다', () => {
         mockCandidateIds = [];
         mockIsLoading = true;

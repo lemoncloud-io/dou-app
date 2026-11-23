@@ -7,17 +7,11 @@ import { NOTIFY_LEVEL_LABEL_KEY, type NotifyLevel } from '../utils/notifyLevel';
 interface NotifyModeSheetProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    /** The level currently in effect — the one drawn as selected. */
     value: NotifyLevel;
-    /** The levels this room offers, in display order (a 1:1 offers fewer than a group). */
     levels: readonly NotifyLevel[];
     onSelect: (level: NotifyLevel) => void;
 }
 
-/**
- * Room notification level picker. Writing the level is the caller's job; the sheet only reports the
- * pick. There is no explicit save, so picking an option closes the sheet at once.
- */
 export const NotifyModeSheet = ({ open, onOpenChange, value, levels, onSelect }: NotifyModeSheetProps) => {
     const { t } = useTranslation();
     const title = t('chat.settings.roomNotification');
