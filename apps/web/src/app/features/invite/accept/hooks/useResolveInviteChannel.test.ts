@@ -9,7 +9,6 @@ import {
 
 const awaitChannel = jest.fn();
 const getInvite = jest.fn();
-// The relay slot's `join.sync` subscription: the test pushes through `pushJoin`.
 const joinListeners = new Set<(message: { data: unknown }) => void>();
 const unsubscribeJoin = jest.fn();
 const pushJoin = (data: unknown) => joinListeners.forEach(listener => listener({ data }));
@@ -36,12 +35,10 @@ jest.mock('../../../../hooks', () => ({
 
 const CODE = 'invt:1:secret';
 
-/** Two short probes — the real cadence would make every tier-3 test wait seconds of wall clock. */
 const PROBES = [0, 10];
 
 const mount = () => renderHook(() => useResolveInviteChannel());
 
-/** Let pending microtasks (probe round-trips) settle without advancing the clock. */
 const flush = async () => {
     for (let i = 0; i < 6; i += 1) await Promise.resolve();
 };
@@ -214,7 +211,6 @@ describe('useResolveInviteChannel — the room push', () => {
             resolved = id;
         });
         await flush();
-        // The dev server pushed the inviter's join about a second after the accept answered.
         await jest.advanceTimersByTimeAsync(1_000);
         pushJoin({ channelId: '1001976@1001984', userId: INVITER });
         await flush();
@@ -223,7 +219,6 @@ describe('useResolveInviteChannel — the room push', () => {
         expect(onResolved).toHaveBeenCalledWith('push');
         expect(unsubscribeJoin).toHaveBeenCalledTimes(1);
 
-        // The second probe and tier 3 never run once the push has answered.
         await jest.advanceTimersByTimeAsync(5_000);
         expect(getInvite).toHaveBeenCalledTimes(1);
         expect(awaitChannel).not.toHaveBeenCalled();
@@ -280,7 +275,6 @@ describe('useResolveInviteChannel — the room push', () => {
 
     it('still takes a push that arrives after the tiers gave up for want of a place', async () => {
         getInvite.mockResolvedValue({ id: 'inv-1' });
-        // No active place: tier 3 answers null at once.
         awaitChannel.mockResolvedValue(null);
         const onResolved = jest.fn();
         const { result } = mount();

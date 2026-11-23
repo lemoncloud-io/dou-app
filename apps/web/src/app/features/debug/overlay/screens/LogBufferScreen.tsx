@@ -74,14 +74,6 @@ const ActionButton = ({
     );
 };
 
-/**
- * The send-hold lever.
- *
- * Held means the queue is not drained, which is what makes it readable — so the
- * copy has to keep saying that this is a send pause, not an opt-out. Someone who
- * reads it as "stop collecting my logs" would believe a privacy control that
- * isn't one.
- */
 const HoldToggle = ({ held, byApp, onToggle }: { held: boolean; byApp: boolean; onToggle: () => void }) => {
     const t = useLogBufferScreenStrings();
     return (
@@ -112,17 +104,10 @@ const HoldToggle = ({ held, byApp, onToggle }: { held: boolean; byApp: boolean; 
     );
 };
 
-/**
- * Small copy button used inside an expanded log entry. Distinct from the shared `CopyButton`: the
- * outcome is reported by this screen's bottom toast instead of on the button, because the triggers
- * sit inside expanded rows where there is no room for per-button state — and there can be three of
- * them in one row.
- */
 const LogCopyButton = ({ label, value, onCopy }: { label: string; value: string; onCopy: (value: string) => void }) => (
     <button
         type="button"
         onClick={event => {
-            // Row header owns the expand toggle; keep copy from collapsing it.
             event.stopPropagation();
             onCopy(value);
         }}
@@ -241,7 +226,6 @@ export const LogBufferScreen = () => {
         return isNative();
     }, []);
 
-    // Native loads oldest-first in pages; web loads the whole snapshot at once.
     const hasMoreLogs = isOnMobileApp && (queueSize === null || logs.length < queueSize);
 
     const visibleLogs = useMemo(
@@ -249,11 +233,6 @@ export const LogBufferScreen = () => {
         [logs, activeLevels, query, activeTags]
     );
 
-    /**
-     * Tag chips, derived from what is present rather than from the tag
-     * constant. A picker listing every tag the app can emit — of which two
-     * occurred — is a worse picker, and there is no room for it in the panel.
-     */
     const availableTags = useMemo(() => collectLogTags(logs), [logs]);
 
     const toggleTag = useCallback((tag: string) => {
@@ -265,18 +244,6 @@ export const LogBufferScreen = () => {
         });
     }, []);
 
-    // Each buffer entry is a distinct object even when content is identical
-    // (socket retries repeat the same tag/message/timestamp), so rows are keyed
-    // by position rather than content — content-based keys collide and break
-    // reconciliation on filtering.
-    //
-    // The key is the entry's rank FROM THE NEWEST end (`length-1-index`), not its
-    // raw oldest-first index. Paging (Load more) fetches a larger recent window,
-    // which PREPENDS older entries to `logs` and would shift every raw index —
-    // changing all keys, forcing React to tear down and rebuild the whole list,
-    // which clamps the scroll and drops the expanded row (the "the view you were
-    // looking at jumps" problem). Ranking from the newest end keeps already-shown rows' keys stable
-    // across paging, so only the new (older) rows mount, appended at the bottom.
     const keyByLog = useMemo(() => new Map(logs.map((log, index) => [log, logs.length - 1 - index])), [logs]);
 
     const markRequest = useCallback(
@@ -299,9 +266,6 @@ export const LogBufferScreen = () => {
 
     const fetchLogs = useCallback(
         async (nextLimit: number, action = t.actions.fetch) => {
-            // Plain web: read the running uploader's queue synchronously.
-            // Ordering and paging are handled at display time (newest-first), so
-            // there is no incremental limit or bridge round-trip here.
             if (!isOnMobileApp) {
                 const view = getLogQueueView();
                 const entries = view?.snapshot() ?? [];
@@ -317,9 +281,6 @@ export const LogBufferScreen = () => {
             markRequest(action);
 
             try {
-                // `FetchLogUploadQueue` is non-destructive by contract, which is
-                // what makes it usable from a viewer at all — the old
-                // `PollAppLogBuffer` consumed what it showed.
                 const res = await appBridge.fetchLogUploadQueue(normalizedLimit);
                 setLogs(res.data?.logs ?? []);
                 markResponse(action, res.data?.size ?? 0);
@@ -356,14 +317,6 @@ export const LogBufferScreen = () => {
         [loadMoreLogs]
     );
 
-    /**
-     * Throws away what is queued.
-     *
-     * Destructive, and there is no undo: these entries were waiting to be sent,
-     * so discarding them means the server never sees them. That is the point
-     * during a reproduction — you want a clean slate for the next attempt — which
-     * is why the label says "Discard" rather than the old neutral "Clear".
-     */
     const discardQueued = useCallback(async () => {
         setExpandedKey(null);
 
@@ -400,10 +353,6 @@ export const LogBufferScreen = () => {
         });
 
         setLastAction(t.sampleLogsSent);
-        // The debug sample never reaches the queue and so never shows up here —
-        // that is the level policy working, not a bug.
-        // Hybrid needs a charge to land before the app queue holds these, which
-        // is a bridge round-trip away; web queues synchronously.
         window.setTimeout(refreshLogs, isOnMobileApp ? 250 : 0);
     }, [isOnMobileApp, refreshLogs, t]);
 
@@ -423,23 +372,11 @@ export const LogBufferScreen = () => {
     }, []);
 
     const toggleUploadHold = useCallback(() => {
-        // Written outside the state updater: an updater can be re-invoked, and
-        // the uploader reads the stored flag rather than this component's state,
-        // so the persist has to be the deliberate step and the render a
-        // consequence of it.
         const next = !uploadHeld;
         setLogUploadHold(next);
         setUploadHeld(next);
     }, [uploadHeld]);
 
-    /**
-     * Sends the pending queue off-schedule (ADR-0080 decision 14).
-     *
-     * `getLogQueueView()` is undefined when no uploader is running (boot, teardown), and that is
-     * reported rather than swallowed — a silent no-op here would read as "sent" to the person who
-     * pressed it. Success means the attempt finished, not that the server accepted: the queue's
-     * at-least-once contract owns the retry, so that is all this can honestly claim.
-     */
     const flushNow = useCallback(async () => {
         const view = getLogQueueView();
         if (!view) return setFlushState('unavailable');
@@ -619,10 +556,6 @@ export const LogBufferScreen = () => {
                                 <p className="text-[13px] text-muted-foreground">
                                     {logs.length > 0 ? t.logs.noMatch : uploadHeld ? t.logs.heldEmpty : t.logs.empty}
                                 </p>
-                                {/* The empty view is the expected state while sending is on
-                                    — the uploader drains what it ships. Saying so here is
-                                    the only thing standing between this screen and a bug
-                                    report (S11). */}
                                 {logs.length === 0 && !uploadHeld ? (
                                     <p className="mx-auto mt-2 max-w-[280px] text-[11px] leading-relaxed text-muted-foreground">
                                         {t.logs.emptyHint}
@@ -655,9 +588,6 @@ export const LogBufferScreen = () => {
                 </div>
             </div>
 
-            {/* A toast rather than per-row button state: the copy triggers are the log rows
-                themselves, and 60 of them cannot each carry an indicator. It now reports the REAL
-                outcome — it used to say "Copied" without waiting to find out. */}
             {copyState !== 'idle' ? (
                 <div
                     className={`pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full px-3 py-1.5 text-[12px] font-semibold shadow-lg ${

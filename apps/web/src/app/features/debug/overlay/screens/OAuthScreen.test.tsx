@@ -39,7 +39,6 @@ describe('OAuthScreen', () => {
         expect(oAuthLogout).toHaveBeenCalledWith('apple');
     });
 
-    // Apple is iOS-only, so failing on Android is the expected outcome — hence we show the failure as-is.
     it('실패를 그대로 적는다', async () => {
         oAuthLogin.mockRejectedValue(new Error('UNSUPPORTED'));
         render(<OAuthScreen />);

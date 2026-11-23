@@ -10,7 +10,6 @@ vi.mock('@chatic/bridges', () => ({
 
 import { desktopLinks } from './links';
 
-// Neither side reads the facts; the implementations decide from the side alone.
 const facts = {} as WebHostFacts;
 const shell = () => desktopLinks.shell({ kind: 'shell' }, facts);
 const browser = () => desktopLinks.browser({ kind: 'browser' }, facts);

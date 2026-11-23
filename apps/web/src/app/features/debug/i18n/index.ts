@@ -4,23 +4,8 @@ import type { DebugScreenKey, DebugSectionKey } from '../overlay/screenManifest'
 
 export { defineDebugStrings, setDebugLanguageForTests } from './define';
 
-/**
- * Every word the debug panel shows, one table per language.
- *
- * Two problems this fixes at once. Labels used to be written next to whatever registered the
- * screen, so the same panel said `Email Login` and `App Icon` in one list (the web and the app had
- * drifted the same way). And the tables are typed by `DebugScreenKey`, so a new screen
- * cannot be added without naming it in BOTH languages — the compiler asks.
- *
- * The tables are bundled rather than fetched from `/locales/{{lng}}/{{ns}}.json` like the product's
- * namespaces: the panel is what you open when boot is broken, and a translation that needs a
- * successful network request would come up as raw keys in exactly that case. The language still
- * follows the app's — read from the same i18next instance below.
- */
-
 interface ScreenStrings {
     title: string;
-    /** Tab-strip label. Every screen has a chip, and titles are too long for one. */
     short: string;
 }
 
@@ -30,9 +15,7 @@ export interface DebugStrings {
         loading: string;
         tabStrip: string;
         disable: string;
-        /** Badge on a screen that needs the native shell. */
         shellOnly: string;
-        /** Shown instead of such a screen when there is no shell. */
         shellOnlyNotice: string;
     };
     sections: Record<DebugSectionKey, string>;
@@ -121,7 +104,6 @@ const en: DebugStrings = {
 
 const TABLES: Record<'ko' | 'en', DebugStrings> = { ko, en };
 
-/** Exported for the manifest test: every screen must be named in every language. */
 export const DEBUG_LOCALE_TABLES = TABLES;
 
 export const useDebugStrings = defineDebugStrings(TABLES);

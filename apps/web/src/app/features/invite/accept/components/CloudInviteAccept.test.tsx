@@ -7,11 +7,8 @@ import type { InviteParams } from '../types';
 const finishProfile = jest.fn();
 const setMyPlaceProfile = jest.fn();
 let acceptState: Record<string, unknown> = {};
-// What the invite lookup answers: the screen waits on it before offering Accept.
 let inviteInfo: { data?: unknown; error?: Error | null; fetchStatus?: 'fetching' | 'paused' | 'idle' } = {};
-// What the dialog stub last received, so a test can drive its submit and read its dismissibility.
 let activePlaceName = 'Book club';
-// What the screen stub last received, so a test can read the values this component fills it with.
 let screenProps: Record<string, unknown> = {};
 let dialogProps: {
     dismissible?: boolean;
@@ -34,7 +31,6 @@ jest.mock('../../../../navigation', () => ({ useStackNavigate: () => jest.fn() }
 jest.mock('../../hooks/useInviteCountdown', () => ({ useInviteCountdown: () => null }));
 jest.mock('../hooks', () => ({
     useInviteAccept: () => acceptState,
-    // The mapping itself is covered with the pipeline; here only its two outcomes matter.
     resolveInviteErrorKey: (_step: string, error: Error) =>
         error.message.includes('404') ? 'inviteAccept.expired' : 'inviteAccept.failed',
 }));
@@ -147,7 +143,6 @@ describe('CloudInviteAccept — waiting for the invite lookup', () => {
     });
 
     it('shows the generic notice instead of spinning when the lookup can never run', () => {
-        // A disabled query (no address to ask) sits idle with neither data nor an error.
         inviteInfo = { data: undefined, error: null, fetchStatus: 'idle' };
         render(<CloudInviteAccept params={params} />);
 
@@ -223,8 +218,6 @@ describe('CloudInviteAccept — what the accept screen is told', () => {
     });
 
     it('does not brand a cloud place as the relay home, whatever the backend called it', () => {
-        // The context comes from the invite kind, not from the current selection: a cloud invite opened
-        // while the relay is selected must not turn into "DoU Home".
         open({ site$: { id: '10002', name: 'default' } });
 
         expect(screenProps.placeName).toBe('default');

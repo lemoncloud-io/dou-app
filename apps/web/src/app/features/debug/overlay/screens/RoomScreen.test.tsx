@@ -123,7 +123,6 @@ describe('RoomScreen', () => {
         render(<RoomScreen />);
 
         fireEvent.click(screen.getByText('#0 sending'));
-        // Only the channel's server button: the unsent row has nothing on the server to read.
         expect(screen.getAllByRole('button', { name: 'Server' })).toHaveLength(1);
     });
 

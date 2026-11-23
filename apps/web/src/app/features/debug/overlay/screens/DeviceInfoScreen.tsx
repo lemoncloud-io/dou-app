@@ -10,20 +10,10 @@ import { buildDeviceInfoRows } from '../../lib';
 import { appBridge } from '../../../../bridge';
 import { useDeviceInfoScreenStrings } from '../../i18n/screens/DeviceInfoScreen';
 
-/**
- * OS pickers and permission prompts, moved off the app's Device Test screen (ADR-0080 decision 11).
- *
- * Every one of these is an existing bridge command — the web client simply had not exposed the
- * picker four. `MICROPHONE` needed the contract's `AppPermissionType` widened, which was a
- * type-only change: the app's `PERMISSION_MAP` already had it (see that union's note).
- */
 const PERMISSIONS: readonly AppPermissionType[] = ['CAMERA', 'PHOTO_LIBRARY', 'CONTACTS', 'MICROPHONE'];
 
-/** Device/version identity injected by the native shell — single source, replaces the
- *  old DebugPage card and the RuntimeOverlay device tab. Tap a row to copy. */
 export const DeviceInfoScreen = () => {
     const { versionInfo, deviceInfo } = useDeviceInfo();
-    // `fire` covers `openSettings`/`openShareSheet`, which are `post` based and answer nothing.
     const { result, run, fire } = useDebugOperation();
     const strings = useDeviceInfoScreenStrings();
 

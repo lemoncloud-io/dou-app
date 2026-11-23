@@ -3,11 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { en } from './en';
 import { ko } from './ko';
 
-/**
- * The account-area copy guards: one noun, one destroy verb, one name cap (20,
- * the web edit page and the Figma-cited design limit). Literal on purpose —
- * these exact lines shipped wrong once, and a paraphrase is what let them.
- */
 describe('account-area copy', () => {
     it('names the cloud, not the workspace, in the guest body', () => {
         for (const bundle of [ko, en]) {
@@ -33,8 +28,6 @@ describe('account-area copy', () => {
     });
 });
 
-// Every key ships in both languages: a key added to one locale and not the
-// other renders as the raw key on half the installs.
 describe('locale parity', () => {
     it('has the same keys in Korean and English', () => {
         const koKeys = Object.keys(ko).sort();
@@ -43,8 +36,6 @@ describe('locale parity', () => {
     });
 });
 
-// One glossary: "끔" / "멘션만" for a channel, "방해 금지 시간" for the schedule,
-// "일시 중지" for snooze — and the inbox owns `inbox.*` keys, not `saved.*`.
 describe('notification vocabulary', () => {
     it('names the channel levels 끔 and 멘션만 on the row', () => {
         expect(ko['sidebar.muted']).toBe('끔');

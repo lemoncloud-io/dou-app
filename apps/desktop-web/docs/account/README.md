@@ -79,8 +79,9 @@ The save goes through the relay-pinned gateway (`updateAccount`) and then patche
 server's answer, falling back to the values sent when the answer is thin, so the hub updates at once.
 The photo is only sent when it changed. A refusal keeps the dialog open with what was typed, shows
 the error in the dialog and as a toast. Escape, the close button and the backdrop do nothing while
-the save runs, so a failure always has someone to read it. The form is reseeded from the account on
-every opening.
+the save runs, so a failure always has someone to read it. The form is seeded from the account on the
+opening edge only: the relay user object is rebuilt on every session notify, and reseeding off it
+mid-edit would wipe a half-typed name and photo.
 
 ## Owned clouds
 
@@ -109,7 +110,8 @@ error on screen.
    and says everything in it goes away for everyone and cannot be undone.
 
 A cloud id the catalog does not list is not owned, or is a stale link: once the catalog has loaded,
-the page redirects to the list.
+the page redirects to the list. While it loads the page keeps its header and back button around a spinner: a bare spinner names
+nowhere, and back has to work before the cloud it returns from is known.
 
 ### Releasing a cloud
 
@@ -139,7 +141,8 @@ silently would pull the reader out of the cloud they are in. For any other cloud
 line saying to switch, and a **Switch cloud** button. That button is the explicit switch: it
 runs the same flow as the cloud rail (`useCloudSwitchFlow`, which clears the selected channel first
 and reports a failed switch as a toast with its cause), and the list appears when the session lands
-in the cloud. While the switch runs the button is disabled.
+in the cloud. The page's back button reads as the cloud (its name from the catalog, the id while the
+catalog loads). While the switch runs the button is disabled.
 
 On the active cloud the rows come from the place cache (`usePlaces`), the same one the place rail
 reads, and an empty list says so. Picking a row opens that place's settings page; see
@@ -150,5 +153,7 @@ reads, and an empty list says so. Picking a row opens that place's settings page
 `PolicyListPage` offers two entries, **Terms** and **Privacy**. `TermsPage` and `PrivacyPage` share
 `PolicyProsePage`, which renders the current version of the text from `@chatic/policy-content`: the
 effective date, then each section's title and paragraphs. The language is Korean when the app
-language is Korean and English for every other language. There is no licenses page: the desktop build
+language is Korean and English for every other language. The body of the app does not allow
+selecting text (`user-select: none`), so the prose opts back in: terms and privacy are read, copied and
+quoted. There is no licenses page: the desktop build
 does not produce the license list it would show.

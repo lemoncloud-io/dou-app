@@ -4,19 +4,13 @@ import { EMPTY_FILTER, type RecordFilter } from '../lib/dataQuery';
 export interface FilterBarProps {
     filter: RecordFilter;
     onChange: (next: RecordFilter) => void;
-    /** How many records pass and how many there are. */
     shown: number;
     total: number;
-    /** The fields offered in the field and sort pickers. */
     fields: readonly string[];
 }
 
 const inputClass = 'rounded border border-border bg-background px-1.5 py-1 text-xs text-foreground';
 
-/**
- * Search, one field filter and a sort, picked from controls — the Storage and DB screens share it.
- * What each control means is `lib/dataQuery`'s to say.
- */
 export const FilterBar = ({ filter, onChange, shown, total, fields }: FilterBarProps) => {
     const t = useFilterBarStrings();
     const set = (patch: Partial<RecordFilter>) => onChange({ ...filter, ...patch });
@@ -39,7 +33,11 @@ export const FilterBar = ({ filter, onChange, shown, total, fields }: FilterBarP
             <div className="flex flex-wrap items-end gap-2">
                 <label className="flex flex-col gap-0.5 text-[10px] text-muted-foreground">
                     {t.field}
-                    <select value={filter.field} onChange={e => set({ field: e.target.value })} className={`max-w-[9rem] ${inputClass}`}>
+                    <select
+                        value={filter.field}
+                        onChange={e => set({ field: e.target.value })}
+                        className={`max-w-[9rem] ${inputClass}`}
+                    >
                         <option value="">{t.anyField}</option>
                         {fields.map(field => (
                             <option key={field} value={field}>

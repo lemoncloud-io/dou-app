@@ -2,15 +2,10 @@ const { join } = require('path');
 
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
 
-/** @type {import('tailwindcss').Config} */
 module.exports = {
     darkMode: ['class'],
     content: [
         join(__dirname, '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'),
-        // The libs that ship markup, named outright: `createGlobPatternsForDependencies` reads the
-        // nx project graph and returns [] when vite runs without one (plain `vite` / `vite build`),
-        // which left every class only ui-kit uses — `bg-popover`, the dialog's centring — ungenerated:
-        // menus drew transparent and dialogs landed off-screen.
         join(__dirname, '../../libs/{ui-kit,block-kit}/src/**/*!(*.stories|*.spec|*.test).{ts,tsx}'),
         ...createGlobPatternsForDependencies(__dirname),
     ],
@@ -24,17 +19,14 @@ module.exports = {
             },
         },
         extend: {
-            // One stacking scale for the app's own layers (DESIGN.md "Elevation"). ui-kit's
-            // dialogs and menus sit at 50, so everything here stays at or below it, except `alert`. A new name
-            // also goes into the `z` group of ui-kit's `cn`, or it will not override a kit class.
             zIndex: {
-                raised: '10', // above its own row or pane: a toolbar, a sticky label, a resize handle
-                float: '20', // floats over a pane's content: jump pills, the mention list, a drawer's scrim
-                overlay: '25', // covers a whole pane: the drop zone
-                drawer: '30', // a panel or drawer laid over its neighbour in a narrow window
-                toast: '40', // over every pane, but under an open dialog: the dialog is the task at hand
-                popover: '50', // fixed to the viewport, level with ui-kit's popovers
-                alert: '60', // the toast viewport while an error shows: over an open dialog, whose failure it reports
+                raised: '10',
+                float: '20',
+                overlay: '25',
+                drawer: '30',
+                toast: '40',
+                popover: '50',
+                alert: '60',
             },
             colors: {
                 border: 'hsl(var(--border))',
@@ -52,10 +44,7 @@ module.exports = {
                     disc: 'hsl(var(--profile-disc))',
                     'disc-foreground': 'hsl(var(--profile-disc-foreground))',
                 },
-                /* Links in message text, the one hue that is not the brand accent. */
                 link: 'hsl(var(--link))',
-                /* Theme-preview swatches. Fixed in both themes on purpose: a swatch
-                   depicts the theme it names, not the one currently applied. */
                 swatch: {
                     light: 'hsl(var(--swatch-light))',
                     dark: 'hsl(var(--swatch-dark))',
@@ -103,7 +92,6 @@ module.exports = {
                     DEFAULT: 'hsl(var(--sidebar))',
                     foreground: 'hsl(var(--sidebar-foreground))',
                 },
-                // Figma design system tokens
                 label: 'hsl(var(--label))',
                 placeholder: 'hsl(var(--placeholder))',
                 description: 'hsl(var(--description))',
@@ -118,7 +106,6 @@ module.exports = {
                     muted: 'hsl(var(--toast-muted))',
                 },
                 'dialog-subtitle': 'hsl(var(--dialog-subtitle))',
-                // Chatic custom colors
                 'bubble-mine': {
                     DEFAULT: 'hsl(var(--bubble-mine))',
                     foreground: 'hsl(var(--bubble-mine-foreground))',
@@ -138,7 +125,6 @@ module.exports = {
                 overlay: 'hsl(var(--overlay))',
                 'on-overlay': 'hsl(var(--on-overlay))',
                 'tile-active': 'hsl(var(--tile-active))',
-                // Engineering pass — layering surfaces (depth without hardcoded grays)
                 elevated: 'hsl(var(--elevated))',
                 hairline: 'hsl(var(--hairline))',
                 well: 'hsl(var(--well))',
@@ -149,11 +135,7 @@ module.exports = {
                 md: 'calc(var(--radius) - 2px)',
                 sm: 'calc(var(--radius) - 4px)',
             },
-            // Semantic type scale (size / leading / tracking / weight) — controls
-            // hierarchy via weight+tracking, not just size (skill Rule 1).
             fontSize: {
-                // Steps below are named for the size, not a role, because each
-                // serves several: avatar initials, badges, keycaps, tile counts.
                 headline: ['1.25rem', { lineHeight: '1.75rem', letterSpacing: '-0.012em' }],
                 lead: ['1rem', { lineHeight: '1.5rem', letterSpacing: '-0.006em' }],
                 tiny: ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0' }],
@@ -167,8 +149,6 @@ module.exports = {
                 micro: ['0.72rem', { lineHeight: '0.95rem', letterSpacing: '0' }],
                 overline: ['0.6875rem', { lineHeight: '1rem', letterSpacing: '0.08em', fontWeight: '600' }],
             },
-            // Restrained, tinted elevation by level. Cool --shadow-color, low opacity —
-            // honest depth, not heavy decorative shadows.
             boxShadow: {
                 raised: '0 1px 2px 0 hsl(var(--shadow-color) / 0.04), 0 1px 3px -1px hsl(var(--shadow-color) / 0.07)',
                 overlay:
@@ -203,7 +183,6 @@ module.exports = {
                     '0%': { opacity: '1' },
                     '100%': { opacity: '0' },
                 },
-                // A short drop with a fade: sliding a full toast height, it crossed the header.
                 'toast-in': {
                     '0%': { opacity: '0', transform: 'translateY(-8px) scale(0.98)' },
                     '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
@@ -233,8 +212,6 @@ module.exports = {
                 'cloud-bounce': 'cloud-bounce 600ms ease-out',
             },
             width: {
-                // Cloud and place rails — DesktopLayout and AppShellSkeleton share it so the
-                // boot skeleton cannot drift from the shell it stands in for.
                 rail: '80px',
             },
             spacing: {

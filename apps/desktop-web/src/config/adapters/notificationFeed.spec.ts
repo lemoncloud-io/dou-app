@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// The desktop shell's events, captured so a test can play the app's messages back.
 const { onEvent, events } = vi.hoisted(() => {
     const events: Record<string, (message: unknown) => void> = {};
     return {
@@ -45,8 +44,6 @@ describe('onDesktopNotification', () => {
         expect(listener).not.toHaveBeenCalled();
     });
 
-    // The two ports read the one message: push takes the whole payload, sign-in only its deeplink, and
-    // both skip a message without one alike.
     it('feeds push the whole payload and sign-in only its deeplink, from the same message', () => {
         const facts = {} as WebHostFacts;
         const notification = vi.fn();

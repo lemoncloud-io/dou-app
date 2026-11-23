@@ -5,11 +5,6 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { PageShell, SettingsNavRow, SettingsRowGroup, useCloudSessionCatalog } from '../../../shared';
 
-/**
- * Owned-cloud list (the relay catalog lists owned clouds only, so presence
- * here IS ownership). Buying happens in the mobile app — this page lists and
- * opens, never sells.
- */
 export const CloudListPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();

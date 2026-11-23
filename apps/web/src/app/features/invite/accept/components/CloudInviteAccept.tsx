@@ -18,16 +18,8 @@ import { useStackNavigate } from '../../../../navigation';
 import { ROUTES } from '../../../../routes/paths';
 import { resolvePlaceDisplayName } from '../../../../utils/resolvePlaceDisplayName';
 
-/** Which notice/error dialog to show over the accept screen (single-action AlertDialog). */
 type InviteDialogVariant = 'expired' | 'alreadyJoined' | 'channelDeleted' | 'inviteCanceled' | 'generic';
 
-/**
- * Map the accept-pipeline error key to a notice-dialog variant. `expired` and `alreadyJoined` (a link
- * whose grace period has passed) are the two the backend's messages tell apart today; channel-deleted /
- * invite-canceled need backend error codes (their UI/copy is ready — see ADR-0016) so they fall back to
- * `generic` until wired. `missingDelegator` is handled separately (it drives a logout action, not a home
- * dismissal).
- */
 const resolveDialogVariant = (errorKey: string | null): InviteDialogVariant | null => {
     if (!errorKey) return null;
     if (errorKey === 'inviteAccept.expired') return 'expired';
@@ -36,27 +28,14 @@ const resolveDialogVariant = (errorKey: string | null): InviteDialogVariant | nu
 };
 
 interface CloudInviteAcceptProps {
-    /** Parsed invite deeplink; the page guarantees this is a fully-formed cloud invite entry. */
     params: InviteParams;
 }
 
-/**
- * Cloud invite acceptance (ADR-0016). Rendered by InviteAcceptPage once the deeplink is known to be a
- * cloud invite rather than a relay 1:1 one — the URL detection lives there, so this component may
- * assume it should render.
- *
- * This orchestrator owns the routing and the error dialogs; the visual accept screen lives in the
- * presentational InviteAcceptScreen, and the accept pipeline in useInviteAccept. Dismissing leaves
- * for home, which drops the invite out of the URL so it cannot reappear.
- */
 export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Element | null => {
     const { t } = useTranslation();
     const enterStack = useStackNavigate();
     const logout = useSessionLogout();
 
-    // Invite metadata (inviter / place / expiry) to populate the screen. Widened to `InviteInfo`, which
-    // declares the fields the backend denormalizes into the response but the published `MyInviteView`
-    // does not yet carry — all optional, so this is the same widening `useInviteAccept` already takes.
     const { data, error: infoError, fetchStatus } = runtime.session.useInviteInfo(params.code, params.backend);
     const info: InviteInfo | undefined = data;
     const { accept, isAccepting, missingDelegator, errorKey, profilePending, finishProfile } = useInviteAccept({
@@ -64,12 +43,7 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
         info,
     });
     const setMyPlaceProfile = useSetMyPlaceProfile();
-    // Read after the site switch, so this is the invited place; the invite's own copy covers the
-    // frame before the place row is cached.
     const activePlaceName = useActivePlaceName();
-    // The profile step has no way out until a save has failed once. Required, because the invitee
-    // is about to appear in a room under this name; but not a trap — if the server will not take
-    // the save, being held on a form that cannot succeed is worse than entering without a name.
     const [profileSaveFailed, setProfileSaveFailed] = useState(false);
     const submitProfile = async (value: { nick: string; thumbnail?: string }) => {
         try {
@@ -81,22 +55,15 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
     };
     const countdown = useInviteCountdown(info?.expiredAt, { minuteUntilImminent: true });
 
-    // Home is the fallback, not the destination — see `useEnterInvitedChannel`. A warm entry
-    // rewinds onto whatever the reader was looking at when the link arrived.
     const goHome = () => enterStack('deeplink', ROUTES.home);
     const doLogout = () => {
-        // A logout that never passes through LogoutPage — worth its own entry so the session end is
-        // attributable to the missing-delegator dialog rather than looking like an unexplained drop.
         logger.info('AUTH', '[CloudInviteAccept] logout from invite missing-delegator dialog');
         return logout({ preserveUrl: true });
     };
-    // Block dismissal (X / esc / overlay) while the accept pipeline is in flight, so a mid-accept
-    // dismissal can't strip the URL and swallow a later failure dialog.
     const requestClose = () => {
         if (!isAccepting) goHome();
     };
 
-    // Missing device credential: a dedicated logout-prompt dialog (not a home dismissal).
     if (missingDelegator) {
         return (
             <AlertDialog
@@ -110,8 +77,6 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
         );
     }
 
-    // Accepted and inside the invited place, but with no profile there yet (see useInviteAccept).
-    // Both ways out continue into the room: saved, or skipped after a failed save.
     if (profilePending) {
         return (
             <PlaceProfileCreateDialog
@@ -125,10 +90,6 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
         );
     }
 
-    // Invite failure: a single-action notice dialog reflecting the resolved cause (red title per Figma).
-    // A lookup that failed outright is the same kind of verdict, and the screen has nothing to show.
-    // So is one that will never run: the query stays disabled with no address to ask (a cloud link
-    // whose backend is empty), and the loading view below would spin forever.
     const lookupNeverRuns = !info && !infoError && fetchStatus === 'idle';
     const readErrorKey = info
         ? null
@@ -151,23 +112,12 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
         );
     }
 
-    // The lookup is still out. Accept is not offered until it answers: pressed now, the invite login
-    // would spend the invite with no cloud, place or room to enter, and leave the invitee on home
-    // outside the cloud. This ends either in the screen below or in the notice above.
     if (!info) return <InviteAcceptLoading />;
 
-    // Accept screen. `InviteInfo` extends the published Head types with the fields the backend
-    // denormalizes into the invite response but has not shipped yet (inviter image, place
-    // intro/thumbnail, member count — see ./types). Forward all of them: they are optional and
-    // the screen degrades gracefully while they are absent, so this wiring is what lets each one light
-    // up with no further code change (ADR-0089 D1).
     return (
         <InviteAcceptScreen
-            // The place nickname, never the account name: a number-derived account's name is its masked
-            // digits. With no nickname the screen's nameless line reads better than that.
             inviterName={info.inviter$?.nick?.trim() || undefined}
             inviterImage={info?.inviter$?.image}
-            // A cloud invite is never the relay's home place, whatever is selected right now.
             placeName={resolvePlaceDisplayName(info.site$, { isDefaultCloud: false }, t) || undefined}
             placeIntro={info?.site$?.intro}
             placeThumbnail={info?.site$?.thumbnail}

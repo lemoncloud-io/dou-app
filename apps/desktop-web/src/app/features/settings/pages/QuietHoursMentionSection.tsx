@@ -5,11 +5,6 @@ import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import { useNotificationPrefsStore } from '../../../shared';
 
-/**
- * Quiet-hours breakthrough for mentions that name me. Rendered as the last
- * row of the notification card, and only while quiet hours are set — a switch with no
- * window to break through would read as a second notification master switch.
- */
 export const QuietHoursMentionSection = () => {
     const { t } = useTranslation();
     const quietHours = useNotificationPrefsStore(s => s.quietHours);

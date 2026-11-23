@@ -15,12 +15,6 @@ import { useInviteLogin } from '../hooks/useInviteLogin';
 import { useJoinDialogStore } from '../stores';
 import { inviteLoginErrorText } from '../utils';
 
-/**
- * In-app "join a workspace" dialog for an already-authenticated (e.g. guest)
- * session. Reuses the invite-code flow; on success the rail picks up the new
- * cloud, so the dialog just closes — no navigation. The unauthenticated invite
- * path stays a full-screen page (InviteLoginPage / AuthCard).
- */
 export const JoinWithInviteDialog = () => {
     const { t } = useTranslation();
     const isOpen = useJoinDialogStore(s => s.isOpen);
@@ -28,8 +22,6 @@ export const JoinWithInviteDialog = () => {
     const { login, isSubmitting, error, clearError } = useInviteLogin();
     const [code, setCode] = useState('');
 
-    // The dialog stays mounted while closed, so the last failure is cleared on the way out too —
-    // otherwise reopening it greets the next attempt with the previous one's error.
     const reset = () => {
         setCode('');
         clearError();
@@ -41,8 +33,6 @@ export const JoinWithInviteDialog = () => {
     };
 
     const handleOpenChange = (next: boolean) => {
-        // Escape, the X and the backdrop are ignored while the invite is being redeemed, as in
-        // Rename and AddMembers: a closed dialog has nowhere to show the failure.
         if (next || isSubmitting) return;
         reset();
         close();
@@ -77,8 +67,6 @@ export const JoinWithInviteDialog = () => {
                     {error && (
                         <div id="join-invite-error" role="alert" className="-mt-1 flex flex-col gap-1">
                             <p className="text-callout text-destructive">{inviteLoginErrorText(error, t)}</p>
-                            {/* The server's own words: the toast carries them too, but this is
-                                where the person is looking. */}
                             {error.kind === 'server' && error.message && (
                                 <p className="break-all font-mono text-caption text-muted-foreground">
                                     {error.message}

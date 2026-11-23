@@ -40,7 +40,6 @@ describe('useMessageSearch', () => {
         expect(result.current.results).toEqual([]);
     });
 
-    // A cold start has nothing cached, and that empty result must be told apart from "no match".
     it('reports zero read when the device has nothing loaded', async () => {
         repositories.chat.cacheReadList.mockResolvedValueOnce({ list: [] });
         const { result } = renderHook(() => useMessageSearch('budget', channels));
@@ -48,7 +47,6 @@ describe('useMessageSearch', () => {
         await waitFor(() => expect(result.current.scannedCount).toBe(0));
     });
 
-    // A channel whose cache read throws is missing rows, not a verified no-match.
     it('counts failed channels apart from scanned rows', async () => {
         repositories.chat.cacheReadList.mockRejectedValueOnce(new Error('locked'));
         const { result } = renderHook(() => useMessageSearch('nothing like this', channels));

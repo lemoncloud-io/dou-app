@@ -20,7 +20,9 @@ const repo = (list: Record<string, unknown>[] = []) => {
     const rows = [...list];
     return {
         rows,
-        cacheReadList: jest.fn(async (_query?: unknown): Promise<{ list: Record<string, unknown>[] }> => ({ list: [...rows] })),
+        cacheReadList: jest.fn(
+            async (_query?: unknown): Promise<{ list: Record<string, unknown>[] }> => ({ list: [...rows] })
+        ),
         cacheWrite: jest.fn(async (row: { id: string }) => {
             const at = rows.findIndex(r => r.id === row.id);
             if (at >= 0) rows[at] = { ...rows[at], ...row };
@@ -171,10 +173,9 @@ describe('DBBrowser', () => {
         expect(await screen.findByText('No rows')).toBeInTheDocument();
     });
 
-    it('drops the old domain\'s rows, editor and field filter when another domain is picked', async () => {
+    it("drops the old domain's rows, editor and field filter when another domain is picked", async () => {
         const user = userEvent.setup();
         const { repos } = renderBrowser();
-        // Every channel's read waits for the gate, so the message read is still out when the screen is checked.
         let openGate: () => void = () => undefined;
         const gate = new Promise<void>(resolve => (openGate = resolve));
         repos.chat.cacheReadList.mockImplementation(async (query?: unknown) => {
@@ -189,7 +190,6 @@ describe('DBBrowser', () => {
         await user.click(within(row).getByRole('button', { name: 'Edit' }));
         await user.click(screen.getByRole('button', { name: 'Messages' }));
 
-        // The channel rows are gone while the message read is still out, and so is their editor.
         expect(screen.queryAllByRole('listitem')).toHaveLength(0);
         expect(screen.queryByLabelText('Row (JSON)')).not.toBeInTheDocument();
         expect(screen.getByLabelText('Filter field')).toHaveValue('');
@@ -203,7 +203,12 @@ describe('DBBrowser', () => {
         const user = userEvent.setup();
         const { repos } = renderBrowser();
         repos.chat.cacheReadList.mockImplementation(async (query: unknown) => ({
-            list: [{ id: `m-${(query as { channelId: string }).channelId}`, channelId: (query as { channelId: string }).channelId }],
+            list: [
+                {
+                    id: `m-${(query as { channelId: string }).channelId}`,
+                    channelId: (query as { channelId: string }).channelId,
+                },
+            ],
         }));
 
         await user.click(await screen.findByRole('button', { name: 'Messages' }));

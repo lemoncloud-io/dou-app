@@ -32,7 +32,6 @@ beforeEach(() => {
 });
 
 describe('CreateChannelDialog failures', () => {
-    // Every failure used to read "Try again", including the ones a second try cannot fix.
     it('says a full place is full and points at the mobile app', async () => {
         const alert = await submitWith(new Error('403 NOT ALLOWED - channel limit reached'));
         expect(alert.textContent).toContain(i18next.t('channels.create.failed.limit'));

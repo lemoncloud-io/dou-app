@@ -1,21 +1,7 @@
-/**
- * The web half of the storage screen: what this page keeps in the browser (or the app's WebView),
- * grouped so a reader can tell the session from settings from leftovers, and a wipe of all of it but
- * the unsent logs.
- *
- * Inside the app this is only half of what the device holds — the chat cache and the invited-cloud
- * list live in the native shell, which reports its own half. Clearing one side used to leave the
- * other, and a stale leftover is exactly what the storage screen exists to rule out.
- *
- * Sizes are string lengths (key + value), not encoded bytes, to match what the shell reports for its
- * half: the screen compares entries, it does not account for disk.
- */
-
 import { runtime } from '@chatic/runtime';
 import { BridgeStorageChannel, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
 import { asDomStorage, WebStore } from '@chatic/storage';
 
-/** Which part of the app a localStorage key belongs to. */
 export type WebKeyGroup = 'session' | 'config' | 'logs' | 'other';
 
 export interface WebStorageKey {
@@ -30,70 +16,39 @@ export interface WebStorageGroup {
 }
 
 export interface WebStorageSummary {
-    /** localStorage, one entry per group that has keys, in `GROUP_ORDER`. */
     local: WebStorageGroup[];
     sessionStorage: { count: number; bytes: number };
-    /** Database names; null when this browser cannot list them. */
     indexedDb: string[] | null;
-    /** Cache Storage names; null when the API is missing (a non-secure origin). */
     cacheStorage: string[] | null;
-    /** The origin's total as the browser estimates it, null when it will not say. */
     usageBytes: number | null;
 }
 
-/** What `clearWebStorage` touches. Injected so tests run without a browser. */
 export interface WebStorageEnv {
     localStorage: Storage;
     sessionStorage: Storage;
     indexedDB?: Pick<IDBFactory, 'deleteDatabase'> & { databases?: () => Promise<IDBDatabaseInfo[]> };
     caches?: Pick<CacheStorage, 'keys' | 'delete'>;
     estimate?: () => Promise<StorageEstimate>;
-    /**
-     * Empties the device vault, where an app or desktop shell that keeps one holds the session's
-     * tokens. Absent where there is no vault: the tokens are then in the two storages above.
-     */
     clearVault?: () => Promise<boolean>;
 }
 
 export interface WebDatabasesClearResult {
-    /** Each database and how its delete ended. `blocked` still deletes once the page reloads. */
     indexedDb: { name: string; outcome: 'deleted' | 'blocked' | 'failed' }[];
-    /** The Cache Storage entries actually deleted. */
     cacheStorage: string[];
 }
 
 export interface WebStoresClearResult {
-    /** Keys removed from localStorage and sessionStorage together. */
     removedKeys: number;
-    /** Unsent-log keys left in place. */
     keptLogKeys: number;
 }
 
 const GROUP_ORDER: readonly WebKeyGroup[] = ['session', 'config', 'logs', 'other'];
 
-/** `@chatic/config`'s own lane. Under the `@` prefix too, so it is checked first. */
 const CONFIG_PREFIX = '@chatic/config.';
-/**
- * The web log pipeline: unsent upload batches, their heartbeats and the crash sentinel. Under the `@`
- * prefix too. A wipe keeps them — they are the evidence for whatever the wipe is being used to debug,
- * and they are no copy of server data, the same reason the shell's log queue is never cleared.
- */
 const LOG_PREFIX = '@chatic/web.log.';
-/**
- * The language key older builds wrote under the old SDK's `@` prefix. Nothing writes it now; it is still
- * grouped apart so a device that has one does not show it as a credential.
- */
 const LANGUAGE_SUFFIX = '.i18nextLng';
-/** The IndexedDB cache the browser build uses; listed by name where `databases()` is missing. */
 const KNOWN_INDEXED_DB = 'ChaticWebCacheDB';
 
-/**
- * The session's keys are the session's to name — the relay and cloud tokens, the per-cloud token
- * cache, the selection and the identities beside them — so this asks it instead of keeping a copy of
- * the list that would drift. A stale entry in any of these decides which cloud and account the app
- * resumes as. The rest of the `@` namespace is the credential bundle older builds' lemon-web-core left
- * (`@<project>.*`), once the config lane, the log pipeline and the language key are taken out.
- */
 export const classifyWebKey = (key: string): WebKeyGroup => {
     if (key.startsWith(CONFIG_PREFIX)) return 'config';
     if (key.startsWith(LOG_PREFIX)) return 'logs';
@@ -165,18 +120,12 @@ const deleteDatabase = (
             const request = factory.deleteDatabase(name);
             request.onsuccess = () => resolve({ name, outcome: 'deleted' });
             request.onerror = () => resolve({ name, outcome: 'failed' });
-            // An open connection that ignores `versionchange` holds the delete until it closes. The
-            // reload that follows a wipe closes it, so this is reported and not waited on.
             request.onblocked = () => resolve({ name, outcome: 'blocked' });
         } catch {
             resolve({ name, outcome: 'failed' });
         }
     });
 
-/**
- * The asynchronous half of a wipe: every IndexedDB database and every Cache Storage entry. Run it
- * before `clearWebStores`, so that nothing awaits between emptying the storages and leaving the page.
- */
 export const clearWebDatabases = async (env: WebStorageEnv): Promise<WebDatabasesClearResult> => {
     const names = (await listIndexedDb(env)) ?? (env.indexedDB ? [KNOWN_INDEXED_DB] : []);
     const factory = env.indexedDB;
@@ -203,29 +152,17 @@ const clearStore = (storage: Storage): { removed: number; kept: number } => {
         if (key != null) keys.push(key);
     }
     const doomed = keys.filter(key => !key.startsWith(LOG_PREFIX));
-    // Collected first: removing during the walk shifts the indices under it.
     doomed.forEach(key => storage.removeItem(key));
     return { removed: doomed.length, kept: keys.length - doomed.length };
 };
 
-/**
- * The synchronous half: both web storages, all but the unsent logs. That includes the session, so the
- * next load starts signed out — a sign-in that survived would carry the cached cloud tokens with it.
- *
- * Synchronous on purpose. The app keeps running until the page goes, and a token refresh or a store
- * write that lands between this and the navigation would put session state straight back; with no
- * `await` in between, nothing else runs before the caller navigates.
- */
 export const clearWebStores = (env: WebStorageEnv): WebStoresClearResult => {
     const local = clearStore(env.localStorage);
     const session = clearStore(env.sessionStorage);
     return { removedKeys: local.removed + session.removed, keptLogKeys: local.kept + session.kept };
 };
 
-/** The live browser, for the screen. Kept out of the functions above so they stay testable. */
 export const browserWebStorageEnv = (): WebStorageEnv => ({
-    // The debug screen walks the two web storages whole — that is its job — but still through the
-    // storage lib's web stores, like every other reader in this app.
     localStorage: asDomStorage(WebStore.local()),
     sessionStorage: asDomStorage(WebStore.session()),
     indexedDB: typeof indexedDB !== 'undefined' ? indexedDB : undefined,
@@ -236,7 +173,6 @@ export const browserWebStorageEnv = (): WebStorageEnv => ({
         : undefined,
 });
 
-/** `1234` → `1.2 KB`. Decimal units: the numbers are approximate lengths, not disk blocks. */
 export const formatSize = (bytes: number): string => {
     if (bytes < 1000) return `${bytes} B`;
     if (bytes < 1_000_000) return `${(bytes / 1000).toFixed(1)} KB`;

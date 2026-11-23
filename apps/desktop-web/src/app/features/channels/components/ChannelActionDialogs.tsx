@@ -9,18 +9,11 @@ type ChannelActions = ReturnType<typeof useChannelActions>;
 
 interface ChannelActionDialogsProps {
     channelId: string;
-    /** Current channel name, for the rename dialog's initial value. */
     channelName: string;
-    /** Display name of the kick target, for the kick confirmation copy. */
     kickName: string;
     actions: ChannelActions;
 }
 
-/**
- * Renders every dialog driven by useChannelActions (rename, add-members and the
- * delete/leave/kick confirmations). Single mount point shared by the header menu
- * and the settings panel.
- */
 export const ChannelActionDialogs = ({ channelId, channelName, kickName, actions }: ChannelActionDialogsProps) => {
     const { t } = useTranslation();
     const { dialog, closeDialog, onDelete, onLeave, onKick, isMutating } = actions;
@@ -35,8 +28,6 @@ export const ChannelActionDialogs = ({ channelId, channelName, kickName, actions
                 channelId={channelId}
                 currentName={channelName}
             />
-            {/* Mounted only while open — its candidate hook reads the place's member list (one roster
-                request per channel on the fallback). */}
             {dialog === 'add-members' && <AddMembersDialog open onOpenChange={onOpenChange} channelId={channelId} />}
             <ConfirmDialog
                 open={dialog === 'delete'}
@@ -47,8 +38,6 @@ export const ChannelActionDialogs = ({ channelId, channelName, kickName, actions
                 onConfirm={onDelete}
                 isPending={isMutating}
             />
-            {/* Leaving is reversible — someone can add you back — so it does not get
-                the destructive treatment delete does. Same dialog, different weight. */}
             <ConfirmDialog
                 open={dialog === 'leave'}
                 onOpenChange={onOpenChange}

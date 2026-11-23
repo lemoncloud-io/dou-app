@@ -15,7 +15,6 @@ describe('CopyRow — 행 전체가 복사 대상', () => {
     });
 
     it('보이는 값과 복사되는 값이 다를 수 있다', async () => {
-        // The device info and push screens do this — the screen shows '(not fetched)' but copies the raw value.
         render(<CopyRow label="Token" value="abc…(줄임)" copyValue="abcdef-full" />);
 
         await userEvent.click(screen.getByRole('button'));
@@ -23,7 +22,6 @@ describe('CopyRow — 행 전체가 복사 대상', () => {
         expect(copyTextWithResult).toHaveBeenCalledWith('abcdef-full');
     });
 
-    // Showing a failure on a row that has nothing to copy would send a tester chasing an error they can't act on.
     it('복사할 값이 없으면 눌리지 않는다', async () => {
         render(<CopyRow label="Token" value="(not fetched)" copyValue={null} />);
 
@@ -40,7 +38,6 @@ describe('CopyRow — 행 전체가 복사 대상', () => {
 
         await userEvent.click(screen.getByRole('button'));
 
-        // The icon has no accessible name, so check it by status color — only failure uses destructive.
         await waitFor(() => expect(screen.getByRole('button').querySelector('.text-destructive')).toBeInTheDocument());
     });
 });

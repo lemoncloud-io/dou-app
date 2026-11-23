@@ -9,17 +9,10 @@ import { useRelayAccount } from '../../../shared';
 import { ACCOUNT_NAME_MAX } from '../../account/components/AccountProfileDialog';
 
 interface NewAccountNameProps {
-    /** The step is over: the name was saved, or skipped. */
     onDone: () => void;
-    /** Another way out, under the main button (the Google notice's "not my account"). */
     secondary?: ReactNode;
 }
 
-/**
- * The name a just-made account goes by. Asked right away because the account otherwise appears as
- * "unnamed" everywhere until someone finds the profile editor. Empty is allowed: continuing without a
- * name is the skip, and a failed save offers to carry on without it rather than holding the person here.
- */
 export const NewAccountName = ({ onDone, secondary }: NewAccountNameProps) => {
     const { t } = useTranslation();
     const { updateAccount, isRelayVerified } = useRelayAccount();
@@ -71,7 +64,6 @@ export const NewAccountName = ({ onDone, secondary }: NewAccountNameProps) => {
                     {t('auth.newAccount.saveFailed')}
                 </p>
             )}
-            {/* A name waits for the relay connection to sign in as the new account; skipping never does. */}
             <Button type="submit" size="lg" disabled={saving || (!!trimmed && !failed && !isRelayVerified)}>
                 {failed
                     ? t('auth.newAccount.continueWithout')

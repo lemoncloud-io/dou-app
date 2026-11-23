@@ -7,18 +7,6 @@ import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { useBridgeScreenStrings } from '../../i18n/screens/BridgeScreen';
 
-/**
- * The bridge itself, which no screen covered: every other native screen exercises ONE command and,
- * when it fails, cannot say whether the command is wrong, the app build is old, or the channel was
- * never there. This one answers that question first — which injection channel exists, what protocol
- * version this web speaks — and then lets any command be sent by hand.
- *
- * Ping/Pong is the round-trip check: it carries no meaning of its own, so a reply proves the channel
- * and the measured time is the channel's real latency.
- */
-
-/** Kept to a handful: enough to answer "does the channel work" without hunting for a safe command. */
-// `OpenSubWebView` is here because no screen opens one yet; its payload needs a `url` typed in.
 const PRESETS = ['Ping', 'WebAppReady', 'FetchBootRecords', 'FetchCustomZipStatus', 'OpenSubWebView'] as const;
 
 interface CallLog {
@@ -33,7 +21,6 @@ interface CallLog {
 const MAX_LOGS = 20;
 const MAX_BODY_CHARS = 400;
 
-/** Free-typed commands cannot be proven to match a message type; the bridge validates at runtime. */
 const asMessage = (type: string, data: unknown) => ({ type, data }) as unknown as WebMessageData<WebMessageType>;
 
 export const BridgeScreen = () => {
@@ -44,7 +31,6 @@ export const BridgeScreen = () => {
     const [logs, setLogs] = useState<CallLog[]>([]);
     const [busy, setBusy] = useState(false);
 
-    // Read at render: the channel can appear late (the client polls for it), so a remount reflects it.
     const channels = {
         'RN WebView': !!window.ReactNativeWebView?.postMessage,
         'Chatic handler': !!window.ChaticMessageHandler?.postMessage,
@@ -71,7 +57,6 @@ export const BridgeScreen = () => {
 
         const startedAt = performance.now();
         if (mode === 'post') {
-            // Nothing comes back, so the line says so rather than implying the app acted.
             webClient.post(asMessage(type, data));
             appendLog({ mode, type, ms: null, ok: true, body: strings.sentNoConfirmation });
             return;

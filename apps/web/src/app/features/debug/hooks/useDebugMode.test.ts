@@ -1,5 +1,3 @@
-// The `diagnostics` port decides whether an unlock reaches the app: where it has a debug switch of its
-// own, the hook calls it. A watched switch stands in for the app's, so jsdom never touches the bridge.
 const mockIsNative = jest.fn();
 const mockSetHostDebugMode = jest.fn();
 jest.mock('@chatic/runtime', () => {
@@ -20,8 +18,6 @@ jest.mock('@chatic/runtime', () => {
         },
     });
 });
-// The registry decides visibility by build stage (ADR-0080 Decision 4); the facade is mocked so the
-// stage rule can be stated per test instead of standing up ports.
 const configGet = jest.fn();
 const configSet = jest.fn();
 const configClear = jest.fn();
@@ -43,14 +39,12 @@ describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {
         delete (window as unknown as { CHATIC_APP_DEBUG_MODE?: boolean }).CHATIC_APP_DEBUG_MODE;
     });
 
-    // On LOCAL/DEV the row is true, so the 10-tap friction disappears. On PROD the row is false, same as now.
     it('스테이지 행이 열려 있으면 언락 없이 활성이다', () => {
         configGet.mockImplementation((key: string) => (key === 'debug.overlayEnabled' ? true : undefined));
         const { result } = renderHook(() => useDebugMode());
         expect(result.current.isEnabled).toBe(true);
     });
 
-    // Clearing only the unlock record would let the stage rule turn it back on, making "the web can turn it off again" false.
     it('disable은 스테이지 행도 false로 쓴다', () => {
         sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
         const { result } = renderHook(() => useDebugMode());
@@ -60,7 +54,6 @@ describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {
         expect(configSet).toHaveBeenCalledWith('debug.overlayEnabled', false, { lane: 'local' });
     });
 
-    // Without this wiring, every surface:'dev' key would render read-only on PROD.
     it('언락은 오버라이드 잠금도 연다', () => {
         act(() => setDebugModeEnabled(true));
 
@@ -90,7 +83,6 @@ describe('useDebugMode — 숨겨진 디버그 모드 게이트', () => {
     });
 
     it('setDebugModeEnabled(true)로 언락하면 모든 훅 인스턴스가 즉시 활성화된다', () => {
-        // The always-mounted debug overlay must react to useDebugUnlock's unlock call.
         const observer = renderHook(() => useDebugMode());
         expect(observer.result.current.isEnabled).toBe(false);
 

@@ -1,10 +1,3 @@
-/**
- * Main-thread blocking aggregation via the Long Tasks API (tasks >50ms).
- * Started from main.tsx with `buffered: true` so boot-time jank is captured
- * even though the debug overlay opens much later. No-ops where unsupported
- * (e.g. WKWebView has no 'longtask' entry type).
- */
-
 export interface LongTaskStats {
     count: number;
     totalMs: number;
@@ -13,7 +6,6 @@ export interface LongTaskStats {
 
 let stats: LongTaskStats = { count: 0, totalMs: 0, maxMs: 0 };
 
-/** Pure reducer, exported for tests. */
 export const addLongTask = (current: LongTaskStats, durationMs: number): LongTaskStats => ({
     count: current.count + 1,
     totalMs: Math.round(current.totalMs + durationMs),

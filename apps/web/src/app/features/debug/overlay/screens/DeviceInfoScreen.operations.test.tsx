@@ -66,7 +66,6 @@ describe('DeviceInfoScreen — 조작 (ADR-0080 결정 11)', () => {
         expect(await screen.findByText(/홍길동/)).toBeInTheDocument();
     });
 
-    // MICROPHONE is a permission the web couldn't call because the contract union forked into a copy — that's the point of this expansion.
     it('권한 버튼 네 개가 계약의 토큰으로 요청한다 (MICROPHONE 포함)', async () => {
         requestPermission.mockResolvedValue({ data: { permission: 'CAMERA', status: 'GRANTED' } });
         render(<DeviceInfoScreen />);
@@ -86,7 +85,6 @@ describe('DeviceInfoScreen — 조작 (ADR-0080 결정 11)', () => {
         expect(await screen.findByText(/failed: CANCELLED/)).toBeInTheDocument();
     });
 
-    // It's post-based, so there's no response — we don't pretend one was received.
     it('확인 응답이 없는 조작은 "확인 없음"이라고 밝힌다', async () => {
         render(<DeviceInfoScreen />);
 

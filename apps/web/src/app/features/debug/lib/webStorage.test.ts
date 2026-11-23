@@ -1,5 +1,3 @@
-// The session's own key list, as the session declares it. Spelled out rather than imported: apps reach
-// the session only through the runtime, and this is the answer that runtime gives.
 jest.mock('@chatic/runtime', () => {
     const sessionKeys = new Set([
         'chatic-relay-token',
@@ -31,7 +29,6 @@ import {
     type WebStorageEnv,
 } from './webStorage';
 
-/** A Storage backed by a Map, so tests do not share jsdom's global one. */
 const memoryStorage = (entries: Record<string, string> = {}): Storage => {
     const data = new Map(Object.entries(entries));
     return {
@@ -48,7 +45,6 @@ const memoryStorage = (entries: Record<string, string> = {}): Storage => {
 
 type DeleteRequest = { onsuccess?: () => void; onerror?: () => void; onblocked?: () => void };
 
-/** An IndexedDB factory whose delete for each name ends the way the test says. */
 const fakeIndexedDb = (outcomes: Record<string, 'success' | 'error' | 'blocked'>, listable = true) => {
     const deleteDatabase = jest.fn((name: string) => {
         const request: DeleteRequest = {};
@@ -89,7 +85,6 @@ describe('classifyWebKey', () => {
         ['chatic-pinned-channels', 'other'],
         ['chatic-paired-cloud-ids', 'session'],
         ['chatic-oauth-provider', 'other'],
-        // A desktop UI store under a session-like prefix: it is not the session's, so it is not grouped as one.
         ['chatic-selected-channel', 'other'],
         ['anything-else', 'other'],
     ])('puts %s in %s', (key, group) => {

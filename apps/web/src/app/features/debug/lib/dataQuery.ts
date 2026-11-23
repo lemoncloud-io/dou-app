@@ -1,16 +1,3 @@
-/**
- * The filter and sort the Storage and DB screens share — picked from controls, not typed as a query:
- *
- * - `text`: the record's JSON contains it (case-insensitive) — a word from anywhere in the record.
- * - `field` + `value`: that one field contains `value` (case-insensitive). No field, or an empty value,
- *   filters nothing, so picking a field before typing does not empty the list.
- * - `sortField` + `descending`: the order; the records' own order when no field is picked.
- *
- * Values are compared as the JSON text of whatever is there, so a number or a boolean matches what
- * the row shows when expanded.
- */
-
-/** Any plain object: a cache row, a storage key's record. */
 export type DataRecord = object;
 
 export interface RecordFilter {
@@ -25,7 +12,6 @@ export const EMPTY_FILTER: RecordFilter = { text: '', field: '', value: '', sort
 
 const fieldOf = (record: DataRecord, field: string): unknown => (record as Record<string, unknown>)[field];
 
-/** A value as the text a filter compares against: strings as they are, everything else as JSON. */
 const asText = (value: unknown): string => {
     if (value === undefined || value === null) return '';
     if (typeof value === 'string') return value;
@@ -47,7 +33,6 @@ const asNumber = (value: unknown): number | null => {
 
 const isMissing = (value: unknown): boolean => value === undefined || value === null || value === '';
 
-/** Numbers numerically (numeric strings included), everything else by locale with numeric collation. */
 const compareValues = (a: unknown, b: unknown): number => {
     const an = asNumber(a);
     const bn = asNumber(b);
@@ -55,7 +40,6 @@ const compareValues = (a: unknown, b: unknown): number => {
     return asText(a).localeCompare(asText(b), undefined, { numeric: true });
 };
 
-/** Whether `record` passes the text and field filters. */
 export const matchesFilter = (record: DataRecord, filter: RecordFilter): boolean => {
     const text = filter.text.trim().toLowerCase();
     if (text && !asText(record).toLowerCase().includes(text)) return false;
@@ -64,10 +48,6 @@ export const matchesFilter = (record: DataRecord, filter: RecordFilter): boolean
     return true;
 };
 
-/**
- * Filters, then orders when a sort field is picked. Records without the field stay last in both
- * directions, so a sort never buries the rows that have it. Never mutates `records`.
- */
 export const applyFilter = <T extends DataRecord>(records: readonly T[], filter: RecordFilter): T[] => {
     const filtered = records.filter(record => matchesFilter(record, filter));
     const { sortField, descending } = filter;
@@ -81,7 +61,6 @@ export const applyFilter = <T extends DataRecord>(records: readonly T[], filter:
     });
 };
 
-/** The top-level field names across `records`, sorted — the screens offer them in the field pickers. */
 export const fieldNamesOf = (records: readonly DataRecord[], limit = 200): string[] => {
     const names = new Set<string>();
     for (const record of records.slice(0, limit)) for (const key of Object.keys(record)) names.add(key);

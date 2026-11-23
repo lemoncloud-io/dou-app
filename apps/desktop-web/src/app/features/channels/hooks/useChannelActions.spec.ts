@@ -18,8 +18,6 @@ import '../../../../i18n';
 import { useComposerFocusStore } from '../../../shared';
 import { useChannelActions } from './useChannelActions';
 
-// The confirm closes before the removal resolves and the room it came from goes away, so the
-// next room has to be told to take focus.
 describe('useChannelActions focus request after removing a channel', () => {
     beforeEach(() => {
         mutations.deleteChannel.mockResolvedValue(undefined);

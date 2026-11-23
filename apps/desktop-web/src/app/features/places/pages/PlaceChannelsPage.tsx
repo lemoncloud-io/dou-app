@@ -25,18 +25,12 @@ interface RemoveTarget {
     action: 'delete' | 'leave';
 }
 
-/**
- * Bulk channel manager for one place: multi-select with pin and mark-read,
- * plus per-row delete (owned) or leave behind a confirm. Destructive writes
- * never run unconfirmed; a refused write toasts and the row stays.
- */
 export const PlaceChannelsPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { placeId } = useParams<{ placeId: string }>();
     const { channels, isLoading } = useChannels(placeId ?? undefined);
     const myUid = runtime.session.useSessionIdentity().userId;
-    // The sidebar's naming: a 1:1 reads as its person, not as its raw `uid@uid` room name.
     const labelOf = useChannelLabels(channels);
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { pinnedIds, toggle: togglePinned } = usePinnedChannels(placeScopeKey(selectedCloudId, placeId));
@@ -51,7 +45,6 @@ export const PlaceChannelsPage = () => {
     const selectedRows = channels.filter(channel => channel.id && selectedIds.includes(channel.id));
 
     const pinSelected = () => {
-        // Pin the unpinned only: toggling a mixed set would unpin what is pinned.
         for (const channel of selectedRows) {
             if (channel.id && !pinnedIds.includes(channel.id)) togglePinned(channel.id);
         }
@@ -63,8 +56,6 @@ export const PlaceChannelsPage = () => {
             const id = channel.id ?? '';
             const chatNo = lastChatNoOf(channel);
             if (!id || chatNo <= 0) continue;
-            // Same write as the row menu's mark-as-read: optimistic local cursor first,
-            // then the outbox, through the channel's own cloud.
             useReadCursorStore.getState().markRead(id, chatNo);
             writes.push(
                 runtime.data
@@ -73,9 +64,6 @@ export const PlaceChannelsPage = () => {
                     .then(receipt => receipt.delivered)
             );
         }
-        // One toast for the whole batch, not one per failed row. The outbox resends a read
-        // until the server has it, so a rejection is only a read refused for good (the room
-        // left or gone); a read still waiting on the socket stays pending and says nothing.
         void Promise.allSettled(writes).then(results => {
             const refused = results.find(result => result.status === 'rejected');
             if (refused) toastFailure(t('sidebar.markReadFailed'), refused.reason);

@@ -10,13 +10,6 @@ const inputClass = cn(
     'transition-colors focus:border-focus-border disabled:opacity-50'
 );
 
-/**
- * Dev-only account switcher docked in the Debug panel. Reuses the auth feature's
- * useDebugLogin so it works post-auth too — /auth/* redirects home once signed in,
- * so navigation can't reach the debug login page; this calls the hook directly,
- * which clears the current cloud session and swaps the profile in place. Lets you
- * jump to e.g. developer@lemoncloud.io to test cross-user notification delivery.
- */
 export const DebugAuthPage = () => {
     const { userId } = runtime.session.useSessionIdentity();
     const { userName } = runtime.session.useRuntimeProfile();

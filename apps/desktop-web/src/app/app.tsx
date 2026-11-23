@@ -20,17 +20,9 @@ const queryClient = new QueryClient({
     },
 });
 
-/**
- * Provider assembly only. Session readiness and the runtime connection (transport bootstrap,
- * socket lifecycle, re-auth) are both owned by `DesktopRuntime` (see `./runtime`) — the app
- * no longer mounts `DataProvider` / `WebSocketV2Connection` / `GlobalChatSync` nor gates the
- * render on a session-init hook / `useTokenRefresh`.
- */
 export function App() {
     const { isAuthenticated } = runtime.session.useSessionAuth();
 
-    // Outside the Router, so read the address bar: a reload on /settings must not boot into the
-    // home shell's skeleton. Pre-auth keeps the plain loader.
     const bootFallback = <RouteFallback pathname={window.location.pathname} isAuthenticated={isAuthenticated} />;
 
     return (

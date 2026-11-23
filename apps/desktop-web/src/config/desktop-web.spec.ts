@@ -1,10 +1,3 @@
-/**
- * `config/desktop-web.spec.ts`
- *
- * The declaration exists to boot the page exactly as its entry point booted it before: every port on
- * one fixed adapter, the session on the window's own store objects, the host ports the entry published
- * by hand, and the chat cache cap. Those are what the cases pin.
- */
 import { describe, expect, it, vi } from 'vitest';
 
 import { startRuntime } from '@chatic/runtime-web';
@@ -37,7 +30,6 @@ type Read = NonNullable<StartRuntimeOptions['read']>;
 const idsOf = (choices: Record<string, { id: string }>) =>
     Object.fromEntries(Object.entries(choices).map(([port, choice]) => [port, choice.id]));
 
-/** Starts the declaration with every collaborator faked except the adapters themselves. */
 const start = async (read: Read = () => undefined) => {
     const config = { init: vi.fn(), isInitialized: vi.fn(() => false), snapshot: vi.fn(() => undefined) };
     const createRuntime = vi.fn((_ports: unknown) => ({}) as never);
@@ -83,8 +75,6 @@ describe('desktop-web runtime declaration', () => {
         const { publishHost } = await start();
 
         expect(publishHost).toHaveBeenCalledTimes(1);
-        // The ports built from the app's implementations carry members beside the choice; the choice is what is
-        // pinned here.
         expect(publishHost.mock.calls[0][0]).toMatchObject({
             checkout: { kind: 'none' },
             media: { kind: 'browser' },

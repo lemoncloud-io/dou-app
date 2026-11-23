@@ -11,8 +11,6 @@ const en = {
     nextLabel: 'From the next start',
     pageLabel: 'This page',
     owners: { web: 'Page (web)', native: 'App (native)' },
-    // What the page settled at boot: a launch set to the app whose runtime could not start still
-    // reads "App (native)" above, while the page here holds its own session.
     pageOwners: { web: 'Holds its own session', native: 'Mirrors the app’s runtime' },
     carryOver:
         'The tokens in the device vault carry over. What the page keeps in its own storage (the selected cloud, cloud identities) does not.',

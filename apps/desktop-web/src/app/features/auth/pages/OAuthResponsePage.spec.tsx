@@ -6,8 +6,6 @@ let isError = false;
 let native = true;
 const completeFromHandoff = vi.fn();
 
-// Inside the desktop shell the page exchanges the code itself, so no deeplink jump runs; in a browser
-// it hands the code back to the app — as the relay sign-in's `returnedCode` says.
 vi.mock('@chatic/runtime', async () => {
     const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime/testing');
     return fakeRuntimeModule({

@@ -1,4 +1,3 @@
-// A browser tab: the page keeps its own diagnostics, so an unlock is not propagated to an app.
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         diagnostics: require('@chatic/runtime/testing').browserDiagnostics(),
@@ -99,7 +98,6 @@ describe('useDebugUnlock — 10탭 + 입장 코드 게이트', () => {
         expect(result.current.isChallengeOpen).toBe(false);
         expect(sessionStorage.getItem(DEBUG_STORAGE_KEY)).toBeNull();
 
-        // Reset means the unlock must start over from a fresh 10-tap, not resume mid-count.
         tap(result.current.registerTap, 9);
         expect(result.current.isChallengeOpen).toBe(false);
     });

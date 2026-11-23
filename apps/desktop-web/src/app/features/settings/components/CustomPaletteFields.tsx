@@ -12,11 +12,6 @@ interface ColorFieldProps {
     onSet: () => void;
 }
 
-/**
- * One colour. `onPick` runs on every step while the picker is open (React's onChange is the
- * native `input` event), so the shell follows the drag. `onSet` runs once, on the native
- * `change` the browser fires when the picker closes.
- */
 const ColorField = ({ label, value, onPick, onSet }: ColorFieldProps) => {
     const ref = useRef<HTMLInputElement>(null);
 
@@ -47,7 +42,6 @@ interface CustomPaletteFieldsProps {
     onSet: () => void;
 }
 
-/** The three colours of the Custom theme: cloud rail, nav rail, list. */
 export const CustomPaletteFields = ({ colors, onPick, onSet }: CustomPaletteFieldsProps) => {
     const { t } = useTranslation();
 

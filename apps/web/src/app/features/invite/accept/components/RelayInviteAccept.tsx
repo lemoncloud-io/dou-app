@@ -6,10 +6,6 @@ import { AlertDialog, Text } from '@chatic/web-ui-kit';
 
 import { InviteAcceptLoading } from './InviteAcceptLoading';
 import { InviteAcceptScreen } from './InviteAcceptScreen';
-// Direct file path, not the `channels/components` barrel: that barrel also exports
-// AddFriendSheet, which pulls channels/hooks -> @chatic/runtime -> chatic-sockets-lib ->
-// lemon-model (needs a TextEncoder global this test env doesn't polyfill). Same fix
-// InviteWaitingPage.test.tsx documents for the same reason.
 import { ConfirmDialog } from '../../../channels/components/ConfirmDialog';
 import { PlaceProfileCreateDialog } from '../../../../ui/components/PlaceProfileCreateDialog';
 import { useSetMyPlaceProfile } from '../../../../hooks';
@@ -17,43 +13,20 @@ import { useActivePlaceName } from '../../../../hooks';
 import { useRelayInviteFlow } from '../hooks';
 import { resolvePlaceDisplayName } from '../../../../utils/resolvePlaceDisplayName';
 
-/**
- * Split out because this screen is the ONE eager consumer of `libphonenumber-js` — every other one
- * sits under a `React.lazy` route. `CommonRoutes` deliberately keeps the invite-accept page eager
- * (it is the invitee's first screen), so importing the verify step statically put ~35 kB gzip of
- * number metadata into the initial chunk — measured. `verifying` is never the first phase: the user
- * passes through `loading` and the accept screen first, so the fetch happens off the cold path and
- * ADR-0044's "code-split it so first entry does not pay" holds.
- */
 const PhoneVerifyScreen = lazy(() =>
     import('../../../auth/components/PhoneVerifyScreen').then(m => ({ default: m.PhoneVerifyScreen }))
 );
 
 interface RelayInviteAcceptProps {
-    /** Invite code from the deeplink. A credential — it stays in packet bodies, never in a log. */
     code: string;
 }
 
-/**
- * Relay 1:1 invite acceptance (ADR-0089), rendered by InviteAcceptPage when the deeplink carries the
- * `relay` marker; the URL detection lives there.
- *
- * This is the view layer only — every decision belongs to useRelayInviteFlow, so what is left here is
- * a switch over `phase`. Each phase simply takes over the page: no dialog wrapper, because the page
- * IS the surface. The verification step in particular used to be a Dialog nested inside another one,
- * since PhoneVerifyScreen brings its own.
- */
 export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element | null => {
     const { t } = useTranslation();
     const setMyPlaceProfile = useSetMyPlaceProfile();
     const flow = useRelayInviteFlow(code);
-    // Branded, so the relay's personal place reads "DoU Home" in the profile title rather than the raw
-    // backend name "default" (ADR-0040 decision 7).
     const placeName = useActivePlaceName();
-    // The profile step offers its X only once a save has failed — see the `profiling` branch.
     const [profileSaveFailed, setProfileSaveFailed] = useState(false);
-    // Each visit to the step starts required again — a verification in between can swap the identity
-    // the earlier failure was about.
     const isProfiling = flow.phase === 'profiling';
     useEffect(() => {
         if (!isProfiling) setProfileSaveFailed(false);
@@ -67,11 +40,8 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         }
     };
 
-    // Already navigated home — the URL still carries the code for one more render.
     if (flow.phase === 'closed') return null;
 
-    // Rejecting is final (05-client-guide §B-4), so the button only raises this confirm step —
-    // the actual invite.reject waits for `confirmDecline` (ADR-0043, Figma 3446-17487).
     if (flow.phase === 'declining') {
         return (
             <ConfirmDialog
@@ -86,11 +56,7 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         );
     }
 
-    // Expired / already joined / canceled / rejected / invalid / wrong number / taken. Red title per Figma.
     if (flow.phase === 'notice' && flow.notice) {
-        // `generic` is the only recoverable one — it means the failure could not be classified (a
-        // half-open socket, a 5xx), not that the invite is spent. Everything else is a verdict about
-        // the invite, so offering a retry there would just replay the same answer.
         const isRecoverable = flow.notice === 'generic';
         return (
             <AlertDialog
@@ -106,10 +72,6 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         );
     }
 
-    // The mode is the flow's call, not this switch's — a deeplink does not imply a device session,
-    // and the server's own 403 can overrule the role cache (see `verifyMode`). `last4` lets a
-    // mistyped number fail before a delivery is spent; note the server only cross-checks the WHOLE
-    // number on a `login` send, since `link` carries no invite code (§B-2).
     if (flow.phase === 'verifying') {
         return (
             <Suspense fallback={<InviteAcceptLoading />}>
@@ -125,10 +87,6 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         );
     }
 
-    // Naming yourself is a precondition of the accept, not a gate on the app. Required
-    // without being a trap — the cloud invite's rule: no way out until a save has failed once, and
-    // then X goes on into the accept without a profile rather than back to the review screen. No
-    // `exit` copy, so X leaves at once.
     if (flow.phase === 'profiling') {
         return (
             <PlaceProfileCreateDialog
@@ -142,25 +100,15 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         );
     }
 
-    // The entry read is still out: we have the link but not the invitation. Showing the accept screen
-    // with every field blank would offer a CTA for an invite we cannot describe yet.
     if (flow.phase === 'loading') return <InviteAcceptLoading />;
 
     const isBusy = flow.phase === 'submitting' || flow.phase === 'awaitingChannel';
-    // One value for the heading and the 1:1 card, so the two cannot name different people.
     const inviterNick = flow.invite?.inviter$?.nick?.trim() || undefined;
 
     return (
         <InviteAcceptScreen
-            // The inviter's nickname in their personal place, never the account name — a number-derived
-            // account's name is its masked digits. With none, the screen's nameless line reads better.
             inviterName={inviterNick}
             inviterImage={flow.invite?.inviter$?.image}
-            // The invited place. Wired ahead of the data (ADR-0089 D1): `site$` is on the invite
-            // contract (`SiteHead` = id + name, extended at runtime with intro/thumbnail) but relay
-            // `invite.get` is not known to populate it yet, so the card stays hidden until it does
-            // rather than needing a code change on the day it arrives. A relay invite is into the relay's
-            // personal place, so its raw backend name goes through the home-place branding.
             placeName={
                 flow.invite?.site$
                     ? resolvePlaceDisplayName(flow.invite.site$, { isDefaultCloud: true }, t) || undefined
@@ -176,8 +124,6 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
             onClose={flow.close}
             onDecline={flow.decline}
             overlay={
-                // The accept succeeded but the room is built asynchronously and can take a few
-                // seconds; hold the surface rather than dropping the user on home.
                 flow.phase === 'awaitingChannel' ? (
                     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background/70 backdrop-blur-sm">
                         <Loader2 size={28} className="animate-spin text-foreground" />

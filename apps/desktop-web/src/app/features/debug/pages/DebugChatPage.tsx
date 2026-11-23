@@ -9,11 +9,6 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 const makeId = (prefix: string): string => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 const nowLabel = (): string => new Date().toLocaleTimeString();
 
-/**
- * Dev-only cache-stream playground for the shared channel/chat repositories:
- * subscribe to the local streams and create/update/delete records directly to
- * watch optimistic IndexedDB writes + event broadcasts. Ported from apps/web.
- */
 export const DebugChatPage = () => {
     const { channel: channelRepository, chat: chatRepository } = runtime.data.useRuntimeRepositories();
 

@@ -24,14 +24,8 @@ import {
 import { ConfirmDialog } from './ConfirmDialog';
 import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
 
-/** Re-poll cadence while the dialog is open — the inviter learns of an accept only by re-asking. */
 const POLL_INTERVAL_MS = 30_000;
 
-/**
- * Sent-invite waiting dialog: live status of one invite with cancel (confirmed),
- * reissue and a copy-link action. Polls `invite.list` while open; an accepted
- * invite hands off to its channel, a canceled or vanished one closes quietly.
- */
 export const InviteWaitingDialog = () => {
     const { t } = useTranslation();
     const inviteId = useInviteWaitingStore(s => s.inviteId);
@@ -50,16 +44,11 @@ export const InviteWaitingDialog = () => {
     const [isReissuing, setIsReissuing] = useState(false);
 
     const refresh = useCallback(async (): Promise<MyInviteView[]> => {
-        // Read the repository through a ref so the polling effect below does
-        // not re-subscribe on every render: the repositories object is not
-        // identity-stable across renders (same reason as `useChats`' refs).
         const rows = await listInvitesRef.current();
         setInvites(rows);
         return rows;
     }, []);
 
-    // Latest `listInvites` without making `refresh` (and the polling effect) a
-    // function of the repositories object's identity.
     const listInvitesRef = useRef(listInvites);
     listInvitesRef.current = listInvites;
 
@@ -86,18 +75,11 @@ export const InviteWaitingDialog = () => {
     const countdown = useInviteCountdown(invite?.expiredAt);
     const isExpired = !!invite && (invite.state === 'expired' || !!countdown?.isExpired);
 
-    // Whether this inviteId has been observed at least once. A missing row
-    // closes the dialog only after that: the poll right after a reissue can
-    // land before the server mirrors the new row, and that absence is not
-    // "gone". An id never observed stays on its loading state (with its X).
     const seenRef = useRef(false);
     useEffect(() => {
         seenRef.current = false;
     }, [inviteId]);
 
-    // Terminal states own the dialog: accepted hands to the room, canceled or
-    // vanished-after-seen closes. The countdown hook keeps ticking until the
-    // close lands.
     useEffect(() => {
         if (!inviteId || isLoading) return;
         if (invite) {
@@ -116,9 +98,6 @@ export const InviteWaitingDialog = () => {
     if (!inviteId) return null;
 
     const refetchRows = async (): Promise<MyInviteView[]> => {
-        // A failed re-ask keeps the last list: an empty one would read as
-        // "gone" to the terminal-state effect and close the dialog without
-        // telling the sender, and the caller falls back to its error toast.
         const rows = await listInvites().catch(() => undefined);
         if (rows) setInvites(rows);
         return rows ?? invites;
@@ -126,13 +105,8 @@ export const InviteWaitingDialog = () => {
 
     const handleCancelConfirm = async () => {
         if (!invite?.id || isCanceling) return;
-        // Set before the (async) code resolution below, not after — resolution
-        // can itself take a network round trip, and leaving the flag unset
-        // across that window would let a second click double-submit.
         setIsCanceling(true);
         try {
-            // A cache-first row carries no code — resolve against the current
-            // list first and fall back to one re-ask before giving up.
             const code = await resolveInviteCode(invites, async () => ({ data: await refetchRows() }), invite.id);
             if (!code) {
                 setConfirmingCancel(false);
@@ -144,8 +118,6 @@ export const InviteWaitingDialog = () => {
             toast({ title: t('invite.waiting.canceled') });
             closeWaiting();
         } catch (error) {
-            // Accepted or canceled in the meantime: re-ask and let the states
-            // above tell the truth instead of erroring on a race.
             const rows = await refetchRows();
             const current = rows.find(item => item.id === invite.id);
             if (current?.state === 'accepted' || current?.state === 'canceled' || !current) {
@@ -161,16 +133,11 @@ export const InviteWaitingDialog = () => {
     const handleReissue = async () => {
         if (!inviteId || isReissuing) return;
         if (!phone) {
-            // This dialog opens with the sender's memory; without it there is
-            // nothing to reissue with.
             toast({ title: t('invite.waiting.reissueMissing'), variant: 'destructive' });
             return;
         }
         setIsReissuing(true);
         try {
-            // Retire the prior invite FIRST. A pending prior must actually
-            // cancel — issuing before that leaves two live codes for one
-            // number. Expired priors are best-effort tidying and never block.
             if (invite && invite.state !== 'accepted' && invite.state !== 'canceled') {
                 const code = await resolveInviteCode(invites, async () => ({ data: await refetchRows() }), invite.id);
                 if (invite.state === 'pending') {
@@ -191,15 +158,10 @@ export const InviteWaitingDialog = () => {
                 }
             }
 
-            // Carry the channel over: a reissue without it issues an unbound invite, and
-            // accepting that no longer lands the recipient in the room.
             const next = await createInvite({ phone, name, channelId });
             if (!next.id) throw new Error('invite.create response is missing an id');
             if (next.deeplink) copyLink(next.deeplink);
             toast({ title: t('invite.waiting.reissued') });
-            // Reset the list BEFORE switching the watched id: the terminal-state
-            // effect below would otherwise read the stale absence of the new row
-            // as "gone" and close the dialog it just opened.
             setInvites([]);
             setIsLoading(true);
             useInviteWaitingStore.getState().open({
@@ -240,7 +202,6 @@ export const InviteWaitingDialog = () => {
                 <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
                     <DialogTitle>{t('invite.waiting.title')}</DialogTitle>
                     <DialogDescription>{statusText}</DialogDescription>
-                    {/* Pending only: a declined invite cannot be accepted, so its clock means nothing. */}
                     {invite?.state === 'pending' && !isExpired && timeParts.length > 0 && (
                         <p role="status" className="text-caption text-muted-foreground">
                             {t('invite.waiting.timeLeft', { time: timeParts.join(' ') })}

@@ -9,18 +9,6 @@ import { debugOverlayActions } from '../overlayStore';
 import { appBridge } from '../../../../bridge';
 import { usePushScreenStrings } from '../../i18n/screens/PushScreen';
 
-/**
- * The operations the app's own Notification Test screen used to own (ADR-0080 decision 11). Each is one
- * bridge command; the app executes and answers, the result lands in the line below the buttons.
- *
- * A push tap is reproduced with `openURL` on the app's own scheme rather than a dedicated command:
- * the OS hands the URL straight back as an inbound deeplink, which is the round trip a real tap
- * makes (see `OpenURLPayload`'s note on the withdrawn `SimulateInboundDeeplink`).
- *
- * The scheme is resolved per build (`buildAppDeeplink`), not written literally — a dev build
- * registers `chatic-dev:`, so a hardcoded `chatic://` would open the other channel's app on a
- * device that has both.
- */
 const PUSH_TAP_PATH = '/chats';
 
 export const PushScreen = () => {
@@ -29,8 +17,6 @@ export const PushScreen = () => {
 
     const { state, token, summary, error, check } = usePushRegistration(strings.errors);
     const { entries, clear } = useReceivedPushLog();
-    // `fire` is for the two `post`-based commands here (`openURL`, `setBadgeCount`): they get no
-    // answer, so the shared hook labels them "No confirmation" instead of implying one (decision 10).
     const { result, run, fire } = useDebugOperation();
 
     return (
@@ -44,7 +30,6 @@ export const PushScreen = () => {
                     <p className="mt-1 text-[13px] text-muted-foreground">{strings.subtitle(isOnNative)}</p>
                 </div>
 
-                {/* Section 1: server registration check */}
                 <div className="rounded-lg border border-border bg-card p-4">
                     <div className="flex items-center justify-between gap-3">
                         <div>
@@ -122,7 +107,6 @@ export const PushScreen = () => {
                     {error && <p className="mt-3 text-[12px] font-medium text-destructive">{error}</p>}
                 </div>
 
-                {/* Section 2: operations moved off the app's Notification Test screen */}
                 <div className="mt-4 rounded-lg border border-border bg-card p-4">
                     <h2 className="text-[15px] font-semibold text-foreground">{strings.actions.title}</h2>
                     <p className="mt-1 text-[12px] text-muted-foreground">{strings.actions.hint(isOnNative)}</p>
@@ -189,7 +173,6 @@ export const PushScreen = () => {
                     {result && <p className="mt-3 break-all font-mono text-[12px] text-muted-foreground">{result}</p>}
                 </div>
 
-                {/* Section 3: received pushes (foreground) */}
                 <div className="mt-4 rounded-lg border border-border bg-card p-4">
                     <div className="flex items-center justify-between gap-3">
                         <div>

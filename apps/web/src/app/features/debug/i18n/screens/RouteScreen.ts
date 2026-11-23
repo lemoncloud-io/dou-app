@@ -25,7 +25,6 @@ const en = {
             hint: 'Entries you could reach again by going forward after going back. Navigating to a new screen from here discards them.',
         },
         historyLength: {
-            // The literal browser API name — identical in both languages.
             label: 'history.length',
             hint: "A browser-global value, so it counts entries from before the app loaded too. It is not the app's depth — back navigation is decided by 'Can go back' above, so this can differ and still be normal.",
         },

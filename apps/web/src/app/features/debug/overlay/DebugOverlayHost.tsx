@@ -10,8 +10,6 @@ import { useDebugMode } from '../hooks';
 import { debugOverlayActions, useDebugOverlayState } from './overlayStore';
 import { DebugPanel } from './DebugPanel';
 
-// Always-on socket quality reporter — keeps connect/disconnect counts accurate
-// even while the monitoring overlay is closed.
 function MetricsSocketReporter() {
     const socketState = runtime.connection.useRuntimeSocketState();
     useEffect(() => {
@@ -20,24 +18,13 @@ function MetricsSocketReporter() {
     return null;
 }
 
-/**
- * Single web debug entry point, mounted at the app.tsx level (outside the Router and AppRuntime)
- * so it stays reachable during a boot hang. NEVER shown by default in any environment (PROD or
- * DEV/LOCAL): the only trigger is the hidden 10-tap unlock. Visible iff debug mode is currently
- * enabled, and the web can hide it again by disabling debug mode.
- */
 export const DebugOverlayHost = () => {
     const { isEnabled } = useDebugMode();
     const { isOpen } = useDebugOverlayState();
 
-    // Initially hidden everywhere; 10-tap (MyPage app version) is the sole entry, web disable exits.
     if (!isEnabled) return null;
 
     return (
-        // A tab that throws used to hit the app-wide boundary in app.tsx and replace the ENTIRE UI
-        // with the error screen — a read-only inspector taking the app down with it. Contain the
-        // failure here: the overlay dies, the app underneath keeps running, and the message stays
-        // visible so the tab can be fixed.
         <ErrorBoundary FallbackComponent={OverlayCrashNotice}>
             <MetricsSocketReporter />
             {!isOpen && (
@@ -54,7 +41,6 @@ export const DebugOverlayHost = () => {
     );
 };
 
-/** Overlay-local crash message: reload is the only recovery, and the app itself is unaffected. */
 const OverlayCrashNotice = ({ error }: { error: Error }) => (
     <div className="fixed bottom-4 right-4 z-50 max-w-[80vw] rounded-md border border-destructive bg-background p-3 font-mono text-xs text-destructive shadow-md">
         debug overlay crashed: {error.message}

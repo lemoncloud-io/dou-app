@@ -6,12 +6,10 @@ import { useChats, useSelectedChannelStore } from '../../../shared';
 import { useChatImagesStore } from '../../chat/stores';
 import { isFeedVisible, type ChatImage } from '../../chat/utils';
 
-/** Image counts the samples cover, oldest message first: single, pair, full grid, "+n". */
 const SAMPLE_COUNTS = [1, 2, 4, 10] as const;
 
 const HUES = [96, 205, 28, 265, 340, 160, 48, 190, 0, 120];
 
-/** A labelled gradient PNG, drawn locally so the samples need no network and no asset. */
 const drawSample = (index: number, wide: boolean): Promise<string> => {
     const canvas = document.createElement('canvas');
     canvas.width = wide ? 1200 : 900;
@@ -45,12 +43,6 @@ const buildSamples = async (count: number, uploading: boolean): Promise<ChatImag
         }))
     );
 
-/**
- * Dev-only preview of message images: hangs generated samples on the open channel's latest
- * messages (1 · 2 · 4 · 10 images) so the feed grid, the hover actions and the viewer can
- * be checked in the real layout without sending anything. A message that carries images of
- * its own shows those instead. Local to this window — nothing is sent.
- */
 export const DebugImagesPage = () => {
     const channelId = useSelectedChannelStore(s => s.selectedChannelId);
     const { messages } = useChats(channelId);

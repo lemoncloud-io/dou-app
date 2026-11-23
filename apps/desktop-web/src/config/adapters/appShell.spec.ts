@@ -2,8 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { WebHostFacts } from '@chatic/runtime-web';
 
-// The desktop shell's requests, posts and events, captured so a test can see what was sent and play
-// the updater's announcements back.
 const { request, post, onEvent, events } = vi.hoisted(() => {
     const events: Record<string, (message: unknown) => void> = {};
     return {
@@ -20,7 +18,6 @@ vi.mock('@chatic/bridges', () => ({ webClient: { request, post, onEvent } }));
 
 import { desktopAppShell } from './appShell';
 
-// Neither side reads the facts; the implementations decide from the side alone.
 const facts = {} as WebHostFacts;
 const shell = () => desktopAppShell.shell({ kind: 'shell', os: null }, facts);
 const browser = () => desktopAppShell.browser({ kind: 'browser', os: null }, facts);

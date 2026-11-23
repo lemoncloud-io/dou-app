@@ -1,4 +1,3 @@
-// Where the `diagnostics` port has a boot record, the snapshot goes to it; a watched one stands in for the app's.
 const mockIsNative = jest.fn();
 const mockSendBootMetrics = jest.fn();
 jest.mock('@chatic/runtime', () => {

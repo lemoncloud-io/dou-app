@@ -1,70 +1,23 @@
 import { runtime } from '@chatic/runtime';
 
-/**
- * Social Login URL plumbing. The OAuth Relay fronts every provider: we send the browser to its
- * authorize URL with a `redirect` back-address and it returns `?code=&provider=` to that address.
- * The nonce of the start record rides that address and has to come back with the code; a hand-off
- * that arrives without it is shown as a failure rather than passed on. The hand-off page then
- * ferries the code and the nonce into the app via the `chatic://oauth` deeplink when it lands in a
- * plain browser (the Desktop Shell registers the `chatic:` protocol).
- */
-/**
- * Channel-scoped scheme: each deployment targets its own shell channel
- * (dev web → DoU Dev via `chatic-dev:`, prod web → DoU via `chatic:`), so an
- * OAuth hand-off never (re)launches the other channel's app. The registry resolves the scheme
- * from the stage — the same axis the shell picks its own scheme by — so no build variable is involved.
- *
- * Read per call rather than once at module load. `runtime.settings.get()` answers `undefined`
- * until the runtime's start initialises config (main.tsx), so a module-scope read that landed
- * before boot would fall back to the registry default and hand a dev build off to the PROD channel's app — silently,
- * and in exactly the direction this scheme exists to prevent. Every caller here runs from a
- * rendered component, which is always after boot.
- */
 const protocolScheme = (): string => runtime.settings.get<string>('net.deeplink.desktopProtocol') ?? 'chatic';
 
-/**
- * Social sign-in: on in every build. A registry key rather than a constant so it can be turned off
- * without a release once a server lane writes it. Read per call — `runtime.settings.get()` answers
- * nothing until the runtime's start has initialised config.
- */
 export const isSocialLoginEnabled = (): boolean => runtime.settings.get<boolean>('feature.auth.socialLogin') !== false;
-/** Both channels' schemes parse — receiving is harmless, launching is what must not cross. */
 const OAUTH_DEEPLINK_SCHEMES = ['chatic:', 'chatic-dev:'];
 const OAUTH_DEEPLINK_HOST = 'oauth';
 
-/**
- * Providers the relay flow is wired for, with their names as people read them. A deeplink naming
- * anything else is not ours.
- */
 const PROVIDER_NAMES = { google: 'Google', apple: 'Apple' } as const;
 
-/** A provider the relay flow is wired for — what a sign-in button may start. */
 export type OAuthProvider = keyof typeof PROVIDER_NAMES;
 
 const isOAuthProvider = (provider: string): provider is OAuthProvider =>
     Object.prototype.hasOwnProperty.call(PROVIDER_NAMES, provider);
 
-/**
- * A provider as people read it, for copy that names the one a sign-in went through. Brand names, so
- * the same in every language; a provider with no entry falls back to its id rather than nothing.
- */
 export const oauthProviderName = (provider: string): string =>
     isOAuthProvider(provider) ? PROVIDER_NAMES[provider] : provider;
 
-// Already lowercased by the registry (`net.socialOauth.endpoint`'s `envDefaultKey` reader lowers
-// this raw name — see `webEnvAdapter.ts`'s `LOWERED_RAW_NAMES`), matching what
-// `@chatic/web-config`'s `WEB_SOCIAL_OAUTH_ENDPOINT` always did. Read per call, for the same
-// boot-order reason as the scheme above.
 const socialOauthEndpoint = (): string => runtime.settings.get<string>('net.socialOauth.endpoint') ?? '';
 
-/**
- * Relay authorize URL returning to this origin's hand-off page. The `nonce` rides the `redirect`
- * back-address and is relied on to come back with the code; a hand-off that returns without it is
- * shown as a failure (see `evaluateOAuthDeeplink`).
- *
- * The provider rides it too: the hand-off page reads it off its own address and takes a missing one
- * for Google. If the relay appends its own `provider`, the page reads the first, this one.
- */
 export const buildAuthorizeUrl = (provider: OAuthProvider, nonce: string): string => {
     const handoff = new URL('/auth/oauth-response', window.location.origin);
     handoff.searchParams.set('nonce', nonce);
@@ -72,32 +25,17 @@ export const buildAuthorizeUrl = (provider: OAuthProvider, nonce: string): strin
     return `${socialOauthEndpoint()}/oauth/${provider}/authorize?redirect=${encodeURIComponent(handoff.toString())}`;
 };
 
-/**
- * A deeplink that only brings the app forward: the shell raises its window for any link of its scheme,
- * and nothing in the app acts on this one. Used where the next step is in the app, not in the browser.
- */
 export const buildAppDeeplink = (): string => `${protocolScheme()}://open`;
 
-/** Hand-off deeplink carrying the relay code and the start's nonce back into the shell. */
 export const buildOAuthDeeplink = (provider: string, code: string, nonce: string): string =>
     `${protocolScheme()}://oauth?${new URLSearchParams({ provider, code, nonce }).toString()}`;
 
 export interface OAuthDeeplinkPayload {
     provider: string;
     code: string;
-    /**
-     * Optional on purpose: a link without one still parses, so that `evaluateOAuthDeeplink` refuses it
-     * where the person is told, instead of the parser dropping it silently.
-     */
     nonce?: string;
 }
 
-/**
- * Parse a `chatic(-dev)://oauth?...` deeplink; null for any other deeplink, and for an OAuth one
- * that is malformed (no code, no provider, or a provider this flow does not know). Compared as a
- * parsed URL, not by prefix: `chatic://oauth.evil` and `chatic://oauth@evil` share the prefix and
- * are not the oauth host.
- */
 export const parseOAuthDeeplink = (url: string): OAuthDeeplinkPayload | null => {
     let parsed: URL;
     try {

@@ -2,7 +2,6 @@ import { defineDebugStrings } from '../define';
 
 const en = {
     deviceInfoTitle: 'Device Info',
-    /** Keys match `DeviceInfoRowLabels` — passed straight into `buildDeviceInfoRows`. */
     rows: {
         deviceId: 'Device ID',
         installId: 'Install ID',
@@ -22,7 +21,6 @@ const en = {
         osSettings: 'OS settings',
         shareSheet: 'Share sheet',
     },
-    /** Labels passed to `run`/`fire` — shown as the operation name in the result line. */
     operations: {
         camera: 'Camera',
         photoLibrary: 'Photo library',

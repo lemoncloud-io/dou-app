@@ -32,14 +32,8 @@ import { useSendInviteStore } from '../stores/useSendInviteStore';
 import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
 import { useInviteLinkStore } from '../stores/useInviteLinkStore';
 
-/** Transport failures the client raises itself: a timeout, a request it dropped, no socket. */
 const TRANSPORT_STATUSES = new Set([408, 499, 503]);
 
-/**
- * Why a send failed, by the status the rejection carries before its wording: the socket manager
- * puts the server's code back on the Error, and the wording is not a contract. The text is read
- * only when there is no status.
- */
 const sendFailureKind = (error: unknown, raw: string): WireErrorKind => {
     const status = socketErrorStatus(error);
     if (status === 403) return 'denied';
@@ -48,15 +42,6 @@ const sendFailureKind = (error: unknown, raw: string): WireErrorKind => {
     return classifyWireError(raw);
 };
 
-/**
- * The sentence for a refused send, and the server's own wire text beside it. The sentence is the
- * part the person can act on; the wire text goes to the log and to the toast, so the actual reason
- * can be read back without opening the console. A contact invite rides the relay, which
- * issues invites to signed-in accounts only, so its refusal reads as "sign in first" when the relay
- * user is a guest (or there is no relay user, where signing in is the remedy too). The same 403
- * also covers a banned or departed account, and a place invite is refused for reasons of its own,
- * so every other refusal gets the plain "not allowed".
- */
 const describeSendFailure = (error: unknown, kind: 'channel' | 'place'): { key: string; raw: string } => {
     const raw = extractErrorMessage(error);
     logger.error('INVITE', '[SendInvite] failed', { error, raw, kind });
@@ -76,12 +61,6 @@ const sendFailureKeyOf = (failure: WireErrorKind, kind: 'channel' | 'place'): st
     }
 };
 
-/**
- * Invite sender dialog: name + phone number into the channel it was opened
- * from. On success the invite link is copied (the desktop has no SMS
- * composer) and the dialog closes; a failure is announced in place and the
- * dialog stays open — a closed dialog has nowhere to show it.
- */
 export const SendInviteDialog = () => {
     const { t } = useTranslation();
     const target = useSendInviteStore(s => s.target);
@@ -92,8 +71,6 @@ export const SendInviteDialog = () => {
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
-    // `detail` is the server's own words for a refused send. The toast carries them too; they are
-    // shown here as well because this is where the person is looking.
     const [error, setError] = useState<{ text: string; detail?: string } | null>(null);
 
     const reset = () => {
@@ -103,9 +80,6 @@ export const SendInviteDialog = () => {
     };
 
     const handleOpenChange = (next: boolean) => {
-        // Escape, the X and the backdrop are ignored while the invite is being
-        // created, as in Join and AddMembers: a closed dialog has nowhere to
-        // show the failure.
         if (next || isSubmitting) return;
         reset();
         close();
@@ -121,8 +95,6 @@ export const SendInviteDialog = () => {
         }
         setError(null);
         try {
-            // A place invite names no room (the server reads the missing key
-            // as "the place alone"); a channel invite enters its room.
             const view =
                 target.kind === 'channel'
                     ? await createInvite({ phone: parsed.e164, name: name.trim(), channelId: target.id })
@@ -133,7 +105,6 @@ export const SendInviteDialog = () => {
             }
             const recipient = name.trim();
             copyLink(view.deeplink);
-            // The place's welcome counts its invite step done; the server lists no sent invites back.
             const placeId = target.kind === 'place' ? target.id : selectedSiteId;
             if (myUid && placeId) useWelcomeStore.getState().markInvited(welcomeKey(myUid, placeId));
             toast({ title: t('invite.send.sent', { name: recipient }) });
@@ -141,16 +112,12 @@ export const SendInviteDialog = () => {
             reset();
             close();
             if (target.kind === 'channel') {
-                // The send lands on the waiting dialog, as the web flow does: the
-                // invite's status (and its cancel/reissue) lives there.
                 useInviteWaitingStore.getState().open({
                     inviteId: view.id,
                     ...sent,
                     channelId: target.id,
                 });
             } else {
-                // A place invite has no waiting screen — its link screen shows
-                // the link for sharing, as the web flow does.
                 useInviteLinkStore.getState().open(view.deeplink);
             }
         } catch (failure) {

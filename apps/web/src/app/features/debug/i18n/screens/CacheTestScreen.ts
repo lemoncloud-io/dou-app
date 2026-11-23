@@ -1,13 +1,5 @@
 import { defineDebugStrings } from '../define';
 
-/**
- * `addLog`'s tag argument is localized here (`log.tags.*`) except for the `SQL_SAVE` / `SQL_FETCH` /
- * `SQL_CLEAR` constants, which are identical in both languages and stay inline in the component —
- * same for the `updateStats` operation labels that only combine a tag with a protocol name
- * (`SaveTestRecord`, `FetchTestRecord`): those names are protocol values and stay in English, so
- * only the tag word itself needs a `ko`/`en` pair (`log.concurrency.opLabel`, `log.stress.opLabel`).
- */
-
 const en = {
     log: {
         tags: {

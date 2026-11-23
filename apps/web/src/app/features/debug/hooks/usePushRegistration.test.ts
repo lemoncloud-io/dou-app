@@ -2,13 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 const mockIsNative = jest.fn();
 const mockFetchToken = jest.fn();
-// The platform fallback, read only when the device store has none: no shell injected one here.
 jest.mock('@chatic/bridges', () => ({ hostProfile: () => ({ globals: {} }) }));
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         push: {
             useRegisterDeviceTokenMutation: jest.fn(),
-            // The app shell holds the device's push token; a browser has none.
             get deviceToken() {
                 return mockIsNative() ? { fetch: mockFetchToken } : null;
             },
@@ -25,8 +23,6 @@ import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
 import { usePushRegistration, type PushRegistrationMessages } from './usePushRegistration';
 
-// The hook takes its user-visible text from the caller (PushScreen's i18n table); these stand in
-// for it here so the assertions below can check for the exact fixed text.
 const MESSAGES: PushRegistrationMessages = {
     noNative: 'Push token is only available inside the native app shell.',
     noToken: 'No push token — permission denied or not issued yet.',
@@ -95,7 +91,6 @@ describe('usePushRegistration — 푸시 서버 등록 확인', () => {
         expect(mockMutateAsync).toHaveBeenCalledWith(
             expect.objectContaining({
                 deviceToken: 'tok-123',
-                // Must be the shared runtime.session.useDynamicDeviceId values, not a local derivation.
                 deviceId: 'dyn-device-1',
                 platform: 'ios',
                 installId: 'fid-dyn',

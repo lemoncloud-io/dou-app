@@ -3,7 +3,6 @@ import { useCallback, useRef, useState } from 'react';
 import { useOnReceiveNotification } from '../../../bridge';
 import { normalizeReceivedPush, type NormalizedPush } from '../lib';
 
-/** A received push plus a stable id for React list rendering. */
 export interface ReceivedPushEntry extends NormalizedPush {
     id: string;
 }
@@ -15,14 +14,6 @@ export interface UseReceivedPushLog {
     clear: () => void;
 }
 
-/**
- * Records foreground pushes forwarded by the native shell for the debug UI.
- *
- * Nothing on the web consumed `OnReceiveNotification` before, so foreground
- * pushes were invisible here; this both keeps a short in-memory list and mirrors
- * each receipt into the shared log buffer under the `PUSH` tag so it also shows
- * up on the Log Buffer page.
- */
 export const useReceivedPushLog = (): UseReceivedPushLog => {
     const [entries, setEntries] = useState<ReceivedPushEntry[]>([]);
     const seqRef = useRef(0);

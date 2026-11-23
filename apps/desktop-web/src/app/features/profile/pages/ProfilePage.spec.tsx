@@ -10,13 +10,10 @@ const GUEST_UUID = 'de54529d-1c2b-4f3e-9a8b-7c6d5e4f3a2b';
 
 const session = vi.hoisted(() => ({
     profile: { userName: '', photo: null as string | null, isGuest: false },
-    // The account (relay) token's user, and the user of the cloud the person is connected to.
     relayUser: null as { uid?: string; email?: string; name?: string; userRole?: string } | null,
     activeUser: null as { uid?: string; email?: string } | null,
     socialLogin: false,
 }));
-// My place profile read (`useMyProfile().load`). Each test decides when, and with what, it settles.
-// Home has no place; every test here but the section's own runs inside one.
 const currentPlace = vi.hoisted(() => ({ value: { placeName: 'Lemon', placeId: 's1' as string | null } }));
 const placeRead = vi.hoisted(() => ({
     load: vi.fn<() => Promise<{ nick?: string; thumbnail?: string } | null>>(),
@@ -39,7 +36,6 @@ vi.mock('../../auth', () => ({
     phoneSignupNoteKey: () => 'auth.social.phoneSignupNote',
     useSocialLogin: () => ({ start: socialStart, isStarting: false }),
 }));
-// The dialog has its own spec; this file is about what the page draws.
 vi.mock('../components', () => ({
     EditPlaceProfileDialog: () => null,
     PlaceChip: ({ name }: { name: string }) => <span>{name}</span>,
@@ -74,7 +70,6 @@ describe('ProfilePage account name', () => {
         await screen.findByRole('button', { name: 'Set up' });
 
         expect(screen.queryByText(GUEST_UUID)).toBeNull();
-        // The "This place" card falls back to the account, and the Account card names it.
         expect(screen.getAllByText('Guest')).toHaveLength(2);
     });
 
@@ -88,8 +83,6 @@ describe('ProfilePage account name', () => {
     });
 });
 
-// Inside a cloud the active session is the cloud's, whose user has its own uid and no email. The
-// Account card is about the account, so a signed-in person must not read as a guest there.
 describe('ProfilePage account card inside a cloud', () => {
     beforeEach(() => {
         session.profile = { userName: 'Kim', photo: null, isGuest: false };
@@ -116,8 +109,6 @@ describe('ProfilePage account card inside a cloud', () => {
         expect(screen.queryByRole('button', { name: 'Continue with Google' })).toBeNull();
     });
 
-    // The id is copied out of here: the body-wide `user-select: none` must not
-    // cover the read-only value.
     it('leaves the account id selectable', async () => {
         session.relayUser = { uid: 'account-uid', email: 'kim@example.com' };
         render(<ProfilePage />, { wrapper });
@@ -126,13 +117,11 @@ describe('ProfilePage account card inside a cloud', () => {
         expect(screen.getByText('account-uid').closest('.select-text')).not.toBeNull();
     });
 
-    // The cloud's user can carry another name than the account does.
     it('names the account by its own name, and "This place" by the name the cloud knows', async () => {
         session.relayUser = { uid: 'account-uid', email: 'kim@example.com', name: 'Account Kim' };
         render(<ProfilePage />, { wrapper });
         await screen.findByRole('button', { name: 'Set up' });
 
-        // `session.profile` is the connected session's profile: 'Kim' is the cloud user's name.
         expect(screen.getAllByText('Account Kim')).toHaveLength(1);
         expect(screen.getAllByText('Kim')).toHaveLength(1);
     });
@@ -147,7 +136,6 @@ describe('ProfilePage account card inside a cloud', () => {
         expect(note?.textContent).toBe(i18n.t('auth.social.phoneSignupNote'));
     });
 
-    // A phone sign-up has no email and is not a guest: Google sign-in would make it a new account.
     it('offers no Google sign-in to a signed-in account without an email', async () => {
         session.relayUser = { uid: 'account-uid', userRole: 'user' };
         render(<ProfilePage />, { wrapper });
@@ -189,8 +177,6 @@ describe('ProfilePage account card inside a cloud', () => {
     });
 });
 
-// The Account card is read-only: name, photo and sign-in methods live on the
-// one account surface, and the card links to it instead of duplicating it.
 describe('ProfilePage account link', () => {
     beforeEach(() => {
         session.profile = { userName: 'Kim', photo: null, isGuest: false };
@@ -227,8 +213,6 @@ describe('ProfilePage "This place" card', () => {
     });
     afterEach(cleanup);
 
-    // The card used to say "Set up" and flip to "Edit" once the edit dialog's read of my place
-    // profile landed. It now waits for that read instead of guessing.
     it('draws neither state until my place profile is read, then the right one', async () => {
         let settle: (profile: { nick?: string } | null) => void = () => undefined;
         placeRead.load.mockReturnValue(new Promise(resolve => (settle = resolve)));
@@ -260,7 +244,6 @@ describe('ProfilePage "This place" card', () => {
         expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy();
     });
 
-    // The edit dialog draws "?" for a person with no name; the card must not draw "-" beside it.
     it('marks a nameless account with the same "?" the edit dialog uses', async () => {
         session.profile = { userName: '', photo: null, isGuest: false };
         placeRead.load.mockResolvedValue(null);
@@ -271,7 +254,6 @@ describe('ProfilePage "This place" card', () => {
     });
 });
 
-// A guest on Home has no place, so saving a place profile always failed with "couldn't save".
 describe('ProfilePage place-profile section', () => {
     beforeEach(() => {
         session.profile = { userName: 'Kim', photo: null, isGuest: false };

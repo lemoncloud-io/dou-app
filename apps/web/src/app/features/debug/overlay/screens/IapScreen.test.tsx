@@ -64,7 +64,6 @@ describe('IapScreen', () => {
         expect(purchase).toHaveBeenCalledWith({ id: 'sub.pro.month' });
     });
 
-    // purchase is post-based and the result arrives as an event — calling it "purchased" from the call alone would be a lie.
     it('구매 호출 자체는 확인 없음으로 적는다', async () => {
         render(<IapScreen />);
         await userEvent.click(await screen.findByRole('button', { name: 'Buy' }));

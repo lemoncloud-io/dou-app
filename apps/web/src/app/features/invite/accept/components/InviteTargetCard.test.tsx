@@ -28,7 +28,6 @@ describe('InviteTargetCard', () => {
         const { container } = render(<InviteTargetCard kind="group" name={name} />);
 
         expect(screen.getByText('inviteAccept.target.group')).toBeTruthy();
-        // The caption is the only line — no "You", no empty line standing in for the name.
         expect(container.querySelectorAll('p')).toHaveLength(1);
         expect(screen.queryByText('inviteAccept.target.you')).toBeNull();
     });

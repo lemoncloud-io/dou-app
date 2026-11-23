@@ -10,17 +10,9 @@ import svgr from 'vite-plugin-svgr';
 
 import desktopPkg from './package.json' with { type: 'json' };
 
-/**
- * pdf.js's data files, served at `/pdfjs/<dir>/` in dev and emitted there in a build: the Adobe
- * CMaps and standard fonts a PDF may name without embedding (common in Korean files), the ICC
- * profiles, and the image-decoder wasm. Without them such a PDF draws without its text or images.
- * The script-engine wasm is left out; the viewer never runs a PDF's scripts.
- */
 const PDFJS_ASSET_DIRS = ['cmaps', 'standard_fonts', 'iccs', 'wasm'];
 const pdfjsAssetsPlugin = (): Plugin => {
     const root = dirname(createRequire(import.meta.url).resolve('pdfjs-dist/package.json'));
-    // `<dir>/<name>` of every file served. A request is answered only on an exact match, so no path
-    // it names can reach outside these folders.
     const files = new Set(
         PDFJS_ASSET_DIRS.flatMap(dir =>
             readdirSync(join(root, dir))
@@ -53,11 +45,6 @@ const pdfjsAssetsPlugin = (): Plugin => {
 
 const removeVitePrefix = (envVar: string) => envVar.replace('VITE_', '');
 
-/**
- * Shared root icons (favicon, touch icons, web manifest) from `assets/public`, served in dev and
- * emitted into the build output — the same plugin `apps/web` carries. Without it every boot 404s
- * on `/favicon.ico`, and the deployed app has no manifest or touch icons at all.
- */
 const copySharedPublicPlugin = (): Plugin => {
     const sharedPublicDir = join(import.meta.dirname, '../../assets/public');
     return {
@@ -66,8 +53,6 @@ const copySharedPublicPlugin = (): Plugin => {
             server.middlewares.use((req: { url?: string }, res: { end: (data: Buffer) => void }, next: () => void) => {
                 if (!req.url) return next();
                 const filePath = join(sharedPublicDir, req.url.split('?')[0]);
-                // `join` normalizes `..` segments, so a crafted URL could name a file outside
-                // the shared folder; serve only what stays inside it.
                 if (relative(sharedPublicDir, filePath).startsWith('..')) return next();
                 if (existsSync(filePath) && statSync(filePath).isFile()) {
                     res.end(readFileSync(filePath));
@@ -143,9 +128,6 @@ export default defineConfig({
     cacheDir: '../../node_modules/.vite/apps/desktop-web',
 
     optimizeDeps: {
-        // Pre-bundle React once so lazy route chunks (React.lazy /settings, /profile,
-        // /debug) can never pick up a second optimizer instance — that mismatch surfaces
-        // as "Invalid hook call … more than one copy of React" inside Radix components.
         include: ['react', 'react-dom', 'react/jsx-runtime'],
         exclude: ['react-native'],
     },
@@ -163,10 +145,6 @@ export default defineConfig({
     },
 
     resolve: {
-        // Force every `react`/`react-dom` specifier — including the ones inside
-        // lazy route chunks and pre-bundled deps (Radix, react-native-web) — to the
-        // single root copy. Without this the dev optimizer can hand a lazy chunk a
-        // second React instance → "Invalid hook call … more than one copy of React".
         dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
         alias: {
             '@chatic/assets': '/assets/src/index.ts',
@@ -213,11 +191,6 @@ export default defineConfig({
             strictRequires: true,
             transformMixedEsModules: true,
         },
-        // No manual vendor splitting: forcing React 19's CJS build into a separate
-        // chunk under @rollup/plugin-commonjs `strictRequires` breaks its module
-        // init (`Cannot set properties of undefined (setting 'Activity')` →
-        // white screen in the prod build only). Let Rollup chunk automatically; the
-        // lazy route splits (React.lazy) still keep the entry bundle small.
     },
 
     css: {

@@ -103,7 +103,6 @@ describe('WelcomePage', () => {
         expect(note?.textContent).toBe(i18n.t('auth.social.phoneSignupNotePhone'));
     });
 
-    // Someone who installed the app without a link came for an invite; the other ways in follow it.
     it('leads with the invite link, ahead of every other way in', () => {
         render(<WelcomePage />);
 
@@ -144,7 +143,6 @@ describe('WelcomePage', () => {
         expect(screen.queryByText(i18n.t('auth.phone.start'))).toBeNull();
     });
 
-    // `canRequestPairing` is the flag and "a plain browser, not the desktop app" together.
     it('offers sign-in with another device where a browser can request it', () => {
         state.pairing = true;
         render(<WelcomePage />);

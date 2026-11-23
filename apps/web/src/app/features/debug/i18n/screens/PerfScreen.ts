@@ -1,9 +1,5 @@
 import { defineDebugStrings } from '../define';
 
-/**
- * `INP`/`CLS` stay out of this table — they're standardized Web Vitals metric codes, identical in
- * both languages, and are written inline in `PerfScreen.tsx` next to their values.
- */
 const en = {
     copyMetrics: 'Copy metrics',
     syncTargets: {
