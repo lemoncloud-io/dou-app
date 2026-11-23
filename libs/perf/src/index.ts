@@ -29,3 +29,5 @@ export * from './backends/DeferredPerfTraceBackend';
 export * from './backends/FanOutPerfTraceBackend';
 export * from './backends/FirebaseDimensionsPerfTraceBackend';
 export * from './backends/PipelinePerfTraceBackend';
+
+// a new prose comment the ratchet should refuse

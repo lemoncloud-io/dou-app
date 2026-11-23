@@ -3419,7 +3419,7 @@
     "libs/perf/src/backends/PipelinePerfTraceBackend.ts": {"comments":24},
     "libs/perf/src/catalog.spec.ts": {"comments":5},
     "libs/perf/src/catalog.ts": {"comments":51},
-    "libs/perf/src/index.ts": {"comments":16},
+    "libs/perf/src/index.ts": {"comments":17},
     "libs/perf/src/limits.ts": {"comments":33},
     "libs/perf/src/pageHides.ts": {"comments":13},
     "libs/perf/src/perfNow.ts": {"comments":8},
