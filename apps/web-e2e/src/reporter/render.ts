@@ -54,8 +54,10 @@ const visualSection = (run: RunRecord): string => {
     const visual = visualResult(run);
     if (visual.status === 'not-run') return '';
     const diffs = run.scenarios.filter(s => s.tags.includes('@visual') && s.visual.length > 0);
-    return `<section><h2>Visual regression ${statusPill(visual.status === 'pass' ? 'passed' : 'failed')}</h2>
-<p class="muted">${visual.compared} screens compared against the committed baselines; ${visual.failures.length} differ.</p>
+    const differ = visual.failures.filter(f => f.kind !== 'error').length;
+    const broke = visual.failures.length - differ;
+    return `<section><h2>Visual regression ${statusPill(visual.status === 'pass' ? 'passed' : visual.status === 'error' ? 'error' : 'failed')}</h2>
+<p class="muted">${visual.compared} scenarios compared against the committed baselines; ${differ} differ or have no baseline${broke ? `, ${broke} did not get as far as comparing` : ''}.</p>
 ${diffs
     .map(
         s =>

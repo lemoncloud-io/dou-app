@@ -81,7 +81,7 @@ class EvidenceReporter implements Reporter {
         };
         mkdirSync(this.dir, { recursive: true });
         writeFileSync(join(this.dir, 'index.html'), renderEvidence(run));
-        writeFileSync(join(this.dir, 'summary.json'), `${JSON.stringify(summarize(run), null, 2)}\n`);
+        writeFileSync(join(this.dir, 'summary.json'), `${JSON.stringify(summarize(run, this.dir), null, 2)}\n`);
 
         const visual = visualResult(run);
         if (visual.status !== 'not-run') {
@@ -89,7 +89,7 @@ class EvidenceReporter implements Reporter {
             if (process.env['GITHUB_ACTIONS']) {
                 for (const failure of visual.failures) {
                     console.log(
-                        `::error title=visual-regression::${failure.screen} [${failure.project}] ${failure.reason}`
+                        `::error title=visual-regression::${failure.kind}: ${failure.screen} [${failure.project}] ${failure.reason}`
                     );
                 }
             }
@@ -151,14 +151,32 @@ const parseList = <T>(body: Buffer): T[] => {
     }
 };
 
-const summarize = (run: RunRecord) => ({
-    ...run,
-    scenarios: run.scenarios.map(({ shots, visual, ...rest }) => ({
-        ...rest,
-        screenshots: shots.map(shot => shot.caption),
-        visualImages: visual.map(image => image.caption),
-    })),
-});
+const summarize = (run: RunRecord, dir: string) => {
+    const imagesDir = join(dir, 'images');
+    rmSync(imagesDir, { recursive: true, force: true });
+    mkdirSync(imagesDir, { recursive: true });
+    const write = (scenario: ScenarioRecord, kind: string, images: Image[]) =>
+        images.map((image, index) => {
+            const [, type = 'png', data = ''] = /^data:image\/(\w+);base64,(.*)$/.exec(image.dataUri) ?? [];
+            const name = [scenario.project, scenario.spec, scenario.line, `r${scenario.repeat}`, kind, index + 1]
+                .join('-')
+                .replace(/[^a-zA-Z0-9-]+/g, '-');
+            const file = `${name}.${type === 'jpeg' ? 'jpg' : type}`;
+            writeFileSync(join(imagesDir, file), Buffer.from(data, 'base64'));
+            return { caption: image.caption, file: `images/${file}` };
+        });
+    return {
+        ...run,
+        scenarios: run.scenarios.map(scenario => {
+            const { shots, visual, ...rest } = scenario;
+            return {
+                ...rest,
+                screenshots: write(scenario, 'shot', shots),
+                visualImages: write(scenario, 'visual', visual),
+            };
+        }),
+    };
+};
 
 const safeCoverage = (): FeatureCoverage | null => {
     try {

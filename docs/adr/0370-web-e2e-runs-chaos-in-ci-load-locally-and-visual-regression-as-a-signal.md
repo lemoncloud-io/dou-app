@@ -53,6 +53,10 @@ numbers, visual diffs and the feature map — plus `summary.json`. Screenshots a
 on purpose (`evidence.shot`, JPEG) and a failure's last screen; capturing every scenario's last screen made
 one full run's page over 20 MB, too large to attach. desktop-web-e2e uses the same reporter.
 
+A run also goes into its pull request: `scripts/pr-verification.mjs` pushes the key fake-data screenshots
+to the pull request's own `pr-assets/pr-<n>` branch, next to whatever else is there, and keeps one
+"Verification results" comment up to date. The branch is deleted when the pull request closes.
+
 ### 6. A feature map links `apps/web` features to scenarios
 
 `feature-map.json` is checked against both trees. Features with no scenario are reported, not failed;

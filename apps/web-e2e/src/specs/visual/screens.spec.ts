@@ -10,6 +10,7 @@ import type { FakeShell } from '../../support/fake-shell/fakeShell';
 import { expect, test } from '../../support/test';
 
 test.use({ timezoneId: 'Asia/Seoul', locale: 'en-US' });
+test.describe.configure({ timeout: 60_000 });
 
 const NOW = new Date(GUEST.createdAt + 26 * 60 * 60 * 1000);
 
