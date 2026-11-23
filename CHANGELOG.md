@@ -4,6 +4,12 @@
 
 ### Chores
 
+- (comments) remove comments from web invite and debug
+
+## [2026-11-23] - No version updates
+
+### Chores
+
 - (comments) remove comments from the rest of desktop-web
 
 ## [2026-11-23] - No version updates
