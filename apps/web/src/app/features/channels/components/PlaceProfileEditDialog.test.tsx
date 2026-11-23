@@ -59,7 +59,6 @@ describe('PlaceProfileEditDialog', () => {
 
     it('프로필이 없으면 빈 값으로 시작한다', () => {
         mockProfile = null;
-        // Blank is only right once the server has said there is no profile.
         render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} profileAbsent />);
         expect(screen.getByRole('textbox')).toHaveValue('');
         expect(done()).toBeDisabled();
@@ -67,7 +66,6 @@ describe('PlaceProfileEditDialog', () => {
 
     it('제목에 placeName을 보간한다', () => {
         render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} />);
-        // Level-1 heading is the visible title (DialogTitle adds an sr-only h2 with the same text).
         expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('placeProfileEdit.title|북클럽');
     });
 
@@ -85,8 +83,6 @@ describe('PlaceProfileEditDialog', () => {
         expect(screen.getByRole('banner')).toHaveTextContent('placeProfileEdit.header');
     });
 
-    // Reproduced in the browser: opened before my profile reached the device, the form latched an
-    // empty name and kept it after the profile arrived.
     it('shows a loading screen, not a blank form, while my profile has not arrived', () => {
         mockProfile = null;
         render(<PlaceProfileEditDialog open placeName="북클럽" onClose={noop} />);

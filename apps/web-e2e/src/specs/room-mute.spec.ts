@@ -3,10 +3,6 @@ import { DM_CHANNEL, dmRoom, MINA, roomsSocket } from '../fixtures/rooms';
 import { home, roomRow } from '../support/app';
 import { expect, test } from '../support/test';
 
-/**
- * Muting a room from the home list is a state write, like a read: the bell goes off on the row at once
- * and the relay hears about it whenever the socket can carry it (libs/data/docs/outbox/README.md).
- */
 test('a room muted while the socket signs in again shows muted at once, and the relay hears once it is back', async ({
     page,
     backend,
@@ -21,7 +17,6 @@ test('a room muted while the socket signs in again shows muted at once, and the 
         chatNo: DM_CHANNEL.chatNo,
         notify: relay.notify,
     });
-    // `join.get` names the row by its join id (`<channelId>@<uid>`); `join.update` by the same id.
     const isRoom = (data: unknown) => {
         const { channelId, id } = (data ?? {}) as { channelId?: string; id?: string };
         return (channelId ?? id?.split('@')[0]) === DM_CHANNEL.id;
@@ -37,11 +32,8 @@ test('a room muted while the socket signs in again shows muted at once, and the 
     });
     await page.goto('/');
     await expect(roomRow(page, MINA.nick)).toBeVisible();
-    // My join row is cached once the list has synced it — the room reads as read — and the mute
-    // writes onto that row.
     await expect(roomRow(page, MINA.nick).getByRole('status')).toHaveCount(0);
 
-    // The connection drops and the next sign-in is held: the page has a socket that is not verified.
     let releaseSignIn: () => void = () => undefined;
     const signedInAgain = new Promise<void>(resolve => (releaseSignIn = resolve));
     const signIn = backend.handlerOf('auth.update');
@@ -49,8 +41,6 @@ test('a room muted while the socket signs in again shows muted at once, and the 
     await backend.dropSockets();
     await expect.poll(() => backend.sent('auth.update').filter(frame => frame.connection > 1).length).toBe(1);
 
-    // The row's swipe action, pressed without the swipe — the action is what is under test. Until a row
-    // is swiped open its actions are aria-hidden, so they are found by their text, not their role.
     await page
         .locator('button', { hasText: /^Mute$/ })
         .first()

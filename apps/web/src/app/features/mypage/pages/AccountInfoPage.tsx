@@ -7,15 +7,6 @@ import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
 import { AccountLinkSection } from '../components';
 
-/**
- * Account info — the account-level screen. Everything here is scoped to the RELAY account, never the
- * connected cloud: profile edit writes the relay record (`useUpdateProfile`) and the linked
- * credentials come from the relay token's `link$`.
- *
- * The cloud-entity name editor used to hang off this screen behind an owner gate. It is gone from
- * here because the MY tree is relay-only now — a cloud's own name is not an account attribute. It
- * lives under cloud management (`/mypage/cloud-manage/:id/edit`), a cloud-shaped entry point.
- */
 export const AccountInfoPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
@@ -24,9 +15,7 @@ export const AccountInfoPage = () => {
         <div className="flex h-full flex-col bg-background">
             <PageHeader title={t('mypage.accountInfo.title')} />
 
-            {/* Menu Cards */}
             <div className="flex flex-col gap-[18px] px-4 pt-4">
-                {/* Profile Card */}
                 <div className="rounded-[18px] bg-card px-0.5 py-2 shadow-[0px_2px_12px_0px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
                     <button
                         onClick={() => navigate(ROUTES.mypage.account.edit)}

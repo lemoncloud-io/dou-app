@@ -64,8 +64,6 @@ describe('resolveInAppPushRoute', () => {
         expect(route).toBe('/channels/abc/room');
     });
 
-    // The spec nests chatId in `payload` alongside cid/sid. It rides the query so the shared
-    // downstream (resolvePushNavigation → usePushNavigate) can hop to a thread if it's a reply.
     it('payload의 chatId를 쿼리로 실어 스레드 판정 재료를 넘긴다', () => {
         const route = resolveInAppPushRoute({
             link: '/channels/abc/room',

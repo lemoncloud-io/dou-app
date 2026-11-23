@@ -34,10 +34,6 @@ interface PointerInit {
     clientY?: number;
 }
 
-/**
- * jsdom has no `PointerEvent`, and `fireEvent.pointerDown` falls back to a bare `Event` that drops
- * the pointer fields. A `MouseEvent` carries the coordinates; the two pointer fields are added on it.
- */
 const pointer = (
     el: Element,
     type: string,
@@ -50,7 +46,6 @@ const pointer = (
     });
 };
 
-/** A finger press on `el` that lifts `moveBy` pixels further down. */
 const tap = (el: Element, { moveBy = 0, pointerId = 1, isPrimary = true } = {}) => {
     pointer(el, 'pointerdown', { pointerId, isPrimary });
     pointer(el, 'pointerup', { pointerId, isPrimary, clientY: 100 + moveBy });

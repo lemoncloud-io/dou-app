@@ -15,7 +15,6 @@ import {
     stripPlanId,
 } from './plans';
 
-/** Mirrors `data/product-config.json`: apple keys use `_`, google keys use `-`. */
 const applePlan = (tier: number): ProductView =>
     ({
         id: `#pro_tier_0${tier}`,
@@ -29,14 +28,12 @@ const googlePlan = (tier: number): ProductView =>
     ({
         id: `#pro-tier-0${tier}`,
         platform: 'google',
-        // Every google tier shares one parent SKU — this field does NOT identify a tier.
         planId: 'dou_pro_subscription',
         sort: tier,
         maxClouds: tier,
         trialDays: tier === 1 ? 7 : 0,
     }) as ProductView;
 
-/** What `GET /products/plans` returns unfiltered: both stores, current stage only. */
 const catalog = [1, 2, 3, 4, 5].flatMap(t => [applePlan(t), googlePlan(t)]);
 
 describe('stripPlanId', () => {
@@ -93,7 +90,6 @@ describe('resolveMaxClouds', () => {
     });
 
     it('다른 플랫폼에서 결제한 멤버십도 해석된다 — 목록을 platform 필터 없이 받는 이유다', () => {
-        // An Apple subscriber signed in on an Android device.
         expect(resolveMaxClouds(catalog, '#pro_tier_05')).toBe(5);
     });
 
@@ -103,7 +99,6 @@ describe('resolveMaxClouds', () => {
     });
 
     it('멤버십의 product$(head)에는 maxClouds가 없으므로 그쪽을 보지 않는다', () => {
-        // Every field the backend's asHead leaves behind. No maxClouds.
         const head = { id: '#pro-tier-02', name: 'DoU Pro 2', nameEn: 'DoU Pro 2', platform: 'google' };
 
         expect((head as ProductView).maxClouds).toBeUndefined();

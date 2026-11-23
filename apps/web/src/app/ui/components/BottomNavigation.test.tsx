@@ -8,7 +8,6 @@ import { BOTTOM_NAV_TOAST_LIFT, BottomNavigation } from './BottomNavigation';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
 let mockMiniAppTab = false;
-// Only the toggle is read here; `@chatic/shared` above is a stub, which the real runtime would need.
 jest.mock('@chatic/runtime', () => ({
     runtime: {
         settings: { useConfigValue: (key: string) => (key === 'feature.miniApp.tab' ? mockMiniAppTab : undefined) },
@@ -16,7 +15,6 @@ jest.mock('@chatic/runtime', () => ({
 }));
 const mockHaptic = jest.fn();
 jest.mock('../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
-// The bar is the kit's; here it lists its items so the set of tabs and their marks can be read.
 jest.mock('@chatic/web-ui-kit', () => ({
     FloatingTabBar: ({
         items,

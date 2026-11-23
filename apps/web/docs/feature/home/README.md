@@ -83,6 +83,17 @@ count in `OtherCloudUnreadProvider`.
 targets a user and is delivered by the relay deployment, so subscribing on the active slot would
 miss it exactly in the common case — sitting in cloud A while cloud B finishes provisioning.
 
+That unicast is the only way an owner with the app open hears of it: the server sends one
+notification and the delivery layer picks the transport, so a connected owner gets no push. The
+runner does two independent things with it. The catalog invalidation always runs; it is what turns
+the provisioning row into an active one. The banner renders only when its copy resolves — web i18n
+is served remotely, so a client whose bundle predates the key would otherwise show the literal key
+(the runner also skips it when the event names no cloud) — and the list still updates underneath.
+A burst (an upgrade provisions several clouds) replaces one banner instead of stacking, via a fixed
+toast id. The banner has no click action: it reaches an owner already in the app, where the switcher
+shows the cloud as ready, whereas the push tap, which reaches an owner who was not, opens that
+cloud's main screen. An unnamed cloud is announced by its id, as the push copy does.
+
 ### Files whose contents the name does not give away
 
 - `components/ChannelEmptyState.tsx` — two readings of "no rooms here", `invited` and `owner`,
@@ -121,7 +132,15 @@ The promo is **off by default**: it is not rendered at all until the relay cloud
 once (`hasCloudCatalog`). Before that the catalog's `clouds` is an
 empty stand-in that reads as "owns no cloud", so gating on it alone showed an owner the pitch on every
 cold start and pulled it away a beat later; a failed first fetch keeps it off for the same reason —
-no answer is not "no cloud". The Chat section still fills normally, because place selection happens
+no answer is not "no cloud". The owned-cloud flag is computed in `HomePage` and passed in; the banner
+never reads the cloud query itself. `useClouds` refetches on every mount, so a component that both
+subscribes to it and is mounted only while it is fetching feeds itself — mounting starts a refetch,
+the host swaps the component out, the fetch settles, it mounts again, an endless shimmer. Invited
+clouds do not count as owned, since the pitch is "make a cloud of your own". The 24-hour dismissal is
+measured against the device clock and re-evaluated on render only, which is acceptable for a promo.
+Both banners (`CloudPromoBanner`, `PlaceProfileBanner`) take their horizontal gutter as padding on a
+wrapper, never as a margin on the card: the card is full width, and a margin on a full-width box
+overflows the page into a horizontal scroll. The Chat section still fills normally, because place selection happens
 invisibly — and until that resolves, the section holds the loading state described under
 [Switching](#switching), which on relay is the only thing in the body.
 
@@ -157,7 +176,8 @@ read succeeds — or if it fails, silently — the header names the cloud by the
 (`pairing.cloud.unnamed`). Below the header the place row (`PlaceChipRow`) holds one chip per place
 on a horizontally scrolling line — the current place filled navy and named, every other place folded
 to its initial disc, each with its unread count — and, for an owner who may add one, a ＋ at its end.
-Switching place hands the name over: the old chip folds while the new one unfolds and takes the
+Relay subscription rows (`stereo === 'place'`) are not places a member switches between: the row
+leaves them out, and so does the place cap. Switching place hands the name over: the old chip folds while the new one unfolds and takes the
 fill. The row then scrolls itself so the current chip sits fully inside its padding — at once when
 the row first appears (a place far down the list is otherwise off-screen), and smoothly once the
 unfold has finished on a later switch, since only then does the chip have its final width. With no
@@ -211,6 +231,15 @@ hook and the key is a cleanup of its own.
 
 ## Switching
 
+A place switch is also a channel load. `useHomeChannels` slices the already-loaded cloud-wide
+observation by site id, so the moment the switch pre-applies the new id the slice is empty while
+`isLoading` is already false. `HomePage` therefore folds the switch into the Chat section's loading
+state (`isChannelSectionLoading`); without it the section flashed its empty state on the way into
+every place. The same holds with no place selected yet: when none can be auto-selected the user is
+guided to one, and while the choice is still unresolved the section shows the loading state rather
+than nothing, because a blank screen on a cold cloud reads as "this cloud is empty" exactly when it
+is not. The relay draws no place row, so its loading state has no skeleton beside it.
+
 Tapping a place chip calls `switchPlace(placeId)` → `switchSite`, which owns the optimistic apply, the
 commit and the rollback. With no place active — right after a cloud switch — `useSwitchPlace`
 auto-selects the first; with no place at all — once the list is actually known, see below — the
@@ -257,6 +286,33 @@ released, and a held cloud is released. A cloud scheduled to end at the next ren
 the sheet is open and any row is provisioning, a 30-second poll refetches and a ready cloud raises a
 toast. The switcher is open to everyone, guests included — it is the way to reach DoU Home, see
 invited clouds, or subscribe.
+
+The sheet's lists follow a few rules worth knowing before changing it:
+
+- **The skeleton shows on the first load only** (`isPendingClouds && isFetchingClouds`). The sheet
+  refetches on open and `useClouds` refetches on mount, so keying it off any fetch replaced the list
+  on every refetch — and for an account with no cloud, the promo banner, which then never stopped
+  shimmering.
+- **Invited clouds are not in the relay catalog.** They live in the local cloud cache
+  (`cloudType === 'invited'`) and are observed separately; owned clouds are the catalog minus those.
+  A locally cached name (written first by `cloud.update` and `cloud.get`) overrides the catalog name,
+  so a just-renamed cloud shows at once.
+- **Order is view-only**: the selected cloud first, then newest `createdAt` first, a cloud with no
+  `createdAt` (an invited row, whose cache does not keep it) last. Polling and logic keep the
+  unsorted list.
+- **A row that explains itself shows one caption for every state that needs a look**; the badge says
+  which state. The record's own `error` is a server-side provisioning trace that names internals, so
+  it goes to the log and never to the row. A live row has no second line: the recovery email is cloud
+  management's business, so the switcher neither shows nor asks for it.
+- **The add-cloud pill is always there**, whatever number of clouds is owned, and lives in the owned
+  section's footer so a collapse does not hide it. The cap is explained by the flow, not by hiding the
+  button. Its trailing PRO pill is a fixed marker ("adding a cloud is a PRO feature"), not a readout
+  of the viewer's membership, and is a plain badge rather than a button: a button inside a button is
+  invalid HTML and would punch a hole in the pill's tap target.
+- **Failures are logged once.** A failed cloud switch is already logged, and rolled back, by the
+  session service, so the sheet adds no entry of its own (a second one would double the error count
+  and the log flush it advances). Disconnecting is the exception: `logoutCloudSession` has no catch
+  of its own, so the sheet records that failure.
 
 A **guest** gets a fourth section, "Approved clouds", between owned and invited: the clouds this
 browser entered through a device pairing (`runtime.session.usePairedCloudIds`, see
@@ -353,6 +409,24 @@ answered by the wrong session — so the indicator only covers the two queries t
 A pull re-reads lists; it does not re-read message history. Rows' previews follow from the chat
 sync home already registers, which catches a row up whenever the channel delta moves its head.
 
+## Room rows
+
+- **Someone else's self chat is not synced.** After a guest signs in with a social account the uid
+  changes while the list still holds the guest's rows for one render, and that row would register
+  its own channel sync under the new identity. The server refuses `channel.get` for another user's
+  self chat (`403 NOT ALLOWED - denied by policy`), and because the sync tag now belongs to the new
+  account the sync manager's scope guard cannot catch it — the id side is the stale one. The row
+  therefore registers no sync, does not prefetch the room on tap (the room bounces out of it), and
+  offers no swipe actions. Rows the server did not attach an owner to are not treated this way; that
+  would leave a good room silently unsynced.
+- **The member-count pill follows the room's kind**, not the number alone: it is for groups only. A
+  1:1 is always two and a self chat always one, and neither number says anything.
+- **A count under a skeleton is withheld.** While the list is still loading its number is unknown, and
+  "0" beside a skeleton would claim an answer that has not arrived.
+- **Sections that are not a place's room list pass their own empty body.** The place list's empty
+  state nudges toward creating a room or explains an invited place; neither sentence is true of a
+  section that simply has no room yet.
+
 ## Row swipe actions
 
 Every room row in the room lists — the relay's list and a cloud's tabbed list — slides sideways to reveal actions
@@ -378,7 +452,8 @@ behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing els
 - **Pin** is the place's client-side pin list (`usePinnedChannels`, scoped to cloud and place). A pin
   moves the row, often out from under the finger, so it is confirmed with a toast. A cloud's self
   chat leads the All and 1:1 tabs whatever is pinned, so a pin could not move it and its row has no right
-  swipe — and with no left side either, it does not swipe at all.
+  swipe — and with no left side either, it does not swipe at all. A pin an older build stored for it
+  is not drawn, since nothing could take it off.
 - **A self chat** in a place's list (relay) has a pin and no left side — its settings offer neither
   notifications nor an exit. Someone else's self chat, which is only ever a row left over from the
   previous account, has no actions at all. Sent-invite rows do not swipe.

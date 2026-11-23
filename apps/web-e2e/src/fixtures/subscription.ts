@@ -5,31 +5,18 @@ import type { ShellHandlerTable } from '../support/fake-shell/handlerTable';
 import type { FakeBackend } from './backend';
 import { GUEST, guestProfile, registerDeviceAnswer } from './guest';
 
-/**
- * A subscription bought through the app's store, and the relay's half of it: the plan catalog, the
- * account's membership, and the purchase check. Every value is invented — no store or relay issued
- * any of it.
- *
- * Buying needs an account, not a guest (the page refuses a guest before it opens the store), so
- * `signedInMember` turns the scenario's guest into a signed-in member first.
- */
-
 type Purchase = OnPurchaseSuccessPayload['purchase'];
 type PurchaseErrorCode = OnPurchaseErrorPayload['error']['code'];
 
-/** The entry tier — the only one a first subscription may start on. */
 export const PLAN = {
-    /** The relay's id; the store's id for the same tier is it without the `#`. */
     id: '#pro-tier-01',
     storeId: 'pro-tier-01',
     name: 'Pro 1',
-    /** The Play Store's parent subscription, which every tier is a base plan of. */
     androidParentSku: 'dou_pro_subscription',
     androidOfferToken: 'e2e-offer-token-base',
     displayPrice: '$4.99',
 } as const;
 
-/** The guest as a signed-in member: the same account, with a role the purchase is allowed for. */
 export const signedInMember = (backend: FakeBackend): void => {
     backend.useHttp({
         'POST /oauth/register-device': request => {
@@ -38,12 +25,7 @@ export const signedInMember = (backend: FakeBackend): void => {
         },
     });
     backend.useSocket({
-        // The place switch answers with a new token, which replaces the session's. Left as the guest's,
-        // it turned the member back into a guest whenever it landed after the profile — on a slow run
-        // MY then showed "Sign in required" and had no subscription entry.
         'auth.switch': () => ({ ...registerDeviceAnswer(backend.deviceId), userRole: 'user' }),
-        // With a social account linked: the page refuses a cloud subscription to an account it knows
-        // has none (`link$` present, `social` missing).
         'user.profile': () => {
             const profile = guestProfile(backend.deviceId);
             return {
@@ -55,7 +37,6 @@ export const signedInMember = (backend: FakeBackend): void => {
     });
 };
 
-/** The relay's plan row for the entry tier, on one store — the catalog lists one per store. */
 export const planRow = (platform: 'apple' | 'google') => ({
     id: PLAN.id,
     name: PLAN.name,
@@ -72,7 +53,6 @@ export const planRow = (platform: 'apple' | 'google') => ({
     updatedAt: GUEST.createdAt,
 });
 
-/** The account's membership as `GET /memberships/0/mine` answers it, before and after buying. */
 const membership = (platform: 'apple' | 'google' | null) => ({
     id: `MS${GUEST.uid}`,
     createdAt: GUEST.createdAt,
@@ -87,7 +67,6 @@ const membership = (platform: 'apple' | 'google' | null) => ({
               productId: PLAN.id,
               platform,
               validFrom: GUEST.createdAt,
-              // Far ahead, so the membership reads as current on any run.
               validUntil: 4_102_444_800_000,
               renewedAt: GUEST.createdAt,
               autoRenewing: true,
@@ -98,18 +77,11 @@ const membership = (platform: 'apple' | 'google' | null) => ({
         : { status: 'none', isValid: false }),
 });
 
-/** What the relay saw of a purchase: each check of a store receipt, in order. */
 export interface RelayMembership {
-    /** The body of each `POST /memberships/0` — the page asking the relay to check a purchase. */
     validations: unknown[];
-    /** Whether the account holds the tier now (a check has passed). */
     active: boolean;
 }
 
-/**
- * The relay's subscription API: the catalog (the entry tier, on both stores), the membership — none
- * until a purchase is checked — and the check itself, which passes and makes the membership active.
- */
 export const installSubscriptions = (backend: FakeBackend, platform: ShellPlatform): RelayMembership => {
     const store = platform === 'ios' ? 'apple' : 'google';
     const relay: RelayMembership = { validations: [], active: false };
@@ -130,7 +102,6 @@ export const installSubscriptions = (backend: FakeBackend, platform: ShellPlatfo
     return relay;
 };
 
-/** The entry tier as each store's catalog describes it to the app (`FetchProducts`). */
 export const storeProduct = (platform: ShellPlatform): IapProductSubscription =>
     platform === 'ios'
         ? {
@@ -154,7 +125,6 @@ export const storeProduct = (platform: ShellPlatform): IapProductSubscription =>
         : {
               platform: 'android',
               type: 'subs',
-              // One entry per base plan, under the parent SKU, as the app maps the Play catalog.
               id: PLAN.androidParentSku,
               basePlanId: PLAN.storeId,
               title: PLAN.name,
@@ -168,7 +138,6 @@ export const storeProduct = (platform: ShellPlatform): IapProductSubscription =>
               subscriptionOffers: [],
           };
 
-/** A completed store purchase of the entry tier, as the app hands it over in `OnPurchaseSuccess`. */
 export const storePurchase = (platform: ShellPlatform): Purchase =>
     platform === 'ios'
         ? {
@@ -196,22 +165,10 @@ export const storePurchase = (platform: ShellPlatform): Purchase =>
               transactionDate: GUEST.createdAt,
           };
 
-/**
- * A store error as the app hands it over in `OnPurchaseError`. The code is react-native-iap's
- * `ErrorCode` value; it is named here by its string, which is what crosses the bridge, because that
- * library's runtime enum is React Native code this process cannot load.
- */
 export const storeError = (code: 'user-cancelled' | 'service-error', message: string) => ({
     error: { code: code as PurchaseErrorCode, message, productId: PLAN.storeId },
 });
 
-/**
- * The shell's store, in the shape of the app's own handlers (`useSubscriptionIapHandler`): the
- * catalog, and `Purchase` acknowledged with nothing the page reads — the outcome comes afterwards as
- * an event of its own, `OnPurchaseSuccess` or `OnPurchaseError`, which the scenario pushes.
- * `FinishPurchaseTransaction` closes the transaction and echoes it; `FetchCurrentPurchases` reads the
- * store's current purchases, none.
- */
 export const storeHandlers = (platform: ShellPlatform): ShellHandlerTable => ({
     FetchProducts: () => ({ products: [storeProduct(platform)] }),
     Purchase: () => undefined,

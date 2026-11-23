@@ -9,11 +9,6 @@ interface CloudSessionGateProps {
     children: React.ReactNode;
 }
 
-/**
- * Holds a screen's body until `useEnsureCloudSession` has the cloud live: a spinner while the
- * switch runs, a retry when it failed, the body once it is ready. The places list is the screen that
- * needs the cloud's own session; a later screen that does too waits and fails the same way.
- */
 export const CloudSessionGate = ({ session, children }: CloudSessionGateProps) => {
     const { t } = useTranslation();
 

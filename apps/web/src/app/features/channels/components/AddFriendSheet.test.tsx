@@ -7,12 +7,9 @@ const requestLink = jest.fn();
 const onLinkReady = jest.fn();
 const onOpenChange = jest.fn();
 
-// `language` because the real country picker localizes its rows with it.
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-// The country picker's `BottomSheet` is built on the same primitives, so it reads the title and
-// description too.
 jest.mock('@chatic/ui-kit/components/ui/sheet', () => ({
     Sheet: ({ open, children }: any) => (open ? <div>{children}</div> : null),
     SheetContent: ({ children }: any) => <div>{children}</div>,
@@ -28,7 +25,6 @@ const fill = (phone = '010-1234-5678') => {
     fireEvent.change(screen.getByPlaceholderText('addFriend.phonePlaceholder'), { target: { value: phone } });
 };
 
-/** jsdom fixes `navigator.language` at `en-US`; the default-country cases need to move it. */
 const setLanguage = (value: string) => {
     Object.defineProperty(window.navigator, 'language', { value, configurable: true });
 };
@@ -42,8 +38,6 @@ describe('AddFriendSheet', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         requestLink.mockResolvedValue('https://dou.chatic.io/s?code=abc');
-        // Korea as the remembered pick — the production "last explicit pick wins" path, rather than
-        // stubbing around jsdom's `en-US`.
         seedPhoneCountry('KR');
     });
 
@@ -102,7 +96,6 @@ describe('AddFriendSheet', () => {
             share();
 
             await waitFor(() => expect(requestLink).toHaveBeenCalledWith({ name: '홍길동', phone: '+819012345678' }));
-            // The pick is remembered for the next phone field, as the relay invite's field does.
             expect(rememberedPhoneCountry()).toBe('JP');
         });
 
@@ -126,7 +119,6 @@ describe('AddFriendSheet', () => {
 
             expect(screen.getByText('addFriend.phoneInvalidFormat')).toBeInTheDocument();
             expect(requestLink).not.toHaveBeenCalled();
-            // The error holds the button until the number is edited.
             expect(screen.getByText('addFriend.share').closest('button')).toBeDisabled();
         });
 

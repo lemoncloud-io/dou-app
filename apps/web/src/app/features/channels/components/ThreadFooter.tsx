@@ -5,55 +5,19 @@ import { DefaultAvatar, ImageAvatar, ThreadSummary } from '@chatic/web-ui-kit';
 import type { ThreadMeta } from '../utils/buildThread';
 import { lastChatPreview } from '../utils/lastChatPreview';
 
-// The design's reply line shows two faces and no counter (Figma 5978:37669): the count beside
-// them already says how many there are.
 const MAX_REPLIER_AVATARS = 2;
 
 interface ThreadFooterProps {
     meta: ThreadMeta;
-    /**
-     * How many replies the viewer has not seen (0 = none). Replies are `stereo:'user'` so
-     * they count toward the channel's unread badge but never appear in the main feed —
-     * without this hint the badge clears on entry and the replies go unseen (ADR-0093).
-     * Computed by the room, which owns the read baseline (see `countUnseenReplies`).
-     */
     unseenCount: number;
-    /** An unseen reply calls the reader — the new-reply box adds "Mentions me". */
     mentionsMe?: boolean;
-    /** Resolves the newest reply's author for its preview. */
     nameOf?: (userId: string) => string;
     onOpen: () => void;
-    /**
-     * Resolves a replier's avatar from the caller's profile/member caches. Takes
-     * precedence over `meta.repliers[].thumbnail`, which is whatever the reply row
-     * embedded — see the note in the component doc.
-     */
     avatarOf?: (userId: string) => string | undefined;
-    /** Formats the last reply's clock time — the room owns the locale's 12/24h form. */
     formatTime?: (date: Date) => string;
-    /** Mirrors the row for my own (right-aligned) messages. */
     align?: 'start' | 'end';
 }
 
-/**
- * The reply footer under a thread root: replier avatars, reply count, an unseen-reply
- * count and the last reply's time. Tapping it opens the full-screen thread route.
- * Rendered only when the root has ≥1 loaded reply — the count is best-effort (bounded
- * by the loaded cache, ADR-0008), so it is presented as a plain affordance, never as an
- * authoritative total.
- *
- * Avatars resolve through `avatarOf` first and fall back to the embedded `owner$`
- * thumbnail `buildThreadIndex` carried over. That order matters twice: message rows
- * prefer the site profile too, so without it the same person wears two different faces
- * one line apart; and an optimistic reply has no `owner$` at all, so the embed alone
- * leaves a just-posted reply faceless. The precedence lives here rather than in
- * `buildThreadIndex` to keep that derivation pure — it must not know about caches
- * (ADR-0047 decision 5).
- *
- * The unseen state reads "N new replies" rather than the bare dot it used to be: by the
- * time a row is worth interrupting for, how much is new is the fact worth showing. The
- * count is the loaded window's, like every other number here.
- */
 export const ThreadFooter = ({
     meta,
     unseenCount,
@@ -68,8 +32,6 @@ export const ThreadFooter = ({
 
     const avatars = meta.repliers.slice(0, MAX_REPLIER_AVATARS).map(replier => {
         const src = avatarOf?.(replier.id) ?? replier.thumbnail;
-        // `ring-background`, not a plain border: the faces overlap, so each needs to punch a
-        // hole in the one behind it in whatever color the row actually sits on.
         return src ? (
             <ImageAvatar key={replier.id} src={src} alt="" size={20} className="ring-1 ring-background" />
         ) : (
@@ -77,10 +39,6 @@ export const ThreadFooter = ({
         );
     });
 
-    // The newest reply, as "Name: text", in the new-reply box. It is the thread's newest, which
-    // while anything is unseen is an unseen one or my own answer after it — either way the line
-    // that says where the thread stands. Read as a room message: the thread mark would only
-    // repeat what the box already says.
     const last = meta.lastReply;
     const lastText = last ? lastChatPreview({ ...last, parentId: undefined }, t) : '';
     const lastName = last?.ownerId ? nameOf?.(last.ownerId) : undefined;

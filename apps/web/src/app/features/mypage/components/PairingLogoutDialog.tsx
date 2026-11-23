@@ -6,17 +6,10 @@ import { useCloudName } from '../../../hooks';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 
 interface PairingLogoutDialogProps {
-    /** The confirm from `runtime.session.usePairingAwareLogout`. */
     logout: runtime.session.PairingAwareLogout;
-    /** Withdrawing words the same confirm with "withdraw" instead of "sign out". */
     action: 'logout' | 'withdraw';
 }
 
-/**
- * "The sign-ins this device approved end too." Shown when an approving app signs out (or withdraws)
- * while approvals still stand: each one with its requester and scope, and — when any is a cloud
- * approval — the caveat that a cloud screen already open lasts until that device checks again.
- */
 export const PairingLogoutDialog = ({ logout, action }: PairingLogoutDialogProps) => {
     const { t } = useTranslation();
     const cloudName = useCloudName();

@@ -19,8 +19,6 @@ const mockWeb = { kind: 'web', open: jest.fn() };
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         session: { useRuntimeProfile: () => ({ isGuest: mockGuest }) },
-        // The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
-        // in a browser.
         get checkout() {
             return mockNative ? mockStore : mockWeb;
         },
@@ -34,7 +32,6 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigateMock,
 }));
 jest.mock('../../auth/hooks', () => ({ useNavigateToLogin: () => loginMock }));
-// The two banners run their own queries; their behaviour is tested where they live.
 jest.mock('../components', () => ({
     ...jest.requireActual('../components'),
     HeldCloudsBanner: () => null,
@@ -135,8 +132,6 @@ describe('Subscription list — scenarios', () => {
     });
 
     it('active with no store price: no empty strip under the card', () => {
-        // Seen on a simulator without store products: the price row and the renewal line both drop
-        // out, and the card used to keep a divider over an empty strip.
         mockPrice = undefined;
         const { container } = show({});
 

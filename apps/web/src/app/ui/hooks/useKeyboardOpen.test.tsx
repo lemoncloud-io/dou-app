@@ -2,12 +2,6 @@ import { act, render } from '@testing-library/react';
 
 import { useKeyboardOpen } from './useKeyboardOpen';
 
-/**
- * jsdom ships neither a ResizeObserver nor a visualViewport, which is convenient here: both of the
- * hook's signals are stubbed, so each can be driven on its own. That separation is the point —
- * a native WebView only ever delivers the first (it injects `--keyboard-height` and fires no
- * event), a plain browser only the second.
- */
 type Emit = (blockSize: number) => void;
 
 let emit: Emit;
@@ -34,11 +28,6 @@ beforeAll(() => {
     };
 });
 
-/**
- * The visual viewport mobile Safari would report. Defined ONCE and then mutated: jest's jsdom
- * global ignores a second `defineProperty` for the same key, so re-defining it per test silently
- * kept the first value.
- */
 const LAYOUT_HEIGHT = 800;
 const viewport = { height: LAYOUT_HEIGHT, addEventListener: jest.fn(), removeEventListener: jest.fn() };
 
@@ -47,7 +36,6 @@ beforeAll(() => {
     Object.defineProperty(window, 'visualViewport', { value: viewport, configurable: true });
 });
 
-/** Shrinks the visual viewport, the way the keyboard does in a plain browser. */
 const setViewportHeight = (height: number) => {
     viewport.height = height;
 };
@@ -75,7 +63,6 @@ describe('useKeyboardOpen', () => {
         const { latest } = renderHook();
 
         expect(latest()).toBe(false);
-        // It's the only way to hear a variable change in a WebView with no events, so the probe must always be attached.
         expect(probe()).not.toBeNull();
     });
 
@@ -104,7 +91,6 @@ describe('useKeyboardOpen', () => {
         expect(latest()).toBe(false);
     });
 
-    // Opening in a plain browser, with no native shell to inject the variable, must reach the same verdict.
     it('변수가 없는 브라우저에서는 줄어든 visual viewport로 판단한다', () => {
         setViewportHeight(470);
         const { latest } = renderHook();

@@ -5,35 +5,15 @@ import { useTranslation } from 'react-i18next';
 import type { ChatGapSide } from '../hooks/useChats';
 
 interface GapDividerProps {
-    /** `loading` while a page of this gap is in flight, `failed` after the last one failed. */
     status?: 'loading' | 'failed';
-    /** A page can be sent now (the socket is verified). The divider waits for it rather than asking into nothing. */
     canFill: boolean;
-    /**
-     * Whether it may ask by itself once on screen (default true). Off, only a tap asks — for a page
-     * where filled rows rarely render and so never push the divider out of view (the thread).
-     */
     autoFill?: boolean;
-    /** `byTap` tells a person's tap from the divider asking by itself. */
     onFill: (side: ChatGapSide, byTap: boolean) => void;
 }
 
-/**
- * Which side of the divider the reader is on, from where it sits in the viewport: in the upper half
- * it came into view from above, so the reader is below it — on the newer side, scrolling up.
- */
 const sideOf = (top: number, bottom: number, viewportHeight: number): ChatGapSide =>
     (top + bottom) / 2 < viewportHeight / 2 ? 'newer' : 'older';
 
-/**
- * Stands where the cache skips history no page has fetched yet, between two runs of messages.
- *
- * It fills itself: once it is on screen and a page can be sent, it asks for one page from the side the
- * reader is coming from. The parent keys it by the gap, and a filled page moves the gap, so the next
- * divider asks again if it is still in view — a reader parked on it pulls the whole gap in, one page
- * at a time, the way scrolling to the top pulls in older pages. A tap does the same, and is the retry
- * after a failure, which never refires by itself.
- */
 export const GapDivider = ({ status, canFill, autoFill = true, onFill }: GapDividerProps) => {
     const { t } = useTranslation();
     const ref = useRef<HTMLButtonElement>(null);

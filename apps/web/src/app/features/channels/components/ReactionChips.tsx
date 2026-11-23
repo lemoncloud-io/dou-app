@@ -9,35 +9,13 @@ import { LONG_PRESS_DELAY_MS } from '../utils/longPress';
 
 interface ReactionChipsProps {
     tallies: ReactionTally[];
-    /** Names the reactors, so a chip can say who rather than only how many. */
     nameOf: (userId: string) => string;
     onToggle: (emoji: string, isMine: boolean) => void;
-    /** Opens the emoji picker for this message. Omitted where adding isn't offered. */
     onAdd?: () => void;
-    /** Long-press on a chip — opens the reactor detail sheet on that emoji's tab. */
     onShowReactors?: (key: string) => void;
-    /** Mirrors the row for my own (right-aligned) messages. */
     align?: 'start' | 'end';
 }
 
-/**
- * The row of reaction chips under a message (mobile port of desktop's ReactionBar).
- *
- * The row ends with an add button, so a second reaction costs one tap instead of the
- * 450ms long-press and the action sheet the first one did (ADR-0047 decision 1). It is
- * deliberately not a general entry point: this row doesn't render at all without chips,
- * which is exactly the "only once a message has reactions" rule the button wants — a
- * strip reserved under every message would cost more vertical rhythm than it earns.
- *
- * A chip carries two gestures, split by how often each is wanted. Tap toggles — the
- * common act, on the cheap gesture — and `aria-pressed` says whether the reaction is
- * yours, the same thing the accent border shows. Press and hold opens the reactor sheet
- * for that emoji. The add button is neither: it is not a toggle and carries no pressed
- * state, because tapping a chip and tapping the add glyph are different acts.
- *
- * The chips themselves are `web-ui-kit` presentation (`ReactionChip`); what stays here is
- * the part the kit must not know — the gestures, and which tallies are mine.
- */
 export const ReactionChips = ({
     tallies,
     nameOf,
@@ -48,12 +26,7 @@ export const ReactionChips = ({
 }: ReactionChipsProps) => {
     const { t } = useTranslation();
 
-    // Long press per chip. The timer lives here rather than on the message row because the
-    // chip row sits OUTSIDE the bubble's long-press target — otherwise the bubble's gesture
-    // would swallow taps on the chips (see ChannelMessageRow's layout note).
     const timerRef = useRef<number | null>(null);
-    // A long press still ends in a `click` on the chip; without this the sheet would open and
-    // the reaction would toggle from the one gesture.
     const longPressFiredRef = useRef(false);
 
     const clearTimer = () => {

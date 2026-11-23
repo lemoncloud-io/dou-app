@@ -3,12 +3,7 @@ import { Outlet } from 'react-router-dom';
 
 import { useBackHandler } from '../../hooks/useBackHandler';
 
-/**
- * Public layout component for unauthenticated pages
- * Provides responsive design container
- */
 export const SafeAreaLayout = (): JSX.Element => {
-    // Handle native back button
     useBackHandler();
 
     return (

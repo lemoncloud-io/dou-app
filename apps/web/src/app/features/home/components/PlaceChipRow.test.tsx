@@ -15,7 +15,6 @@ jest.mock('@chatic/runtime', () =>
 const mockHaptic = jest.fn();
 jest.mock('../../../bridge/haptics', () => ({ haptics: { play: (kind: string) => mockHaptic(kind) } }));
 
-/** jsdom has no `TransitionEvent`, so `fireEvent.transitionEnd` drops `propertyName`. */
 const endTransition = (target: Element, propertyName: string) => {
     const event = new Event('transitionend', { bubbles: true });
     Object.assign(event, { propertyName });
@@ -141,7 +140,6 @@ describe('PlaceChipRow', () => {
         const work = screen.getByRole('button', { name: 'Work' });
         work.getBoundingClientRect = () => ({ left: 340, right: 420 }) as DOMRect;
 
-        // The unfold finishing on the current chip is what triggers the look.
         endTransition(screen.getAllByTestId('place-chip-name')[1], 'grid-template-columns');
         expect(scrollBy).toHaveBeenLastCalledWith({ left: 61, behavior: 'smooth' });
 
@@ -153,7 +151,7 @@ describe('PlaceChipRow', () => {
         screen.getByRole('button', { name: 'Family' }).getBoundingClientRect = () =>
             ({ left: 16, right: 80 }) as DOMRect;
         rerender(<PlaceChipRow places={places} selectedPlaceId="p1" isLoading={false} onSelectPlace={jest.fn()} />);
-        expect(scrollBy).not.toHaveBeenCalled(); // Family is already in view
+        expect(scrollBy).not.toHaveBeenCalled();
     });
 });
 

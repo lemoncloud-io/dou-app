@@ -136,3 +136,22 @@ Find controls by role and English name (the context runs in `en-US`), as a reade
 helpers in `src/support/app.ts`. Wait for what the server confirms — `send()` returns a message once
 the server has numbered it, because the pending copy before that is replaced on delivery and loses
 whatever was done to it. Clean up what the scenario creates.
+
+### Why the helpers are written this way
+
+- **A channel row is matched by how its name starts, with no hyphen after it.** The row's name runs
+  on into what it shows beside the channel's ("Unread", a mention). Names here are unique tags, so a
+  scenario's `name-1` and `name-2` are the only longer names that start like `name`, and the hyphen
+  rule tells them apart (`channelRow`).
+- **A message's hover buttons are pressed by keyboard.** The bar floats over the row above, so a
+  pointer travelling to it takes the hover away and the bar with it; focus inside the message keeps it
+  live. Focus is set again on each attempt, because a row drawn anew drops it (`pressMessageButton`).
+- **The inbox is seeded through the app's store, not through `localStorage`.** The app rewrites its
+  stored copy whenever the store changes, so a rewrite followed by a reload could lose items to a write
+  landing between the two.
+- **Send, then wait for the numbered message.** A menu opened on a fresh message closes when the
+  server's echo redraws the row, so the helpers reopen it.
+- **The first-run tour is closed at sign-in.** It is modal and hides the shell from the accessibility
+  tree until closed.
+- **In the people scenarios, reaction and reply are sent one at a time.** A background room hands over
+  only its newest event, so a reply sent in the same moment would stand in for the reaction.

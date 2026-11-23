@@ -6,7 +6,6 @@ import { GapDivider } from './GapDivider';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
-// jsdom has no IntersectionObserver; this one lets a test say when the divider is on screen and where.
 let observed: ((entry: Partial<IntersectionObserverEntry>) => void) | null = null;
 class FakeObserver {
     constructor(callback: (entries: Partial<IntersectionObserverEntry>[]) => void) {

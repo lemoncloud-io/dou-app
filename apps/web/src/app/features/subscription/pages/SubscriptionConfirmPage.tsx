@@ -45,31 +45,14 @@ import {
 } from '../lib';
 import { PageState } from '../types';
 
-/** What this screen states about a purchase: the tier picked, and the subscription it changes. */
 interface PurchaseTerms {
     option: PlanOption;
     replaceablePlan: ProductView | undefined;
     state: SubscriptionState;
-    /** Frozen with the rest: buying spends the trial, and the confirmation must still describe the one it started. */
     trialEligible: boolean;
-    /** The clouds a downgrade would have to choose among, counted before the relay applies anything. */
     keepCandidateCount: number;
 }
 
-/**
- * "구독 정보" before a purchase — what a tier change will do, shown BEFORE the store sheet opens
- * (Figma 4538-16298 upgrade · 4550-19299 downgrade, with the processing overlay 4541-18396 ·
- * 4554-20219 and the completion 4541-18323 · 4554-19998).
- *
- * The plan picker only chooses; this screen states the consequence — current plan against the new
- * one, when it applies, what will be charged — and is the only screen that opens the store. A
- * downgrade waits for the next renewal and an upgrade applies now, and that asymmetry has to be
- * read here, not discovered on a receipt. The first purchase uses the upgrade layout without a
- * "current plan" row; the design draws no separate scene for it.
- *
- * The purchase answer is settled by the `checkout` port, which listens for the shell's purchase
- * events from boot on (`config/adapters/checkout/storeCheckout.ts`), so nothing here subscribes to them.
- */
 export const SubscriptionConfirmPage = () => {
     const { t, i18n } = useTranslation();
     const { toast } = useToast();
@@ -88,20 +71,11 @@ export const SubscriptionConfirmPage = () => {
     const requestAddCloud = useAddCloudRequest(s => s.requestAddCloud);
 
     const [done, setDone] = useState<MembershipView | null>(null);
-    // The terms as they stood when the person tapped to buy, held until the purchase fails or is
-    // cancelled. A purchase changes the very facts this screen is derived from: it resolves only
-    // after the membership has been read again, and by then the tier is the account's own — its
-    // option no longer selectable, the plan being replaced the new one, the trial spent. Read live,
-    // the guard below would send the person to the plan list before the confirmation could show, and
-    // the confirmation would describe a change from the new plan to itself.
     const [purchasing, setPurchasing] = useState<PurchaseTerms | null>(null);
 
     const requested = stripPlanId(params.get('plan'));
     const liveOption = options.find(o => stripPlanId(o.plan.id) === requested);
 
-    // A missing, unknown or unpickable plan (a stale link, a tier that changed under the user, a tier
-    // the account already holds) sends them back to choose again rather than offering a purchase the
-    // rules refuse. A purchase under way is not judged again here — it was judged when it started.
     if (!isLoading && !purchasing && (!liveOption || !liveOption.isSelectable)) {
         return <Navigate to={ROUTES.subscription.plans} replace />;
     }
@@ -131,8 +105,6 @@ export const SubscriptionConfirmPage = () => {
     const productName = planDisplayName(plan, isKo) ?? plan.id ?? '-';
     const currentName = planDisplayName(replaceablePlan, isKo) ?? '-';
     const currentPrice = priceOf(replaceablePlan);
-    // Only the entry tier for someone who never subscribed carries a trial; the store has the last
-    // word on eligibility either way.
     const trialDays = kind === 'new' && terms.state === 'none' && terms.trialEligible ? (plan.trialDays ?? 0) : 0;
     const validUntil = formatDate(membership?.validUntil);
     const isProcessing = pageState === PageState.Purchasing || pageState === PageState.Fetching;
@@ -175,10 +147,6 @@ export const SubscriptionConfirmPage = () => {
                   },
               ];
 
-    // Upgrade billing differs by store and the wording has to say which: Apple refunds the unused
-    // part and charges in full, resetting the renewal date; Google (time proration, as the shell
-    // requests it) charges nothing now and turns the unused part into time on the new plan, so the
-    // next billing date moves earlier.
     const upgradeNotices = [
         t(`mypage.subscription.confirm.upgrade${isIOS ? 'Apple' : 'Google'}1`, {
             product: productName,
@@ -217,15 +185,11 @@ export const SubscriptionConfirmPage = () => {
             setPurchasing(null);
             const code = (e as { code?: string })?.code;
             if (code === 'user-cancelled') return;
-            // A website subscription is running — the relay refuses the receipt. Explain, and point to
-            // where that subscription is managed, instead of reporting a payment failure.
             if (isWebSubscriptionActiveError(e)) {
                 logger.warn('IAP', 'purchase refused: web subscription is active', { planId: plan.id });
                 showWebActive();
                 return;
             }
-            // The store already holds an entitlement this account never got attached to — recover
-            // it the way the restore button does instead of reporting a payment failure.
             if (code === 'already-owned') {
                 logger.warn('IAP', 'purchase already owned; restoring', { planId: plan.id });
                 await restore();
@@ -247,9 +211,6 @@ export const SubscriptionConfirmPage = () => {
         else window.open(url, '_blank');
     };
 
-    // After a downgrade the clouds that will not fit have to be chosen; after a purchase the new
-    // allowance is there to be used. The cloud count is the one frozen with the terms, before the
-    // relay has applied anything, which is the number the choice is about.
     const owesKeepChoice = needsKeepChoice(terms.keepCandidateCount, plan.maxClouds);
     const primary =
         kind === 'downgrade'
@@ -337,9 +298,6 @@ export const SubscriptionConfirmPage = () => {
                 </div>
             </ScreenLayout>
 
-            {/* The store sheet sits on top while this shows; the overlay is what remains once it
-                closes and the receipt is being validated. Fixed to the viewport on purpose — it
-                blocks the whole screen, not the column. */}
             {isProcessing && (
                 <div
                     role="status"

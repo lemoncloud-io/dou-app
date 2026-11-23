@@ -1,6 +1,3 @@
-// Extracted from LoginPage (device-user OAuth login) so the social-link section (mypage account
-// settings, attach-social) reuses the exact same provider marks instead of inventing new ones.
-
 export const GoogleIcon = () => (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
         <path

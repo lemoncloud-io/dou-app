@@ -3,12 +3,6 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { WebSubscriptionActiveError } from '../lib/webSubscriptionActive';
 import { useRestorePurchases } from './useRestorePurchases';
 
-/**
- * Restore is the recovery path for a purchase the store took but this account never received, so the
- * cases that matter are the unhappy ones: nothing to restore, a thrown store error, and a second
- * press while the first is still in flight.
- */
-
 const restorePurchasesMock = jest.fn();
 const toastMock = jest.fn();
 let isNativeValue = true;
@@ -25,7 +19,6 @@ jest.mock('react-i18next', () => ({
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
-// The host sells through a store (in the app) or through the website (in a browser).
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
         session: {
@@ -65,8 +58,6 @@ describe('useRestorePurchases — outcome reporting', () => {
     });
 
     it('treats zero restored as a normal outcome, not a failure', async () => {
-        // The store simply holds nothing for this account. A destructive "failed" toast here would
-        // send the user hunting for a problem that does not exist.
         restorePurchasesMock.mockResolvedValue(0);
 
         const { result } = renderHook(() => useRestorePurchases());
@@ -79,7 +70,6 @@ describe('useRestorePurchases — outcome reporting', () => {
         restorePurchasesMock.mockRejectedValue(new Error('store unreachable'));
 
         const { result } = renderHook(() => useRestorePurchases());
-        // Must not throw: callers wire this straight to an onClick.
         await act(() => result.current.restore());
 
         expect(toastMock).toHaveBeenCalledWith({ title: `${K}.restoreFailed`, variant: 'destructive' });
@@ -107,8 +97,6 @@ describe('useRestorePurchases — outcome reporting', () => {
 
 describe('useRestorePurchases — re-entry', () => {
     it('ignores a second press while the first restore is still running', async () => {
-        // Guarded in the hook so every caller does not have to disable its own control correctly.
-        // A concurrent run would re-validate the same receipts and toast twice.
         let release: (value: number) => void = () => undefined;
         restorePurchasesMock.mockReturnValue(
             new Promise<number>(resolve => {

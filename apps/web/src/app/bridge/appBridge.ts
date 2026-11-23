@@ -10,81 +10,38 @@ import type {
     WebMessageType,
 } from '@chatic/bridge-messages';
 
-/**
- * Centralized outbound bridge API (Web -> Native).
- *
- * Every `webClient.post(...)` call that was previously scattered across features
- * lives here as a single semantic method. Call sites should never construct the
- * `{ type, data }` message literal themselves — this keeps message-type strings
- * and payload shapes in one place and decouples features from the raw bridge.
- *
- * Inbound subscription (App -> Web) stays in `useHandleAppMessage`.
- */
-
-/**
- * How long a save or share may wait for the shell. Both can sit behind something the user answers —
- * a permission prompt, an open share sheet — and the default timeout would report a failure for a
- * photo that is then saved anyway.
- */
 export const MEDIA_EXPORT_TIMEOUT_MS = 10 * 60_000;
 
-/** Convenience alias for a given message type's `data` payload. */
 type Payload<K extends WebMessageType> = WebMessageData<K>['data'];
 
 export const appBridge = {
-    // ---------------------------------------------------------------
-    // System & navigation
-    // ---------------------------------------------------------------
-
-    /**
-     * Notify the native shell that the web app has mounted and is ready, and return what it
-     * answers about itself.
-     *
-     * `request`, not `post`, because the reply is the capability handshake: it reports what the
-     * INSTALLED app can do, which a web build deployed ahead of that app cannot assume (see
-     * `setNativeCacheSupport` at the call site in main.tsx). Never rejects — a plain browser has no
-     * native bridge, which is not an error condition here, and resolves `null` instead.
-     */
     notifyWebAppReady(): Promise<OnWebAppReadyPayload | null> {
-        return (
-            webClient
-                // `holdsBootSplash`: this build sends `FirstScreenReady` (see `runtime/bootSplash`), so a
-                // shell holding its launch splash may wait for it instead of lifting on this handshake.
-                .request({ type: 'WebAppReady', data: { holdsBootSplash: true } })
-                .then(response => (response?.data as OnWebAppReadyPayload | undefined) ?? null)
-                .catch(() => null)
-        );
+        return webClient
+            .request({ type: 'WebAppReady', data: { holdsBootSplash: true } })
+            .then(response => (response?.data as OnWebAppReadyPayload | undefined) ?? null)
+            .catch(() => null);
     },
 
-    /**
-     * Tell native the first screen has painted, so it can lift its launch splash (or the cover it
-     * shows while a crashed WebView reloads). Fire-and-forget.
-     */
     notifyFirstScreenReady(): void {
         webClient.post({ type: 'FirstScreenReady', data: {} });
     },
 
-    /** Ask native to dismiss the resume/cold-start overlay. */
     dismissResumeOverlay(): void {
         webClient.post({ type: 'DismissResumeOverlay', data: {} });
     },
 
-    /** Open an external URL in the native browser. */
     openURL(url: string): void {
         webClient.post({ type: 'OpenURL', data: { url } });
     },
 
-    /** Open the native OS app-settings screen. */
     openSettings(): void {
         webClient.post({ type: 'OpenSettings', data: {} });
     },
 
-    /** Open the native share sheet for the given URL. */
     openShareSheet(url: string): void {
         webClient.post({ type: 'OpenShareSheet', data: { url } });
     },
 
-    /** Open the platform subscription-management screen. */
     openSubscriptionManagement(): void {
         webClient.post({ type: 'OpenSubscriptionManagement', data: {} });
     },
@@ -93,64 +50,38 @@ export const appBridge = {
         return webClient.request({ type: 'CopyToClipboard', data: { text } });
     },
 
-    /** Deliver the web-side boot timeline snapshot (fire-and-forget, once per load). */
     sendBootMetrics(data: Payload<'SendBootMetrics'>): void {
         webClient.post({ type: 'SendBootMetrics', data });
     },
 
-    /**
-     * Open a Firebase Performance trace in the native shell. Fire-and-forget: the SDK times the
-     * trace from this call to `stopPerfTrace`, and nothing the caller does may wait on it. Only sent
-     * once the WebAppReady report has landed, from an app at or above the version floor (see
-     * `runtime/perf`).
-     */
     startPerfTrace(data: Payload<'StartPerfTrace'>): void {
         webClient.post({ type: 'StartPerfTrace', data });
     },
 
-    /** Close a trace opened by `startPerfTrace`, or one the native shell handed over. */
     stopPerfTrace(data: Payload<'StopPerfTrace'>): void {
         webClient.post({ type: 'StopPerfTrace', data });
     },
 
-    /** Propagate the debug-mode unlock/lock to the native shell. */
     setDebugMode(enabled: boolean): void {
         webClient.post({ type: 'SetDebugMode', data: { enabled } });
     },
 
-    // ---------------------------------------------------------------
-    // App update
-    // ---------------------------------------------------------------
-
-    /** Ask native to check the current app version against the live store version. */
     checkAppUpdate(): Promise<WebMessageResponse<'CheckAppUpdate'>> {
         return webClient.request({ type: 'CheckAppUpdate', data: {} });
     },
 
-    /** Open the platform app store listing. */
     openStore(): void {
         webClient.post({ type: 'OpenStore', data: {} });
     },
 
-    // ---------------------------------------------------------------
-    // Notification & device
-    // ---------------------------------------------------------------
-
-    /** Request the current FCM device token from native. */
     fetchFcmToken(): Promise<WebMessageResponse<'FetchFcmToken'>> {
         return webClient.request({ type: 'FetchFcmToken', data: {} });
     },
 
-    /** Set the app icon badge count. */
     setBadgeCount(count: number): void {
         webClient.post({ type: 'SetBadgeCount', data: { count } });
     },
 
-    /**
-     * Drains the cross-cloud push marks recorded natively for a background chat push (ADR-0056) —
-     * read + clear in one native call, so a mark is delivered exactly once. Resolves `[]` on a
-     * plain browser (no native bridge) or a failed request.
-     */
     fetchPushMarks(): Promise<PushCloudMarkRecord[]> {
         return webClient
             .request({ type: 'FetchPushMarks', data: {} })
@@ -158,79 +89,30 @@ export const appBridge = {
             .catch(() => []);
     },
 
-    // ---------------------------------------------------------------
-    // Preference & back handling
-    // ---------------------------------------------------------------
-
-    /** Persist a preference key/value in native storage. */
     savePreference(data: Payload<'SavePreference'>): void {
         webClient.post({ type: 'SavePreference', data });
     },
 
-    /**
-     * Persist a preference and wait for the native confirmation. Rejects on a `success: false`
-     * response and on timeout, so the caller can retry — see usePreferenceStore's theme sync,
-     * where a silently dropped write leaves the native status bar disagreeing with the page.
-     */
     savePreferenceConfirmed(data: Payload<'SavePreference'>): Promise<WebMessageResponse<'SavePreference'>> {
         return webClient.request({ type: 'SavePreference', data });
     },
 
-    /** Request the current value of a preference key from native storage. */
     fetchPreference: (data: Payload<'FetchPreference'>): Promise<WebMessageResponse<'FetchPreference'>> => {
         return webClient.request({ type: 'FetchPreference', data });
     },
 
-    /** Remove a preference key from native storage and wait for native confirmation. */
     deletePreferenceConfirmed(data: Payload<'DeletePreference'>): Promise<WebMessageResponse<'DeletePreference'>> {
         return webClient.request({ type: 'DeletePreference', data });
     },
 
-    /**
-     * Report whether a back press is the page's to spend: a dialog is open, or the app has an entry of
-     * its own to rewind to. `includesHistory` tells the shell this is the whole answer.
-     */
     setCanGoBack(canGoBack: boolean): void {
         webClient.post({ type: 'SetCanGoBack', data: { canGoBack, includesHistory: true } });
     },
 
-    // ---------------------------------------------------------------
-    // Auth
-    // ---------------------------------------------------------------
-
-    /**
-     * Start a native OAuth login flow. The credential arrives separately, as an `OnOAuthLogin` push
-     * event, which the `signIn` port hands on (`runtime.signIn.providerSignIn.onResult`, built in
-     * `src/config/adapters/signIn.ts`).
-     *
-     * Deliberately NOT a request/response pair. That shape carries the bridge's default 15s budget,
-     * and this flow waits on a HUMAN inside the provider's own UI (account chooser, password, 2FA,
-     * consent). A run that took longer expired mid-flight, and the credential the user had ALREADY
-     * earned came back to a request nobody was waiting for — dropped as an unlistened event. The
-     * result: signed in at Google, still sitting on the login screen. Splitting the two removes the
-     * clock entirely; the credential is welcome whenever it lands.
-     *
-     * The native side answers failures on the same channel (`success: false`), so a subscriber sees
-     * every outcome. Host-level errors (`type: 'ERROR'` — e.g. no registered handler) do NOT travel
-     * this channel, which is why native must keep reporting OAuth failures as an `OnOAuthLogin`
-     * response instead of throwing.
-     */
     startOAuthLogin(provider: Payload<'OAuthLogin'>['provider']): void {
         webClient.post({ type: 'OAuthLogin', data: { provider } });
     },
 
-    /**
-     * Same native flow, awaited — for ACCOUNT LINKING, which needs the raw provider token in hand to
-     * run `verify` then `confirm` (see `features/mypage/hooks/useSocialLinks.ts`).
-     *
-     * Linking keeps the request/response shape because its caller is a promise-shaped hook, but it
-     * cannot keep the 15s default for the reason above: three minutes is "the user walked away",
-     * which is the only case worth failing. Converting this one to the event shape too is a
-     * follow-up — it needs its own pending state and cannot simply await.
-     *
-     * Safe to coexist with `startOAuthLogin`: responses are matched by refId first, so a pending
-     * request always claims its own answer and only an unclaimed one reaches event subscribers.
-     */
     oauthLogin(
         provider: Payload<'OAuthLogin'>['provider'],
         timeoutMs = 180_000
@@ -238,260 +120,136 @@ export const appBridge = {
         return webClient.request({ type: 'OAuthLogin', data: { provider } }, { timeoutMs });
     },
 
-    // ---------------------------------------------------------------
-    // Contacts
-    // ---------------------------------------------------------------
-
-    /**
-     * Request the device contact list from native.
-     *
-     * Not the 15s default: on first use native raises the OS permission prompt inside this same
-     * request, so the clock also covers a person reading that prompt. A timeout drops the answer
-     * that arrives after it, which surfaced as "permission denied" for someone who had just allowed
-     * access.
-     */
     getContacts(timeoutMs = 60_000): Promise<WebMessageResponse<'GetContacts'>> {
         return webClient.request({ type: 'GetContacts', data: {} }, { timeoutMs });
     },
 
-    // ---------------------------------------------------------------
-    // SMS (ADR-0089 — relay invite deeplink delivery)
-    // ---------------------------------------------------------------
-
-    /**
-     * Open the native SMS composer prefilled with `message` for `phoneNumbers`. Resolves with
-     * `data.success` reporting whether the composer opened — the user still has to send it
-     * themselves (there is no send-completion signal). Callers should fall back to a clipboard
-     * copy when this rejects (no native bridge) or resolves with `success: false`.
-     */
     sendSms(phoneNumbers: string | string[], message: string): Promise<WebMessageResponse<'SendSms'>> {
         return webClient.request({ type: 'SendSms', data: { phoneNumbers, message } });
     },
 
-    // ---------------------------------------------------------------
-    // Link preview
-    // ---------------------------------------------------------------
-
-    /**
-     * Ask native to fetch and parse a page's og: metadata for a chat link preview — the webview
-     * can't read cross-origin pages itself.
-     *
-     * Rejects when the shell cannot fetch it; callers treat that as "no preview". This is also the
-     * single seam to swap if unfurling ever moves to the backend.
-     */
     fetchUrlMetadata(url: string): Promise<WebMessageResponse<'FetchUrlMetadata'>> {
         return webClient.request({ type: 'FetchUrlMetadata', data: { url } });
     },
 
-    // ---------------------------------------------------------------
-    // In-app purchase
-    // ---------------------------------------------------------------
-
-    /** Initiate a native purchase flow. Result arrives as OnPurchaseSuccess / OnPurchaseError push events. */
     purchase(data: Payload<'Purchase'>): void {
         webClient.post({ type: 'Purchase', data });
     },
 
-    /** Finish/acknowledge a completed purchase transaction. */
     finishPurchaseTransaction(
         purchase: Payload<'FinishPurchaseTransaction'>['purchase']
     ): Promise<WebMessageResponse<'FinishPurchaseTransaction'>> {
         return webClient.request({ type: 'FinishPurchaseTransaction', data: { purchase } });
     },
 
-    /** Request the current set of native purchases. */
     fetchCurrentPurchases(): Promise<WebMessageResponse<'FetchCurrentPurchases'>> {
         return webClient.request({ type: 'FetchCurrentPurchases', data: {} });
     },
 
-    /** Request the native product catalog. */
     fetchProducts(timeoutMs = 10_000): Promise<WebMessageResponse<'FetchProducts'>> {
         return webClient.request({ type: 'FetchProducts', data: {} }, { timeoutMs });
     },
 
-    // The four `*AppLogBuffer` methods are gone with the ring buffer they read
-    // and with their messages; the unsent queue below is the only log store.
-
-    // ---------------------------------------------------------------
-    // App log store (ADR-0063 · ADR-0066)
-    // ---------------------------------------------------------------
-
-    /** Read a batch from the app's upload queue WITHOUT removing it. */
     fetchLogUploadQueue(limit: number): Promise<WebMessageResponse<'FetchLogUploadQueue'>> {
         return webClient.request({ type: 'FetchLogUploadQueue', data: { limit } });
     },
 
-    /** Release entries the server has taken (or that were given up on). */
     ackLogUploadQueue(ids: string[]): Promise<WebMessageResponse<'AckLogUploadQueue'>> {
         return webClient.request({ type: 'AckLogUploadQueue', data: { ids } });
     },
 
-    /** Drop the app's upload queue outright — device opt-out only. */
     clearLogUploadQueue(): Promise<WebMessageResponse<'ClearLogUploadQueue'>> {
         return webClient.request({ type: 'ClearLogUploadQueue', data: {} });
     },
 
-    // ---------------------------------------------------------------
-    // Debug panel — app-side operations the web drives (ADR-0080 Decision 11)
-    // ---------------------------------------------------------------
-
-    /**
-     * Read the boot records the native side persisted, plus its two live counters.
-     *
-     * `sendBootMetrics` only goes the other way (the web hands its half of the timeline over), so
-     * this is the only way the panel can show what the app actually recorded.
-     */
     fetchBootRecords(): Promise<WebMessageResponse<'FetchBootRecords'>> {
         return webClient.request({ type: 'FetchBootRecords', data: {} });
     },
 
-    /** Drop every persisted boot record. */
     clearBootRecords(): Promise<WebMessageResponse<'ClearBootRecords'>> {
         return webClient.request({ type: 'ClearBootRecords', data: {} });
     },
 
-    /**
-     * What the native shell persists — every SQLite cache table and every MMKV key, with sizes. The
-     * page can measure its own storage; this is the half it cannot see. A full scan of every table, so
-     * it gets more than the default wait on a device with a large chat cache.
-     */
     fetchNativeStorageSummary(timeoutMs = 60_000): Promise<WebMessageResponse<'FetchNativeStorageSummary'>> {
         return webClient.request({ type: 'FetchNativeStorageSummary', data: {} }, { timeoutMs });
     },
 
-    /**
-     * Empty the native SQLite cache. The invited-cloud table goes only with `includeInvitedClouds`,
-     * because the server cannot list those clouds again.
-     */
     clearNativeCache(includeInvitedClouds: boolean): Promise<WebMessageResponse<'ClearNativeCache'>> {
         return webClient.request({ type: 'ClearNativeCache', data: { includeInvitedClouds } });
     },
 
-    /** Drop the FCM token so the next `fetchFcmToken` mints a fresh one — re-registration testing. */
     deleteFcmToken(): Promise<WebMessageResponse<'DeleteFcmToken'>> {
         return webClient.request({ type: 'DeleteFcmToken', data: {} });
     },
 
-    /**
-     * The next three are facade-only: the message types and native handlers already existed, the
-     * web client just never exposed them because nothing outside the app's own debug screens asked.
-     * Adding them costs no app release (ADR-0080 Decision 11 — look for what already exists before
-     * creating a new command).
-     */
-
-    /** Read the OS badge count the app currently shows. */
     fetchBadgeCount(): Promise<WebMessageResponse<'FetchBadgeCount'>> {
         return webClient.request({ type: 'FetchBadgeCount', data: {} });
     },
 
-    /**
-     * Read the native shared badge counter — Android's only true badge value, since the message
-     * above is served by notifee whose badge API is a no-op off iOS (ADR-0099).
-     *
-     * Raw like its neighbours: unwrapping and the platform routing that decides WHICH of the two to
-     * ask both live in the `appShell` port's `iconBadge` (`src/config/adapters/appShell.ts`), so this
-     * stays a message facade.
-     */
     fetchBadgeBase(): Promise<WebMessageResponse<'FetchBadgeBase'>> {
         return webClient.request({ type: 'FetchBadgeBase', data: {} });
     },
 
-    /** Raise a local notification — checks the channel and deeplink plumbing without a real push. */
     showNotification(payload: Payload<'ShowNotification'>): Promise<WebMessageResponse<'ShowNotification'>> {
         return webClient.request({ type: 'ShowNotification', data: payload });
     },
 
-    /**
-     * Custom web zip (ADR-0080 Decision 11, step 5). PROD builds refuse `apply` — the app gates it on the
-     * baked `VITE_ENV`, so the refusal comes back as an error rather than being decided here.
-     */
     applyCustomZip(url: string): Promise<WebMessageResponse<'ApplyCustomZip'>> {
         return webClient.request({ type: 'ApplyCustomZip', data: { url } });
     },
 
-    /** Turn the custom zip off and go back to the shipped web. Never refused — it is the way out. */
     disableCustomZip(): Promise<WebMessageResponse<'DisableCustomZip'>> {
         return webClient.request({ type: 'DisableCustomZip', data: {} });
     },
 
-    /** What is applied now, and whether this build allows applying at all. */
     fetchCustomZipStatus(): Promise<WebMessageResponse<'FetchCustomZipStatus'>> {
         return webClient.request({ type: 'FetchCustomZipStatus', data: {} });
     },
 
-    /**
-     * Which side holds the session on the phone — now, and from the next start. A production app build
-     * answers only while its debug mode is on (`NOT_ALLOWED` otherwise; an older one, `NOT_FOUND`).
-     */
     fetchSessionOwner(): Promise<WebMessageResponse<'FetchSessionOwner'>> {
         return webClient.request({ type: 'FetchSessionOwner', data: {} });
     },
 
-    /** Records the owner; when it differs from the current one the app restarts, reloading this page. */
     setSessionOwner(owner: SessionOwnerName): Promise<WebMessageResponse<'SetSessionOwner'>> {
         return webClient.request({ type: 'SetSessionOwner', data: { owner } });
     },
 
-    /**
-     * Names the owner of an install nobody switched, for the app's next start — `null` clears it. Any app
-     * build that lists it in its `WebAppReady` reply answers, production included; it never restarts.
-     */
     setDefaultSessionOwner(owner: SessionOwnerName | null): Promise<WebMessageResponse<'SetDefaultSessionOwner'>> {
         return webClient.request({ type: 'SetDefaultSessionOwner', data: { owner } });
     },
 
-    /** Which alternate app icon is active, and whether this platform supports changing it. */
     fetchAppIcon(): Promise<WebMessageResponse<'FetchAppIcon'>> {
         return webClient.request({ type: 'FetchAppIcon', data: {} });
     },
 
-    /** The alternate icons this build ships. */
     fetchAppIconList(): Promise<WebMessageResponse<'FetchAppIconList'>> {
         return webClient.request({ type: 'FetchAppIconList', data: {} });
     },
 
-    /** Switch the app icon. `null` (or 'default') restores the shipped one. */
     changeAppIcon(iconName: string | null): Promise<WebMessageResponse<'ChangeAppIcon'>> {
         return webClient.request({ type: 'ChangeAppIcon', data: { iconName } });
     },
 
-    /** Native provider sign-in — a different path from the web's own relay hand-off. */
     oAuthLogin(provider: Payload<'OAuthLogin'>['provider']): Promise<WebMessageResponse<'OAuthLogin'>> {
         return webClient.request({ type: 'OAuthLogin', data: { provider } });
     },
 
-    /** Native provider sign-out. */
     oAuthLogout(provider: Payload<'OAuthLogout'>['provider']): Promise<WebMessageResponse<'OAuthLogout'>> {
         return webClient.request({ type: 'OAuthLogout', data: { provider } });
     },
 
-    /** Open the camera and hand back what was captured. */
     openCamera(payload: Payload<'OpenCamera'> = {}): Promise<WebMessageResponse<'OpenCamera'>> {
         return webClient.request({ type: 'OpenCamera', data: payload });
     },
 
-    /** Open the photo library and hand back the picked assets. */
     openPhotoLibrary(payload: Payload<'OpenPhotoLibrary'> = {}): Promise<WebMessageResponse<'OpenPhotoLibrary'>> {
         return webClient.request({ type: 'OpenPhotoLibrary', data: payload });
     },
 
-    /** Open the document picker and hand back the chosen files. */
     openDocument(payload: Payload<'OpenDocument'> = {}): Promise<WebMessageResponse<'OpenDocument'>> {
         return webClient.request({ type: 'OpenDocument', data: payload });
     },
 
-    // In-app photo picker. Raw like their neighbours: the browser check and the base64 decoding live in
-    // `photoLibrary`, so these stay a facade.
-    //
-    // None of them use the 15s default, because each can be waiting on something other than the
-    // shell. A timed-out request drops the answer that arrives after it, so a clock shorter than the
-    // wait turns a photo that was on its way into a failure.
-
-    /**
-     * The albums the in-app picker can switch between.
-     *
-     * 60s: on first use the OS permission prompt is raised inside this request, as for contacts.
-     */
     listPhotoAlbums(
         payload: Payload<'ListPhotoAlbums'> = {},
         timeoutMs = 60_000
@@ -499,31 +257,18 @@ export const appBridge = {
         return webClient.request({ type: 'ListPhotoAlbums', data: payload }, { timeoutMs });
     },
 
-    /** One page of the library, newest first, with small previews. 60s for the same permission prompt. */
     listPhotos(payload: Payload<'ListPhotos'>, timeoutMs = 60_000): Promise<WebMessageResponse<'ListPhotos'>> {
         return webClient.request({ type: 'ListPhotos', data: payload }, { timeoutMs });
     },
 
-    /** The bytes of one photo the user is sending. 2 minutes: an original kept only in iCloud is downloaded first. */
     readPhoto(id: string, timeoutMs = 120_000): Promise<WebMessageResponse<'ReadPhoto'>> {
         return webClient.request({ type: 'ReadPhoto', data: { id } }, { timeoutMs });
     },
 
-    /**
-     * Copies one library video into the shell's pick folder and answers with the reference the send
-     * uploads from. 10 minutes, the same bound as `PrepareVideo`: a video kept only in iCloud is
-     * downloaded first, with no progress to report.
-     */
     keepLibraryVideo(id: string, timeoutMs = 10 * 60_000): Promise<WebMessageResponse<'KeepLibraryVideo'>> {
         return webClient.request({ type: 'KeepLibraryVideo', data: { id } }, { timeoutMs });
     },
 
-    /**
-     * A received video's frame as a JPEG, made by the shell from the video's signed address. The shell
-     * gives up after 20s of its own; the page waits a little longer, so the shell's answer — a frame or
-     * `UNREADABLE` — is what settles it, and a read the shell is still running is never taken for done
-     * while the next one starts.
-     */
     readVideoFrame(
         payload: Payload<'ReadVideoFrame'>,
         timeoutMs = 25_000
@@ -531,26 +276,14 @@ export const appBridge = {
         return webClient.request({ type: 'ReadVideoFrame', data: payload }, { timeoutMs });
     },
 
-    /**
-     * Under iOS limited access, lets the user change which photos are shared. 5 minutes: the answer
-     * comes when the person closes the system sheet, after however long they spend choosing.
-     */
     managePhotoSelection(timeoutMs = 300_000): Promise<WebMessageResponse<'ManagePhotoSelection'>> {
         return webClient.request({ type: 'ManagePhotoSelection', data: {} }, { timeoutMs });
     },
 
-    /**
-     * Add an image the shell downloaded (its `file://` URI from a download's terminal event) to the
-     * photo library. Waits long: the first save answers only once the OS permission prompt does.
-     */
     saveToPhotoLibrary(uri: string): Promise<WebMessageResponse<'SaveToPhotoLibrary'>> {
         return webClient.request({ type: 'SaveToPhotoLibrary', data: { uri } }, { timeoutMs: MEDIA_EXPORT_TIMEOUT_MS });
     },
 
-    /**
-     * Put a file the shell downloaded on the system share sheet. Waits long: on iOS the answer comes
-     * when the sheet closes, however long the user keeps it open.
-     */
     shareFile(uri: string, title?: string): Promise<WebMessageResponse<'ShareFile'>> {
         return webClient.request(
             { type: 'ShareFile', data: { uri, ...(title ? { title } : {}) } },
@@ -558,16 +291,10 @@ export const appBridge = {
         );
     },
 
-    /** Play one short haptic with no answer. */
     postHaptic(kind: HapticKind): void {
         webClient.post({ type: 'TriggerHaptic', data: { kind } });
     },
 
-    /**
-     * Show `url` in the shell's sub WebView, over the app. Rejects with the shell's code when it
-     * refuses (`NOT_ALLOWED`, `ALREADY_OPEN`, …). Call it through `openSubWebView`, which checks
-     * the shell has it first.
-     */
     openSubWebView(
         url: string,
         title?: string,
@@ -580,22 +307,14 @@ export const appBridge = {
         });
     },
 
-    /** Close the sub WebView this page opened; `OnSubWebViewClosed` follows. */
     closeSubWebView(viewId: string): Promise<WebMessageResponse<'CloseSubWebView'>> {
         return webClient.request({ type: 'CloseSubWebView', data: { viewId } });
     },
 
-    /** Write text to the OS clipboard — the native one, not the browser's. */
     copyToClipboard(text: string): Promise<WebMessageResponse<'CopyToClipboard'>> {
         return webClient.request({ type: 'CopyToClipboard', data: { text } });
     },
 
-    /**
-     * Ask the OS for a permission. Idempotent once granted, and the response carries the status.
-     *
-     * 60s, as for contacts: the answer waits on the OS prompt, and the default timeout would drop it for
-     * someone still reading that prompt.
-     */
     requestPermission(
         permission: Payload<'RequestPermission'>['permission'],
         timeoutMs = 60_000
@@ -603,30 +322,18 @@ export const appBridge = {
         return webClient.request({ type: 'RequestPermission', data: { permission } }, { timeoutMs });
     },
 
-    // ---------------------------------------------------------------
-    // Deferred native reports (ADR-0097)
-    // ---------------------------------------------------------------
-
-    /** Pull reports the native side detected but cannot send itself. */
     fetchPendingReports(): Promise<WebMessageResponse<'FetchPendingReports'>> {
         return webClient.request({ type: 'FetchPendingReports', data: {} });
     },
 
-    /** Acknowledge relayed reports so the native queue drops them. */
     ackPendingReports(ids: string[]): Promise<WebMessageResponse<'AckPendingReports'>> {
         return webClient.request({ type: 'AckPendingReports', data: { ids } });
     },
 
-    // ---------------------------------------------------------------
-    // Config shell lane (ADR-0079 Decision 9 — generic KV bridge)
-    // ---------------------------------------------------------------
-
-    /** Persist one shell-lane config value, opaquely, and wait for native confirmation. */
     saveConfigValueConfirmed(data: Payload<'SaveConfigValue'>): Promise<WebMessageResponse<'SaveConfigValue'>> {
         return webClient.request({ type: 'SaveConfigValue', data });
     },
 
-    /** Remove one shell-lane config override and wait for native confirmation. */
     clearConfigValueConfirmed(data: Payload<'ClearConfigValue'>): Promise<WebMessageResponse<'ClearConfigValue'>> {
         return webClient.request({ type: 'ClearConfigValue', data });
     },

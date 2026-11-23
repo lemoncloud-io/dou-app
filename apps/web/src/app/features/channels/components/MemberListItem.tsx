@@ -14,19 +14,8 @@ interface MemberListItemProps {
     isMe?: boolean;
     isOwner?: boolean;
     isPendingInvite?: boolean;
-    /**
-     * My own row has no place profile yet, so `member.name` is the nudge copy rather than a person's
-     * name (ADR-0040). Underlines it to read as the actionable link Figma 3185-13278 shows.
-     */
     needsProfileSetup?: boolean;
-    /**
-     * This member has left the room. Only 1:1 rooms list departed members at all, so this is the DM
-     * "left the chat" row (ADR-0068 decision 6). Distinct from `isPendingInvite`: one never arrived, the
-     * other arrived and left — the join counter alone cannot tell them apart (see utils/membership),
-     * which is why the caller decides and not this component.
-     */
     hasLeft?: boolean;
-    /** When set, the row becomes a button that opens the member profile. */
     onClick?: () => void;
 }
 
@@ -43,9 +32,6 @@ export const MemberListItem = ({
 }: MemberListItemProps) => {
     const { t } = useTranslation();
 
-    // Badge precedence: MY on my own row whatever else is true of it — I am never badged as the room
-    // owner, even when I own the room. Then a pending invite (it carries its own greyed treatment),
-    // then the owner role.
     const badge = isMe
         ? { variant: 'mine' as const, label: t('chat.settings.badge.mine') }
         : isPendingInvite
@@ -54,7 +40,6 @@ export const MemberListItem = ({
             ? { variant: 'owner' as const, label: t('chat.settings.badge.owner') }
             : null;
 
-    // A departed member is dimmed the same way a pending invite is — both are "not here right now".
     const isDimmed = isPendingInvite || hasLeft;
 
     const avatar = member.avatar ? (
@@ -69,7 +54,6 @@ export const MemberListItem = ({
             onClick={onClick}
             title={
                 <>
-                    {/* Figma places the status pill before the name. */}
                     {badge && <StatusBadge variant={badge.variant} label={badge.label} />}
                     <span
                         className={cn(

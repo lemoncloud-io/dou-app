@@ -29,10 +29,8 @@ const item = (id: string, fields: Partial<NotificationItem> = {}): NotificationI
 
 const byId = (...items: NotificationItem[]): NotificationItems => Object.fromEntries(items.map(i => [i.id, i]));
 
-/** An overlay with no baseline, so every thread item can be unread. */
 const overlayOf = (fields: Partial<NotificationOverlay>): NotificationOverlay => ({ ...EMPTY_OVERLAY, ...fields });
 
-/** No window: nothing is too old. */
 const ALL = 0;
 
 describe('applyOverlay', () => {

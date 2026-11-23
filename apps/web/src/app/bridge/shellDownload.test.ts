@@ -1,6 +1,5 @@
 const request = jest.fn();
 let native = true;
-// Who moves files, as the host's `files` port says: the app's transfer module, or none.
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
     return testing.fakeRuntimeModule({

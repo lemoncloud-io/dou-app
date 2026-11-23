@@ -69,8 +69,6 @@ describe('resolvePushNavigation', () => {
         expect(resolvePushNavigation('   ')).toEqual({ target: '/', cid: null, sid: null, chatId: null });
     });
 
-    // The room URL must stay canonical: `navigateNormalized` compares pathname+search to decide
-    // "already there", so leaving chatId on the target would make two taps on one room differ.
     it('extracts chatId and strips it from the target', () => {
         expect(resolvePushNavigation('/channels/1000001/room?chatId=1000001%3A42')).toEqual({
             target: '/channels/1000001/room',
@@ -80,8 +78,6 @@ describe('resolvePushNavigation', () => {
         });
     });
 
-    // The fallback branch rebuilds the target from channelId alone, so the context params have to
-    // be read before it — otherwise a spec-style link would silently lose the thread hint.
     it('carries chatId through the `channel?channelId=` fallback branch', () => {
         expect(resolvePushNavigation('channel?channelId=1000001&chatId=1000001%3A42&cid=cloud_1')).toEqual({
             target: '/channels/1000001/room',

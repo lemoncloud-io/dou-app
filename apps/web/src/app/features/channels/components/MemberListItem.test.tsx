@@ -6,8 +6,6 @@ import { MemberListItem } from './MemberListItem';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
-// Lightweight web-ui-kit stand-ins so assertions target MemberListItem's own logic
-// (which badge/variant, onClick wiring) rather than library rendering internals.
 jest.mock('@chatic/web-ui-kit', () => ({
     ListRow: ({ leading, title, onClick }: any) =>
         onClick ? (
@@ -61,7 +59,6 @@ describe('MemberListItem', () => {
         expect(badge).toHaveAttribute('data-variant', 'owner');
     });
 
-    // My own row is always MY — owning the room does not turn it into an owner badge.
     it('badges my own row MY even when I own the room', () => {
         render(<MemberListItem member={member} isOwner isMe />);
         const badges = screen.getAllByTestId('badge');
@@ -86,8 +83,6 @@ describe('MemberListItem', () => {
         expect(screen.queryByTestId('badge')).not.toBeInTheDocument();
     });
 
-    // ADR-0040: when I have no profile, the nudge copy that takes the name's place must read like a
-    // tappable link (Figma 3185-13278). Picking the copy is the caller's (ChannelSettingsPage) job — this just marks it up.
     it('needsProfileSetup이면 이름에 밑줄을 붙인다', () => {
         render(<MemberListItem member={member} isMe needsProfileSetup />);
         expect(screen.getByText('레모닝')).toHaveClass('underline');

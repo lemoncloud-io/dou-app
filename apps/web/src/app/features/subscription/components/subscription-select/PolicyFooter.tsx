@@ -8,22 +8,12 @@ interface PolicyFooterProps {
     onOpenPolicy: (path: string) => void;
 }
 
-/**
- * Auto-renewal disclosure plus the links both stores require next to a purchase.
- *
- * "구매 복원" sits here, alongside terms and privacy, for two reasons: it is where a user looks for it
- * (the same row in most apps), and this footer renders on the plan picker — the screen a user is
- * still on when a purchase fails halfway. Reaching restore from the status screen instead would mean
- * navigating away from the failure to find the fix.
- */
 export const PolicyFooter = ({ onOpenPolicy }: PolicyFooterProps) => {
     const { t } = useTranslation();
     const { restore, isRestoring, canRestore, notice } = useRestorePurchases();
 
     return (
         <div className="mt-4 w-full max-w-reading rounded-[12px] bg-muted/50 px-4 py-3">
-            {/* The auto-renewal disclosure wraps freely and is the longest paragraph on the plan
-                picker, so it takes the reading measure rather than the full column. */}
             <p className="text-[12px] leading-[1.6] text-muted-foreground">
                 {t('mypage.subscription.autoRenewNotice')}
             </p>

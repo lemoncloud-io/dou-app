@@ -6,7 +6,6 @@ import { cn } from '@chatic/ui-kit';
 import { useBackHandler } from '../../hooks/useBackHandler';
 
 export const MainLayout = (): JSX.Element => {
-    // Handle native back button
     useBackHandler();
 
     return (

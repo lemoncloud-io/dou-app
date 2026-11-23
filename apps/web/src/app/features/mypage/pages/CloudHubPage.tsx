@@ -15,21 +15,6 @@ import { CloudIdentity } from '../components/CloudIdentity';
 import { useOwnedCloud } from '../hooks/useOwnedCloud';
 import { useRetryCloudSetup } from '../hooks/useRetryCloudSetup';
 
-/**
- * One cloud's menu (Figma 4915-17766): its profile (edit), its information (read, and release),
- * and the places it holds.
- *
- * The profile and places rows are for a cloud that is ready to be entered — a deployed, un-held one.
- * The places row needs that cloud's own session; the profile row follows the same rule so a cloud
- * that is not ready yet is not edited either. A provisioning, failed or held cloud leaves both
- * disabled with the reason as the subtitle, and keeps the information row, which is where its state
- * is explained and where it is released.
- * A cloud whose setup failed before it got a workspace slot also gets a retry row: the relay sets it
- * up again, the catalog is re-read, and the cloud reads as provisioning everywhere. One that failed
- * after its slot was assigned gets none, since the relay refuses it (`canRetryCloudSetup`); a refusal
- * that still comes back is the failure toast, and releasing is what is left.
- * Not an owned cloud (or not mine): back to the list once the catalog has said so.
- */
 export const CloudHubPage = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();

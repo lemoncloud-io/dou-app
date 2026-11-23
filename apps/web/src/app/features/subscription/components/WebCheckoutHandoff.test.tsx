@@ -14,8 +14,6 @@ const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
 const mockWeb = { kind: 'web', open: jest.fn() };
 jest.mock('@chatic/runtime', () =>
     require('@chatic/runtime/testing').fakeRuntimeModule({
-        // The host this screen runs in, as the `checkout` port tells it: a store's in the app, the website's
-        // in a browser.
         get checkout() {
             return mockNative ? mockStore : mockWeb;
         },

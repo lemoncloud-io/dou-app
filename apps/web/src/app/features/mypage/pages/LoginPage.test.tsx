@@ -12,8 +12,6 @@ import { LoginPage } from './LoginPage';
 const navigate = jest.fn();
 let currentLocation: { state: unknown } = { state: null };
 
-// `Trans` renders its key followed by the elements it was given, so the policy links stay reachable
-// by test id the way the real component would wrap translated words in them.
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k }),
     Trans: ({ i18nKey, components }: { i18nKey: string; components?: Record<string, ReactElement> }) => (
@@ -40,7 +38,6 @@ jest.mock('@chatic/runtime', () =>
             useLoginRelaySocial: () => ({ mutateAsync: loginRelaySocial, isPending: false }),
             createCredentialsByProvider: (...a: unknown[]) => createCredentialsByProvider(...a),
         },
-        // The app's own provider sign-in, as the host's `signIn` port carries it; a browser tab has none.
         get signIn() {
             const tab = require('@chatic/runtime/testing').browserSignIn();
             return mockIsNative ? { ...tab, providerSignIn: mockProviderSignIn } : tab;
@@ -53,13 +50,11 @@ jest.mock('@chatic/runtime', () =>
 
 let mockPairingEnabled = false;
 
-// The app signs in by default so the social buttons render; the browser tests flip it.
 let mockIsNative = true;
 jest.mock('@chatic/bridges', () => ({
     logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 
-/** What native puts on the `OnOAuthLogin` channel: a credential, a cancel, or a failure. */
 type OAuthResultMessage = {
     success: boolean;
     data?: { result: { provider: string; platform?: string; code?: string; idToken?: string } | null };
@@ -69,9 +64,6 @@ type OAuthResultMessage = {
 let deliverOAuthResult: ((message: OAuthResultMessage) => void) | null = null;
 const unsubscribeOAuthResult = jest.fn();
 
-// The screen fires the request and SUBSCRIBES for the result, so a test plays native by capturing
-// the subscriber and calling it — there is no promise to resolve. One object for every render, as the
-// runtime's port is, so the screen's subscription lives as long as it does.
 const mockProviderSignIn = {
     providers: ['google'],
     start: jest.fn(),
@@ -88,7 +80,6 @@ const mockProviderSignIn = {
 jest.mock('../../../ui/components', () => ({ PageHeader: () => null }));
 jest.mock('../components', () => ({ AppleIcon: () => null, GoogleIcon: () => null }));
 
-// Expose onVerified as a button so the phone path can be driven without the real sheet.
 jest.mock('../../auth/components/PhoneVerifySheet', () => ({
     PhoneVerifySheet: ({ onVerified }: { onVerified: () => void }) => (
         <button data-testid="phone-verified" onClick={onVerified} />
@@ -110,35 +101,20 @@ const GOOGLE_CREDENTIAL: OAuthResultMessage = { success: true, data: { result: {
 
 const tapGoogle = () => fireEvent.click(screen.getByTestId('login-google'));
 
-/** Play the native side answering on the push channel. */
 const nativeAnswers = async (message: OAuthResultMessage) => {
     await act(async () => {
         deliverOAuthResult?.(message);
     });
 };
 
-/** The whole happy path: tap, then native comes back with a credential. */
 const signInWithGoogle = async () => {
     tapGoogle();
     await nativeAnswers(GOOGLE_CREDENTIAL);
 };
 
-/**
- * Sets the router index the screen reads to decide whether there is anywhere to go back to.
- *
- * `idx` is what react-router writes into every history entry, so 0 means the login screen is the
- * app's first entry — a fresh WebView load, a deep link, a reload — and anything above it means the
- * screen the user came from is still behind. Set explicitly per test because jsdom starts every
- * file at the same entry.
- */
 const withStackDepth = (depth: number) => window.history.pushState({ idx: depth }, '');
 
 describe('LoginPage — 네이티브 OAuth 결과 수신', () => {
-    // This is the regression anchor for this screen. While the request and result were tied to a
-    // single round trip, the bridge's default 15s covered that round trip, and if a person took
-    // longer than that in the Google UI, the credential already issued arrived as a "response nobody
-    // was waiting for" and got discarded — the symptom where Google shows you logged in but the app
-    // stays on the login screen.
     it('버튼 탭은 요청만 쏘고 결과를 기다리지 않는다', async () => {
         withStackDepth(3);
         currentLocation = { state: { returnTo: '/mypage' } };
@@ -147,7 +123,6 @@ describe('LoginPage — 네이티브 OAuth 결과 수신', () => {
         tapGoogle();
 
         expect(mockProviderSignIn.start).toHaveBeenCalledWith('google');
-        // Tapping alone does nothing — the result arrives on a separate channel.
         expect(navigate).not.toHaveBeenCalled();
 
         await nativeAnswers(GOOGLE_CREDENTIAL);
@@ -205,7 +180,6 @@ describe('LoginPage — 네이티브 OAuth 결과 수신', () => {
     });
 });
 
-/** What the virtual shell answers when its sign-in goes through the OAuth relay: a code, no token. */
 const RELAY_CODE: OAuthResultMessage = {
     success: true,
     data: { result: { provider: 'google', platform: 'ios', code: 'relay-code-1' } },
@@ -259,8 +233,6 @@ describe('LoginPage — relay code from the virtual shell', () => {
         expect((screen.getByTestId('login-google') as HTMLButtonElement).disabled).toBe(false);
     });
 
-    // The exchange is a plain call, not the social mutation, so the screen keeps its own pending flag:
-    // without it the buttons would come back while the code is still being exchanged.
     it('keeps the buttons disabled while the code is being exchanged', async () => {
         let finish: () => void = () => undefined;
         createCredentialsByProvider.mockReturnValue(new Promise<void>(resolve => (finish = resolve)));
@@ -276,9 +248,6 @@ describe('LoginPage — relay code from the virtual shell', () => {
 });
 
 describe('LoginPage — 로그인 후 복귀', () => {
-    // The entry point pushed the login screen, so the entry right before it is the screen to return
-    // to. Overwriting with replace would leave two consecutive entries for the same route, making the
-    // first back tap look like it did nothing.
     it('returnTo가 있으면 히스토리를 한 칸 뒤로 간다', async () => {
         withStackDepth(3);
         currentLocation = { state: { returnTo: '/subscription/plans' } };
@@ -290,8 +259,6 @@ describe('LoginPage — 로그인 후 복귀', () => {
         expect(navigate).toHaveBeenCalledWith(-1);
     });
 
-    // There is no path at all for the returnTo string to reach the router as a destination — removes
-    // the open-redirect surface.
     it('returnTo 문자열을 목적지로 넘기지 않는다', async () => {
         withStackDepth(3);
         currentLocation = { state: { returnTo: '//evil.example.com' } };
@@ -303,9 +270,6 @@ describe('LoginPage — 로그인 후 복귀', () => {
         expect(navigate).not.toHaveBeenCalledWith('//evil.example.com', expect.anything());
         expect(navigate).toHaveBeenCalledWith(-1);
     });
-    // This is the branch a "logged in but landed on home instead of the original screen" report would
-    // point to. There are two possible causes (no returnTo / no app entry behind this screen) that
-    // can't be told apart from the outside, so both inputs are logged alongside the branch taken.
     it('복귀 분기와 그 입력 두 개를 info로 남긴다', async () => {
         withStackDepth(3);
         currentLocation = { state: { returnTo: '/subscription/plans' } };
@@ -333,8 +297,6 @@ describe('LoginPage — 로그인 후 복귀', () => {
         expect(info?.[2]).toEqual({ hadReturnTo: true, depth: 0, wentBack: false });
     });
 
-    // The case of landing on the login screen directly via a deep link or a refresh. The default must
-    // work quietly.
     it('returnTo가 없으면 홈으로 복귀한다', async () => {
         render(<LoginPage />);
 
@@ -344,8 +306,6 @@ describe('LoginPage — 로그인 후 복귀', () => {
         expect(navigate).toHaveBeenCalledWith('/', expect.objectContaining({ replace: true }));
     });
 
-    // Only the deep-link fallback specifies a destination. Since replace turns off the transition by
-    // default, it's stated explicitly.
     it('홈 폴백은 back 방향 트랜지션을 명시한다', async () => {
         render(<LoginPage />);
 
@@ -355,10 +315,6 @@ describe('LoginPage — 로그인 후 복귀', () => {
         expect(navigate).toHaveBeenCalledWith('/', { replace: true, transition: true, direction: 'back' });
     });
 
-    // Regression anchor — the old leaveForHome used to rewind history all the way to the start and
-    // do a full reload. Both had to go for the user's navigation context and the white-screen
-    // problem to be solved together. The case where the shell recreates the webview and the stack is
-    // gone but the router state survives — there's nowhere to go back to.
     it('goes home when there is no app entry to go back to', async () => {
         withStackDepth(0);
         currentLocation = { state: { returnTo: '/mypage' } };
@@ -372,8 +328,6 @@ describe('LoginPage — 로그인 후 복귀', () => {
 
     it('히스토리를 되감거나 풀 리로드하지 않는다', async () => {
         withStackDepth(3);
-        // jsdom's window.location is non-configurable, so the reload is caught via the listener the
-        // old implementation registered to fire it — no popstate handler means no pending reload.
         const go = jest.spyOn(window.history, 'go').mockImplementation(() => undefined);
         const addListener = jest.spyOn(window, 'addEventListener');
 
@@ -383,8 +337,6 @@ describe('LoginPage — 로그인 후 복귀', () => {
 
         await waitFor(() => expect(navigate).toHaveBeenCalled());
         expect(go).not.toHaveBeenCalled();
-        // Only look at the first argument so this doesn't depend on argument count — so it still
-        // catches a call like addEventListener('popstate', fn) even if it comes back without options.
         expect(addListener.mock.calls.map(call => call[0])).not.toContain('popstate');
 
         go.mockRestore();
@@ -396,7 +348,7 @@ describe('LoginPage — 로그인 후 복귀', () => {
         currentLocation = { state: { returnTo: '/mypage' } };
         render(<LoginPage />);
 
-        fireEvent.click(screen.getByTestId('login-phone')); // The sheet must be open to be mounted
+        fireEvent.click(screen.getByTestId('login-phone'));
         fireEvent.click(screen.getByTestId('phone-verified'));
 
         expect(navigate).toHaveBeenCalledWith(-1);
@@ -404,8 +356,6 @@ describe('LoginPage — 로그인 후 복귀', () => {
 });
 
 describe('LoginPage — sign-in options', () => {
-    // Phone sign-in used to be held to development builds. Nothing here reads the build stage any more,
-    // so the button is on screen in a release build exactly as in this test.
     it('offers phone sign-in below social in the app', () => {
         render(<LoginPage />);
 
@@ -415,8 +365,6 @@ describe('LoginPage — sign-in options', () => {
         expect(screen.getByText('mypageLogin.socialFirstNotice')).toBeTruthy();
     });
 
-    // Social is native-only, so in a browser the account-split warning is the only mention of it —
-    // one line that also says where social lives, with no divider separating phone from nothing.
     it('offers only phone sign-in in a browser, with the app-only social warning', () => {
         mockIsNative = false;
         render(<LoginPage />);
@@ -429,7 +377,6 @@ describe('LoginPage — sign-in options', () => {
 });
 
 describe('LoginPage — policy links', () => {
-    // Pushed, not replaced: the policy page's back must land on this login entry with its returnTo.
     it('pushes the in-app terms page', () => {
         render(<LoginPage />);
 
@@ -447,10 +394,6 @@ describe('LoginPage — policy links', () => {
         expect(navigate).toHaveBeenCalledWith('/mypage/policy/privacy');
     });
 
-    // The `Trans` mock renders every link whatever the text says, so it cannot see a tag the
-    // translation lost or misspelled — production would then show plain words with no link. This
-    // reads the shipped resources and checks each language marks both words, under the key the
-    // screen actually asks for.
     it.each(['en', 'ko'])('marks both links in the %s translation of the key the screen uses', lang => {
         render(<LoginPage />);
         const key = 'mypageLogin.termsAgreementLinks';
@@ -465,8 +408,6 @@ describe('LoginPage — policy links', () => {
         expect(text).toMatch(/<privacy>[^<]+<\/privacy>/);
     });
 
-    // The credential arrives on this screen's subscriber; leaving mid-flow would unmount it and drop
-    // a sign-in the user already finished in the provider's UI.
     it('stays put while an OAuth round trip is open', () => {
         render(<LoginPage />);
 

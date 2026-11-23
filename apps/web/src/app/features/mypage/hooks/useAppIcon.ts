@@ -7,20 +7,8 @@ import { runtime } from '@chatic/runtime';
 
 import { recordAppIconChange } from '../../../runtime/telemetry/appIcon';
 
-/**
- * Whether an icon id names the primary icon. The app reports it as `DefaultIcon` (its stored
- * name), lists it with a `null` id, and this hook starts from `'default'` before the app has
- * answered — all three are the same icon, and comparing against only some of them left the
- * picker with no row checked while the primary icon was in use.
- */
 export const isDefaultAppIcon = (id: string | null): boolean => id === null || id === 'default' || id === 'DefaultIcon';
 
-/**
- * Encapsulates native app-icon support: fetching the current icon and the
- * available icon list on mount, changing the icon, and resolving the
- * localized label for the current icon. No-ops unless the frame offers alternate
- * icons (the host's `appShell` port); `isSupported` stays false there.
- */
 export const useAppIcon = () => {
     const { t } = useTranslation();
     const [isSupported, setIsSupported] = useState(false);
@@ -61,7 +49,6 @@ export const useAppIcon = () => {
         try {
             const applied = await appIcon.change(iconId);
             if (applied) {
-                // The icon the app says it applied, not the one asked for: that is what the user now has.
                 recordAppIconChange(currentIcon, applied.iconName ?? iconId);
                 setCurrentIcon(applied.iconName ?? 'default');
                 return true;

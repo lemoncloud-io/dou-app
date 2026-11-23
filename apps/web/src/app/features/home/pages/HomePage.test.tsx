@@ -8,30 +8,18 @@ import { useFindMeSheetRequest } from '../../../stores/useFindMeSheetRequest';
 import { ROUTES } from '../../../routes/paths';
 import { MAX_PLACES } from '../../../utils';
 
-// This suite covers ONE thing: how HomePage branches on relay vs cloud (ADR-0091). Children are
-// stubbed to markers so the assertions are about which sections mount, not their internals.
-
 let selectedCloudId: string | null = 'default';
 let pairedCloudIds: string[] = [];
 let pairedCloudNames: Record<string, string> = {};
-// The active place (site). Mutable so a test can drop to "no place active", where the place-settings
-// route has no id to key off.
 let selectedSiteId: string | null = 'site-1';
-// Membership drives the tier pill (header + profile menu). Mutable so a test can be a subscriber,
-// and so the "still fetching" state — where the tier is undecided — can be reproduced.
 let membership: { isValid: boolean } | undefined = { isValid: false };
 let isMembershipLoading = false;
-// Whether a session exists — the catalog refetch on a pull is gated on it, as its query is.
 let isAuthenticated = true;
-// The relay cloud catalog. `hasCloudCatalog` is whether it has answered at all — the banner waits for
-// it — and `isPendingClouds` keeps the tier open, since an active cloud alone makes it PRO.
 let catalog: { clouds: { id: string; status?: string }[]; hasCloudCatalog: boolean; isPendingClouds: boolean } = {
     clouds: [],
     hasCloudCatalog: true,
     isPendingClouds: false,
 };
-// The Lab switch behind "Invite to place". On by default here so the menu's own gate is what the
-// invite tests drive; one test turns it off.
 let isPlaceInviteEnabled = true;
 
 jest.mock('react-i18next', () => ({
@@ -41,7 +29,6 @@ const navigateMock = jest.fn();
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => navigateMock,
-    // Pinned channels moved to @chatic/shared — stub the hook (needs the config store).
     usePinnedChannels: () => ({ pinnedIds: [], toggle: jest.fn(), reorder: jest.fn() }),
 }));
 jest.mock('@chatic/runtime', () =>
@@ -53,13 +40,10 @@ jest.mock('@chatic/runtime', () =>
             usePairedCloudIds: () => pairedCloudIds,
             usePairedCloudNames: () => pairedCloudNames,
         },
-        // Haptics play only where the frame has them (the host's `appShell` port); this page is in a
-        // browser, which has none.
         appShell: require('@chatic/runtime/testing').browserAppShell(),
     })
 );
 
-// The three things a pull re-asks. Spies, so the pull-to-refresh block can see each one go out.
 const refetchCloudsMock = jest.fn();
 const refetchMembershipMock = jest.fn();
 const requestBackgroundRefreshMock = jest.fn();
@@ -74,8 +58,6 @@ jest.mock('../../../runtime/backgroundRefresh', () => ({
 }));
 
 jest.mock('@chatic/web-ui-kit', () => ({
-    // The profile dropdown (and its tier pill) hangs off the header's `avatar` slot, so the stub has
-    // to render it — otherwise the menu never mounts.
     AppHeader: ({
         kind,
         name,
@@ -105,7 +87,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
     EmptyState: () => <div data-testid="empty-state" />,
     IconChevronRight: () => <i />,
     ProfileAvatar: () => <img alt="" />,
-    // The cloud home's conversation tabs: each tab a button carrying its count, the trailing ＋ beside.
     SegmentedTabs: ({ items, value, onChange, trailing, className }: any) => (
         <div data-testid="chat-tabs" data-value={value} className={className}>
             {items.map((item: any) => (
@@ -119,7 +100,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {trailing}
         </div>
     ),
-    // The gesture is the kit's to test; here a button stands in for a completed pull.
     PullToRefresh: ({
         children,
         onRefresh,
@@ -140,7 +120,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,
     DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
-    // A button, so a menu entry's own `disabled` and `onClick` are what the tests drive.
     DropdownMenuItem: ({ children, disabled, onClick }: any) => (
         <button type="button" disabled={disabled} onClick={onClick}>
             {children}
@@ -148,10 +127,8 @@ jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     ),
     DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
 }));
-// Stable across renders so a test can assert a branch does NOT toast.
 const toastMock = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: toastMock }) }));
-// `buildEnv` reads `import.meta`, which ts-jest's CommonJS transform cannot parse.
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 
 jest.mock('../../../hooks', () => ({
@@ -160,7 +137,6 @@ jest.mock('../../../hooks', () => ({
     useUserPermissions: () => ({ canCreatePlace: true }),
     useCachedCloudNames: () => ({}),
     useChannelUnreads: () => ({ byChannel: {}, byPlace: {} }),
-    // The app-wide shared observation home reads instead of subscribing for itself.
     useActiveCloudData: () => ({
         channels: activeCloudChannels,
         isLoaded: true,
@@ -168,22 +144,16 @@ jest.mock('../../../hooks', () => ({
         unreads: { byChannel: {}, byPlace: {}, total: 0 },
     }),
     useActiveCloudUnreads: () => ({ byChannel: {}, byPlace: {}, total: 0 }),
-    // The inbox where the session is — what the find-me row counts. Seeded per test.
     useScopedNotifications: () => scopedNotifications,
     useHomeChannels: () => ({ channels: homeChannels, isLoading: false }),
     useInvitedClouds: () => ({ invitedClouds }),
-    // Registration is the one join concern still scoped to home — a no-op here.
     useJoinSyncRegistration: jest.fn(),
     useMyJoins: () => new Map(),
     useOtherCloudUnread: () => ({ byCloud: {}, total: 0 }),
     useScrollRestoration: () => ({ containerRef: { current: null }, onScroll: jest.fn() }),
-    // The real one: the header and tab styling under a scroll is what it decides.
     useScrollChrome: jest.requireActual('../../../hooks/useScrollChrome').useScrollChrome,
     useOnboarding: () => ({ isFirstRun: false, completeOnboarding: jest.fn() }),
     useChannelSort: () => ({ channelSort: {}, setChannelSort: jest.fn() }),
-    // The dropdown entries navigate through this rather than through `navigate` directly, so that
-    // an open menu finishes leaving before the page transition snapshots the screen. Here it is
-    // just the navigate spy: the waiting is `menuDismissal`'s to test, not home's.
     useMenuNavigate: () => navigateMock,
     usePlaceInviteExperiment: () => ({ isEnabled: isPlaceInviteEnabled, setEnabled: jest.fn() }),
 }));
@@ -194,10 +164,6 @@ jest.mock('../../../ui/components', () => ({ BottomNavSpacer: () => <div /> }));
 jest.mock('../../onboarding', () => ({ OnboardingModal: () => null }));
 
 jest.mock('../components', () => ({
-    // Mirrors the create entries back out: the popover is the list's, but what the tap does (upsell
-    // vs create dialog) is decided here, in the page. The buttons follow their handlers (and the 1:1
-    // one its flag) so the stub says the same thing the real popover does: no handler, no entry.
-    // The relay's one list is `channel-list`; a cloud's tabbed, heading-less list is `cloud-list`.
     ChannelList: ({
         channels,
         isPro,
@@ -255,22 +221,18 @@ jest.mock('../components', () => ({
     CreateChannelDialog: ({ open }: { open: boolean }) => (open ? <div data-testid="create-channel-dialog" /> : null),
     CreatePlaceDialog: ({ open }: { open: boolean }) => (open ? <div data-testid="create-place-dialog" /> : null),
     InviteDialog: () => null,
-    // Surfaces the "+" so the place-cap branch can be driven from the page, as a user would.
     PlaceChipRow: ({ onCreatePlace }: { onCreatePlace: () => void }) => (
         <div data-testid="place-list">
             <button data-testid="add-place" onClick={onCreatePlace} />
         </div>
     ),
-    // The cloud home's ＋: one button per entry it would offer, so "no handler, no entry" reads the same.
     ChannelCreateMenu: ({ onCreate, showOneOnOneCreate, onCreateOneOnOne, showGroupCreate, onCreateGroup }: any) => (
         <>
-            {/* One direct action (the relay's 1:1) or the popover's 1:1 entry — the same start either way. */}
             {onCreate && <button data-testid="start-dm" onClick={onCreate} />}
             {showOneOnOneCreate && onCreateOneOnOne && <button data-testid="start-dm" onClick={onCreateOneOnOne} />}
             {showGroupCreate && onCreateGroup && <button data-testid="create-group" onClick={onCreateGroup} />}
         </>
     ),
-    // Mirrors the props back out: the cap dialog's two actions are wired here, in the page.
     PlaceLimitDialog: ({
         open,
         maxPlaces,
@@ -295,27 +257,17 @@ jest.mock('../components', () => ({
 }));
 jest.mock('../components/cloud-session', () => ({ getCloudDisplayName: () => 'Cloud' }));
 
-// The two hooks the ADR calls out as load-bearing on relay. Spies so we can assert they still run.
-// `places` is mutable so a test can seed the cloud up to (and past) the place cap.
 let places: { id: string; stereo: string; isOwner?: boolean }[] = [{ id: 'site-1', stereo: 'group' }];
-// The three inputs that decide what fills the Chat slot: the channel list, the "no place" empty
-// state, or — while none of it is known yet — the loading state.
 let isPlacesLoading = false;
 let selectedPlaceId: string | null = 'site-1';
 let isSwitchingPlace = false;
-// The active cloud's rooms as the shared observation holds them — the self chat atop the 1:1
-// section is read from it.
 let activeCloudChannels: unknown[] = [];
-// The notification inbox's items in scope — the find-me row counts the unread mentions, replies and reactions.
 let scopedNotifications: unknown[] = [];
-// The active place's rooms, as `useHomeChannels` slices them out of that observation.
 let homeChannels: unknown[] = [];
-// Clouds I am a guest in. The active cloud listed here makes me an invited member, not its owner.
 let invitedClouds: { id: string }[] = [];
 const useActiveCloudPlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId, switchPlace: jest.fn(), isSwitching: isSwitchingPlace }));
 const requestAddCloudMock = jest.fn();
-// Whether the profile banner is up is the nudge hook's call; the page only places it.
 let isProfileNudgeVisible = false;
 const usePlaceProfileNudge = jest.fn((_options: { nick?: string | null }) => ({
     isVisible: isProfileNudgeVisible,
@@ -323,7 +275,6 @@ const usePlaceProfileNudge = jest.fn((_options: { nick?: string | null }) => ({
     markPresent: jest.fn(),
 }));
 
-// Folded sections, as the stored record reports them. Mutable so a test can start with one folded.
 let collapsedSections: Record<string, true> = {};
 const setSectionOpenMock = jest.fn();
 
@@ -334,7 +285,6 @@ jest.mock('../hooks', () => ({
     usePlaceProfileNudge: (options: { nick?: string | null }) => usePlaceProfileNudge(options),
 }));
 jest.mock('../lib', () => ({ resolveHeaderProfile: () => ({ kind: 'site', name: 'me' }) }));
-// Relay invite rows (added to the page independently of this change).
 jest.mock('../../invite/hooks/useInviteListRows', () => ({
     useInviteListRows: () => ({ invites: [], isLoading: false }),
 }));
@@ -371,7 +321,6 @@ describe('HomePage — relay mode', () => {
     it('does not render the Place section', () => {
         render(<HomePage />);
 
-        // A relay cloud always has exactly one auto-connected place, so the list adds nothing.
         expect(screen.queryByTestId('place-list')).not.toBeInTheDocument();
     });
 
@@ -382,8 +331,6 @@ describe('HomePage — relay mode', () => {
     });
 
     it('keeps the banner off until the cloud catalog has answered', () => {
-        // Before the first answer `clouds` is an empty stand-in that reads as "owns no cloud", so an
-        // owner used to see the pitch on every cold start and watch it vanish a beat later.
         catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: true };
         render(<HomePage />);
 
@@ -400,8 +347,6 @@ describe('HomePage — relay mode', () => {
     it('still runs useActiveCloudPlaces and useSwitchPlace', () => {
         render(<HomePage />);
 
-        // THE load-bearing invariant: ChannelList keys off selectedPlaceId, which on relay only
-        // ever comes from useSwitchPlace's auto-select. Dropping these empties the relay home.
         expect(useActiveCloudPlaces).toHaveBeenCalled();
         expect(useSwitchPlace).toHaveBeenCalled();
     });
@@ -424,12 +369,9 @@ describe('HomePage — relay mode', () => {
         render(<HomePage />);
         fireEvent.click(screen.getByTestId('promo-banner'));
 
-        // First-time users get the explanation before being asked to pay. The switcher sheet's own
-        // footer button still opens the plan picker directly.
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
     });
 
-    // The relay has no group rooms: its row keeps one tab, its rooms all under it, self chat first.
     it('draws one tab over every room, led by the self chat', () => {
         homeChannels = [
             { id: 'r-dm', stereo: 'dm', cid: 'default', sid: '0000' },
@@ -444,7 +386,6 @@ describe('HomePage — relay mode', () => {
         expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-leads-with-self', 'true');
     });
 
-    // A tab picked in a cloud does not carry over: the relay's one tab is always the open one.
     it('stays on its one tab whatever a cloud left in the tab store', () => {
         useHomeChatTabStore.setState({ tab: 'group' });
         homeChannels = [{ id: 'r-dm', stereo: 'dm', cid: 'default', sid: '0000' }];
@@ -454,7 +395,6 @@ describe('HomePage — relay mode', () => {
         expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'r-dm');
     });
 
-    // On relay a 1:1 is reached by phone number, so the tab row's ＋ goes to the contact form.
     it('offers the 1:1 entry and sends it to the contact invite form', () => {
         render(<HomePage />);
         fireEvent.click(screen.getByTestId('start-dm'));
@@ -462,7 +402,6 @@ describe('HomePage — relay mode', () => {
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.invite.contact);
     });
 
-    // The relay has no group rooms, so its ＋ offers none — not even as an upsell.
     it('offers no group creation, paid or not', () => {
         const { unmount } = render(<HomePage />);
         expect(screen.queryByTestId('create-group')).not.toBeInTheDocument();
@@ -509,7 +448,6 @@ describe('HomePage — cloud mode', () => {
         render(<HomePage />);
 
         expect(screen.getByTestId('place-list')).toBeInTheDocument();
-        // The pitch is pointless once a cloud is connected.
         expect(screen.queryByTestId('promo-banner')).not.toBeInTheDocument();
     });
 
@@ -519,7 +457,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', 'cloud');
     });
 
-    // A cloud lists its rooms in one list under three tabs: every room, the group rooms, the 1:1s.
     it('lists every room under All and each kind under its own tab, with counts', () => {
         homeChannels = [
             { id: 'g-1', stereo: 'private', cid: 'cloud-1', sid: 'site-1' },
@@ -540,7 +477,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'site-1@me@peer');
     });
 
-    // Home unmounts on every navigation; the tab is held outside it so a trip into a room keeps it.
     it('comes back on the tab that was left', () => {
         const { unmount } = render(<HomePage />);
         fireEvent.click(screen.getByTestId('tab-dm'));
@@ -550,7 +486,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('chat-tabs')).toHaveAttribute('data-value', 'dm');
     });
 
-    // A count while the rooms are still arriving would claim an answer we do not have.
     it('withholds the tab counts while a place switch is in flight', () => {
         isSwitchingPlace = true;
         render(<HomePage />);
@@ -558,8 +493,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('tab-all')).toHaveAttribute('data-count', '');
     });
 
-    // The cloud's notes-to-self room belongs to the account, not the place: it leads All and the
-    // 1:1 tab, and the place's copy of it (it carries a place too) is listed under neither kind.
     it('leads All and the 1:1 tab with the self chat, and keeps it out of the group tab', () => {
         const self = { id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'site-1' };
         activeCloudChannels = [self];
@@ -574,7 +507,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-leads-with-self', 'false');
     });
 
-    // The ＋ at the end of the tabs is how a cloud 1:1 starts, so it is there before any 1:1 exists.
     it('starts a 1:1 from the tab row before any 1:1 exists', () => {
         render(<HomePage />);
 
@@ -589,8 +521,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('create-group')).toBeInTheDocument();
     });
 
-    // A 1:1 is between two people, not a room the place's owner hands out: an invited member may
-    // start one too, but not a group room.
     it('offers an invited member the 1:1 start but not group creation', () => {
         invitedClouds = [{ id: 'cloud-1' }];
         render(<HomePage />);
@@ -599,7 +529,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.queryByTestId('create-group')).not.toBeInTheDocument();
     });
 
-    // The relay's phone-number entry has no place in a cloud.
     it('offers no relay 1:1 entry in a cloud', () => {
         render(<HomePage />);
 
@@ -607,7 +536,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.queryByTestId('channel-list')).not.toBeInTheDocument();
     });
 
-    // The picker lists the session's place; while home shows another one, a switch is still moving.
     it('holds the 1:1 start while the shown place and the session place disagree', () => {
         selectedSiteId = 'site-2';
         render(<HomePage />);
@@ -616,7 +544,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
     });
 
-    // While the place's rooms are still loading the picker has no place to read members from.
     it('holds the 1:1 start while a place switch is in flight', () => {
         isSwitchingPlace = true;
         render(<HomePage />);
@@ -625,8 +552,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
     });
 
-    // An empty tab says only that its kind is empty; the place's own empty state (create one / rooms
-    // arrive by invitation, leave the place) is for All, where it means the place has no room at all.
     it('keeps the place empty state for All and a plain line for an empty tab', () => {
         render(<HomePage />);
         expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-empty-label', '');
@@ -646,8 +571,6 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-empty-label', '');
     });
 
-    // The empty room list's "you can leave this place" link opens the active place's information
-    // screen, where the Leave row is.
     it("points the empty room list's leave hint at the active place's information screen", () => {
         render(<HomePage />);
 
@@ -655,8 +578,6 @@ describe('HomePage — cloud mode', () => {
 
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.place.settingsDetail('site-1'));
     });
-    // jsdom lays nothing out, so the scroll area and the anchor before the tabs get just the top
-    // the page measures: the scroll area at 100, the anchor wherever the case puts it.
     it('pins the tabs under the header, moving the divider from the header to the tabs as they pin', () => {
         render(<HomePage />);
         const header = screen.getByTestId('header');
@@ -673,15 +594,12 @@ describe('HomePage — cloud mode', () => {
         expect(tabs).toHaveClass('sticky', 'top-[-8px]');
         expect(header).toHaveClass('border-transparent');
 
-        // The chips are sliding under the header: its edge carries the divider.
         scrollTo(30, 150);
         expect(header).toHaveClass('border-input-border');
 
-        // Not yet: the tabs pin 8px up, tucking their top padding under the header.
         scrollTo(76, 96);
         expect(header).toHaveClass('border-input-border');
 
-        // The tabs have pinned: their own underline is the divider now.
         scrollTo(84, 92);
         expect(header).toHaveClass('border-transparent');
 
@@ -690,9 +608,6 @@ describe('HomePage — cloud mode', () => {
     });
 });
 
-// Switching into a cloud this device has never opened leaves the Chat slot with nothing to show:
-// no place is selected yet, so there is no channel list, and the answer that would produce one has
-// not arrived. That slot used to render blank, which reads as an empty cloud.
 describe('HomePage — no place selected yet', () => {
     beforeEach(() => {
         selectedCloudId = 'cloud-1';
@@ -706,7 +621,6 @@ describe('HomePage — no place selected yet', () => {
         render(<HomePage />);
 
         expect(screen.getByRole('status')).toBeInTheDocument();
-        // The empty state is an ANSWER; claiming it here is the bug.
         expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
     });
 
@@ -726,8 +640,6 @@ describe('HomePage — no place selected yet', () => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
     });
 
-    // Where the last place of a cloud leaves the user: the cloud stays, and so does its self chat,
-    // which belongs to the account rather than to any place.
     it('keeps the cloud self chat on a cloud with no place left', () => {
         activeCloudChannels = [{ id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'S:one' }];
 
@@ -735,7 +647,6 @@ describe('HomePage — no place selected yet', () => {
 
         expect(screen.getByTestId('empty-state')).toBeInTheDocument();
         expect(screen.getByTestId('cloud-list')).toHaveAttribute('data-channel-ids', 'self');
-        // With no place there is nobody to pick, so the ＋ starts nothing.
         expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
     });
 
@@ -756,8 +667,6 @@ describe('HomePage — no place selected yet', () => {
     });
 
     it('covers relay too, where it is the only thing in the body', () => {
-        // Relay renders the promo banner instead of a Place rail, so there is no skeleton beside
-        // this slot — a cold first launch would otherwise show a header over nothing at all.
         selectedCloudId = 'default';
         isPlacesLoading = true;
 
@@ -768,7 +677,6 @@ describe('HomePage — no place selected yet', () => {
     });
 });
 
-// The place cap used to be a bare toast; it is now a dialog that offers the two ways out.
 describe('HomePage — place cap', () => {
     const addPlace = () => fireEvent.click(screen.getByTestId('add-place'));
 
@@ -785,8 +693,6 @@ describe('HomePage — place cap', () => {
     });
 
     it('opens the limit dialog — not a toast — once the cap is reached', () => {
-        // MAX_PLACES creatable places. Relay subscription rows (stereo 'place') don't count, so all
-        // five are 'group'.
         places = Array.from({ length: MAX_PLACES }, (_, i) => ({ id: `site-${i + 1}`, stereo: 'group' }));
         render(<HomePage />);
         addPlace();
@@ -807,8 +713,6 @@ describe('HomePage — place cap', () => {
             addPlace();
             fireEvent.click(screen.getByTestId('limit-manage'));
 
-            // The active site — not the first row of the list — is the place whose settings can free
-            // a slot.
             expect(navigateMock).toHaveBeenCalledWith(ROUTES.place.settings('site-1'));
         });
 
@@ -817,7 +721,6 @@ describe('HomePage — place cap', () => {
             render(<HomePage />);
             addPlace();
 
-            // Disabled rather than navigating to a route with no id.
             expect(screen.getByTestId('place-limit-dialog')).toHaveAttribute('data-can-manage', 'false');
         });
 
@@ -826,14 +729,12 @@ describe('HomePage — place cap', () => {
             addPlace();
             fireEvent.click(screen.getByTestId('limit-add-cloud'));
 
-            // The same request the switcher sheet raises — the cloud quota check lives in that flow.
             expect(requestAddCloudMock).toHaveBeenCalledTimes(1);
             expect(navigateMock).not.toHaveBeenCalled();
         });
     });
 });
 
-// The subscription badge in the profile dropdown (Figma 3108:25868) — DoU Home is always FREE; a cloud reads my actual tier.
 describe('HomePage — invite to place (profile menu)', () => {
     beforeEach(() => {
         selectedCloudId = 'cloud-1';
@@ -869,8 +770,6 @@ describe('HomePage — invite to place (profile menu)', () => {
     });
 
     it('is held while a place switch is moving the session', () => {
-        // The server files the invite under the session's site, so mid-switch it could land in the
-        // place being left.
         isSwitchingPlace = true;
         render(<HomePage />);
 
@@ -914,7 +813,6 @@ describe('HomePage — 프로필 메뉴 구독 뱃지', () => {
     });
 
     it('holds a placeholder instead of a badge while the tier is undecided (membership in flight)', () => {
-        // Guessing FREE and flipping to PRO tells a subscriber the wrong thing — same rule as the header pill.
         selectedCloudId = 'cloud-1';
         membership = undefined;
         isMembershipLoading = true;
@@ -925,7 +823,6 @@ describe('HomePage — 프로필 메뉴 구독 뱃지', () => {
     });
 });
 
-// The tier is read in the profile menu on a cloud; the header carries no pill since the home redesign.
 describe('HomePage — tier', () => {
     beforeEach(() => {
         selectedCloudId = 'cloud-1';
@@ -952,8 +849,6 @@ describe('HomePage — tier', () => {
     });
 
     it('stays undecided while the cloud catalog is pending, even with an invalid membership in hand', () => {
-        // The catalog can still turn up an active cloud, which alone makes the account PRO — so FREE
-        // here would be a guess that flips a beat later.
         membership = { isValid: false };
         catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: true };
         render(<HomePage />);
@@ -979,8 +874,6 @@ describe('HomePage — tier', () => {
     });
 
     it('settles on membership alone when the first catalog fetch failed, instead of pulsing forever', () => {
-        // A failed fetch is no longer pending, so it counts as answered for the tier — unlike the
-        // banner, which waits for actual data.
         membership = { isValid: false };
         catalog = { clouds: [], hasCloudCatalog: false, isPendingClouds: false };
         render(<HomePage />);
@@ -995,7 +888,6 @@ describe('HomePage — tier', () => {
     });
 });
 
-// On relay, "그룹 방 만들기" is an upsell-only entry point — it always leads to a subscription prompt, regardless of channel count.
 describe('HomePage — 그룹 방 만들기', () => {
     it('offers no group entry on the relay, which has no group rooms', () => {
         selectedCloudId = 'default';
@@ -1022,9 +914,6 @@ describe('HomePage — 그룹 방 만들기', () => {
         expect(screen.getByTestId('subscription-required')).toBeInTheDocument();
     });
 
-    // A room is created under the ACTIVE place. With none, `createChannel` falls back to an empty
-    // sid and writes the room into a scope no list reads — so the attempt is refused, not silently
-    // succeeded.
     describe('no active place', () => {
         it('refuses the attempt with a message instead of opening the dialog', () => {
             selectedCloudId = 'cloud-1';
@@ -1050,8 +939,6 @@ describe('HomePage — 그룹 방 만들기', () => {
         });
 
         it('closes an already-open dialog when the place goes away mid-flow', () => {
-            // The dialog is mounted outside the Chat section, so a cloud switch or a revoked place
-            // would otherwise leave a form that submits with no sid.
             selectedCloudId = 'cloud-1';
             membership = { isValid: true };
 
@@ -1105,7 +992,6 @@ describe('HomePage — pull to refresh', () => {
 });
 
 describe('HomePage — place profile banner', () => {
-    // The banners sit under the chat tabs, above the rooms — in a cloud below the place chips too.
     it('shows the banner in a cloud under the chat tabs', () => {
         selectedCloudId = 'cloud-1';
         isProfileNudgeVisible = true;
@@ -1125,7 +1011,6 @@ describe('HomePage — place profile banner', () => {
         );
     });
 
-    // One banner at a time on the relay: naming yourself comes before the cloud upsell.
     it('takes the cloud promo turn on the relay while it shows', () => {
         selectedCloudId = 'default';
         isProfileNudgeVisible = true;
@@ -1143,7 +1028,6 @@ describe('HomePage — place profile banner', () => {
         expect(screen.getByTestId('promo-banner')).toBeInTheDocument();
     });
 
-    // The nick is what hides the banner the moment a save writes it, from wherever it was saved.
     it('hands the nudge my cached nick', () => {
         render(<HomePage />);
 
@@ -1151,8 +1035,6 @@ describe('HomePage — place profile banner', () => {
     });
 });
 
-// "Messages looking for you": the unread mentions and replies to me, under the tabs. The row asks the
-// shell for the sheet; it is not drawn while nothing is waiting.
 describe('HomePage — find-me row', () => {
     const item = (over: Record<string, unknown>) => ({
         id: String(Math.random()),

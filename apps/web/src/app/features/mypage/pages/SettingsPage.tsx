@@ -19,10 +19,6 @@ import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled'
 
 const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
 
-/**
- * Settings depth — everything the MY hub used to stack under the profile. Reached from the hub's
- * gear; not a tab, so the floating nav is absent here (UnifiedLayout matches `/mypage` exactly).
- */
 export const SettingsPage = () => {
     const navigate = useNavigateWithTransition();
     const { t } = useTranslation();
@@ -49,15 +45,9 @@ export const SettingsPage = () => {
     const { clearLocalCaches, isClearing } = useClearLocalCaches();
 
     const isMobilePlatform = deviceInfo?.platform === 'ios' || deviceInfo?.platform === 'android';
-    // iOS only: Android has no live-version source yet (see ADR-0033), so a status label there would
-    // be a guess rather than a check. `updateAvailable` is the live bridge check, not
-    // versionInfo.shouldUpdate — the latter comes from the boot-time injection and is always false
-    // on a cold start (see useAppUpdateStatus).
     const showUpdateStatus = deviceInfo?.platform === 'ios';
 
-    // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
     const goToLogout = () => navigate(ROUTES.auth.logout);
-    // An approving app first ends the web sign-ins it approved (with a confirm when there are any).
     const pairingEnabled = useDevicePairingEnabled();
     const pairingLogout = runtime.session.usePairingAwareLogout(goToLogout);
     const handleLogout = () => {
@@ -71,29 +61,21 @@ export const SettingsPage = () => {
         setTheme(isDarkTheme ? 'light' : 'dark');
     };
 
-    // Part of the update check (the host's `appShell` port): the frame that found the newer build opens
-    // its own store listing. Without a store to check, no update is ever found and the row never calls this.
     const handleOpenStore = () => runtime.appShell.storeUpdate?.openStore();
 
     const versionText = isMobilePlatform
         ? `v${versionInfo?.appVersion} (App) / v${versionInfo?.webVersion} (Web)`
         : `v${versionInfo?.webVersion}`;
 
-    // The version row opens the store only when an update is pending. Debug unlock lives in the
-    // dedicated Lab screen so this informational row has no hidden side effect.
     const versionRowGoesToStore = showUpdateStatus && updateAvailable;
 
     return (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
-            {/* The page itself is the scrollport, so the bar has to stick: left in the flow it
-                would scroll away and take the frosted notch strip with it, and the rows passing
-                the status bar would pass it unblurred. */}
             <div className="sticky top-0 z-20 shrink-0">
                 <PageHeader title={t('mypage.settings.title')} />
             </div>
 
             <div className="flex flex-col gap-[18px] px-4 pb-8 pt-4">
-                {/* Notifications — a depth of its own; the toggles live one level down. */}
                 <MenuCard title={t('mypage.settings.sections.notification')}>
                     <ListRow
                         title={t('mypage.notificationSettings')}
@@ -102,7 +84,6 @@ export const SettingsPage = () => {
                     />
                 </MenuCard>
 
-                {/* App settings */}
                 <MenuCard title={t('mypage.settings.sections.app')}>
                     <ListRow
                         title={t('mypage.darkMode')}
@@ -130,8 +111,6 @@ export const SettingsPage = () => {
                             onClick={() => setIsAppIconSheetOpen(true)}
                         />
                     )}
-                    {/* No confirm step: the tap clears and reloads. The spinner stands in for the chevron
-                        until the reload, and the row stays disabled so a second tap can't start another sweep. */}
                     <ListRow
                         title={t('mypage.clearCache.title')}
                         trailing={
@@ -160,10 +139,7 @@ export const SettingsPage = () => {
                     />
                 </MenuCard>
 
-                {/* Support & info */}
                 <MenuCard title={t('mypage.settings.sections.support')}>
-                    {/* Sole entry point for feedback — reachable by guests too, since `reportIssue`
-                        accepts an unauthenticated session (ADR-0096). */}
                     <ListRow
                         title={t('mypage.feedback')}
                         trailing={<Chevron />}
@@ -176,7 +152,6 @@ export const SettingsPage = () => {
                     />
                 </MenuCard>
 
-                {/* Version */}
                 <MenuCard>
                     <ListRow
                         title={t('mypage.appVersion')}
@@ -206,7 +181,6 @@ export const SettingsPage = () => {
                     />
                 </MenuCard>
 
-                {/* Logout */}
                 {!isGuest && (
                     <MenuCard>
                         <ListRow

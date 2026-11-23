@@ -63,175 +63,49 @@ const PHOTO_ACCEPT = CHAT_IMAGE_TYPES.join(',');
 
 const NO_SOURCES: readonly ChatAttachmentSource[] = [];
 
-/** One empty pick for the row above the field, so an idle composer hands it the same array each render. */
 const NO_PHOTOS: PhotoItem[] = [];
 
 type HeldFile = HeldFileDraft;
 
 const NO_FILES: readonly HeldFile[] = [];
 
-/** Counts every file held on this page, so a chip's key stays unique across rooms and remounts. */
 let heldSeq = 0;
 
-/** What waits in `scope`'s composer, kept from an earlier visit; nothing without a scope. */
 const heldIn = (scope: string | undefined): readonly HeldFile[] =>
     (scope !== undefined && useComposerDraftStore.getState().held[scope]) || NO_FILES;
 
-/** Keeps what waits in `scope`'s composer for the next visit, and for the chat list's draft mark. */
 const keepHeld = (scope: string | undefined, files: readonly HeldFile[]) => {
     if (scope !== undefined) useComposerDraftStore.getState().setHeld(scope, files);
 };
 const NO_FILE_ITEMS: PickedFileItem[] = [];
 
-/**
- * How long after a tap the page may still open its own file input. iOS WebKit lets `click()` open a
- * picker only within about a second of the gesture, and a shell without the attachment picker says so
- * in one bridge round trip (tens of milliseconds). Past this the input would silently not open, so the
- * user is asked to tap again — by then the page knows, and the next tap opens it at once.
- */
 export const INPUT_CLICK_WINDOW_MS = 800;
 
 interface UseChatImageAttachInput {
-    /**
-     * Sends the accepted files as one message, or with `separately` as one message each, with
-     * `content` as the caption — `useSendImages().sendImages`.
-     */
     sendImages: (files: ChatAttachmentSource[], options?: runtime.data.SendImagesOptions) => Promise<void>;
-    /** Same lock as the composer: nobody to send to, or a message being edited. */
     disabled?: boolean;
-    /** The composer's textarea, so opening the panel can drop the keyboard it would otherwise keep. */
     inputRef?: RefObject<HTMLTextAreaElement | null>;
-    /**
-     * The composer's bar, padded by `COMPOSER_PADDING_BOTTOM`: the panel's slot writes its share of that
-     * padding on it, at once or frame by frame with the panel's slide (`useAttachPanelSlot`).
-     */
     composerRef?: RefObject<HTMLElement | null>;
-    /**
-     * Told `true` as the panel's slide starts moving the composer and `false` once it has stopped, so
-     * the page can keep its list in step without a render per frame.
-     */
     onComposerSlide?: (sliding: boolean) => void;
-    /**
-     * Hands back a caption that went nowhere: nothing in the pick it was sent with could be sent. The
-     * page cleared its field at the press, so it can put the text back.
-     */
     onUnsentText?: (text: string) => void;
-    /**
-     * Names the conversation the composer sends to — a room, a thread. The files waiting above the
-     * composer are that conversation's: kept under it when the composer moves on or unmounts, and
-     * found again when it comes back, for as long as the app runs. The router keeps the page mounted
-     * when only its params change (a push banner tapped in one room opens another), so a change of
-     * scope swaps them in place. The in-app pick is not kept: it goes, with the panel. Without a
-     * scope nothing is kept.
-     */
     scope?: string;
-    /**
-     * The voice entry: what it opens — `useVoiceMessage().open`. Left out where the app cannot record,
-     * and the panel then draws no voice entry.
-     */
     onVoice?: () => void;
-    /** Test seam — the in-app picker's state. */
     picker?: PhotoPicker;
-    /** Test seam — the app's video and document picker. */
     shellPicker?: AttachmentPicker;
-    /** Test seam — the clock the tap window is measured with. */
     now?: () => number;
-    /** Test seam — the app's answer about the camera, asked before the camera entry opens it. */
     cameraAccess?: CameraAccessGate;
 }
 
 interface ChatImageAttach {
-    /** For the composer's leading slot. */
     button: ReactNode;
-    /**
-     * What waits for the composer's send button: the in-app pick as a row of small thumbnails, and the
-     * files from the files entry as a row of chips under it. Render it inside the composer, directly
-     * above its field, and keep rendering it: it is empty while there is nothing to show there (nothing
-     * waits, the panel is open and its recent row shows every picked item, or the composer is locked),
-     * and the thumbnails need to stay mounted to fold themselves away. Null only where the in-app pick
-     * does not exist and no file waits.
-     */
     strip: ReactNode;
-    /**
-     * The panel, the pickers and the hidden inputs — render once, inside the page's positioned
-     * full-height container: the panel lays itself along that container's bottom edge.
-     */
     overlays: ReactNode;
-    /** Whether the attach panel is open, in the keyboard's place under the composer. */
     panelOpen: boolean;
-    /**
-     * Something is picked or a file waits — shown in the open panel, above the composer, or both: the
-     * composer's send button sends it, typed text or not.
-     */
     sendReady: boolean;
-    /**
-     * Sends the pick and the waiting files as one message with `text` as its caption, and closes the
-     * panel if it is open. False when there was nothing to send — the page then sends its text as usual.
-     * `mention` is who the caption calls out, as the composer picked it; it travels with the caption.
-     */
     sendPicked: (text: string, mention?: ChatMentionBody) => boolean;
-    /**
-     * The composer's field took focus: the keyboard takes the panel's place (`useAttachPanelSlot`). The
-     * pick stays, in `strip`.
-     */
     closePanel: () => void;
 }
 
-/**
- * The composer's attach flow: the button in the input, the panel it opens in the keyboard's place, and
- * the pickers behind the panel's entries. Picked files are judged here — format, size, a photo tapped
- * twice, the per-message limit — and what passes goes to `sendImages` at once: from the file inputs,
- * the camera and the app's own album picker there is no tray and no confirmation, the pick IS the send.
- *
- * The files entry ("choose from files") is the exception among those: a document is usually sent with
- * a word about it, so what passes waits above the composer's field as a row of chips (`strip`), and the
- * composer's send button sends it with whatever is typed as its caption — together with the in-app
- * pick, if there is one, as one message. The files wait there until they are sent or removed by their
- * own ×; closing the panel does not let them go, since they no longer live in it. The judgement is
- * the one every pick gets, made at the pick, and the per-message limit counts the waiting files and
- * the in-app pick together.
- *
- * A photo among them stays in the app until the send: the shell keeps it, and its bytes are read when
- * the send button is pressed, so a file waiting there costs the page no memory. One that cannot be
- * read then is refused alone, and the rest still go. The waiting files belong to their conversation
- * (`scope`): moving to another room or thread puts that one's in their place, and coming back — or
- * back to the page after leaving it — finds them again while the app runs. The in-app pick is not
- * kept that way; it goes, with the panel.
- *
- * The in-app pick waits for a send button too. The panel's recent row and the grid behind it pick into
- * one list; while something is picked the composer's send button sends it, with whatever is typed as
- * its caption, and the grid's own button sends it without one. Before either is pressed the picked
- * photos can be cropped, turned and mirrored in a full-screen editor over the grid, and the grid's
- * checkbox chooses between one message for the whole pick (the default, remembered per device) and
- * one message each. The editor and the grouping are the in-app pick's alone, and only it and the files
- * entry wait: the camera, the photos entry's file input and the album send at once, as they always did.
- *
- * The panel stands in for the keyboard: it opens at the last keyboard height seen, the composer stays
- * above it, and focusing the field hands its place back to the keyboard — the two trade places without
- * moving the composer (`useAttachPanelSlot`). That keeps the pick — the
- * field is where a caption is typed — and the pick stays on screen: a row of small thumbnails directly
- * above the composer's field (`strip`), where each can be removed or opened in the editor, and the
- * send button stays live for it. Photos never wait out of sight for a button that would send them.
- * × and Escape (Android back) dismiss the panel, and the pick with it.
- *
- * Two ways to pick photos, and the shell decides which:
- * - **The in-app pick**, in the app: recent photos in the panel, the full grid behind "see all" and
- *   behind the photos entry. Opening the panel asks the shell once for the newest photos.
- * - **The page's own file input** in a browser.
- *
- * The camera entry is a capturing file input in every shell. In a browser it opens the camera straight
- * from the tap. Inside the app it first asks the app for the camera permission, because Android's
- * WebView opens nothing at all for that input without it, and says nothing either: a refusal shows the
- * settings prompt instead, and a grant answered after the tap window asks for another tap.
- *
- * The files entry opens a sheet — choose from the album (photos and videos) or from files
- * (documents). In the app both open the OS pickers through the shell, which keeps the videos and
- * documents and hands back their addresses: a large video never passes through the page. In a browser
- * they open the page's own inputs, whose files the page uploads itself. The shell is asked at the tap, since the message itself opens its picker.
- *
- * The voice entry, in an app that records, closes the panel and hands over to the page's recording
- * sheet (`useVoiceMessage`).
- */
 export const useChatImageAttach = ({
     sendImages,
     disabled = false,
@@ -249,15 +123,11 @@ export const useChatImageAttach = ({
     const { t } = useTranslation();
     const slot = useAttachPanelSlot({ inputRef, composerRef, onComposerSlide });
     const { hide: hidePanel } = slot;
-    // The settings prompt for a refused permission. Its kind outlives `open`, so the title does not
-    // change under the prompt while it fades out.
     const [permission, setPermission] = useState<{ open: boolean; kind: 'photos' | 'camera' }>({
         open: false,
         kind: 'photos',
     });
     const [sourceOpen, setSourceOpen] = useState(false);
-    // A probe asked and not answered yet. Its answer is what `supported` turns into, but a probe that
-    // fails on the way leaves `supported` unknown, and the panel should stop waiting for it all the same.
     const [probing, setProbing] = useState(false);
     const libraryRef = useRef<HTMLInputElement>(null);
     const cameraRef = useRef<HTMLInputElement>(null);
@@ -266,10 +136,6 @@ export const useChatImageAttach = ({
     const appleTouch = isAppleTouchWebKit();
     const gridColumns = usePhotoGridColumns();
 
-    // The files from the files entry, waiting for the send button. Mirrored in a ref because the app's
-    // picker answers after the tap, and the judgement it gets must count what waits by then.
-    // Kept per conversation as they change (`keepHeld`), so a scope change or an unmount has nothing
-    // left to save.
     const [held, setHeldState] = useState<readonly HeldFile[]>(() => heldIn(scope));
     const heldRef = useRef<readonly HeldFile[]>(held);
     const scopeRef = useRef(scope);
@@ -285,8 +151,6 @@ export const useChatImageAttach = ({
         setHeldState(next);
         keepHeld(scopeRef.current, next);
     }, []);
-    // One message carries ten at most, and the waiting files are part of the message the in-app pick
-    // goes in: the grid and the recent row lock once the two together reach the limit.
     const photoMax = Math.max(0, IMAGE_MESSAGE_SLOT_MAX - held.length);
 
     const own = usePhotoPicker({
@@ -298,15 +162,10 @@ export const useChatImageAttach = ({
     const inGrid = picker.supported === true;
     const grouping = usePhotoSendGrouping();
     const panelOpen = slot.open && !disabled;
-    // While a send reads the in-app pick, nothing more is sent: the waiting files may be on their way
-    // with it, and a second press would send them twice.
-    // Likewise while a send reads the waiting photos out of the shell.
     const [readingHeld, setReadingHeld] = useState(false);
     const busy = picker.preparing || readingHeld;
     const sendReady = (picker.picked.length > 0 || held.length > 0) && !busy && !disabled;
 
-    // The editor over the pick, opened from the grid or from the row above the composer. `editsAtOpen`
-    // is what ✕ goes back to: the edits made since the editor opened are the ones it throws away.
     const [editorOpen, setEditorOpen] = useState(false);
     const [editorOver, setEditorOver] = useState<'grid' | 'composer'>('grid');
     const [editorIndex, setEditorIndex] = useState(0);
@@ -315,13 +174,6 @@ export const useChatImageAttach = ({
     const editorVisible = editorOpen && !disabled && (editorOver === 'composer' || picker.gridOpen);
     const editorAt = Math.min(editorIndex, Math.max(0, picker.picked.length - 1));
 
-    /**
-     * Judges a pick and says once why anything was refused; returns what passed. Shared by the file
-     * inputs, the grid and the app's picker. What the shell would not copy is reported first, under the
-     * same one-notice rule. The page judges the rest again either way rather than trust the shell. The
-     * photo entries take photos only, whatever a system picker let through. `max` is how many of the
-     * items the message still has room for.
-     */
     const judge = useCallback(
         (
             items: ChatAttachmentSource[],
@@ -333,7 +185,6 @@ export const useChatImageAttach = ({
             }: {
                 refusedByShell?: AttachmentPick['refused'];
                 photosOnly?: boolean;
-                /** Edited photos the grid could not draw — refused under their own notice. */
                 editFailed?: number;
                 max?: number;
             } = {}
@@ -343,7 +194,6 @@ export const useChatImageAttach = ({
                       const judged = judgeChatImages(items as File[], max);
                       return {
                           accepted: judged.accepted,
-                          // The image-only judgement names no kind; a photo's limit is the one it met.
                           rejected: judged.rejected.map(({ file, reason }) =>
                               reason === 'too-large'
                                   ? { item: file, reason, kind: 'image' as const }
@@ -352,9 +202,6 @@ export const useChatImageAttach = ({
                       };
                   })()
                 : judgeChatAttachments(items, max, PHONE_SENDS);
-            // One notice per pick, for the first reason met — a list of every refused file is noise. A
-            // photo whose edit could not be drawn comes first: it was picked and worked on, and now it
-            // is the one thing missing from what was sent.
             const [shellFirst] = refusedByShell;
             if (editFailed > 0) {
                 toast({ title: t('chat.attach.edit.bakeFailed') });
@@ -375,7 +222,6 @@ export const useChatImageAttach = ({
         [t]
     );
 
-    /** Judges a pick and sends what passes, as one message — or with `separately`, one message each. */
     const send = useCallback(
         (
             items: ChatAttachmentSource[],
@@ -385,22 +231,17 @@ export const useChatImageAttach = ({
                 mention,
                 ...judging
             }: Parameters<typeof judge>[1] & {
-                /** The grid's "one message each". */
                 separately?: boolean;
-                /** What was typed when the composer's send button sent the pick. */
                 caption?: string;
-                /** Who the caption calls out — it has no meaning without the caption. */
                 mention?: ChatMentionBody;
             } = {}
         ) => {
             const accepted = judge(items, judging);
             if (accepted.length === 0) {
-                // The caption's only way out was this pick; it goes back to the field instead.
                 if (caption) onUnsentText?.(caption);
                 return;
             }
             const options: runtime.data.SendImagesOptions = {};
-            // A single item is the same message either way, so it goes exactly as any other pick does.
             if (separately && accepted.length > 1) options.separately = true;
             if (caption) options.content = caption;
             if (caption && mention) options.mention = mention;
@@ -411,7 +252,6 @@ export const useChatImageAttach = ({
         [judge, sendImages, onUnsentText, t]
     );
 
-    /** Keeps files above the composer, after what already waits there. */
     const keepAbove = useCallback(
         (accepted: readonly ChatAttachmentSource[]) => {
             const before = heldRef.current;
@@ -429,12 +269,8 @@ export const useChatImageAttach = ({
         [setHeld]
     );
 
-    // Audio picked on its own is confirmed in a sheet (Figma 6072:22980) rather than waiting above the
-    // composer; a pick of audio with anything else waits there as every file does.
     const [audioToSend, setAudioToSend] = useState<readonly ChatAttachmentSource[] | null>(null);
-    // Open apart from the list, so the sheet keeps drawing what it held while it slides away.
     const [audioSheetOpen, setAudioSheetOpen] = useState(false);
-    // A pick with audio in it that had files refused says which, and asks about the rest (Figma 6072:23077).
     const [unsendable, setUnsendable] = useState<{
         refused: { key: string; name: string; reason: string }[];
         rest: readonly ChatAttachmentSource[];
@@ -453,15 +289,6 @@ export const useChatImageAttach = ({
         [keepAbove]
     );
 
-    /**
-     * Judges a pick from the files entry and keeps what passes above the composer, after what already
-     * waits there. The waiting files are judged again with it, ahead of it, so a file picked a second
-     * time is refused as the same item, and the limit counts them and the in-app pick as one message.
-     *
-     * A pick with audio in it, made while nothing waits, goes another way: refusals are listed in a
-     * dialog rather than reduced to one toast, an empty file is refused as such, and audio alone is
-     * confirmed in the send sheet.
-     */
     const hold = useCallback(
         (items: ChatAttachmentSource[], { refusedByShell }: { refusedByShell?: AttachmentPick['refused'] } = {}) => {
             const before = heldRef.current;
@@ -509,10 +336,6 @@ export const useChatImageAttach = ({
         [judge, keepAbove, picker.picked.length, proceedWithPick, t]
     );
 
-    /**
-     * Sends the audio the sheet confirmed, as one message — the way waiting files go with the send
-     * button, minus the caption: the sheet has no field.
-     */
     const sendAudio = (items: readonly ChatAttachmentSource[]) => {
         if (items.length === 0) return;
         shellPicker
@@ -526,7 +349,6 @@ export const useChatImageAttach = ({
     const pickedFrom = useCallback(
         (photosOnly: boolean) => (event: ChangeEvent<HTMLInputElement>) => {
             const files = Array.from(event.target.files ?? []);
-            // Cleared at once so picking the same photo again still fires a change.
             event.target.value = '';
             send(files, { photosOnly });
         },
@@ -540,15 +362,10 @@ export const useChatImageAttach = ({
         hold(files);
     };
 
-    // A lock that lands while the panel is up (a message being edited) closes it, rather than leaving
-    // it to come back when the lock lifts. Before paint, so the panel and the composer leave together.
     useLayoutEffect(() => {
         if (disabled) hidePanel();
     }, [disabled, hidePanel]);
 
-    // Another conversation in the same page: the files that waited stay with the one before (already
-    // kept there), and this one's come back. Sent from here they would land in the wrong room. The
-    // in-app pick is not kept per room, so it goes. Before paint, so no chip shows under the wrong room.
     const { clearPicked, closeGrid } = picker;
     useLayoutEffect(() => {
         if (scopeRef.current === scope) return;
@@ -564,10 +381,6 @@ export const useChatImageAttach = ({
         hidePanel();
     }, [scope, clearPicked, closeGrid, hidePanel]);
 
-    /**
-     * × and Escape: the person is done attaching, so the pick goes too. The waiting files stay: they
-     * are above the composer, not in the panel, and have an × of their own.
-     */
     const dismissPanel = () => {
         hidePanel();
         picker.clearPicked();
@@ -578,14 +391,8 @@ export const useChatImageAttach = ({
             dismissPanel();
             return;
         }
-        // Before the blur below: whether the keyboard is up decides how the panel arrives.
         slot.show();
-        // The composer keeps the caret through taps on its own chrome, this button included — so the
-        // keyboard stays up unless it is dropped here. With it up, the panel is already in place behind
-        // it, and the keyboard sliding away is what reveals it.
         inputRef?.current?.blur();
-        // Asked on every open, not once: the library changes while the app is away, and the answer
-        // is also how an unknown shell is learned. Only that first answer has the recent row waiting.
         if (picker.supported === null) {
             setProbing(true);
             void picker.probe().finally(() => setProbing(false));
@@ -594,19 +401,11 @@ export const useChatImageAttach = ({
         }
     };
 
-    // Close first, then open the picker: the OS chooser covers the page, and what it picks is sent at
-    // once — the panel has nothing left to do. The panel's own pick stays for its next opening.
     const pickFrom = (ref: RefObject<HTMLInputElement | null>) => () => {
         hidePanel();
         ref.current?.click();
     };
 
-    /**
-     * The camera entry. Inside the app the permission is asked for first (see the hook's description),
-     * until a grant has been seen: from then on the tap opens the camera itself, so only the tap that
-     * raised the OS prompt costs a second one. An answer that lands after the composer left, or moved
-     * to another conversation, is dropped — its prompt or toast would be about a tap on another screen.
-     */
     const openCamera = () => {
         hidePanel();
         if (runtime.media.cameraPermission === null || cameraAccess.isGranted()) {
@@ -623,18 +422,11 @@ export const useChatImageAttach = ({
         });
     };
 
-    /**
-     * Opens the app's picker for this source, or the page's input when the shell has none. Once the page
-     * knows the shell has none it opens the input straight from the tap. What the album gives is sent at
-     * once; what the files picker gives waits above the composer.
-     */
     const pickFromShell = (source: AttachmentPickSource, ref: RefObject<HTMLInputElement | null>) => () => {
         setSourceOpen(false);
         const holds = source === 'document';
-        // The files picker is asked for no more than the message still has room for.
         const room = holds ? IMAGE_MESSAGE_SLOT_MAX - picker.picked.length - held.length : IMAGE_MESSAGE_SLOT_MAX;
         if (room <= 0) {
-            // A selection limit of 0 means "no limit" to some system pickers; there is simply no room.
             toast({ title: t('chat.attach.rejected.limit', { max: IMAGE_MESSAGE_SLOT_MAX }) });
             return;
         }
@@ -650,7 +442,6 @@ export const useChatImageAttach = ({
                 else send(picked.items, { refusedByShell: picked.refused });
             })
             .catch(error => {
-                // A second tap while the picker opens or copies: the first one is still under way.
                 if ((error as { code?: string })?.code === 'BUSY') return;
                 toast({ title: t('chat.attach.sendFailed'), variant: 'destructive' });
             });
@@ -661,7 +452,6 @@ export const useChatImageAttach = ({
         setSourceOpen(true);
     };
 
-    // The grid opens over the panel and closes back onto it, on the same pick.
     const openGrid = () => {
         if (picker.access === 'denied') {
             setPermission({ open: true, kind: 'photos' });
@@ -675,9 +465,6 @@ export const useChatImageAttach = ({
         if (photo) picker.toggle(photo);
     };
 
-    // Judged like any pick, since the grid now lists videos too; what the shell would not keep is
-    // reported the way its own picker's refusals are. The grouping is read at the press: what the box
-    // says then is what the person chose. Whichever button sent it, the panel the pick lives in closes.
     const sendPick = (caption = '', mention?: ChatMentionBody) => {
         if (picker.preparing) return;
         const separately = !grouping.grouped;
@@ -699,9 +486,6 @@ export const useChatImageAttach = ({
             });
     };
 
-    // The composer's send button, with the field's text as the caption — from the open panel or from
-    // the row above the composer alike. The grid's and the editor's buttons send the photos alone and
-    // leave the text, and the waiting files, where they are.
     const sendPicked = (text: string, mention?: ChatMentionBody): boolean => {
         if (!sendReady) return false;
         const caption = text.trim();
@@ -713,11 +497,6 @@ export const useChatImageAttach = ({
         }
         const withPick = picker.picked.length > 0;
         hidePanel();
-        // The files keep waiting while their photos — and then the in-app pick's — are read, so a read
-        // that fails loses none of them. Their photos are read first: one photo on the bridge at a time,
-        // and a failure there leaves the in-app pick as it was. Photos and files go as one message, the
-        // in-app pick first as it was picked first in the panel, and whatever the grouping box says: it
-        // is the grid's, and speaks for its photos alone.
         setReadingHeld(true);
         shellPicker
             .readPhotos(waiting.map(file => file.source))
@@ -725,8 +504,6 @@ export const useChatImageAttach = ({
                 const picked: Awaited<ReturnType<PhotoPicker['takePicked']>> = withPick
                     ? await picker.takePicked()
                     : { items: [], refused: [] };
-                // The composer may have moved on while the photos were read: the sent files leave the
-                // conversation they waited in, wherever it is now.
                 if (scopeRef.current === sentFrom) {
                     setHeld(heldRef.current.filter(file => !waiting.includes(file)));
                 } else {
@@ -750,13 +527,8 @@ export const useChatImageAttach = ({
         return true;
     };
 
-    /** A video, and a photo read and found to be a GIF, are shown in the editor but not edited. */
     const isEditable = (item: PhotoItem) => item.kind !== 'video' && picker.editAssets.get(item.id)?.editable !== false;
 
-    /**
-     * Opens the editor at a tapped strip photo, or — from the grid's Edit button — at the first editable
-     * one. `over` is where it closes back to: the grid, or the composer and the row above its field.
-     */
     const openEditor = (over: 'grid' | 'composer', id?: string) => {
         if (picker.preparing || picker.picked.length === 0) return;
         const at =
@@ -773,14 +545,11 @@ export const useChatImageAttach = ({
         setDiscardOpen(false);
     };
 
-    // "완료" and ✕ go back to where the editor was opened. Over the composer, the bytes it read go as it
-    // closes, as they go when the grid closes: the pick waits there for as long as a caption takes.
     const leaveEditor = () => {
         closeEditor();
         if (editorOver === 'composer') picker.releaseBytes();
     };
 
-    // ✕ keeps nothing made since the editor opened, so it asks first — but only when that is something.
     const cancelEditor = () => {
         if (editsDiffer(editsAtOpen.current, picker.edits)) setDiscardOpen(true);
         else leaveEditor();
@@ -791,23 +560,15 @@ export const useChatImageAttach = ({
         leaveEditor();
     };
 
-    // The editor's send is the grid's: opened over the grid it closes onto it, which says it is
-    // preparing; opened over the composer, the row there says so. The bytes it read go to the send.
     const sendFromEditor = () => {
         closeEditor();
         sendPick();
     };
 
-    // An editor opened over the grid lives on it: once the grid has gone — a send finished, the sheet
-    // was closed — there is nothing for it to show. One opened over the composer has no grid under it.
     useEffect(() => {
         if (!picker.gridOpen && editorOver === 'grid') closeEditor();
     }, [picker.gridOpen, editorOver]);
 
-    // The photo on screen is read first, then the ones either side, so a swipe usually lands on one
-    // that is ready. Asking again for what is read or on its way costs nothing. Once the editor closes,
-    // what was still waiting is dropped: each read holds a whole photo in page memory, and one the
-    // editor will not show is the send's to make, in its turn. A read under way finishes.
     const { picked: pickedItems, loadForEdit } = picker;
     useEffect(() => {
         if (!editorVisible) {
@@ -829,16 +590,8 @@ export const useChatImageAttach = ({
         />
     );
 
-    // What the panel's recent row shows: the newest items, where the library can be read and was let.
     const recentItems = inGrid && picker.access !== 'denied' ? picker.recent : NO_PHOTOS;
-    // In the app, the first opening on a page asks the library whether it is there at all, and the panel
-    // draws before it answers. The row stands there in skeleton tiles meanwhile, so the panel's entries
-    // under it are where they will stay once the photos come; told there is no library, the row closes
-    // and they rise with it. Kept in the panel for that, as long as the app may have a library, even
-    // with nothing to draw — it draws nothing then, and the panel is told so (`recentEmpty`), so its
-    // entries settle in the middle as the row folds. A browser never has one, and never gets the row.
     const recentPending = picker.supported === null && probing;
-    // Nothing to draw and nothing on its way: the library refused, cannot be read, or holds nothing.
     const recentKnownEmpty = !recentPending && recentItems.length === 0;
     const recent =
         runtime.media.photoLibrary !== null || inGrid ? (
@@ -856,37 +609,21 @@ export const useChatImageAttach = ({
             />
         ) : undefined;
 
-    // The pick above the composer whenever some of it is out of sight — while the panel is closed (for
-    // the keyboard, most often), and while it is open with a pick its recent row does not hold, one made
-    // in the grid past the newest items. Still on screen, still the send button's: nothing goes unseen.
-    // While the open panel's row holds every picked item, the row is where the pick shows.
     const removePicked = (id: string) => {
         const item = picker.picked.find(photo => photo.id === id);
         if (item) picker.toggle(item);
     };
     const inRecentRow = new Set(panelOpen ? recentItems.map(item => item.id) : []);
     const stripShown = !disabled && picker.picked.some(item => !inRecentRow.has(item.id));
-    // The waiting files have no other place on screen, so they show whatever the panel does.
     const filesShown = !disabled && held.length > 0;
     const heldItems = filesShown
         ? held.map(({ id, source }) => ({ id, name: source.name, size: source.size }))
         : NO_FILE_ITEMS;
-    // Mounted whenever the in-app pick exists, and handed an empty pick while there is nothing to show:
-    // the row folds itself away, which it can only do while it is still here. The 8px between it and
-    // the field is the row's own margin, inside what it opens and closes, so the composer grows and
-    // shrinks in one movement — the same space on this wrapper would move on a timing of its own. The
-    // waiting files' chips sit under the thumbnails, nearest the field, and have no motion of their own.
-    // A browser has no in-app pick, so there it exists only while a file waits.
     const strip =
         inGrid || held.length > 0 ? (
             <div
-                // The field keeps the caret through a tap on the row, as it does through the composer's own
-                // chrome: removing a photo while typing its caption must not drop the keyboard and the
-                // composer with it. `mousedown` too — on iOS WebKit the focus moves there.
                 onPointerDown={event => event.preventDefault()}
                 onMouseDown={event => event.preventDefault()}
-                // While the send reads the pick the row stays, faded and inert: the field has already
-                // cleared, and a video coming down from iCloud can take a while to become a message.
                 aria-busy={((stripShown || filesShown) && busy) || undefined}
                 className={`transition-opacity${busy ? ' pointer-events-none opacity-50' : ''}`}
             >
@@ -934,7 +671,6 @@ export const useChatImageAttach = ({
     const editorItems: PhotoEditorItem[] = picker.picked.map(item => {
         const asset = picker.editAssets.get(item.id);
         const edit = picker.edits.get(item.id);
-        // The editor draws the copy only with the size its edit is measured in; until then, the preview.
         const ready = asset?.status === 'ready' && asset.src && asset.width && asset.height ? asset : undefined;
         return {
             id: item.id,
@@ -948,7 +684,6 @@ export const useChatImageAttach = ({
         };
     });
 
-    // A ratio reads the same in every language — and i18next would take its colon for a namespace.
     const aspectLabels: Record<CropAspect, string> = {
         free: t('chat.attach.edit.aspectFree'),
         original: t('chat.attach.edit.aspectOriginal'),
@@ -999,7 +734,6 @@ export const useChatImageAttach = ({
             />
             <AttachPanel
                 ref={slot.panel.ref}
-                // The slot moves it, frame by frame with the composer (`useAttachPanelSlot`).
                 motion="external"
                 open={slot.panel.open}
                 height={slot.panel.height}
@@ -1013,7 +747,6 @@ export const useChatImageAttach = ({
                 onVoice={
                     onVoice &&
                     (() => {
-                        // The recording sheet takes the panel's place, as the files sheet does.
                         hidePanel();
                         onVoice();
                     })
@@ -1034,8 +767,6 @@ export const useChatImageAttach = ({
                 onAlbum={pickFromShell('media', albumRef)}
                 onFiles={pickFromShell('document', filesRef)}
                 labels={{ album: t('chat.attach.source.album'), files: t('chat.attach.source.files') }}
-                // iOS WebKit's own input cannot send videos (it hands them over as QuickTime), so where
-                // the page input is what opens, say what would.
                 notice={appleTouch && shellPicker.isUnsupported() ? t('chat.attach.source.videoInApp') : undefined}
             />
             {inGrid && (
@@ -1148,7 +879,6 @@ export const useChatImageAttach = ({
                     meta: formatAudioMeta(audioDurations.get(source), source.size) || undefined,
                 }))}
                 onRemove={key => {
-                    // The last one out closes the sheet: there is nothing left to confirm.
                     const next = (audioToSend ?? []).filter((_, at) => String(at) !== key);
                     if (next.length) setAudioToSend(next);
                     else setAudioSheetOpen(false);

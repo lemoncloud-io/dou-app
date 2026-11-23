@@ -14,7 +14,6 @@ describe('CloudUnreadBadge — 스위처 읽지 않음 뱃지 (Figma 4147:24964)
     it('"N"은 장식 글리프이므로 접근성 이름은 i18n 라벨에서 온다', () => {
         render(<CloudUnreadBadge />);
 
-        // The screen reader must get the "Unread" label, never the bare letter.
         const badge = screen.getByRole('status', { name: 'cloudSessionSheet.unreadBadge' });
         expect(badge).toHaveTextContent('N');
         expect(badge.querySelector('[aria-hidden="true"]')).not.toBeNull();
@@ -23,8 +22,6 @@ describe('CloudUnreadBadge — 스위처 읽지 않음 뱃지 (Figma 4147:24964)
     it('20×20 핑크 디스크 토큰을 쓰고 절대 줄어들지 않는다', () => {
         render(<CloudUnreadBadge />);
 
-        // `bg-point-pink` is the token for Figma Colors/Pink (#FF2D55) — no raw hex.
-        // `shrink-0` keeps the badge whole while the name truncates (Figma 3486:25664).
         expect(screen.getByRole('status')).toHaveClass('size-5', 'rounded-full', 'bg-point-pink', 'shrink-0');
     });
 });
@@ -68,7 +65,6 @@ describe('스위처 행들이 하나의 뱃지 컴포넌트를 공유한다', ()
 
         const label = screen.getByText('cloudSessionSheet.douHome');
         expect(label).toHaveClass('truncate');
-        // The truncating label and the badge share a `min-w-0` row, so overflow lands on the name.
         expect(label.parentElement?.className).toContain('min-w-0');
         expect(label.parentElement).toContainElement(screen.getByRole('status'));
     });

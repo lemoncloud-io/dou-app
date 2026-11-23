@@ -17,9 +17,6 @@ describe('toError — 에러 정규화', () => {
         expect(toError(null).message).toBe('null');
     });
 
-    // The bug this covers: a raw DOM Event as an unhandledrejection reason (e.g. lemon-model's
-    // abandoned WebSocket-open promise rejecting with the connect failure event) used to collapse
-    // to the useless message "[object Event]" via String(event). Real production case.
     it('WebSocket 타겟을 가진 Event는 url/readyState를 메시지에 담는다', () => {
         const target = { url: 'wss://relay.test/socket', readyState: 3 };
         const event = new Event('error');
@@ -47,7 +44,6 @@ describe('getSocketErrorCode — 소켓 에러 상태 코드', () => {
     });
 
     it('recovers the status from the message prefix the socket lib rejects with', () => {
-        // Shape produced by PendingRequestStore.settle: `${message.error} - ${message.type}`.
         expect(getSocketErrorCode(new Error('403 FORBIDDEN - auth.verify-hash-alias:error'))).toBe(403);
         expect(getSocketErrorCode(new Error('408 REQUEST TIMEOUT - invite.create[mid-1]'))).toBe(408);
     });
@@ -60,7 +56,6 @@ describe('getSocketErrorCode — 소켓 에러 상태 코드', () => {
     it('returns undefined when the failure carries no status', () => {
         expect(getSocketErrorCode(new Error('socket request failed - invite.get:error'))).toBeUndefined();
         expect(getSocketErrorCode(undefined)).toBeUndefined();
-        // Not a status: only 1xx–5xx at the start of the message counts.
         expect(getSocketErrorCode(new Error('2026 is not a status'))).toBeUndefined();
         expect(getSocketErrorCode(new Error('code 403 appears mid-sentence'))).toBeUndefined();
     });

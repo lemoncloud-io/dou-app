@@ -5,41 +5,21 @@ import { countOwnedClouds, evaluateCloudQuota, type CloudQuotaReason } from '../
 import { usePlanCatalog } from './usePlanCatalog';
 
 export interface CloudQuota {
-    /** Clouds currently owned (released ones excluded). */
     used: number;
-    /** The plan's allowance, or `null` when the app cannot resolve it. */
     limit: number | null;
     canAdd: boolean;
-    /** Why not, when `canAdd` is false. Absent while still loading. */
     reason?: CloudQuotaReason;
     isLoading: boolean;
-    /**
-     * The cloud list or the membership is being re-read. `isLoading` covers the first read only; a
-     * screen that mounts over cached data re-reads both (`refetchOnMount: 'always'`) while still
-     * answering from the cache, and a decision that spends the allowance waits for the fresh answer.
-     */
     isFetching: boolean;
 }
 
-/**
- * The one place that decides whether another cloud may be added.
- *
- * Every "＋ 클라우드 추가" affordance goes through this — the rule used to be inlined as
- * `MAX_CLOUDS = 1` in the home flow and `clouds.length >= 1` on the plans page, and two copies of a
- * rule is a rule waiting to drift. The allowance comes from the plan catalog, never from
- * `membership.product$` (which is a head and has no `maxClouds`).
- */
 export const useCloudQuota = (): CloudQuota => {
     const { summary, isLoading: isCatalogLoading, currentPlan } = usePlanCatalog();
     const { data: cloudsData, isLoading: isCloudsLoading, isFetching: isCloudsFetching } = useClouds({ limit: -1 });
-    // The same query `usePlanCatalog` already runs, so this adds no request — only the server's
-    // provisioning verdict, which the catalog's summary deliberately leaves out.
     const { data: membership, isFetching: isMembershipFetching } = useMembershipInfo();
 
     const isLoading = isCatalogLoading || isCloudsLoading;
     const used = countOwnedClouds(cloudsData?.list ?? []);
-    // `currentPlan` is already the catalog join against the FULL plan list, so there is no second
-    // place to look: `null` here means the app genuinely cannot resolve the allowance.
     const limit = currentPlan?.maxClouds ?? null;
 
     const verdict = evaluateCloudQuota({ used, limit, state: summary.state, isValid: membership?.isValid });
@@ -48,8 +28,6 @@ export const useCloudQuota = (): CloudQuota => {
         used,
         limit,
         canAdd: !isLoading && verdict.canAdd,
-        // Suppress the reason until the inputs have landed: "구독이 필요해요" on a half-loaded
-        // membership is worse than saying nothing for a moment.
         reason: isLoading ? undefined : verdict.reason,
         isLoading,
         isFetching: isCloudsFetching || isMembershipFetching,

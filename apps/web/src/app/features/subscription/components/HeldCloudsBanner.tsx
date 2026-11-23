@@ -7,14 +7,6 @@ import { useClouds } from '../../../hooks/useCloudCatalog';
 import { ROUTES } from '../../../routes/paths';
 import { findHeldClouds } from '../lib';
 
-/**
- * Says how many clouds the relay has put on hold after a downgrade, and where to deal with them.
- *
- * This reads the relay's own hold (`state$.hold`), not a guess. The banner it replaced worked the
- * excess out on the app side — newest clouds past the allowance — and had to say that it might be
- * wrong; once the user can choose what to keep, the relay holds exactly what they did not choose,
- * so the app only reports it. Releasing a cloud stays where it was, in cloud management.
- */
 export const HeldCloudsBanner = () => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();

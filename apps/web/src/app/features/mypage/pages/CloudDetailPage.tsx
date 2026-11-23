@@ -32,21 +32,6 @@ const TONE_CLASS: Record<CloudStatusTone, string> = {
     danger: 'text-destructive',
 };
 
-/**
- * "클라우드 정보" — one cloud, read-only, and the one place it is released (Figma 4992-48744).
- *
- * The rows are the catalog's facts: name, when it was made, the recovery address bound to it, and
- * its standing in words (`cloudStatusWord`). A fact the relay did not send is not drawn — the
- * created date, say — except the recovery email, whose absence is itself the fact.
- *
- * This is the one place a cloud's recovery email is set. Creating a cloud and entering one never
- * ask for it, so a cloud without one is an ordinary cloud, not an unfinished one: the field says
- * "not registered", offers to register, and explains what the address buys (getting the cloud back
- * on a new device or after a reinstall) without pressing for it.
- *
- * Releasing is irreversible and cascades, so it is confirmed, and a release of the ACTIVE cloud
- * ends the cloud session and reloads: the session's tokens name a cloud that no longer exists.
- */
 const loadLogin = () => {
     window.location.href = ROUTES.auth.login;
 };
@@ -64,8 +49,6 @@ export const CloudDetailPage = ({ leaveForLogin = loadLogin }: { leaveForLogin?:
     const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
 
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-    // The catalog patch below empties `cloud` before the release finishes; without this the
-    // not-mine redirect would fire mid-release, ahead of the logout and the toast.
     const isReleasing = useRef(false);
 
     useEffect(() => {
@@ -94,7 +77,6 @@ export const CloudDetailPage = ({ leaveForLogin = loadLogin }: { leaveForLogin?:
             }
             navigate(ROUTES.mypage.cloud.manage, { replace: true });
         } catch (error) {
-            // Releasing a cloud is irreversible and cascades; a failure has to leave a trace.
             logger.error('CLOUD', 'cloud release failed', { error, data: { cloudId: id } });
             haptics.play('error');
             toast({ title: t('mypage.cloudManage.deleteFailed'), variant: 'destructive' });
@@ -104,7 +86,6 @@ export const CloudDetailPage = ({ leaveForLogin = loadLogin }: { leaveForLogin?:
 
     const name = cloud ? cloudDisplayName(cloud) : '';
     const word = cloud ? cloudStatusWord(cloud) : undefined;
-    // Zero-padded and locale-aware, the same format the place information screen uses.
     const createdAt = cloud?.createdAt
         ? new Intl.DateTimeFormat(i18n.language, { year: 'numeric', month: '2-digit', day: '2-digit' }).format(
               cloud.createdAt

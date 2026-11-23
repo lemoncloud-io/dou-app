@@ -3,7 +3,6 @@ import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
 import { buildPurchaseProduct, matchNativeProduct } from './nativeProducts';
 
-/** The parent SKU every google tier shares — `ProductView.planId` holds this, not a tier. */
 const GOOGLE_PARENT_SKU = 'dou_pro_subscription';
 
 const googlePlan = (tier: number): ProductView =>
@@ -18,7 +17,6 @@ const googleNative = (tier: number, tokens?: { freeTrial?: string | null; base?:
         basePlanId: `pro-tier-0${tier}`,
         androidOfferToken: {
             freeTrial: tokens?.freeTrial ?? null,
-            // `null` must survive: the no-usable-token case is a real store state.
             base: tokens && 'base' in tokens ? tokens.base : `base-0${tier}`,
         },
     }) as unknown as IapProductSubscription;
@@ -39,8 +37,6 @@ describe('matchNativeProduct', () => {
     });
 
     it('회귀 방지: planId(부모 SKU)로는 절대 매칭되지 않는다', () => {
-        // The spot where the home sheet used to look up `p.basePlanId === selectedProduct.planId`
-        // and silently killed Android purchases. No native product has the parent SKU as its basePlanId.
         const natives = [googleNative(1), googleNative(2)];
         const planIdMatch = natives.find(p => p.basePlanId === googlePlan(2).planId);
 

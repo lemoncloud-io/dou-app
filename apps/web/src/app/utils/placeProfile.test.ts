@@ -21,7 +21,6 @@ describe('isPlaceProfileAbsent', () => {
         await expect(isPlaceProfileAbsent(reader({ nick: '   ', active: false }))).resolves.toBe(true);
     });
 
-    // Fail open: the create form seeds from an empty nick, so guessing "absent" risks overwriting.
     it.each([
         ['active is true', { active: true }],
         ['active is undefined', {}],

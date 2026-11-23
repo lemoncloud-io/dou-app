@@ -15,7 +15,6 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
     beforeEach(() => {
         postMock.mockClear();
         requestMock.mockClear();
-        // Default: request resolves so callers can await without hanging
         requestMock.mockResolvedValue({ success: true, data: {} });
     });
 
@@ -50,9 +49,6 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         });
     });
 
-    // Regression pin: starting login is not a round trip that waits for a response. Reverting to
-    // `request` would run into the bridge's default 15s budget against a human's Google/Apple
-    // interaction time, discarding a credential that had already been issued.
     it('startOAuthLogin은 request가 아니라 post로 요청만 쏜다', () => {
         appBridge.startOAuthLogin('google');
 
@@ -73,7 +69,6 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         appBridge.fetchFcmToken();
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'FetchFcmToken', data: {} });
 
-        // Only account linking waits for the response. Since it's a human-driven flow, it doesn't use the default 15s.
         appBridge.oauthLogin('apple');
         expect(requestMock).toHaveBeenLastCalledWith(
             { type: 'OAuthLogin', data: { provider: 'apple' } },
@@ -85,7 +80,6 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
     });
 
     it('purchase는 push 이벤트로 결과가 오므로 post를 호출한다', () => {
-        // Purchase result comes via OnPurchaseSuccess / OnPurchaseError push events, not request-response
         appBridge.purchase({ id: 'sku_1', offerToken: 'offer', newPlanId: 'plan' });
         expect(postMock).toHaveBeenLastCalledWith({
             type: 'Purchase',
@@ -150,8 +144,6 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         });
     });
 
-    // The ring buffer and its four `*AppLogBuffer` messages are retired; this pins that the methods
-    // that sent them do not come back.
     it('폐지된 log-buffer 메서드를 더 이상 노출하지 않는다', () => {
         expect('fetchAppLogBuffer' in appBridge).toBe(false);
         expect('pollAppLogBuffer' in appBridge).toBe(false);
@@ -191,21 +183,15 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(postMock).toHaveBeenLastCalledWith({ type: 'OpenStore', data: {} });
     });
 
-    // The handshake is not a one-way notification but a capability exchange — for the web to detect
-    // an app older than itself, it has to read the response (main.tsx does the recording).
     it('notifyWebAppReady는 request로 보내고 앱의 capability 응답을 돌려준다', async () => {
         const report = {
             cacheSchemaVersion: 7,
             supportedCacheTypes: ['chat', 'channel'],
-            // ADR-0053: per-domain contract editions ride the same reply. Passed straight through —
-            // main.tsx hands the whole payload to setNativeCacheSupport.
             cacheDomainVersions: { chat: 1, channel: 1 },
         };
         requestMock.mockResolvedValueOnce({ success: true, data: report });
 
         await expect(appBridge.notifyWebAppReady()).resolves.toEqual(report);
-        // The handshake declares that this build sends FirstScreenReady, which is what lets a shell
-        // tell it apart from an older build and wait for the signal instead of lifting its splash.
         expect(requestMock).toHaveBeenLastCalledWith({ type: 'WebAppReady', data: { holdsBootSplash: true } });
     });
 
@@ -214,7 +200,6 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         expect(postMock).toHaveBeenLastCalledWith({ type: 'FirstScreenReady', data: {} });
     });
 
-    // On a plain browser with no native bridge, a reject is expected — it must not break boot.
     it('브릿지가 없어 요청이 실패하면 reject 대신 null이다', async () => {
         requestMock.mockRejectedValueOnce(new Error('no native bridge'));
 

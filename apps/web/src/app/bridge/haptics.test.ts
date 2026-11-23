@@ -2,7 +2,6 @@ import { haptics } from './haptics';
 
 const play = jest.fn();
 let mockHaptics = true;
-// The frame's haptics, as the host's `appShell` port offers them; a browser has none.
 jest.mock('@chatic/runtime', () => {
     const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
     return fakeRuntimeModule({

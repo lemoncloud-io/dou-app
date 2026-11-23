@@ -3,17 +3,6 @@ import type { Page } from '@playwright/test';
 import { go, navTile, openSelfRoom, panel } from '../support/app';
 import { expect, test } from '../support/test';
 
-/**
- * The Notifications panel. The inbox is kept on the device, filled from what the socket delivers while
- * the app runs, so a scenario puts items into that store itself — pointing at the account's own
- * notes-to-self room, so opening one has somewhere real to go — instead of waiting for another person
- * to mention this account.
- */
-/**
- * Replaces what the inbox holds, through the running app's own store. Not by rewriting its
- * `localStorage` copy and reloading: the app writes that copy whenever the store changes, and a write
- * landing between the two lost the items. The dev server serves the module at its source path.
- */
 const setInbox = (page: Page, items: object[]) =>
     page.evaluate(async seeded => {
         const path = '/src/app/shared/stores/useMentionsStore.ts';
@@ -28,8 +17,6 @@ const seedInbox = async (page: Page) => {
     const channelId = await page.evaluate(
         () => JSON.parse(localStorage.getItem('chatic-selected-channel') ?? '{}').state?.selectedChannelId as string
     );
-    // Far past the room's last message: the room is open, and anything at or below what I have read in
-    // it is marked read along with it.
     const chatNo = 1_000_000_000;
     const now = Date.now();
     const items = [
@@ -83,7 +70,6 @@ test.describe('notifications', () => {
 
     test('groups items by day, filters by tab and to unread, and sorts', async ({ app }) => {
         const inbox = await seedInbox(app);
-        // An unread mention marks the destination's tile.
         await expect(navTile(app, 'Notifications')).toHaveAccessibleName('Notifications, something unread');
 
         await expect(inbox.getByRole('region', { name: 'Today' })).toBeVisible();
@@ -124,10 +110,8 @@ test.describe('notifications', () => {
         await item.getByRole('button').click();
 
         await expect(app.getByRole('main').getByRole('heading', { level: 1, name: 'You' })).toBeVisible();
-        // Read now, but still listed under Unread while it shows as the one just opened…
         await expect(item).toBeVisible();
         await expect(item.getByRole('button')).toHaveAttribute('aria-current', 'true');
-        // …and gone once the three seconds are up.
         await expect(item).toHaveCount(0, { timeout: 6_000 });
         await expect(cards(inbox)).toHaveCount(1);
     });
@@ -158,7 +142,6 @@ test.describe('notifications', () => {
         await inbox.getByRole('button', { name: 'Selection options' }).click();
         await app.getByRole('menuitem', { name: 'Mark all as read' }).click();
 
-        // The toast's text, and its copy read out by the live region.
         const toast = app.getByText('Marked 2 notifications as read').first();
         await expect(toast).toBeVisible();
         await expect(navTile(app, 'Notifications')).toHaveAccessibleName('Notifications');

@@ -20,39 +20,22 @@ import { haptics } from '../../bridge/haptics';
 import { ROUTES } from '../../routes/paths';
 import { useKeyboardOpen } from '../hooks/useKeyboardOpen';
 
-/**
- * The floating tab bar's height above the bottom inset: a 62px pill on an 18px offset. While the
- * bar is on screen, the snackbar rests this much higher so it lands above the bar instead of over
- * the tabs. The toaster is mounted above the router and cannot tell which screen is showing, so the
- * bar announces itself through `useToastLift`.
- */
 export const BOTTOM_NAV_TOAST_LIFT = 80;
 
 const isActivePath = (pathname: string, path: string): boolean =>
     path === '/' ? pathname === '/' : pathname === path || pathname.startsWith(path + '/');
 
 export interface BottomNavigationProps {
-    /** Chat-tab unread count. Owned by the layout that renders the nav (UnifiedLayout). */
     unreadTotal?: number;
-    /** The notifications tab's dot — an unread notification where the session is. Also the layout's. */
     hasUnreadNotifications?: boolean;
 }
 
-/**
- * App bottom navigation — the routing adapter around the design-system
- * FloatingTabBar. Owns the tab set — Chat / Notifications / My, with Mini apps second while
- * `feature.miniApp.tab` is on — and route-based active state;
- * the unread count is supplied by the layout, and the visual/floating/safe-area
- * concerns live in the kit component. Rendered once by UnifiedLayout (not per page).
- */
 export const BottomNavigation = ({ unreadTotal = 0, hasUnreadNotifications = false }: BottomNavigationProps) => {
     const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
     const { pathname } = useLocation();
     const miniAppTab = runtime.settings.useConfigValue<boolean>('feature.miniApp.tab') === true;
 
-    // The WebView does not shrink under the keyboard, so the bar is behind it then and lifts
-    // nothing — the snackbar already rides on the keyboard height.
     useToastLift(useKeyboardOpen() ? null : BOTTOM_NAV_TOAST_LIFT);
 
     const items = [
@@ -94,7 +77,6 @@ export const BottomNavigation = ({ unreadTotal = 0, hasUnreadNotifications = fal
         },
     ];
 
-    // A tick as the bar snaps to another tab; re-tapping the tab already open plays nothing.
     const select = (key: string) => {
         if (!items.find(item => item.key === key)?.active) haptics.play('selection');
         navigate(key, { replace: true });
