@@ -36,7 +36,9 @@ The PR body shows the change, not only links to a private artifact.
 - **Screenshots**: `node docs/config/skills/dou-ship/references/pr-assets.mjs --pr <number> <image>...` pushes
   them to the PR's own orphan branch `pr-assets/pr-<number>` (files at its root) and prints the Markdown image
   lines (`https://raw.githubusercontent.com/lemoncloud-io/dou-app/pr-assets/pr-<number>/<file>`). When the PR
-  closes, `--pr <number> --remove` deletes the branch. Other `pr-assets/*` branches are never touched.
+  closes without merging, `.github/workflows/pr-assets-cleanup.yml` deletes the branch (`--pr <number> --remove`
+  does the same by hand); a merged PR keeps it, so its body's images keep loading. Other `pr-assets/*`
+  branches are never touched.
 - **Fake data only.** The repository is public and a pushed image stays in git history after removal. Push only
   screenshots from fake-data runs — web-e2e, the fake shell, a component harness. Never a real account, a dev
   server's data, a device's home screen, or anything with a token, email, phone number or name of a real person.

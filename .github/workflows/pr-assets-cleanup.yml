@@ -1,8 +1,10 @@
 name: pr assets cleanup
 
-# Deletes the orphan branch `pr-assets/pr-<n>` once its pull request closes, merged or not. The
+# Deletes the orphan branch `pr-assets/pr-<n>` when its pull request closes without merging. The
 # branch holds the screenshots verify.yml's `e2e-results` job and dou-ship's `pr-assets.mjs` push for
-# that pull request; nothing links them after it closes.
+# that pull request, and the pull request's body and "Verification results" comment keep linking
+# them. A merged pull request keeps its branch, so anyone opening it later still sees what it changed;
+# an abandoned one has nothing worth keeping.
 #
 # `pull_request_target` for a token that can delete the branch; nothing from the pull request's
 # branch runs. The script comes from the base branch, and a base without it has nothing to clean.
@@ -18,6 +20,7 @@ concurrency:
 
 jobs:
     cleanup:
+        if: ${{ !github.event.pull_request.merged }}
         name: delete pr-assets/pr-${{ github.event.pull_request.number }}
         runs-on: ubuntu-latest
         permissions:
