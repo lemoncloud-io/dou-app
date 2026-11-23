@@ -10,7 +10,7 @@
             "executor": "nx:run-commands",
             "options": {
                 "cwd": "apps/web-e2e",
-                "command": "playwright test --grep-invert \"@visual|@load\""
+                "command": "playwright test --grep @visual"
             }
         },
         "e2e-chaos": {
