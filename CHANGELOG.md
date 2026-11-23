@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-23] - root@0.173.2, @chatic/web@0.101.1
+
+### Documentation
+
+- (web) list the boot, adapter, build and storage docs once in the shell and state indexes
+
+### Chores
+
+- (comments) remove comments from the rest of apps/web
+
 ## [2026-11-23] - No version updates
 
 ### Chores
