@@ -1,22 +1,13 @@
 # Auto-merge eligibility
 
-A PR merges without a second reviewer only when it provably does not change behaviour, or is a small fix.
-CI (verify and e2e) must be green in every case; the `no-auto-merge` label turns it off.
+The rules and the classifier live in [`scripts/auto-merge/README.md`](../../../../../scripts/auto-merge/README.md)
+(ADR-0365); `.github/workflows/auto-merge.yml` applies them and comments its verdict on the PR. This page is only
+what to do around it.
 
-**Provably unchanged**
-
-- comment-only: the AST with comments stripped is identical and no directive comment was removed
-  (`dou-cleanup/references/ast-equality.mjs`);
-- a ratchet baseline lowered and nothing else;
-- tests added with no source change;
-- module docs changed (not ADRs, not AGENTS.md or skills).
-
-**Small fix** — all of: every commit is `fix`; at most 50 non-test lines; one project; test changes in the same
-PR; none of the paths below touched.
-
-**Always a human**: source behaviour changes beyond the small-fix limit, ADRs, AGENTS.md and skills, workflows
-and lint configuration, dependencies, native code, version bumps and deploys.
-
-The deciding workflow is `.github/workflows/auto-merge.yml`; when it disagrees with this page, it wins and this
-page is corrected. Until that workflow exists, auto-merge is off in this repository: state eligibility in the PR and
-leave the merge to a person.
+- **Before opening**, say in `To Reviewers` which class you expect: A (behaviour provably unchanged: comment-only
+  with an identical syntax tree, lowered ratchet baselines, tests added, module docs) or B (a small `fix`), or
+  "needs a reviewer" and why. ADRs, AGENTS.md, skills, `.claude/`, workflows, lint config, dependencies and native
+  code always need a reviewer.
+- **After opening**, read the bot's verdict. When it disagrees with you, the workflow is right until its rules are
+  changed in their own PR.
+- `no-auto-merge` stops it on any PR. Never merge without a green run.
