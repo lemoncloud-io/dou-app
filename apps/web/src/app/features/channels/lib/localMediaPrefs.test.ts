@@ -92,7 +92,6 @@ describe('localMediaPrefs', () => {
 
     it('drops the least recently used waveform past the cap', () => {
         for (let n = 0; n < WAVEFORM_CACHE_MAX; n += 1) writeWaveform(me, `up-${n}`, [0.5]);
-        // Reading the oldest makes it the newest, so the next write drops the second oldest instead.
         expect(readWaveform(me, 'up-0')).toEqual([0.5]);
         writeWaveform(me, 'up-new', [0.2]);
         expect(readWaveform(me, 'up-0')).toEqual([0.5]);

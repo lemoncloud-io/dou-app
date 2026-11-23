@@ -20,13 +20,10 @@ describe('channelKindOf', () => {
         expect(channelKindOf('dm')).toBe('dm');
     });
 
-    // The point of the switch: these three are folded deliberately, not by a negative test.
     it.each(['public', 'private', '', undefined] as const)('folds %p into group', stereo => {
         expect(channelKindOf(stereo)).toBe('group');
     });
 
-    // A stereo no build knows: a list must still render, so the fallback is group rather than a
-    // throw. The compile-time guard (`never`) is what actually catches a new value.
     it('falls back to group for an unknown stereo', () => {
         expect(channelKindOf('brand-new' as never)).toBe('group');
     });
@@ -37,7 +34,6 @@ describe('showsMemberCount', () => {
         expect(showsMemberCount('group')).toBe(true);
     });
 
-    // Self is always 1 and DM is always 2 — neither number tells the reader anything.
     it.each(['self', 'dm'] as const)('hides the count for %s', kind => {
         expect(showsMemberCount(kind)).toBe(false);
     });
@@ -50,13 +46,11 @@ describe('isRoomOwner', () => {
         expect(isRoomOwner(group, { stereo: 'owner', userId: 'u-1' })).toBe(true);
     });
 
-    // A role the server set always answers — even for the creator, whose role says otherwise.
     it.each(['member', 'admin', ''])('does not own a group with role %p, creator or not', stereo => {
         expect(isRoomOwner(group, { stereo, userId: 'u-1' })).toBe(false);
         expect(isRoomOwner(group, { stereo, userId: 'u-creator' })).toBe(false);
     });
 
-    // No role on the row: fall back to the creator so a group never loses its owner.
     it('falls back to ownerId when the join carries no role', () => {
         expect(isRoomOwner(group, { userId: 'u-creator' })).toBe(true);
         expect(isRoomOwner(group, { stereo: null, userId: 'u-creator' })).toBe(true);
@@ -69,14 +63,12 @@ describe('isRoomOwner', () => {
         expect(isRoomOwner(group, undefined)).toBe(false);
     });
 
-    // A kick's response leaves the removed member's join in the channel's `$join`.
     it('ignores a join that names someone else, and falls back to the creator', () => {
         const kicked = { stereo: 'member', userId: 'u-kicked' };
         expect(isRoomOwner(group, kicked, 'u-creator')).toBe(true);
         expect(isRoomOwner(group, { stereo: 'owner', userId: 'u-other' }, 'u-1')).toBe(false);
     });
 
-    // A 1:1's inviter carries `owner` on the server; the room still has no owner.
     it.each(['dm', 'self'] as const)('never names an owner in a %s room', stereo => {
         const room = { stereo, ownerId: 'u-creator' };
         expect(isRoomOwner(room, { stereo: 'owner', userId: 'u-creator' })).toBe(false);
@@ -116,9 +108,6 @@ describe('roomOwnerIdOf', () => {
 });
 
 describe('removalActionFor', () => {
-    // The rule this whole module exists for: a 1:1 leaves, full stop. Being the inviter
-    // (`channel.ownerId === uid`) is a by-product of creation, not a permission to erase the room
-    // the other side still needs for a re-invite.
     it.each([true, false])('leaves a DM whether or not I am the owner (isOwner=%p)', isOwner => {
         expect(removalActionFor('dm', isOwner)).toBe('leave');
     });
@@ -143,8 +132,6 @@ describe('dmLineageOf', () => {
         expect(dmLineageOf({ stereo: 'dm', cid: '1000001' })).toBe('cloud');
     });
 
-    // The axis used to be `sid`, which the server overwrites and which means two things at once.
-    // `cid` is the server's own answer to "which cloud", and nothing on the client derives it.
     it('does not change with whatever place the room carries', () => {
         expect(dmLineageOf({ stereo: 'dm', cid: '1000001', sid: 'S:somewhere' } as never)).toBe('cloud');
         expect(dmLineageOf({ stereo: 'dm', cid: '1000001', sid: '' } as never)).toBe('cloud');
@@ -163,7 +150,6 @@ describe('hasDmInviteFlow', () => {
         expect(hasDmInviteFlow({ stereo: 'dm', cid: 'default' })).toBe(true);
     });
 
-    // The whole point: a cloud 1:1 has no invite to re-send, so the footer and its CTA stay away.
     it('is false for a cloud 1:1', () => {
         expect(hasDmInviteFlow({ stereo: 'dm', cid: '1000001' })).toBe(false);
     });
@@ -183,14 +169,11 @@ describe('profilePlaceOf', () => {
         expect(profilePlaceOf(room({ stereo: 'private', cid: 'default', sid: '0000' }), 'S:active')).toBe('0000');
     });
 
-    // The relay hands the same pair-keyed room back on every re-invite, still stamped with the place
-    // of the session that first opened it; home names its peer by the relay's one place.
     it("names a relay 1:1 by the reader's place, whatever place it is stamped with", () => {
         expect(profilePlaceOf(room({ stereo: 'dm', cid: 'default', sid: 'S:stamped' }), '0000')).toBe('0000');
         expect(profilePlaceOf(room({ stereo: 'dm', cid: 'default', sid: 'S:stamped' }), null)).toBeNull();
     });
 
-    // A cloud 1:1 lives in the place it was opened in, so that place's profiles name its people.
     it('names a cloud 1:1 by the place it lives in, not the one the reader is in', () => {
         expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: 'S:opened-here' }), 'S:active')).toBe(
             'S:opened-here'
@@ -203,13 +186,11 @@ describe('profilePlaceOf', () => {
         expect(profilePlaceOf(opened, 'S:two')).toBe('S:opened-here');
     });
 
-    // A 1:1 from before places keyed 1:1s may carry no place, or the server's `#`.
     it("falls back to the reader's place for a room that names none", () => {
         expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: '' }), 'S:active')).toBe('S:active');
         expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: '#' }), 'S:active')).toBe('S:active');
     });
 
-    // `null` is what the profile hooks read as "do not subscribe yet".
     it('answers null when neither side is known', () => {
         expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: '' }), null)).toBeNull();
         expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: '' }), undefined)).toBeNull();
@@ -222,7 +203,6 @@ describe('isInCloudSelfSection', () => {
         expect(isInCloudSelfSection({ stereo: 'self', cid: '1000001' })).toBe(true);
     });
 
-    // A cloud 1:1 is listed in its place's 1:1 section; the relay has one place, and its list holds the rest.
     it('leaves out a cloud 1:1, the relay 1:1 and self chat, and every group', () => {
         expect(isInCloudSelfSection({ stereo: 'dm', cid: '1000001' })).toBe(false);
         expect(isInCloudSelfSection({ stereo: 'dm', cid: 'default' })).toBe(false);
@@ -246,13 +226,11 @@ describe('canStartDmFromProfile', () => {
         expect(canStartDmFromProfile({ ...base, room: { ...groupRoom, stereo: 'public' } })).toBe(true);
     });
 
-    // The relay reaches a 1:1 by phone number, which a profile does not have.
     it('withholds it in a relay room', () => {
         expect(canStartDmFromProfile({ ...base, room: { ...groupRoom, cid: 'default' } })).toBe(false);
         expect(canStartDmFromProfile({ ...base, room: { ...groupRoom, cid: '' } })).toBe(false);
     });
 
-    // A place id is unique only within its cloud; a room of the cloud being left can still be open.
     it('withholds it in a room of another cloud, even under the same place id', () => {
         expect(canStartDmFromProfile({ ...base, sessionCloudId: '1000002' })).toBe(false);
         expect(canStartDmFromProfile({ ...base, sessionCloudId: null })).toBe(false);
@@ -263,7 +241,6 @@ describe('canStartDmFromProfile', () => {
         expect(canStartDmFromProfile({ ...base, room: { ...groupRoom, stereo: 'self' } })).toBe(false);
     });
 
-    // The 1:1 would be filed under the session's place, not the room's.
     it('withholds it in a room of another place than the session is on', () => {
         expect(canStartDmFromProfile({ ...base, sessionPlaceId: 'site-2' })).toBe(false);
         expect(canStartDmFromProfile({ ...base, sessionPlaceId: null })).toBe(false);

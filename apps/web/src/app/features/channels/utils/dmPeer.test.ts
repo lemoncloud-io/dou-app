@@ -20,7 +20,6 @@ describe('peerCloudNameOf', () => {
         expect(peerCloudNameOf({ nick: '   ', name: ' 임마 ' }, '1000007')).toBe('임마');
     });
 
-    // The server makes these up for an account; none of them is a name anybody chose.
     it('rejects the names the server generates for an account', () => {
         expect(peerCloudNameOf({ name: '1000007' }, '1000007')).toBeUndefined();
         expect(peerCloudNameOf({ name: 'f7fa3ac3-50e9-425c-b8d5-a6214b9dee50' }, '1000007')).toBeUndefined();

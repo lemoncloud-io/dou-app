@@ -32,8 +32,6 @@ describe('resolveDmTitle', () => {
         expect(resolveDmTitle({ ...base, channelName: '  방  ' })).toBe('방');
     });
 
-    // Same hazard as the self-chat title: the server seeds a join nick with the raw user id in some
-    // flows, and that must never surface as a room title.
     const UID = '6f9a03e5-5e28-424e-bc1f-1ebdb34631eb';
 
     it('ignores a join nick that is my raw user id', () => {

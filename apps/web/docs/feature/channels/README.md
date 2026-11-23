@@ -158,3 +158,14 @@ Traps that apply here:
 - Downstream of this feature: `home`, `place`, `search`, `invite` and `mypage` all import from it
   (see the grep under [Purpose](#purpose)), so a change to `lib/`, `utils/` or `hooks/` reaches
   their suites too. Run the whole app project when touching those.
+
+## Helper internals
+
+- [image-cache-internals.md](./image-cache-internals.md): how loads share a fetch, holders and eviction, what a load
+  reports, and the image store's layout.
+- [waveform-and-hidden-media.md](./waveform-and-hidden-media.md): the device-local hidden-media set and waveform cache,
+  and how a waveform is computed.
+- [browser-file-handling.md](./browser-file-handling.md): attach sources, downloads and saving in a browser, and the
+  PDF loader.
+- [contact-helpers.md](./contact-helpers.md): how device contact names are composed and sorted, and the number-reading
+  memo.

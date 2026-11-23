@@ -4,7 +4,6 @@
  * jsdom has no structuredClone, which fake-indexeddb clones every value with; the store needs no DOM.
  */
 import { IDBFactory } from 'fake-indexeddb';
-// Also installs the IDBKeyRange global the store builds its eviction range with.
 import 'fake-indexeddb/auto';
 
 import type { ImageCacheRecord } from './imageCache';
@@ -19,7 +18,6 @@ const record = (key: string, size: number, usedAt: number, variant: 'thumb' | 'o
     usedAt,
 });
 
-// A fresh factory per test, so no database outlives its test.
 const fresh = (factory = new IDBFactory()) => new IndexedDbImageCacheStore(factory);
 
 describe('IndexedDbImageCacheStore', () => {
@@ -71,7 +69,6 @@ describe('IndexedDbImageCacheStore', () => {
             expect(await store.get('new')).toBeDefined();
         });
 
-        // Originals are several megabytes; they must not push the thumbnails out.
         it('counts each variant against its own budget', async () => {
             const store = fresh();
             await store.put(record('thumb', 10, 1, 'thumb'));
@@ -92,7 +89,6 @@ describe('IndexedDbImageCacheStore', () => {
             expect(await store.get('a')).toBeDefined();
         });
     });
-    // Holding on would block the other page's upgrade until this one reloads.
     it('lets go of its connection when another page opens a newer version', async () => {
         const factory = new IDBFactory();
         const store = fresh(factory);
@@ -109,10 +105,8 @@ describe('IndexedDbImageCacheStore', () => {
         upgraded.close();
     });
 
-    // Waiting on a blocked open would hold every image with it; failing lets the cache fetch instead.
     it('fails an open that another connection blocks, and opens again once it is free', async () => {
         const factory = new IDBFactory();
-        // A newer version held by a connection that never steps aside.
         const holder = await new Promise<IDBDatabase>(resolve => {
             const request = factory.open(IMAGE_CACHE_DB_NAME, 1);
             request.onupgradeneeded = () => {

@@ -8,10 +8,8 @@ import {
 
 import { hiddenMediaKey } from '../lib/localMediaPrefs';
 
-/** A media index kind — `image`, `video`, `file`, `audio` or `link`. */
 export type ChatMediaKind = RoomMediaItem['kind'];
 
-/** The room file list's tabs, and which media index kinds each one reads. */
 export type RoomFilesTab = 'media' | 'file' | 'audio' | 'link';
 export const ROOM_FILES_TABS: readonly RoomFilesTab[] = ['media', 'file', 'audio', 'link'];
 export const TAB_KINDS: Record<RoomFilesTab, readonly ChatMediaKind[]> = {
@@ -21,33 +19,25 @@ export const TAB_KINDS: Record<RoomFilesTab, readonly ChatMediaKind[]> = {
     link: ['link'],
 };
 
-/** Reads a `?tab=` value, falling back to the photos·videos tab. */
 export const parseRoomFilesTab = (value: string | null | undefined): RoomFilesTab =>
     ROOM_FILES_TABS.includes(value as RoomFilesTab) ? (value as RoomFilesTab) : 'media';
 
-/** Save and share act on at most this many at once; past it only delete stays on. */
 export const SELECTION_EXPORT_MAX = 10;
 
-/** One row (or tile) of the room file list. */
 export interface RoomFileEntry {
-    /** `<channelId>:<chatNo>:<idx>` — the hide key, and the list key. */
     key: string;
     kind: ChatMediaKind;
     idx: number;
     chatNo: number;
     chatId: string;
     chat: DomainChat;
-    /** An attachment's upload id, or a link's URL. */
     ref: string;
-    /** A document or audio upload, as its card would draw it. */
     file?: ChatFileSlot;
-    /** A photo or video, as the viewer would show it. */
     media?: MediaItem;
     senderName: string;
     sentAt: number;
 }
 
-/** A media index item turned into what a row draws, or nothing when its upload is no longer on the row. */
 export const toRoomFileEntry = (item: RoomMediaItem, cid: string): RoomFileEntry | undefined => {
     const chat = item.chat;
     const base = {
@@ -73,11 +63,6 @@ export const toRoomFileEntry = (item: RoomMediaItem, cid: string): RoomFileEntry
     return file ? { ...base, file } : undefined;
 };
 
-/**
- * Several kinds' newest-first pages as one newest-first list, cut where it could still be wrong: a
- * kind with more pages to read may yet have an item above the last one shown of another kind, so the
- * merged list stops at the lowest point every unfinished kind has reached.
- */
 export const mergeNewestFirst = (
     pages: ReadonlyArray<{ items: readonly RoomFileEntry[]; next: number | null | undefined }>
 ): RoomFileEntry[] => {
@@ -93,7 +78,6 @@ export const mergeNewestFirst = (
         .sort((a, b) => b.chatNo - a.chatNo || a.idx - b.idx);
 };
 
-/** Entries in groups by the month they were sent, newest first, each labelled in the reader's language. */
 export const groupByMonth = (
     entries: readonly RoomFileEntry[],
     locale: string
@@ -110,7 +94,6 @@ export const groupByMonth = (
     return groups;
 };
 
-/** The words a search looks in: the file's name and its sender, or a link's address. */
 export const matchesRoomFileSearch = (entry: RoomFileEntry, query: string): boolean => {
     const needle = query.trim().toLowerCase();
     if (!needle) return true;
@@ -121,10 +104,6 @@ export const matchesRoomFileSearch = (entry: RoomFileEntry, query: string): bool
     return haystack.includes(needle);
 };
 
-/**
- * What the selection bar allows for `count` selected: nothing at none; save and share up to the
- * export limit; share only for one, since the shell's share sheet takes one file at a time.
- */
 export const selectionActionState = (count: number) => ({
     save: count > 0 && count <= SELECTION_EXPORT_MAX,
     share: count === 1,

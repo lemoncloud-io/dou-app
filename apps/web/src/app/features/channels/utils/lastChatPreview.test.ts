@@ -1,7 +1,5 @@
 import { lastChatPreview } from './lastChatPreview';
 
-// Echoes the key, with the count when one is passed, so the chosen key and count are both assertable.
-// The thread and sender keys render their real shape, so the composed line reads as the row does.
 const t = (key: string, options?: { count?: number; name?: string; text?: string }) => {
     if (key === 'chat.preview.thread') return `[thread] ${options?.text}`;
     if (key === 'chat.preview.sender') return `${options?.name} : ${options?.text}`;
@@ -20,12 +18,10 @@ describe('lastChatPreview', () => {
         );
     });
 
-    // A soft delete keeps the body on the row, so the tombstone has to win over the text.
     it('prints the deleted-message phrase for a tombstone, never its kept body', () => {
         expect(lastChatPreview({ content: '지워진 원문', hidden: true }, t)).toBe('chat.room.deletedMessage');
     });
 
-    // The server models `hidden` as 0/1; a 1 on the wire is a delete too.
     it('reads hidden for truthiness, so a 1 from the wire is a tombstone', () => {
         expect(lastChatPreview({ content: '지워진 원문', hidden: 1 as unknown as boolean }, t)).toBe(
             'chat.room.deletedMessage'

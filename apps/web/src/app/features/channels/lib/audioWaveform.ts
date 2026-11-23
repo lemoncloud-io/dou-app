@@ -1,31 +1,8 @@
-/**
- * A waveform for the audio detail screen, computed on this device from the file itself — the server
- * stores none.
- *
- * The file is fetched once more (the player streams it on its own), decoded down to 8 kHz mono — a
- * fifteen-minute file is then about 29 MB of samples rather than the hundreds a full-rate decode takes —
- * and cut into bars by RMS. Only the bars are kept (`localMediaPrefs`); the bytes and the decoded
- * buffer are dropped as soon as the bars exist.
- *
- * What is not attempted, or fails, is drawn as a decorative waveform instead: a file over the limits
- * below, a format this system cannot decode (iOS has no Ogg Vorbis), a failed download. A failure is
- * remembered as such so it is not tried again on every visit; leaving the screen mid-way is not.
- */
-
-/** Files above this are not downloaded for a waveform. */
 export const WAVEFORM_MAX_BYTES = 20 * 1024 * 1024;
-/** Files longer than this are not decoded (or their result is dropped when the length was not known before). */
 export const WAVEFORM_MAX_SECONDS = 15 * 60;
-/** The decode rate: enough for an envelope, a sixth of a 48 kHz decode's memory. */
 export const WAVEFORM_SAMPLE_RATE = 8000;
-/** Bars on the detail screen (Figma 6072:22440). */
 export const WAVEFORM_BARS = 48;
 
-/**
- * `samples` cut into `count` equal stretches, each the RMS of its samples, scaled so the loudest
- * stretch is 1. Silence reads as a row of the smallest bar rather than nothing, so the shape is still
- * there to seek on.
- */
 export const waveformBars = (samples: ArrayLike<number>, count = WAVEFORM_BARS): number[] => {
     const floor = 0.04;
     if (samples.length === 0 || count <= 0) return Array.from({ length: Math.max(count, 0) }, () => floor);
@@ -47,16 +24,12 @@ export const waveformBars = (samples: ArrayLike<number>, count = WAVEFORM_BARS):
 
 export type WaveformOutcome =
     | { kind: 'bars'; bars: number[] }
-    /** Not computable — remember it, draw the decorative shape. */
     | { kind: 'decorative'; reason: 'too-large' | 'too-long' | 'download' | 'decode' | 'unsupported' }
-    /** The screen went away first — nothing to remember. */
     | { kind: 'aborted' };
 
 export interface WaveformInput {
     url: string;
-    /** The upload's size, when the message says it — checked before anything is downloaded. */
     sizeBytes?: number;
-    /** The length, when the player already knows it — checked before anything is downloaded. */
     durationSeconds?: number;
     signal: AbortSignal;
 }
@@ -66,17 +39,14 @@ export interface WaveformDeps {
         url: string,
         init: { signal: AbortSignal }
     ) => Promise<{ ok: boolean; arrayBuffer: () => Promise<ArrayBuffer> }>;
-    /** Decodes to mono at `sampleRate`; throws when the format cannot be decoded. */
     decode: (bytes: ArrayBuffer, sampleRate: number) => Promise<{ samples: ArrayLike<number>; duration: number }>;
 }
 
-/** The browser's decoder, run in an offline context at the low rate so the buffer it builds is small. */
 export const decodeWithOfflineContext: WaveformDeps['decode'] = async (bytes, sampleRate) => {
     const Context =
         globalThis.OfflineAudioContext ??
         (globalThis as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
     if (!Context) throw new Error('no OfflineAudioContext');
-    // The length only sizes a render this never runs; decodeAudioData resamples to the context's rate.
     const context = new Context(1, sampleRate, sampleRate);
     const buffer = await context.decodeAudioData(bytes);
     return { samples: buffer.getChannelData(0), duration: buffer.duration };
@@ -85,7 +55,6 @@ export const decodeWithOfflineContext: WaveformDeps['decode'] = async (bytes, sa
 const isAbort = (error: unknown, signal: AbortSignal) =>
     signal.aborted || (error instanceof Error && error.name === 'AbortError');
 
-/** Computes a file's bars, or says why it will not. */
 export const computeWaveform = async (
     { url, sizeBytes, durationSeconds, signal }: WaveformInput,
     deps: WaveformDeps

@@ -27,9 +27,6 @@ describe('messagePlainText', () => {
         expect(messagePlainText('배포는 `yarn deploy` 로')).toBe('배포는 `yarn deploy` 로');
     });
 
-    // The `blocks$` read path: the server puts its own plain-text summary in `content`
-    // (SPEC §6-5), and folding the blocks back into text there would throw that summary away.
-    // A summary is not JSON, so it falls through — this pins that it is not mangled.
     it('passes the server summary through on the blocks$ path', () => {
         expect(messagePlainText('배포 실패 — 503 upstream timeout')).toBe('배포 실패 — 503 upstream timeout');
     });
@@ -38,12 +35,10 @@ describe('messagePlainText', () => {
         expect(messagePlainText(undefined)).toBe('');
     });
 
-    // JSON that is not Block Kit is somebody's message, not a payload.
     it('leaves a JSON message that has no blocks alone', () => {
         expect(messagePlainText('{"a":1}')).toBe('{"a":1}');
     });
 
-    // How the preview surfaces use it: flatten the blocks, then collapse to one line.
     it('composes with toPlainPreview for a one-line row', () => {
         const content = JSON.stringify({
             blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '로그: `kubectl logs`' } }],
@@ -53,8 +48,6 @@ describe('messagePlainText', () => {
     });
 });
 
-// Copy and the detail dialog read `messagePlainText` and keep the markup; these are for the
-// surfaces that only print text.
 describe('messagePreview', () => {
     it('drops composer markup and cuts a code block to its first line', () => {
         expect(messagePreview('[가이드](https://example.com/a) 참고\n```sh\nnx build web\nnx deploy web\n```')).toBe(
@@ -101,7 +94,6 @@ describe('deleteConfirmQuote', () => {
         expect(deleteConfirmQuote('가'.repeat(60))).toBe('가'.repeat(60));
     });
 
-    // The dialog falls back to its generic description on '', so whitespace must not count as text.
     it('is empty for a message with no text to quote', () => {
         expect(deleteConfirmQuote('  \n ')).toBe('');
         expect(deleteConfirmQuote(undefined)).toBe('');
@@ -115,8 +107,6 @@ describe('chatPlainText', () => {
         expect(chatPlainText({ stereo: 'webhook', content: payload })).toBe('503 upstream');
     });
 
-    // The row shows a person's pasted payload as written; the surfaces that hold the whole message
-    // must say the same thing the row does.
     it.each(['user', undefined])("leaves a %s message's payload as the text it is", stereo => {
         expect(chatPlainText({ stereo, content: payload })).toBe(payload);
     });

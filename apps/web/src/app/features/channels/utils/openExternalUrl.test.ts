@@ -2,7 +2,6 @@ import { openSubWebViewTarget } from '../../../bridge/subWebViewLink';
 import { openExternalUrl } from './openExternalUrl';
 
 const mockIsNative = jest.fn();
-// The app's way: the OS browser, beside its sub WebView. The test watches the hand-off to the OS.
 const mockOpenUrl = jest.fn();
 jest.mock('@chatic/runtime', () => {
     const testing = require('@chatic/runtime/testing');
@@ -25,16 +24,13 @@ jest.mock('../../../bridge/shellCapabilities', () => ({
     shellCapabilities: { supports: (type: string) => type === 'OpenSubWebView' && mockSupportsSubWebView },
 }));
 
-// The real reading of a URL, so these tests say which links count; only the opening is faked.
 jest.mock('../../../bridge/subWebViewLink', () => ({
     ...jest.requireActual('../../../bridge/subWebViewLink'),
     openSubWebViewTarget: jest.fn(),
 }));
 
-// The production build: its page domain is `apps.chatic.io`.
 jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 
-// Lets the `.then` after an opening run.
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
 describe('openExternalUrl', () => {
@@ -76,7 +72,6 @@ describe('openExternalUrl', () => {
             expect(mockOpenUrl).not.toHaveBeenCalled();
         });
 
-        // A message sent before its page shared the app link carries the page's own address.
         it("opens a page's own address in the sub WebView", () => {
             openExternalUrl('https://dou-raise.apps.chatic.io/');
 
@@ -84,7 +79,6 @@ describe('openExternalUrl', () => {
             expect(mockOpenUrl).not.toHaveBeenCalled();
         });
 
-        // A tap the user asked for opens something: the app link, through the OS, as before.
         it('goes to the OS when the link names an app this build does not know', async () => {
             (openSubWebViewTarget as jest.Mock).mockResolvedValue('unknownApp');
 
@@ -94,7 +88,6 @@ describe('openExternalUrl', () => {
             expect(mockOpenUrl).toHaveBeenCalledWith('https://app.chatic.io/apps/unknown');
         });
 
-        // A refusal is the shell's answer about this page, logged; the OS would show it outside the app.
         it('stays put when the shell refuses the page', async () => {
             (openSubWebViewTarget as jest.Mock).mockResolvedValue('refused');
 
@@ -121,7 +114,6 @@ describe('openExternalUrl', () => {
         });
     });
 
-    // The browser has no sub WebView: a link there opens a tab, whatever it names.
     it('opens a mini app link in a new tab in a plain browser', () => {
         mockIsNative.mockReturnValue(false);
 

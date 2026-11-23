@@ -118,7 +118,6 @@ describe('VideoFrames — in a browser', () => {
         expect(deps.fetch).toHaveBeenCalledTimes(1);
     });
 
-    // A server that ignores the range sends the whole video; reading it would be the download this avoids.
     it('reads no body from an answer that is not a partial one', async () => {
         const blob = jest.fn();
         const cancel = jest.fn(async () => undefined);

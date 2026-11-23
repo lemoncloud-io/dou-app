@@ -1,31 +1,9 @@
 import { isRelayDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
 
-/** The server's `ChannelStereo`, plus the absent case a cached row can carry. */
 type ChannelStereo = DomainChannel['stereo'];
 
-/**
- * The three kinds this client has rules for.
- *
- * The server's `ChannelStereo` has FIVE values — `'' | 'public' | 'private' | 'dm' | 'self'` — and
- * the client folds three of them into one kind. That folding is a decision, not an accident, so it
- * is written down here once instead of being re-derived as `!isSelf && !isDm` at each call site.
- * Today only `private` is ever created by this app and nothing reads `public`, but the day a rule
- * attaches to `public` the negative form would swallow it silently.
- */
 export type ChannelKind = 'self' | 'dm' | 'group';
 
-/**
- * Which kind a channel is. `stereo` is the ONLY input — never the member count.
- *
- * A `memberNo === 1` test looks equivalent to "self chat" and is not: an empty group reads as one
- * under it, and a DM whose peer left reads as one too. The same trap in reverse gave a group room a
- * one-person glyph in the home list. Stereo, never member count.
- *
- * The `default` branch cannot be reached by any current value; it exists so that ADDING a value to
- * `ChannelStereo` fails to compile here rather than being folded into `group` unnoticed. It still
- * returns `group` at runtime, because a stereo this build has never heard of is far more likely to
- * be a group than a reason to crash a list.
- */
 export const channelKindOf = (stereo: ChannelStereo): ChannelKind => {
     switch (stereo) {
         case 'self':
@@ -45,17 +23,6 @@ export const channelKindOf = (stereo: ChannelStereo): ChannelKind => {
     }
 };
 
-/**
- * Whether a row shows the member count beside the name.
- *
- * Only a group's count carries information. A self chat is always 1 and a DM is always 2, so the
- * number tells the reader nothing they cannot see from the row itself.
- *
- * The home list used to get this right by accident: it hid the count for DMs explicitly and for
- * self chats only because `memberNo > 1` happened to be false. That held until something counted
- * one more member into a self chat, at which point the number would have appeared with nobody
- * having decided it should.
- */
 export const showsMemberCount = (kind: ChannelKind): boolean => {
     switch (kind) {
         case 'self':
@@ -66,41 +33,10 @@ export const showsMemberCount = (kind: ChannelKind): boolean => {
     }
 };
 
-/** The room fields the owner rule reads. */
 type OwnerRuleRoom = Pick<DomainChannel, 'stereo' | 'ownerId'>;
 
-/**
- * One member's join row, as far as the owner rule reads it. Structural rather than `DomainJoin`: my
- * own join also arrives embedded in the channel (`$join`), typed by a different package.
- */
 type OwnerRuleJoin = { stereo?: string | null; userId?: string };
 
-/**
- * Whether one member owns this room — the single owner rule every surface reads: my own
- * delete-or-leave, the owner badge, the profile's owner mark, who may remove members, the owner-first
- * avatar stack.
- *
- * **The member's join role decides it.** The server writes a role on every join
- * (`'' | 'owner' | 'admin' | 'member'`), and only `owner` owns the room. `channel.ownerId` is the
- * creator, which is not the same fact: a 1:1's `ownerId` is whoever sent the invite, and the badge
- * that followed it put a "room owner" on a room that has none.
- *
- * **Only a group has an owner.** A 1:1's inviter carries `owner` on their join too, but a 1:1 has no
- * owner/member split, and a self chat has one member. Both answer false whatever the join says.
- *
- * **A join with no role falls back to the creator.** A row cached before roles were read, or a
- * response that omits the field, would otherwise strip a group of its owner — the settings screen
- * would lose its delete and its member removal. So `undefined` (or `null`) compares the member with
- * `ownerId` instead. An empty role is different: it is a role the server set, meaning "none", and it
- * answers false without falling back.
- *
- * `userId` names the member when there is no join row at all; with a row, the row's own id wins.
- *
- * **A join that names someone else is ignored.** When both ids are known and differ, the row is not
- * this member's, and the creator check decides instead. That is not hypothetical: a kick's response
- * carries the REMOVED member's join in `$join`, and the channel cache keeps it until the next sync —
- * read as mine, it turned the owner who had just removed someone into a member.
- */
 export const isRoomOwner = (
     room: OwnerRuleRoom | null | undefined,
     join: OwnerRuleJoin | null | undefined,
@@ -113,14 +49,6 @@ export const isRoomOwner = (
     return !!memberId && !!room.ownerId && room.ownerId === memberId;
 };
 
-/**
- * The user id that owns this room by {@link isRoomOwner}, or `undefined` when it has none (a 1:1, a
- * self chat) or none can be told from what is cached.
- *
- * A join carrying `owner` names the owner. Without one, `ownerId` stands in — but only while that
- * member's own row carries no role that says otherwise, which is the same fallback the per-member
- * rule makes.
- */
 export const roomOwnerIdOf = (
     room: OwnerRuleRoom | null | undefined,
     joins: ReadonlyArray<OwnerRuleJoin>
@@ -139,31 +67,11 @@ export const roomOwnerIdOf = (
         : undefined;
 };
 
-/** What "remove this room" does for a given kind. `none` means the room cannot be removed at all. */
 export type ChannelRemoval = 'leave' | 'delete' | 'none';
 
-/**
- * The single answer to "what happens when this room is removed", shared by every surface that
- * offers the action.
- *
- * **A DM always leaves — never deletes, not even for the inviter.** The inviter carries the owner
- * role on their join and `channel.ownerId` points at them, but a 1:1 has no owner/member split: both
- * are by-products of how the room was created, not a permission. Re-inviting needs the room to still
- * be there, so letting one side erase it takes that away.
- *
- * That rule was already honoured on the room's own settings screen and NOT on the place's bulk
- * "remove selected rooms", which branched on place ownership alone and sent `channel.delete` at
- * whatever was checked — a DM included. Two screens answering the same question differently is the
- * shape that produced the bug, so the answer lives here and both screens read it.
- *
- * `isChannelOwner` is about THIS channel ({@link isRoomOwner} with my join), not about owning the
- * place the channel sits in. A place owner who is merely a member of a room inside it does not get to
- * delete that room.
- */
 export const removalActionFor = (kind: ChannelKind, isChannelOwner: boolean): ChannelRemoval => {
     switch (kind) {
         case 'self':
-            // Neither deletable nor leavable — a self chat has exactly one member and no exit.
             return 'none';
         case 'dm':
             return 'leave';
@@ -172,31 +80,8 @@ export const removalActionFor = (kind: ChannelKind, isChannelOwner: boolean): Ch
     }
 };
 
-/**
- * Which lineage a 1:1 room came from. Only meaningful once the kind is already `dm`.
- *
- * `stereo` cannot tell these apart — both are `'dm'` — and they are not the same room. A relay 1:1
- * is reached by inviting a phone number, so it has an invite behind it and can be re-opened by
- * sending another one. A cloud 1:1 is opened by naming a member directly (`channel.startDm` —
- * desktop and mobile both offer it), so there is no invite in its history and no number to
- * send one to.
- */
 export type DmLineage = 'relay' | 'cloud';
 
-/**
- * The lineage of a 1:1 room, or `undefined` when the room is not a 1:1 (or is not loaded yet).
- *
- * **The cloud is what separates them, and `cid` is the field that says so.** It is the server's
- * own answer to "which cloud is this room in", it arrives on every read, and nothing on the client
- * derives or overwrites it.
- *
- * **This used to read `sid`, and that was wrong.** The reasoning was that a cloud 1:1 belongs to no
- * place, so a blank `sid` would mark it. Measured on dev (2026-09-23): the server assigns the room
- * a place anyway — whichever one the creator happened to be standing in — and returns it on every
- * subsequent read, so a client that blanks the field simply has it filled back in. Worse, `sid`
- * then meant two things at once ("no place" and "place not known yet"), and a room silently
- * changed lineage the moment a sync landed. `cid` cannot drift that way.
- */
 export const dmLineageOf = (
     channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined
 ): DmLineage | undefined => {
@@ -204,14 +89,6 @@ export const dmLineageOf = (
     return channel.cid === RELAY_CLOUD_ID ? 'relay' : 'cloud';
 };
 
-/**
- * The peer's name for a 1:1's intro block ("<name> entered the chat room"), or `undefined` for the
- * name-free sentence.
- *
- * The intro states a fact about the person, so it never reads my own `join.nick` for the room — but
- * it does follow the title chain's person-naming steps for the same lineage, so a cloud 1:1's
- * header and the first line of its body cannot disagree about who the peer is.
- */
 export const resolveDmPeerName = (
     channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined,
     peer: { profileNick?: string; cloudName?: string } | null | undefined
@@ -221,53 +98,12 @@ export const resolveDmPeerName = (
     return dmLineageOf(channel) === 'cloud' ? peer?.cloudName?.trim() || undefined : undefined;
 };
 
-/**
- * Whether home lists a room atop a cloud's 1:1 section rather than under a place: the
- * notes-to-self room of a subscription cloud. It belongs to the account, not to a place, so under a
- * place it showed in whichever one it was tagged with and in none of the others. On the relay it
- * stays in its one place, which is the only list there.
- *
- * A cloud 1:1 is not here: it lives in the place it was opened in, and that place's slice holds it
- * (`isInPlaceList`) until home sorts it into the 1:1 section by kind.
- */
 export const isInCloudSelfSection = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
     channel?.stereo === 'self' && channel.cid !== RELAY_CLOUD_ID;
 
-/**
- * Whether this room's UI may talk about invites — the departure footer, its re-invite CTA, and the
- * `invite.list` poll that feeds them.
- *
- * Only the invite-attached parts split on lineage. Read receipts, the member list's handling of
- * somebody who left, and the join/leave system messages are about a 1:1 as such and stay as they
- * are for both lineages.
- *
- * What a cloud 1:1 should show once its peer leaves the cloud is an open product question. Until it
- * is answered this reports `false`, which leaves the room saying nothing rather than borrowing a
- * sentence written for a flow it does not have.
- */
 export const hasDmInviteFlow = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
     dmLineageOf(channel) === 'relay';
 
-/**
- * Which place's profiles name the people in this room.
- *
- * A profile is per-place — the same person has a different nick and photo in each one — so naming
- * anybody requires choosing a place first. Every room lives in a place, and `channel.sid` is it: a
- * group room's, and a cloud 1:1's too, since the server opens a separate 1:1 per place and never
- * moves one. So the same person can be named differently in two 1:1s with them, one per place — each
- * by that place's profile — and opening a room from another place does not change its name.
- *
- * A room that names no place (`''`, or the server's `#` for "no place") falls back to the reader's
- * place, the only one left to look under: a 1:1 from before places keyed 1:1s may carry either.
- *
- * A relay 1:1 is the exception: it always reads the reader's place. The relay keys a 1:1 by its pair
- * and hands the same room back on every re-invite, still stamped with the place of the session that
- * first opened it, so its `sid` can name a place the relay list does not read — and home names the
- * peer by the relay's one place. Reading the stamp made the room and its home row disagree.
- *
- * Returns `null` when there is nothing to look under, which is what the profile hooks read as "do
- * not subscribe yet" — an unresolved session or an unloaded row, not an answer.
- */
 export const profilePlaceOf = (
     channel: Pick<DomainChannel, 'sid' | 'stereo' | 'cid'> | null | undefined,
     activeSid: string | null | undefined
@@ -277,22 +113,6 @@ export const profilePlaceOf = (
     return channel.sid && channel.sid !== '#' ? channel.sid : (activeSid ?? null);
 };
 
-/**
- * Whether a member's profile, opened from inside a room, offers to start a 1:1 with them. Each
- * condition closes a way of offering a room that cannot be opened, or that would open somewhere the
- * person did not mean:
- *
- * - **A subscription cloud's room.** On the relay a 1:1 is reached by phone number, and a profile has
- *   no number to send.
- * - **A group room.** Inside a 1:1 the peer is already the conversation, and a self chat has nobody
- *   else in it.
- * - **The room is in the cloud and the place the session is on.** A 1:1 is filed under the session's
- *   place for good, so from a room of another place (opened from search or a push) it would land in a
- *   place the person was not looking at — one the peer may not even belong to. The cloud is compared
- *   too: a place id is unique only within its cloud, and during a cloud switch a room of the cloud
- *   being left can still be on screen.
- * - **Not me** — `channel.start-dm` refuses my own id.
- */
 export const canStartDmFromProfile = ({
     room,
     sessionCloudId,

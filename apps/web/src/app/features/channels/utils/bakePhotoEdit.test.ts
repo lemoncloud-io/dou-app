@@ -3,9 +3,6 @@ import { IDENTITY_PHOTO_EDIT, PHOTO_EDIT_MAX_AREA, type PhotoEdit } from '@chati
 
 import { bakePhotoEdit, EDIT_RENDITION_MAX_EDGE, makeEditRendition } from './bakePhotoEdit';
 
-// jsdom decodes nothing and has no canvas, so both are stubbed. What is under test is what this
-// module asks of them — the size, the transform, the fill, the format and quality, the clean-up — and
-// what it makes of their answers.
 jest.mock('@chatic/shared', () => ({ ...jest.requireActual('@chatic/shared'), decodeImage: jest.fn() }));
 const mockDecode = decodeImage as jest.MockedFunction<typeof decodeImage>;
 
@@ -19,7 +16,6 @@ interface FakeCanvas {
 
 let canvases: FakeCanvas[] = [];
 let hasContext = true;
-/** What the encoder answers for a requested type: the type of the blob it hands back, or null. */
 let encodes: (type: string) => string | null = type => type;
 
 const decoded = (width: number, height: number): DecodedImage =>
@@ -44,7 +40,6 @@ beforeEach(() => {
             calls: [],
             sizes: [],
             getContext: () => {
-                // The size the canvas was given before drawing — read back here, after both sides are set.
                 canvas.sizes.push([canvas.width, canvas.height]);
                 return (
                     hasContext && {
@@ -84,7 +79,6 @@ describe('bakePhotoEdit', () => {
         expect(canvas.sizes[0]).toEqual([200, 300]);
         expect(canvas.fillStyle).toBe('#ffffff');
         expect(callsNamed(canvas, 'fillRect')).toEqual([['fillRect', 0, 0, 200, 300]]);
-        // The half-width crop starting a quarter in: the source shifts 100 px left, unscaled.
         expect(callsNamed(canvas, 'setTransform').at(-1)).toEqual(['setTransform', 1, 0, 0, 1, -100, 0]);
         expect(callsNamed(canvas, 'drawImage')).toEqual([['drawImage', { tag: 'img' }, 0, 0, 400, 300]]);
         expect(callsNamed(canvas, 'toBlob')).toEqual([['toBlob', 'image/jpeg', 0.9]]);
@@ -112,7 +106,6 @@ describe('bakePhotoEdit', () => {
         expect(baked?.name).toBe('a-edit.jpg');
     });
 
-    // WebKit has no WebP encoder: asked for WebP it answers a PNG, which would go up misnamed.
     it('re-encodes as JPEG on white when the WebP encoder answers another format', async () => {
         mockDecode.mockResolvedValue(decoded(400, 300));
         encodes = type => (type === 'image/webp' ? 'image/png' : type);
@@ -138,7 +131,6 @@ describe('bakePhotoEdit', () => {
     });
 
     it('scales a crop past the WebKit canvas area down to fit it', async () => {
-        // 24 MP, the default on recent iPhones — past the 16.7 MP a WebKit canvas draws.
         mockDecode.mockResolvedValue(decoded(5712, 4284));
 
         await bakePhotoEdit(file('big.jpg', 'image/jpeg'), { ...IDENTITY_PHOTO_EDIT, rotation: 90 });
@@ -146,7 +138,6 @@ describe('bakePhotoEdit', () => {
         const [width, height] = canvases[0].sizes[0];
         expect(width * height).toBeLessThanOrEqual(PHOTO_EDIT_MAX_AREA);
         expect(width * height).toBeGreaterThan(PHOTO_EDIT_MAX_AREA * 0.99);
-        // Turned a quarter, the output is portrait, and scaled the same both ways.
         expect(height).toBeGreaterThan(width);
         expect(height / width).toBeCloseTo(5712 / 4284, 2);
     });
@@ -202,7 +193,6 @@ describe('bakePhotoEdit', () => {
         await expect(bakePhotoEdit(file('a.jpg', 'image/jpeg'), cropped)).resolves.toBeNull();
     });
 
-    // A canvas keeps a GIF's first frame only; the editor never offers one, and asking gets nothing.
     it('answers null for a GIF without decoding it', async () => {
         await expect(bakePhotoEdit(file('a.gif', 'image/gif'), cropped)).resolves.toBeNull();
         expect(mockDecode).not.toHaveBeenCalled();
@@ -231,8 +221,6 @@ describe('makeEditRendition', () => {
         expect(callsNamed(canvases[0], 'toBlob')[0][1]).toBe('image/jpeg');
     });
 
-    // A PNG and a WebP keep their transparency at the send; a JPEG copy would show it white. WebKit
-    // cannot encode WebP, so a WebP is copied as a PNG too.
     it.each([
         ['a.png', 'image/png'],
         ['a.webp', 'image/webp'],

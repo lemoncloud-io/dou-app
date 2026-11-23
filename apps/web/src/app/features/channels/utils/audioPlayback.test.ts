@@ -18,7 +18,6 @@ describe('canPlayAudioType', () => {
     let canPlay: jest.SpyInstance;
 
     beforeEach(() => {
-        // The probe element is cached; each test answers with its own spy.
         resetAudioTypeProbe();
         canPlay = jest.spyOn(HTMLMediaElement.prototype, 'canPlayType');
     });

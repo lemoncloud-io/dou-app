@@ -4,7 +4,6 @@ import { exportFile, type FileExportDeps, type FileUse } from './fileExport';
 const file = { uri: 'file:///cache/transfer-download/d-1/report.pdf', size: 3, contentType: 'application/pdf' };
 const failure = (code: string) => Object.assign(new Error(code), { code });
 
-/** Deps whose downloads answer from `results`, one per start, with a kept-file store of their own. */
 const makeDeps = (results: DownloadResult[], overrides: Partial<FileExportDeps> = {}) => {
     let store: string | undefined;
     let n = 0;
@@ -176,7 +175,6 @@ describe('exportFile', () => {
                 kind: 'save-update-required',
             });
             expect(deps.log).not.toHaveBeenCalled();
-            // The file stays kept: opening it, or the share sheet, still hands it on.
             expect(deps.keep).toHaveBeenCalledWith(file.uri);
         }
     });

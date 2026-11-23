@@ -11,10 +11,6 @@ const fresh = 'https://bucket.s3.amazonaws.com/k?X-Amz-Signature=new';
 
 const failure = (code: string, details?: unknown) => Object.assign(new Error(code), { code, details });
 
-/**
- * Deps whose downloads answer from `results` in order, each with its own id. A result may be a
- * promise the test resolves later.
- */
 const setup = (results: Array<DownloadResult | Promise<DownloadResult>>, overrides: Partial<MediaExportDeps> = {}) => {
     const started: Array<{ url: string; cancel: jest.Mock }> = [];
     const deps: MediaExportDeps & { [K in keyof MediaExportDeps]: jest.Mock } = {
@@ -162,7 +158,6 @@ describe('exportMedia', () => {
 
         const outcome = exportMedia({ action: 'share', url, signal: controller.signal }, deps);
         await Promise.resolve();
-        // The file was already on its way when the cancel went out.
         controller.abort();
         finish({ kind: 'file', file: file(1) });
 
@@ -385,7 +380,6 @@ describe('saveAllMedia progress', () => {
             { kind: 'file', file: file(1) },
             { kind: 'file', file: file(2) },
         ]);
-        // Each download reports half its bytes before it ends.
         const halfway: MediaExportDeps = {
             ...deps,
             download: input => {
