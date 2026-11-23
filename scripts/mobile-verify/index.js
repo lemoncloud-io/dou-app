@@ -7,7 +7,7 @@
  *
  * Every mechanical trap a person used to remember lives here, so the caller only reads the result.
  * The procedure around it (when to offer it, how to read the outcome) is
- * docs/config/skills/dou-device-verify/SKILL.md; the module doc is
+ * docs/config/skills/dou-verify/references/device.md; the module doc is
  * apps/mobile/docs/release/device-verify.md.
  */
 const fs = require('fs');

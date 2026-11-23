@@ -1,0 +1,15 @@
+{
+    "AGENTS.md": 60,
+    "docs/config/skills/dou-chaos/SKILL.md": 19,
+    "docs/config/skills/dou-cleanup/SKILL.md": 17,
+    "docs/config/skills/dou-e2e/SKILL.md": 22,
+    "docs/config/skills/dou-failure-hunt/SKILL.md": 15,
+    "docs/config/skills/dou-load/SKILL.md": 18,
+    "docs/config/skills/dou-metrics/SKILL.md": 16,
+    "docs/config/skills/dou-plan/SKILL.md": 23,
+    "docs/config/skills/dou-property/SKILL.md": 16,
+    "docs/config/skills/dou-ratchet/SKILL.md": 20,
+    "docs/config/skills/dou-ship/SKILL.md": 22,
+    "docs/config/skills/dou-verify/SKILL.md": 26,
+    "skills total": 214
+}

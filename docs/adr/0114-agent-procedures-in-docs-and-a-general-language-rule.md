@@ -1,6 +1,6 @@
 # ADR-0114: keep agent procedures in `docs/`, and make the language rule general
 
-> Status: Accepted · Decided: 2026-09-17
+> Status: Accepted (decisions 1 and 4 partly superseded by [ADR-0367](./0367-agent-instructions-are-a-budgeted-index-and-hooks-enforce.md)) · Decided: 2026-09-17
 > Scope: `docs/config/skills/**` · `AGENTS.md` · `package.json` (one hint string)
 > Related: [ADR-0100](./0100-libs-data-doc-canon-and-layer-flattening.md) (the doc-canon rules these
 > procedures defer to)

@@ -1,0 +1,31 @@
+# Device check (opt-in, never a gate)
+
+Simulators and emulators only. Runner mechanics: [`apps/mobile/docs/release/device-verify.md`](../../../../../apps/mobile/docs/release/device-verify.md).
+
+**Offer it in one line** when the changed feature has a scenario (`yarn mobile:verify --list` shows
+`<feature>/…`, or the change is native code under `apps/mobile`) and a device could show it differently from a
+browser (native capability, keyboard, safe area, animation, boot). Run it unasked only when asked to verify on a
+device.
+
+## Run
+
+`yarn mobile:verify <feature>/<scenario> --platform ios` in the background; Android after iOS finishes, never in
+parallel (a machine-wide lock; parallel builds have restarted the Mac). `--web dev` for native-only changes,
+`--keep-device` for hand checks after. No scenario: `yarn mobile:verify --app-only --platform ios`, then use the
+UDID/serial it prints (`xcrun simctl io <udid> screenshot`, `adb -s <serial> exec-out screencap -p`), and stop it
+with the `kill <pid>` its "Holding…" line prints.
+
+## Read the exit code
+
+- **0** — passed. Still open every `checkpoint-*.png` and say what each shows.
+- **2** — could not run. Relay the printed fixes; do not retry in a loop. A build `error:` in code this branch
+  changed is a product bug. Never stop another session's process or emulator.
+- **1** — a scenario failed. Open `final.png`, `maestro.log`, `commands.json`. Wrong screen → product bug (check
+  `develop` before blaming your change). Right screen, missed step → stale selector, update it in this change.
+  Late screen → run once more; a second identical failure is not timing. Home screen → app crashed, report it
+  even if a rerun passes. OS dialog on top → environment.
+
+## Limits to say
+
+A simulator pass does not prove a compositor or WebKit-on-device bug; push delivery and remote video frames do
+not behave like a phone.

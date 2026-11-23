@@ -10,7 +10,7 @@ It is **opt-in and never a gate.** Not in CI, not a commit hook, not a required 
 web's own tests, in a browser and in a fake native shell, cover what runs in the WebView; this is for
 what only a real WebView and real native code can show — the photo library, the keyboard, a WebKit quirk, the
 launch splash handoff. The procedure an agent follows around it — when to offer it, how to read each
-outcome — is [`docs/config/skills/dou-device-verify`](../../../../docs/config/skills/dou-device-verify/SKILL.md).
+outcome — is [`dou-verify` § device](../../../../docs/config/skills/dou-verify/references/device.md).
 
 ## Usage
 
