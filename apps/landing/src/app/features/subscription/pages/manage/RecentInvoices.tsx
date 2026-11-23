@@ -10,7 +10,6 @@ import { commonErrorKey } from '../../lib/errorKey';
 import type { ManageFormat } from './useManageFormat';
 import type { Invoice, Subscription } from '../../types';
 
-/** How many of the latest invoices the detail screen lists; the rest are on the billing history page. */
 const RECENT_COUNT = 2;
 
 const STATUS_TONE: Record<Invoice['status'], BadgeTone> = {
@@ -19,11 +18,6 @@ const STATUS_TONE: Record<Invoice['status'], BadgeTone> = {
     refunded: 'info',
 };
 
-/**
- * The latest invoices under a subscription's details. Invoices belong to the account, not to one
- * subscription, so an ended subscription shown beside a live one lists none rather than the live
- * one's payments.
- */
 export const RecentInvoices = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX.Element | null => {
     const { t } = useTranslation();
     const invoices = useInvoices();
@@ -57,8 +51,6 @@ export const RecentInvoices = ({ sub, fmt }: { sub: Subscription; fmt: ManageFor
                             <span>{t(`${key}.amount`)}</span>
                             <span>{t(`${key}.status`)}</span>
                         </div>
-                        {/* One row layout for both widths: a phone stacks the item over its date on the left and the
-                            amount over its status on the right; from `md` the four sit in a line, date first. */}
                         {recent.map(invoice => (
                             <div
                                 key={invoice.id}

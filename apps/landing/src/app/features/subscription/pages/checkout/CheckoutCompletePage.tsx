@@ -33,12 +33,6 @@ import {
 
 import type { Account, Plan, Subscription } from '../../types';
 
-/**
- * W-06 — the end of a checkout: a trial started, a first payment made, or an upgrade made
- * (`?attempt=`). An attempt that has not gone through is sent back to W-09, which knows how to show it.
- * A downgrade scheduled (`?change=downgrade`, no attempt — nothing is charged) is `DowngradeScheduled`,
- * which the route frames as an account page.
- */
 export const CheckoutCompletePage = (): JSX.Element => {
     const [params] = useSearchParams();
     const attemptId = params.get('attempt');
@@ -76,7 +70,6 @@ const AttemptComplete = ({ attemptId }: { attemptId: string }): JSX.Element => {
     );
 };
 
-/** "Minji Kim (Google)", or the address when there is no name. */
 const useAccountName = (account: Account): string => {
     const { t } = useTranslation();
     const name = account.displayName ?? account.email ?? account.emailHint;
@@ -84,7 +77,6 @@ const useAccountName = (account: Account): string => {
     return name ? t('subscription.checkout.complete.accountName', { name, provider }) : provider;
 };
 
-/** The three steps to a first cloud in the app, after a first subscription. */
 const AppSetupBox = ({ plan }: { plan: Plan }): JSX.Element => {
     const { t } = useTranslation();
     return (
@@ -124,10 +116,6 @@ const Started = ({
     const planName = t('subscription.common.planName', { sort: plan.sort });
     const money = (amount: Plan['monthly']) => formatMoney(amount, i18n.language);
     const nextAmount = subscription.nextAmount ?? plan.monthly;
-    // What was charged comes from the invoice; without one the tile says so rather than guess. Where
-    // the port has no invoices at all (the server keeps none yet, and neither the attempt nor the
-    // subscription carries the amount), there is nothing to read, so the tile is left out rather than
-    // showing "—" after every checkout.
     const hasInvoices = useSupports()('listInvoices');
     const paid = chargedToday(invoices.data, 'first', plan.id, today)?.amount;
 
@@ -197,10 +185,8 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
     const today = toIsoDate(useToday());
     const key = (name: string) => `subscription.checkout.complete.${name}`;
     const charge = chargedToday(invoices.data, 'upgrade', plan.id, today);
-    // The receipt lives in the billing history, which is left out where the port has no server for it.
     const receipts = useSupports()('listInvoices');
 
-    // Whether anything was charged is read from the invoices; until they arrive the line would guess.
     if (invoices.isLoading) return <PageLoader />;
     return (
         <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-6">
@@ -214,10 +200,7 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
                               price: formatMoney(charge.amount, i18n.language),
                               count: plan.maxClouds,
                           })
-                        : // No invoice means nothing was charged only where invoices exist. Without them
-                          // nothing is known either way — and the server upgrades a paid period only, so
-                          // "nothing was charged during your trial" would be wrong there.
-                          receipts
+                        : receipts
                           ? t(key('upgradedBodyFree'), { count: plan.maxClouds })
                           : t(key('upgradedBody'), { count: plan.maxClouds })
                 }
@@ -262,10 +245,6 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
     );
 };
 
-/**
- * The scheduled-downgrade confirmation, inside the account frame: on a phone the bar names the page
- * "Change plan" like the screen that led here.
- */
 export const DowngradeScheduled = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const { subscription, plan, isLoading } = useCurrentSubscription();

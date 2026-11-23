@@ -7,11 +7,6 @@ import { cn, formatMoney } from '../utils';
 
 import type { Plan } from '../types';
 
-/**
- * One plan as the plan picker draws it: name, cloud allowance, monthly price, and a radio on the
- * right. Selection and the tag above the name (`첫 구독 · 7일 무료`, `구독 후 변경`, …) are the
- * caller's — this card knows no rules. A plan that cannot be picked sits back, pale and dimmed.
- */
 export const PlanCard = ({
     plan,
     tag,
@@ -33,7 +28,6 @@ export const PlanCard = ({
             disabled={disabled || !onSelect}
             aria-pressed={selected}
             className={cn(
-                // min-w-0: a grid cell otherwise grows to the widest unbreakable line inside it.
                 'flex w-full min-w-0 items-center gap-2 rounded-[20px] border py-4 pl-5 pr-4 text-left transition-colors',
                 disabled ? 'border-[#eaeaec] bg-surface opacity-[0.52]' : 'border-line bg-card',
                 onSelect && !disabled && !selected && 'hover:border-navy/40'
@@ -45,15 +39,12 @@ export const PlanCard = ({
                     {t('subscription.common.planName', { sort: plan.sort })}
                 </span>
                 <span className="flex flex-col gap-0.5 font-medium leading-[1.4] md:gap-1.5">
-                    {/* Amount and note share a line on a phone card, where the card is wide and short, and stack
-                        in the narrower desktop columns. */}
                     <span className="flex flex-col min-[375px]:max-md:flex-row min-[375px]:max-md:items-center min-[375px]:max-md:gap-1">
                         <Trans
                             i18nKey="subscription.common.plan.perMonth"
                             values={{ price: formatMoney(plan.monthly, i18n.language) }}
                             components={{ price: <span className="text-base text-[#222325]" /> }}
                         />
-                        {/* Won prices include VAT; how tax applies to a dollar price is not settled, so it says nothing. */}
                         {plan.monthly.currency === 'KRW' && (
                             <span className="text-sm text-mute">{t('subscription.common.plan.vatNote')}</span>
                         )}

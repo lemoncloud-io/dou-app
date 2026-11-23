@@ -1,10 +1,3 @@
-/**
- * The subscription pages speak in the formal polite register: "~합니다", "~했습니다", requests as
- * "~해 주세요". The softer "~해요" register is not used. A Korean sentence ending in "요" — other than a
- * "~세요" request — is the softer register slipping back in.
- *
- * Checks every key root of the subscription copy.
- */
 import ko from './locales/subscription/ko.json';
 
 type Messages = { [key: string]: string | Messages };

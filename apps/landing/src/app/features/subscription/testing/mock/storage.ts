@@ -6,7 +6,6 @@ export interface StateStore {
     clear(): void;
 }
 
-/** Holds the fake's state; handing it to a second fake stands for a reload. */
 export const memoryStateStore = (): StateStore => {
     let memory: MockState | null = null;
     return {

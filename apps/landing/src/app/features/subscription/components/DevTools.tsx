@@ -4,11 +4,6 @@ import { SANDBOX_INTERVALS, type SandboxInterval, type SandboxSetup } from '../l
 
 import type { PortSetup } from '../lib/createPortSetup';
 
-/**
- * The developer tools of a server tab, mounted once at the route root: the sandbox payments panel, and
- * while sandbox payments are on, their banner. None exist where the account surface is shut, since
- * only the catalog port runs there.
- */
 export const DevTools = ({ setup }: { setup: Pick<PortSetup, 'sandbox'> }): JSX.Element | null => {
     if (!setup.sandbox) return null;
     return (
@@ -19,7 +14,6 @@ export const DevTools = ({ setup }: { setup: Pick<PortSetup, 'sandbox'> }): JSX.
     );
 };
 
-/** Over everything, so no screen of a sandboxed tab is taken for a real payment. */
 const SandboxBanner = (): JSX.Element => (
     <div
         role="status"
@@ -36,11 +30,6 @@ const INTERVAL_LABELS: Record<SandboxInterval, string> = {
     '1d': '1 day',
 };
 
-/**
- * The corner panel of a server tab: sandbox payments on or off (the page reloads, as `?sandbox=1` and
- * `?sandbox=0` would), and the renewal period the next sandboxed start asks for. `?panel=0` hides it
- * for screenshots.
- */
 const SandboxPanel = ({ sandbox }: { sandbox: SandboxSetup }): JSX.Element | null => {
     const [open, setOpen] = useState(false);
     const [interval, setChosen] = useState<SandboxInterval>(() => sandbox.interval());

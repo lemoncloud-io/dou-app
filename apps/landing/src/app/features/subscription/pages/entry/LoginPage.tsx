@@ -20,7 +20,6 @@ const REASON_TONES: Record<SignInReason, BannerTone> = {
     'session-ended': 'info',
 };
 
-/** A provider's button: its mark on the left, its name centred — the spacer on the right keeps it so. */
 const ProviderButton = ({
     icon,
     dark = false,
@@ -50,14 +49,6 @@ const ProviderButton = ({
     </button>
 );
 
-/**
- * W-02 — sign in with Google or Apple. Signing in leaves this site for the provider and comes back
- * to the callback page, which decides where the reader goes; this page only starts the trip. A
- * `reason` in the query says why the reader is here again and is shown above the buttons.
- *
- * Signing in by phone number is not here: the web has no SMS sign-in, and a reader who joined the app
- * that way is told to link Google or Apple in the app first.
- */
 export const LoginPage = (): JSX.Element => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -73,8 +64,6 @@ export const LoginPage = (): JSX.Element => {
                 provider,
                 next: safeNext(params.get('next')),
             });
-            // A path on this site (the mock's stand-in consent page) stays in the router; a provider's
-            // address — `//host` included — is a real departure.
             if (redirectUrl.startsWith('/') && !redirectUrl.startsWith('//')) navigate(redirectUrl);
             else window.location.assign(redirectUrl);
         } catch {

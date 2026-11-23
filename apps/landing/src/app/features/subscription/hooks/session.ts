@@ -10,7 +10,6 @@ export const useSession = () => {
     return useQuery({ queryKey: subscriptionKeys.session(), queryFn: () => port.getSession() });
 };
 
-/** Resolves with the provider's address; the caller leaves for it. */
 export const useStartSignIn = () => {
     const port = usePort();
     return useMutation({
@@ -23,7 +22,6 @@ export const useCompleteSignIn = () => {
     const queryClient = useQueryClient();
     return useMutation({
         mutationFn: (callback: URLSearchParams) => port.completeSignIn(callback),
-        // A different account may have signed in: nothing cached for the last one still holds.
         onSuccess: async () => {
             queryClient.removeQueries({ queryKey: subscriptionKeys.all });
         },

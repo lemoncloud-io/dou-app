@@ -16,10 +16,8 @@ import type { SceneBanner } from '../../lib/sceneOf';
 import type { Subscription } from '../../types';
 import type { TFunction } from 'i18next';
 
-// The columns of a row from `md`; below it a row is one stacked block. The last track is the chevron.
 const COLUMNS = 'md:grid-cols-[300px_170px_110px_180px_minmax(0,1fr)_16px]';
 
-/** W-10 — current and ended subscriptions as two lists, or the empty state. */
 export const SubscriptionListPage = (): JSX.Element => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -77,7 +75,6 @@ export const SubscriptionListPage = (): JSX.Element => {
     );
 };
 
-/** A titled list: a column header from `md`, then the rows, each a link to its subscription. */
 const SubscriptionList = ({
     title,
     lastColumn,
@@ -111,7 +108,6 @@ const SubscriptionList = ({
     );
 };
 
-/** What a row says, in the words of its scene: the figures are the port's, the lines are `sceneOf`'s. */
 interface RowModel {
     name: string;
     shortName: string;
@@ -119,7 +115,6 @@ interface RowModel {
     amount: string;
     dateTitle: string;
     dateNote: string;
-    /** `danger` reddens the date line; `muted` greys the whole row (an ended subscription). */
     tone: 'normal' | 'danger' | 'muted';
 }
 
@@ -236,11 +231,6 @@ const EndedRow = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX.E
     return <Row sub={sub} row={row} source={t(`${key}.source`)} />;
 };
 
-/**
- * One subscription, a link to its page. From `md` a line of columns; on a phone a block — name and
- * status, then clouds and price, then the date and its note. The two layouts are separate blocks of
- * the same row, the one not in use hidden.
- */
 const Row = ({ sub, row, source }: { sub: Subscription; row: RowModel; source: string }): JSX.Element => {
     const { t } = useTranslation();
     const muted = row.tone === 'muted';

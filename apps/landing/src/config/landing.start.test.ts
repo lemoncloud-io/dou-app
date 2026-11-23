@@ -1,7 +1,3 @@
-/**
- * `startLandingRuntime` is what the account surface's HTTP port awaits: one start per page, the session
- * failure answer switched off once it is up, and the guest sign-in handed back from the started engine.
- */
 import type * as RuntimeWeb from '@chatic/runtime-web';
 
 const startRuntime = vi.hoisted(() => vi.fn());
@@ -17,15 +13,11 @@ vi.mock('@chatic/runtime', async () =>
 
 const env = () => undefined;
 
-/** A fresh module, so each case starts with no start remembered. */
 const load = async () => {
     vi.resetModules();
     return (await import('./landing')).startLandingRuntime;
 };
 
-// Each test resets modules and imports the subject again, which evaluates the real runtime graph
-// behind `fakeRuntimeModule` every time (about 2 s alone). Under a parallel run that passes the
-// default 5 s, so the suite gets room rather than a flaky timeout.
 describe('startLandingRuntime', { timeout: 30_000 }, () => {
     beforeEach(() => {
         startRuntime.mockReset();

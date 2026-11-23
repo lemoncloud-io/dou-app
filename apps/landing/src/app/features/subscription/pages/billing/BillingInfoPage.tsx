@@ -18,18 +18,8 @@ const STATUS_TONE: Record<Exclude<BillingEmail['status'], 'verified'>, BadgeTone
 
 const RECEIVES = ['receipt', 'notice'] as const;
 
-/** Which popup is open: changing an address (the primary's [change]) or adding one, new or waiting. */
 type EmailPopup = { kind: 'change'; current: BillingEmail } | { kind: 'add'; waiting?: BillingEmail };
 
-/**
- * W-16 — where billing mail goes and which country the account is billed in.
- *
- * Several addresses can receive billing mail; one is the primary. A new address is verified before it
- * receives anything, and only a verified one can become the primary. Changing the primary address is
- * the shared change popup: once the new address is verified it takes the old one's place at once, so
- * this page has nothing to save. The billing country is shown and not editable: it fixes how the
- * account is charged, so changing it means subscribing again.
- */
 export const BillingInfoPage = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const toast = useToast();
@@ -40,7 +30,6 @@ export const BillingInfoPage = (): JSX.Element => {
     const remove = useRemoveEmail();
 
     const [emailPopup, setEmailPopup] = useState<EmailPopup | null>(null);
-    // Kept after the dialog closes, so its title does not blank while it goes.
     const [removing, setRemoving] = useState<BillingEmail | null>(null);
     const [removeOpen, setRemoveOpen] = useState(false);
 

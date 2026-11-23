@@ -30,30 +30,9 @@ import { usePlanRoute } from './usePlanRoute';
 
 import type { CheckoutPreview } from '../../types';
 
-// A step's boxes: white, hairline-bordered, 16px radius; a phone drops to 14px and tighter padding.
 const CARD = 'flex flex-col gap-3.5 rounded-[14px] border-line p-4 md:rounded-2xl md:px-[25px] md:py-[21px]';
 const CARD_TITLE = 'text-sm font-bold text-ink';
 
-/**
- * W-08 — checkout: the plan and what it costs, which account it applies to, the billing country and
- * email, the payer, and the consents. The way on to the payment window opens once the country, the
- * payer and the consents are settled. The payer's name and number go on with the reader to W-05 and
- * are not kept anywhere else: the card company asks for them with each card.
- *
- * The billing country comes first and starts empty — nothing is picked for the reader. It decides the
- * currency (won for Korea, US dollars for any other country), so until it is chosen the summary shows no
- * amount and the payer is not asked for; once it is, the summary is priced in its currency and, for
- * Korea only, the payer fields appear. Which payment provider that means is the port's business, and
- * the page never names one. Where the server sells no dollars (`useForeignBilling` shut — its dollar
- * catalog empty, or unread) any other country stops at a notice: no amount, no consents and no way on.
- * The answer is asked for only once a country outside Korea is in play, so a checkout in Korea costs no
- * call for it; while it is out, nothing after the country is shown. A dollar checkout handed back from
- * W-05 waits for it before the form opens, since that state is read once, then.
- *
- * The billing email is not entered here. It is the primary address verified on W-24, shown as it is;
- * [change] opens the shared popup, which swaps a newly verified address in. A reader without a verified
- * primary address — a link pasted past W-24, or one removed since — is sent to W-24 with the plan kept.
- */
 export const CheckoutPage = (): JSX.Element => {
     const location = useLocation();
     const handed = useForeignBilling({ enabled: handedAbroad(location.state) });
@@ -64,33 +43,24 @@ export const CheckoutPage = (): JSX.Element => {
 const CheckoutForm = ({ handedOpen }: { handedOpen: boolean }): JSX.Element => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
-    // Back from W-05, what was settled here comes back in the navigation state and fills the form in
-    // again: the country, the payer and the consents — given already, or W-05 would not have opened.
     const location = useLocation();
     const [returned] = useState(() => checkoutDetailsOf(location.state, handedOpen));
     const { loading, error, retry, target: plan, route } = usePlanRoute();
     const [country, setCountry] = useState(returned?.country ?? '');
     const [countryMissing, setCountryMissing] = useState(false);
-    // Korea is always billed; another country only once the answer says dollars are open. The same
-    // query as the one above, so a country handed back is not asked about twice.
     const abroad = !!country && country !== KOREA;
     const dollars = useForeignBilling({ enabled: abroad });
     const foreignBilling = dollars === 'open';
-    // Waiting for that answer: nothing is priced or asked for yet, and nothing says no.
     const awaiting = abroad && dollars === 'reading';
-    // A country that cannot be billed: chosen, but nothing is priced or asked for after it.
     const blocked = abroad && dollars === 'shut';
     const decided = !blocked && !awaiting;
     const countryField = useRef<HTMLSelectElement>(null);
-    // The account and the trial come from a preview in won; the amounts from one in the country's currency,
-    // once there is a country. A failure of the second stays in the summary, so another country can be picked.
     const base = usePreviewCheckout(route === 'checkout' ? plan?.id : undefined);
     const pricedPreview = usePreviewCheckout(
         route === 'checkout' && country && decided ? plan?.id : undefined,
         country && decided ? currencyOfCountry(country) : undefined
     );
     const { emails: management } = useManagementScreens();
-    // The billing-email screens are hidden: nothing here reads the billing emails then.
     const billing = useBillingInfo({ enabled: management });
 
     const [payer, setPayer] = useState<PayerDraft>(
@@ -116,12 +86,9 @@ const CheckoutForm = ({ handedOpen }: { handedOpen: boolean }): JSX.Element => {
 
     const money = (amount: CheckoutPreview['amountToday']) => formatMoney(amount, i18n.language);
     const { account, withTrial } = base.data;
-    // With the billing-email screens hidden, the card company gets the account's own address, and an
-    // account without one is asked for it with the payer.
     const knownEmail = management ? billingEmail?.address : account.email;
     const emailAddress = payerEmailOf(knownEmail, payer);
     const needsPayer = !!country && payerRequiredIn(country);
-    // The amounts are the country's only once its own preview is in, not the one before it.
     const priced = !!country && decided && !!pricedPreview.data && !pricedPreview.isPlaceholderData;
     const preview = { data: priced && pricedPreview.data ? pricedPreview.data : base.data };
     const ready = canContinueCheckout({ country, email: emailAddress, payer, consents, foreignBilling });
@@ -159,7 +126,6 @@ const CheckoutForm = ({ handedOpen }: { handedOpen: boolean }): JSX.Element => {
                 </>
             }
             summary={
-                // A block, not a flex column: the summary's own `self-start` would shrink it to its content.
                 <div className="space-y-3">
                     <CheckoutSummary preview={preview.data} priced={priced} unpricedHint={decided} />
                     {country && decided && pricedPreview.isError && (
@@ -204,8 +170,6 @@ const CheckoutForm = ({ handedOpen }: { handedOpen: boolean }): JSX.Element => {
                 <h2 className={CARD_TITLE}>{t('subscription.checkout.billing.title')}</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
                     <div className="flex flex-col gap-2">
-                        {/* The card's title already says it; the label stays for screen readers unless the email
-                            field beside it needs the two told apart. */}
                         <label
                             htmlFor="checkout-country"
                             className={cn(
@@ -358,7 +322,6 @@ const CheckoutForm = ({ handedOpen }: { handedOpen: boolean }): JSX.Element => {
                 </Card>
             )}
 
-            {/* Without a country the button stays pressable, so pressing it can say what is missing. */}
             {decided && (
                 <Button
                     size="lg"

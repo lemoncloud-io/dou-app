@@ -9,10 +9,6 @@ import { cn } from '../../utils';
 
 import type { SignInProvider } from '../../types';
 
-/**
- * What the callback page hands over in the history state. Not in the query: the masked address is
- * still a piece of the reader's email, and a URL is copied, logged and shared.
- */
 export interface NoLinkedAccountState {
     provider: SignInProvider;
     hint?: string;
@@ -25,8 +21,6 @@ const readState = (state: unknown): NoLinkedAccountState | undefined => {
         : undefined;
 };
 
-// Button looks on anchors: the store links leave the site and the other account is a route, so
-// they are links, not buttons.
 const linkButtonClass = cn(
     'inline-flex h-[50px] items-center justify-center rounded-full px-5 text-[15px] font-semibold transition-all',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/40'
@@ -34,15 +28,9 @@ const linkButtonClass = cn(
 const storeLinkClass = cn(linkButtonClass, 'flex-1 bg-navy text-white hover:opacity-90');
 const otherAccountClass = cn(linkButtonClass, 'border-[1.5px] border-[#d9dbe0] bg-white text-ink hover:bg-muted');
 
-/**
- * W-02b — the provider signed the reader in, but no DoU account is linked to that sign-in. Nothing is
- * bought from here: the way on is the app (install it, sign in with the same account, come back) or
- * another account. Google shows the masked address it was; Apple shares none.
- */
 export const NoLinkedAccountPage = (): JSX.Element => {
     const { t } = useTranslation();
     const state = readState(useLocation().state);
-    // Reached without the hand-over (a reload in another tab, a typed URL), the page names both.
     const provider = t(`subscription.entry.provider.${state?.provider ?? 'either'}`);
 
     const body = state?.hint

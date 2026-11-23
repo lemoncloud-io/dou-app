@@ -7,30 +7,14 @@ import { useDeepLinkInfo, useAppLauncher, useWebRedirect } from '../hooks';
 import { APP_MISSING_HASH, isInviteLink, shouldAutoLaunch } from '../utils';
 
 interface DeepLinkPageProps {
-    /**
-     * A link only the app opens — a sub WebView page's. It is tried in the app as an invite is, and
-     * the page offers the store, never the browser: the page it names is meant to run in the app.
-     */
     appOnly?: boolean;
 }
 
-/**
- * Deep link landing page component.
- *
- * Flow:
- * - Desktop: Show desktop UI (dark theme with mobile access instructions)
- * - Mobile: Try the app on load (Android always, iOS inside in-app browsers), then show the
- *   "Open app" and "View in web" buttons as the fallback
- *   - "Open app" → confirm dialog → launch app
- *   - App not installed → store confirm dialog → go to store
- *   - "View in web" → redirect to web app (not drawn for an `appOnly` link)
- */
 export const DeepLinkPage = ({ appOnly = false }: DeepLinkPageProps): JSX.Element => {
     const { t } = useTranslation();
     const deviceType = useDeviceDetect();
     const deepLinkInfo = useDeepLinkInfo();
 
-    // The marker means this load is the Android intent fallback: the app was just tried and is missing.
     const autoLaunch =
         (appOnly || isInviteLink(deepLinkInfo.deepLinkUrl)) &&
         shouldAutoLaunch(deviceType, navigator.userAgent) &&
@@ -40,10 +24,8 @@ export const DeepLinkPage = ({ appOnly = false }: DeepLinkPageProps): JSX.Elemen
         { deviceType, deepLinkInfo, autoLaunch }
     );
 
-    // Web redirect hook - manual trigger only (no auto-redirect)
     const { redirect: continueInBrowser, loading: webLoading } = useWebRedirect(deepLinkInfo, false);
 
-    // Determine effective state (loading states override)
     const effectiveState = webLoading ? 'web-redirecting' : state;
 
     return (
@@ -54,7 +36,6 @@ export const DeepLinkPage = ({ appOnly = false }: DeepLinkPageProps): JSX.Elemen
                 onContinueBrowser={appOnly ? undefined : continueInBrowser}
             />
 
-            {/* App confirmation dialog */}
             {dialogType === 'app-confirm' && (
                 <DeepLinkDialog
                     title={t('deeplink.dialog.appConfirm.title')}
@@ -65,7 +46,6 @@ export const DeepLinkPage = ({ appOnly = false }: DeepLinkPageProps): JSX.Elemen
                 />
             )}
 
-            {/* Store confirmation dialog */}
             {dialogType === 'store-confirm' && (
                 <DeepLinkDialog
                     title={t('deeplink.dialog.storeConfirm.title')}

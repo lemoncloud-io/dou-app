@@ -1,28 +1,17 @@
 import { SubscriptionPortError, type SubscriptionPortErrorCode } from '../errors';
 
-/**
- * A charge the card company declined. The server says so in its message (`403 INVALID PAYMENT - …`);
- * any other 403 on the same call — a session it refuses, credentials the gateway rejects — is not a
- * card problem, and reading it as one would send the reader back to the card window for nothing.
- */
 export const isDeclinedPayment = (error: unknown): boolean => {
     const { status, message } = failureOf(error);
     return status === 403 && message.includes('INVALID PAYMENT');
 };
 
-/**
- * The server refusing the signed-in account rather than its credentials: `403 NOT ALLOWED - main user
- * only`. The session is fine; this account may not do what it asked.
- */
 const isRefusedAccount = (message: string): boolean => /main user only/i.test(message);
 
-/** What a failed request says about itself: the HTTP status, if a response came back at all. */
 export interface HttpFailure {
     status?: number;
     message: string;
 }
 
-/** Reads an axios-shaped rejection (`response.status`, the server's message as `response.data`). */
 export const failureOf = (error: unknown): HttpFailure => {
     const response = (error as { response?: { status?: number; data?: unknown } } | null)?.response;
     const data = response?.data;
@@ -37,15 +26,6 @@ export const failureOf = (error: unknown): HttpFailure => {
     return { status: response?.status, message };
 };
 
-/**
- * The port's error for a failed request. The server's own words go to the console only.
- *
- * A 403 is credentials the server does not accept — except a refusal of the account itself ("main
- * user only": a guest, which the subscription server does not sell to), which is `notAllowed` and
- * leaves the session as it is, and except on the two calls that charge, where it is a declined
- * payment; those read the status themselves before they come here. A 400 is the server refusing what the state allows, the same as a 409 to a
- * screen. No response at all, or the server failing, is the request not completing.
- */
 export const portErrorOf = (error: unknown): SubscriptionPortError => {
     if (error instanceof SubscriptionPortError) return error;
     const { status, message } = failureOf(error);

@@ -7,8 +7,6 @@ import type { Subscription } from '../types';
 
 type BadgeState = Subscription['status'] | 'downgradeScheduled';
 
-// The status pills of the design: a pale fill under a darker text of the same hue; an active
-// subscription is the one dark pill, an ended one the grey.
 const PILL: Record<BadgeState, string> = {
     pending: 'bg-[#eef3fb] text-navy',
     trial: 'bg-[#f1fad6] text-[#3b5a00]',
@@ -20,7 +18,6 @@ const PILL: Record<BadgeState, string> = {
     downgradeScheduled: 'bg-[#ecf1ff] text-[#3454d1]',
 };
 
-/** The status pill beside a plan name. A scheduled downgrade reads as its own state. */
 export const StatusBadge = ({
     subscription,
     className,

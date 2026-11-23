@@ -14,7 +14,6 @@ import {
     webSubscriptionOf,
 } from './wire';
 
-// The dev stage's web products as `GET /products/0/plans?platform=portone` lists them.
 const PRODUCTS = [2, 1, 3, 4, 5].map(sort => ({
     id: `dou-web-tier-0${sort}_dev`,
     sort,
@@ -25,7 +24,6 @@ const PRODUCTS = [2, 1, 3, 4, 5].map(sort => ({
 }));
 const CATALOG = toCatalog(PRODUCTS, 'portone');
 
-// The dollar products, priced in cents as the server lists them.
 const STRIPE_PRODUCTS = [1, 2, 3, 4, 5].map(sort => ({
     id: `dou-web-stripe-tier-0${sort}_dev`,
     platform: 'stripe',
@@ -36,7 +34,6 @@ const STRIPE_PRODUCTS = [1, 2, 3, 4, 5].map(sort => ({
     trialDays: 7,
 }));
 
-// Local noon, so the calendar day is the same in every time zone the test runs in.
 const at = (iso: string) => new Date(`${iso}T12:00:00`).getTime();
 
 describe('toCatalog', () => {

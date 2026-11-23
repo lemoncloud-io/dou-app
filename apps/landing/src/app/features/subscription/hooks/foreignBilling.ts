@@ -7,15 +7,6 @@ import { useSession } from './session';
 
 const DOLLARS = 'USD';
 
-/**
- * Whether billing outside Korea, in dollars, is open — `foreignBillingOf` over the server's dollar
- * catalog, read with the reader's session. It is the dollar plans query itself (`usePlans('USD')`, the
- * same key), and the HTTP port keeps each provider's catalog for the page, so asking adds no call that
- * the plans page in dollars would not make anyway.
- *
- * `enabled` false skips the read where the answer cannot change what is shown — a Korean reader's plans,
- * a checkout in Korea — and is `shut`.
- */
 export const useForeignBilling = ({ enabled = true }: { enabled?: boolean } = {}): ForeignBilling => {
     const port = usePort();
     const session = useSession();

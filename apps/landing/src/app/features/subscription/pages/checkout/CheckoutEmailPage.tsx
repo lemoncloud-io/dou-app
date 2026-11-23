@@ -20,19 +20,6 @@ const k = (key: string) => `subscription.checkout.emailStep.${key}`;
 const READ_ONLY_FIELD =
     'h-[47px] min-w-0 flex-1 rounded-lg border border-[#d9dbe0] bg-note px-4 pr-40 text-sm font-medium text-ink outline-none';
 
-/**
- * W-24 — the email step between sign-in and W-08. The address verified here becomes the primary
- * billing address, which W-08 shows and every payment notice goes to.
- *
- * Three ways in, one way out:
- * - an account that already has a verified primary address sees it verified, with [change] opening
- *   the shared change popup;
- * - a Google sign-in is offered its own address, used as it is without a code;
- * - anyone else — Apple, or Google after "use another email" — verifies an address by code.
- *
- * Every limit the code step shows (lifetime, resend interval, tries) comes from the shared form and
- * the port's ticket; this screen holds none of them.
- */
 export const CheckoutEmailPage = (): JSX.Element => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -44,7 +31,6 @@ export const CheckoutEmailPage = (): JSX.Element => {
 
     const [typing, setTyping] = useState(false);
     const [changing, setChanging] = useState(false);
-    // An address the form verified, kept until it is the primary: if marking it fails, "next" tries again.
     const [verified, setVerified] = useState<BillingEmail>();
     const [stepError, setStepError] = useState<string>();
 
@@ -64,8 +50,6 @@ export const CheckoutEmailPage = (): JSX.Element => {
     const scene = primary ? 'verified' : signInAddress && !typing ? 'signIn' : 'verify';
     const toDetails = () => navigate(checkoutUrl(plan.id));
 
-    // An address verified here is the billing address from now on. The port marks the first one primary
-    // itself; an account whose primary mark sits on an address that is not verified gets it moved here.
     const makePrimary = (email: BillingEmail): Promise<unknown> =>
         email.primary ? Promise.resolve() : setPrimary.mutateAsync(email.id);
 
@@ -178,7 +162,6 @@ const errorKeyOf = (err: unknown): string => {
     return commonErrorKey(err);
 };
 
-/** "Email (required)" and what the address is for, above the field in every scene. */
 const FieldLabel = (): JSX.Element => {
     const { t } = useTranslation();
     return (

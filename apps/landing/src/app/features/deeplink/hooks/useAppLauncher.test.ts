@@ -83,7 +83,6 @@ describe('useAppLauncher', () => {
         });
 
         act(() => {
-            // What Chrome's intent fallback does when the package is missing.
             window.location.hash = 'app-missing';
             vi.advanceTimersByTime(DEEPLINK_CONFIG.launchTimeout);
         });

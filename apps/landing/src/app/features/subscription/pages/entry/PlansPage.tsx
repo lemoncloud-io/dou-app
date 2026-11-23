@@ -34,36 +34,20 @@ const TAG_TONES: Record<PlanTag, BadgeTone> = {
     adjacentOnly: 'neutral',
 };
 
-// The step up wears the brand green, which no badge tone carries; on the highlighted card a tone's
-// pale fill would vanish.
 const TAG_CLASSES: Partial<Record<PlanTag, string>> = { upgrade: 'bg-main-green text-navy' };
 
 const changePath = (plan: Plan) => `${ROUTES.subscription.change}?${new URLSearchParams({ plan: plan.id })}`;
 const checkoutPath = (plan: Plan) => `${ROUTES.subscription.checkout}?${new URLSearchParams({ plan: plan.id })}`;
 
-/**
- * W-01 — the plans. A visitor and a signed-in reader with no plan are offered the entry plan only; a
- * subscriber is offered the step up and the step down. Which card is pickable comes from
- * `planChoicesOf`, and every price and trial length from the port. Prices are in the reader's language's
- * currency (`currencyOfLanguage`), a subscriber's own, or — for a signed-in reader while the server sells
- * no dollars (`useForeignBilling`) — won.
- *
- * Where the account surface is shut (`account` false) the reader is always a visitor and there is
- * nowhere to buy yet: the same plans and notes, with the store links in place of the subscribe button.
- */
 export const PlansPage = ({ account = true }: { account?: boolean }): JSX.Element => {
     const session = useSession();
     if (session.isLoading) return <PageLoader />;
-    // A visitor has no subscriptions to ask for: the call would answer that the session is gone, and
-    // that answer sends the reader to sign in — not what a visitor browsing the plans asked for.
     return account && session.data ? <SignedInPlans /> : <PlansScene signedIn={false} canBuy={account} />;
 };
 
 const SignedInPlans = (): JSX.Element => {
     const { t } = useTranslation();
     const { subscription, plan: current, isLoading } = useCurrentSubscription();
-    // Same cache as above, read for its error: without the list, "no subscription" would be a guess,
-    // and the guess would offer a subscriber their first subscription.
     const subscriptions = useSubscriptions();
     if (isLoading) return <PageLoader />;
     if (subscriptions.isError) return <Banner tone="danger" title={t(commonErrorKey(subscriptions.error))} />;
@@ -85,25 +69,14 @@ const PlansScene = ({
     const navigate = useNavigate();
     const today = useToday();
     const session = useSession();
-    // Prices are read in the page's language — won in Korean, dollars otherwise — until a subscription
-    // is in force, whose own currency they then follow. What a checkout charges is the billing
-    // country's to decide, on the checkout.
     const language = currencyOfLanguage(i18n.language);
-    // A signed-in reader's plans come from the server, which may sell no dollars yet: then the list is
-    // in won, as the checkout would bill it, rather than empty. It is the checkout's own answer
-    // (`useForeignBilling`), read the same way. A visitor's come from the published catalog,
-    // which has dollars on every stage, and there is no session to ask the server with.
     const dollarsAsked = signedIn && !subscription && language !== 'KRW';
     const foreignBilling = useForeignBilling({ enabled: dollarsAsked });
     const currency = subscription ? undefined : dollarsAsked && foreignBilling === 'shut' ? 'KRW' : language;
-    // While the answer is read the dollar list is what is asked for — the same query the answer reads,
-    // so no other call goes out — and nothing is drawn until it is in, so the prices never switch.
     const plans = usePlans(currency);
     const account = signedIn ? (session.data ?? null) : null;
     const storeBilled = account?.billingSource === 'appStore' || account?.billingSource === 'googlePlay';
 
-    // Before a first subscription the checkout preview says whether it would start with the trial and
-    // what today's charge is; the page does not work either out itself.
     const entryPlan = plans.data?.find(p => p.sort === ENTRY_PLAN_SORT);
     const preview = usePreviewCheckout(signedIn && !current && !storeBilled ? entryPlan?.id : undefined, currency);
 
@@ -112,8 +85,6 @@ const PlansScene = ({
         return <Banner tone="danger" title={t('subscription.common.error.unknown')} />;
     }
 
-    // The checkout preview decides once there is one; before it, the account's own answer, and for a
-    // visitor — whose answer is unknown until they sign in — the trial a first subscription comes with.
     const withTrial = preview.data ? preview.data.withTrial : (account?.trialEligible ?? !account?.trialUsed);
     const canChange = !subscription || sceneOf(subscription, today).actions.includes('changePlan');
     const choices = planChoicesOf({ plans: plans.data, current, account, withTrial, canChange });
@@ -132,7 +103,6 @@ const PlansScene = ({
 
     const changing = choices.mode === 'change' || choices.mode === 'changeUnavailable';
     const title = changing ? 'changeTitle' : 'title';
-    // Where nothing can be picked, the banner says why; a subtitle about picking would contradict it.
     const subtitle =
         choices.mode === 'storeBilled' || choices.mode === 'changeUnavailable'
             ? undefined
@@ -189,15 +159,11 @@ const PlansScene = ({
                 </Banner>
             )}
 
-            {/* Below the widened layout a price no longer fits a fifth of the column, so the cards wrap. */}
             <div className="grid grid-cols-1 gap-[18px] min-[440px]:grid-cols-2 md:grid-cols-3 md:gap-4 min-[1200px]:grid-cols-5">
                 {choices.cards.map(choice => (
                     <ChoiceCard
                         key={choice.plan.id}
                         choice={canBuy ? choice : listed(choice)}
-                        // The first-subscription plan list is drawn bare: its rules are already in the title,
-                        // the hint and the notes. The tags earn their place once there is a plan to compare —
-                        // and "trial used", which no other line on a first-subscription page says.
                         tagLabel={
                             choice.tag && (changing || choice.tag === 'trialUsed')
                                 ? t(`subscription.entry.plans.tag.${choice.tag}`, { days: trialDays })
@@ -271,14 +237,8 @@ const PlansScene = ({
     );
 };
 
-/**
- * A card as a price list shows it while nothing can be bought on the web: no tag and no greying. The
- * tags ("after subscribing", the entry plan) are rules of the web checkout, and a plan greyed by them
- * would read as unavailable rather than as a price.
- */
 const listed = (choice: PlanChoice): PlanChoice => ({ ...choice, tag: undefined, selected: false, pickable: true });
 
-/** In place of the subscribe button while nothing can be bought on the web: buy in the app. */
 const InAppOnly = (): JSX.Element => {
     const { t } = useTranslation();
     const store = 'rounded-full bg-navy px-6 py-3 text-sm font-semibold text-white hover:opacity-90';
@@ -327,7 +287,6 @@ const ChoiceCard = ({
             }
         />
     );
-    // The plan in force is marked by its frame, not by the pick highlight — it cannot be picked.
     return choice.tag === 'current' ? (
         <div className="grid rounded-2xl ring-2 ring-navy [&>button]:border-transparent">{card}</div>
     ) : (
@@ -351,14 +310,12 @@ const Notes = ({
         ? [
               t('subscription.entry.plans.notes.trialOnce'),
               t('subscription.entry.plans.notes.afterTrial'),
-              // About paying twice on the web — said only where the web takes a payment.
               ...(canBuy ? [t('subscription.entry.plans.notes.storeSubscribers')] : []),
           ]
         : [
               t('subscription.entry.plans.notes.trialUsed'),
               ...(firstChargeAt
-                  ? // The first charge lands today, so its day of the month is the billing day from then on.
-                    [t('subscription.entry.plans.notes.chargeToday', { day: Number(firstChargeAt.slice(8, 10)) })]
+                  ? [t('subscription.entry.plans.notes.chargeToday', { day: Number(firstChargeAt.slice(8, 10)) })]
                   : []),
               ...(entryName ? [t('subscription.entry.plans.notes.startAtEntry', { plan: entryName })] : []),
           ];

@@ -16,7 +16,6 @@ describe('RefundPolicyPage', () => {
 
         expect(screen.getByRole('heading', { level: 1, name: '환불정책' })).toBeTruthy();
         expect(screen.getByText('제안')).toBeTruthy();
-        // No published version yet, so there is nothing to pick between.
         expect(screen.queryByRole('button')).toBeNull();
     });
 });

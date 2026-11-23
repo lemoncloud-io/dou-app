@@ -5,8 +5,6 @@ import i18n from '../../i18n';
 
 import { createAppRoutes } from './index';
 
-// The pages themselves are not under test here — only which screen a URL reaches, where the URL
-// ends up, and whether its query survives the trip. Each feature's own route table stays real.
 vi.mock('../features/home/pages', () => ({ HomePage: () => <p>home</p> }));
 vi.mock('../features/policy/pages', () => ({
     TermsOfServicePage: () => <p>terms</p>,
@@ -14,7 +12,6 @@ vi.mock('../features/policy/pages', () => ({
     ChildPolicyPage: () => <p>child</p>,
     RefundPolicyPage: () => <p>refund</p>,
 }));
-// Stands in for the whole signed-in surface; its own routes are tested beside it.
 vi.mock('../features/subscription', () => ({
     SubscriptionRoutes: ({ account = true }: { account?: boolean }) => (
         <p>{account ? 'subscription' : 'subscription catalog'}</p>
@@ -25,7 +22,6 @@ vi.mock('../features/deeplink/pages', () => ({
     SubWebViewLinkPage: () => <p>sub webview link</p>,
 }));
 
-// The production host, where the subscription pages are shut, unless a test says otherwise.
 const appRoutes = createAppRoutes({ subscriptionAccount: false });
 
 const renderAt = (url: string, routes = appRoutes) => {
@@ -38,12 +34,9 @@ const Throws = () => {
     throw new Error('boom');
 };
 
-// The same table with home swapped for a component that throws while rendering.
 const withThrowingHome = () => appRoutes.map(route => (route.index ? { ...route, element: <Throws /> } : route));
 
 describe('appRoutes', () => {
-    // The public URLs and what each resolves to. Store listings, the sitemap and links already sent
-    // to people cite these, so a changed row is a broken link somewhere this repo cannot see.
     it.each([
         ['/', 'home', '/'],
         ['/?ref=x', 'home', '/?ref=x'],
@@ -71,8 +64,6 @@ describe('appRoutes', () => {
         expect(router.state.location.pathname + router.state.location.search).toBe(finalUrl);
     });
 
-    // Where the gate is open (localhost, the dev stage) the same URLs reach the subscription pages, and
-    // every public URL resolves exactly as it does on the production host.
     describe('with the subscription pages open', () => {
         const open = createAppRoutes({ subscriptionAccount: true });
 

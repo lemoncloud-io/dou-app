@@ -23,19 +23,10 @@ const errorKeyOf = (error: unknown): string => {
     return commonErrorKey(error);
 };
 
-/**
- * W-14 — confirms a change to the plan directly above or below (`?plan=`). An upgrade is charged the
- * difference today and followed on W-09; a downgrade is scheduled for the next renewal and confirmed
- * on W-06. A subscription whose renewal failed cannot change until it is paid, so it is pointed at
- * the payment methods instead.
- */
 export const ChangePlanPage = (): JSX.Element => {
     const { t } = useTranslation();
     const { loading, error, retry, target, subscription, route } = usePlanRoute();
-    // An ending subscription has no next period to change; it is resumed first, on its own page. Read
-    // from its status rather than from the preview's refusal, which could have other causes.
     const ending = subscription?.status === 'cancelScheduled';
-    // Where a cancellation cannot be undone, the notice does not send the reader to undo it.
     const resumable = useSupports()('resumeSubscription');
     const preview = usePreviewChange(route === 'change' && !ending ? target?.id : undefined);
 
@@ -83,7 +74,6 @@ export const ChangePlanPage = (): JSX.Element => {
     return <ChangeConfirm preview={preview.data} subscription={subscription} />;
 };
 
-/** The "now → after" pair of plan cards at the top of an upgrade or a downgrade. */
 const PlanPair = ({ from, to }: { from: Plan; to: Plan }): JSX.Element => {
     const { t, i18n } = useTranslation();
     const card = (plan: Plan, label: string, highlighted: boolean) => (

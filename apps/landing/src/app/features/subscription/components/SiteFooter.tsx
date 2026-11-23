@@ -9,11 +9,6 @@ import { ROUTES } from '../../../routes/paths';
 
 const LINK = 'whitespace-nowrap underline underline-offset-2 hover:text-navy transition-colors';
 
-/**
- * The pale footer under the subscription pages: who sells, and the three policy links. On a phone the
- * links come first, above the details; from `md` the details sit left with the copyright line and the
- * links level with it on the right. The home page keeps its own green footer.
- */
 export const SiteFooter = (): JSX.Element => {
     const { t } = useTranslation();
 
@@ -28,7 +23,6 @@ export const SiteFooter = (): JSX.Element => {
             <Link to={ROUTES.policy.child} className={LINK}>
                 {t('footer.child')}
             </Link>
-            {/* The design's header drops the policy entry; the refund policy must stay one click away. */}
             <Link to={ROUTES.policy.refund} className={LINK}>
                 {t('subscription.common.nav.policy')}
             </Link>

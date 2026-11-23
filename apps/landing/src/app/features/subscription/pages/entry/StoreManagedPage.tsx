@@ -8,12 +8,6 @@ import { Badge, Button } from '../../components/ui';
 import { usePlans, useSession } from '../../hooks';
 import { formatDate } from '../../utils';
 
-/**
- * W-17 — the account's subscription is billed by App Store or Google Play, so it is changed and
- * cancelled in that store and nothing here is for sale to it. A web-billed reader who lands here has
- * nothing to read, and goes on to their subscriptions. The plan and next charge are shown when the
- * port knows them; the store's name always is.
- */
 export const StoreManagedPage = (): JSX.Element => {
     const { t } = useTranslation();
     const navigate = useNavigate();
@@ -37,7 +31,6 @@ export const StoreManagedPage = (): JSX.Element => {
 
     return (
         <div className="flex justify-center md:pt-6">
-            {/* The bordered card is the desktop frame; on a phone the content sits on the bare page. */}
             <section className="flex w-full max-w-[500px] flex-col gap-[18px] md:rounded-2xl md:border md:border-line md:p-10">
                 <Badge tone="navy" className="self-start py-[3px] pl-2.5 pr-3 font-semibold">
                     {t('subscription.entry.storeManaged.badge', { store })}

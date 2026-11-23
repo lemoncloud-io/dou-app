@@ -3,10 +3,6 @@ import { usePlans, useSubscriptions } from './subscriptions';
 
 import type { Plan, Subscription } from '../types';
 
-/**
- * The subscription in force and its plan, or neither. An account has at most one live subscription;
- * the rest of the list is history. The sidebar summary and the plan picker both start from this.
- */
 export const useCurrentSubscription = (): {
     subscription?: Subscription;
     plan?: Plan;
