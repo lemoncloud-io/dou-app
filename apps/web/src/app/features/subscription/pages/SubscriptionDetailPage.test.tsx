@@ -255,7 +255,7 @@ describe('Subscription detail — scenarios', () => {
     });
 
     it('in the app, a subscription the website bills: says so, and links nowhere', () => {
-        show({ summary: {}, membership: { platform: 'stripe' } });
+        show({ summary: {}, membership: { platform: 'stripe' }, isOtherStore: true });
 
         expect(screen.getByText(`${K}.detail.webBilled`)).toBeInTheDocument();
         expect(
@@ -270,5 +270,33 @@ describe('Subscription detail — scenarios', () => {
         expect(screen.queryByText(new RegExp(`${K}.notice.manageAt`))).not.toBeInTheDocument();
         expect(screen.queryByText(`${K}.notice.upgradeImmediate`)).not.toBeInTheDocument();
         expect(screen.queryByText(`${K}.notice.title`)).not.toBeInTheDocument();
+    });
+
+    it('in the app, a lapsed subscription the website billed: offers to subscribe again in this store', () => {
+        show({
+            summary: { state: 'expired', isEntitled: false, hasLiveReceipt: false, validUntil: NOW - DAY },
+            membership: { platform: 'portone' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: `${K}.detail.resubscribe` }));
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.plans);
+        expect(screen.queryByText(`${K}.detail.webBilled`)).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.manageOnWeb` })).not.toBeInTheDocument();
+        expect(mockStore.openManagement).not.toHaveBeenCalled();
+        expect(mockWeb.open).not.toHaveBeenCalled();
+        expect(screen.queryByText(`${K}.notice.title`)).not.toBeInTheDocument();
+    });
+
+    it('in the app, a lapsed website subscription the relay still counts as running: says so, offers nothing', () => {
+        show({
+            summary: { state: 'expired', isEntitled: false, hasLiveReceipt: false, validUntil: NOW - DAY },
+            membership: { platform: 'portone', status: 'pending' },
+            isOtherStore: true,
+        });
+
+        expect(screen.getByText(`${K}.detail.webBilled`)).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.resubscribe` })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
     });
 });

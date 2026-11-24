@@ -73,7 +73,7 @@ export const usePlanCatalog = (): PlanCatalog => {
         isOtherStore:
             !!platform &&
             ((!!replaceablePlan?.platform && replaceablePlan.platform !== platform) ||
-                isHeldByWeb(summary, membership?.platform)),
+                isHeldByWeb(summary, membership?.platform, membership?.status)),
         pendingPlan,
         summary,
         trialEligible: isTrialEligible(membership),

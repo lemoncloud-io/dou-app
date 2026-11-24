@@ -14,6 +14,9 @@ export const canCheckoutOnWeb = (
 ): boolean => !summary.hasLiveReceipt || isWebBilled(platform);
 
 export const isHeldByWeb = (
-    summary: Pick<SubscriptionSummary, 'hasLiveReceipt'>,
-    platform: string | null | undefined
-): boolean => summary.hasLiveReceipt && isWebBilled(platform);
+    summary: Pick<SubscriptionSummary, 'hasLiveReceipt' | 'isAdminOverridden' | 'isEntitled'>,
+    platform: string | null | undefined,
+    status?: string | null
+): boolean =>
+    isWebBilled(platform) &&
+    (summary.hasLiveReceipt || (!!summary.isAdminOverridden && summary.isEntitled) || status === 'pending');

@@ -80,7 +80,8 @@ export const SubscriptionDetailPage = () => {
     const validUntil = formatDate(membership?.validUntil);
     const banner = deriveBanner({ summary, autoRenewing: membership?.autoRenewing, hasPrice: !!price, restored });
     const webBilled = isWebBilled(membership?.platform);
-    const canManageHere = sellsInStore && !isOtherStore && !webBilled;
+    const canBuyHere = sellsInStore && !isOtherStore;
+    const canManageHere = canBuyHere && !webBilled;
     const canUseWeb = checkout.kind === 'web' && canCheckoutOnWeb(summary, membership?.platform);
     const openWebSubscription = () => {
         if (checkout.kind === 'web') checkout.open(WEB_SUBSCRIPTION_URL.list);
@@ -336,7 +337,7 @@ export const SubscriptionDetailPage = () => {
                     </section>
 
                     <div className="flex flex-col gap-4 px-4">
-                        {canManageHere || canUseWeb ? (
+                        {canBuyHere || canUseWeb ? (
                             <>
                                 {summary.state !== 'blocked' && (
                                     <Button size="lg" fullWidth onClick={() => navigate(ROUTES.subscription.plans)}>
@@ -350,7 +351,8 @@ export const SubscriptionDetailPage = () => {
                                         {t('mypage.subscription.detail.manageInStore')}
                                     </Button>
                                 ) : (
-                                    webBilled && (
+                                    webBilled &&
+                                    canUseWeb && (
                                         <Button variant="outline" size="lg" fullWidth onClick={openWebSubscription}>
                                             {t('mypage.subscription.detail.manageOnWeb')}
                                         </Button>

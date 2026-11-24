@@ -280,11 +280,16 @@ tab's session. This tab learns of it only once it is signed in to the same accou
 picks another account on the website, or a guest who stays one, sees no subscription here.
 
 **Where a store sells, the website is never offered.** The stores do not allow pointing a buyer at another
-way to pay, so a website subscription opened in the app gets a note (`detail.webBilled`) with no link
-and no "manage it at …" line, and the tier picker refuses every tier as `otherStore`. `isOtherStore`
-counts a running website subscription as another store's whether or not the catalog lists its plan,
-and the picker refuses every tier when it has no plan to judge against, so a store sale on top of the
-website cannot start.
+way to pay, so a running website subscription opened in the app gets a note (`detail.webBilled`) with
+no link and no "manage it at …" line, and the tier picker refuses every tier as `otherStore`.
+`isOtherStore` counts a running website subscription as another store's whether or not the catalog
+lists its plan, and the picker refuses every tier when it has no plan to judge against, so a store sale
+on top of the website cannot start. "Running" is the relay's own test for refusing a store receipt
+(§ 5), which `isHeldByWeb` mirrors: a live receipt, an admin grant over a lapsed one, or a renewal
+payment still being confirmed (`status: 'pending'`). Once none of those holds the website no longer
+stands in the way, so the detail offers "subscribe again" through this store's picker, which reopens
+the lapsed tier as this store's equal (§ 4). "Manage in store" never appears for it: the store has
+nothing of it to manage.
 
 ## Boundaries
 
