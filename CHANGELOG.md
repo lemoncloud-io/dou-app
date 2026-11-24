@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-24] - No version updates
+
+### Bug Fixes
+
+- (runtime) skip delegate-cloud for clouds that are not active
+
 ## [2026-11-24] - root@0.174.0, @chatic/web@0.102.0
 
 ### Features
