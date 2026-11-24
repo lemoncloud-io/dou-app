@@ -43,6 +43,8 @@ const base64UrlToBytes = (value: string): number[] | null => {
     return bytes;
 };
 
+const SHORTEST_FORM_MINIMUM = [0, 0x80, 0x800, 0x10000];
+
 const utf8BytesToString = (bytes: number[]): string | null => {
     let out = '';
     let index = 0;
@@ -79,7 +81,11 @@ const utf8BytesToString = (bytes: number[]): string | null => {
             codePoint = (codePoint << 6) | (byte & 0x3f);
         }
 
-        if (codePoint > 0x10ffff) {
+        if (
+            codePoint > 0x10ffff ||
+            codePoint < SHORTEST_FORM_MINIMUM[continuations] ||
+            (codePoint >= 0xd800 && codePoint <= 0xdfff)
+        ) {
             return null;
         }
         out += String.fromCodePoint(codePoint);

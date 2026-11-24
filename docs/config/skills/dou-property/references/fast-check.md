@@ -38,6 +38,11 @@ fc.assert(
 
 ## Settings
 
-- `fc.assert(prop, { numRuns: 200 })` by default; raise it locally while hunting, not in CI.
+- `fc.assert(prop, { numRuns: 200, seed: 1123 })`: bounded runs and a fixed seed, so CI runs the same cases every
+  time. Raise `numRuns` or drop the seed locally while hunting, not in CI.
 - A failure prints the seed and path; rerun with `{ seed, path }` to reproduce.
-- Async properties use `fc.asyncProperty` and `await fc.assert(...)`.
+- Async properties use `fc.asyncProperty` and `await fc.assert(...)`; state machines use `fc.asyncModelRun`.
+- The expected side must not run the code under test. `serialize(revive(x))` compared with `serialize(x)` hides a
+  field mapped wrongly in `serialize`; compare with the generated input instead.
+- Bias the generator toward the corner you mean. Random bytes almost never hold one isolated overlong UTF-8
+  form; well-formed characters with an occasional malformed unit do. Check by breaking the code on purpose.
