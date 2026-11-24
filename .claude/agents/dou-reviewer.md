@@ -16,3 +16,7 @@ prints with evidence, or say why it does not apply. When given the previous roun
 
 Return one list ordered by severity. Each finding: `file:line`, what is wrong, the failure it causes, the fix.
 A finding you cannot anchor is marked unverified. Say plainly when you found nothing in a category.
+
+Drop a suspicion only when the code path this change adds or reaches shows the failure cannot happen. "Pre-existing",
+"documented", "a guard exists" or "tests cover it" do not refute it on their own: read the path, and if this change
+makes the failure reachable, it stays a finding.

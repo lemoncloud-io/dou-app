@@ -1,0 +1,292 @@
+{
+    "defects": [
+        {
+            "id": "D01",
+            "commit": "e68975b72",
+            "fix": "0117d6d0e",
+            "expected": [
+                "When the room screen stays mounted and moves straight to another room (push toast, search jump), the channel/joins/chats hooks still answer with the previous room's state on the first render with the new channelId, so join targets and the read marker are built from the wrong room. Each hook must tie its state to the channel id it belongs to."
+            ]
+        },
+        {
+            "id": "D02",
+            "commit": "e3394ea07",
+            "fix": "2d24cf310",
+            "expected": [
+                "After an account change the cached rows can still hold the previous account's notes-to-self (self chat) room; syncing or prefetching its feed under the new uid is refused by the server (403 not a member). The app-wide chat sync and the row prefetch must skip a self room the current user does not own."
+            ]
+        },
+        {
+            "id": "D03",
+            "commit": "05ed34cad",
+            "fix": "bb15af1e0",
+            "expected": [
+                "A runtime call result that contains a Promise (the write receipt's `delivered`) is sent across the bridge as JSON, where the promise serializes to `{}`; the mirroring page sees failure/never-delivered. Results must be JSON-serializable (stream the receipt, or refuse such contract entries)."
+            ]
+        },
+        {
+            "id": "D04",
+            "commit": "da21cccf5",
+            "fix": "400fa3ff9",
+            "expected": [
+                "The background-clouds runner hands the runtime an empty list ([]) while the catalog and invited-cloud reads are still loading (e.g. right after a page reload), and [] means 'withdraw all', so every background cloud socket is torn down and reopened. 'Not known yet' must be distinguished from 'empty'."
+            ]
+        },
+        {
+            "id": "D05",
+            "commit": "037654d32",
+            "fix": "17d4d1649",
+            "expected": [
+                "The OAuth code exchange reuses whatever session is left on the tab instead of signing from the device guest: with expired/refused credentials the signed call is refused every retry, and with another account's session left behind that account would be linked."
+            ]
+        },
+        {
+            "id": "D06",
+            "commit": "dae91f096",
+            "fix": "d8bc34a4d",
+            "expected": [
+                "A re-issued cloud token (delegate-cloud + exchange) can come back for a different user than the one recorded for that cloud (a new empty user); the code commits it anyway, losing the user's rooms and identity. The exchange must compare the new token's uid with the recorded uid and refuse a mismatch."
+            ]
+        },
+        {
+            "id": "D07",
+            "commit": "7fdb973ee",
+            "fix": "870d421ae",
+            "expected": [
+                "Mini app state leaks across a cloud switch: a pending consent dialog stays up and, if accepted, sends the new cloud's data to a site the previous cloud listed; a hub opened for the previous cloud can return its result into the new cloud. The switch must drop pending consent and results must be ignored unless their cloud is still active."
+            ]
+        },
+        {
+            "id": "D08",
+            "commit": "4960bc975",
+            "fix": "453faa06c",
+            "expected": [
+                "When the server refuses auth.switch, the home page's place auto-select effect re-sends the same switch forever (the refusal rolls the selection back to the same unlisted place and the failed switch re-runs the effect): endless failure toasts and a home that never leaves loading. Tried places must be remembered/skipped, and no switch over a dead socket."
+            ]
+        },
+        {
+            "id": "D09",
+            "commit": "679174876",
+            "fix": "112ac4fc4",
+            "expected": [
+                "The delete confirm uses Radix AlertDialogAction, which closes the dialog on press, so the pending state (spinner, disabled buttons, back guard) for the non-optimistic server delete never renders.",
+                "Edit/delete target state survives a room-to-room navigation (route has no key, page re-derives in place): the composer stays locked by isEditing with no editor shown, and the delete target could quote the previous room's message. Reset on room change.",
+                "hasUnsavedEdit compares the untrimmed text while saveEdit compares trimmed, so a trailing space raises a discard confirm for a change saving would ignore."
+            ]
+        },
+        {
+            "id": "D10",
+            "commit": "0c5a55f5c",
+            "fix": "defa8c6b1",
+            "expected": [
+                "Deciding whether the app can go back with window.history.length is wrong: it is global to the WebView, only grows, and counts entries from before the app loaded or replaced by redirects, so a back press on the app's first screen is treated as in-app back. Use the router's own history index (idx)."
+            ]
+        },
+        {
+            "id": "D11",
+            "commit": "f64a4cb8d",
+            "fix": "60bbd858c",
+            "expected": [
+                "Home treats 'the cache emitted' as loaded, but for a never-opened cloud the cache emits [] immediately before the first fetch (which waits for the post-switch socket), so a cold cloud switch shows 'no place' / 'no rooms' for a cloud whose data is still arriving. Empty must read as unknown until something confirms it (bounded by a timeout)."
+            ]
+        },
+        {
+            "id": "D12",
+            "commit": "6f5dbc3f8",
+            "fix": "e32da2ec2",
+            "expected": [
+                "A relay-origin push carries cid '#' (the payload's name for the relay), but it is used raw as a cloud id: clicking the toast/banner switches to a cloud named '#' and fails with 'cloud not found'; it also double-banners on the relay and skips mute/badges. Map '#' to the relay cloud id."
+            ]
+        },
+        {
+            "id": "D13",
+            "commit": "99687b80f",
+            "fix": "03a12ff4b,28024c08e",
+            "expected": [
+                "The OAuth deeplink nonce is only checked when the returned link happens to carry one, so a link without a nonce is accepted for the whole start-record window; a sign-in link must be refused unless it carries the nonce this app sent.",
+                "Social login starts without registering the device session first, which the backend sign-in contract requires; the start must ensure a device session and stop on failure."
+            ]
+        },
+        {
+            "id": "D14",
+            "commit": "230ad216f",
+            "fix": "bfd3127a1",
+            "expected": [
+                "The owned-cloud reclaim recognises only the empty delegation JWT of a fresh invite entry; once the invite entry has been re-issued as the guest (an ordinary signed token), an owner who signed in stays the invitee and sees the invited place instead of their own cloud. The cached token must record whom it was issued for."
+            ]
+        },
+        {
+            "id": "D15",
+            "commit": "bfd3127a1",
+            "fix": "defee60b6 (revert)",
+            "expected": [
+                "The widened reclaim re-issues every catalog cloud whose cached token is unstamped/invite-shaped, including clouds the signed-in account does not own, which makes delegate-cloud answer 403 FORBIDDEN for those clouds. A reclaim sweep must only touch clouds the account owns / the token was issued for."
+            ]
+        },
+        {
+            "id": "D16",
+            "commit": "08cb165ce",
+            "fix": "548e7d10e",
+            "expected": [
+                "Every pointer release inside the bottom sheet (taps included) runs the drag spring-back, which toggles `animation: none` and back, restarting the Radix enter keyframe, so the sheet slides in again on each tap; also the drag arms (and captures the pointer) on the first pixel, swallowing slightly unsteady taps. Needs a drag slop and no phase change for a non-drag release."
+            ]
+        },
+        {
+            "id": "D17",
+            "commit": "b83bc3abd",
+            "fix": "ad4fcdeee",
+            "expected": [
+                "Sending a GIF generates a canvas thumbnail of its first frame, and the room draws the tile from thumbUrl, so animated GIFs show as still images in the list. GIFs should be sent without a thumbnail (original only)."
+            ]
+        },
+        {
+            "id": "D19",
+            "commit": "3c7a6a246",
+            "fix": "f55a38259",
+            "expected": [
+                "Attachment format detection only falls back to the file extension when the MIME type is empty/generic; browsers type OOXML files by OS registration, so a real .docx/.xlsx/.pptx often arrives as application/zip or a vendor type and is refused as unsupported."
+            ]
+        },
+        {
+            "id": "D20",
+            "commit": "76bf66b29",
+            "fix": "7f2a511ec",
+            "expected": [
+                "The upload PUT has a fixed five-minute timeout regardless of file size; a large video on a slow uplink can never finish and each retry resends the whole file into the same limit. The bound should scale with size."
+            ]
+        },
+        {
+            "id": "D21",
+            "commit": "bea3be6d5",
+            "fix": "4af2d2b2d",
+            "expected": [
+                "The in-app photo picker bridge calls use the default 15 s bridge timeout although they wait on a permission prompt, an iCloud download or a system sheet the person closes; a timed-out request drops the answer that follows. Each call needs a timeout sized to what it waits on."
+            ]
+        },
+        {
+            "id": "D22",
+            "commit": "e3b1b9748",
+            "fix": "6f2325216",
+            "expected": [
+                "Turning the paired-cloud list into a class makes `subscribe` a prototype method that uses `this`; hooks pass `pairedClouds.subscribe` detached to useSyncExternalStore, so `this` is undefined and every screen reading paired clouds throws during render. Bind it (arrow field)."
+            ]
+        },
+        {
+            "id": "D23",
+            "commit": "6dadb4e24",
+            "fix": "f797bee74",
+            "expected": [
+                "The bridge host keeps each subscription id's last event number across hellos; a reloaded page reuses the same ids and expects each stream from 1, so every reused stream opens with a sequence jump (spurious skipped-event warnings that bury real gaps). A hello must reset the numbers with the subscriptions it ends."
+            ]
+        },
+        {
+            "id": "D24",
+            "commit": "91778cc07",
+            "fix": "1d560bca7",
+            "expected": [
+                "Invited clouds are matched only by the relay session uid, but the invite accept recorded the device guest's delegatorId in acceptedBy; for a signed-in account the two differ, so every invited cloud it accepted drops out of the list (and its background socket stops). Match by either id."
+            ]
+        },
+        {
+            "id": "D25",
+            "commit": "9b9b96a89",
+            "fix": "5a9c6b41c",
+            "expected": [
+                "On resume, a socket left half-open by the suspension still reports its old verified flags, so the foreground recovery skips it and the keep-alive only closes it 40-80 s later, taking foreground refetches with it. Verified sockets need a liveness probe (ping with short timeout) on resume."
+            ]
+        }
+    ],
+    "controls": [
+        {
+            "id": "C01",
+            "commit": "789585a55"
+        },
+        {
+            "id": "C02",
+            "commit": "6b25f4d2b"
+        },
+        {
+            "id": "C03",
+            "commit": "c35e9aa73"
+        },
+        {
+            "id": "C04",
+            "commit": "df77319b6"
+        },
+        {
+            "id": "C05",
+            "commit": "bb129d414"
+        },
+        {
+            "id": "C06",
+            "commit": "07a324bc7"
+        },
+        {
+            "id": "C07",
+            "commit": "08121379f"
+        },
+        {
+            "id": "C08",
+            "commit": "0a003f380"
+        },
+        {
+            "id": "C09",
+            "commit": "92375272e"
+        },
+        {
+            "id": "C10",
+            "commit": "32ab3dbba"
+        }
+    ],
+    "holdout": [
+        {
+            "id": "H01",
+            "commit": "52d93d7c5",
+            "fix": "6ca7f0eb5",
+            "expected": [
+                "The home row's last message can now be a thread reply, which is not in the room's feed, so tapping the row opens a feed that does not contain the line it showed. The row should print the newest top-level message and use the newest activity (thread replies included) only for its time and ordering."
+            ]
+        },
+        {
+            "id": "H02",
+            "commit": "5d3731c70",
+            "fix": "7f6f3b56a",
+            "expected": [
+                "When a pushed room turns out to be one the reader has left, the redirect replaces the room with home on top of the home it was pushed from, leaving [home, home] in the history; the first back press rewinds into an identical screen and looks like it does nothing. It should rewind onto the existing home rather than add one."
+            ]
+        },
+        {
+            "id": "H03",
+            "commit": "7468b0248",
+            "fix": "d72888b5d",
+            "expected": [
+                "The relay hands back the same 1:1 room on every re-invite, still stamped with the place (sid) of the session that first opened it; filing a relay 1:1 by its own sid hides a room stamped with another place, or none, from Home, the channel sync and the cache, so an accepted invite never shows. A relay 1:1 must be listed in the relay's place regardless of its stamp."
+            ]
+        },
+        {
+            "id": "H04",
+            "commit": "f733cee4e",
+            "fix": "72697944e",
+            "expected": [
+                "Inside the Android app the WebView opens nothing for a capturing file input when the CAMERA permission has not been granted, and the page gets no callback, so tapping the camera does nothing. The page must ask the shell for the camera permission first and handle a refusal."
+            ]
+        },
+        {
+            "id": "H05",
+            "commit": "cb64ce933",
+            "fix": "01ccfb1a3, e0ccd9c72",
+            "expected": [
+                "After jumping into an old run of messages, older-page paging only asks below the oldest cached row, so a gap between the old run and today's cached messages is never filled and the feed shows them as adjacent (a thread whose root sits in the gap never loads). The gap must be detected and filled.",
+                "A search hit on a thread reply pushes the room and then the thread over it, so back from the thread lands in a room the reader never opened instead of the search results. The reply should open on its thread alone so back returns to search."
+            ]
+        },
+        {
+            "id": "H06",
+            "commit": "d32127a36",
+            "fix": "9a37e98f7",
+            "expected": [
+                "channel.startDm's answer for a room it has just created carries no place and the request context carries none, so writing it into the place-scoped cache throws and fails a call the server already honoured (the picker reports nothing and stays open). The write must tolerate an answer with no place."
+            ]
+        }
+    ]
+}

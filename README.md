@@ -194,6 +194,7 @@ dou-app/
 │   └── theme/               # Theme provider (dark/light)
 ├── assets/                  # Shared images, logos, icons
 ├── tools/eslint-rules/      # The workspace's own ESLint rules (`@nx/workspace-<name>`)
+├── tools/reviewer-eval/     # Recall of the dou-reviewer agent on past defects and clean controls
 ├── scripts/                 # Build, deploy, check and codegen scripts
 ├── docs/                    # ADRs (docs/adr/) and infra config (docs/infra/)
 └── .github/workflows/       # CI/CD pipelines
