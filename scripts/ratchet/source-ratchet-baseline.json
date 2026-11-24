@@ -596,7 +596,6 @@
     "libs/db/src/webstorage/WebStorageAdapter.test.ts": {"asAny":5},
     "libs/fake-shell/src/shellCore.ts": {"comments":1},
     "libs/http/src/error/credentialStale.ts": {"comments":1},
-    "libs/http/src/gateways/miniapps.spec.ts": {"tsExpectError":2},
     "libs/http/src/log/apiRequest.ts": {"comments":1},
     "libs/http/src/signing/sigV4.spec.ts": {"comments":3},
     "libs/http/src/transport/requestTransport.spec.ts": {"comments":3},
