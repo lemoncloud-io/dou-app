@@ -35,8 +35,11 @@ export {
     resolvePushMethod,
     resolveShellOrBrowser,
     resolveSignIn,
+    readShellHarness,
+    SHELL_HARNESS_GLOBAL,
+    shellCheckoutUrl,
 } from './hostCapabilities';
-export type { DeclaredHost, OfferedCheckoutMethod } from './hostCapabilities';
+export type { DeclaredHost, OfferedCheckoutMethod, ShellHarness } from './hostCapabilities';
 export { host } from '@chatic/runtime-client';
 export type {
     AlternateAppIcon,

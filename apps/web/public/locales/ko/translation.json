@@ -298,6 +298,10 @@
             "subscribe": "구독하기",
             "mobileOnly": "앱에서만 구독할 수 있어요",
             "toWebCheckout": "웹 결제 화면으로 이동 중...",
+            "shellCheckout": {
+                "title": "웹 결제 (가상 셸)",
+                "noAddress": "결제 화면 주소가 없습니다."
+            },
             "noProducts": "구독 상품을 불러오지 못했어요",
             "purchaseFailed": "결제에 실패했어요",
             "notice": {

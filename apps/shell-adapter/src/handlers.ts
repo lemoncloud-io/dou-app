@@ -13,10 +13,13 @@ import type { HandlerContext, Handlers } from '@lemoncloud/hybrid-shell';
 
 import { fakeProducts, fakePurchase, fakeStore, type FakePurchase } from './checkout';
 import { mobileRoutes } from './routes';
+import { installShellControls, raiseStoreNotice } from './shellControls';
 import type { DouMethods } from './types';
 
 mobileRoutes.pushTapPath = resolvePushTapPath;
 mobileRoutes.deepLink = resolveDeepLink;
+
+if (typeof window !== 'undefined') installShellControls(window);
 
 const WRITABLE_PREFERENCE_KEYS: readonly PreferenceKey[] = ['blurLastMessage', 'isFirstRun', 'pushRegistration'];
 const THEMES: readonly unknown[] = ['light', 'dark', 'system'];
@@ -45,7 +48,7 @@ export const NO_STORE_SKUS =
     'The virtual store has no products: apps/mobile/.env.dev names no VITE_SUBSCRIPTION_IAP_* SKUs';
 
 export const STORE_NOT_IMITATED =
-    'In-app purchase is not imitated here — start the shell with DOU_SHELL_CHECKOUT=apple or google on dev to use the virtual store';
+    'In-app purchase is not imitated here — the virtual store answers on dev only, for a store checkout (DOU_SHELL_CHECKOUT unset, store, apple or google)';
 
 const fakePurchases = (shell: HandlerContext): FakePurchase[] => {
     const found = shell.store.get('dou.iap.purchases');
@@ -58,7 +61,10 @@ const fakePurchases = (shell: HandlerContext): FakePurchase[] => {
 const storeHandlers: Handlers<DouMethods> = {
     FetchProducts: (_params, shell) => {
         const store = fakeStore();
-        if (!store) throw notImitated(shell, 'FetchProducts');
+        if (!store) {
+            raiseStoreNotice(shell);
+            throw notImitated(shell, 'FetchProducts');
+        }
         const products = fakeProducts(store);
         if (!products.length) {
             shell.log.append({ source: 'unsupported', type: 'FetchProducts', data: { message: NO_STORE_SKUS } });
@@ -68,6 +74,7 @@ const storeHandlers: Handlers<DouMethods> = {
     Purchase: ({ id }, shell) => {
         const store = fakeStore();
         if (!store) {
+            raiseStoreNotice(shell);
             shell.notify('OnPurchaseError', { error: { code: 'iap-not-available', message: STORE_NOT_IMITATED } });
             throw notImitated(shell, 'Purchase');
         }

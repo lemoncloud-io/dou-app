@@ -17,7 +17,7 @@ yarn local --mode native            # the simulator run, unchanged (yarn mobile:
 yarn local --mode native --platform android
 yarn local --check                  # what it would do, and what is missing; starts nothing
 yarn local:pair                     # the dev shell in its own window, signed in from a phone (below)
-DOU_SHELL_CHECKOUT=web yarn local   # the shell declares how it sells (§ Checkout): web, apple, google, none
+DOU_SHELL_CHECKOUT=web yarn local   # the shell declares how it sells (§ Checkout): store, web, none
 ```
 
 An unnamed backend is dev. Before it starts anything it checks what it needs; a missing env file is
@@ -119,7 +119,7 @@ This table is the reference. Adding an imitation changes it in the same commit.
 | Apple sign-in                                                                            | **Not imitated.** Answered as the app answers a failed sign-in (`OAUTH_LOGIN_ERROR`), so the web shows its failure toast, and logged as unsupported                       |
 | Push token (`FetchFcmToken`)                                                             | **Refused.** Named as `push.token`, which the shell never answers, so the web registers no device: a fake token would put a fake device on the server                     |
 | App badge (`SetBadgeCount`)                                                              | **Recorded and shown** beside the phone and in `status().badge`. There is no OS badge                                                                                     |
-| Photos, camera, file save, contacts, SMS, app icon, app update, haptics, file transfer   | **Not imitated.** No handler answers them: the panel asks for 5 seconds, then the request fails, which the web reads as an older app and falls back where it has one      |
+| Photos, camera, file save, contacts, SMS, app icon, app update, haptics, file transfer   | **Not imitated.** No handler answers them: the shell refuses the request at once with a notice, which the web reads as an older app and falls back where it has one       |
 | In-app purchase                                                                          | **Imitated on dev only, when picked** (§ Checkout): a virtual store with a fake price and a fake receipt the dev server refuses. Otherwise refused at once and logged     |
 | Session held by the app's runtime (`RuntimeHello`)                                       | **Not imitated.** The shell offers no runtime, so the web settles on holding the session itself, over its own socket. The app-held path is checked on a simulator         |
 | Device vault (`nativeSecure` storage)                                                    | **Not imitated.** The shell declares no storage medium, so the web keeps its session in the page's own storage, as a browser does                                         |
@@ -152,18 +152,67 @@ The web dev server sets no Content-Security-Policy, so nothing is stripped for t
 ## Checkout
 
 The shell declares how it sells, in `CHATIC_APP_CAPABILITIES.checkout`, the way an app declares what it
-can do, and the web's `checkout` port follows it (`apps/web/docs/bridge/host-ports.md`). Pick it with
-`DOU_SHELL_CHECKOUT` when starting the shell:
+can do, and the web's `checkout` port follows it (`apps/web/docs/bridge/host-ports.md`). It picks three
+things, each kept in the shell's store and applied from the next launch:
 
-| `DOU_SHELL_CHECKOUT` | The shell declares    | The web                                                                                                    |
-| -------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------- |
-| (unset)              | nothing               | answers as for an app built before declarations: a store, Apple's on an iPhone preset, Google's on Android |
-| `web`                | `checkout: ['web']`   | hands every way into the plan picker to the website's checkout, as a browser tab does                      |
-| `apple`, `google`    | `checkout: [<store>]` | sells through that store — the virtual store below                                                         |
-| `none`               | `checkout: []`        | sells nothing                                                                                              |
+| Choice   | Values                           | Start with                                                   | Kept under     |
+| -------- | -------------------------------- | ------------------------------------------------------------ | -------------- |
+| Backend  | `dev`, `prod`, `localhost`       | `yarn local --env <env>`                                     | the shell core |
+| Checkout | `store` (default), `web`, `none` | `DOU_SHELL_CHECKOUT`; `apple`, `google`, `legacy` still read | `dou.checkout` |
+| Sandbox  | on, off (default)                | `virtualShell.sandbox.set(true)`                             | `dou.sandbox`  |
 
-A choice kept under `dou.checkout` in the shell's store wins over the variable and applies from the next
-launch; nothing writes it yet.
+`store` is the device preset's store: Apple's on an iPhone, Google's on Android, as the mobile app sets it
+up. A picked `apple` or `google` is declared as it is, and `status().checkout.display` says when it differs
+from the device. `legacy` declares nothing, so the web answers as for an app built before declarations.
+
+**What the shell declares** — the table `src/checkout.ts` (`checkoutPlan`) holds and its tests pin:
+
+| Backend   | Checkout | Sandbox | Declares `checkout` | Harness values (`CHATIC_SHELL_HARNESS`) | The shell shows                                                     |
+| --------- | -------- | ------- | ------------------- | --------------------------------------- | ------------------------------------------------------------------- |
+| dev       | store    | off     | `[device store]`    | `sandbox: false`                        | — the virtual store answers                                         |
+| dev       | store    | on      | `[device store]`    | `sandbox: true`                         | `SANDBOX (in-app: imitated)` and the in-app sandbox notice          |
+| dev       | web      | off, on | `['web']`           | `sandbox`, `subscriptionWeb`            | `SANDBOX` when on                                                   |
+| prod      | store    | —       | `[device store]`    | `sandbox: false`                        | on a refused catalog: "cannot be loaded — switch to web"            |
+| prod      | web      | —       | `['web']`           | `sandbox: false`                        | `Real payment — pressing pay charges for real`                      |
+| localhost | store    | —       | `[device store]`    | none                                    | on a refused catalog: "cannot be checked against the local backend" |
+| localhost | web      | —       | `[]`                | none                                    | `The local backend has no payment server`                           |
+| any       | none     | —       | `[]`                | none                                    | —                                                                   |
+
+The sandbox cannot be switched on against prod or localhost; a sandbox kept from dev is dropped there.
+Payments against a backend on this machine are not possible yet: the local backend harness runs no
+payment server, and the subscription website has no local sign-in.
+
+**Harness values.** Beside the declaration the shell injects `window.CHATIC_SHELL_HARNESS =
+{ version: 1, sandbox, subscriptionWeb? }`. The web reads it only in a dev or local build, inside the
+app's bridge; a production build ignores it, and the mobile app injects none (`src/mobileHarness.spec.ts`
+pins that). With it and a declared `['web']`, the web opens the subscription website's checkout on a
+shell-only screen inside the app (`/subscription/shell-checkout`), adding `?sandbox=1` when the sandbox
+is on, instead of leaving the app; the screen reads the membership again when it is left. Signing in on
+the subscription website is separate from the app's: sign in there with the same account.
+
+**Which subscription website.** `DOU_SHELL_SUBSCRIPTION_WEB=<origin>` names a subscription website running
+on this machine (`dou-landing` on dev, `dou-landing-prod` on prod). The shell asks it once when it starts
+and puts it in `subscriptionWeb` only when it answered; otherwise the web uses the deployed one. A kept
+`dou.subscriptionWeb` wins once it has answered. `status().checkout.subscriptionWeb` says which.
+
+**When the store is not imitated.** Where the virtual store does not answer (prod, localhost, `legacy`),
+the first refused catalog or purchase puts a notice on the shell page — never in the app's screen, whose
+confirm screen keeps showing that it cannot sell. It says the in-app catalog cannot be loaded here and
+offers **Switch to web**, which keeps `web` and relaunches the app; on localhost it says payments cannot be
+checked and offers nothing. It shows once per shell page, and the log gets a `checkout.notice` line beside
+the refusal.
+
+**In-app sandbox notice.** Switching the sandbox on with a store checkout (or picking a store with the
+sandbox on) shows a notice: the real in-app sandbox is set on the device and the store (a store test
+account in the device's settings, a test build), not here; the sandbox here imitates the virtual store and
+is checked up to the purchase only. A web checkout shows none — its sandbox carries on to the subscription
+website.
+
+**From an agent.** `window.virtualShell` carries the same choices, each relaunching the app:
+`checkout.set('store' | 'web' | 'none')`, `sandbox.set(boolean)`, and `status()` with
+`checkout: { chosen, declared, storeImitated, notice?, subscriptionWeb, display }` and
+`sandbox: { on, chosen, available, inAppNotice }`. A refusal comes back as `{ ok: false, error: 'refused' }`.
+The shell core has no picker for these on its panel yet, so the choices are made here or at start.
 
 A declaration has to carry every key its version requires: a missing one reads in the web as a bug, not
 as "the legacy answer". So the shell takes the lowest version that holds what was picked and declares each
@@ -172,8 +221,8 @@ store for `checkout`).
 
 `DOU_SHELL_MEDIA=browser` (or `shell`) declares who picks what a person attaches, in `media` — `browser` gives
 the page's own file input, as a browser has, where the shell otherwise answers with the app's picker
-messages. Declaring it takes declaration version 2, which has to carry `checkout` too; with no checkout
-picked, the shell declares the device preset's store, the answer the web would give anyway.
+messages. Declaring it takes declaration version 2, which has to carry `checkout` too; with `legacy` picked, the
+shell declares the device preset's store, the answer the web would give anyway.
 `dou.media` in the store wins over the variable, as for checkout. The old spellings `page` and `app`
 are not read as `browser` and `shell`: the shell warns that the choice is ignored and declares nothing
 for it.
@@ -181,13 +230,13 @@ for it.
 `DOU_SHELL_FILES=browser` (or `shell`) declares who moves a message's files, in `files` — `browser` has the page
 PUT uploads, fetch downloads and draw video frames from the bucket, as a browser does, rather than
 asking the shell's transfer messages. It takes declaration version 3, which has to carry `checkout` and
-`media` too: unpicked, `checkout` is declared as the device's store and `media` as the same as `files`.
+`media` too: with `legacy`, `checkout` is declared as the device's store; unpicked, `media` is the same as `files`.
 `dou.files` in the store wins over the variable. Picking `DOU_SHELL_MEDIA=shell` with
 `DOU_SHELL_FILES=browser` is a pair no real host declares: the app's picker hands back videos and documents
-as files in its own folder, which only its transfer module can send, so sending them fails. `src/checkout.ts` holds the choice and the declaration; the wrapped
-preset in `hybrid-shell.config.ts` appends the declaration to the preset's own globals.
+as files in its own folder, which only its transfer module can send, so sending them fails. `src/checkout.ts` holds the choices, the declaration and the harness
+values; the wrapped preset in `hybrid-shell.config.ts` appends both to the preset's own globals.
 
-**The virtual store answers on dev only, and only when a store was picked.** A fake receipt must never
+**The virtual store answers on dev only, and only for a store checkout.** A fake receipt must never
 reach the production server. Its catalog has one product
 per SKU the mobile app sells on dev — read from `apps/mobile/.env.dev` and no other file, as the app's
 dev build reads it, so the server's plans join it as they join the real store's — each priced
@@ -196,7 +245,7 @@ shell logs why. A purchase succeeds at once with a
 `virtual-receipt-…` token; the web then asks the dev server to validate it, which refuses, and the web
 shows that refusal. So the store path can be followed from the price to that refusal, never further.
 Finishing and listing held purchases work on what the virtual store sold since the page loaded; opening
-the store's subscription management is not imitated. On prod, or with no store picked, every store call
+the store's subscription management is not imitated. On prod, on localhost, or with `legacy`, every store call
 is refused at once as unsupported — a purchase also gets `OnPurchaseError`, so the web does not wait a
 minute for a sheet that is not there.
 

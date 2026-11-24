@@ -16,7 +16,7 @@ const BACKEND_ENV_SOURCE =
  * preset's, followed by `CHATIC_APP_CAPABILITIES` for what a person picked: the checkout
  * (`DOU_SHELL_CHECKOUT`, or `dou.checkout` in the shell's store), who picks attachments
  * (`DOU_SHELL_MEDIA`, or `dou.media`) and who moves files (`DOU_SHELL_FILES`, or `dou.files`). Nothing
- * is declared when none was picked, so the web answers
+ * is declared for `legacy`, so the web answers
  * as it does for an app built before declarations. `launch` tells the virtual store which backend this launch is on.
  */
 const douPreset = withCheckoutDeclaration(presets.appBridgeHost);

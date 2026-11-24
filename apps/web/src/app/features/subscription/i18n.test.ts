@@ -36,6 +36,8 @@ const SUBSCRIPTION_KEYS = [
     'notice.manageAt.web',
     'platformWeb',
     'toWebCheckout',
+    'shellCheckout.title',
+    'shellCheckout.noAddress',
     'complete.autoChargeAfter',
     'state.active',
     'state.ending',

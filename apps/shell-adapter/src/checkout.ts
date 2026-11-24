@@ -1,10 +1,14 @@
 import type { IapProductSubscription, WebMessageResponse } from '@chatic/bridge-messages';
 import type { ProtocolPreset, ShellEnv } from '@lemoncloud/hybrid-shell';
 
-export const SHELL_CHECKOUT_CHOICES = ['apple', 'google', 'web', 'none'] as const;
+export const SHELL_CHECKOUT_CHOICES = ['store', 'apple', 'google', 'web', 'none', 'legacy'] as const;
 export type ShellCheckoutChoice = (typeof SHELL_CHECKOUT_CHOICES)[number];
 
 export const CHECKOUT_STORE_KEY = 'dou.checkout';
+export const SANDBOX_STORE_KEY = 'dou.sandbox';
+export const SUBSCRIPTION_WEB_STORE_KEY = 'dou.subscriptionWeb';
+
+export const DEFAULT_CHECKOUT: ShellCheckoutChoice = 'store';
 
 export interface StoreSkus {
     ios: string[];
@@ -13,6 +17,7 @@ export interface StoreSkus {
 }
 
 declare const __DOU_SHELL_CHECKOUT__: string | undefined;
+declare const __DOU_SHELL_SUBSCRIPTION_WEB__: string | undefined;
 declare const __DOU_SHELL_MEDIA__: string | undefined;
 declare const __DOU_SHELL_FILES__: string | undefined;
 
@@ -33,12 +38,14 @@ const isChoice = (value: unknown): value is ShellCheckoutChoice =>
 export const checkoutChoice = (
     store?: ReadonlyMap<string, unknown>,
     fromEnv: string | undefined = typeof __DOU_SHELL_CHECKOUT__ === 'string' ? __DOU_SHELL_CHECKOUT__ : undefined
-): ShellCheckoutChoice | undefined => {
+): ShellCheckoutChoice => {
     const kept = store?.get(CHECKOUT_STORE_KEY);
     if (isChoice(kept)) return kept;
     const env = fromEnv?.trim().toLowerCase();
-    return isChoice(env) ? env : undefined;
+    return isChoice(env) ? env : DEFAULT_CHECKOUT;
 };
+
+export const sandboxChoice = (store?: ReadonlyMap<string, unknown>): boolean => store?.get(SANDBOX_STORE_KEY) === true;
 
 export const mediaChoice = (
     store?: ReadonlyMap<string, unknown>,
@@ -68,26 +75,162 @@ const keptOrEnv = <T extends string>(
     return undefined;
 };
 
+export type DeclaredMethod = 'apple' | 'google' | 'web';
+export type CheckoutNotice = 'use-web' | 'local-no-payment';
+
+export interface ShellHarness {
+    version: 1;
+    sandbox: boolean;
+    subscriptionWeb?: string;
+}
+
+export interface CheckoutPlan {
+    chosen: ShellCheckoutChoice;
+    declared: DeclaredMethod[] | undefined;
+    harness: ShellHarness | undefined;
+    storeImitated: boolean;
+    sandbox: boolean;
+    display: string | undefined;
+}
+
+export interface CheckoutPlanInput {
+    env: ShellEnv | undefined;
+    choice: ShellCheckoutChoice;
+    platform: string | undefined;
+    sandbox?: boolean;
+    subscriptionWeb?: string;
+}
+
+export const SANDBOX_DISPLAY = 'SANDBOX';
+export const SANDBOX_IN_APP_DISPLAY = 'SANDBOX (in-app: imitated)';
+export const PROD_WEB_DISPLAY = 'Real payment — pressing pay charges for real';
+export const LOCAL_WEB_DISPLAY = 'The local backend has no payment server';
+
+const deviceStore = (platform: string | undefined): 'apple' | 'google' => (platform === 'ios' ? 'apple' : 'google');
+
+const isStoreChoice = (choice: ShellCheckoutChoice): choice is 'store' | 'apple' | 'google' =>
+    choice === 'store' || choice === 'apple' || choice === 'google';
+
+export const checkoutPlan = ({
+    env,
+    choice,
+    platform,
+    sandbox = false,
+    subscriptionWeb,
+}: CheckoutPlanInput): CheckoutPlan => {
+    const onDev = env === 'dev';
+    const sandboxOn = onDev && sandbox;
+    const plan = (declared: DeclaredMethod[] | undefined, rest: Partial<CheckoutPlan> = {}): CheckoutPlan => ({
+        chosen: choice,
+        declared,
+        harness: undefined,
+        storeImitated: false,
+        sandbox: false,
+        display: undefined,
+        ...rest,
+    });
+    const harness = (extra: Partial<ShellHarness> = {}): ShellHarness => ({ version: 1, sandbox: sandboxOn, ...extra });
+
+    if (choice === 'none') return plan([]);
+    if (choice === 'legacy') return plan(undefined);
+    if (isStoreChoice(choice)) {
+        const store = choice === 'store' ? deviceStore(platform) : choice;
+        const differs =
+            store !== deviceStore(platform) ? `${store} store on a ${platform ?? 'unknown'} device` : undefined;
+        if (env === 'localhost') return plan([store], { display: differs });
+        return plan([store], {
+            harness: harness(),
+            storeImitated: onDev,
+            sandbox: sandboxOn,
+            display: [sandboxOn ? SANDBOX_IN_APP_DISPLAY : undefined, differs].filter(Boolean).join(' · ') || undefined,
+        });
+    }
+    if (env === 'localhost') return plan([], { display: LOCAL_WEB_DISPLAY });
+    if (!onDev) return plan(['web'], { harness: harness(), display: PROD_WEB_DISPLAY });
+    return plan(['web'], {
+        harness: harness(subscriptionWeb ? { subscriptionWeb } : {}),
+        sandbox: sandboxOn,
+        display: sandboxOn ? SANDBOX_DISPLAY : undefined,
+    });
+};
+
 export const capabilitiesScript = (
-    checkout: ShellCheckoutChoice | undefined,
+    checkout: DeclaredMethod[] | undefined,
     media: ShellMediaChoice | undefined = undefined,
     platform: string | undefined = undefined,
     files: ShellFilesChoice | undefined = undefined
 ): string => {
     if (!checkout && !media && !files) return '';
-    const methods = (choice: ShellCheckoutChoice) => (choice === 'none' ? [] : [choice]);
-    const store = (): ShellCheckoutChoice => checkout ?? (platform === 'ios' ? 'apple' : 'google');
+    const methods = checkout ?? [deviceStore(platform)];
     const declaration = files
-        ? { version: 3, checkout: methods(store()), media: media ?? files, files }
+        ? { version: 3, checkout: methods, media: media ?? files, files }
         : media
-          ? { version: 2, checkout: methods(store()), media }
-          : { version: 1, checkout: methods(checkout as ShellCheckoutChoice) };
+          ? { version: 2, checkout: methods, media }
+          : { version: 1, checkout: methods };
     return `\nwindow.CHATIC_APP_CAPABILITIES = ${JSON.stringify(declaration)};\n`;
 };
 
-export const launch: { env: ShellEnv | undefined; choice: ShellCheckoutChoice | undefined } = {
+export const HARNESS_GLOBAL = 'CHATIC_SHELL_HARNESS';
+
+export const harnessScript = (harness: ShellHarness | undefined): string =>
+    harness ? `\nwindow.${HARNESS_GLOBAL} = ${JSON.stringify(harness)};\n` : '';
+
+export const subscriptionWebFromEnv = (): string | undefined =>
+    typeof __DOU_SHELL_SUBSCRIPTION_WEB__ === 'string' && __DOU_SHELL_SUBSCRIPTION_WEB__
+        ? __DOU_SHELL_SUBSCRIPTION_WEB__
+        : undefined;
+
+const answered = new Map<string, boolean | Promise<boolean>>();
+
+export const probeOrigin = (origin: string, request: typeof fetch = globalThis.fetch): Promise<boolean> => {
+    const known = answered.get(origin);
+    if (known !== undefined) return Promise.resolve(known);
+    const asked = request(origin, { mode: 'no-cors', signal: AbortSignal.timeout(2000) }).then(
+        () => true,
+        () => false
+    );
+    answered.set(origin, asked);
+    void asked.then(ok => answered.set(origin, ok));
+    return asked;
+};
+
+export const resetProbes = (): void => answered.clear();
+
+export const originOf = (value: unknown): string | undefined => {
+    if (typeof value !== 'string' || !value.trim()) return undefined;
+    try {
+        const url = new URL(value.trim());
+        return url.protocol === 'http:' || url.protocol === 'https:' ? url.origin : undefined;
+    } catch {
+        return undefined;
+    }
+};
+
+export const subscriptionWebChoice = (
+    store?: ReadonlyMap<string, unknown>,
+    fromEnv: string | undefined = subscriptionWebFromEnv()
+): string | undefined => {
+    const kept = originOf(store?.get(SUBSCRIPTION_WEB_STORE_KEY));
+    if (kept) {
+        const known = answered.get(kept);
+        if (known === true) return kept;
+        if (known === undefined) void probeOrigin(kept);
+    }
+    return originOf(fromEnv);
+};
+
+export const launch: {
+    env: ShellEnv | undefined;
+    choice: ShellCheckoutChoice | undefined;
+    platform: string | undefined;
+    plan: CheckoutPlan | undefined;
+    store: Map<string, unknown> | undefined;
+} = {
     env: undefined,
     choice: undefined,
+    platform: undefined,
+    plan: undefined,
+    store: undefined,
 };
 
 export const withCheckoutDeclaration = (preset: ProtocolPreset): ProtocolPreset =>
@@ -96,18 +239,31 @@ export const withCheckoutDeclaration = (preset: ProtocolPreset): ProtocolPreset 
         globals: (...args: Parameters<ProtocolPreset['globals']>) => {
             const [, device, env, store] = args;
             const choice = checkoutChoice(store);
+            const plan = checkoutPlan({
+                env,
+                choice,
+                platform: device.platform,
+                sandbox: sandboxChoice(store),
+                subscriptionWeb: subscriptionWebChoice(store),
+            });
             launch.env = env;
             launch.choice = choice;
+            launch.platform = device.platform;
+            launch.plan = plan;
+            launch.store = store instanceof Map ? (store as Map<string, unknown>) : launch.store;
             return (
                 preset.globals(...args) +
-                capabilitiesScript(choice, mediaChoice(store), device.platform, filesChoice(store))
+                capabilitiesScript(plan.declared, mediaChoice(store), device.platform, filesChoice(store)) +
+                harnessScript(plan.harness)
             );
         },
     });
 
 export const fakeStore = (): 'apple' | 'google' | undefined => {
-    if (launch.env !== 'dev') return undefined;
-    return launch.choice === 'apple' || launch.choice === 'google' ? launch.choice : undefined;
+    const plan = launch.plan;
+    if (launch.env !== 'dev' || !plan?.storeImitated) return undefined;
+    const store = plan.declared?.[0];
+    return store === 'apple' || store === 'google' ? store : undefined;
 };
 
 export const storeSkus = (): StoreSkus =>

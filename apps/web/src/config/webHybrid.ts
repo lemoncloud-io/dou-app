@@ -12,7 +12,7 @@ import type { SessionOwnerChoice, StorageStores, WebHostFacts } from '@chatic/ru
 
 import { cacheWebLocal } from './adapters/cache';
 import { appShellBrowser, appShellHost, appShellShell } from './adapters/appShell';
-import { checkoutAsDeclared, storeCheckout, webCheckout } from './adapters/checkout';
+import { checkoutAsDeclaredInHybrid, hybridWebCheckout, storeCheckout } from './adapters/checkout';
 import { diagnosticsBrowser, diagnosticsHost, diagnosticsShell } from './adapters/diagnostics';
 import { filesBrowser, filesHost, filesShell } from './adapters/files';
 import { linksBrowser, linksHost, linksShell } from './adapters/links';
@@ -39,8 +39,8 @@ export const webHybrid = (stores: StorageStores): WebRuntimeDeclaration =>
         },
         host: {
             checkout: {
-                default: checkoutAsDeclared,
-                alternatives: [checkoutStore(storeCheckout), checkoutWeb(webCheckout), checkoutNone],
+                default: checkoutAsDeclaredInHybrid,
+                alternatives: [checkoutStore(storeCheckout), checkoutWeb(() => hybridWebCheckout()), checkoutNone],
             },
             media: { default: mediaHost, alternatives: [mediaShell, mediaBrowser] },
             files: { default: filesHost, alternatives: [filesShell, filesBrowser] },

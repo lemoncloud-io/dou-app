@@ -124,6 +124,7 @@ ports: they are read from `@chatic/bridges` (`hostProfile().globals`, or `liveSh
 | --------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------- |
 | `apple`, `google`           | `adapters/checkout/storeCheckout.ts`    | The store's catalog, purchase, finish, held purchases and management, over `appBridge` |
 | `web`                       | `adapters/checkout/webCheckout.ts`      | Leaves for a page of the website (`leaveForWeb`); the purchase completes there         |
+| `web`, in the virtual shell | `adapters/checkout/shellWebCheckout.ts` | Opens the website's page on a shell-only screen in the app; hybrid declaration only    |
 | nothing                     | `{ kind: 'none' }` from `checkout.host` | Nothing to sell                                                                        |
 
 The phone app declares its store and the desktop app declares that it sells nothing, from the first
@@ -132,7 +133,9 @@ declares nothing — an older build — is answered as before: a bridge means a 
 injected platform is `ios`, Google's otherwise), and no bridge means the website. A declaration
 (`CHATIC_APP_CAPABILITIES.checkout`) can say otherwise, which is what lets a development shell with a
 bridge check the website's checkout — the virtual shell's `DOU_SHELL_CHECKOUT`
-([shell-adapter § Checkout](../../../shell-adapter/README.md#checkout)).
+([shell-adapter § Checkout](../../../shell-adapter/README.md#checkout)). There, and only in a dev or local
+build, the hybrid declaration's `web` reads the shell's `CHATIC_SHELL_HARNESS` and stays in the app
+(`hybridWebCheckout`); with no harness values it is `webCheckout`, as everywhere else.
 
 **A purchase settles from the shell's events, not from its reply.** `Purchase` is posted; the shell
 pushes `OnPurchaseSuccess` or `OnPurchaseError` later. `storeCheckout` listens to both for as long as

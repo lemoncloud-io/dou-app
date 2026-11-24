@@ -298,6 +298,10 @@
             "subscribe": "Subscribe",
             "mobileOnly": "Subscriptions are only available in the app",
             "toWebCheckout": "Opening web checkout…",
+            "shellCheckout": {
+                "title": "Web checkout (virtual shell)",
+                "noAddress": "No checkout address was given."
+            },
             "noProducts": "Failed to load subscription plans",
             "purchaseFailed": "Payment failed",
             "notice": {

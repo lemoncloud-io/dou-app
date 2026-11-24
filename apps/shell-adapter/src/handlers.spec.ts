@@ -1,8 +1,9 @@
 import type { HandlerContext } from '@lemoncloud/hybrid-shell';
 
-import { launch } from './checkout';
+import { checkoutPlan, launch, type ShellCheckoutChoice } from './checkout';
 import handlers, { APP_SCHEME_OPEN_UNSUPPORTED, APPLE_SIGN_IN_UNSUPPORTED, STORE_NOT_IMITATED } from './handlers';
 import { mobileRoutes } from './routes';
+import { LOCAL_NO_PAYMENT_NOTICE, notices, raiseStoreNotice, resetNotices, USE_WEB_ACTION } from './shellControls';
 
 const context = (platform: 'ios' | 'android' = 'ios') => {
     const lines: Array<{ source: string; type: string }> = [];
@@ -126,15 +127,29 @@ describe('the shell handlers', () => {
     });
 
     describe('the virtual store', () => {
+        const launchOn = (env: 'dev' | 'prod' | 'localhost', choice: ShellCheckoutChoice, platform = 'ios') => {
+            launch.env = env;
+            launch.choice = choice;
+            launch.platform = platform;
+            launch.plan = checkoutPlan({ env, choice, platform });
+        };
+        const draw = vi.fn();
+
+        beforeEach(() => {
+            resetNotices();
+            draw.mockReset();
+        });
+
         afterEach(() => {
             launch.env = undefined;
             launch.choice = undefined;
+            launch.plan = undefined;
             vi.useRealTimers();
         });
 
-        it('refuses every store call at once, and logs it, when no store was picked', async () => {
+        it('refuses every store call at once on dev for the legacy choice, logs it, and says once to use the web', async () => {
             const { shell, lines } = context();
-            launch.env = 'dev';
+            launchOn('dev', 'legacy');
 
             await expect(call('FetchProducts', {}, shell)).rejects.toMatchObject({
                 code: 'NOT_FOUND',
@@ -144,25 +159,42 @@ describe('the shell handlers', () => {
             expect(shell.notify).toHaveBeenCalledWith('OnPurchaseError', {
                 error: { code: 'iap-not-available', message: STORE_NOT_IMITATED },
             });
-            expect(lines.map(line => line.type)).toEqual(['FetchProducts', 'Purchase']);
+            expect(lines.map(line => line.type)).toEqual(['checkout.notice', 'FetchProducts', 'Purchase']);
+            expect(notices.checkout).toBe('use-web');
         });
 
         it('never answers on prod, even with a store picked', async () => {
             const { shell } = context();
-            launch.env = 'prod';
-            launch.choice = 'apple';
+            launchOn('prod', 'apple');
 
             await expect(call('FetchProducts', {}, shell)).rejects.toMatchObject({ code: 'NOT_FOUND' });
             await expect(call('Purchase', { id: 'p' }, shell)).rejects.toMatchObject({ code: 'NOT_FOUND' });
             const sent = (shell.notify as ReturnType<typeof vi.fn>).mock.calls.map(([name]) => name);
             expect(sent).toEqual(['OnPurchaseError']);
+            expect(notices.checkout).toBe('use-web');
+        });
+
+        it('raises the store notice through the shell page, once, with a switch to web off localhost only', () => {
+            const { shell } = context();
+            launchOn('prod', 'store');
+            raiseStoreNotice(shell, draw);
+            raiseStoreNotice(shell, draw);
+            expect(draw).toHaveBeenCalledOnce();
+            expect(draw.mock.calls[0][0]).toMatchObject({ id: 'checkout', action: { label: USE_WEB_ACTION } });
+            expect(draw.mock.calls[0][0].text).toContain('(prod)');
+
+            resetNotices();
+            draw.mockReset();
+            launchOn('localhost', 'store');
+            raiseStoreNotice(shell, draw);
+            expect(draw.mock.calls[0][0]).toEqual({ id: 'checkout', text: LOCAL_NO_PAYMENT_NOTICE });
+            expect(notices.checkout).toBe('local-no-payment');
         });
 
         it('sells on dev: a catalog, then a purchase that succeeds with a fake receipt, kept until finished', async () => {
             vi.useFakeTimers();
             const { shell } = context('android');
-            launch.env = 'dev';
-            launch.choice = 'google';
+            launchOn('dev', 'store', 'android');
 
             await expect(call('FetchProducts', {}, shell)).resolves.toEqual({ products: expect.any(Array) });
             await expect(call('Purchase', { id: 'dou_pro_subscription' }, shell)).resolves.toEqual({});

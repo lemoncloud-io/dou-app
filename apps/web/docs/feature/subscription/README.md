@@ -268,6 +268,15 @@ the web" (the website's list); its banners open the latter too. A store's subscr
 `otherStore` note naming the store instead of a button — or, when the membership names no store, the
 `mobileOnly` line, which is true of it: only the app can change a store's subscription.
 
+**In the virtual shell the website opens inside the app.** Where the virtual shell declares `['web']`
+and injected its harness values, `runtime.checkout` carries a shell screen (`shellCheckoutScreen`), and
+only then do the routes register `shell-checkout` and bind the port to the router
+(`ShellCheckoutRequests`). The hand-off then replaces the picker with `ShellCheckoutPage`, which frames
+the website's page under the app's header (on a local subscription website when one answered, with
+`?sandbox=1` when the sandbox is on) and reads the membership again on focus and on leaving. The app's
+phone build never gets that screen: the mobile app declares a store and injects no harness values, and a
+production build ignores them ([shell-adapter § Checkout](../../../../shell-adapter/README.md#checkout)).
+
 **On production the website does not sell yet.** Its account pages open on dev hosts only; on the
 production host `/subscription/plans` is the one subscription page, listing the published plans with
 the stores' links in place of checkout. That is where a browser lands there, and it is the one page

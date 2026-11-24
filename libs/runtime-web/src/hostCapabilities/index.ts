@@ -11,3 +11,5 @@ export {
 } from './shellDomains';
 export { SHELL_DOMAINS_INTRODUCED_IN, hostOsOf, resolveShellOrBrowser } from './shellOrBrowser';
 export type { DeclaredHost } from './shellOrBrowser';
+export { readShellHarness, SHELL_HARNESS_GLOBAL, shellCheckoutUrl } from './shellHarness';
+export type { ShellHarness } from './shellHarness';
