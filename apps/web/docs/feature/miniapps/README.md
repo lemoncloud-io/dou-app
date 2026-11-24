@@ -1,10 +1,10 @@
 # miniapps — the mini app tab and the owner's management screen
 
 `apps/web/src/app/features/miniapps` is the mobile web's top-level mini app tab: the hub first, then
-the open cloud's mini apps as the relay keeps them, and a screen where the cloud's owner adds, edits,
+the open cloud's mini apps as its server keeps them, and a screen where the cloud's owner adds, edits,
 turns on and off, and removes them. It reads and writes the list through `CloudRepository`'s
-`listMiniApps` · `addMiniApp` · `updateMiniApp` · `removeMiniApp` (`@chatic/data`'s
-[mini app lane](../../../../../libs/data/docs/remote/http.md#the-mini-app-lane)).
+`listMiniApps` · `addMiniApp` · `updateMiniApp` · `removeMiniApp`, which go over the socket to the
+connected cloud (`@chatic/data`'s [mini app](../../../../../libs/data/docs/remote/socket.md#mini-app)).
 
 ## Layout
 
@@ -53,7 +53,7 @@ app card.
   each one's id, name and host — never an address, and never one its owner turned off or an admin
   holds.
 - **The list** is headed by the cloud's name and how many rows it shows. A member sees the active
-  mini apps; the owner sees every one in the relay's order, the ones members do not see marked
+  mini apps; the owner sees every one in the server's order, the ones members do not see marked
   **Off** (grey) or **On hold** (red) before the name, with a note that members do not see them.
   Each row is a tile with the name's first character, the name and the address's host.
 - **Pressing a row** opens an active mini app. For the owner, a row that is off or on hold opens its
@@ -113,7 +113,7 @@ deleted.
   close animation, so it keeps that mini app (or the blank add form) until then instead of turning into
   another form on its way out; the form is keyed by what it edits, so each opening starts from that mini app
   on its first paint.
-- **The sheet's rules are the relay's.** The name and address are checked with the same rule the relay applies,
+- **The sheet's rules are the server's.** The name and address are checked with the same rule the server applies,
   so most mistakes are caught before a round trip, and there is no confirmation on delete because the list is
   the owner's and a removed one is quickly added again.
 
@@ -143,8 +143,8 @@ removes at once, without asking (as the Lab does). A held mini app says at the t
 it, and its switch is locked. An edit sends only the fields that changed, and never a held mini app's
 switch.
 
-Before sending, the sheet checks with the shared `checkMiniAppLink`, the rule the relay applies too.
-A refusal from the relay is read with `miniAppSaveProblemOf(error)` — never `instanceof`: where the
+Before sending, the sheet checks with the shared `checkMiniAppLink`, the rule the server applies too.
+A refusal from the server is read with `miniAppSaveProblemOf(error)` — never `instanceof`: where the
 shell's runtime owns the session the error arrives across the bridge as a plain `Error`, and the
 helper reads the `name` and `code` that survive that. The message goes under its field:
 
@@ -155,7 +155,13 @@ helper reads the `name` and `code` that survive that. The message goes under its
 | `invalidUrl`  | address | Enter an https address without a port or sign-in details.      |
 | `hubUrl`      | address | The mini app home opens on its own. Enter a different address. |
 | `tooMany`     | address | Each cloud can have up to 10 mini apps.                        |
+| `notAllowed`  | address | Only the person who added this mini app can change it.         |
 | anything else | address | Couldn't save. Please try again.                               |
+
+`notAllowed` is the cloud server refusing a change to a mini app someone else added. The screens
+still treat the cloud's owner as the one who manages the list, so an owner who is not an admin on
+the cloud server can meet it on another person's mini app. Deleting still says "Couldn't delete the
+mini app" and the switch "Couldn't change it", whatever the reason.
 
 The copy says the list is seen by everyone in the cloud — never "kept on this phone", as the Lab's did.
 

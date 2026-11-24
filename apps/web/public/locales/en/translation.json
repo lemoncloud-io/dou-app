@@ -2629,6 +2629,7 @@
             "invalidUrl": "Enter an https address without a port or sign-in details.",
             "hubUrl": "The mini app home opens on its own. Enter a different address.",
             "tooMany": "Each cloud can have up to {{max}} mini apps.",
+            "notAllowed": "Only the person who added this mini app can change it.",
             "failed": "Couldn't save. Please try again."
         },
         "consent": {

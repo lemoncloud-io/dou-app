@@ -6,7 +6,6 @@ import {
 
 import {
     cloudGateway,
-    miniAppGateway,
     oauthGateway,
     pairingGateway,
     reportGateway,
@@ -19,7 +18,6 @@ export const createHttpDataSources = (): { httpDataSources: HttpDataSources } =>
         auth: oauthGateway(),
         user: userGateway(),
         cloud: cloudGateway(),
-        miniApp: miniAppGateway(),
         subscription: subscriptionGateway(),
         report: reportGateway(),
         pairing: pairingGateway(),

@@ -1,8 +1,8 @@
 # remote/http — the HTTP axis
 
-> Status: Live · Last updated: 2026-11-20 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/http.ts](../../src/remote/gateways/http.ts) · [http-data-sources/](../../src/remote/http-data-sources/)
+> Status: Live · Last updated: 2026-11-24 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/http.ts](../../src/remote/gateways/http.ts) · [http-data-sources/](../../src/remote/http-data-sources/)
 
-The remote axis that uses HTTP transport. It has 7 domains. For the socket axis see
+The remote axis that uses HTTP transport. It has 6 domains. For the socket axis see
 [socket.md](./socket.md).
 
 It is the **same file layout and the same pattern** as the socket axis — the same file placement, the
@@ -14,20 +14,19 @@ same constructor injection, the same single view→domain boundary. It takes **t
 ```text
 remote/
   gateways/http.ts         HttpGatewayBundle + per-domain Pick<>
-  http-data-sources/       7 HttpDataSources + createHttpDataSources
+  http-data-sources/       6 HttpDataSources + createHttpDataSources
     httpUserMapping.ts     the bridge from the HTTP axis UserView to DomainUser
 ```
 
 ## gateway Pick
 
-`HttpGatewayBundle` in `gateways/http.ts` has 7 domains.
+`HttpGatewayBundle` in `gateways/http.ts` has 6 domains.
 
 | Domain gateway                  | Picked from                                                                                                                                                                                                                                                                                                                                                                                                | Consumed by                  |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | `AuthHttpDomainGateway`         | `OAuthHttpGateway` — 13: `registerUser` · `registerUserV2` · `findAlias` · `verifyAlias` · `loginInvite` · `inviteInfo` · `registerDevice` · `login` · `verifyNativeToken` · `exchangeCode` · `verifyOAuthCode` · `delegateCloud` · `exchangeToken`                                                                                                                                                        | `AuthHttpDataSource`         |
 | `UserHttpDomainGateway`         | `UserHttpGateway` — `list` · `tryProfile`                                                                                                                                                                                                                                                                                                                                                                  | `UserHttpDataSource`         |
 | `CloudHttpDomainGateway`        | `CloudHttpGateway` — `get` · `list` · `update` · `make` · `release` · `workspace` · `verifyEmail`                                                                                                                                                                                                                                                                                                          | `CloudHttpDataSource`        |
-| `MiniAppHttpDomainGateway`      | `MiniAppHttpGateway` — `list` · `create` · `update` · `remove` (all of it)                                                                                                                                                                                                                                                                                                                                 | `MiniAppHttpDataSource`      |
 | `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `membership` · `validateMembership` · `markDrops`, the admin console's `adminMemberships` · `updateMembershipByAdmin` · `refundSubscriptionByAdmin` · `adminClouds` (ADR-0101), and the web subscription's `subscriptionCards` · `issueBillingKey` · `startSubscription` · `changeSubscription` · `cancelSubscription` · `addCard` · `setDefaultCard` · `removeCard` | `SubscriptionHttpDataSource` |
 | `ReportHttpDomainGateway`       | `ReportHttpGateway` — `reportIssue` · `uploadLogBatch` (all of it)                                                                                                                                                                                                                                                                                                                                         | `ReportHttpDataSource`       |
 | `PairingHttpDomainGateway`      | `PairingHttpGateway` — `request` · `check` · `approve` · `deny` · `claim` · `revoke` · `list` (all of it)                                                                                                                                                                                                                                                                                                  | `PairingHttpDataSource`      |
@@ -66,7 +65,6 @@ from the session that is allowed it.
 | `AuthHttpDataSource`         | `registerUser()` · `registerUserV2()` (the only two that map to `DomainUser`) · `findAlias()` · `verifyAlias()` · `loginWithInviteCode()` (`loginInvite`) · `fetchInviteInfo()` (`inviteInfo`) · `registerDevice()` · `login()` · `verifyNativeToken()` · `exchangeCode()` · `verifyOAuthCode()` · `delegateCloud()` · `exchangeToken()`                                                                                            |
 | `UserHttpDataSource`         | `listRelayUsers()` (`list`) · `tryFetchProfile()` (`tryProfile`)                                                                                                                                                                                                                                                                                                                                                                    |
 | `CloudHttpDataSource`        | `listClouds()` · `updateCloud()` · `makeCloud()` (`make`) · `releaseCloud()` (`release`) · `retryCloudSetup()` (`workspace`) · `verifyEmail()` · `fetchMiniAppUrl()` (`get`) · `saveMiniAppUrl()` (`update`)                                                                                                                                                                                                                        |
-| `MiniAppHttpDataSource`      | `listMiniApps()` (`list`) · `addMiniApp()` (`create`) · `updateMiniApp()` (`update`) · `removeMiniApp()` (`remove`)                                                                                                                                                                                                                                                                                                                 |
 | `SubscriptionHttpDataSource` | `fetchPlans()` (`plans`) · `fetchMembershipInfo()` (`membership`) · `validateMembership()` · `markDrops()` · `fetchAdminMemberships()` · `updateMembershipByAdmin()` · `refundSubscriptionByAdmin()` · `fetchAdminClouds()` · the web subscription's `fetchSubscriptionCards()` · `issueBillingKey()` · `startSubscription()` · `changeSubscription()` · `cancelSubscription()` · `addCard()` · `setDefaultCard()` · `removeCard()` |
 | `ReportHttpDataSource`       | `submitIssue()` (`reportIssue`) · `uploadLogBatch()`                                                                                                                                                                                                                                                                                                                                                                                |
 | `PairingHttpDataSource`      | `requestPairing()` (`request`) · `checkPairing()` (`check`) · `approvePairing()` (`approve`) · `denyPairing()` (`deny`) · `claimPairing()` (`claim`) · `revokePairing()` (`revoke`) · `listPairings()` (`list`)                                                                                                                                                                                                                     |
@@ -145,42 +143,6 @@ OAuth-internal markers the socket domain never sees). The identity fields are th
 `toDomainUserFromHttp` in `http-data-sources/httpUserMapping.ts` joins them with an explicit cast — using
 the existing mapper as a bridge rather than creating a new one. The day something needs to branch on the
 `stereo` value is the signal to **give the HTTP axis its own `toDomainUser`**, not to widen the cast.
-
-## The mini app lane
-
-`MiniAppHttpDataSource` reads and writes a cloud's mini apps — the relay's `/miniapps` resource, a
-list of names and https addresses the cloud's owner registers, up to 10. It is separate from
-`CloudHttpDataSource`'s `fetchMiniAppUrl` / `saveMiniAppUrl`, the single link on the cloud record
-itself, which the relay did not move into the list. Both are reached through `CloudRepository`.
-
-- **The list is the relay's, in the relay's order, with every status.** An `inactive` (owner turned
-  it off) or `held` (an admin holds it) mini app is returned like an `active` one; what a member may
-  see is the screen's filter. A missing or unknown `status` reads as `inactive` — reading it as
-  `active` could open a held mini app — and an entry without an `id` is dropped.
-- **`enabled` is the owner's switch** (`state$.use === 'on'`); `status` is what to show. A held mini
-  app can be enabled and still not `active`, so screens branch on `status`.
-- **Bodies are built field by field, never by spreading a read mini app.** The relay refuses (403) an
-  owner's body in which `state$.hold` exists at all, even empty, and a read view carries it. Adding
-  without `enabled` sends no `state$` at all (the relay's default, on); an empty update is refused
-  before anything is sent.
-- **Nothing is checked here.** Names and addresses go as given — the relay trims them, and checking
-  them before a save is the screen's job, with the same rule the relay applies.
-- **A refusal becomes a save-rule reason.** A 400 for a missing or too-long name, an address that
-  cannot be opened (or none), or the mini app hub's own address, and a 409 for the eleventh mini app,
-  reject with `MiniAppSaveRefused` — `problem` is `nameMissing` · `nameTooLong` · `invalidUrl` ·
-  `hubUrl` · `tooMany`, spelled like `@chatic/shared`'s local link check so one message table serves
-  both. The reason is read from the status and the fixed part of the relay's message, never the whole
-  message (the address and count are inside it). Anything else — not the owner (403), no such cloud or
-  mini app (404), the network — rejects as it came. The fixed parts each have a test line, but a
-  relay that rewords one is only noticed by running against the relay; until then that refusal
-  surfaces as an ordinary error.
-- **The reason survives the bridge.** Where the shell's runtime owns the session, a page's repository
-  call crosses the bridge and arrives as a plain `Error` carrying only `name`, `message`, `code` and
-  the HTTP fields. So `MiniAppSaveRefused` also carries the reason as `code` under the fixed `name`
-  `'MiniAppSaveRefused'`, and `miniAppSaveProblemOf(error)` reads it from either side. Screens use
-  that, not `instanceof`.
-- **Deleting is a soft delete** on the relay; the mini app leaves the list and cannot be restored by
-  id.
 
 ## The pairing lane
 

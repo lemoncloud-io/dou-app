@@ -135,6 +135,16 @@ describe('createSocketDataSources — bound to one slot', () => {
         expect(activeRequest).not.toHaveBeenCalled();
     });
 
+    it("sends the cloud's mini apps through the client it was given, never the relay", async () => {
+        const { socketDataSources } = createSocketDataSources(slotClient);
+
+        await socketDataSources.miniApp.listMiniApps();
+
+        expect(slotRequest).toHaveBeenCalledWith('miniapp.list', {}, undefined);
+        expect(relayRequest).not.toHaveBeenCalled();
+        expect(activeRequest).not.toHaveBeenCalled();
+    });
+
     it('still pins the relay-owned domains to the relay slot', async () => {
         const { socketDataSources } = createSocketDataSources(slotClient);
 

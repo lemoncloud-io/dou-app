@@ -3,13 +3,8 @@ import type { CloudBody, CloudVerifyEmailBody, CloudVerifyEmailView } from '@lem
 import type { DomainCloud, DomainListResult, DomainMiniApp, MiniAppInput, MiniAppPatch } from '../domain';
 import { createDomainListResult } from '../domain';
 import type { ICloudLocalDataSource } from '../local/data-sources';
-import type { CloudGetInput, ICloudSocketDataSource } from '../remote/socket-data-sources';
-import type {
-    CloudMakeOptions,
-    CloudReleaseOptions,
-    ICloudHttpDataSource,
-    IMiniAppHttpDataSource,
-} from '../remote/http-data-sources';
+import type { CloudGetInput, ICloudSocketDataSource, IMiniAppSocketDataSource } from '../remote/socket-data-sources';
+import type { CloudMakeOptions, CloudReleaseOptions, ICloudHttpDataSource } from '../remote/http-data-sources';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
@@ -55,16 +50,18 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
         private readonly cloudLocalDataSource: ICloudLocalDataSource,
         contextProvider: DataContextProvider,
         private readonly cloudHttpDataSource?: ICloudHttpDataSource,
-        private readonly miniAppHttpDataSource?: IMiniAppHttpDataSource
+        private readonly miniAppSocketDataSource?: IMiniAppSocketDataSource
     ) {
         super(contextProvider);
     }
 
-    private requireMiniAppHttp(): IMiniAppHttpDataSource {
-        if (!this.miniAppHttpDataSource) {
-            throw new Error('[CloudRepository] IMiniAppHttpDataSource is not injected — httpFactory not wired yet.');
+    private requireMiniApps(): IMiniAppSocketDataSource {
+        if (!this.miniAppSocketDataSource) {
+            throw new Error(
+                '[CloudRepository] IMiniAppSocketDataSource is not injected — socketFactory not wired yet.'
+            );
         }
-        return this.miniAppHttpDataSource;
+        return this.miniAppSocketDataSource;
     }
 
     private requireHttp(): ICloudHttpDataSource {
@@ -105,20 +102,20 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
         return this.requireHttp().saveMiniAppUrl(cloudId, url);
     }
 
-    public async listMiniApps(cloudId: string): Promise<DomainMiniApp[]> {
-        return this.requireMiniAppHttp().listMiniApps(cloudId);
+    public async listMiniApps(_cloudId: string): Promise<DomainMiniApp[]> {
+        return this.requireMiniApps().listMiniApps();
     }
 
-    public async addMiniApp(cloudId: string, input: MiniAppInput): Promise<DomainMiniApp> {
-        return this.requireMiniAppHttp().addMiniApp(cloudId, input);
+    public async addMiniApp(_cloudId: string, input: MiniAppInput): Promise<DomainMiniApp> {
+        return this.requireMiniApps().addMiniApp(input);
     }
 
     public async updateMiniApp(id: string, patch: MiniAppPatch): Promise<DomainMiniApp> {
-        return this.requireMiniAppHttp().updateMiniApp(id, patch);
+        return this.requireMiniApps().updateMiniApp(id, patch);
     }
 
     public async removeMiniApp(id: string): Promise<void> {
-        return this.requireMiniAppHttp().removeMiniApp(id);
+        return this.requireMiniApps().removeMiniApp(id);
     }
 
     public observeList(callback: (result: DomainListResult<DomainCloud> | null) => void): () => void {

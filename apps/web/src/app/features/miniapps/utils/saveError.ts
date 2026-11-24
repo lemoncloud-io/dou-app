@@ -13,6 +13,7 @@ const BY_PROBLEM: Record<MiniAppSaveProblem, Omit<MiniAppSaveError, 'values'>> =
     invalidUrl: { field: 'url', key: 'miniApps.error.invalidUrl' },
     hubUrl: { field: 'url', key: 'miniApps.error.hubUrl' },
     tooMany: { field: 'url', key: 'miniApps.error.tooMany' },
+    notAllowed: { field: 'url', key: 'miniApps.error.notAllowed' },
 };
 
 const errorFor = (problem: MiniAppSaveProblem): MiniAppSaveError => {

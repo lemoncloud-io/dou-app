@@ -5,8 +5,6 @@ import type { IUserHttpDataSource } from './UserHttpDataSource';
 import { UserHttpDataSource } from './UserHttpDataSource';
 import type { ICloudHttpDataSource } from './CloudHttpDataSource';
 import { CloudHttpDataSource } from './CloudHttpDataSource';
-import type { IMiniAppHttpDataSource } from './MiniAppHttpDataSource';
-import { MiniAppHttpDataSource } from './MiniAppHttpDataSource';
 import type { ISubscriptionHttpDataSource } from './SubscriptionHttpDataSource';
 import { SubscriptionHttpDataSource } from './SubscriptionHttpDataSource';
 import type { IReportHttpDataSource } from './ReportHttpDataSource';
@@ -17,7 +15,6 @@ import { PairingHttpDataSource } from './PairingHttpDataSource';
 export * from './AuthHttpDataSource';
 export * from './UserHttpDataSource';
 export * from './CloudHttpDataSource';
-export * from './MiniAppHttpDataSource';
 export * from './SubscriptionHttpDataSource';
 export * from './ReportHttpDataSource';
 export * from './PairingHttpDataSource';
@@ -26,7 +23,6 @@ export interface HttpDataSources {
     auth: IAuthHttpDataSource;
     user: IUserHttpDataSource;
     cloud: ICloudHttpDataSource;
-    miniApp: IMiniAppHttpDataSource;
     subscription: ISubscriptionHttpDataSource;
     report: IReportHttpDataSource;
     pairing: IPairingHttpDataSource;
@@ -36,7 +32,6 @@ export const createHttpDataSources = ({ gateways }: { gateways: HttpGatewayBundl
     auth: new AuthHttpDataSource(gateways.auth),
     user: new UserHttpDataSource(gateways.user),
     cloud: new CloudHttpDataSource(gateways.cloud),
-    miniApp: new MiniAppHttpDataSource(gateways.miniApp),
     subscription: new SubscriptionHttpDataSource(gateways.subscription),
     report: new ReportHttpDataSource(gateways.report),
     pairing: new PairingHttpDataSource(gateways.pairing),

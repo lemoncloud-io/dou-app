@@ -25,6 +25,8 @@ import type { IUploadSocketDataSource } from './UploadSocketDataSource';
 import type { IWebhookSocketDataSource } from './WebhookSocketDataSource';
 import { WebhookSocketDataSource } from './WebhookSocketDataSource';
 import { UploadSocketDataSource } from './UploadSocketDataSource';
+import type { IMiniAppSocketDataSource } from './MiniAppSocketDataSource';
+import { MiniAppSocketDataSource } from './MiniAppSocketDataSource';
 
 export * from './AuthSocketDataSource';
 export * from './ChannelSocketDataSource';
@@ -39,6 +41,7 @@ export * from './CloudSocketDataSource';
 export * from './ProfileSocketDataSource';
 export * from './UploadSocketDataSource';
 export * from './WebhookSocketDataSource';
+export * from './MiniAppSocketDataSource';
 
 export interface SocketDataSources {
     auth: IAuthSocketDataSource;
@@ -54,6 +57,7 @@ export interface SocketDataSources {
     profile: IProfileSocketDataSource;
     upload: IUploadSocketDataSource;
     webhook: IWebhookSocketDataSource;
+    miniApp: IMiniAppSocketDataSource;
 }
 
 export const createSocketDataSources = ({ gateways }: { gateways: SocketGatewayBundle }): SocketDataSources => ({
@@ -70,4 +74,5 @@ export const createSocketDataSources = ({ gateways }: { gateways: SocketGatewayB
     profile: new ProfileSocketDataSource(gateways.profile),
     upload: new UploadSocketDataSource(gateways.upload),
     webhook: new WebhookSocketDataSource(gateways.webhook),
+    miniApp: new MiniAppSocketDataSource(gateways.miniApp),
 });

@@ -329,14 +329,14 @@ describe('CloudRepository — HTTP catalog surface (ADR-0070 late stage 2)', () 
 });
 
 describe('CloudRepository — mini app list', () => {
-    const createMiniAppHttpDataSource = () => ({
+    const createMiniAppSocketDataSource = () => ({
         listMiniApps: jest.fn(),
         addMiniApp: jest.fn(),
         updateMiniApp: jest.fn(),
         removeMiniApp: jest.fn(),
     });
 
-    it('throws a clear error when IMiniAppHttpDataSource is not injected', async () => {
+    it('throws a clear error when IMiniAppSocketDataSource is not injected', async () => {
         const repository = new CloudRepository(
             createSocketDataSource() as any,
             createLocalDataSource() as any,
@@ -350,8 +350,8 @@ describe('CloudRepository — mini app list', () => {
         await expect(repository.removeMiniApp('m1')).rejects.toThrow('not injected');
     });
 
-    it('hands the arguments through as given and never touches the local cache', async () => {
-        const miniApps = createMiniAppHttpDataSource();
+    it('hands the arguments through, drops the cloud id the socket already routes by, and never touches the local cache', async () => {
+        const miniApps = createMiniAppSocketDataSource();
         const app: DomainMiniApp = {
             id: 'm1',
             name: 'Shop',
@@ -377,8 +377,8 @@ describe('CloudRepository — mini app list', () => {
         await expect(repository.updateMiniApp('m1', { enabled: false })).resolves.toMatchObject({ status: 'inactive' });
         await expect(repository.removeMiniApp('m1')).resolves.toBeUndefined();
 
-        expect(miniApps.listMiniApps).toHaveBeenCalledWith('c1');
-        expect(miniApps.addMiniApp).toHaveBeenCalledWith('c1', { name: 'Shop', url: 'https://shop.example/' });
+        expect(miniApps.listMiniApps).toHaveBeenCalledWith();
+        expect(miniApps.addMiniApp).toHaveBeenCalledWith({ name: 'Shop', url: 'https://shop.example/' });
         expect(miniApps.updateMiniApp).toHaveBeenCalledWith('m1', { enabled: false });
         expect(miniApps.removeMiniApp).toHaveBeenCalledWith('m1');
         expect(local.cacheWrite).not.toHaveBeenCalled();
