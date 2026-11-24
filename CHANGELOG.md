@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-24] - No version updates
+
+### Features
+
+- (data) read and write mini apps over the connected cloud's socket
+
+### Chores
+
+- (ratchet) drop the deleted mini app http spec from the source baseline
+
 ## [2026-11-24] - root@0.175.0, @chatic/desktop-web@0.61.0
 
 ### Features
