@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 const APP = join(__dirname, '../../..');
-const SCREEN = join(__dirname, 'pages/shellCheckout');
+const SCREEN = join(__dirname, 'pages/inAppCheckout');
 
 const sources = (dir: string): string[] =>
     readdirSync(dir).flatMap(name => {
@@ -11,7 +11,7 @@ const sources = (dir: string): string[] =>
         return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) ? [path] : [];
     });
 
-describe('the shell checkout screen stays out of a production build', () => {
+describe('the in-app checkout stays in its own lazy chunk', () => {
     it('is the only place that takes values from the payment library', () => {
         const outside = sources(APP)
             .filter(file => !file.startsWith(SCREEN))
@@ -20,11 +20,11 @@ describe('the shell checkout screen stays out of a production build', () => {
         expect(outside).toEqual([]);
     });
 
-    it('is loaded only behind the dev or local build check', () => {
-        const routes = readFileSync(join(__dirname, 'routes/index.tsx'), 'utf8');
-        expect(routes).toMatch(
-            /import\.meta\.env\.VITE_ENV === 'DEV' \|\| import\.meta\.env\.VITE_ENV === 'LOCAL'\s*\?\s*lazy\(\(\) =>\s*import\('\.\.\/pages\/shellCheckout\/ShellCheckoutPage'\)/
-        );
-        expect(routes).not.toMatch(/^import [^;]*pages\/shellCheckout/m);
+    it('is reached by no static import, only the route lazy-loads it', () => {
+        const reaching = sources(APP)
+            .filter(file => !file.startsWith(SCREEN))
+            .filter(file => /^import [^;]*pages\/inAppCheckout/m.test(readFileSync(file, 'utf8')))
+            .map(file => relative(APP, file));
+        expect(reaching).toEqual([]);
     });
 });

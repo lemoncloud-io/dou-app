@@ -185,14 +185,14 @@ payment server, and the subscription website has no local sign-in.
 **Harness values.** Beside the declaration the shell injects `window.CHATIC_SHELL_HARNESS =
 { version: 1, sandbox, subscriptionWeb? }`. The web reads it only in a dev or local build, inside the
 app's bridge; a production build ignores it, and the mobile app injects none (`src/mobileHarness.spec.ts`
-pins that). With it and a declared `['web']`, the web opens its own shell-only checkout screen inside the app
-(`/subscription/shell-checkout`) instead of leaving for the subscription website: plans, payer fields, a
-card window and the start of the subscription, signed in as the app is. With the sandbox on, the calls carry
-`?sandbox=1` and the card window is a stand-in (the payment server's mock provider: no real card, no
-charge). The account must be signed in with Google; a guest or a paired device is refused by the server.
+pins that). With a declared `['web']` the web sells in its own checkout screen inside the app
+(`/subscription/checkout`), as a browser tab does, signed in as the app is (ADR-0373). The harness values add
+the sandbox: the calls carry `?sandbox=1` and the card window is a stand-in (the payment server's mock
+provider: no real card, no charge). The account must be signed in with Google; a guest or a paired device is
+refused by the server.
 
-**Which subscription website.** Only where that screen does not open (a production build of the web) does
-the web leave for the subscription website. `DOU_SHELL_SUBSCRIPTION_WEB=<origin>` names a subscription website running
+**Which subscription website.** What still leaves for the subscription website — managing a subscription —
+goes to this one. `DOU_SHELL_SUBSCRIPTION_WEB=<origin>` names a subscription website running
 on this machine (`dou-landing` on dev, `dou-landing-prod` on prod). The shell asks it once when it starts
 and puts it in `subscriptionWeb` only when it answered; otherwise the web uses the deployed one. A kept
 `dou.subscriptionWeb` wins once it has answered. `status().checkout.subscriptionWeb` says which.

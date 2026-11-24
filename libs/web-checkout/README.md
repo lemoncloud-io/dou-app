@@ -1,7 +1,7 @@
 # web-checkout — the website checkout's calls, provider windows and rules
 
-`@chatic/web-checkout` is what the subscription website (`apps/landing`) and the web app's shell-only
-checkout (`apps/web`, virtual shell only) share to sell a subscription billed by a payment provider rather
+`@chatic/web-checkout` is what the subscription website (`apps/landing`) and the web app's in-app
+checkout (`apps/web`, a browser tab or a virtual shell that declares the web) share to sell a subscription billed by a payment provider rather
 than a store. It holds no screens, no words and no sign-in: each app draws its own pages and signs in its
 own way, and hands this library what it needs.
 
@@ -30,8 +30,8 @@ own way, and hands this library what it needs.
 - `sandbox` — when set, every payer-scoped call carries `?sandbox=1`. Where the flag comes from is the app's
   business: the website keeps it per tab, the web app takes it from the virtual shell's harness values.
 
-## Keeping the providers out of a bundle
+## Keeping the providers out of a store build
 
-The main entry imports no provider SDK; only the `windows` entry does. The web app loads its shell-only
-checkout, and with it this library, behind a dev-or-local build check, so a production web build carries
-neither (`yarn check:web-payment-sdk` after `nx build web`).
+The main entry imports no provider SDK; only the `windows` entry does. The web app loads its in-app checkout,
+and with it this library, as a lazy chunk it requests only where the web sells, so the phone app never loads it
+and no chunk the web loads at start carries an SDK (`yarn check:web-payment-sdk` after `nx build web`).

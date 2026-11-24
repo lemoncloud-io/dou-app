@@ -26,7 +26,7 @@ app, so take a new log cursor after it.
    the dev server's refusal of the fake receipt. With `await s.sandbox.set(true)` the result has `inAppNotice: true`
    — tell the person that a real store sandbox is a device and store setting.
 3. Web on dev: `await s.checkout.set('web')` (and `s.sandbox.set(true)`), then the plan picker, or
-   `s.deeplink('https://app-dev.chatic.io/subscription/shell-checkout')`. The app's own checkout screen opens
+   `s.deeplink('https://app-dev.chatic.io/subscription/checkout')`. The app's own checkout screen opens
    with a sandbox band; it needs an account signed in with Google (a paired shell is refused). With the
    sandbox on, the card window is a stand-in — stop there unless the person asked for a sandbox subscription.
 4. A refused catalog (prod, localhost): `status().checkout.notice` is `use-web` or `local-no-payment`, and the

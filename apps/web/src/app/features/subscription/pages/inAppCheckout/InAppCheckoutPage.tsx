@@ -10,6 +10,7 @@ import {
     createCardEntryChannel,
     currencyOfCountry,
     formatMoney,
+    isPortError,
     payerRequiredIn,
     windowResultOfQuery,
     type BillingCountryOption,
@@ -22,12 +23,12 @@ import { Button, IconBack, IconButton, ModalTopBar, ScreenLayout, SelectableCard
 
 import { subscriptionKeys } from '../../../../hooks/queryKeys';
 import { tabStore } from '../../../../storage';
-import { SHELL_CHECKOUT_PATH, shellCheckoutScreen } from '../../lib';
+import { checkoutSandbox, IN_APP_CHECKOUT_PATH } from '../../lib';
 import { StandInCardDialog } from './StandInCardDialog';
 import { StripeCardPanel } from './StripeCardPanel';
-import { buyPlan, createShellPaymentPort, type ShellCheckoutOutcome } from './flow';
+import { buyPlan, createInAppPaymentPort, mainUserOf, type InAppCheckoutOutcome } from './flow';
 
-const PENDING_KEY = 'shell-checkout.pending';
+const PENDING_KEY = 'in-app-checkout.pending';
 
 interface Pending {
     planId: PlanId;
@@ -55,28 +56,28 @@ const takePending = (): Pending | null => {
 
 type StandIn = PaymentWindowRequest & { answer: (outcome: RegistrationOutcome) => void };
 
-export const ShellCheckoutPage = () => {
+export const InAppCheckoutPage = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const queryClient = useQueryClient();
     const [search] = useSearchParams();
     const { subscription } = runtime.data.useRuntimeRepositories();
-    const sandbox = shellCheckoutScreen(runtime.checkout)?.sandbox ?? false;
+    const sandbox = checkoutSandbox(runtime.checkout);
 
     const [standIn, setStandIn] = useState<StandIn | null>(null);
     const cardEntry = useMemo(() => createCardEntryChannel(), []);
     const cardRequest = useSyncExternalStore(cardEntry.subscribe, cardEntry.pending);
     const port = useMemo(
         () =>
-            createShellPaymentPort({
+            createInAppPaymentPort({
                 api: subscription,
-                user: () => runtime.session.getRelaySessionUser(),
+                user: () => mainUserOf(runtime.session.getRelaySessionUser()),
                 sandbox,
                 cardEntry,
                 presentStandIn: request =>
                     new Promise<RegistrationOutcome>(answer => setStandIn({ ...request, answer })),
                 returnUrl: planId =>
-                    `${window.location.origin}${SHELL_CHECKOUT_PATH}${planId ? `?plan=${planId}` : ''}`,
+                    `${window.location.origin}${IN_APP_CHECKOUT_PATH}${planId ? `?plan=${planId}` : ''}`,
             }),
         [subscription, sandbox, cardEntry]
     );
@@ -86,21 +87,21 @@ export const ShellCheckoutPage = () => {
     const [payer, setPayer] = useState<Payer>({ name: '', phone: '', email: '' });
     const needsPayer = payerRequiredIn(country);
 
-    const session = useQuery({ queryKey: ['shell-checkout', 'session'], queryFn: () => port.getSession() });
+    const session = useQuery({ queryKey: ['in-app-checkout', 'session'], queryFn: () => port.getSession() });
     const plans = useQuery({
-        queryKey: ['shell-checkout', 'plans', country],
+        queryKey: ['in-app-checkout', 'plans', country],
         queryFn: () => port.listPlans({ currency: currencyOfCountry(country) }),
         enabled: !!session.data,
     });
 
-    const settled = (outcome: ShellCheckoutOutcome) => {
+    const settled = (outcome: InAppCheckoutOutcome) => {
         if (outcome.step === 'checkout') void queryClient.invalidateQueries({ queryKey: subscriptionKeys.all });
         return outcome;
     };
 
     const returned = useQuery({
-        queryKey: ['shell-checkout', 'return', search.toString()],
-        queryFn: async (): Promise<ShellCheckoutOutcome | null> => {
+        queryKey: ['in-app-checkout', 'return', search.toString()],
+        queryFn: async (): Promise<InAppCheckoutOutcome | null> => {
             const pending = windowResultOfQuery(search) ? takePending() : null;
             if (!pending) return null;
             const card = await port.completePaymentMethodRegistration({
@@ -128,6 +129,10 @@ export const ShellCheckoutPage = () => {
     });
 
     const outcome = buy.data ?? returned.data ?? null;
+    const failure = buy.error ?? returned.error ?? session.error ?? plans.error;
+    const signedOut =
+        (session.isSuccess && !session.data) ||
+        (isPortError(failure) && (failure.code === 'unauthenticated' || failure.code === 'notAllowed'));
     const done = outcome?.step === 'checkout' && outcome.attempt.status !== 'failed';
     const payerReady = !needsPayer || (payer.name && payer.phone && payer.email);
 
@@ -136,7 +141,7 @@ export const ShellCheckoutPage = () => {
             header={
                 <ModalTopBar
                     safeArea
-                    title={t('mypage.subscription.shellCheckout.title')}
+                    title={t('mypage.subscription.inAppCheckout.title')}
                     leftSlot={
                         <IconButton
                             icon={<IconBack className="size-[26px]" />}
@@ -149,24 +154,24 @@ export const ShellCheckoutPage = () => {
         >
             {sandbox && (
                 <p role="status" className="bg-amber-500 px-4 py-1 text-center text-[13px] font-medium text-white">
-                    {t('mypage.subscription.shellCheckout.sandboxBand')}
+                    {t('mypage.subscription.inAppCheckout.sandboxBand')}
                 </p>
             )}
             <div className="flex flex-col gap-4 px-4 py-5">
-                {session.isSuccess && !session.data && (
+                {signedOut && (
                     <p role="alert" className="text-[15px] text-muted-foreground">
-                        {t('mypage.subscription.shellCheckout.signInRequired')}
+                        {t('mypage.subscription.inAppCheckout.signInRequired')}
                     </p>
                 )}
-                {(session.isError || plans.isError || buy.isError || returned.isError) && (
+                {failure && !signedOut && (
                     <p role="alert" className="text-[15px] text-destructive">
-                        {t('mypage.subscription.shellCheckout.failed')}
+                        {t('mypage.subscription.inAppCheckout.failed')}
                     </p>
                 )}
                 {done ? (
                     <>
                         <p role="status" className="text-[17px] font-semibold text-foreground">
-                            {t('mypage.subscription.shellCheckout.done')}
+                            {t('mypage.subscription.inAppCheckout.done')}
                         </p>
                         <Button tone="green" fullWidth onClick={() => navigate(-1)}>
                             {t('common.confirm')}
@@ -177,7 +182,7 @@ export const ShellCheckoutPage = () => {
                         <>
                             {outcome && (
                                 <p role="alert" className="text-[15px] text-destructive">
-                                    {t('mypage.subscription.shellCheckout.notRegistered')}
+                                    {t('mypage.subscription.inAppCheckout.notRegistered')}
                                 </p>
                             )}
                             <div className="flex flex-wrap gap-2">
@@ -195,7 +200,7 @@ export const ShellCheckoutPage = () => {
                             {(plans.data ?? []).map(plan => (
                                 <SelectableCard
                                     key={plan.id}
-                                    title={t('mypage.subscription.shellCheckout.plan', {
+                                    title={t('mypage.subscription.inAppCheckout.plan', {
                                         clouds: plan.maxClouds,
                                         price: formatMoney(plan.monthly, i18n.language),
                                     })}
@@ -206,18 +211,18 @@ export const ShellCheckoutPage = () => {
                             {needsPayer && (
                                 <>
                                     <TextField
-                                        label={t('mypage.subscription.shellCheckout.payerName')}
+                                        label={t('mypage.subscription.inAppCheckout.payerName')}
                                         value={payer.name}
                                         onChange={name => setPayer({ ...payer, name })}
                                     />
                                     <TextField
-                                        label={t('mypage.subscription.shellCheckout.payerPhone')}
+                                        label={t('mypage.subscription.inAppCheckout.payerPhone')}
                                         value={payer.phone}
                                         inputMode="tel"
                                         onChange={phone => setPayer({ ...payer, phone })}
                                     />
                                     <TextField
-                                        label={t('mypage.subscription.shellCheckout.payerEmail')}
+                                        label={t('mypage.subscription.inAppCheckout.payerEmail')}
                                         value={payer.email}
                                         inputMode="email"
                                         onChange={email => setPayer({ ...payer, email })}
@@ -232,7 +237,7 @@ export const ShellCheckoutPage = () => {
                                 disabled={!planId || !payerReady}
                                 onClick={() => buy.mutate()}
                             >
-                                {t('mypage.subscription.shellCheckout.subscribe')}
+                                {t('mypage.subscription.inAppCheckout.subscribe')}
                             </Button>
                         </>
                     )

@@ -1,6 +1,7 @@
 export * from './cloudEmails';
 export * from './emailVerify';
 export * from './format';
+export * from './inAppCheckout';
 export * from './keepClouds';
 export * from './membershipStatus';
 export * from './nativeProducts';
@@ -8,7 +9,6 @@ export * from './plans';
 export * from './price';
 export * from './quota';
 export * from './scene';
-export * from './shellCheckout';
 export * from './trial';
 export * from './webCheckout';
 export * from './webSubscriptionActive';

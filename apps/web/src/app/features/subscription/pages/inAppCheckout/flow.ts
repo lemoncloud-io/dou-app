@@ -16,7 +16,7 @@ interface ProviderWindows {
     createStripeWindow: (channel: CardEntryChannel) => PaymentWindow;
 }
 
-interface ShellPaymentOptions {
+interface InAppPaymentOptions {
     api: SubscriptionApi;
     user: () => Record<string, unknown> | null;
     sandbox: boolean;
@@ -29,12 +29,12 @@ interface ShellPaymentOptions {
 const loadProviderWindows = (): Promise<ProviderWindows> =>
     import('./providerWindows').then(module => module.providerWindows);
 
-export const shellPaymentWindow = ({
+export const paymentWindowFor = ({
     sandbox,
     cardEntry,
     presentStandIn,
     loadWindows = loadProviderWindows,
-}: Pick<ShellPaymentOptions, 'sandbox' | 'cardEntry' | 'presentStandIn' | 'loadWindows'>): PaymentWindow => {
+}: Pick<InAppPaymentOptions, 'sandbox' | 'cardEntry' | 'presentStandIn' | 'loadWindows'>): PaymentWindow => {
     if (sandbox) {
         const standIn = createSandboxWindow();
         standIn.host.setPaymentWindow(presentStandIn);
@@ -48,23 +48,26 @@ export const shellPaymentWindow = ({
     };
 };
 
-export const createShellPaymentPort = (options: ShellPaymentOptions): PaymentMethods =>
+export const createInAppPaymentPort = (options: InAppPaymentOptions): PaymentMethods =>
     createPaymentPort({
         api: options.api,
         session: { user: options.user },
-        paymentWindow: shellPaymentWindow(options),
+        paymentWindow: paymentWindowFor(options),
         returnUrl: (_purpose, planId) => options.returnUrl(planId),
         sandbox: options.sandbox ? { interval: () => undefined } : undefined,
     });
 
-export type ShellCheckoutOutcome =
+export const mainUserOf = <User extends object>(user: User | null): User | null =>
+    user && (user as { userRole?: unknown }).userRole !== 'guest' ? user : null;
+
+export type InAppCheckoutOutcome =
     | { step: 'card'; outcome: 'failed' | 'closed' }
     | { step: 'checkout'; attempt: PaymentAttempt };
 
 export const buyPlan = async (
     port: Pick<PaymentMethods, 'startPaymentMethodRegistration' | 'startCheckout'>,
     { planId, country, payer }: { planId: PlanId; country: string; payer?: Payer }
-): Promise<ShellCheckoutOutcome> => {
+): Promise<InAppCheckoutOutcome> => {
     const card = await port.startPaymentMethodRegistration({ purpose: 'start', planId, country, payer });
     if (card.outcome !== 'registered') return { step: 'card', outcome: card.outcome };
     return { step: 'checkout', attempt: await port.startCheckout({ planId, country, payer, card: card.card }) };

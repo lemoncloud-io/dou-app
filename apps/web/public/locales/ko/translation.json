@@ -298,27 +298,6 @@
             "subscribe": "구독하기",
             "mobileOnly": "앱에서만 구독할 수 있어요",
             "toWebCheckout": "웹 결제 화면으로 이동 중...",
-            "shellCheckout": {
-                "title": "웹 결제 (가상 셸)",
-                "sandboxBand": "Sandbox 결제 — 실제로 청구되지 않습니다",
-                "signInRequired": "여기서 구독하려면 앱에서 Google로 로그인하세요. 게스트나 연결된 기기로는 할 수 없습니다.",
-                "failed": "문제가 생겼습니다. 다시 시도해 주세요.",
-                "done": "구독이 시작되었습니다.",
-                "notRegistered": "카드가 등록되지 않았습니다. 다시 시도해 주세요.",
-                "plan": "클라우드 {{clouds}}개 · 월 {{price}}",
-                "payerName": "이름",
-                "payerPhone": "전화번호",
-                "payerEmail": "이메일",
-                "subscribe": "카드 등록하고 구독하기",
-                "registerCard": "카드 등록",
-                "cardFieldFailed": "카드 입력란을 불러오지 못했습니다.",
-                "standIn": {
-                    "title": "Sandbox 카드",
-                    "description": "실제 카드를 쓰지 않습니다. 카드 등록이 어떻게 끝날지 고르세요.",
-                    "register": "등록",
-                    "decline": "거절"
-                }
-            },
             "noProducts": "구독 상품을 불러오지 못했어요",
             "purchaseFailed": "결제에 실패했어요",
             "notice": {
@@ -529,6 +508,27 @@
                 "dialogDescription": "{{date}} 이전까지 클라우드 변경이 가능하며,\n선택하지 않은 클라우드는 이용이 제한됩니다.",
                 "saved": "유지할 클라우드를 저장했어요.",
                 "failed": "저장하지 못했어요. 다시 시도해 주세요."
+            },
+            "inAppCheckout": {
+                "title": "구독하기",
+                "sandboxBand": "Sandbox 결제 — 실제로 청구되지 않습니다",
+                "signInRequired": "여기서 구독하려면 Google로 로그인하세요. 게스트나 연결된 기기로는 할 수 없습니다.",
+                "failed": "문제가 생겼습니다. 다시 시도해 주세요.",
+                "done": "구독이 시작되었습니다.",
+                "notRegistered": "카드가 등록되지 않았습니다. 다시 시도해 주세요.",
+                "plan": "클라우드 {{clouds}}개 · 월 {{price}}",
+                "payerName": "이름",
+                "payerPhone": "전화번호",
+                "payerEmail": "이메일",
+                "subscribe": "카드 등록하고 구독하기",
+                "registerCard": "카드 등록",
+                "cardFieldFailed": "카드 입력란을 불러오지 못했습니다.",
+                "standIn": {
+                    "title": "Sandbox 카드",
+                    "description": "실제 카드를 쓰지 않습니다. 카드 등록이 어떻게 끝날지 고르세요.",
+                    "register": "등록",
+                    "decline": "거절"
+                }
             }
         },
         "cloudManage": {

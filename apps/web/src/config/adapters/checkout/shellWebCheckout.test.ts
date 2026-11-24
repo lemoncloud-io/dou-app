@@ -40,30 +40,15 @@ describe('hybridWebCheckout', () => {
 });
 
 describe('shellWebCheckout', () => {
-    it('opens the in-app shell checkout screen, carrying the sandbox, and stays in the app', () => {
-        const checkout = shellWebCheckout({ version: 1, sandbox: true, subscriptionWeb: 'http://localhost:5004' });
-        const open = jest.fn();
-        checkout.shellScreen.bind(open);
-
-        checkout.open(plans, { replace: true });
-
-        expect(open).toHaveBeenCalledWith({ replace: true });
-        expect(checkout.shellScreen.sandbox).toBe(true);
-        expect(leaveForWeb).not.toHaveBeenCalled();
+    it('carries the shell sandbox for the in-app checkout', () => {
+        expect(shellWebCheckout({ version: 1, sandbox: true }).sandbox).toBe(true);
+        expect(shellWebCheckout({ version: 1, sandbox: false }).sandbox).toBe(false);
     });
 
-    it('leaves for the local subscription website with the sandbox when no screen is bound', () => {
-        shellWebCheckout({ version: 1, sandbox: true, subscriptionWeb: 'http://localhost:5004' }).open(plans);
-        expect(leaveForWeb).toHaveBeenCalledWith('http://localhost:5004/subscription/plans?sandbox=1', {
-            replace: false,
-        });
-    });
-
-    it('leaves for the website when no screen is bound, or once it is unbound', () => {
-        const checkout = shellWebCheckout({ version: 1, sandbox: false });
-        const unbind = checkout.shellScreen.bind(jest.fn());
-        unbind();
-        checkout.open(plans);
-        expect(leaveForWeb).toHaveBeenCalledWith(plans, { replace: false });
+    it('leaves for the local subscription website with the sandbox, for what stays there', () => {
+        shellWebCheckout({ version: 1, sandbox: true, subscriptionWeb: 'http://localhost:5004' }).open(
+            'https://app-dev.chatic.io/subscription'
+        );
+        expect(leaveForWeb).toHaveBeenCalledWith('http://localhost:5004/subscription?sandbox=1', { replace: false });
     });
 });

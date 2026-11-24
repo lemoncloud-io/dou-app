@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom';
 
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 import { WebCheckoutHandoff } from './WebCheckoutHandoff';
-import { WEB_SUBSCRIPTION_URL } from '../consts';
 import { usePlanCatalog } from '../hooks';
 import { useMembershipInfo } from '../../../hooks/useMembership';
 
@@ -20,9 +20,6 @@ jest.mock('@chatic/runtime', () =>
     })
 );
 jest.mock('../hooks', () => ({ usePlanCatalog: jest.fn() }));
-jest.mock('../consts', () => ({
-    WEB_SUBSCRIPTION_URL: { plans: 'https://web.example/subscription/plans', list: 'https://web.example/subscription' },
-}));
 jest.mock('../../../hooks/useMembership', () => ({ useMembershipInfo: jest.fn() }));
 
 type Read = 'success' | 'pending' | 'error';
@@ -43,9 +40,19 @@ const show = ({
         isError: read === 'error',
     });
     return render(
-        <WebCheckoutHandoff>
-            <div>store screen</div>
-        </WebCheckoutHandoff>
+        <MemoryRouter initialEntries={['/subscription/plans']}>
+            <Routes>
+                <Route
+                    path="/subscription/plans"
+                    element={
+                        <WebCheckoutHandoff>
+                            <div>store screen</div>
+                        </WebCheckoutHandoff>
+                    }
+                />
+                <Route path="/subscription/checkout" element={<div>in-app checkout</div>} />
+            </Routes>
+        </MemoryRouter>
     );
 };
 
@@ -63,25 +70,25 @@ describe('WebCheckoutHandoff', () => {
         expect(mockWeb.open).not.toHaveBeenCalled();
     });
 
-    it("in a browser with no subscription: replaces this entry with the website's plans page", () => {
+    it('in a browser with no subscription: replaces this entry with the in-app checkout, never leaving the app', () => {
         show({});
 
-        expect(mockWeb.open).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.plans, { replace: true });
+        expect(screen.getByText('in-app checkout')).toBeInTheDocument();
         expect(screen.queryByText('store screen')).not.toBeInTheDocument();
-        expect(screen.getByText('mypage.subscription.toWebCheckout')).toBeInTheDocument();
+        expect(mockWeb.open).not.toHaveBeenCalled();
     });
 
     it('in a browser with a subscription the website bills: hands over too', () => {
         show({ hasLiveReceipt: true, platform: 'stripe' });
 
-        expect(mockWeb.open).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.plans, { replace: true });
+        expect(screen.getByText('in-app checkout')).toBeInTheDocument();
     });
 
     it('in a browser with a running store subscription: stays on the screen that says where to change it', () => {
         show({ hasLiveReceipt: true, platform: 'apple' });
 
         expect(screen.getByText('store screen')).toBeInTheDocument();
-        expect(mockWeb.open).not.toHaveBeenCalled();
+        expect(screen.queryByText('in-app checkout')).not.toBeInTheDocument();
     });
 
     it('in a browser while the membership is still being read: waits, neither leaving nor showing the store screen', () => {

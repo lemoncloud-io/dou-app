@@ -30,11 +30,11 @@ export const StripeCardPanel = ({ channel, request }: { channel: CardEntryChanne
                 <div ref={mountInto} />
                 {failed && (
                     <p role="alert" className="text-[14px] text-destructive">
-                        {t('mypage.subscription.shellCheckout.cardFieldFailed')}
+                        {t('mypage.subscription.inAppCheckout.cardFieldFailed')}
                     </p>
                 )}
                 <Button tone="green" fullWidth loading={busy} onClick={() => void confirm()}>
-                    {t('mypage.subscription.shellCheckout.registerCard')}
+                    {t('mypage.subscription.inAppCheckout.registerCard')}
                 </Button>
                 <Button variant="ghost" fullWidth onClick={() => channel.finish('closed')}>
                     {t('common.cancel')}
