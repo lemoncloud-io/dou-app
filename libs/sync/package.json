@@ -16,7 +16,9 @@
     },
     "nx": {
         "tags": [
-            "layer:core-lib"
+            "layer:core-lib",
+            "platform:any",
+            "formfactor:any"
         ]
     }
 }

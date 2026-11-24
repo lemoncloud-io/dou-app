@@ -3,7 +3,7 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/chatic-apps-sdk/src",
     "projectType": "library",
-    "tags": [],
+    "tags": ["layer:bridge", "platform:any", "formfactor:any"],
     "targets": {
         "build": {
             "executor": "nx:run-commands",

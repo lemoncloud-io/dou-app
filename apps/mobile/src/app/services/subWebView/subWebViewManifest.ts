@@ -4,6 +4,7 @@ import type {
     SubWebViewPermission,
     SubWebViewRuntimePermission,
 } from '@chatic/bridge-messages';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; the sub-webview trust rules move to a platform-free mini-app protocol package
 import { subWebViewDisplayOf } from '@chatic/shared/subWebViewTrust';
 
 import type { ILogService } from '../log';

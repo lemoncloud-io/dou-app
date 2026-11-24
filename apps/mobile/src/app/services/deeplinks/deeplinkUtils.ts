@@ -1,5 +1,6 @@
 import Config from 'react-native-config';
 
+// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; these link and store-URL helpers move to platform-free packages (mini-app protocol, host links)
 import {
     decodeInviteLink,
     isEncodedInviteUrl,

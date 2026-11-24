@@ -17,7 +17,8 @@
     "nx": {
         "tags": [
             "layer:adapter",
-            "platform:web"
+            "platform:web",
+            "formfactor:any"
         ]
     }
 }

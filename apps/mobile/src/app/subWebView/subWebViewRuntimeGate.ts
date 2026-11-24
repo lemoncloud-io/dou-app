@@ -1,4 +1,5 @@
 import type { SubWebViewRuntimePermission } from '@chatic/bridge-messages';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; these link and store-URL helpers move to platform-free packages (mini-app protocol, host links)
 import type { SubWebViewTrust } from '@chatic/shared';
 
 import type { SessionOwner } from '../services/runtime/sessionOwner';

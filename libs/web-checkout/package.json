@@ -21,8 +21,9 @@
     },
     "nx": {
         "tags": [
-            "layer:core-lib",
-            "platform:web"
+            "layer:adapter",
+            "platform:web",
+            "formfactor:any"
         ]
     }
 }

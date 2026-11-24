@@ -123,10 +123,10 @@ adapter that forgot it, not a fallback discovered on a device.
 
 ## Layers
 
-Each runtime package carries a layer tag (`"nx": { "tags": [...] }` in its `package.json`, or `tags` in
-its `project.json`), and
+Every project under `apps/` and `libs/` carries a layer, a platform and a form factor tag (`"nx": { "tags": [...] }` in its `package.json`,
+or `tags` in its `project.json`; `@nx/workspace-project-tags` fails lint without them), and
 `@nx/enforce-module-boundaries` in the root `eslint.config.mjs` refuses an import that goes the wrong
-way:
+way. Form factor is `any` except on apps and screen parts built for one layout.
 
 ```mermaid
 flowchart TD
@@ -134,7 +134,7 @@ flowchart TD
     Surface["@chatic/runtime<br/><i>layer:react-surface</i>"]
     Client["@chatic/runtime-client<br/><i>layer:client</i>"]
     Web["@chatic/runtime-web<br/><i>layer:adapter · platform:web</i>"]
-    Native["@chatic/runtime-mobile<br/><i>layer:adapter · platform:native</i>"]
+    Native["@chatic/runtime-mobile<br/><i>layer:adapter · platform:mobile</i>"]
     Core["@chatic/runtime-core<br/><i>layer:runtime-core</i>"]
     Libs["session · transport · sync · auth · data<br/><i>layer:core-lib</i>"]
     Found["logger · config · perf · http · storage · bridge-messages<br/><i>layer:foundation</i>"]
@@ -163,10 +163,23 @@ flowchart TD
 | `layer:client`        | anything not tagged `layer:core-lib`, `layer:runtime-core` or `layer:foundation`, and the bridge or a UI library through one that is; React, React Native, `@tanstack/*` or zustand |
 | `layer:adapter`       | the React surface or a UI library; React                                                                                                                                            |
 | `layer:react-surface` | an adapter — which platform fills the ports is the entry point's choice                                                                                                             |
-| `platform:web`        | React Native                                                                                                                                                                        |
-| `platform:native`     | a `platform:web` package                                                                                                                                                            |
-| `layer:bridge`        | — (`@chatic/bridges`, the WebView transport; tagged so the layers above can refuse it)                                                                                              |
-| `layer:ui`            | — (`@chatic/ui-kit`, `@chatic/web-ui-kit`, `@chatic/block-kit`, `@chatic/theme`; tagged so the runtime side can refuse them)                                                        |
+| `platform:any`        | anything not tagged `platform:any`                                                                                                                                                  |
+| `platform:web`        | anything not tagged `platform:any` or `platform:web`; React Native                                                                                                                  |
+| `platform:mobile`     | anything not tagged `platform:any` or `platform:mobile`, and a `platform:web` package through one that is                                                                           |
+| `platform:desktop`    | anything not tagged `platform:any` or `platform:desktop`                                                                                                                            |
+| `platform:node`       | anything not tagged `platform:any` or `platform:node`                                                                                                                               |
+| `formfactor:any`      | a `formfactor:mobile` or `formfactor:desktop` package, directly or through another package                                                                                          |
+| `formfactor:mobile`   | a `formfactor:desktop` package, directly or through another package                                                                                                                 |
+| `formfactor:desktop`  | a `formfactor:mobile` package, directly or through another package                                                                                                                  |
+| `layer:bridge`        | — (`@chatic/bridges`, the WebView transport, with `@chatic/fake-shell` and `@chatic/chatic-apps-sdk`; tagged so the layers above can refuse it)                                     |
+| `layer:ui`            | — (`@chatic/ui-kit`, `@chatic/web-ui-kit`, `@chatic/block-kit`, `@chatic/theme`, `@chatic/shared`, `@chatic/assets`; tagged so the runtime side can refuse them)                    |
+
+Two packages carry `platform:any` while part of them is web, until each is split: `@chatic/db` (its
+IndexedDB and Web Storage engines sit beside the bridge one) and `@chatic/chatic-apps-sdk` (its
+`mock` entry reads `window`, `document` and `navigator`). And `@chatic/shared` is `platform:web`, but
+the mobile and desktop shells read its sub-webview trust rules and link helpers; those imports carry an
+`eslint-disable-next-line @nx/enforce-module-boundaries` with the reason, until the helpers move to
+platform-free packages.
 
 `layer:client` is [`@chatic/runtime-client`](../runtime-client/README.md): the half of the React
 surface that calls this package, with no UI library, and the runtime declaration an app starts from

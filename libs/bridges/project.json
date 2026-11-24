@@ -3,7 +3,7 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/bridges/src",
     "projectType": "library",
-    "tags": ["layer:bridge"],
+    "tags": ["layer:bridge", "platform:any", "formfactor:any"],
     "// targets": "to see all targets run: nx show project bridges --web",
     "targets": {}
 }
