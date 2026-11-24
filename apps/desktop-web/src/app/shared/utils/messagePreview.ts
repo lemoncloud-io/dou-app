@@ -42,8 +42,10 @@ export const isVoiceSlot = (slot: UploadSlot): boolean => {
 
 export const messagePreview = (chat: Pick<DomainChat, 'content' | 'upload$$' | 'uploadIds' | 'hidden'>): string => {
     if (chat.hidden) return i18next.t('sidebar.deletedPreview');
-    const text = messagePlainText(chat.content).trim();
-    if (text) return text;
+    return messagePlainText(chat.content).trim() || attachmentPreview(chat);
+};
+
+export const attachmentPreview = (chat: Pick<DomainChat, 'upload$$' | 'uploadIds'>): string => {
     const slots = chat.upload$$ ?? [];
     const attachments = chatAttachmentSummary(chat);
     if (!attachments) return '';

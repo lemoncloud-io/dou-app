@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { DomainChat } from '@chatic/runtime';
 
+import '../../../../i18n';
+
 import { formatClockTime, formatFullDate } from '../../../shared/utils';
 import type { MessageRowItem } from './buildMessageRows';
 import { formatTranscript, selectedTranscript } from './copyTranscript';
@@ -29,9 +31,10 @@ const group = (ownerName: string, messages: DomainChat[]): MessageRowItem => ({
 });
 
 const DELETED = 'This message was deleted.';
+const clock = (ms: number) => formatClockTime(ms).replace(/\u202f/g, ' ');
 
 describe('formatTranscript', () => {
-    it('writes each message as [author] [time] text under its day', () => {
+    it('writes each message as time author text, with a date line only where the day changes', () => {
         const text = formatTranscript(
             [
                 { authorName: 'Ada', message: chat({ chatNo: 1, content: 'hello' }) },
@@ -42,24 +45,39 @@ describe('formatTranscript', () => {
         );
 
         expect(text.split('\n')).toEqual([
-            formatFullDate(DAY),
-            `[Ada] [${formatClockTime(DAY)}] hello`,
-            `[Bob] [${formatClockTime(DAY)}] hi there`,
+            `${clock(DAY)} Ada hello`,
+            `${clock(DAY)} Bob hi there`,
             formatFullDate(NEXT_DAY),
-            `[Ada] [${formatClockTime(NEXT_DAY)}] next day`,
+            `${clock(NEXT_DAY)} Ada next day`,
         ]);
     });
 
-    it('names the files of a message that has no text', () => {
-        const message = chat({
-            chatNo: 1,
+    it('writes a message with no text as its attachment label', () => {
+        const photo = chat({ chatNo: 1, content: '', upload$$: [{ name: 'photo.png' }] } as Partial<DomainChat>);
+        const files = chat({
+            chatNo: 2,
             content: '',
-            upload$$: [{ name: 'report.pdf' }, { localName: 'photo.png', localStatus: 'sending' }],
+            upload$$: [
+                { name: 'a.pdf', stereo: 'file' },
+                { name: 'b.pdf', stereo: 'file' },
+            ],
         } as Partial<DomainChat>);
 
-        expect(formatTranscript([{ authorName: 'Ada', message }], DELETED).split('\n')[1]).toBe(
-            `[Ada] [${formatClockTime(DAY)}] report.pdf, photo.png`
-        );
+        expect(
+            formatTranscript(
+                [
+                    { authorName: 'Ada', message: photo },
+                    { authorName: 'Ada', message: files },
+                ],
+                DELETED
+            ).split('\n')
+        ).toEqual([`${clock(DAY)} Ada Photo`, `${clock(DAY)} Ada 2 files`]);
+    });
+
+    it('separates the time from its day period with a plain space', () => {
+        const text = formatTranscript([{ authorName: 'Ada', message: chat({ chatNo: 1, content: 'hi' }) }], DELETED);
+
+        expect(text).not.toMatch(/\u202f/);
     });
 
     it('reads a Block Kit message as its text, not its JSON', () => {
@@ -68,7 +86,7 @@ describe('formatTranscript', () => {
         const line = formatTranscript(
             [{ authorName: 'Bot', message: chat({ chatNo: 1, content, stereo: 'webhook' }) }],
             DELETED
-        ).split('\n')[1];
+        ).split('\n')[0];
 
         expect(line).toContain('Deployed');
         expect(line).not.toContain('"blocks"');
@@ -81,7 +99,7 @@ describe('formatTranscript', () => {
         );
 
         expect(text).not.toContain('secret');
-        expect(text.split('\n')[1]).toBe(`[Ada] [${formatClockTime(DAY)}] ${DELETED}`);
+        expect(text).toBe(`${clock(DAY)} Ada ${DELETED}`);
     });
 });
 
@@ -130,9 +148,8 @@ describe('selectedTranscript', () => {
         const t1 = textOf(root, 't1');
 
         expect(run(select(two, 0, t1, t1.length), root)).toEqual([
-            formatFullDate(DAY),
-            `[Ada] [${formatClockTime(DAY)}] two`,
-            `[Bob] [${formatClockTime(DAY)}] pending one`,
+            `${clock(DAY)} Ada two`,
+            `${clock(DAY)} Bob pending one`,
         ]);
     });
 
@@ -142,9 +159,8 @@ describe('selectedTranscript', () => {
         const t2 = textOf(root, 't2');
 
         expect(run(select(t1, 0, t2, t2.length), root)).toEqual([
-            formatFullDate(DAY),
-            `[Bob] [${formatClockTime(DAY)}] pending one`,
-            `[Bob] [${formatClockTime(DAY)}] pending two`,
+            `${clock(DAY)} Bob pending one`,
+            `${clock(DAY)} Bob pending two`,
         ]);
     });
 
@@ -154,7 +170,7 @@ describe('selectedTranscript', () => {
         const two = textOf(root, 'C1:2');
         const t1 = textOf(root, 't1');
 
-        expect(run(select(one, one.length, t1, t1.length), root)).toHaveLength(3);
+        expect(run(select(one, one.length, t1, t1.length), root)).toHaveLength(2);
         expect(run(select(one, 0, two, 0), root)).toBeUndefined();
     });
 

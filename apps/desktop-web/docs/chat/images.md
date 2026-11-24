@@ -412,8 +412,8 @@ the worker file as it is, and it starts.
 
 ## Previews outside the feed
 
-A message with attachments and no text still says something in the sidebar row and in the OS
-notification, and it names what it carries (`shared/utils/messagePreview.ts`): "Photo" or "3 photos",
+A message with attachments and no text still says something in the sidebar row, in the OS notification
+and in a copied transcript ([messages.md](./messages.md#copying-a-selection)), and it names what it carries (`shared/utils/messagePreview.ts`): "Photo" or "3 photos",
 "Video" or "2 videos", "File" or "3 files", "Voice file" or "2 voice files", and "3 attachments"
 when the kinds differ. It used to leave a blank line, and the banner read "Raine:" with nothing after
 it; after that it said "Photo" for a PDF too, because the server now stores videos and documents as well.
