@@ -1,6 +1,6 @@
 # ADR-0372: The virtual shell declares checkout and sandbox, and points to the web from its own page when the store cannot answer
 
-> Status: Accepted · Decided: 2026-11-24
+> Status: Accepted; decision 6 superseded by [ADR-0374](./0374-the-virtual-shell-s-checkout-and-host-choices-are-the-shell-core-s-options.md) · Decided: 2026-11-24
 > · Scope: `apps/shell-adapter/**` · `apps/web/src/config/adapters/checkout/**` · `apps/web/src/app/features/subscription/**`
 > · `libs/runtime-web/src/hostCapabilities/shellHarness.ts`
 > · Builds on: [ADR-0214](./0214-the-virtual-shell-is-a-package.md) · Related: [ADR-0373](./0373-a-web-checkout-sells-inside-the-app-through-a-shared-checkout-library.md)
@@ -42,7 +42,7 @@ buyer at web checkout (ADR-0276).
 5. **An in-app sandbox is named for what it is.** Turning the sandbox on with a store checkout shows that the
    real store sandbox is a device and store setting (a store test account, a test build) and that the shell
    only imitates the store, up to the purchase.
-6. **Agents use `window.virtualShell`.** `checkout.set`, `sandbox.set` (each relaunching the app) and
+6. **Agents use `window.virtualShell`** (superseded by ADR-0374: the core's `options.set`). `checkout.set`, `sandbox.set` (each relaunching the app) and
    `status().checkout` / `status().sandbox` carry the same choices and notices.
 7. **The app's debug settings are the second source.** Without the shell, a dev or local build reads the
    debug setting `checkout.sandbox`; the shell's value wins where there is one, and a production build reads

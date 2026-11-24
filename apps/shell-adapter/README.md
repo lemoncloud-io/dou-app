@@ -152,14 +152,18 @@ The web dev server sets no Content-Security-Policy, so nothing is stripped for t
 ## Checkout
 
 The shell declares how it sells, in `CHATIC_APP_CAPABILITIES.checkout`, the way an app declares what it
-can do, and the web's `checkout` port follows it (`apps/web/docs/bridge/host-ports.md`). It picks three
-things, each kept in the shell's store and applied from the next launch:
+can do, and the web's `checkout` port follows it (`apps/web/docs/bridge/host-ports.md`). Besides the
+backend, its choices are the shell core's options (`src/options.ts`, ADR-0374): drawn in the panel's
+"App options" fold, kept in the shell's store under their id, applied from the next launch (the panel
+offers a relaunch), and set by an agent with `virtualShell.options.set(id, value)`, which relaunches.
 
-| Choice   | Values                           | Start with                                                   | Kept under     |
-| -------- | -------------------------------- | ------------------------------------------------------------ | -------------- |
-| Backend  | `dev`, `prod`, `localhost`       | `yarn local --env <env>`                                     | the shell core |
-| Checkout | `store` (default), `web`, `none` | `DOU_SHELL_CHECKOUT`; `apple`, `google`, `legacy` still read | `dou.checkout` |
-| Sandbox  | on, off (default)                | `virtualShell.sandbox.set(true)`                             | `dou.sandbox`  |
+| Choice                | Values                                                        | Starts from              | Option id      |
+| --------------------- | ------------------------------------------------------------- | ------------------------ | -------------- |
+| Backend               | `dev`, `prod`, `localhost`                                    | `yarn local --env <env>` | the shell core |
+| Checkout              | `store` (default), `web`, `none`, `apple`, `google`, `legacy` | `DOU_SHELL_CHECKOUT`     | `dou.checkout` |
+| Sandbox               | on, off (default); dev only                                   | off                      | `dou.sandbox`  |
+| Who picks attachments | `unset` (default), `shell`, `browser`                         | `DOU_SHELL_MEDIA`        | `dou.media`    |
+| Who moves files       | `unset` (default), `shell`, `browser`                         | `DOU_SHELL_FILES`        | `dou.files`    |
 
 `store` is the device preset's store: Apple's on an iPhone, Google's on Android, as the mobile app sets it
 up. A picked `apple` or `google` is declared as it is, and `status().checkout.display` says when it differs
@@ -178,7 +182,8 @@ from the device. `legacy` declares nothing, so the web answers as for an app bui
 | localhost | web      | —       | `[]`                | none                                    | `The local backend has no payment server`                           |
 | any       | none     | —       | `[]`                | none                                    | —                                                                   |
 
-The sandbox cannot be switched on against prod or localhost; a sandbox kept from dev is dropped there.
+The sandbox cannot be switched on against prod or localhost — the switch is greyed there with the reason;
+a sandbox kept from dev is dropped there.
 Payments against a backend on this machine are not possible yet: the local backend harness runs no
 payment server, and the subscription website has no local sign-in.
 
@@ -205,21 +210,23 @@ and puts it in `subscriptionWeb` only when it answered; otherwise the web uses t
 **When the store is not imitated.** Where the virtual store does not answer (prod, localhost, `legacy`),
 the first refused catalog or purchase puts a notice on the shell page — never in the app's screen, whose
 confirm screen keeps showing that it cannot sell. It says the in-app catalog cannot be loaded here and
-offers **Switch to web**, which keeps `web` and relaunches the app; on localhost it says payments cannot be
-checked and offers nothing. It shows once per shell page, and the log gets a `checkout.notice` line beside
-the refusal.
+offers **Switch to web**, which sets the checkout option to `web` (relaunching the app) and takes the
+notice down; on localhost it says payments cannot be checked and offers nothing. It is the core's notice
+(`shell.notice`), shown once while the store stays refused, and the log gets a `checkout.notice` line beside
+the refusal. Notices outlive a relaunch, so each launch takes down one that no longer applies: the checkout
+notice once web or none is picked, the in-app sandbox notice once the virtual store or the sandbox is off.
 
-**In-app sandbox notice.** Switching the sandbox on with a store checkout (or picking a store with the
-sandbox on) shows a notice: the real in-app sandbox is set on the device and the store (a store test
-account in the device's settings, a test build), not here; the sandbox here imitates the virtual store and
-is checked up to the purchase only. A web checkout shows none — its sandbox carries on to the subscription
-website.
+**In-app sandbox notice.** When the virtual store first answers a catalog with the sandbox on, the shell
+page shows a notice: the real in-app sandbox is set on the device and the store (a store test account in
+the device's settings, a test build), not here; the sandbox here imitates the virtual store and is checked
+up to the purchase only. The sandbox switch's hint says the same before anything is picked. A web checkout shows none — its sandbox carries on to the
+subscription website.
 
-**From an agent.** `window.virtualShell` carries the same choices, each relaunching the app:
-`checkout.set('store' | 'web' | 'none')`, `sandbox.set(boolean)`, and `status()` with
+**From an agent.** `virtualShell.options.set('dou.checkout', 'web')`, `options.set('dou.sandbox', true)`
+and the rest, each relaunching the app; `options.list()` says what each is and why one is greyed, and a
+greyed choice is refused with `INVALID_INPUT`. `status()` adds what was declared:
 `checkout: { chosen, declared, storeImitated, notice?, subscriptionWeb, display }` and
-`sandbox: { on, chosen, available, inAppNotice }`. A refusal comes back as `{ ok: false, error: 'refused' }`.
-The shell core has no picker for these on its panel yet, so the choices are made here or at start.
+`sandbox: { on, chosen, available, inAppNotice }`.
 
 A declaration has to carry every key its version requires: a missing one reads in the web as a bug, not
 as "the legacy answer". So the shell takes the lowest version that holds what was picked and declares each
@@ -230,7 +237,7 @@ store for `checkout`).
 the page's own file input, as a browser has, where the shell otherwise answers with the app's picker
 messages. Declaring it takes declaration version 2, which has to carry `checkout` too; with `legacy` picked, the
 shell declares the device preset's store, the answer the web would give anyway.
-`dou.media` in the store wins over the variable, as for checkout. The old spellings `page` and `app`
+The panel's `dou.media` wins over the variable, as for checkout; its `unset` declares nothing even with the variable set. The old spellings `page` and `app`
 are not read as `browser` and `shell`: the shell warns that the choice is ignored and declares nothing
 for it.
 
@@ -238,9 +245,10 @@ for it.
 PUT uploads, fetch downloads and draw video frames from the bucket, as a browser does, rather than
 asking the shell's transfer messages. It takes declaration version 3, which has to carry `checkout` and
 `media` too: with `legacy`, `checkout` is declared as the device's store; unpicked, `media` is the same as `files`.
-`dou.files` in the store wins over the variable. Picking `DOU_SHELL_MEDIA=shell` with
-`DOU_SHELL_FILES=browser` is a pair no real host declares: the app's picker hands back videos and documents
-as files in its own folder, which only its transfer module can send, so sending them fails. `src/checkout.ts` holds the choices, the declaration and the harness
+The panel's `dou.files` wins over the variable, the same way. `shell` media with `browser` files is a pair
+no real host declares: the app's picker hands back videos and documents as files in its own folder, which
+only its transfer module can send, so sending them fails. The panel greys either side of that pair; the
+variables can still start one. `src/checkout.ts` holds the choices, the declaration and the harness
 values; the wrapped preset in `hybrid-shell.config.ts` appends both to the preset's own globals.
 
 **The virtual store answers on dev only, and only for a store checkout.** A fake receipt must never

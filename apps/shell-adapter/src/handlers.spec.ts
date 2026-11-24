@@ -3,7 +3,7 @@ import type { HandlerContext } from '@lemoncloud/hybrid-shell';
 import { checkoutPlan, launch, type ShellCheckoutChoice } from './checkout';
 import handlers, { APP_SCHEME_OPEN_UNSUPPORTED, APPLE_SIGN_IN_UNSUPPORTED, STORE_NOT_IMITATED } from './handlers';
 import { mobileRoutes } from './routes';
-import { LOCAL_NO_PAYMENT_NOTICE, notices, raiseStoreNotice, resetNotices, USE_WEB_ACTION } from './shellControls';
+import { CHECKOUT_NOTICE_ID, notices, resetNotices, SANDBOX_NOTICE_ID } from './shellControls';
 
 const context = (platform: 'ios' | 'android' = 'ios') => {
     const lines: Array<{ source: string; type: string }> = [];
@@ -14,6 +14,7 @@ const context = (platform: 'ios' | 'android' = 'ios') => {
         log: { append: (line: { source: string; type: string }) => void lines.push(line) },
         auth: { signIn },
         notify: vi.fn(() => true),
+        notice: { show: vi.fn(), clear: vi.fn() },
     } as unknown as HandlerContext;
     return { shell, lines, signIn };
 };
@@ -127,17 +128,20 @@ describe('the shell handlers', () => {
     });
 
     describe('the virtual store', () => {
-        const launchOn = (env: 'dev' | 'prod' | 'localhost', choice: ShellCheckoutChoice, platform = 'ios') => {
+        const launchOn = (
+            env: 'dev' | 'prod' | 'localhost',
+            choice: ShellCheckoutChoice,
+            platform = 'ios',
+            sandbox = false
+        ) => {
             launch.env = env;
             launch.choice = choice;
             launch.platform = platform;
-            launch.plan = checkoutPlan({ env, choice, platform });
+            launch.plan = checkoutPlan({ env, choice, platform, sandbox });
         };
-        const draw = vi.fn();
 
         beforeEach(() => {
             resetNotices();
-            draw.mockReset();
         });
 
         afterEach(() => {
@@ -174,21 +178,18 @@ describe('the shell handlers', () => {
             expect(notices.checkout).toBe('use-web');
         });
 
-        it('raises the store notice through the shell page, once, with a switch to web off localhost only', () => {
+        it('puts the store notice on the shell page, not in the app', async () => {
             const { shell } = context();
             launchOn('prod', 'store');
-            raiseStoreNotice(shell, draw);
-            raiseStoreNotice(shell, draw);
-            expect(draw).toHaveBeenCalledOnce();
-            expect(draw.mock.calls[0][0]).toMatchObject({ id: 'checkout', action: { label: USE_WEB_ACTION } });
-            expect(draw.mock.calls[0][0].text).toContain('(prod)');
+            await expect(call('FetchProducts', {}, shell)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+            expect(shell.notice.show).toHaveBeenCalledWith(expect.objectContaining({ id: CHECKOUT_NOTICE_ID }));
+        });
 
-            resetNotices();
-            draw.mockReset();
-            launchOn('localhost', 'store');
-            raiseStoreNotice(shell, draw);
-            expect(draw.mock.calls[0][0]).toEqual({ id: 'checkout', text: LOCAL_NO_PAYMENT_NOTICE });
-            expect(notices.checkout).toBe('local-no-payment');
+        it('says where the real in-app sandbox lives when the virtual store sells with the sandbox on', async () => {
+            const { shell } = context();
+            launchOn('dev', 'store', 'ios', true);
+            await call('FetchProducts', {}, shell);
+            expect(shell.notice.show).toHaveBeenCalledWith(expect.objectContaining({ id: SANDBOX_NOTICE_ID }));
         });
 
         it('sells on dev: a catalog, then a purchase that succeeds with a fake receipt, kept until finished', async () => {
