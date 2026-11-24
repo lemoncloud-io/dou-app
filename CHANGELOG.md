@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-24] - No version updates
+
+### Bug Fixes
+
+- (shared) refuse overlong utf-8 forms and surrogate halves in invite links
+
+### Other
+
+- test: (data,runtime-core,bridges,shared) add fast-check property tests
+
 ## [2026-11-23] - No version updates
 
 ### Chores
