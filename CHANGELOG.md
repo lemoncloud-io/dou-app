@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-24] - root@0.175.0, @chatic/desktop-web@0.61.0
+
+### Features
+
+- (desktop-web) copy a selection across messages as a transcript
+
 ## [2026-11-24] - No version updates
 
 ### Bug Fixes
