@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-24] - No version updates
+
+### Features
+
+- (shell-adapter,web) pick checkout and host choices on the shell's panel (ADR-0374)
+
 ## [2026-11-24] - root@0.175.1, @chatic/desktop-web@0.61.1
 
 ### Bug Fixes
