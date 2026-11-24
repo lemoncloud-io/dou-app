@@ -4,7 +4,7 @@ import type { DomainCloud } from '@chatic/runtime';
 
 import { useJoinedCloudIds } from './useJoinedCloudIds';
 
-const cloud = (id: string | undefined) => ({ id }) as DomainCloud;
+const cloud = (id: string | undefined, status?: string) => ({ id, status }) as DomainCloud;
 
 describe('useJoinedCloudIds', () => {
     it('lists owned clouds first, then invited ones', () => {
@@ -19,6 +19,17 @@ describe('useJoinedCloudIds', () => {
         );
 
         expect(result.current).toEqual(['o1']);
+    });
+
+    it('skips clouds that are not active', () => {
+        const { result } = renderHook(() =>
+            useJoinedCloudIds(
+                [cloud('a', 'active'), cloud('i', 'init'), cloud('r', 'reserved'), cloud('s', 'suspended')],
+                [cloud('e', 'expired'), cloud('x', 'error'), cloud('n')]
+            )
+        );
+
+        expect(result.current).toEqual(['a', 'n']);
     });
 
     it('keeps the same array for the same membership across renders', () => {
