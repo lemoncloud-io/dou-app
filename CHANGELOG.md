@@ -4,6 +4,12 @@
 
 ### Bug Fixes
 
+- (web/subscription) offer this store again once a website subscription has lapsed
+
+## [2026-11-24] - No version updates
+
+### Bug Fixes
+
 - (shared) refuse overlong utf-8 forms and surrogate halves in invite links
 
 ### Other
