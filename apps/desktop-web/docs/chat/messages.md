@@ -92,6 +92,25 @@ the host wraps a message in a `<p>`.
   roster's name for either of my ids (what a sender's `@` list showed me under); a wrong highlight
   costs nothing, unlike a missed one.
 
+## Copying a selection
+
+A drag across two or more messages copies them as a transcript: each message starts with
+`[author] [time] text`, and a full date line comes first and again wherever the day changes, the way a
+messenger pastes a conversation. The browser's own copy would carry only what is drawn, laid out as the row
+draws it. The feed's `copy` handler (`selectedTranscript`) reads which rows the selection covers and writes
+the lines from the chats themselves, so the text is what Copy on one message gives (a webhook card's text,
+not its JSON) and a file-only message reads as its file names.
+
+- A selection inside one message is left to the browser: the reader wants those words, not a header.
+- A message counts only when the selection holds some of its text. A drag that starts at the very end of
+  one message, or ends at the very start of the next, does not pull that message in.
+- Rows are told apart by their message key (`data-message-key`), not `chatNo`: every unsent message carries
+  `chatNo` 0.
+- A deleted message reads as the deleted label. Its kept `content` is never copied.
+- Join and leave notices are left out, and a name still resolving reads as the row's fallback name.
+- Only mounted rows can be read ([feed-windowing.md](./feed-windowing.md)): a selection that runs past the
+  overscan copies up to the last mounted message.
+
 ## Link preview chip
 
 In the desktop app only, a link under a message gets a compact chip with the source name and title. The

@@ -41,6 +41,9 @@ export const formatShortDate = (ms: number | undefined): string => {
 export const formatLongDate = (ms: number | undefined): string =>
     valid(ms)?.toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' }) ?? '';
 
+export const formatFullDate = (ms: number | undefined): string =>
+    valid(ms)?.toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }) ?? '';
+
 export const formatDayHeading = (ms: number | undefined): string => {
     const date = valid(ms);
     if (!date) return '';

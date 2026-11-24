@@ -32,3 +32,4 @@ export * from './historyNavigation';
 export * from './modifierHold';
 export * from './channelHistory';
 export { downloadAsZip, fitsInZip } from './zipDownload';
+export * from './copyTranscript';

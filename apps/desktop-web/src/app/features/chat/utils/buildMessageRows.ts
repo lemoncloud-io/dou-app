@@ -63,7 +63,9 @@ const WEBHOOK_FALLBACK_NAME = 'Webhook';
 
 const webhookName = (chat: DomainChat): string => realName(chat.owner$?.name) || WEBHOOK_FALLBACK_NAME;
 
-const getTimestamp = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
+export const getTimestamp = (chat: DomainChat): number => chat.createdAt ?? chat.createdAtMs ?? 0;
+
+export const messageKeyOf = (chat: DomainChat): string => String(chat.id ?? chat.tempId ?? chat.chatNo);
 
 const isSameDay = (a: number, b: number): boolean => {
     if (!a || !b) return false;
