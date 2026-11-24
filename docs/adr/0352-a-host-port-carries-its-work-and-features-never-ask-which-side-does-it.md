@@ -1,6 +1,8 @@
 # ADR-0352: A host port carries its work, and features never ask which side does it
 
-> Status: Accepted · Decided: 2026-11-19 · Implemented: `refactor/host-ports-carry-behavior`
+> Status: Accepted; decision 3 superseded by
+> [ADR-0375](./0375-platform-implementations-live-in-libs-as-families-of-one-port.md)
+> · Decided: 2026-11-19 · Implemented: `refactor/host-ports-carry-behavior`
 > · Scope: `libs/runtime-client` (the `links`, `appShell` and `diagnostics` contracts),
 > `libs/runtime-web` (their adapter factories), `libs/runtime` (`@chatic/runtime/testing`),
 > `apps/web` and `apps/desktop-web` (their implementations and every caller), `tools/eslint-rules`
@@ -52,6 +54,10 @@ itself or force its socket closed to recover), `appShell.reportsKeyboardHeight`,
 `diagnostics.entry`. Each replaces a `kind` read that stood in for it.
 
 ### 3. The app implements each side; the library only chooses
+
+_Superseded by ADR-0375: each side's implementation moves into its host family in `libs/` and takes the
+bridge client and the app's data as parameters; the app keeps only the declaration that picks it. Its last
+sentence, on two shells filling different members, stands (restated in ADR-0375 decision 4)._
 
 As for `checkout`, the implementations live in the app: the shell side talks to the app's own bridge
 wrapper (the web's `appBridge`, desktop-web's `webClient` requests) and the page side can need the

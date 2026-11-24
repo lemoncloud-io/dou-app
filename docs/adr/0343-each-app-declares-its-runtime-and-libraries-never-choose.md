@@ -1,6 +1,9 @@
 # ADR-0343: Each app declares its runtime, and libraries never choose
 
-> Status: Accepted · Decided: 2026-11-18 · Implemented: `refactor/runtime-client-and-adapters`
+> Status: Accepted; the last sentence of decision 2 superseded by
+> [ADR-0375](./0375-platform-implementations-live-in-libs-as-families-of-one-port.md), decision 4 superseded and decision 5 amended by
+> [ADR-0376](./0376-the-runtime-is-one-headless-package-a-react-binding-and-platform-adapters.md)
+> · Decided: 2026-11-18 · Implemented: `refactor/runtime-client-and-adapters`
 > · Scope: new `libs/runtime-client`; `libs/runtime`, `libs/runtime-web`, `libs/runtime-mobile`,
 > `libs/config` (the `port.*` keys), the root lint config, and `apps/admin` as the first app on a
 > declaration
@@ -54,7 +57,9 @@ alternatives a toggle may switch to, and which config rows may change it. Constr
 An id (`<port>.<adapter>`, such as `cache.indexeddb`) exists only as data a toggle points at, and it
 is looked up among that one declaration's candidates. Because each adapter carries its port in its
 type, a cache adapter given to `storage`, or a native adapter in a page's declaration, does not
-compile. An adapter only one app needs is defined in that app, beside its declaration.
+compile. An adapter only one app needs is defined in that app, beside its declaration. _(This last
+sentence is superseded by ADR-0375: an implementation lives in its family in `libs/`, whatever the number
+of apps that use it.)_
 
 ### 3. Choices are toggles in config, and the start applies them
 
@@ -79,6 +84,9 @@ host's own declaration; a toggle can pick among the adapters the host supports, 
 
 ### 4. runtime-client is the half of app-runtime that needs no UI library
 
+_Superseded by ADR-0376: runtime-core and runtime-client merge into one headless `@chatic/runtime`, and
+the React part becomes `@chatic/runtime-react`._
+
 `@chatic/app-runtime` splits along one seam. The new `@chatic/runtime-client` (`layer:client`, no
 React, react-query or zustand) holds the engine holder, the commands and reads that go through the
 engine, the issue report and log upload, and the declaration API (`defineRuntime`, `resolvePorts`,
@@ -94,7 +102,8 @@ both, and lets the mobile app use the start without pulling in the React surface
 A web app's declaration part imports from `@chatic/runtime-web`, the mobile app's from
 `@chatic/runtime-mobile`. Each re-exports `defineRuntime` and `startRuntime` beside its own
 adapters, so a declaration imports one package. The call part will import only the facade,
-`@chatic/runtime` — the name app-runtime takes in a later change.
+`@chatic/runtime` — the name app-runtime takes in a later change. _(Amended by ADR-0376: a React app's call
+part also imports its hooks from `@chatic/runtime-react`.)_
 
 ### 6. Scope, and what follows
 
