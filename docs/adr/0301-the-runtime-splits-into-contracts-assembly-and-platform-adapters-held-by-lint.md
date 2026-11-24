@@ -1,6 +1,10 @@
 # ADR-0301: The runtime splits into contracts, assembly and platform adapters, held by lint
 
-> Status: Accepted · Decided: 2026-11-10 · Implemented: `refactor/runtime-core-web-packages`
+> Status: Accepted; decision 1 amended by
+> [ADR-0376](./0376-the-runtime-is-one-headless-package-a-react-binding-and-platform-adapters.md)
+> (runtime-core merges into `@chatic/runtime`), the layer tag names amended by
+> [ADR-0377](./0377-every-project-carries-a-layer-a-platform-and-a-form-factor-tag-and-folders-group-families.md)
+> · Decided: 2026-11-10 · Implemented: `refactor/runtime-core-web-packages`
 > · Scope: new `libs/runtime-core`, `libs/runtime-web`, `tools/eslint-rules`; root `eslint.config.mjs`,
 > `tsconfig.base.json` (paths) and `tsconfig.json` (references);
 > `nx.tags` in `libs/{session,transport,sync,auth,data,app-runtime}/package.json`;

@@ -1,6 +1,7 @@
 # ADR-0359: Every host port carries its work
 
-> Status: Accepted · Decided: 2026-11-19 · Implemented: `refactor/host-ports-media-files-signin-push`
+> Status: Accepted; the placement in decision 1 (`src/config/adapters/<port>.ts`) superseded by
+> [ADR-0375](./0375-platform-implementations-live-in-libs-as-families-of-one-port.md) · Decided: 2026-11-19 · Implemented: `refactor/host-ports-media-files-signin-push`
 > · Scope: `libs/runtime-client` (the `media`, `files`, `signIn` and `push` contracts, the push bindings,
 > `appShell.systemSettings`, `links.subWebView.onClosed`),
 > `libs/runtime-web` (every port's adapter factory), `libs/runtime` (`runtime.push`, `@chatic/runtime/testing`),
@@ -24,7 +25,8 @@ while they did.
 
 ### 1. The four ports follow ADR-0352's rules
 
-Each port's members do its work, and the app implements both sides in `src/config/adapters/<port>.ts`:
+Each port's members do its work, and the app implements both sides in `src/config/adapters/<port>.ts`
+_(where they live is superseded by ADR-0375: each side moves into its host family in `libs/`)_:
 
 - `media` — the app's attachment picker, its photo library, its video converter and its camera
   permission, each `null` where the page picks with its own input.

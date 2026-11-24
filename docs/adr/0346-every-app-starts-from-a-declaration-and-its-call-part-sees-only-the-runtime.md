@@ -1,6 +1,11 @@
 # ADR-0346: Every app starts from a declaration, and its call part sees only the runtime
 
-> Status: Accepted · Decided: 2026-11-18 · Implemented: `refactor/runtime-facade-and-app-configs`
+> Status: Accepted; decision 3 amended by
+> [ADR-0376](./0376-the-runtime-is-one-headless-package-a-react-binding-and-platform-adapters.md), decision 4
+> superseded by [ADR-0375](./0375-platform-implementations-live-in-libs-as-families-of-one-port.md) and
+> ADR-0376, decision 5's layer tags amended by
+> [ADR-0377](./0377-every-project-carries-a-layer-a-platform-and-a-form-factor-tag-and-folders-group-families.md)
+> · Decided: 2026-11-18 · Implemented: `refactor/runtime-facade-and-app-configs`
 > · Scope: `libs/runtime` (renamed from `libs/app-runtime`), `libs/runtime-client`, `libs/runtime-web`,
 > `libs/runtime-mobile`, `libs/config` (`port.engine`), removed `libs/host`; `apps/web`,
 > `apps/desktop-web`, `apps/admin`, `apps/landing`, `apps/mobile`; the root lint config and
@@ -65,7 +70,9 @@ report says which implementation of each ran. What the host can do is still only
 
 `@chatic/app-runtime` is renamed `@chatic/runtime`, the facade. It re-exports the domain names apps
 took from `@chatic/data`, and sells settings as `runtime.settings` (forwarding to config) and each host
-port as `runtime.<port>`, beside the hooks it already had. A test mocks it with one fake.
+port as `runtime.<port>`, beside the hooks it already had. A test mocks it with one fake. _(Amended by
+ADR-0376: `@chatic/runtime` becomes headless, and a React app takes its hooks from
+`@chatic/runtime-react`.)_
 
 ### 4. `@chatic/host` is removed, and its pieces go where their readers are
 
@@ -74,7 +81,9 @@ because `startRuntime` publishes them and must not depend on a library of page c
 the shell's declaration and the host port adapters (`<port>.host`, `<port>.shell`, `<port>.browser`)
 move to `@chatic/runtime-web`, beside the other page adapters. An adapter only one app needs —
 apps/web's store and website checkouts, its session-owner settle — is the app's own, beside its
-declaration.
+declaration. _(Superseded: the host port contracts go to `@chatic/ports` and every implementation to its
+family in `libs/` (ADR-0375); the shell readers and `.shell` adapters go to `@chatic/runtime-hybrid-web`
+(ADR-0376).)_
 
 ### 5. Lint holds it
 
@@ -85,7 +94,7 @@ declaration.
   test-only helper that wires `config.init` so the tests can seed settings. The rule does not cover the
   React Native app, `apps/mobile`: its runtime host services import `@chatic/runtime-mobile` by design
   (see below).
-- **New layer tags.** `layer:bridge` and `layer:ui` join the layer tags ADR-0301 added, with module
+- **New layer tags** _(renamed or retired by ADR-0377)_. `layer:bridge` and `layer:ui` join the layer tags ADR-0301 added, with module
   boundary constraints of their own; `@chatic/db` is tagged `layer:adapter`, which is what it is to the
   runtime.
 - **The facade's own test** checks that `@chatic/runtime` exports only what it means to — the facade,
