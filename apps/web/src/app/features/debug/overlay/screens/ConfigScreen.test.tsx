@@ -18,6 +18,14 @@ jest.mock('@chatic/runtime', () =>
         },
     })
 );
+jest.mock('../../../../runtime/checkoutOptions', () => ({
+    readCheckoutOptions: () => [
+        { id: 'checkout.host', supported: true },
+        { id: 'checkout.store', supported: true },
+        { id: 'checkout.web', supported: false },
+        { id: 'checkout.none', supported: true },
+    ],
+}));
 const copyTextWithResult = jest.fn().mockResolvedValue(true);
 jest.mock('../../lib/copyText', () => ({
     copyTextWithResult: (t: string) => copyTextWithResult(t),
@@ -214,4 +222,38 @@ describe('ConfigScreen', () => {
 
 it('config 파사드를 통해 읽는다', () => {
     expect(typeof runtime.settings.snapshotAll).toBe('function');
+});
+
+describe('ConfigScreen — the checkout keys', () => {
+    beforeEach(() => {
+        setDebugLanguageForTests('en');
+        jest.clearAllMocks();
+        set.mockReturnValue({ ok: true });
+    });
+
+    const checkoutSnap = snap({
+        key: 'port.checkout',
+        entry: {
+            title: 'Checkout adapter',
+            description: 'Who sells',
+            type: 'string',
+            defaultValue: '',
+            meta: false,
+        },
+        value: '',
+        isOverridden: false,
+    });
+
+    it("offers the runtime's checkout candidates in a list, the ones this host does not offer disabled", async () => {
+        snapshotAll.mockReturnValue([checkoutSnap]);
+        render(<ConfigScreen />);
+        await userEvent.click(screen.getByText('Checkout adapter'));
+
+        const list = screen.getByRole('combobox', { name: 'Checkout adapter' });
+        expect(screen.getByRole('option', { name: /checkout\.web/ })).toBeDisabled();
+        expect(screen.getByRole('option', { name: 'checkout.none' })).toBeEnabled();
+
+        await userEvent.selectOptions(list, 'checkout.none');
+        expect(set).toHaveBeenCalledWith('port.checkout', 'checkout.none', { lane: 'local' });
+    });
 });

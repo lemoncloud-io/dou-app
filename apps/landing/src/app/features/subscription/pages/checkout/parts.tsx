@@ -4,13 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { storeUrls } from '../../../../config/links';
 import { useDeviceDetect } from '../../../../hooks';
 import { Banner, Button } from '../../components/ui';
-import { toIsoDate } from '../../lib/calendar';
+import { toIsoDate } from '@chatic/web-checkout';
 import { useToday } from '../../lib/port';
 import { cn, formatDate, formatMoney } from '../../utils';
 import { dayBefore, formatShortDate } from './flow';
 import { commonErrorKey } from '../../lib/errorKey';
 
-import type { CheckoutPreview } from '../../types';
+import type { CheckoutPreview } from '@chatic/web-checkout';
 
 const STEPS = ['plan', 'signIn', 'details', 'payment', 'done'] as const;
 

@@ -15,8 +15,8 @@ import {
     usePreviewCheckout,
     useSubscription,
 } from '../../hooks';
-import { currencyOfCountry } from '../../lib/billingCountry';
-import { defaultCardOf } from '../../lib/paymentMethods';
+import { currencyOfCountry } from '@chatic/web-checkout';
+import { defaultCardOf } from '@chatic/web-checkout';
 import { isPortError } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
 import { formatDate, formatMoney } from '../../utils';
@@ -33,7 +33,7 @@ import {
 } from './flow';
 import { LoadError, NoteBox, ResultActions, ResultCard, ResultHeader, primaryLink, secondaryLink } from './parts';
 
-import type { Money, PaymentMethod, Plan, Subscription } from '../../types';
+import type { Money, PaymentMethod, Plan, Subscription } from '@chatic/web-checkout';
 
 export const CheckoutStatusPage = (): JSX.Element => {
     const [params] = useSearchParams();

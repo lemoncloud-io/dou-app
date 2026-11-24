@@ -268,6 +268,25 @@ the web" (the website's list); its banners open the latter too. A store's subscr
 `otherStore` note naming the store instead of a button — or, when the membership names no store, the
 `mobileOnly` line, which is true of it: only the app can change a store's subscription.
 
+**The app sells it itself, with the app's sign-in** ([ADR-0373](../../../../../docs/adr/0373-a-web-checkout-sells-inside-the-app-through-a-shared-checkout-library.md)).
+Where the web sells — a browser tab, or a virtual shell that declares the web — the hand-off replaces the
+picker with `/subscription/checkout` (`InAppCheckoutRoute` → `pages/inAppCheckout/InAppCheckoutPage`)
+instead of the website: a billing country, the plans, the payer fields the won provider needs, then a card
+window and the start of the subscription, on the app's own session. Managing a subscription ("manage on the
+web") still leaves for the website through `runtime.checkout.open`. The calls, the provider windows and the
+rules come from [`@chatic/web-checkout`](../../../../../libs/web-checkout/README.md), shared with the website;
+the screen and its words are this app's. The server answers these calls for an account's main user only, so a
+guest or a paired device is told to sign in with Google. Leaving the screen re-reads the membership.
+
+The route loads the screen only when `runtime.checkout.kind === 'web'`; a store or an empty declaration (the
+phone and desktop apps) is sent to the picker without loading it, so the store build never requests the chunk
+(`InAppCheckoutRoute.test.tsx`). Only the screen's folder takes values from the library
+(`inAppCheckoutBoundary.test.ts`), and no chunk the web loads at start carries a provider SDK
+(`yarn check:web-payment-sdk` after `nx build web`). The sandbox has two sources, in this order: the virtual shell's harness value, then the
+debug setting `checkout.sandbox` (debug overlay › Config), which only a dev or local build reads
+(`checkoutSandbox` in `lib/inAppCheckout.ts`). With it on, payer calls carry `?sandbox=1` and the card window
+is the library's stand-in; a dev build says on the screen where to change it.
+
 **On production the website does not sell yet.** Its account pages open on dev hosts only; on the
 production host `/subscription/plans` is the one subscription page, listing the published plans with
 the stores' links in place of checkout. That is where a browser lands there, and it is the one page

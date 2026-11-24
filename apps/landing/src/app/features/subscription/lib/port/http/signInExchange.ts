@@ -1,6 +1,6 @@
 import type { KeyValueStore } from '@chatic/storage';
 
-import type { SignInProvider } from '../../../types';
+import type { SignInProvider } from '@chatic/web-checkout';
 
 export const DEVICE_ID_KEY = 'subscription.deviceId';
 

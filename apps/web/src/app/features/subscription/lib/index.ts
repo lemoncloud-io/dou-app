@@ -1,6 +1,7 @@
 export * from './cloudEmails';
 export * from './emailVerify';
 export * from './format';
+export * from './inAppCheckout';
 export * from './keepClouds';
 export * from './membershipStatus';
 export * from './nativeProducts';

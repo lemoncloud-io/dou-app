@@ -20,10 +20,10 @@ import {
     subscriptionKeys,
 } from '../../hooks';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
-import { currencyOfProvider, lockedCountryOf, payerRequiredFor } from '../../lib/billingCountry';
+import { currencyOfProvider, lockedCountryOf, payerRequiredFor } from '@chatic/web-checkout';
 import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
 import { EMPTY_PAYER, type PayerDraft, isPayerComplete, payerEmailOf, payerOf } from '../../lib/payer';
-import { cardGroupsOf, defaultCardOf } from '../../lib/paymentMethods';
+import { cardGroupsOf, defaultCardOf } from '@chatic/web-checkout';
 import { savePendingCardChange, takePendingCardChange } from '../../lib/pendingCheckout';
 import { isPortError, useSupports, useToday } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
@@ -33,7 +33,7 @@ import { BillingPageHeader, LoadFailed, useReportPortError } from './BillingPage
 import { addedCardOf, cardExpiry, cardExpiryMonth } from './display';
 import { useCardWindowReturn } from './useCardWindowReturn';
 
-import type { Money, PaymentMethod, Subscription } from '../../types';
+import type { Money, PaymentMethod, Subscription } from '@chatic/web-checkout';
 
 type DialogState =
     | { kind: 'add' }

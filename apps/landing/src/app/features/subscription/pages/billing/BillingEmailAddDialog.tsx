@@ -5,7 +5,7 @@ import { EmailVerificationForm } from '../../components';
 import { Button, Dialog, useToast } from '../../components/ui';
 import { useBillingInfo } from '../../hooks';
 
-import type { BillingEmail } from '../../types';
+import type { BillingEmail } from '@chatic/web-checkout';
 
 const k = (key: string) => `subscription.billing.info.dialog.${key}`;
 

@@ -14,6 +14,26 @@ tab, with no simulator. What is imitated and what is not: [`apps/shell-adapter/R
    (`push.tap`, `deeplink`, `app.background`, `net.offline`, `device.set`) and read `status().path`, the frame
    and `s.logs({ since: mark })`. Keep a useful one with `s.logs.toScenario({ since: mark, name })`.
 
+## Subscription
+
+Checkout, sandbox and the subscription website are the shell's choices
+([`apps/shell-adapter/README.md` § Checkout](../../../../../apps/shell-adapter/README.md#checkout)). Each set relaunches the
+app, so take a new log cursor after it.
+
+1. Read `s.status().checkout` and `s.status().sandbox`: what was picked, what is declared, whether the virtual
+   store answers, which subscription website (`subscriptionWeb`).
+2. In-app on dev: `await s.checkout.set('store')`. The plan cards carry `₩0 (virtual store)`; a purchase ends at
+   the dev server's refusal of the fake receipt. With `await s.sandbox.set(true)` the result has `inAppNotice: true`
+   — tell the person that a real store sandbox is a device and store setting.
+3. Web on dev: `await s.checkout.set('web')` (and `s.sandbox.set(true)`), then the plan picker, or
+   `s.deeplink('https://app-dev.chatic.io/subscription/checkout')`. The app's own checkout screen opens
+   with a sandbox band; it needs an account signed in with Google (a paired shell is refused). With the
+   sandbox on, the card window is a stand-in — stop there unless the person asked for a sandbox subscription.
+   Without the shell, a dev browser tab switches the sandbox in the debug overlay's Config
+   (`checkout.sandbox`); inside the shell the shell's value wins.
+4. A refused catalog (prod, localhost): `status().checkout.notice` is `use-web` or `local-no-payment`, and the
+   shell page shows the notice. Relay it; never press **Switch to web** or a pay button on prod.
+
 ## Rules
 
 - prod only when the person asked for prod in this task (`yarn local --env prod`, writes forbidden); never press

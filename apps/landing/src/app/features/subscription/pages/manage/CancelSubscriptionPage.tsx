@@ -12,7 +12,7 @@ import { cancelSceneOf } from './manageModel';
 import { type ManageFormat, useManageFormat } from './useManageFormat';
 import { useResumeFlow } from './useResumeFlow';
 
-import type { Subscription } from '../../types';
+import type { Subscription } from '@chatic/web-checkout';
 
 export const CancelSubscriptionPage = (): JSX.Element => {
     const { t } = useTranslation();

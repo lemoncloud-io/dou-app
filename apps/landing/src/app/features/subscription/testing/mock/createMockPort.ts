@@ -1,10 +1,10 @@
-import { addDays, addMonths, dayNumber } from '../../lib/calendar';
-import { KOREA, currencyOfProvider, payerRequiredFor, providerOfCountry } from '../../lib/billingCountry';
+import { addDays, addMonths, dayNumber } from '@chatic/web-checkout';
+import { KOREA, currencyOfProvider, payerRequiredFor, providerOfCountry } from '@chatic/web-checkout';
 import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
-import { planCatalogIn } from '../../lib/catalog';
-import { changeKindOf } from '../../lib/changeKindOf';
+import { planCatalogIn } from '@chatic/web-checkout';
+import { changeKindOf } from '@chatic/web-checkout';
 import { isLive } from '../../lib/sceneOf';
-import { SubscriptionPortError, type SubscriptionPortErrorDetail } from '../../lib/port/errors';
+import { SubscriptionPortError, type SubscriptionPortErrorDetail } from '@chatic/web-checkout';
 import { MOCK_POLICY, planOf } from './policy';
 import { ROUTES } from '../../../../routes/paths';
 import { buildScenario, isScenario, mockReceiptUrl } from './scenarios';
@@ -19,7 +19,7 @@ import {
 import { type StateStore, memoryStateStore } from './storage';
 
 import type { Clock, SubscriptionPort } from '../../lib/port';
-import type { PaymentWindowHost, PaymentWindowPresenter } from '../../lib/port/standInWindow';
+import type { PaymentWindowHost, PaymentWindowPresenter } from '@chatic/web-checkout';
 import type {
     BillingEmail,
     CardToken,
@@ -35,7 +35,7 @@ import type {
     RegistrationOutcome,
     RegistrationResult,
     Subscription,
-} from '../../types';
+} from '@chatic/web-checkout';
 
 export interface MockController extends PaymentWindowHost {
     getState(): MockState;

@@ -7,7 +7,7 @@ import { PageLoader, SummaryTile } from '../../components';
 import { Banner, Button } from '../../components/ui';
 import { useChangePlan, usePaymentMethods, usePlans, usePreviewChange } from '../../hooks';
 import { ddayOf } from '../../lib/ddayOf';
-import { defaultCardOf } from '../../lib/paymentMethods';
+import { defaultCardOf } from '@chatic/web-checkout';
 import { isPortError, useSupports, useToday } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
 import { cn, formatDate, formatMoney } from '../../utils';
@@ -16,7 +16,7 @@ import { CheckoutLayout, FactRows, LoadError, primaryLink, secondaryLink } from 
 import { usePlanRoute } from './usePlanRoute';
 import { commonErrorKey } from '../../lib/errorKey';
 
-import type { ChangePreview, Money, Plan, Subscription } from '../../types';
+import type { ChangePreview, Money, Plan, Subscription } from '@chatic/web-checkout';
 
 const errorKeyOf = (error: unknown): string => {
     if (isPortError(error, 'conflict')) return 'subscription.checkout.change.error.conflict';

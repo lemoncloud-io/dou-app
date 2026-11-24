@@ -4,7 +4,7 @@ import { usePort } from '../lib/port';
 import { subscriptionKeys } from './keys';
 import { useInvalidateSubscriptionState } from './subscriptions';
 
-import type { AttemptPurpose, Currency, Payer, PaymentAttempt, PlanId } from '../types';
+import type { AttemptPurpose, Currency, Payer, PaymentAttempt, PlanId } from '@chatic/web-checkout';
 
 export const usePreviewCheckout = (planId: PlanId | undefined, currency?: Currency) => {
     const port = usePort();

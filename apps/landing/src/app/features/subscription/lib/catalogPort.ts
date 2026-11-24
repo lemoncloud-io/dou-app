@@ -1,4 +1,4 @@
-import { planCatalogIn } from './catalog';
+import { planCatalogIn } from '@chatic/web-checkout';
 import { SubscriptionPortError, type SubscriptionPort } from './port';
 
 const shut = (): Promise<never> =>

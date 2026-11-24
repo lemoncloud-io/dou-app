@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useCompletePaymentMethodRegistration } from '../../hooks';
 import { takePendingCardChange } from '../../lib/pendingCheckout';
 
-import type { RegistrationResult } from '../../types';
+import type { RegistrationResult } from '@chatic/web-checkout';
 
 export const useCardWindowReturn = ({
     onResult,
@@ -25,7 +25,6 @@ export const useCardWindowReturn = ({
         const saved = takePendingCardChange();
         if (!saved) return;
         complete.mutateAsync({ callback, purpose: 'addCard', payer: saved }).then(onResult).catch(onError);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return complete.isPending;

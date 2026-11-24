@@ -13,8 +13,8 @@ import {
     useStartCheckout,
     useStartPaymentMethodRegistration,
 } from '../../hooks';
-import { currencyOfCountry } from '../../lib/billingCountry';
-import { toIsoDate } from '../../lib/calendar';
+import { currencyOfCountry } from '@chatic/web-checkout';
+import { toIsoDate } from '@chatic/web-checkout';
 import { clearPendingCheckout, peekPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
 import { isPortError, useToday } from '../../lib/port';
 import { formatDate, formatMoney } from '../../utils';
@@ -34,7 +34,7 @@ import { CheckoutLayout, CheckoutSteps, FactRows, LoadError, OrderSummary } from
 import { usePlanRoute } from './usePlanRoute';
 import { commonErrorKey } from '../../lib/errorKey';
 
-import type { CardToken, PlanId } from '../../types';
+import type { CardToken, PlanId } from '@chatic/web-checkout';
 
 const detailOf = (error: unknown): string | undefined =>
     isDevStage && !isPortError(error) ? (error instanceof Error ? error.message : String(error)) : undefined;
@@ -129,7 +129,6 @@ const CheckoutPayment = ({ foreignBilling }: { foreignBilling: boolean }): JSX.E
                 }
                 setResuming(false);
             });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     if (loading) return <PageLoader />;

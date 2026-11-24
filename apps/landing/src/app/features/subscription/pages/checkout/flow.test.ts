@@ -21,7 +21,7 @@ import {
     statusUrl,
 } from './flow';
 
-import type { Account, Invoice, PaymentAttempt } from '../../types';
+import type { Account, Invoice, PaymentAttempt } from '@chatic/web-checkout';
 
 const [cloud1, cloud2, cloud3] = MOCK_PLANS;
 

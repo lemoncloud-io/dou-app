@@ -508,6 +508,28 @@
                 "dialogDescription": "You can change your choice until {{date}}.\nClouds you do not choose will be restricted.",
                 "saved": "Saved the clouds to keep.",
                 "failed": "Could not save. Please try again."
+            },
+            "inAppCheckout": {
+                "title": "Subscribe",
+                "sandboxBand": "Sandbox payments — no real charge",
+                "signInRequired": "Sign in with Google to subscribe here. A guest or a paired device cannot.",
+                "failed": "Something went wrong. Try again.",
+                "done": "Your subscription has started.",
+                "notRegistered": "The card was not registered. Try again.",
+                "plan": "{{clouds}} clouds · {{price}} / month",
+                "payerName": "Name",
+                "payerPhone": "Phone",
+                "payerEmail": "Email",
+                "subscribe": "Register a card and subscribe",
+                "registerCard": "Register card",
+                "cardFieldFailed": "The card field did not load.",
+                "standIn": {
+                    "title": "Sandbox card",
+                    "description": "No real card is used. Pick how the card registration ends.",
+                    "register": "Register",
+                    "decline": "Decline"
+                },
+                "changeInSettings": "Sandbox is switched in the debug settings: Config › Checkout sandbox (in the virtual shell, the shell decides)."
             }
         },
         "cloudManage": {

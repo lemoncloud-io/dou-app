@@ -2,13 +2,13 @@ import { asDomStorage } from '@chatic/storage';
 
 import { tabStore } from '../../../../../storage';
 import { createHttpPort } from './createHttpPort';
-import { portOneWindow } from './portOneWindow';
+import { portOneWindow } from '@chatic/web-checkout/windows';
 import { relaySession, startSessionRuntime, subscriptionApi } from './runtime';
-import { createStripeWindow } from './stripeWindow';
+import { createStripeWindow } from '@chatic/web-checkout/windows';
 
 import type { HttpSandbox, PaymentWindow } from './createHttpPort';
-import type { HttpPort } from './methods';
-import type { CardEntryChannel } from '../cardEntry';
+import type { HttpPort } from '@chatic/web-checkout';
+import type { CardEntryChannel } from '@chatic/web-checkout';
 import type { SubscriptionServer } from '../../../../../config/subscriptionServer';
 
 export { SessionHost } from './SessionHost';

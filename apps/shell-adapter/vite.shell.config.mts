@@ -51,17 +51,45 @@ const STORE_SKUS = {
     androidPlans: listOf(mobileDevEnv['VITE_SUBSCRIPTION_IAP_PLANS_ANDROID']),
 };
 
-export const shellCheckoutValues = (): Plugin => ({
-    name: 'shell-adapter:checkout-values',
-    transform(code, id) {
-        if (!id.split('?')[0].endsWith('/apps/shell-adapter/src/checkout.ts')) return null;
-        return code
-            .replaceAll('__DOU_SHELL_CHECKOUT__', JSON.stringify(process.env['DOU_SHELL_CHECKOUT'] ?? ''))
-            .replaceAll('__DOU_SHELL_MEDIA__', JSON.stringify(process.env['DOU_SHELL_MEDIA'] ?? ''))
-            .replaceAll('__DOU_SHELL_FILES__', JSON.stringify(process.env['DOU_SHELL_FILES'] ?? ''))
-            .replaceAll('__DOU_SHELL_STORE_SKUS__', JSON.stringify(STORE_SKUS));
-    },
-});
+const answeringOrigin = async (
+    value: string | undefined,
+    request: typeof fetch = globalThis.fetch
+): Promise<string> => {
+    if (!value?.trim()) return '';
+    let origin: string;
+    try {
+        origin = new URL(value.trim()).origin;
+    } catch {
+        console.warn('[shell] DOU_SHELL_SUBSCRIPTION_WEB is not a URL; the deployed subscription website is used');
+        return '';
+    }
+    try {
+        await request(origin, { signal: AbortSignal.timeout(2000) });
+        console.info(`[shell] subscription website: local ${origin}`);
+        return origin;
+    } catch {
+        console.warn(`[shell] ${origin} does not answer; the deployed subscription website is used`);
+        return '';
+    }
+};
+
+export const shellCheckoutValues = (): Plugin => {
+    let subscriptionWeb: Promise<string> | undefined;
+    return {
+        name: 'shell-adapter:checkout-values',
+        async transform(code, id) {
+            if (!id.split('?')[0].endsWith('/apps/shell-adapter/src/checkout.ts')) return null;
+            subscriptionWeb ??= answeringOrigin(process.env['DOU_SHELL_SUBSCRIPTION_WEB']);
+            const verified = await subscriptionWeb;
+            return code
+                .replaceAll('__DOU_SHELL_CHECKOUT__', JSON.stringify(process.env['DOU_SHELL_CHECKOUT'] ?? ''))
+                .replaceAll('__DOU_SHELL_MEDIA__', JSON.stringify(process.env['DOU_SHELL_MEDIA'] ?? ''))
+                .replaceAll('__DOU_SHELL_FILES__', JSON.stringify(process.env['DOU_SHELL_FILES'] ?? ''))
+                .replaceAll('__DOU_SHELL_SUBSCRIPTION_WEB__', JSON.stringify(verified))
+                .replaceAll('__DOU_SHELL_STORE_SKUS__', JSON.stringify(STORE_SKUS));
+        },
+    };
+};
 
 export default {
     define: {

@@ -1,7 +1,7 @@
 import { ROUTES } from '../../../../routes/paths';
-import { KOREA, billableIn, isBillingCountry, payerRequiredIn } from '../../lib/billingCountry';
-import { addDays } from '../../lib/calendar';
-import { changeKindOf } from '../../lib/changeKindOf';
+import { KOREA, billableIn, isBillingCountry, payerRequiredIn } from '@chatic/web-checkout';
+import { addDays } from '@chatic/web-checkout';
+import { changeKindOf } from '@chatic/web-checkout';
 import { type PayerDraft, isPayerComplete } from '../../lib/payer';
 import { formatDate } from '../../utils';
 
@@ -14,12 +14,12 @@ import type {
     Plan,
     PlanId,
     RegistrationOutcome,
-} from '../../types';
+} from '@chatic/web-checkout';
 
 export const planFromQuery = (plans: Plan[] | undefined, value: string | null): Plan | undefined =>
     value ? plans?.find(plan => plan.id === value) : undefined;
 
-export { BILLING_COUNTRY_OPTIONS } from '../../lib/billingCountry';
+export { BILLING_COUNTRY_OPTIONS } from '@chatic/web-checkout';
 
 export const CONSENTS = ['terms', 'privacy', 'autoRenew'] as const;
 export type Consent = (typeof CONSENTS)[number];

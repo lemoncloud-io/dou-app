@@ -1,6 +1,6 @@
 import { ROUTES } from '../../../routes/paths';
 
-import type { Account } from '../types';
+import type { Account } from '@chatic/web-checkout';
 
 const PROBE_ORIGIN = 'https://next.invalid';
 

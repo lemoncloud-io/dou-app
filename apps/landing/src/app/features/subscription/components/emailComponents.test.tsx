@@ -12,7 +12,7 @@ import { BillingEmailChangeDialog } from './BillingEmailChangeDialog';
 import { EmailVerificationForm } from './EmailVerificationForm';
 import { ToastProvider } from './ui';
 
-import type { BillingEmail } from '../types';
+import type { BillingEmail } from '@chatic/web-checkout';
 
 registerSubscriptionCopy();
 

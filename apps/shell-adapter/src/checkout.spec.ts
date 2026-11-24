@@ -1,5 +1,19 @@
 import {
     CHECKOUT_STORE_KEY,
+    checkoutPlan,
+    HARNESS_GLOBAL,
+    harnessScript,
+    LOCAL_WEB_DISPLAY,
+    originOf,
+    probeOrigin,
+    PROD_WEB_DISPLAY,
+    resetProbes,
+    SANDBOX_DISPLAY,
+    SANDBOX_IN_APP_DISPLAY,
+    SANDBOX_STORE_KEY,
+    sandboxChoice,
+    SUBSCRIPTION_WEB_STORE_KEY,
+    subscriptionWebChoice,
     FAKE_PRICE,
     capabilitiesScript,
     checkoutChoice,
@@ -20,12 +34,20 @@ const skus = { ios: ['pro_tier_01', 'pro_tier_02'], android: ['dou_pro_subscript
 afterEach(() => {
     launch.env = undefined;
     launch.choice = undefined;
+    launch.platform = undefined;
+    launch.plan = undefined;
+    launch.store = undefined;
 });
 
 describe('checkoutChoice', () => {
-    it('makes no choice by default, so the shell declares nothing', () => {
-        expect(checkoutChoice(new Map(), '')).toBeUndefined();
-        expect(checkoutChoice(undefined, undefined)).toBeUndefined();
+    it("takes the device's store by default, as the mobile app is set up", () => {
+        expect(checkoutChoice(new Map(), '')).toBe('store');
+        expect(checkoutChoice(undefined, undefined)).toBe('store');
+    });
+
+    it('still takes the store names and the legacy choice', () => {
+        expect(checkoutChoice(new Map(), 'apple')).toBe('apple');
+        expect(checkoutChoice(new Map([[CHECKOUT_STORE_KEY, 'legacy']]), undefined)).toBe('legacy');
     });
 
     it('takes DOU_SHELL_CHECKOUT, in any case', () => {
@@ -38,39 +60,143 @@ describe('checkoutChoice', () => {
     });
 
     it('ignores a value it does not know', () => {
-        expect(checkoutChoice(new Map([[CHECKOUT_STORE_KEY, 'paypal']]), 'stripe')).toBeUndefined();
+        expect(checkoutChoice(new Map([[CHECKOUT_STORE_KEY, 'paypal']]), 'stripe')).toBe('store');
+    });
+});
+
+describe('checkoutPlan — the combination table', () => {
+    const iphone = { platform: 'ios' };
+    const web = 'http://localhost:5004';
+
+    it.each([
+        ['dev', 'store', false, ['apple'], { version: 1, sandbox: false }, true, undefined],
+        ['dev', 'store', true, ['apple'], { version: 1, sandbox: true }, true, SANDBOX_IN_APP_DISPLAY],
+        ['dev', 'web', false, ['web'], { version: 1, sandbox: false, subscriptionWeb: web }, false, undefined],
+        ['dev', 'web', true, ['web'], { version: 1, sandbox: true, subscriptionWeb: web }, false, SANDBOX_DISPLAY],
+        ['prod', 'store', true, ['apple'], { version: 1, sandbox: false }, false, undefined],
+        ['prod', 'web', true, ['web'], { version: 1, sandbox: false }, false, PROD_WEB_DISPLAY],
+        ['localhost', 'store', true, ['apple'], undefined, false, undefined],
+        ['localhost', 'web', true, [], undefined, false, LOCAL_WEB_DISPLAY],
+        ['dev', 'none', true, [], undefined, false, undefined],
+        ['prod', 'none', false, [], undefined, false, undefined],
+        ['localhost', 'none', false, [], undefined, false, undefined],
+    ] as const)('%s · %s · sandbox %s declares %j', (env, choice, sandbox, declared, harness, imitated, display) => {
+        const plan = checkoutPlan({ env, choice, sandbox, subscriptionWeb: web, ...iphone });
+        expect(plan.declared).toEqual(declared);
+        expect(plan.harness).toEqual(harness);
+        expect(plan.storeImitated).toBe(imitated);
+        expect(plan.display).toBe(display);
+    });
+
+    it("declares the device preset's store for store: Apple on an iPhone, Google on Android", () => {
+        expect(checkoutPlan({ env: 'dev', choice: 'store', platform: 'android' }).declared).toEqual(['google']);
+    });
+
+    it('declares a picked store as it is, and says when it differs from the device', () => {
+        const plan = checkoutPlan({ env: 'dev', choice: 'google', platform: 'ios' });
+        expect(plan.declared).toEqual(['google']);
+        expect(plan.display).toBe('google store on a ios device');
+    });
+
+    it('never carries the sandbox to prod, whatever was kept', () => {
+        expect(checkoutPlan({ env: 'prod', choice: 'web', platform: 'ios', sandbox: true }).harness?.sandbox).toBe(
+            false
+        );
+        expect(checkoutPlan({ env: 'prod', choice: 'web', platform: 'ios', sandbox: true }).sandbox).toBe(false);
+    });
+
+    it('leaves the subscription website out when none answered, so the web uses the deployed one', () => {
+        expect(checkoutPlan({ env: 'dev', choice: 'web', platform: 'ios' }).harness).toEqual({
+            version: 1,
+            sandbox: false,
+        });
+    });
+
+    it('declares nothing for legacy, as an app built before declarations', () => {
+        expect(checkoutPlan({ env: 'dev', choice: 'legacy', platform: 'ios' })).toMatchObject({
+            declared: undefined,
+            harness: undefined,
+            storeImitated: false,
+        });
     });
 });
 
 describe('capabilitiesScript', () => {
-    it('injects nothing without a choice', () => {
+    it('injects nothing for legacy with nothing else picked', () => {
         expect(capabilitiesScript(undefined)).toBe('');
     });
 
-    it('declares the chosen method as version 1, and none as an empty list', () => {
-        expect(capabilitiesScript('web')).toContain(
+    it('declares the planned methods as version 1, and none as an empty list', () => {
+        expect(capabilitiesScript(['web'])).toContain(
             'window.CHATIC_APP_CAPABILITIES = {"version":1,"checkout":["web"]};'
         );
-        expect(capabilitiesScript('none')).toContain('"checkout":[]');
+        expect(capabilitiesScript([])).toContain('"checkout":[]');
+    });
+});
+
+describe('harnessScript', () => {
+    it('sets the harness global beside the declaration, and nothing without one', () => {
+        expect(harnessScript({ version: 1, sandbox: true })).toContain(
+            `window.${HARNESS_GLOBAL} = {"version":1,"sandbox":true};`
+        );
+        expect(harnessScript(undefined)).toBe('');
+    });
+});
+
+describe('sandboxChoice', () => {
+    it('is off unless the store keeps it on', () => {
+        expect(sandboxChoice(new Map())).toBe(false);
+        expect(sandboxChoice(new Map([[SANDBOX_STORE_KEY, 'yes']]))).toBe(false);
+        expect(sandboxChoice(new Map([[SANDBOX_STORE_KEY, true]]))).toBe(true);
+    });
+});
+
+describe('subscriptionWebChoice', () => {
+    afterEach(() => resetProbes());
+
+    it('takes the origin of the launch value, which the shell checked when it started', () => {
+        expect(subscriptionWebChoice(new Map(), 'http://localhost:5004/subscription')).toBe('http://localhost:5004');
+        expect(subscriptionWebChoice(new Map(), '')).toBeUndefined();
+        expect(originOf('ftp://example.com')).toBeUndefined();
+    });
+
+    it('lets a kept origin win once it has answered, and asks it first', async () => {
+        const kept = new Map([[SUBSCRIPTION_WEB_STORE_KEY, 'http://localhost:5014']]);
+        const request = vi.fn(async () => new Response(''));
+        await probeOrigin('http://localhost:5014', request as unknown as typeof fetch);
+        expect(subscriptionWebChoice(kept, 'http://localhost:5004')).toBe('http://localhost:5014');
+    });
+
+    it('falls back to the launch value while a kept origin does not answer', async () => {
+        const kept = new Map([[SUBSCRIPTION_WEB_STORE_KEY, 'http://localhost:5099']]);
+        await probeOrigin('http://localhost:5099', (async () => {
+            throw new TypeError('refused');
+        }) as unknown as typeof fetch);
+        expect(subscriptionWebChoice(kept, 'http://localhost:5004')).toBe('http://localhost:5004');
     });
 });
 
 describe('fakeStore', () => {
-    it('answers only on dev, and only as a store a person picked', () => {
-        launch.env = 'dev';
-        launch.choice = 'apple';
+    const launchOn = (env: 'dev' | 'prod' | 'localhost', choice: 'store' | 'apple' | 'web' | 'legacy') => {
+        launch.env = env;
+        launch.plan = checkoutPlan({ env, choice, platform: 'ios' });
+    };
+
+    it('answers on dev for a store checkout, the default included', () => {
+        launchOn('dev', 'store');
         expect(fakeStore()).toBe('apple');
+        launchOn('dev', 'apple');
+        expect(fakeStore()).toBe('apple');
+    });
 
-        launch.choice = 'web';
+    it('stays shut for web, legacy, prod and localhost', () => {
+        launchOn('dev', 'web');
         expect(fakeStore()).toBeUndefined();
-        launch.choice = undefined;
+        launchOn('dev', 'legacy');
         expect(fakeStore()).toBeUndefined();
-
-        launch.env = 'prod';
-        launch.choice = 'google';
+        launchOn('prod', 'store');
         expect(fakeStore()).toBeUndefined();
-
-        launch.env = 'localhost';
+        launchOn('localhost', 'store');
         expect(fakeStore()).toBeUndefined();
     });
 });
@@ -102,7 +228,7 @@ describe('capabilitiesScript with media', () => {
     });
 
     it('keeps a picked checkout beside it', () => {
-        expect(capabilitiesScript('web', 'browser', 'ios')).toContain(
+        expect(capabilitiesScript(['web'], 'browser', 'ios')).toContain(
             '{"version":2,"checkout":["web"],"media":"browser"}'
         );
     });
@@ -127,7 +253,7 @@ describe('capabilitiesScript with files', () => {
     });
 
     it('keeps a picked checkout and media beside it', () => {
-        expect(capabilitiesScript('web', 'browser', 'ios', 'shell')).toContain(
+        expect(capabilitiesScript(['web'], 'browser', 'ios', 'shell')).toContain(
             '{"version":3,"checkout":["web"],"media":"browser","files":"shell"}'
         );
     });
@@ -148,6 +274,7 @@ describe('withCheckoutDeclaration', () => {
 
         expect(script.startsWith('window.BASE = 1;')).toBe(true);
         expect(script).toContain('"checkout":["web"]');
+        expect(script).toContain(`window.${HARNESS_GLOBAL} = {"version":1,"sandbox":false};`);
         expect(preset.name).toBe('app-bridge-host');
         expect(preset.dispatch).toBe(base.dispatch);
     });
@@ -155,8 +282,24 @@ describe('withCheckoutDeclaration', () => {
     it('records the backend it is told, so the virtual store stays shut on prod', () => {
         withCheckoutDeclaration(base).globals(app, device, 'prod', new Map([[CHECKOUT_STORE_KEY, 'google']]));
 
-        expect(launch).toEqual({ env: 'prod', choice: 'google' });
+        expect(launch).toMatchObject({ env: 'prod', choice: 'google', platform: 'ios' });
         expect(fakeStore()).toBeUndefined();
+    });
+
+    it('declares the device store with no choice, and keeps no sandbox against prod', () => {
+        const script = withCheckoutDeclaration(base).globals(
+            app,
+            device,
+            'prod',
+            new Map<string, unknown>([[SANDBOX_STORE_KEY, true]])
+        );
+        expect(script).toContain('"checkout":["apple"]');
+        expect(script).toContain('"sandbox":false');
+    });
+
+    it('injects no harness on localhost', () => {
+        const script = withCheckoutDeclaration(base).globals(app, device, 'localhost', new Map());
+        expect(script).not.toContain(HARNESS_GLOBAL);
     });
 });
 

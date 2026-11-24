@@ -14,15 +14,15 @@ import {
     useSession,
     useSubscriptions,
 } from '../../hooks';
-import { currencyOfLanguage } from '../../lib/billingCountry';
-import { ENTRY_PLAN_SORT } from '../../lib/changeKindOf';
+import { currencyOfLanguage } from '@chatic/web-checkout';
+import { ENTRY_PLAN_SORT } from '@chatic/web-checkout';
 import { useToday } from '../../lib/port';
 import { sceneOf } from '../../lib/sceneOf';
 import { formatMoney } from '../../utils';
 import { type PlanChoice, type PlanTag, planChoicesOf } from './planChoices';
 import { commonErrorKey } from '../../lib/errorKey';
 
-import type { Plan, Subscription } from '../../types';
+import type { Plan, Subscription } from '@chatic/web-checkout';
 
 const TAG_TONES: Record<PlanTag, BadgeTone> = {
     firstTrial: 'navy',

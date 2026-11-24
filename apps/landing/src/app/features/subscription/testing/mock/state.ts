@@ -8,7 +8,7 @@ import type {
     PlanId,
     SignInProvider,
     Subscription,
-} from '../../types';
+} from '@chatic/web-checkout';
 
 export const SCENARIOS = [
     'visitor',

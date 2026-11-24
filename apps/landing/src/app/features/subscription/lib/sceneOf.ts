@@ -1,6 +1,6 @@
 import { ddayOf } from './ddayOf';
 
-import type { Money, PlanId, Subscription } from '../types';
+import type { Money, PlanId, Subscription } from '@chatic/web-checkout';
 
 export type SceneBanner =
     | { kind: 'pending' }

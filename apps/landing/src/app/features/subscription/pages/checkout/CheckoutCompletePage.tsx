@@ -15,7 +15,7 @@ import {
     useSubscription,
     useSubscriptions,
 } from '../../hooks';
-import { toIsoDate } from '../../lib/calendar';
+import { toIsoDate } from '@chatic/web-checkout';
 import { useSupports, useToday } from '../../lib/port';
 import { formatDate, formatMoney } from '../../utils';
 import { type CompleteScene, chargedToday, completeSceneOf, dayBefore, formatShortDate, statusUrl } from './flow';
@@ -31,7 +31,7 @@ import {
     secondaryLink,
 } from './parts';
 
-import type { Account, Plan, Subscription } from '../../types';
+import type { Account, Plan, Subscription } from '@chatic/web-checkout';
 
 export const CheckoutCompletePage = (): JSX.Element => {
     const [params] = useSearchParams();

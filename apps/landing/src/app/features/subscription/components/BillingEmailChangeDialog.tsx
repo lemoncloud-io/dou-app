@@ -6,7 +6,7 @@ import { EmailVerificationForm } from './EmailVerificationForm';
 import { Badge, Button, Dialog, useToast } from './ui';
 import { commonErrorKey } from '../lib/errorKey';
 
-import type { BillingEmail } from '../types';
+import type { BillingEmail } from '@chatic/web-checkout';
 
 const k = (key: string) => `subscription.common.emailChange.${key}`;
 

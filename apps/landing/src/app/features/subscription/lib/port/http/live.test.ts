@@ -1,12 +1,11 @@
-import { createCardEntryChannel } from '../cardEntry';
+import { createCardEntryChannel } from '@chatic/web-checkout';
 
 import type { HttpPortOptions, PaymentWindow } from './createHttpPort';
 
 const portOneWindow = vi.hoisted(() => vi.fn());
 const stripeWindow = vi.hoisted(() => vi.fn());
 const createHttpPort = vi.hoisted(() => vi.fn((options: HttpPortOptions) => options));
-vi.mock('./portOneWindow', () => ({ portOneWindow }));
-vi.mock('./stripeWindow', () => ({ createStripeWindow: () => stripeWindow }));
+vi.mock('@chatic/web-checkout/windows', () => ({ portOneWindow, createStripeWindow: () => stripeWindow }));
 vi.mock('./createHttpPort', () => ({ createHttpPort }));
 vi.mock('./runtime', () => ({
     startSessionRuntime: vi.fn(async () => undefined),

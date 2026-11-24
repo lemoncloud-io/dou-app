@@ -13,7 +13,7 @@ import { chargeCardOf, endedOn, monthDay, splitSubscriptions } from './manageMod
 import { type ManageFormat, useManageFormat } from './useManageFormat';
 
 import type { SceneBanner } from '../../lib/sceneOf';
-import type { Subscription } from '../../types';
+import type { Subscription } from '@chatic/web-checkout';
 import type { TFunction } from 'i18next';
 
 const COLUMNS = 'md:grid-cols-[300px_170px_110px_180px_minmax(0,1fr)_16px]';

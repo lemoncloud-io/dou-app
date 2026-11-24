@@ -7,7 +7,7 @@ import { ROUTES } from '../../../../routes/paths';
 import { AuthCard } from '../../components';
 import { cn } from '../../utils';
 
-import type { SignInProvider } from '../../types';
+import type { SignInProvider } from '@chatic/web-checkout';
 
 export interface NoLinkedAccountState {
     provider: SignInProvider;

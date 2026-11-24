@@ -51,6 +51,8 @@
             "@chatic/runtime-mobile": ["libs/runtime-mobile/src/index.ts"],
             "@chatic/runtime-mobile/polyfills": ["libs/runtime-mobile/src/polyfills.ts"],
             "@chatic/runtime-web": ["libs/runtime-web/src/index.ts"],
+            "@chatic/web-checkout": ["libs/web-checkout/src/index.ts"],
+            "@chatic/web-checkout/windows": ["libs/web-checkout/src/windows.ts"],
             "@chatic/session": ["libs/session/src/index.ts"],
             "@chatic/session/*": ["libs/session/src/*"],
             "@chatic/storage": ["libs/storage/src/index.ts"],

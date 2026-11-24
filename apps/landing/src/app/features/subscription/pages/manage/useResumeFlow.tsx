@@ -11,7 +11,7 @@ import { useManagementScreens } from '../../lib/screens';
 import { chargeCardOf, resumeDialogOf } from './manageModel';
 
 import type { ManageFormat } from './useManageFormat';
-import type { Subscription } from '../../types';
+import type { Subscription } from '@chatic/web-checkout';
 
 export const useResumeFlow = (
     sub: Subscription | undefined,

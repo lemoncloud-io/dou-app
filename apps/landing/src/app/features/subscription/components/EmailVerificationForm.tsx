@@ -7,7 +7,7 @@ import { cn, formatMinutesSeconds, formatTimeOfDay, isEmailAddress, secondsUntil
 import { Badge, Button } from './ui';
 import { commonErrorKey } from '../lib/errorKey';
 
-import type { BillingEmail, EmailCodeTicket } from '../types';
+import type { BillingEmail, EmailCodeTicket } from '@chatic/web-checkout';
 
 type Step = 'address' | 'code' | 'verified';
 

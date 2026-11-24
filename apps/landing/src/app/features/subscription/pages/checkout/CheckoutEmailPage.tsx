@@ -13,7 +13,7 @@ import { CheckoutLayout, CheckoutSteps, CheckoutSummary, LoadError } from './par
 import { usePlanRoute } from './usePlanRoute';
 import { commonErrorKey } from '../../lib/errorKey';
 
-import type { BillingEmail } from '../../types';
+import type { BillingEmail } from '@chatic/web-checkout';
 
 const k = (key: string) => `subscription.checkout.emailStep.${key}`;
 

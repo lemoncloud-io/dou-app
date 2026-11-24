@@ -1,6 +1,6 @@
 import { tabStore } from '../../../storage';
 
-import type { Payer, PlanId } from '../types';
+import type { Payer, PlanId } from '@chatic/web-checkout';
 
 export interface PendingDetails {
     country: string;

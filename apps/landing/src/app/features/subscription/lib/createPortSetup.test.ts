@@ -1,6 +1,6 @@
 import { createPortSetup, sandboxOf, serverPortOf } from './createPortSetup';
 import { isPortError } from './port';
-import { createCardEntryChannel } from './port/cardEntry';
+import { createCardEntryChannel } from '@chatic/web-checkout';
 import { HTTP_METHODS, type HttpPort, type HttpSandbox, type HttpSetup } from './port/http';
 
 import type { SubscriptionServer } from '../../../config/subscriptionServer';

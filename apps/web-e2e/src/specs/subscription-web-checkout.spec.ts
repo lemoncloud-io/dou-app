@@ -8,6 +8,7 @@ import { expect, test } from '../support/test';
 test.use({ inApp: false });
 
 const WEBSITE = 'https://app-dev.chatic.io';
+const IN_APP_CHECKOUT = /\/subscription\/checkout$/;
 const WEB_PLANS = `${WEBSITE}/subscription/plans`;
 const WEB_SUBSCRIPTIONS = `${WEBSITE}/subscription`;
 
@@ -73,7 +74,7 @@ const openDetail = async (page: Page): Promise<void> => {
     await expect(page.getByText('Subscription info').first()).toBeVisible();
 };
 
-test('with no subscription, the plan picker hands over to the website, and back returns to the guide', async ({
+test('with no subscription, the plan picker opens the in-app checkout, and back returns to the guide', async ({
     page,
     backend,
 }) => {
@@ -83,24 +84,32 @@ test('with no subscription, the plan picker hands over to the website, and back 
 
     await openGuide(page);
     await page.getByRole('button', { name: 'Get started', exact: true }).click();
-    await expect(page).toHaveURL(WEB_PLANS);
+    await expect(page).toHaveURL(IN_APP_CHECKOUT);
+    await expect(page.getByRole('button', { name: 'Register a card and subscribe', exact: true })).toBeVisible();
+    expect(page.url().startsWith(WEBSITE)).toBe(false);
 
     await page.goBack();
     await expect(page.getByRole('button', { name: 'Get started', exact: true })).toBeVisible();
-    await expect(page).not.toHaveURL(WEB_PLANS);
+    await expect(page).not.toHaveURL(IN_APP_CHECKOUT);
 });
 
-test('a guest is handed over without signing in here, since the website signs the buyer in itself', async ({
+test('a guest gets the in-app checkout too, which asks for a Google sign-in before any payment call', async ({
     page,
     backend,
 }) => {
     installSubscriptions(backend, 'ios');
     answerWebsite(backend);
+    const payerCalls: string[] = [];
+    page.on('request', request => {
+        if (/\/subscriptions\/0\/(issue|cards)/.test(request.url())) payerCalls.push(request.url());
+    });
 
     await page.goto('/');
     await page.getByRole('button', { name: 'Add Cloud' }).click();
     await page.getByRole('button', { name: 'Get started', exact: true }).click();
-    await expect(page).toHaveURL(WEB_PLANS);
+    await expect(page).toHaveURL(IN_APP_CHECKOUT);
+    await expect(page.getByText('Sign in with Google to subscribe here.', { exact: false })).toBeVisible();
+    expect(payerCalls).toEqual([]);
 });
 
 test('with a running App Store subscription, the detail names the store and offers no change', async ({
@@ -118,7 +127,7 @@ test('with a running App Store subscription, the detail names the store and offe
     expect(page.url().startsWith(WEBSITE)).toBe(false);
 });
 
-test('with a subscription the website bills, the detail names its plan and manages and changes it on the website', async ({
+test('with a subscription the website bills, the detail manages it on the website and changes the plan in the app', async ({
     page,
     backend,
 }) => {
@@ -138,5 +147,5 @@ test('with a subscription the website bills, the detail names its plan and manag
 
     await page.goBack();
     await page.getByRole('button', { name: 'Change plan', exact: true }).click();
-    await expect(page).toHaveURL(WEB_PLANS);
+    await expect(page).toHaveURL(IN_APP_CHECKOUT);
 });

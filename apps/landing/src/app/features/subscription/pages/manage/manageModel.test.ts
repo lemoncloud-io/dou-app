@@ -13,7 +13,7 @@ import {
     splitSubscriptions,
 } from './manageModel';
 
-import type { Account, PaymentMethod, Subscription } from '../../types';
+import type { Account, PaymentMethod, Subscription } from '@chatic/web-checkout';
 
 const sub = (overrides: Partial<Subscription> = {}): Subscription => ({
     id: 'sub-2',

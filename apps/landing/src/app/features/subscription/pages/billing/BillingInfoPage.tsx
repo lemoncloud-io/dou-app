@@ -8,7 +8,7 @@ import { BillingEmailAddDialog } from './BillingEmailAddDialog';
 import { BillingPageHeader, LoadFailed, useReportPortError } from './BillingPage';
 import { regionName, toggleReceive } from './display';
 
-import type { BillingEmail } from '../../types';
+import type { BillingEmail } from '@chatic/web-checkout';
 
 const STATUS_TONE: Record<Exclude<BillingEmail['status'], 'verified'>, BadgeTone> = {
     pending: 'warning',

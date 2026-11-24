@@ -1,6 +1,6 @@
 import { addedCardOf, cardExpiry, cardExpiryMonth, nextRetryOf, regionName, toggleReceive } from './display';
 
-import type { PaymentMethod, Subscription } from '../../types';
+import type { PaymentMethod, Subscription } from '@chatic/web-checkout';
 
 const card = (id: string, overrides: Partial<PaymentMethod> = {}): PaymentMethod => ({
     id,

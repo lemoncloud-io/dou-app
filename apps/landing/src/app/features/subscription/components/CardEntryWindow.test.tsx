@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 
 import i18n from '../../../../i18n';
 import { registerSubscriptionCopy } from '../lib/i18n';
-import { type CardEntryConfirmation, type CardEntryRequest, createCardEntryChannel } from '../lib/port/cardEntry';
+import { type CardEntryConfirmation, type CardEntryRequest, createCardEntryChannel } from '@chatic/web-checkout';
 import { CardEntryWindow } from './CardEntryWindow';
 
 registerSubscriptionCopy();

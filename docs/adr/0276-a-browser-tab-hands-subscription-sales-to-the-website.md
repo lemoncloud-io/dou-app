@@ -1,6 +1,6 @@
 # ADR-0276: A browser tab hands subscription sales to the website
 
-> Status: Accepted · Decided: 2026-11-03 · Implemented: `feat/web-subscription-web-checkout`
+> Status: Accepted (starting a subscription is Superseded by [ADR-0373](./0373-a-web-checkout-sells-inside-the-app-through-a-shared-checkout-library.md), which sells it inside the app; managing one still leaves for the website) · Decided: 2026-11-03 · Implemented: `feat/web-subscription-web-checkout`
 > · Scope: `apps/web` (`features/subscription`), `apps/web-e2e` (browser mode)
 > · Related: [ADR-0173](./0173-subscription-changes-are-confirmed-before-the-store-opens.md) (a
 > subscription changes only on the store that bills it) ·

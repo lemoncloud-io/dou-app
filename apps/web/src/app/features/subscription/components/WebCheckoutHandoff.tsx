@@ -1,24 +1,25 @@
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 import { runtime } from '@chatic/runtime';
 import { IconSpinner } from '@chatic/web-ui-kit';
 
 import { useMembershipInfo } from '../../../hooks/useMembership';
-import { WEB_SUBSCRIPTION_URL } from '../consts';
 import { usePlanCatalog } from '../hooks';
-import { canCheckoutOnWeb } from '../lib';
+import { canCheckoutOnWeb, IN_APP_CHECKOUT_PATH } from '../lib';
 
 export const WebCheckoutHandoff = ({ children }: { children: ReactNode }) => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const checkout = runtime.checkout;
     const { summary } = usePlanCatalog();
     const { data: membership, isSuccess, isError } = useMembershipInfo();
     const handOff = checkout.kind === 'web' && isSuccess && canCheckoutOnWeb(summary, membership?.platform);
 
     useEffect(() => {
-        if (handOff && checkout.kind === 'web') checkout.open(WEB_SUBSCRIPTION_URL.plans, { replace: true });
-    }, [handOff, checkout]);
+        if (handOff) navigate(IN_APP_CHECKOUT_PATH, { replace: true });
+    }, [handOff, navigate]);
 
     if (checkout.kind !== 'web' || isError || (isSuccess && !handOff)) return <>{children}</>;
     return (

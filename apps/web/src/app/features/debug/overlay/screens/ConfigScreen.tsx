@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 
 import { runtime, type ConfigSnapshot, type SetResult } from '@chatic/runtime';
 
+import { readCheckoutOptions } from '../../../../runtime/checkoutOptions';
 import { CopyButton } from '../../components/CopyButton';
 import { Section } from '../../components/Section';
 import { useConfigScreenStrings } from '../../i18n/screens/ConfigScreen';
@@ -11,6 +12,16 @@ type ConfigScreenStrings = ReturnType<typeof useConfigScreenStrings>;
 const isHidden = (snapshot: ConfigSnapshot) => snapshot.entry.meta === true || snapshot.key === 'debug.entryCode';
 
 const show = (value: unknown) => (typeof value === 'object' ? JSON.stringify(value) : String(value));
+
+const CHECKOUT_PORT_KEY = 'port.checkout';
+const CHECKOUT_SANDBOX_KEY = 'checkout.sandbox';
+
+const devBuild = import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL';
+
+const shellSandbox = (): boolean | undefined => {
+    const value: unknown = (runtime.checkout as { sandbox?: unknown }).sandbox;
+    return typeof value === 'boolean' ? value : undefined;
+};
 
 const reasonOf = (result: SetResult, t: ConfigScreenStrings): string | null =>
     result.ok ? null : t.rejection[result.reason];
@@ -103,7 +114,10 @@ const ConfigRow = ({
     const [message, setMessage] = useState<string | null>(null);
 
     const { entry, key, value, origin, isOverridden, canWrite } = snapshot;
-    const canEdit = canWrite.includes('local');
+    const checkoutOptions = key === CHECKOUT_PORT_KEY ? readCheckoutOptions() : [];
+    const sandboxRow = key === CHECKOUT_SANDBOX_KEY;
+    const shellSays = sandboxRow ? shellSandbox() : undefined;
+    const canEdit = canWrite.includes('local') && (!sandboxRow || devBuild);
 
     const apply = (next: unknown) => {
         const result = runtime.settings.set(key, next, { lane: 'local' });
@@ -195,24 +209,41 @@ const ConfigRow = ({
                                 </select>
                             )}
 
-                            {(entry.type === 'number' || entry.type === 'string' || entry.type === 'json') && (
-                                <>
-                                    <input
-                                        type={entry.type === 'number' ? 'number' : 'text'}
-                                        value={draft}
-                                        onChange={e => setDraft(e.target.value)}
-                                        spellCheck={false}
-                                        className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs outline-none focus:border-foreground"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={applyDraft}
-                                        className="rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground"
-                                    >
-                                        {t.apply}
-                                    </button>
-                                </>
+                            {checkoutOptions.length > 0 && (
+                                <select
+                                    aria-label={entry.title}
+                                    value={String(value)}
+                                    onChange={e => apply(e.target.value)}
+                                    className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                                >
+                                    <option value="">{t.declaredDefault}</option>
+                                    {checkoutOptions.map(option => (
+                                        <option key={option.id} value={option.id} disabled={!option.supported}>
+                                            {option.supported ? option.id : `${option.id} — ${t.notOffered}`}
+                                        </option>
+                                    ))}
+                                </select>
                             )}
+
+                            {checkoutOptions.length === 0 &&
+                                (entry.type === 'number' || entry.type === 'string' || entry.type === 'json') && (
+                                    <>
+                                        <input
+                                            type={entry.type === 'number' ? 'number' : 'text'}
+                                            value={draft}
+                                            onChange={e => setDraft(e.target.value)}
+                                            spellCheck={false}
+                                            className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 font-mono text-xs outline-none focus:border-foreground"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={applyDraft}
+                                            className="rounded-md bg-primary px-2.5 py-1 text-xs text-primary-foreground"
+                                        >
+                                            {t.apply}
+                                        </button>
+                                    </>
+                                )}
 
                             {isOverridden && (
                                 <button
@@ -228,6 +259,13 @@ const ConfigRow = ({
                         <p className="mt-2 text-[11px] text-muted-foreground">
                             {t.readOnly(canWrite.join(', ') || t.noWriters)}
                         </p>
+                    )}
+
+                    {shellSays !== undefined && (
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">{t.shellOverrides(shellSays)}</p>
+                    )}
+                    {sandboxRow && !devBuild && (
+                        <p className="mt-1.5 text-[11px] text-muted-foreground">{t.productionIgnored}</p>
                     )}
 
                     {message && <p className="mt-1.5 text-[11px] text-destructive">{message}</p>}

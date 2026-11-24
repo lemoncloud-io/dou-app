@@ -1,6 +1,8 @@
 import { Route, Routes } from 'react-router-dom';
 
+import { InAppCheckoutRoute } from '../components/InAppCheckoutRoute';
 import { WebCheckoutHandoff } from '../components/WebCheckoutHandoff';
+import { IN_APP_CHECKOUT_ROUTE } from '../lib';
 import {
     CloudGuidePage,
     KeepCloudsPage,
@@ -33,6 +35,7 @@ export const SubscriptionRoutes = () => {
                 }
             />
             <Route path="keep" element={<KeepCloudsPage />} />
+            <Route path={IN_APP_CHECKOUT_ROUTE} element={<InAppCheckoutRoute />} />
         </Routes>
     );
 };

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '../utils';
 
-import type { Subscription } from '../types';
+import type { Subscription } from '@chatic/web-checkout';
 
 type BadgeState = Subscription['status'] | 'downgradeScheduled';
 

@@ -1,9 +1,9 @@
-import { PLAN_CATALOG, planCatalogIn } from '../../catalog';
-import { isPortError } from '../errors';
+import { PLAN_CATALOG, planCatalogIn } from '@chatic/web-checkout';
+import { isPortError } from '@chatic/web-checkout';
 import { type HttpPortOptions, type SubscriptionApi, createHttpPort } from './createHttpPort';
 
-import type { SubscriptionWire } from './wire';
-import type { CardToken } from '../../../types';
+import type { SubscriptionWire } from '@chatic/web-checkout';
+import type { CardToken } from '@chatic/web-checkout';
 
 const PAYER = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
 const at = (iso: string) => new Date(`${iso}T12:00:00`).getTime();

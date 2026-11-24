@@ -4,8 +4,8 @@ import { isProductionHost, readProductionBuild } from '../../../config/stage';
 import { subscriptionServer, type SubscriptionServer } from '../../../config/subscriptionServer';
 import { tabStore } from '../../../storage';
 import { createCatalogPort } from './catalogPort';
-import { type CardEntryChannel } from './port/cardEntry';
-import { type PaymentWindowHost } from './port/standInWindow';
+import { type CardEntryChannel } from '@chatic/web-checkout';
+import { type PaymentWindowHost } from '@chatic/web-checkout';
 import { SubscriptionPortError, systemClock, type Clock, type PortSupports, type SubscriptionPort } from './port';
 import {
     HTTP_METHODS,

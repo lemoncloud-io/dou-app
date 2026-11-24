@@ -74,7 +74,14 @@ describe('readKeyValueEntries', () => {
                 group: 'config',
                 bytes: 26,
             },
-            { id: 'localStorage:ui.theme', medium: 'localStorage', key: 'ui.theme', value: 'dark', group: 'other', bytes: 12 },
+            {
+                id: 'localStorage:ui.theme',
+                medium: 'localStorage',
+                key: 'ui.theme',
+                value: 'dark',
+                group: 'other',
+                bytes: 12,
+            },
         ]);
     });
 

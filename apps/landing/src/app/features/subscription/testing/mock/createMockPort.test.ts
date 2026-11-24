@@ -1,4 +1,4 @@
-import { isPortError } from '../../lib/port/errors';
+import { isPortError } from '@chatic/web-checkout';
 import { createMockPort } from './createMockPort';
 import { memoryStateStore } from './storage';
 

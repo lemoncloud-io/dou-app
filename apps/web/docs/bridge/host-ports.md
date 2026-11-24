@@ -120,11 +120,12 @@ ports: they are read from `@chatic/bridges` (`hostProfile().globals`, or `liveSh
 
 ## checkout
 
-| What the host sells through | Implementation                          | What it does                                                                           |
-| --------------------------- | --------------------------------------- | -------------------------------------------------------------------------------------- |
-| `apple`, `google`           | `adapters/checkout/storeCheckout.ts`    | The store's catalog, purchase, finish, held purchases and management, over `appBridge` |
-| `web`                       | `adapters/checkout/webCheckout.ts`      | Leaves for a page of the website (`leaveForWeb`); the purchase completes there         |
-| nothing                     | `{ kind: 'none' }` from `checkout.host` | Nothing to sell                                                                        |
+| What the host sells through | Implementation                          | What it does                                                                                |
+| --------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `apple`, `google`           | `adapters/checkout/storeCheckout.ts`    | The store's catalog, purchase, finish, held purchases and management, over `appBridge`      |
+| `web`                       | `adapters/checkout/webCheckout.ts`      | Leaves for a page of the website (`leaveForWeb`); the purchase completes there              |
+| `web`, in the virtual shell | `adapters/checkout/shellWebCheckout.ts` | As `web`, carrying the shell's sandbox, and sending it to a local website when one answered |
+| nothing                     | `{ kind: 'none' }` from `checkout.host` | Nothing to sell                                                                             |
 
 The phone app declares its store and the desktop app declares that it sells nothing, from the first
 builds made after they began to declare; the e2e fake shell declares as the phone does. A shell that
@@ -132,7 +133,12 @@ declares nothing — an older build — is answered as before: a bridge means a 
 injected platform is `ios`, Google's otherwise), and no bridge means the website. A declaration
 (`CHATIC_APP_CAPABILITIES.checkout`) can say otherwise, which is what lets a development shell with a
 bridge check the website's checkout — the virtual shell's `DOU_SHELL_CHECKOUT`
-([shell-adapter § Checkout](../../../shell-adapter/README.md#checkout)).
+([shell-adapter § Checkout](../../../shell-adapter/README.md#checkout)). There, and only in a dev or local
+build, the hybrid declaration's `web` reads the shell's `CHATIC_SHELL_HARNESS` and stays in the app
+(`hybridWebCheckout`): the port carries the sandbox for the in-app checkout, and what still leaves for the
+website goes with `?sandbox=1`. With no harness values it is `webCheckout`, as everywhere else. Starting a
+subscription no longer leaves at all where the web sells: the subscription feature opens its in-app checkout
+(ADR-0373).
 
 **A purchase settles from the shell's events, not from its reply.** `Purchase` is posted; the shell
 pushes `OnPurchaseSuccess` or `OnPurchaseError` later. `storeCheckout` listens to both for as long as
