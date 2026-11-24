@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ClipboardEvent,
+    type ReactNode,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChevronDown, MessageSquare } from 'lucide-react';
@@ -25,6 +34,7 @@ import {
     isOwnMessage,
     isViewerId,
     placeReadMarkers,
+    selectedTranscript,
     type MessageViewer,
     type ReactionTally,
     type ThreadMeta,
@@ -628,11 +638,24 @@ export const MessageList = ({
         );
     }
 
+    const onCopy = (event: ClipboardEvent<HTMLDivElement>) => {
+        const transcript = selectedTranscript(
+            event.currentTarget,
+            window.getSelection(),
+            rows,
+            t('chat.deletedMessage')
+        );
+        if (transcript === null) return;
+        event.preventDefault();
+        event.clipboardData.setData('text/plain', transcript);
+    };
+
     return (
         <div className="relative flex flex-1 flex-col overflow-hidden">
             <div
                 ref={scrollRef}
                 onScroll={onScroll}
+                onCopy={onCopy}
                 onFocus={roving.onFocus}
                 onKeyDown={roving.onKeyDown}
                 role="log"

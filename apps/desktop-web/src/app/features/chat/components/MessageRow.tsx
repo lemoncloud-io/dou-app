@@ -32,6 +32,7 @@ import {
     canModifyMessage,
     hasMyReaction,
     isSendingImages,
+    messageKeyOf,
     savedAttachmentOf,
     threadRootId,
     type MessageGroup,
@@ -301,7 +302,7 @@ export const MessageRow = memo(
         // Only this block's saved flags, as a string: zustand compares it by value,
         // so saving a message elsewhere no longer re-renders every row. Selecting
         // the whole `items` record did.
-        const messageKeys = group.messages.map(message => String(message.id ?? message.tempId ?? message.chatNo));
+        const messageKeys = group.messages.map(messageKeyOf);
         const savedFlags = useSavedItemsStore(s => messageKeys.map(k => (s.items[k] ? '1' : '0')).join(''));
         const isSavedKey = (key: string) => savedFlags[messageKeys.indexOf(key)] === '1';
         const toggleSaved = useSavedItemsStore(s => s.toggle);
@@ -457,7 +458,7 @@ export const MessageRow = memo(
                                 Date.now() - (message.createdAt ?? message.createdAtMs ?? 0) > STUCK_PENDING_MS;
                             const isPending = message.isPending && !isStuck;
                             const isFailed = message.isFailed || isStuck;
-                            const key = String(message.id ?? message.tempId ?? message.chatNo);
+                            const key = messageKeyOf(message);
                             const { content, blocks, plain, card } = bodies[i];
                             // A deleted message keeps its `content` (soft delete), so the
                             // link would otherwise unfurl under "This message was deleted."
@@ -524,6 +525,7 @@ export const MessageRow = memo(
                                     key={key}
                                     ref={isEditing ? editingRowRef : undefined}
                                     data-chat-no={message.chatNo}
+                                    data-message-key={key}
                                     // The feed keeps one message in the tab order and moves it
                                     // with the arrow keys (MessageList's roving focus).
                                     tabIndex={-1}

@@ -18,7 +18,8 @@ stores in `src/app/shared/`.
 - [feed-scrolling.md](./feed-scrolling.md): where a room opens, when the feed follows the newest message,
   and when the "New messages" divider appears and clears.
 - [messages.md](./messages.md): which chats become rows, how author blocks and names are resolved, how
-  message text, mentions, link chips and reactions are drawn, and what edit and delete do.
+  message text, mentions, link chips and reactions are drawn, what a copied selection reads as, and what
+  edit and delete do.
 - [sidebar.md](./sidebar.md): the Home sidebar's rows, sections, ordering, dragging, keyboard walk, row menu
   and the quick switcher.
 - [opening-rooms.md](./opening-rooms.md): how a notification, link, saved item or list pick selects a room,
