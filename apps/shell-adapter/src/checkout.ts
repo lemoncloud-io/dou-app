@@ -30,6 +30,8 @@ export const SHELL_FILES_CHOICES = ['shell', 'browser'] as const;
 export type ShellFilesChoice = (typeof SHELL_FILES_CHOICES)[number];
 
 export const FILES_STORE_KEY = 'dou.files';
+
+export const NOT_DECLARED = 'unset';
 declare const __DOU_SHELL_STORE_SKUS__: StoreSkus | undefined;
 
 const isChoice = (value: unknown): value is ShellCheckoutChoice =>
@@ -64,6 +66,7 @@ const keptOrEnv = <T extends string>(
     kept: unknown,
     fromEnv: string | undefined
 ): T | undefined => {
+    if (kept === NOT_DECLARED) return undefined;
     if ((choices as readonly unknown[]).includes(kept)) return kept as T;
     const env = fromEnv?.trim().toLowerCase();
     if ((choices as readonly unknown[]).includes(env)) return env as T;
@@ -225,6 +228,7 @@ export const launch: {
     platform: string | undefined;
     plan: CheckoutPlan | undefined;
     store: Map<string, unknown> | undefined;
+    onPlan?: (plan: CheckoutPlan) => void;
 } = {
     env: undefined,
     choice: undefined,
@@ -251,6 +255,7 @@ export const withCheckoutDeclaration = (preset: ProtocolPreset): ProtocolPreset 
             launch.platform = device.platform;
             launch.plan = plan;
             launch.store = store instanceof Map ? (store as Map<string, unknown>) : launch.store;
+            launch.onPlan?.(plan);
             return (
                 preset.globals(...args) +
                 capabilitiesScript(plan.declared, mediaChoice(store), device.platform, filesChoice(store)) +

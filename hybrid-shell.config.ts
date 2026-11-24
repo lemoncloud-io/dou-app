@@ -1,6 +1,7 @@
 import { defineShell, presets } from '@lemoncloud/hybrid-shell';
 
 import { withCheckoutDeclaration } from './apps/shell-adapter/src/checkout';
+import { douOptions } from './apps/shell-adapter/src/options';
 import { deepLinkNavigation, pushTapNavigation } from './apps/shell-adapter/src/routes';
 import type { DouEvents, DouMethods } from './apps/shell-adapter/src/types';
 
@@ -13,11 +14,10 @@ const BACKEND_ENV_SOURCE =
 
 /**
  * The app's own protocol, plus what this shell declares it can do. Its globals are the built-in
- * preset's, followed by `CHATIC_APP_CAPABILITIES` for what a person picked: the checkout
- * (`DOU_SHELL_CHECKOUT`, or `dou.checkout` in the shell's store), who picks attachments
- * (`DOU_SHELL_MEDIA`, or `dou.media`) and who moves files (`DOU_SHELL_FILES`, or `dou.files`). Nothing
- * is declared for `legacy`, so the web answers
- * as it does for an app built before declarations. `launch` tells the virtual store which backend this launch is on.
+ * preset's, followed by `CHATIC_APP_CAPABILITIES` for what a person picked on the shell's panel (`options`
+ * below, each starting from its `DOU_SHELL_*` variable): the checkout (`dou.checkout`), the sandbox
+ * (`dou.sandbox`), who picks attachments (`dou.media`) and who moves files (`dou.files`). Nothing is
+ * declared for `legacy`, so the web answers as it does for an app built before declarations. `launch` tells the virtual store which backend this launch is on.
  */
 const douPreset = withCheckoutDeclaration(presets.appBridgeHost);
 
@@ -76,6 +76,7 @@ export default defineShell<DouMethods, DouEvents>({
         'push.token': 'FetchFcmToken',
     },
     handlers: () => import('./apps/shell-adapter/src/handlers'),
+    options: douOptions(),
     auth: { preset: 'oauth-popup', provider: 'google', clientIdEnv: 'VITE_GOOGLE_WEB_CLIENT_ID' },
     quickLinks: {
         origin: 'https://app-dev.chatic.io',

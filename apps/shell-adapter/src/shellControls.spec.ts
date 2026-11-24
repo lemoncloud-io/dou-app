@@ -1,17 +1,43 @@
-import { CHECKOUT_STORE_KEY, checkoutPlan, launch, SANDBOX_STORE_KEY, type ShellCheckoutChoice } from './checkout';
+import type { HandlerContext, ProtocolPreset } from '@lemoncloud/hybrid-shell';
+
 import {
+    CHECKOUT_STORE_KEY,
+    checkoutPlan,
+    launch,
+    SANDBOX_STORE_KEY,
+    withCheckoutDeclaration,
+    type ShellCheckoutChoice,
+} from './checkout';
+import {
+    CHECKOUT_NOTICE_ID,
     extendShellApi,
     IN_APP_SANDBOX_NOTICE,
     installShellControls,
+    LOCAL_NO_PAYMENT_NOTICE,
     notices,
+    raiseStoreNotice,
     resetNotices,
+    SANDBOX_NOTICE_ID,
+    sayWhereTheSandboxLives,
     switchToWeb,
+    USE_WEB_ACTION,
 } from './shellControls';
+
+const preset = { name: 'test', globals: () => '' } as unknown as ProtocolPreset;
 
 const api = () => ({
     status: vi.fn(() => ({ handshake: 'ready' })),
-    app: { restart: vi.fn(async () => ({ ok: true })) },
+    options: { set: vi.fn(async () => ({ ok: true })) },
 });
+
+const noticeShell = () => {
+    const lines: Array<{ type: string }> = [];
+    const shell = {
+        log: { append: (line: { type: string }) => void lines.push(line) },
+        notice: { show: vi.fn(), clear: vi.fn() },
+    } as unknown as Pick<HandlerContext, 'log' | 'notice'>;
+    return { shell, lines, show: shell.notice.show as ReturnType<typeof vi.fn>, clear: shell.notice.clear };
+};
 
 const launchOn = (
     env: 'dev' | 'prod' | 'localhost',
@@ -53,96 +79,141 @@ describe('virtualShell.status', () => {
             sandbox: { available: false },
         });
     });
-});
 
-describe('virtualShell.checkout.set', () => {
-    it('keeps the choice and relaunches the app to apply it', async () => {
-        const kept = new Map<string, unknown>();
-        launchOn('dev', 'store', kept);
-        const shell = extendShellApi(api());
-        await expect(shell.checkout.set('web')).resolves.toMatchObject({
-            ok: true,
-            inAppNotice: false,
-            checkout: { chosen: 'web', declared: ['web'] },
-        });
-        expect(kept.get(CHECKOUT_STORE_KEY)).toBe('web');
-        expect(shell.app.restart).toHaveBeenCalledOnce();
-    });
-
-    it('refuses a value it does not know', async () => {
-        launchOn('dev', 'store');
-        const shell = extendShellApi(api());
-        await expect(shell.checkout.set('paypal' as ShellCheckoutChoice)).resolves.toMatchObject({ ok: false });
-        expect(shell.app.restart).not.toHaveBeenCalled();
-    });
-
-    it('says where the real in-app sandbox lives when the store is picked with the sandbox on', async () => {
-        const draw = vi.fn();
-        launchOn('dev', 'web', new Map<string, unknown>([[SANDBOX_STORE_KEY, true]]));
-        const shell = extendShellApi(api(), draw);
-        await expect(shell.checkout.set('store')).resolves.toMatchObject({ ok: true, inAppNotice: true });
-        expect(draw).toHaveBeenCalledWith({ id: 'sandbox', text: IN_APP_SANDBOX_NOTICE });
-
-        await expect(shell.checkout.set('web')).resolves.toMatchObject({ inAppNotice: false });
-        expect(notices.sandboxInApp).toBe(false);
+    it('leaves picking to the core, which draws the options on its panel', () => {
+        const shell = extendShellApi(api()) as object;
+        expect(shell).not.toHaveProperty('checkout');
+        expect(shell).not.toHaveProperty('sandbox');
     });
 });
 
-describe('virtualShell.sandbox.set', () => {
-    it('shows the in-app sandbox notice for a store checkout, not for the web', async () => {
-        const draw = vi.fn();
-        launchOn('dev', 'store');
-        const shell = extendShellApi(api(), draw);
-        await expect(shell.sandbox.set(true)).resolves.toMatchObject({
-            ok: true,
-            inAppNotice: true,
-            sandbox: { on: true, chosen: true },
+describe('raiseStoreNotice', () => {
+    it('raises it on the shell page, once, with a switch to web off localhost only', () => {
+        const { shell, show, lines } = noticeShell();
+        launchOn('prod', 'store');
+        raiseStoreNotice(shell);
+        raiseStoreNotice(shell);
+        expect(show).toHaveBeenCalledOnce();
+        expect(show.mock.calls[0][0]).toMatchObject({
+            id: CHECKOUT_NOTICE_ID,
+            tone: 'warn',
+            action: { label: USE_WEB_ACTION },
         });
-        expect(draw).toHaveBeenCalledOnce();
+        expect(show.mock.calls[0][0].text).toContain('(prod)');
+        expect(lines.map(line => line.type)).toEqual(['checkout.notice']);
 
-        draw.mockReset();
         resetNotices();
-        launchOn('dev', 'web');
-        await expect(shell.sandbox.set(true)).resolves.toMatchObject({ ok: true, inAppNotice: false });
-        expect(draw).not.toHaveBeenCalled();
-        expect(launch.store?.get(SANDBOX_STORE_KEY)).toBe(true);
+        show.mockReset();
+        launchOn('localhost', 'store');
+        raiseStoreNotice(shell);
+        expect(show.mock.calls[0][0]).toEqual({ id: CHECKOUT_NOTICE_ID, text: LOCAL_NO_PAYMENT_NOTICE, tone: 'warn' });
+        expect(notices.checkout).toBe('local-no-payment');
     });
 
-    it('refuses to switch it on against prod or localhost, and relaunches nothing', async () => {
-        for (const env of ['prod', 'localhost'] as const) {
-            const kept = new Map<string, unknown>();
-            launchOn(env, 'web', kept);
-            const shell = extendShellApi(api());
-            await expect(shell.sandbox.set(true)).resolves.toMatchObject({ ok: false, error: 'refused' });
-            expect(kept.has(SANDBOX_STORE_KEY)).toBe(false);
-            expect(shell.app.restart).not.toHaveBeenCalled();
-        }
+    it('switches to web through the core option, which relaunches', async () => {
+        const core = api();
+        vi.stubGlobal('virtualShell', core);
+        const { shell, show } = noticeShell();
+        launchOn('prod', 'store');
+        raiseStoreNotice(shell);
+        await show.mock.calls[0][0].action.run();
+        expect(core.options.set).toHaveBeenCalledWith(CHECKOUT_STORE_KEY, 'web');
     });
 });
 
 describe('switchToWeb', () => {
-    it('keeps web as the checkout and relaunches through the shell page', async () => {
-        const kept = new Map<string, unknown>();
-        launchOn('prod', 'store', kept);
-        const shell = api();
-        vi.stubGlobal('virtualShell', shell);
-        await switchToWeb();
-        expect(kept.get(CHECKOUT_STORE_KEY)).toBe('web');
-        expect(shell.app.restart).toHaveBeenCalledOnce();
+    it('does nothing when the core has no options', async () => {
+        vi.stubGlobal('virtualShell', { status: () => ({}) });
+        await expect(switchToWeb()).resolves.toBeUndefined();
+    });
+});
+
+describe('reconcileNotices at each launch', () => {
+    const relaunchWith = (env: 'dev' | 'prod' | 'localhost', choice: ShellCheckoutChoice, sandbox = false) =>
+        withCheckoutDeclaration(preset).globals(
+            ...([
+                {},
+                { platform: 'ios' },
+                env,
+                new Map<string, unknown>([
+                    [CHECKOUT_STORE_KEY, choice],
+                    [SANDBOX_STORE_KEY, sandbox],
+                ]),
+            ] as unknown as Parameters<ProtocolPreset['globals']>)
+        );
+
+    it('takes the store notice down, and lets it be raised again, once the checkout is web', () => {
+        const { shell, show, clear } = noticeShell();
+        launchOn('prod', 'store');
+        raiseStoreNotice(shell);
+
+        relaunchWith('prod', 'web');
+        expect(clear).toHaveBeenCalledWith(CHECKOUT_NOTICE_ID);
+        expect(notices.checkout).toBeUndefined();
+
+        relaunchWith('prod', 'store');
+        raiseStoreNotice(shell);
+        expect(show).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the store notice while the store is still refused', () => {
+        const { shell, clear } = noticeShell();
+        launchOn('prod', 'store');
+        raiseStoreNotice(shell);
+        relaunchWith('prod', 'legacy');
+        expect(clear).not.toHaveBeenCalled();
+        expect(notices.checkout).toBe('use-web');
+    });
+
+    it('takes the in-app sandbox notice down when the checkout leaves the virtual store', () => {
+        const { shell, clear } = noticeShell();
+        launchOn('dev', 'store', new Map<string, unknown>([[SANDBOX_STORE_KEY, true]]));
+        sayWhereTheSandboxLives(shell);
+
+        relaunchWith('dev', 'web', true);
+        expect(clear).toHaveBeenCalledWith(SANDBOX_NOTICE_ID);
+        expect(extendShellApi(api()).status()).toMatchObject({ sandbox: { inAppNotice: false } });
+    });
+});
+
+describe('sayWhereTheSandboxLives', () => {
+    it('shows the in-app sandbox notice once while the virtual store runs with the sandbox, and takes it down after', () => {
+        const { shell, show, clear } = noticeShell();
+        launchOn('dev', 'store', new Map<string, unknown>([[SANDBOX_STORE_KEY, true]]));
+        sayWhereTheSandboxLives(shell);
+        sayWhereTheSandboxLives(shell);
+        expect(show).toHaveBeenCalledOnce();
+        expect(show).toHaveBeenCalledWith({ id: SANDBOX_NOTICE_ID, text: IN_APP_SANDBOX_NOTICE });
+        expect(notices.sandboxInApp).toBe(true);
+
+        launchOn('dev', 'store');
+        sayWhereTheSandboxLives(shell);
+        expect(clear).toHaveBeenCalledWith(SANDBOX_NOTICE_ID);
+        expect(notices.sandboxInApp).toBe(false);
+    });
+
+    it('says nothing for a web checkout or without the sandbox', () => {
+        const { shell, show, clear } = noticeShell();
+        launchOn('dev', 'web', new Map<string, unknown>([[SANDBOX_STORE_KEY, true]]));
+        sayWhereTheSandboxLives(shell);
+        launchOn('dev', 'store');
+        sayWhereTheSandboxLives(shell);
+        expect(show).not.toHaveBeenCalled();
+        expect(clear).not.toHaveBeenCalled();
     });
 });
 
 describe('installShellControls', () => {
     it('extends virtualShell when the shell page sets it later', () => {
-        const page: { virtualShell?: ReturnType<typeof api> & { checkout?: unknown } } = {};
+        const page: { virtualShell?: ReturnType<typeof api> } = {};
         installShellControls(page);
         page.virtualShell = api();
-        expect(page.virtualShell.checkout).toBeDefined();
+        expect(page.virtualShell.status()).toHaveProperty('checkout');
     });
 
     it('extends one that is there already', () => {
-        const page = { virtualShell: api() as ReturnType<typeof api> & { sandbox?: unknown } };
+        const page = { virtualShell: api() };
         installShellControls(page);
-        expect(page.virtualShell.sandbox).toBeDefined();
+        expect(page.virtualShell.status()).toHaveProperty('sandbox');
     });
 });

@@ -20,7 +20,7 @@ const en = {
     declaredDefault: "The host's declaration (default)",
     notOffered: 'this host does not offer it',
     shellOverrides: (on: boolean) =>
-        `The virtual shell sets the sandbox ${on ? 'on' : 'off'}; its choice wins over this one (virtualShell.sandbox.set)`,
+        `The virtual shell sets the sandbox ${on ? 'on' : 'off'}; its choice wins over this one (the shell's Sandbox option, dou.sandbox)`,
     productionIgnored: 'A production build ignores this key',
     readOnly: (writers: string) => `Read-only on this device — writable by: ${writers}`,
     noWriters: 'none',
@@ -57,7 +57,7 @@ const ko: typeof en = {
     declaredDefault: '호스트 선언대로(기본)',
     notOffered: '이 호스트가 제공하지 않음',
     shellOverrides: (on: boolean) =>
-        `가상 셸이 sandbox를 ${on ? '켜' : '꺼'} 두었습니다. 셸 값이 이 값보다 우선합니다(virtualShell.sandbox.set)`,
+        `가상 셸이 sandbox를 ${on ? '켜' : '꺼'} 두었습니다. 셸 값이 이 값보다 우선합니다(셸의 Sandbox 옵션, dou.sandbox)`,
     productionIgnored: '운영 빌드에서는 이 키를 무시합니다',
     readOnly: (writers: string) => `이 기기에서는 읽기 전용입니다 — 쓸 수 있는 주체: ${writers}`,
     noWriters: '없음',

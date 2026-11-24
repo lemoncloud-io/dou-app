@@ -16,16 +16,17 @@ tab, with no simulator. What is imitated and what is not: [`apps/shell-adapter/R
 
 ## Subscription
 
-Checkout, sandbox and the subscription website are the shell's choices
+Checkout and sandbox are the shell's options, set with `s.options.set(id, value)`
 ([`apps/shell-adapter/README.md` § Checkout](../../../../../apps/shell-adapter/README.md#checkout)). Each set relaunches the
 app, so take a new log cursor after it.
 
 1. Read `s.status().checkout` and `s.status().sandbox`: what was picked, what is declared, whether the virtual
    store answers, which subscription website (`subscriptionWeb`).
-2. In-app on dev: `await s.checkout.set('store')`. The plan cards carry `₩0 (virtual store)`; a purchase ends at
-   the dev server's refusal of the fake receipt. With `await s.sandbox.set(true)` the result has `inAppNotice: true`
-   — tell the person that a real store sandbox is a device and store setting.
-3. Web on dev: `await s.checkout.set('web')` (and `s.sandbox.set(true)`), then the plan picker, or
+2. In-app on dev: `await s.options.set('dou.checkout', 'store')`. The plan cards carry `₩0 (virtual store)`; a
+   purchase ends at the dev server's refusal of the fake receipt. With `await s.options.set('dou.sandbox', true)`
+   the catalog raises the in-app sandbox notice (`status().sandbox.inAppNotice`) — tell the person that a real
+   store sandbox is a device and store setting.
+3. Web on dev: `await s.options.set('dou.checkout', 'web')` (and the sandbox), then the plan picker, or
    `s.deeplink('https://app-dev.chatic.io/subscription/checkout')`. The app's own checkout screen opens
    with a sandbox band; it needs an account signed in with Google (a paired shell is refused). With the
    sandbox on, the card window is a stand-in — stop there unless the person asked for a sandbox subscription.

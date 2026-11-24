@@ -13,7 +13,7 @@ import type { HandlerContext, Handlers } from '@lemoncloud/hybrid-shell';
 
 import { fakeProducts, fakePurchase, fakeStore, type FakePurchase } from './checkout';
 import { mobileRoutes } from './routes';
-import { installShellControls, raiseStoreNotice } from './shellControls';
+import { installShellControls, raiseStoreNotice, sayWhereTheSandboxLives } from './shellControls';
 import type { DouMethods } from './types';
 
 mobileRoutes.pushTapPath = resolvePushTapPath;
@@ -65,6 +65,7 @@ const storeHandlers: Handlers<DouMethods> = {
             raiseStoreNotice(shell);
             throw notImitated(shell, 'FetchProducts');
         }
+        sayWhereTheSandboxLives(shell);
         const products = fakeProducts(store);
         if (!products.length) {
             shell.log.append({ source: 'unsupported', type: 'FetchProducts', data: { message: NO_STORE_SKUS } });

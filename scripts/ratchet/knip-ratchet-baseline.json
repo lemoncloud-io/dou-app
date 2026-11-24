@@ -265,7 +265,7 @@
     "apps/mobile/src/app/webview/utils/injectionScripts.ts": {"type:SyncInjectionScriptParams":1},
     "apps/mobile/src/types/env.d.ts": {"file":1},
     "apps/mobile/src/types/react-native-config.d.ts": {"file":1},
-    "apps/shell-adapter/src/checkout.ts": {"export:SHELL_FILES_CHOICES":1,"export:SHELL_MEDIA_CHOICES":1,"export:storeSkus":1,"type:ShellFilesChoice":1,"type:ShellMediaChoice":1,"type:StoreSkus":1},
+    "apps/shell-adapter/src/checkout.ts": {"export:storeSkus":1,"type:ShellFilesChoice":1,"type:ShellMediaChoice":1,"type:StoreSkus":1},
     "apps/shell-adapter/src/handlers.ts": {"export:NO_STORE_SKUS":1},
     "apps/shell-adapter/src/mobile.d.ts": {"file":1},
     "apps/shell-adapter/src/stubs/reactNativeConfig.ts": {"file":1},
