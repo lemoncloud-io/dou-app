@@ -297,3 +297,10 @@ A downloaded ZIP replaces the remote web, so every step assumes the archive is h
   real Developer ID (`CSC_LINK`) is provided. `afterAllArtifactBuild` signs, notarizes and staples each dmg
   (electron-builder leaves the dmg unsigned, so Gatekeeper rejects the downloaded file); it does nothing without
   notarization credentials.
+- **Korean name.** Spotlight matches an app only by its bundle names, so a search for `두유` found nothing while
+  the bundle said only `DoU`. `afterPack` writes `Contents/Resources/ko.lproj/InfoPlist.strings` with the product
+  name's `DoU` read as the brand in `build/locales/ko.json` (`두유`, `두유 Dev`), and `LSHasLocalizedDisplayName` is
+  set, so a Mac whose primary language is Korean shows and finds the app as `두유`. Spotlight indexes the primary
+  language's name only: with English first and Korean second the search still finds nothing, as it does for
+  Apple's own apps. The hook generates the file instead of shipping a static one under `build/`, so the dev build
+  gets `두유 Dev`. It runs before any signing, so the signature seals it. Windows is not covered.
