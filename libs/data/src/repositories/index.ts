@@ -92,7 +92,7 @@ const buildRepositories = (
             localDataSources.cloud,
             context,
             httpDataSources?.cloud,
-            httpDataSources?.miniApp
+            socketDataSources.miniApp
         ),
         device: new DeviceRepository(socketDataSources.device, context),
         invite: new InviteRepository(socketDataSources.invite, localDataSources.invite, context),

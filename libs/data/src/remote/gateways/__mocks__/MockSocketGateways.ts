@@ -91,4 +91,10 @@ export const createMockSocketGateways = (): MockSocketGatewayBundle => ({
         update: jest.fn(),
         delete: jest.fn(),
     },
+    miniApp: {
+        list: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
+    },
 });

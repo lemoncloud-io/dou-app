@@ -8,6 +8,7 @@ import type {
     DomainGatewayCallOptions,
     InviteGateway,
     JoinGateway,
+    MiniAppGateway,
     PlaceGateway,
     ProfileGateway,
     UploadGateway,
@@ -44,6 +45,8 @@ export type UploadSocketDomainGateway = Pick<UploadGateway, 'start' | 'complete'
 
 export type WebhookSocketDomainGateway = WebhookGateway;
 
+export type MiniAppSocketDomainGateway = Pick<MiniAppGateway, 'list' | 'create' | 'update' | 'delete'>;
+
 export interface SocketGatewayBundle {
     auth: AuthSocketDomainGateway;
     channel: ChannelSocketDomainGateway;
@@ -58,4 +61,5 @@ export interface SocketGatewayBundle {
     profile: ProfileSocketDomainGateway;
     upload: UploadSocketDomainGateway;
     webhook: WebhookSocketDomainGateway;
+    miniApp: MiniAppSocketDomainGateway;
 }

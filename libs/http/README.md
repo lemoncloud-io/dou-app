@@ -200,13 +200,6 @@ libs/http/src/
   field the relay put on a cloud after the backend types this app is pinned to — `miniAppUrl`, the
   owner's mini app link. Only the next major of `@lemoncloud/chatic-backend-api` declares it; when the
   app moves to it, the two aliases go and `CloudView` / `CloudBody` are used as they are.
-- **The mini app wire types (`gateways/miniapps.ts`) are declared there for the same reason.** The
-  relay's `/miniapps` resource arrived after the pinned backend types too, so `RelayMiniAppView` and the
-  two bodies are written out with only the fields the app reads or sends; moving to the next major
-  would move every other type with it, which is a change of its own. The bodies deliberately have no
-  `state$.hold`: the relay refuses a non-admin body in which that key exists at all, even empty, so an
-  owner's request must have no way to carry it. When the app moves to the next major, these become
-  the package's types.
 - **`HttpClientImpl` has no file of its own.** It is private to `client.ts`, and `createHttpClient`
   is the only thing that constructs it.
 - **`HttpLogSink`, `NetworkLogFields` and `HttpMethod` live in `log/networkLog.ts`**, not in
@@ -222,7 +215,7 @@ libs/http/src/
 ## Constraints worth knowing
 
 - **A body-less command still sends `{}`.** The signer signs a missing body as `{}`, so a `DELETE`
-  (mini app delete) sent with no body fails the gateway's signature check, and the refusal reaches a
+  sent with no body fails the gateway's signature check, and the refusal reaches a
   browser without CORS headers, so it looks like a bare network error. The relay gateway also refuses a
   `POST` with no body at all, so the `/pairings` commands send an empty object too.
 - **An error carrying a record is opt-in.** The default stays "an `error` in a 200 body is a failure";
@@ -272,10 +265,8 @@ libs/http/src/
   and the relay does not refuse it on production, so a caller sends it only where it means to. Card
   calls read it per call, not from a record, so every card call of a sandboxed payer needs it; `start`
   also takes `interval` (`10m`, `1h`, `1d`), read only together with `sandbox`.
-- **Mini app list limits.** A cloud holds at most 10 mini apps, which is also the relay's default page
-  size, so `page` and `limit` are not sent. Two adds racing past the cap can leave 11 and the eleventh
-  is not listed; that is a relay limit and is left as it is. Mini app and cloud update bodies for an
-  owner are limited by the relay (an owner may change `miniAppUrl` alone), and `POST /clouds/0/make`
+- **Cloud limits.** A cloud update body for an owner is limited by the relay (an owner may change
+  `miniAppUrl` alone), and `POST /clouds/0/make`
   pins `auto: 1` because the default `auto=0` would create the record without enqueueing provisioning.
 - **Log upload address is read per call.** A deep link (`?_backend=`) can point the session at another
   relay after the gateway is built, and its logs must follow it to that relay's archive stage, so the

@@ -7,12 +7,14 @@ import {
     createDomainGateway,
     createInviteGateway,
     createJoinGateway,
+    createMiniAppGateway,
     createPlaceGateway,
     createProfileGateway,
     createUploadGateway,
     createUserGateway,
     createWebhookGateway,
 } from '@lemoncloud/chatic-sockets-lib';
+import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import {
     createSocketDataSources as createDataSocketDataSources,
@@ -61,6 +63,7 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
     const joinGateway = createJoinGateway(socketClient as any);
     const uploadGateway = createUploadGateway(socketClient as any);
     const webhookGateway = createWebhookGateway(socketClient as any);
+    const miniAppsGateway = createMiniAppGateway(socketClient as unknown as ClientSocketV2);
     const connectionGateway = createDomainGateway('sockets', socketClient as any);
 
     const gateways: SocketGatewayBundle = {
@@ -106,6 +109,7 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
         profile: profileGateway,
         upload: uploadGateway,
         webhook: webhookGateway,
+        miniApp: miniAppsGateway,
     };
 
     return { socketDataSources: createDataSocketDataSources({ gateways }) };

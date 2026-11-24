@@ -1,6 +1,5 @@
 import type {
     CloudHttpGateway,
-    MiniAppHttpGateway,
     OAuthHttpGateway,
     PairingHttpGateway,
     ReportHttpGateway,
@@ -29,7 +28,6 @@ export type CloudHttpDomainGateway = Pick<
     CloudHttpGateway,
     'get' | 'list' | 'update' | 'make' | 'release' | 'workspace' | 'verifyEmail'
 >;
-export type MiniAppHttpDomainGateway = Pick<MiniAppHttpGateway, 'list' | 'create' | 'update' | 'remove'>;
 export type SubscriptionHttpDomainGateway = Pick<
     SubscriptionHttpGateway,
     | 'plans'
@@ -61,7 +59,6 @@ export interface HttpGatewayBundle {
     auth: AuthHttpDomainGateway;
     user: UserHttpDomainGateway;
     cloud: CloudHttpDomainGateway;
-    miniApp: MiniAppHttpDomainGateway;
     subscription: SubscriptionHttpDomainGateway;
     report: ReportHttpDomainGateway;
     pairing: PairingHttpDomainGateway;
