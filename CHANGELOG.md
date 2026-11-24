@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-11-24] - root@0.175.1, @chatic/desktop-web@0.61.1
+
+### Bug Fixes
+
+- (desktop-web) copy messages as [time] author: text lines
+- (desktop-web) copy a message selection in KakaoTalk's shape
+- (desktop-web) bracket the time and mark the author in copied lines
+
 ## [2026-11-24] - No version updates
 
 ### Features
