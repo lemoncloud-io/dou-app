@@ -22,6 +22,9 @@
         "category": "public.app-category.social-networking",
         "hardenedRuntime": true,
         "gatekeeperAssess": false,
+        "extendInfo": {
+            "LSHasLocalizedDisplayName": true
+        },
         "entitlements": "build/entitlements.mac.plist",
         "entitlementsInherit": "build/entitlements.mac.plist"
     },
