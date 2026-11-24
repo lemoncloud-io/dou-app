@@ -8,9 +8,16 @@ import './pageTransitions.css';
 import { logger, setupBridgeLogger, webClient } from '@chatic/bridges';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/runtime';
-import { LATE_VAULT_MARK, resolveStorageStores, setNativeCacheSupport, startRuntime } from '@chatic/runtime-web';
+import {
+    LATE_VAULT_MARK,
+    readWebHostFacts,
+    resolveStorageStores,
+    setNativeCacheSupport,
+    startRuntime,
+} from '@chatic/runtime-web';
 import type { SessionOwnerChoice } from '@chatic/runtime-web';
 
+import { checkoutOptionsOf } from './config/checkoutOptions';
 import { declareWebRuntime } from './config/webRuntime';
 import { syncThemeFromSharedKey } from './app/config/themeSharedKeySync';
 
@@ -43,6 +50,7 @@ import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
 import { setLaunchSessionOwner } from './app/runtime/launchSessionOwner';
 import { recordActiveStores, recordPortChoices } from './app/runtime/activeStorage';
+import { recordCheckoutOptions } from './app/runtime/checkoutOptions';
 import { sendSessionOwnerDefault, sendSessionOwnerDefaultUnasked } from './app/runtime/sessionOwnerDefault';
 import { showSessionOwnerUnsettled } from './app/runtime/sessionOwnerUnsettled';
 import { dropSignedOutKeys } from './app/runtime/signedOutKeys';
@@ -69,7 +77,9 @@ syncThemeFromSharedKey(stores.webLocal);
 const vault = stores.vault;
 const webSessionCopyAtBoot = !vault && runtime.boot.hasWebSessionCopy(stores.webLocal);
 
-const started = startRuntime(declareWebRuntime(stores));
+const declaration = declareWebRuntime(stores);
+const started = startRuntime(declaration);
+recordCheckoutOptions(checkoutOptionsOf(declaration, readWebHostFacts()));
 
 const adoptLateVault = (): void => {
     if (!webSessionCopyAtBoot) runtime.boot.discardWebSessionCopy(stores.webLocal);

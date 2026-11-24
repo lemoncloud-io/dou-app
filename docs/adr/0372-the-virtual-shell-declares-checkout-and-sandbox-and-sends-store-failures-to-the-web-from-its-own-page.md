@@ -44,6 +44,11 @@ buyer at web checkout (ADR-0276).
    only imitates the store, up to the purchase.
 6. **Agents use `window.virtualShell`.** `checkout.set`, `sandbox.set` (each relaunching the app) and
    `status().checkout` / `status().sandbox` carry the same choices and notices.
+7. **The app's debug settings are the second source.** Without the shell, a dev or local build reads the
+   debug setting `checkout.sandbox`; the shell's value wins where there is one, and a production build reads
+   neither. The debug overlay draws `port.checkout` as a list of the runtime's candidate adapters, those the
+   host does not offer disabled, and `checkout.sandbox` as a switch. A dev build says on the checkout screen
+   and in the shell's in-app sandbox notice where the sandbox is changed.
 
 ## Consequences
 

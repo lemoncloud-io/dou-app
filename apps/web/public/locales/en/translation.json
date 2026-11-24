@@ -528,7 +528,8 @@
                     "description": "No real card is used. Pick how the card registration ends.",
                     "register": "Register",
                     "decline": "Decline"
-                }
+                },
+                "changeInSettings": "Sandbox is switched in the debug settings: Config › Checkout sandbox (in the virtual shell, the shell decides)."
             }
         },
         "cloudManage": {

@@ -528,7 +528,8 @@
                     "description": "실제 카드를 쓰지 않습니다. 카드 등록이 어떻게 끝날지 고르세요.",
                     "register": "등록",
                     "decline": "거절"
-                }
+                },
+                "changeInSettings": "Sandbox는 디버그 설정 Config › Checkout sandbox에서 바꿀 수 있습니다(가상 셸에서는 셸이 정합니다)."
             }
         },
         "cloudManage": {

@@ -29,6 +29,8 @@ app, so take a new log cursor after it.
    `s.deeplink('https://app-dev.chatic.io/subscription/checkout')`. The app's own checkout screen opens
    with a sandbox band; it needs an account signed in with Google (a paired shell is refused). With the
    sandbox on, the card window is a stand-in — stop there unless the person asked for a sandbox subscription.
+   Without the shell, a dev browser tab switches the sandbox in the debug overlay's Config
+   (`checkout.sandbox`); inside the shell the shell's value wins.
 4. A refused catalog (prod, localhost): `status().checkout.notice` is `use-web` or `local-no-payment`, and the
    shell page shows the notice. Relay it; never press **Switch to web** or a pay button on prod.
 

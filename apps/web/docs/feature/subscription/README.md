@@ -282,8 +282,10 @@ The route loads the screen only when `runtime.checkout.kind === 'web'`; a store 
 phone and desktop apps) is sent to the picker without loading it, so the store build never requests the chunk
 (`InAppCheckoutRoute.test.tsx`). Only the screen's folder takes values from the library
 (`inAppCheckoutBoundary.test.ts`), and no chunk the web loads at start carries a provider SDK
-(`yarn check:web-payment-sdk` after `nx build web`). The sandbox exists in the virtual shell only: with its
-harness values on, payer calls carry `?sandbox=1` and the card window is the library's stand-in.
+(`yarn check:web-payment-sdk` after `nx build web`). The sandbox has two sources, in this order: the virtual shell's harness value, then the
+debug setting `checkout.sandbox` (debug overlay › Config), which only a dev or local build reads
+(`checkoutSandbox` in `lib/inAppCheckout.ts`). With it on, payer calls carry `?sandbox=1` and the card window
+is the library's stand-in; a dev build says on the screen where to change it.
 
 **On production the website does not sell yet.** Its account pages open on dev hosts only; on the
 production host `/subscription/plans` is the one subscription page, listing the published plans with

@@ -1,6 +1,7 @@
 import { authModule } from './auth';
 import { bridgeModule } from './bridge';
 import { cacheModule } from './cache';
+import { checkoutModule } from './checkout';
 import { debugModule } from './debug';
 import { envModule } from './env';
 import { featureModule } from './feature';
@@ -27,4 +28,5 @@ export const ALL_MODULES: readonly ConfigRegistryModule[] = [
     syncModule,
     cacheModule,
     portModule,
+    checkoutModule,
 ];

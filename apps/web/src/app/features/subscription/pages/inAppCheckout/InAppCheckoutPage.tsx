@@ -23,7 +23,8 @@ import { Button, IconBack, IconButton, ModalTopBar, ScreenLayout, SelectableCard
 
 import { subscriptionKeys } from '../../../../hooks/queryKeys';
 import { tabStore } from '../../../../storage';
-import { checkoutSandbox, IN_APP_CHECKOUT_PATH } from '../../lib';
+import { IS_DEV } from '../../consts';
+import { CHECKOUT_SANDBOX_KEY, checkoutSandbox, IN_APP_CHECKOUT_PATH } from '../../lib';
 import { StandInCardDialog } from './StandInCardDialog';
 import { StripeCardPanel } from './StripeCardPanel';
 import { buyPlan, createInAppPaymentPort, mainUserOf, type InAppCheckoutOutcome } from './flow';
@@ -62,7 +63,7 @@ export const InAppCheckoutPage = () => {
     const queryClient = useQueryClient();
     const [search] = useSearchParams();
     const { subscription } = runtime.data.useRuntimeRepositories();
-    const sandbox = checkoutSandbox(runtime.checkout);
+    const sandbox = checkoutSandbox(runtime.checkout, runtime.settings.get(CHECKOUT_SANDBOX_KEY), IS_DEV).on;
 
     const [standIn, setStandIn] = useState<StandIn | null>(null);
     const cardEntry = useMemo(() => createCardEntryChannel(), []);
@@ -155,6 +156,11 @@ export const InAppCheckoutPage = () => {
             {sandbox && (
                 <p role="status" className="bg-amber-500 px-4 py-1 text-center text-[13px] font-medium text-white">
                     {t('mypage.subscription.inAppCheckout.sandboxBand')}
+                </p>
+            )}
+            {IS_DEV && (
+                <p className="px-4 pt-2 text-center text-[12px] text-muted-foreground">
+                    {t('mypage.subscription.inAppCheckout.changeInSettings')}
                 </p>
             )}
             <div className="flex flex-col gap-4 px-4 py-5">

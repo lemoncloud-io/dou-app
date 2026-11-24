@@ -22,7 +22,8 @@ export const LOCAL_NO_PAYMENT_NOTICE = 'Payments cannot be checked against the l
 
 export const IN_APP_SANDBOX_NOTICE =
     "The real in-app sandbox is set on the device and the store (a store test account in the device's settings, a test build), not here. " +
-    'The sandbox switched on here imitates the virtual store, and is checked up to the purchase only.';
+    'The sandbox switched on here imitates the virtual store, and is checked up to the purchase only. ' +
+    "Outside the shell, the app's debug settings switch it (Config › Checkout sandbox); here the shell's choice wins.";
 
 interface NoticeCard {
     id: 'checkout' | 'sandbox';

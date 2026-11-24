@@ -13,7 +13,7 @@ value.
 ```text
 libs/config/src/registry/
 ├── index.ts       ConfigRegistry (merge · get · has · keys) + findPolicyViolations
-├── modules.ts     ALL_MODULES — the 13 domain modules, in merge order
+├── modules.ts     ALL_MODULES — the 14 domain modules, in merge order
 ├── system.ts   2  the two keys the lane machinery itself needs
 ├── env.ts     13  read-only build facts
 ├── net.ts     12  endpoints, deeplink schemes, HTTP retry
@@ -26,14 +26,15 @@ libs/config/src/registry/
 ├── limit.ts    4  operational guardrails
 ├── cache.ts    3  cache TTLs
 ├── bridge.ts   2  bridge request and handshake timeouts
-└── port.ts    15  which adapter fills each port, and which engine runs
+├── port.ts    15  which adapter fills each port, and which engine runs
+└── checkout.ts 1  the web checkout's sandbox, a developer lever
 ```
 
-111 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
+112 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
 what proves it:
 
 ```bash
-grep -chE "^    '" libs/config/src/registry/{system,env,net,ui,log,debug,feature,limit,bridge,auth,sync,cache,port}.ts
+grep -chE "^    '" libs/config/src/registry/{system,env,net,ui,log,debug,feature,limit,bridge,auth,sync,cache,port,checkout}.ts
 ```
 
 The split is by domain because one file past eighty keys stops being readable, not because the
@@ -86,7 +87,7 @@ Measured from the source, and asserted in `allModules.spec.ts`.
 | ---------- | ---: | ------------------------------------------------------------------------------------------------------------------------- |
 | `user`     |    4 | Settings and its notification sub-page. A hand-built row per key, not a generated one                                     |
 | `labs`     |    2 | The Lab page's Experiments card. A hand-built row per key, like `user`; `feature.placeInvite` and `feature.chatInputLock` |
-| `dev`      |   84 | The web debug overlay's `ConfigScreen`, which lists them all and edits the ones this device may write                     |
+| `dev`      |   86 | The web debug overlay's `ConfigScreen`, which lists them all and edits the ones this device may write                     |
 | `internal` |   20 | Nowhere. Code reads it, or product UI writes it through a flow of its own                                                 |
 
 **Declaring a surface does not create a screen.** There is no renderer that walks the registry and
@@ -114,13 +115,13 @@ lists keys is copyable.
 
 ### Distribution, and what it tells you
 
-| Axis            | Counts                                                                                                                       |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `writableBy`    | `['local','server']` 35 · `[]` 22 · `['local']` 22 · `['shell','local','server']` 15 · `['shell','local']` 9 · `['shell']` 6 |
-| `persist`       | `session` 43 · `local` 31 · `none` 26 · `shell` 9                                                                            |
-| `appliesAt`     | absent 61 · `live` 26 · `restart` 19 · `reconnect` 3                                                                         |
-| Declared rules  | `byStage` 13 · `byPlatform` **0** · `envDefaultKey` 32 · `pattern` 15                                                        |
-| Server-writable | 50 of 109                                                                                                                    |
+| Axis            | Counts                                                                                                                        |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `writableBy`    | `['local','server']` 35 · `[]` 22 · `['local']` 22 · `['shell','local','server']` 15 · `['shell','local']` 10 · `['shell']` 6 |
+| `persist`       | `session` 43 · `local` 32 · `none` 26 · `shell` 9                                                                             |
+| `appliesAt`     | absent 61 · `live` 26 · `restart` 20 · `reconnect` 3                                                                          |
+| Declared rules  | `byStage` 13 · `byPlatform` **0** · `envDefaultKey` 32 · `pattern` 15                                                         |
+| Server-writable | 50 of 109                                                                                                                     |
 
 Two readings worth carrying.
 
@@ -180,6 +181,15 @@ for exactly that reason and asks the registry only whether someone overrode the 
 Three keys bypass this mechanism entirely. `env.stage`, `env.buildStage` and `env.platform` are read
 straight off the adapter's dedicated methods, so their `defaultValue` and `writableBy` exist for
 shape only and are never reached.
+
+### The checkout sandbox — `checkout.sandbox`
+
+A `boolean`, `surface: dev`, `writableBy: ['shell','local']`, kept on this device and applied at the next
+start. On, the web app's in-app checkout sends its payer calls with `?sandbox=1`, which the payment server
+answers with its mock provider. The app reads it only in a dev or local build, and a virtual shell's own
+sandbox wins over it (`apps/web/docs/feature/subscription/README.md` § 6). The web debug overlay draws it as a
+switch, and draws `port.checkout` as a list of the runtime's candidate adapters, those the host does not
+offer disabled.
 
 ### Port choices — `port.*`
 

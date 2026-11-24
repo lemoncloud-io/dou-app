@@ -191,6 +191,11 @@ the sandbox: the calls carry `?sandbox=1` and the card window is a stand-in (the
 provider: no real card, no charge). The account must be signed in with Google; a guest or a paired device is
 refused by the server.
 
+**From the app's debug settings.** Without the shell, a dev or local build of the web switches the same two
+things in its debug overlay, Config: `port.checkout` is a list of the runtime's candidate adapters (those the
+host does not offer are disabled) and `checkout.sandbox` is a switch, both applied at the next start. Inside
+the shell the shell's sandbox wins, and Config says so.
+
 **Which subscription website.** What still leaves for the subscription website — managing a subscription —
 goes to this one. `DOU_SHELL_SUBSCRIPTION_WEB=<origin>` names a subscription website running
 on this machine (`dou-landing` on dev, `dou-landing-prod` on prod). The shell asks it once when it starts

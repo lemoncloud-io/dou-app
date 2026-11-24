@@ -38,6 +38,7 @@ const SUBSCRIPTION_KEYS = [
     'toWebCheckout',
     'inAppCheckout.title',
     'inAppCheckout.sandboxBand',
+    'inAppCheckout.changeInSettings',
     'inAppCheckout.signInRequired',
     'inAppCheckout.subscribe',
     'inAppCheckout.standIn.register',

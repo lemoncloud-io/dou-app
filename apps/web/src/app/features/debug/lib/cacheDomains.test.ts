@@ -77,7 +77,10 @@ describe('loadDomainRows', () => {
 
         const result = await loadDomainRows(g, cacheDomain('chat'), { perChannelLimit: 5 });
 
-        expect(chat.cacheReadList.mock.calls).toEqual([[{ channelId: 'ch1', limit: 5 }], [{ channelId: 'ch2', limit: 5 }]]);
+        expect(chat.cacheReadList.mock.calls).toEqual([
+            [{ channelId: 'ch1', limit: 5 }],
+            [{ channelId: 'ch2', limit: 5 }],
+        ]);
         expect(result.rows).toEqual([{ id: 'm-ch1' }, { id: 'm-ch2' }]);
     });
 
