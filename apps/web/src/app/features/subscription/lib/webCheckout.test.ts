@@ -49,11 +49,22 @@ describe('canCheckoutOnWeb', () => {
 
 describe('isHeldByWeb', () => {
     it('holds while a receipt the website bills is running', () => {
-        expect(isHeldByWeb({ hasLiveReceipt: true }, 'stripe')).toBe(true);
+        expect(isHeldByWeb({ hasLiveReceipt: true, isEntitled: true }, 'stripe')).toBe(true);
     });
 
-    it('does not hold for a lapsed website receipt, or a running store one', () => {
-        expect(isHeldByWeb({ hasLiveReceipt: false }, 'portone')).toBe(false);
-        expect(isHeldByWeb({ hasLiveReceipt: true }, 'google')).toBe(false);
+    it('holds while an admin grant sits on a lapsed website receipt, as the relay counts it', () => {
+        expect(isHeldByWeb({ hasLiveReceipt: false, isAdminOverridden: true, isEntitled: true }, 'portone')).toBe(true);
+    });
+
+    it('holds while a website renewal payment is still being confirmed', () => {
+        expect(isHeldByWeb({ hasLiveReceipt: false, isEntitled: false }, 'portone', 'pending')).toBe(true);
+    });
+
+    it('does not hold for a lapsed or admin-blocked website receipt, or a running store one', () => {
+        expect(isHeldByWeb({ hasLiveReceipt: false, isEntitled: false }, 'portone', 'expired')).toBe(false);
+        expect(isHeldByWeb({ hasLiveReceipt: false, isAdminOverridden: true, isEntitled: false }, 'stripe')).toBe(
+            false
+        );
+        expect(isHeldByWeb({ hasLiveReceipt: true, isEntitled: true }, 'google', 'pending')).toBe(false);
     });
 });

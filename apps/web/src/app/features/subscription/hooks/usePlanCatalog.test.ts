@@ -105,6 +105,26 @@ describe('usePlanCatalog — a membership the website bills', () => {
         expect(catalog.sellablePlans.map(plan => plan.platform)).toEqual(['apple', 'apple']);
         expect(catalog.isOtherStore).toBe(true);
     });
+
+    const lapsed = (extra: Record<string, unknown> = {}) => ({
+        ...running('#dou-web-stripe-tier-02_dev', 'stripe'),
+        status: 'expired',
+        isValid: false,
+        validUntil: NOW - DAY,
+        ...extra,
+    });
+
+    it("once lapsed, lets this store sell again, at the lapsed tier's equal", () => {
+        const catalog = catalogFor(lapsed());
+
+        expect(catalog.isOtherStore).toBe(false);
+        expect(catalog.resubscribePlan?.id).toBe('#pro_tier_02_dev');
+    });
+
+    it('still counts as another store while the relay does: a renewal being confirmed, or an admin grant', () => {
+        expect(catalogFor(lapsed({ status: 'pending' })).isOtherStore).toBe(true);
+        expect(catalogFor(lapsed({ adminStatus: 'active', adminUntil: NOW + DAY })).isOtherStore).toBe(true);
+    });
 });
 
 describe('usePlanCatalog — anyone else', () => {
