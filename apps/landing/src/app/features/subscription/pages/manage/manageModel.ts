@@ -1,9 +1,9 @@
-import { changeKindOf } from '../../lib/changeKindOf';
+import { changeKindOf } from '@chatic/web-checkout';
 import { ddayOf } from '../../lib/ddayOf';
 import { isLive, sceneOf } from '../../lib/sceneOf';
 
 import type { SceneBanner } from '../../lib/sceneOf';
-import type { Account, PaymentMethod, Plan, Subscription } from '../../types';
+import type { Account, PaymentMethod, Plan, Subscription } from '@chatic/web-checkout';
 
 export const splitSubscriptions = (subs: Subscription[]): { live?: Subscription; ended: Subscription[] } => {
     const endedOn = (sub: Subscription) => sub.expiredAt ?? sub.endsAt ?? sub.startedAt;

@@ -1,16 +1,16 @@
 import { type ComponentType, type ReactNode, createElement, lazy, Suspense } from 'react';
 
-import { type CardEntryChannel, createCardEntryChannel } from '../cardEntry';
-import { HTTP_METHODS, type HttpPort } from './methods';
-import { createSandboxWindow } from './sandboxWindow';
+import { type CardEntryChannel, createCardEntryChannel } from '@chatic/web-checkout';
+import { HTTP_METHODS, type HttpPort } from '@chatic/web-checkout';
+import { createSandboxWindow } from '@chatic/web-checkout';
 
 import type { HttpSandbox } from './createHttpPort';
-import type { PaymentWindowHost } from '../standInWindow';
+import type { PaymentWindowHost } from '@chatic/web-checkout';
 
 import type * as Live from './live';
 import type { SubscriptionServer } from '../../../../../config/subscriptionServer';
 
-export { HTTP_METHODS, type HttpMethod, type HttpPort } from './methods';
+export { HTTP_METHODS, type HttpMethod, type HttpPort } from '@chatic/web-checkout';
 export type { HttpSandbox, PaymentWindow, PaymentWindowResult } from './createHttpPort';
 
 export interface HttpSetup {

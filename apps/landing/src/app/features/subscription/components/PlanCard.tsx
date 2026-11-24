@@ -5,7 +5,7 @@ import radioChecked from '../../../../assets/subscription/radio-checked.svg';
 import radioUnchecked from '../../../../assets/subscription/radio-unchecked.svg';
 import { cn, formatMoney } from '../utils';
 
-import type { Plan } from '../types';
+import type { Plan } from '@chatic/web-checkout';
 
 export const PlanCard = ({
     plan,

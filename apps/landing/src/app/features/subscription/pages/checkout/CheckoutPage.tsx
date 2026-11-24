@@ -6,7 +6,7 @@ import { ROUTES } from '../../../../routes/paths';
 import { BillingEmailChangeDialog, PageLoader, PayerFields, accountLabel } from '../../components';
 import { Badge, Banner, Button, Card, Spinner } from '../../components/ui';
 import { useBillingInfo, useForeignBilling, usePreviewCheckout } from '../../hooks';
-import { KOREA, currencyOfCountry, payerRequiredIn } from '../../lib/billingCountry';
+import { KOREA, currencyOfCountry, payerRequiredIn } from '@chatic/web-checkout';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { useManagementScreens } from '../../lib/screens';
 import { EMPTY_PAYER, type PayerDraft, payerEmailOf, payerOf } from '../../lib/payer';
@@ -28,7 +28,7 @@ import {
 import { CheckoutLayout, CheckoutSteps, CheckoutSummary, LoadError } from './parts';
 import { usePlanRoute } from './usePlanRoute';
 
-import type { CheckoutPreview } from '../../types';
+import type { CheckoutPreview } from '@chatic/web-checkout';
 
 const CARD = 'flex flex-col gap-3.5 rounded-[14px] border-line p-4 md:rounded-2xl md:px-[25px] md:py-[21px]';
 const CARD_TITLE = 'text-sm font-bold text-ink';

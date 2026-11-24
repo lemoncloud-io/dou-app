@@ -1,4 +1,4 @@
-import { toIsoDate } from '../../calendar';
+import { toIsoDate } from '../calendar';
 
 import type {
     Account,
@@ -13,7 +13,7 @@ import type {
     PlanId,
     Subscription,
     SubscriptionStatus,
-} from '../../../types';
+} from '../types';
 
 export interface ProductWire {
     id?: string;

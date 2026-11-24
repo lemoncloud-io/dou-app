@@ -1,8 +1,8 @@
-import { addDays } from '../../lib/calendar';
+import { addDays } from '@chatic/web-checkout';
 import { MOCK_POLICY, planOf } from './policy';
 
 import type { ConsentChoice, MockState, ScenarioId } from './state';
-import type { Account, BillingEmail, Invoice, PaymentMethod, PlanId, Subscription } from '../../types';
+import type { Account, BillingEmail, Invoice, PaymentMethod, PlanId, Subscription } from '@chatic/web-checkout';
 
 const DEFAULT_TODAY = '2026-11-01';
 

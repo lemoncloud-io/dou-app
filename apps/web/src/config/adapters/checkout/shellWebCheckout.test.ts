@@ -40,15 +40,23 @@ describe('hybridWebCheckout', () => {
 });
 
 describe('shellWebCheckout', () => {
-    it('opens the shell checkout screen with the local address and the sandbox, and stays in the app', () => {
+    it('opens the in-app shell checkout screen, carrying the sandbox, and stays in the app', () => {
         const checkout = shellWebCheckout({ version: 1, sandbox: true, subscriptionWeb: 'http://localhost:5004' });
         const open = jest.fn();
         checkout.shellScreen.bind(open);
 
         checkout.open(plans, { replace: true });
 
-        expect(open).toHaveBeenCalledWith({ url: 'http://localhost:5004/subscription/plans?sandbox=1', replace: true });
+        expect(open).toHaveBeenCalledWith({ replace: true });
+        expect(checkout.shellScreen.sandbox).toBe(true);
         expect(leaveForWeb).not.toHaveBeenCalled();
+    });
+
+    it('leaves for the local subscription website with the sandbox when no screen is bound', () => {
+        shellWebCheckout({ version: 1, sandbox: true, subscriptionWeb: 'http://localhost:5004' }).open(plans);
+        expect(leaveForWeb).toHaveBeenCalledWith('http://localhost:5004/subscription/plans?sandbox=1', {
+            replace: false,
+        });
     });
 
     it('leaves for the website when no screen is bound, or once it is unbound', () => {

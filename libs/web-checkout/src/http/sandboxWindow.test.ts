@@ -1,7 +1,5 @@
 import { createSandboxWindow } from './sandboxWindow';
 
-import type { PaymentWindowPresenter } from '../standInWindow';
-
 const request = {
     issue: {
         provider: 'portone' as const,
@@ -21,7 +19,7 @@ const request = {
 describe('createSandboxWindow', () => {
     it('asks the stand-in window, and turns a registered card into a made-up token', async () => {
         const { host, paymentWindow } = createSandboxWindow(() => 'sandbox-abc');
-        const presenter = vi.fn<PaymentWindowPresenter>(async () => 'registered');
+        const presenter = jest.fn(async () => 'registered') as jest.Mock;
         host.setPaymentWindow(presenter);
 
         expect(await paymentWindow(request)).toEqual({ outcome: 'registered', billingKey: 'sandbox-abc' });

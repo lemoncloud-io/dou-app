@@ -3,23 +3,24 @@ import { readShellHarness, shellCheckoutUrl, type ShellHarness, type WebCheckout
 
 import { leaveForWeb, webCheckout } from './webCheckout';
 
-export interface ShellCheckoutRequest {
-    readonly url: string;
+interface ShellCheckoutRequest {
     readonly replace: boolean;
 }
 
-export interface ShellCheckoutScreen {
+interface ShellCheckoutScreen {
+    readonly sandbox: boolean;
+    readonly subscriptionWeb?: string;
     bind(open: (request: ShellCheckoutRequest) => void): () => void;
 }
 
-export interface ShellWebCheckout extends WebCheckout {
+interface ShellWebCheckout extends WebCheckout {
     readonly shellScreen: ShellCheckoutScreen;
 }
 
 export const isProductionBuild = (env: string | undefined = import.meta.env.VITE_ENV): boolean =>
     env !== 'DEV' && env !== 'LOCAL';
 
-export const shellHarness = (page: object | undefined = globalThis.window): ShellHarness | null =>
+const shellHarness = (page: object | undefined = globalThis.window): ShellHarness | null =>
     readShellHarness(page, { productionBuild: isProductionBuild() });
 
 export const shellWebCheckout = (harness: ShellHarness): ShellWebCheckout => {
@@ -27,6 +28,8 @@ export const shellWebCheckout = (harness: ShellHarness): ShellWebCheckout => {
     return {
         kind: 'web',
         shellScreen: {
+            sandbox: harness.sandbox,
+            ...(harness.subscriptionWeb ? { subscriptionWeb: harness.subscriptionWeb } : {}),
             bind: open => {
                 screen = open;
                 return () => {
@@ -35,8 +38,8 @@ export const shellWebCheckout = (harness: ShellHarness): ShellWebCheckout => {
             },
         },
         open: (url, { replace = false } = {}) => {
+            if (screen) return screen({ replace });
             const target = shellCheckoutUrl(url, harness);
-            if (screen) return screen({ url: target, replace });
             logger.warn(
                 'iap.shell_checkout_unanswered',
                 '[checkout] no shell checkout screen; leaving for the website'

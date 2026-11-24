@@ -1,4 +1,4 @@
-import { SubscriptionPortError, type SubscriptionPortErrorCode } from '../errors';
+import { SubscriptionPortError, type SubscriptionPortErrorCode } from '../port/errors';
 
 export const isDeclinedPayment = (error: unknown): boolean => {
     const { status, message } = failureOf(error);

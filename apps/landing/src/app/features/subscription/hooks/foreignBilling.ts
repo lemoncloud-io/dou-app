@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { type ForeignBilling, foreignBillingOf } from '../lib/billingCountry';
+import { type ForeignBilling, foreignBillingOf } from '@chatic/web-checkout';
 import { usePort } from '../lib/port';
 import { subscriptionKeys } from './keys';
 import { useSession } from './session';

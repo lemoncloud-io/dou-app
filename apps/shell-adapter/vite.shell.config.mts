@@ -51,7 +51,7 @@ const STORE_SKUS = {
     androidPlans: listOf(mobileDevEnv['VITE_SUBSCRIPTION_IAP_PLANS_ANDROID']),
 };
 
-export const answeringOrigin = async (
+const answeringOrigin = async (
     value: string | undefined,
     request: typeof fetch = globalThis.fetch
 ): Promise<string> => {

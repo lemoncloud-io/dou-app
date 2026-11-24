@@ -1,4 +1,4 @@
-import type { CardEntryConfirmation } from '../cardEntry';
+import type { CardEntryConfirmation } from '../port/cardEntry';
 
 export interface SetupAnswer {
     error?: { type?: string; code?: string };

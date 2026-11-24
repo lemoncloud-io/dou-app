@@ -25,7 +25,7 @@ import { useResumeFlow } from './useResumeFlow';
 import { commonErrorKey } from '../../lib/errorKey';
 
 import type { SubscriptionPort } from '../../lib/port';
-import type { PaymentMethod, Subscription } from '../../types';
+import type { PaymentMethod, Subscription } from '@chatic/web-checkout';
 import type { TFunction } from 'i18next';
 
 const PILL = 'rounded-full';

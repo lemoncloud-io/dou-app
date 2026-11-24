@@ -1,6 +1,6 @@
 import { isLive } from './sceneOf';
 
-import type { PaymentMethod, Subscription } from '../types';
+import type { PaymentMethod, Subscription } from '@chatic/web-checkout';
 
 export type RemovalCheck = 'ok' | 'default' | 'last';
 

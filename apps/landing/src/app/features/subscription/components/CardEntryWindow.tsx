@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { Banner, Button, Dialog, Spinner } from './ui';
 import { formatDate, formatMoney } from '../utils';
 
-import type { CardEntryChannel, CardEntryRequest } from '../lib/port/cardEntry';
+import type { CardEntryChannel, CardEntryRequest } from '@chatic/web-checkout';
 
 export const CardEntryWindow = ({ channel }: { channel: CardEntryChannel }): JSX.Element | null => {
     const request = useSyncExternalStore(channel.subscribe, channel.pending, () => null);

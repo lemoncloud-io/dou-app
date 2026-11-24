@@ -8,7 +8,7 @@ export const CHECKOUT_STORE_KEY = 'dou.checkout';
 export const SANDBOX_STORE_KEY = 'dou.sandbox';
 export const SUBSCRIPTION_WEB_STORE_KEY = 'dou.subscriptionWeb';
 
-export const DEFAULT_CHECKOUT: ShellCheckoutChoice = 'store';
+const DEFAULT_CHECKOUT: ShellCheckoutChoice = 'store';
 
 export interface StoreSkus {
     ios: string[];
@@ -93,7 +93,7 @@ export interface CheckoutPlan {
     display: string | undefined;
 }
 
-export interface CheckoutPlanInput {
+interface CheckoutPlanInput {
     env: ShellEnv | undefined;
     choice: ShellCheckoutChoice;
     platform: string | undefined;
@@ -175,7 +175,7 @@ export const HARNESS_GLOBAL = 'CHATIC_SHELL_HARNESS';
 export const harnessScript = (harness: ShellHarness | undefined): string =>
     harness ? `\nwindow.${HARNESS_GLOBAL} = ${JSON.stringify(harness)};\n` : '';
 
-export const subscriptionWebFromEnv = (): string | undefined =>
+const subscriptionWebFromEnv = (): string | undefined =>
     typeof __DOU_SHELL_SUBSCRIPTION_WEB__ === 'string' && __DOU_SHELL_SUBSCRIPTION_WEB__
         ? __DOU_SHELL_SUBSCRIPTION_WEB__
         : undefined;

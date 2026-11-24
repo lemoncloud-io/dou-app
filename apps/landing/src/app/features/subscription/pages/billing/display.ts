@@ -1,6 +1,6 @@
 import { ddayOf } from '../../lib/ddayOf';
 
-import type { BillingEmailReceives, PaymentMethod, Subscription } from '../../types';
+import type { BillingEmailReceives, PaymentMethod, Subscription } from '@chatic/web-checkout';
 
 export const cardExpiry = ({ expMonth, expYear }: Pick<PaymentMethod, 'expMonth' | 'expYear'>): string | undefined =>
     expMonth && expYear ? `${String(expMonth).padStart(2, '0')}/${String(expYear % 100).padStart(2, '0')}` : undefined;

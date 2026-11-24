@@ -1,6 +1,6 @@
 import { type JSX, type ReactNode, createContext, useContext } from 'react';
 
-import type { SubscriptionPort } from './SubscriptionPort';
+import type { SubscriptionPort } from '@chatic/web-checkout';
 
 export interface Clock {
     now(): Date;

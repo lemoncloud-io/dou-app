@@ -1,4 +1,4 @@
-import type { SubscriptionPort } from '../SubscriptionPort';
+import type { SubscriptionPort } from '../port/SubscriptionPort';
 
 export const HTTP_METHODS = [
     'getSession',

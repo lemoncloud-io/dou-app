@@ -8,7 +8,7 @@ import { cn, formatDate, formatMoney } from '../../utils';
 import { BillingPageHeader, LoadFailed } from './BillingPage';
 import { nextRetryOf } from './display';
 
-import type { Invoice } from '../../types';
+import type { Invoice } from '@chatic/web-checkout';
 
 const RESULT: Record<Invoice['status'], string> = {
     paid: 'text-[#167a4a] md:bg-note md:text-ink',

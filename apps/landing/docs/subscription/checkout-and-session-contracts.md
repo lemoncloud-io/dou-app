@@ -1,6 +1,6 @@
 # Checkout and session contracts
 
-## How the HTTP port reads the server's refusals (`lib/port/http/errors.ts`)
+## How the HTTP port reads the server's refusals (`errors.ts` in `@chatic/web-checkout`)
 
 - A `403` is a lost session, except `main user only` (a guest account: `notAllowed`, the reader stays signed in) and,
   on the two calls that charge (the checkout's start and an upgrade), a message containing `INVALID PAYMENT`, which is a

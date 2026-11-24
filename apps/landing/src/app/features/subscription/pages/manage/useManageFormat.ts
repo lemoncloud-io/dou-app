@@ -4,7 +4,7 @@ import { usePlans } from '../../hooks';
 import { formatDate, formatMoney } from '../../utils';
 import { ddayParts, monthDay } from './manageModel';
 
-import type { Money, PaymentMethod, Plan, PlanId } from '../../types';
+import type { Money, PaymentMethod, Plan, PlanId } from '@chatic/web-checkout';
 
 export const useManageFormat = () => {
     const { t, i18n } = useTranslation();

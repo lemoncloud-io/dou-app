@@ -1,4 +1,4 @@
-import type { Currency, Plan } from '../types';
+import type { Currency, Plan } from './types';
 
 export const PRICE_PER_TIER: Record<Currency, number> = { KRW: 8900, USD: 680 };
 export const TRIAL_DAYS = 7;

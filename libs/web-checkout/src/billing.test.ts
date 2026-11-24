@@ -16,7 +16,7 @@ import { PLAN_CATALOG, planCatalogIn } from './catalog';
 import { cardGroupsOf, cardsOf, defaultCardOf } from './paymentMethods';
 import { type CardEntryRequest, createCardEntryChannel } from './port/cardEntry';
 
-import type { PaymentMethod } from '../types';
+import type { PaymentMethod } from './types';
 
 const card = (id: string, provider: PaymentMethod['provider'], isDefault = false): PaymentMethod => ({
     id,
@@ -158,7 +158,7 @@ describe('the card entry channel', () => {
 
     it('shows one request and resolves it with how the dialog ended', async () => {
         const channel = createCardEntryChannel();
-        const listener = vi.fn();
+        const listener = jest.fn();
         channel.subscribe(listener);
         const first = request();
         const done = channel.open(first);

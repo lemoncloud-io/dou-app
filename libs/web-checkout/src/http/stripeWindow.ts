@@ -4,8 +4,8 @@ import type { Appearance, Stripe, StripeElements, StripePaymentElement } from '@
 
 import { setupConfirmationOf } from './stripeResult';
 
-import type { PaymentWindow, PaymentWindowResult } from './createHttpPort';
-import type { CardEntryChannel } from '../cardEntry';
+import type { PaymentWindow, PaymentWindowResult } from './paymentPort';
+import type { CardEntryChannel } from '../port/cardEntry';
 
 const APPEARANCE: Appearance = {
     theme: 'stripe',

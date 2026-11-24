@@ -5,7 +5,7 @@ import { Banner, type BannerTone } from '../../components/ui';
 
 import type { ManageFormat } from './useManageFormat';
 import type { SceneBanner } from '../../lib/sceneOf';
-import type { PaymentMethod, Subscription } from '../../types';
+import type { PaymentMethod, Subscription } from '@chatic/web-checkout';
 
 const TONE: Record<SceneBanner['kind'] | 'replaced', BannerTone> = {
     pending: 'info',

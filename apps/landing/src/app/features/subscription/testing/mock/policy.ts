@@ -1,6 +1,6 @@
-import { PLAN_CATALOG, PRICE_PER_TIER, TRIAL_DAYS, planCatalogIn } from '../../lib/catalog';
+import { PLAN_CATALOG, PRICE_PER_TIER, TRIAL_DAYS, planCatalogIn } from '@chatic/web-checkout';
 
-import type { Currency, Plan } from '../../types';
+import type { Currency, Plan } from '@chatic/web-checkout';
 
 export const MOCK_POLICY = {
     pricePerTier: PRICE_PER_TIER,

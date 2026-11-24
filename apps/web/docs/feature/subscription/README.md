@@ -268,14 +268,20 @@ the web" (the website's list); its banners open the latter too. A store's subscr
 `otherStore` note naming the store instead of a button — or, when the membership names no store, the
 `mobileOnly` line, which is true of it: only the app can change a store's subscription.
 
-**In the virtual shell the website opens inside the app.** Where the virtual shell declares `['web']`
-and injected its harness values, `runtime.checkout` carries a shell screen (`shellCheckoutScreen`), and
-only then do the routes register `shell-checkout` and bind the port to the router
-(`ShellCheckoutRequests`). The hand-off then replaces the picker with `ShellCheckoutPage`, which frames
-the website's page under the app's header (on a local subscription website when one answered, with
-`?sandbox=1` when the sandbox is on) and reads the membership again on focus and on leaving. The app's
-phone build never gets that screen: the mobile app declares a store and injects no harness values, and a
-production build ignores them ([shell-adapter § Checkout](../../../../shell-adapter/README.md#checkout)).
+**In the virtual shell the app sells itself, with the app's sign-in.** Where the virtual shell declares
+`['web']` and injected its harness values, `runtime.checkout` carries a shell screen (`shellCheckoutScreen`);
+only then, and only in a dev or local build, do the routes register `shell-checkout` and bind the port to the
+router (`ShellCheckoutRequests`). The hand-off then opens `pages/shellCheckout/ShellCheckoutPage` instead of
+the website: a billing country, the plans, the payer fields the won provider needs, then a card window and the
+start of the subscription — with the app's own session, so there is no second sign-in. The calls, the
+provider windows and the rules come from [`@chatic/web-checkout`](../../../../../libs/web-checkout/README.md),
+shared with the website; the screen and its words are this app's. With the sandbox on, every payer call
+carries `?sandbox=1` and the card window is the library's stand-in, so no provider SDK loads; otherwise the
+won provider's or the dollar provider's window opens, as on the website. The server answers these calls for
+an account's main user only, so a guest or a paired device is told to sign in with Google. Leaving the
+screen re-reads the membership. The screen is lazy-loaded behind `VITE_ENV === 'DEV' || 'LOCAL'`, so a
+production build — the one the phone app loads — carries neither it nor the provider SDKs
+(`shellCheckoutBoundary.test.ts`, and `yarn check:web-payment-sdk` on a build).
 
 **On production the website does not sell yet.** Its account pages open on dev hosts only; on the
 production host `/subscription/plans` is the one subscription page, listing the published plans with

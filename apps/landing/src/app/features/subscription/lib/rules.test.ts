@@ -1,12 +1,12 @@
 import { primaryVerifiedEmail } from './billingEmail';
-import { addDays, addMonths, toIsoDate } from './calendar';
+import { addDays, addMonths, toIsoDate } from '@chatic/web-checkout';
 import { canRemovePaymentMethod } from './canRemovePaymentMethod';
-import { changeKindOf } from './changeKindOf';
+import { changeKindOf } from '@chatic/web-checkout';
 import { ddayOf } from './ddayOf';
 import { landingAfterSignIn, safeNext } from './safeNext';
 import { sceneOf } from './sceneOf';
 
-import type { Account, BillingEmail, PaymentMethod, Plan, Subscription } from '../types';
+import type { Account, BillingEmail, PaymentMethod, Plan, Subscription } from '@chatic/web-checkout';
 
 const plan = (sort: Plan['sort']): Plan => ({
     id: `pro-tier-0${sort}` as Plan['id'],

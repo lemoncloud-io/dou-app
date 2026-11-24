@@ -1,4 +1,4 @@
-import type { PaymentWindowResult } from './createHttpPort';
+import type { PaymentWindowResult } from './paymentPort';
 
 const USER_CANCELLED = /취소/;
 

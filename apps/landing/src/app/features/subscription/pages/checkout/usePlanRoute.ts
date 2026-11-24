@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useCurrentSubscription, usePlans, useSession, useSubscriptions } from '../../hooks';
 import { checkoutRouteFor, planFromQuery } from './flow';
 
-import type { Plan, Subscription } from '../../types';
+import type { Plan, Subscription } from '@chatic/web-checkout';
 
 export const usePlanRoute = (): {
     loading: boolean;

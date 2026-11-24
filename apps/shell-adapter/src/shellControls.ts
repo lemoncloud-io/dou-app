@@ -15,7 +15,7 @@ import {
 
 export const USE_WEB_ACTION = 'Switch to web';
 
-export const useWebNotice = (env: string | undefined): string =>
+const useWebNotice = (env: string | undefined): string =>
     `In-app product details cannot be loaded in this environment (${env ?? 'unknown'}). Switch the checkout to web to continue.`;
 
 export const LOCAL_NO_PAYMENT_NOTICE = 'Payments cannot be checked against the local backend.';
@@ -24,7 +24,7 @@ export const IN_APP_SANDBOX_NOTICE =
     "The real in-app sandbox is set on the device and the store (a store test account in the device's settings, a test build), not here. " +
     'The sandbox switched on here imitates the virtual store, and is checked up to the purchase only.';
 
-export interface NoticeCard {
+interface NoticeCard {
     id: 'checkout' | 'sandbox';
     text: string;
     action?: { label: string; run: () => unknown };
@@ -44,7 +44,7 @@ export const resetNotices = (): void => {
 
 const CARD_ID = (id: NoticeCard['id']) => `dou-shell-notice-${id}`;
 
-export const drawNotice = (card: NoticeCard, doc: Document | undefined = globalThis.document): void => {
+const drawNotice = (card: NoticeCard, doc: Document | undefined = globalThis.document): void => {
     if (!doc?.body) return;
     doc.getElementById(CARD_ID(card.id))?.remove();
     const box = doc.createElement('div');
@@ -82,7 +82,7 @@ export const drawNotice = (card: NoticeCard, doc: Document | undefined = globalT
     doc.body.append(box);
 };
 
-export interface ShellApiLike {
+interface ShellApiLike {
     status: () => object;
     app: { restart: (options?: { cold?: boolean }) => Promise<unknown> };
 }
@@ -119,7 +119,7 @@ const showInAppSandboxNotice = (draw: typeof drawNotice): void => {
 
 const currentPlan = (): CheckoutPlan | undefined => launch.plan;
 
-export const checkoutStatus = (plan: CheckoutPlan | undefined = currentPlan()) => {
+const checkoutStatus = (plan: CheckoutPlan | undefined = currentPlan()) => {
     return {
         chosen: plan?.chosen,
         declared: plan?.declared,
@@ -130,7 +130,7 @@ export const checkoutStatus = (plan: CheckoutPlan | undefined = currentPlan()) =
     };
 };
 
-export const sandboxStatus = (plan: CheckoutPlan | undefined = currentPlan()) => ({
+const sandboxStatus = (plan: CheckoutPlan | undefined = currentPlan()) => ({
     on: plan?.sandbox ?? false,
     chosen: sandboxChoice(launch.store),
     available: launch.env === 'dev',
@@ -149,7 +149,7 @@ const pendingPlan = (store: Map<string, unknown>): CheckoutPlan =>
         subscriptionWeb: subscriptionWebChoice(store),
     });
 
-export const shellControls = (draw = drawNotice, restart: () => Promise<unknown> = relaunch) => ({
+const shellControls = (draw = drawNotice, restart: () => Promise<unknown> = relaunch) => ({
     checkout: {
         set: async (choice: ShellCheckoutChoice) => {
             if (!(SHELL_CHECKOUT_CHOICES as readonly unknown[]).includes(choice)) {

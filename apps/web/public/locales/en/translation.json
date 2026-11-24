@@ -300,7 +300,24 @@
             "toWebCheckout": "Opening web checkout…",
             "shellCheckout": {
                 "title": "Web checkout (virtual shell)",
-                "noAddress": "No checkout address was given."
+                "sandboxBand": "Sandbox payments — no real charge",
+                "signInRequired": "Sign in with Google in the app to subscribe here. A guest or a paired device cannot.",
+                "failed": "Something went wrong. Try again.",
+                "done": "Your subscription has started.",
+                "notRegistered": "The card was not registered. Try again.",
+                "plan": "{{clouds}} clouds · {{price}} / month",
+                "payerName": "Name",
+                "payerPhone": "Phone",
+                "payerEmail": "Email",
+                "subscribe": "Register a card and subscribe",
+                "registerCard": "Register card",
+                "cardFieldFailed": "The card field did not load.",
+                "standIn": {
+                    "title": "Sandbox card",
+                    "description": "No real card is used. Pick how the card registration ends.",
+                    "register": "Register",
+                    "decline": "Decline"
+                }
             },
             "noProducts": "Failed to load subscription plans",
             "purchaseFailed": "Payment failed",

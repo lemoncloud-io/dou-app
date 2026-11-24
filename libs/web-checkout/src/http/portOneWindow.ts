@@ -1,6 +1,6 @@
 import * as PortOne from '@portone/browser-sdk/v2';
 
-import type { PaymentWindow } from './createHttpPort';
+import type { PaymentWindow } from './paymentPort';
 import { windowResultOf } from './windowReturn';
 
 export const portOneWindow: PaymentWindow = async ({ issue, payer, redirectUrl }) => {

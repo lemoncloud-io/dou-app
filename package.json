@@ -16,6 +16,7 @@
     "check:code-korean": "node scripts/check-code-korean.js",
     "check:internal-paths": "node scripts/check-internal-paths.js",
     "check:env": "node scripts/check-env.js",
+    "check:web-payment-sdk": "node scripts/check-web-payment-sdk.js",
     "ratchet": "node scripts/ratchet.js",
     "ratchet:check": "node scripts/ratchet.js check",
     "ratchet:update": "node scripts/ratchet.js update",

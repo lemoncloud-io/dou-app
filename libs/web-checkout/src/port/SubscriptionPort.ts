@@ -20,7 +20,7 @@ import type {
     SignInProvider,
     SignInResult,
     Subscription,
-} from '../../types';
+} from '../types';
 
 export interface SubscriptionPort {
     getSession(): Promise<Account | null>;

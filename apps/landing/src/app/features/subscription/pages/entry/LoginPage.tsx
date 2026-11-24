@@ -11,7 +11,7 @@ import { safeNext } from '../../lib/safeNext';
 import { cn } from '../../utils';
 import { type SignInReason, signInReasonOf } from './signInReason';
 
-import type { SignInProvider } from '../../types';
+import type { SignInProvider } from '@chatic/web-checkout';
 
 const REASON_TONES: Record<SignInReason, BannerTone> = {
     canceled: 'neutral',

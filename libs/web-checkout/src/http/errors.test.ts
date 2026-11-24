@@ -1,4 +1,4 @@
-import { SubscriptionPortError } from '../errors';
+import { SubscriptionPortError } from '../port/errors';
 import { isDeclinedPayment, portErrorOf } from './errors';
 
 const httpError = (status: number, data: unknown = '') =>

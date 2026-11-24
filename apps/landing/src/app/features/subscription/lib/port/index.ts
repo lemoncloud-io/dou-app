@@ -1,10 +1,10 @@
-export type { SubscriptionPort } from './SubscriptionPort';
+export type { SubscriptionPort } from '@chatic/web-checkout';
 export {
     SubscriptionPortError,
     isPortError,
     type SubscriptionPortErrorCode,
     type SubscriptionPortErrorDetail,
-} from './errors';
+} from '@chatic/web-checkout';
 export {
     PortProvider,
     usePort,

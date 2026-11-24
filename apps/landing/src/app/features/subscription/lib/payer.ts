@@ -1,4 +1,4 @@
-import type { Payer } from '../types';
+import type { Payer } from '@chatic/web-checkout';
 import { isEmailAddress } from '../utils/email';
 
 export interface PayerDraft {

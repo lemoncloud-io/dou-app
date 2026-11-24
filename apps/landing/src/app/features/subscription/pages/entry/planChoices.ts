@@ -1,6 +1,6 @@
-import { changeKindOf } from '../../lib/changeKindOf';
+import { changeKindOf } from '@chatic/web-checkout';
 
-import type { Account, Plan } from '../../types';
+import type { Account, Plan } from '@chatic/web-checkout';
 
 export type PlansMode = 'visitor' | 'new' | 'change' | 'changeUnavailable' | 'storeBilled';
 

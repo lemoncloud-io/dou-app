@@ -8,7 +8,7 @@ import { splitSubscriptions } from './manageModel';
 import { commonErrorKey } from '../../lib/errorKey';
 
 import type { ManageFormat } from './useManageFormat';
-import type { Invoice, Subscription } from '../../types';
+import type { Invoice, Subscription } from '@chatic/web-checkout';
 
 const RECENT_COUNT = 2;
 

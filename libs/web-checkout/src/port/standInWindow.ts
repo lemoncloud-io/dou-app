@@ -1,4 +1,4 @@
-import type { AttemptPurpose, PlanId, RegistrationOutcome } from '../../types';
+import type { AttemptPurpose, PlanId, RegistrationOutcome } from '../types';
 
 export interface PaymentWindowRequest {
     purpose: AttemptPurpose;

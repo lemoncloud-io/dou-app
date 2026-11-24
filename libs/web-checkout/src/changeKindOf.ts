@@ -1,4 +1,4 @@
-import type { Account, Plan } from '../types';
+import type { Account, Plan } from './types';
 
 export type ChangeKind = 'new' | 'current' | 'upgrade' | 'downgrade' | 'blocked';
 

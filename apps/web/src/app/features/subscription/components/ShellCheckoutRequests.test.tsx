@@ -14,6 +14,7 @@ describe('ShellCheckoutRequests', () => {
         let open: ((request: ShellCheckoutRequest) => void) | undefined;
         const unbind = jest.fn();
         const screen = {
+            sandbox: false,
             bind: jest.fn((fn: (request: ShellCheckoutRequest) => void) => {
                 open = fn;
                 return unbind;
@@ -28,11 +29,9 @@ describe('ShellCheckoutRequests', () => {
             </MemoryRouter>
         );
 
-        act(() => open?.({ url: 'http://localhost:5004/subscription/plans', replace: true }));
+        act(() => open?.({ replace: true }));
 
-        expect(view.getByTestId('where').textContent).toBe(
-            `/subscription/shell-checkout?url=${encodeURIComponent('http://localhost:5004/subscription/plans')}`
-        );
+        expect(view.getByTestId('where').textContent).toBe('/subscription/shell-checkout');
         unmount();
         expect(unbind).toHaveBeenCalled();
     });

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { usePort, useSupports } from '../lib/port';
 import { subscriptionKeys } from './keys';
 
-import type { BillingEmailReceives, BillingInfo, PaymentMethod } from '../types';
+import type { BillingEmailReceives, BillingInfo, PaymentMethod } from '@chatic/web-checkout';
 
 export const usePaymentMethods = () => {
     const port = usePort();

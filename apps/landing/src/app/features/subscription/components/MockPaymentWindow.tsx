@@ -1,10 +1,10 @@
 import { type JSX, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { type PaymentWindowHost, type PaymentWindowRequest } from '../lib/port/standInWindow';
+import { type PaymentWindowHost, type PaymentWindowRequest } from '@chatic/web-checkout';
 import { Button, Dialog } from './ui';
 
-import type { RegistrationOutcome } from '../types';
+import type { RegistrationOutcome } from '@chatic/web-checkout';
 
 const OUTCOMES: RegistrationOutcome[] = ['registered', 'failed', 'closed'];
 

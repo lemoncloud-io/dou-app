@@ -1,7 +1,7 @@
 import { isLive } from '../lib/sceneOf';
 import { usePlans, useSubscriptions } from './subscriptions';
 
-import type { Plan, Subscription } from '../types';
+import type { Plan, Subscription } from '@chatic/web-checkout';
 
 export const useCurrentSubscription = (): {
     subscription?: Subscription;

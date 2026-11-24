@@ -1,4 +1,4 @@
-import type { Money, RegistrationOutcome } from '../../types';
+import type { Money, RegistrationOutcome } from '../types';
 
 export interface CardEntryTerms {
     amount?: Money;

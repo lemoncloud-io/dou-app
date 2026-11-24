@@ -1,4 +1,4 @@
-import type { PaymentMethod, PaymentProvider } from '../types';
+import type { PaymentMethod, PaymentProvider } from './types';
 
 export const cardsOf = (methods: PaymentMethod[], provider: PaymentProvider): PaymentMethod[] =>
     methods.filter(pm => pm.provider === provider);

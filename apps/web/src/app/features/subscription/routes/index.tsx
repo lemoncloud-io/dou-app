@@ -1,11 +1,11 @@
+import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
 import { runtime } from '@chatic/runtime';
 
 import { ShellCheckoutRequests } from '../components/ShellCheckoutRequests';
 import { WebCheckoutHandoff } from '../components/WebCheckoutHandoff';
-import { shellCheckoutScreen } from '../lib';
-import { SHELL_CHECKOUT_ROUTE, ShellCheckoutPage } from '../pages/ShellCheckoutPage';
+import { SHELL_CHECKOUT_ROUTE, shellCheckoutScreen } from '../lib';
 import {
     CloudGuidePage,
     KeepCloudsPage,
@@ -15,8 +15,15 @@ import {
     SubscriptionPlansPage,
 } from '../pages';
 
+const ShellCheckoutPage =
+    import.meta.env.VITE_ENV === 'DEV' || import.meta.env.VITE_ENV === 'LOCAL'
+        ? lazy(() =>
+              import('../pages/shellCheckout/ShellCheckoutPage').then(module => ({ default: module.ShellCheckoutPage }))
+          )
+        : null;
+
 export const SubscriptionRoutes = () => {
-    const shellScreen = shellCheckoutScreen(runtime.checkout);
+    const shellScreen = ShellCheckoutPage ? shellCheckoutScreen(runtime.checkout) : null;
     return (
         <>
             {shellScreen && <ShellCheckoutRequests screen={shellScreen} />}
@@ -41,7 +48,16 @@ export const SubscriptionRoutes = () => {
                     }
                 />
                 <Route path="keep" element={<KeepCloudsPage />} />
-                {shellScreen && <Route path={SHELL_CHECKOUT_ROUTE} element={<ShellCheckoutPage />} />}
+                {shellScreen && ShellCheckoutPage && (
+                    <Route
+                        path={SHELL_CHECKOUT_ROUTE}
+                        element={
+                            <Suspense fallback={null}>
+                                <ShellCheckoutPage />
+                            </Suspense>
+                        }
+                    />
+                )}
             </Routes>
         </>
     );

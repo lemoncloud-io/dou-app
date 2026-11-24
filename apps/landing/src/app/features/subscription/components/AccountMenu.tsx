@@ -7,7 +7,7 @@ import { useSignOut } from '../hooks';
 import { cn } from '../utils';
 import { useToast } from './ui';
 
-import type { Account } from '../types';
+import type { Account } from '@chatic/web-checkout';
 
 export const accountLabel = (account: Account, t: (key: string) => string): string =>
     account.email ?? account.emailHint ?? t(`subscription.common.account.${account.provider}`);

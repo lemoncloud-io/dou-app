@@ -1,4 +1,4 @@
-import type { Currency, PaymentProvider } from '../types';
+import type { Currency, PaymentProvider } from './types';
 
 export const KOREA = 'KR';
 

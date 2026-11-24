@@ -1,7 +1,7 @@
 import { windowResultOf } from './windowReturn';
 
-import type { PaymentWindow } from './createHttpPort';
-import type { PaymentWindowHost, PaymentWindowPresenter } from '../standInWindow';
+import type { PaymentWindow } from './paymentPort';
+import type { PaymentWindowHost, PaymentWindowPresenter } from '../port/standInWindow';
 
 export const createSandboxWindow = (
     token: () => string = () => `sandbox-${Math.random().toString(36).slice(2, 12)}`

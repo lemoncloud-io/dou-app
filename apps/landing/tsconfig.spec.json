@@ -26,6 +26,9 @@
             "path": "../../libs/runtime-web/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/web-checkout/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/storage/tsconfig.lib.json"
         },
         {

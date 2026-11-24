@@ -1,7 +1,7 @@
 import { MOCK_PLANS } from '../../testing/mock/policy';
 import { planChoicesOf } from './planChoices';
 
-import type { Account, Plan } from '../../types';
+import type { Account, Plan } from '@chatic/web-checkout';
 
 const account = (patch: Partial<Account> = {}): Account => ({
     id: 'acc-1',
