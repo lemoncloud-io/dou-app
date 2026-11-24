@@ -51,6 +51,15 @@ describe('review-items', () => {
         expect(lines.split('\n')).toEqual(['+- item', '--flag', '+const a = 1']);
     });
 
+    it('counts an item with no paths as fired when a commit in the window matches its diff', () => {
+        const log = ['', 'aaa\n+ const n = history.length', 'bbb\n+ const a = 1'].join('\0');
+        expect(
+            evaluate(
+                `[m.diffFiredIn({ diff: 'history\\\\.length', paths: [] }, m.changedLinesPerCommit(${JSON.stringify(log)})), m.diffFiredIn({ diff: 'nope', paths: [] }, m.changedLinesPerCommit(${JSON.stringify(log)}))]`
+            )
+        ).toEqual([true, false]);
+    });
+
     it('anchors globs to the repository root', () => {
         expect(
             evaluate(

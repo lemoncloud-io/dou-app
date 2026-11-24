@@ -63,6 +63,15 @@ export const fired = (items, files, changedLines) =>
             (item.diff && new RegExp(item.diff).test(changedLines))
     );
 
+export const changedLinesPerCommit = log =>
+    log
+        .split('\0')
+        .slice(1)
+        .map(chunk => changedLinesOf(chunk.slice(chunk.indexOf('\n') + 1)));
+
+export const diffFiredIn = (item, commits) =>
+    Boolean(item.diff) && commits.some(lines => new RegExp(item.diff).test(lines));
+
 const readChecklist = root => {
     try {
         return { text: git('show', `${base}:REVIEW.md`), source: `${base}:REVIEW.md` };
@@ -80,18 +89,29 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
     const items = parseItems(text);
     if (staleWeeks) {
         const since = `${Number(staleWeeks) * 7} days ago`;
+        let commits;
+        const sourceCommits = () =>
+            (commits ??= changedLinesPerCommit(
+                git(
+                    'log',
+                    base,
+                    `--since=${since}`,
+                    '-p',
+                    '--unified=0',
+                    '--no-renames',
+                    '--format=%x00%H',
+                    '--',
+                    ...SOURCE_LINES
+                )
+            ));
         for (const item of items) {
-            const hits = git(
-                'log',
-                base,
-                `--since=${since}`,
-                '--format=%h',
-                '--',
-                ...item.paths.map(p => `:(glob)${p}`)
-            )
-                .split('\n')
-                .filter(Boolean).length;
-            if (hits === 0) process.stdout.write(`stale (${staleWeeks} weeks, 0 commits): ${item.title}\n`);
+            const pathHits = item.paths.length
+                ? git('log', base, `--since=${since}`, '--format=%h', '--', ...item.paths.map(p => `:(glob)${p}`))
+                      .split('\n')
+                      .filter(Boolean).length
+                : 0;
+            if (pathHits === 0 && !diffFiredIn(item, sourceCommits()))
+                process.stdout.write(`stale (${staleWeeks} weeks, nothing fired it): ${item.title}\n`);
         }
         process.exit(0);
     }
