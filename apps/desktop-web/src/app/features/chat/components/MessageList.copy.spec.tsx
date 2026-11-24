@@ -85,7 +85,7 @@ describe('MessageList copy', () => {
     const renderFeed = () =>
         render(<MessageList messages={FEED} isLoading={false} viewer={VIEWER} names={NAMES} />, { wrapper });
 
-    it('copies a selection across messages as an author-and-time transcript', () => {
+    it('copies a selection across messages as time, author and text lines', () => {
         const { container, getByRole } = renderFeed();
         selectText(textNode(container, 'message 1'), textNode(container, 'message 2'));
 
@@ -94,7 +94,7 @@ describe('MessageList copy', () => {
         expect(prevented).toBe(true);
         expect(setData).toHaveBeenCalledWith(
             'text/plain',
-            expect.stringMatching(/\[Ada\] \[.+\] message 1\n\[Bo\] \[.+\] message 2$/)
+            expect.stringMatching(/^\[[^\]]+\] Ada: message 1\n\[[^\]]+\] Bo: message 2$/)
         );
     });
 

@@ -1,7 +1,7 @@
 import { blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
-import { isPendingUploadSlot, type DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime';
 
-import { formatClockTime, formatFullDate } from '../../../shared/utils';
+import { attachmentPreview, formatClockTime, formatFullDate } from '../../../shared/utils';
 import { getTimestamp, messageKeyOf, startOfDay, type MessageRowItem } from './buildMessageRows';
 
 interface TranscriptEntry {
@@ -13,11 +13,7 @@ const transcriptText = (message: DomainChat, deletedLabel: string): string => {
     if (message.hidden) return deletedLabel;
     const { blocks, source } = resolveChatBlocks(message);
     const text = (!blocks || source === 'field' ? (message.content ?? '') : blocksToPlainText(blocks)).trim();
-    if (text) return text;
-    return (message.upload$$ ?? [])
-        .map(slot => (isPendingUploadSlot(slot) ? slot.localName : slot.name))
-        .filter((name): name is string => !!name)
-        .join(', ');
+    return text || attachmentPreview(message);
 };
 
 export const formatTranscript = (entries: readonly TranscriptEntry[], deletedLabel: string): string => {
@@ -25,12 +21,13 @@ export const formatTranscript = (entries: readonly TranscriptEntry[], deletedLab
     let day: number | null = null;
     for (const { authorName, message } of entries) {
         const at = getTimestamp(message);
-        if (at && startOfDay(at) !== day) {
+        if (at) {
+            if (day !== null && startOfDay(at) !== day) lines.push(formatFullDate(at));
             day = startOfDay(at);
-            lines.push(formatFullDate(at));
         }
-        const time = formatClockTime(at);
-        lines.push(`[${authorName}]${time ? ` [${time}]` : ''} ${transcriptText(message, deletedLabel)}`.trimEnd());
+        const time = formatClockTime(at).replace(/\u202f/g, ' ');
+        const header = [time && `[${time}]`, authorName && `${authorName}:`].filter(Boolean).join(' ');
+        lines.push(`${header} ${transcriptText(message, deletedLabel)}`.trimEnd());
     }
     return lines.join('\n');
 };
