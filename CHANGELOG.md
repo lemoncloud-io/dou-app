@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-11-24] - root@0.174.0, @chatic/web@0.102.0
+
+### Features
+
+- (web) switch the checkout adapter and its sandbox from the debug settings
+- (web) sell any web checkout in the app, and stop framing the website in the shell
+- (web) sell the shell's web checkout on an in-app screen through a shared checkout library
+- (shell-adapter) pick checkout and sandbox in the virtual shell and keep its web checkout in-app
+
+### Other
+
+- test: (web-e2e) expect the in-app checkout where a browser tab used to leave for the website
+
 ## [2026-11-24] - No version updates
 
 ### Bug Fixes
