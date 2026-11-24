@@ -94,8 +94,9 @@ the host wraps a message in a `<p>`.
 
 ## Copying a selection
 
-A drag across two or more messages copies them as a transcript in KakaoTalk's shape: each message starts
-with `time author text` (`10:53 PM Ada hello`), and a full date line (`Tuesday, November 24, 2026`) sits
+A drag across two or more messages copies them as a transcript: each message starts with
+`[time] author: text` (`[10:53 PM] Ada: hello`), so a name with spaces and a message's continuation lines
+stay unambiguous, and a full date line (`Tuesday, November 24, 2026`) sits
 only where the day changes inside the selection, never above the first line. The browser's own copy would
 carry only what is drawn, laid out as the row draws it. The feed's `copy` handler (`selectedTranscript`)
 reads which rows the selection covers and writes the lines from the chats themselves, so the text is what

@@ -94,7 +94,7 @@ describe('MessageList copy', () => {
         expect(prevented).toBe(true);
         expect(setData).toHaveBeenCalledWith(
             'text/plain',
-            expect.stringMatching(/^\S.* Ada message 1\n\S.* Bo message 2$/)
+            expect.stringMatching(/^\[[^\]]+\] Ada: message 1\n\[[^\]]+\] Bo: message 2$/)
         );
     });
 

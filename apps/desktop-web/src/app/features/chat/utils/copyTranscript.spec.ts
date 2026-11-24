@@ -34,7 +34,7 @@ const DELETED = 'This message was deleted.';
 const clock = (ms: number) => formatClockTime(ms).replace(/\u202f/g, ' ');
 
 describe('formatTranscript', () => {
-    it('writes each message as time author text, with a date line only where the day changes', () => {
+    it('writes each message as [time] author: text, with a date line only where the day changes', () => {
         const text = formatTranscript(
             [
                 { authorName: 'Ada', message: chat({ chatNo: 1, content: 'hello' }) },
@@ -45,10 +45,10 @@ describe('formatTranscript', () => {
         );
 
         expect(text.split('\n')).toEqual([
-            `${clock(DAY)} Ada hello`,
-            `${clock(DAY)} Bob hi there`,
+            `[${clock(DAY)}] Ada: hello`,
+            `[${clock(DAY)}] Bob: hi there`,
             formatFullDate(NEXT_DAY),
-            `${clock(NEXT_DAY)} Ada next day`,
+            `[${clock(NEXT_DAY)}] Ada: next day`,
         ]);
     });
 
@@ -71,7 +71,7 @@ describe('formatTranscript', () => {
                 ],
                 DELETED
             ).split('\n')
-        ).toEqual([`${clock(DAY)} Ada Photo`, `${clock(DAY)} Ada 2 files`]);
+        ).toEqual([`[${clock(DAY)}] Ada: Photo`, `[${clock(DAY)}] Ada: 2 files`]);
     });
 
     it('separates the time from its day period with a plain space', () => {
@@ -99,7 +99,7 @@ describe('formatTranscript', () => {
         );
 
         expect(text).not.toContain('secret');
-        expect(text).toBe(`${clock(DAY)} Ada ${DELETED}`);
+        expect(text).toBe(`[${clock(DAY)}] Ada: ${DELETED}`);
     });
 });
 
@@ -148,8 +148,8 @@ describe('selectedTranscript', () => {
         const t1 = textOf(root, 't1');
 
         expect(run(select(two, 0, t1, t1.length), root)).toEqual([
-            `${clock(DAY)} Ada two`,
-            `${clock(DAY)} Bob pending one`,
+            `[${clock(DAY)}] Ada: two`,
+            `[${clock(DAY)}] Bob: pending one`,
         ]);
     });
 
@@ -159,8 +159,8 @@ describe('selectedTranscript', () => {
         const t2 = textOf(root, 't2');
 
         expect(run(select(t1, 0, t2, t2.length), root)).toEqual([
-            `${clock(DAY)} Bob pending one`,
-            `${clock(DAY)} Bob pending two`,
+            `[${clock(DAY)}] Bob: pending one`,
+            `[${clock(DAY)}] Bob: pending two`,
         ]);
     });
 

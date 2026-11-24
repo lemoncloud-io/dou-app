@@ -25,7 +25,8 @@ export const formatTranscript = (entries: readonly TranscriptEntry[], deletedLab
             if (day !== null && startOfDay(at) !== day) lines.push(formatFullDate(at));
             day = startOfDay(at);
         }
-        const header = [formatClockTime(at).replace(/\u202f/g, ' '), authorName].filter(Boolean).join(' ');
+        const time = formatClockTime(at).replace(/\u202f/g, ' ');
+        const header = [time && `[${time}]`, authorName && `${authorName}:`].filter(Boolean).join(' ');
         lines.push(`${header} ${transcriptText(message, deletedLabel)}`.trimEnd());
     }
     return lines.join('\n');
