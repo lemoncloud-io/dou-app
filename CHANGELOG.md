@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-25] - No version updates
+
+### Refactor
+
+- (config) tag every project on layer, platform and formfactor axes
+
 ## [2026-11-24] - No version updates
 
 ### Features
