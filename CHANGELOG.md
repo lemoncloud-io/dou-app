@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (ports) collect the runtime and host port contracts in @chatic/ports
+
+## [2026-11-25] - No version updates
+
+### Refactor
+
 - (desktop-web,ui-kit) import the ui kit through its entry, not its folders
 
 ## [2026-11-25] - No version updates
