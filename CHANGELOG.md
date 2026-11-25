@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (desktop-web,ui-kit) import the ui kit through its entry, not its folders
+
+## [2026-11-25] - No version updates
+
+### Refactor
+
 - (config) tag every project on layer, platform and formfactor axes
 
 ## [2026-11-24] - No version updates
