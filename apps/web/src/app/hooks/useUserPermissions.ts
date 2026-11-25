@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { GUEST_MAX_CHANNELS, MAX_CHANNELS_PER_PLACE } from '../utils/consts';
 

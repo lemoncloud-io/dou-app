@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DomainPlace } from '@chatic/runtime';
+import type { DomainPlace } from '@chatic/runtime-react';
 
 import { orderedRailClouds, orderedRailPlaces } from './railOrder';
 import type { RailCloud } from '../../../shared';

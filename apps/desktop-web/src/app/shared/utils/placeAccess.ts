@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const DEV_BUILD_MANAGER_EMAILS: readonly string[] = ['developer@lemoncloud.io', 'app@lemoncloud.io'];
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainIssuedWebhook, WebhookIssueInput } from '@chatic/runtime';
+import type { DomainIssuedWebhook, WebhookIssueInput } from '@chatic/runtime-react';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     Dialog,

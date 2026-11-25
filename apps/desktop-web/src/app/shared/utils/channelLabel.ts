@@ -1,4 +1,4 @@
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 import type { PlaceProfileEntry } from '../stores/useSiteProfilesStore';
 import { resolveDisplay } from './displayProfile';

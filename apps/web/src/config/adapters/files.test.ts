@@ -1,5 +1,5 @@
 import { webClient } from '@chatic/bridges';
-import type { UploadPutTarget } from '@chatic/runtime';
+import type { UploadPutTarget } from '@chatic/runtime-react';
 import type { WebHostFacts } from '@chatic/runtime-web';
 
 import { appBridge } from '../../app/bridge/appBridge';

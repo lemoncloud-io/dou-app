@@ -1,5 +1,5 @@
 import type { SandboxQuery } from './createHttpPort';
-import type { runtime } from '@chatic/runtime';
+import type { runtime } from '@chatic/runtime-react';
 
 type Repository = ReturnType<typeof runtime.data.useRuntimeRepositories>['subscription'];
 type Takes<F, I extends number> = F extends (...args: infer A) => unknown

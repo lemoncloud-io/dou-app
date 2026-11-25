@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
-import type { DomainCloud } from '@chatic/runtime';
+import type { DomainCloud } from '@chatic/runtime-react';
 
 const catalog = vi.hoisted(() => ({
     clouds: [] as DomainCloud[],
@@ -37,9 +37,9 @@ vi.mock('../../../shared/hooks/useAccountResetOnLogout', () => ({
 const logout = vi.hoisted(() => vi.fn());
 const pairing = vi.hoisted(() => ({ enabled: false, standing: [] as unknown[], revoke: vi.fn() }));
 vi.mock('../../pairing/utils/devicePairing', () => ({ isDevicePairingEnabled: () => pairing.enabled }));
-vi.mock('@chatic/runtime', async () => {
+vi.mock('@chatic/runtime-react', async () => {
     const { useState } = await import('react');
-    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+    return (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1' }),
             useSessionLogout: () => logout,

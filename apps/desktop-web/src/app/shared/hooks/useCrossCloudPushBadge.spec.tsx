@@ -8,8 +8,8 @@ let pushHandler: ((payload: unknown) => void) | null = null;
 let activeServer: { kind: 'relay' } | { kind: 'cloud'; cloudId: string } = { kind: 'relay' };
 let isVerified = false;
 
-vi.mock('@chatic/runtime', async () => {
-    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         session: {
             useGlobalSession: () => ({ activeServer }),

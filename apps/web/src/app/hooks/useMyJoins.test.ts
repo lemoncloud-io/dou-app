@@ -1,11 +1,11 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime, type DomainChannel, type DomainJoin } from '@chatic/runtime';
+import { runtime, type DomainChannel, type DomainJoin } from '@chatic/runtime-react';
 
 import { useMyJoins } from './useMyJoins';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         sync: {
             registerSyncTarget: jest.fn(),
         },

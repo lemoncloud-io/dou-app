@@ -1,12 +1,12 @@
 import { act, render } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { BackgroundCloudsRunner, INVITED_CACHE_WAIT_MS } from './BackgroundCloudsRunner';
 
 let mockRelayVerified = true;
 
-jest.mock('@chatic/runtime', () => ({
+jest.mock('@chatic/runtime-react', () => ({
     runtime: {
         connection: {
             useBackgroundClouds: jest.fn(),

@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { ROUTES } from '../../../routes/paths';
 import { MiniAppManagePage } from '../pages/MiniAppManagePage';

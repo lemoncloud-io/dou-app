@@ -13,8 +13,8 @@ const joinListeners = new Set<(message: { data: unknown }) => void>();
 const unsubscribeJoin = jest.fn();
 const pushJoin = (data: unknown) => joinListeners.forEach(listener => listener({ data }));
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         connection: {
             RELAY_SLOT: 'default',
             onServerEvent: (_type: string, listener: (message: { data: unknown }) => void) => {

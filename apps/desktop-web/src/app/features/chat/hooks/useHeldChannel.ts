@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 export const useHeldChannel = (
     resolved: DomainChannel | undefined,

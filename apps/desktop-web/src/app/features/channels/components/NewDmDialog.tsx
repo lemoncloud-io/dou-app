@@ -13,7 +13,7 @@ import {
     DialogTitle,
     Input,
 } from '@chatic/ui-kit';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import {
     avatarStyle,

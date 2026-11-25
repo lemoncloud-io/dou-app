@@ -9,6 +9,8 @@ module.exports = {
         '^@chatic/config/(.*)$': '<rootDir>/../../libs/config/src/$1/index.ts',
         '^@chatic/shared/phone$': '<rootDir>/../../libs/shared/src/phone/index.ts',
         '^@chatic/runtime/testing$': '<rootDir>/../../libs/runtime/src/testing/index.ts',
+        '^@chatic/runtime-react/testing$': '<rootDir>/../../libs/runtime/react/src/testing/index.ts',
+        '^@chatic/runtime-react$': '<rootDir>/../../libs/runtime/react/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/../../libs/web-ui-kit/src/__mocks__/styleMock.js',
         '\\.(png|jpe?g|gif|svg|webp)$': '<rootDir>/../../libs/web-ui-kit/src/__mocks__/fileMock.js',

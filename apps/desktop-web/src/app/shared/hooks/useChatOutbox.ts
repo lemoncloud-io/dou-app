@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { RELAY_CLOUD_ID, toMentionBody, runtime } from '@chatic/runtime';
-import type { ChatSendPayload, DomainChat } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, toMentionBody, runtime } from '@chatic/runtime-react';
+import type { ChatSendPayload, DomainChat } from '@chatic/runtime-react';
 
 const SWEEP_LIMIT = 200;
 const LANDING_PAGE_LIMIT = 50;

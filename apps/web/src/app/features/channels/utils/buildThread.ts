@@ -1,4 +1,4 @@
-import { isEventChat, type DomainChat } from '@chatic/runtime';
+import { isEventChat, type DomainChat } from '@chatic/runtime-react';
 
 import { compareByChatNo } from '../../../utils';
 

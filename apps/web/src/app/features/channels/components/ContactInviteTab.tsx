@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { ContactInfo } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import {
     Button,
     FloatingButton,

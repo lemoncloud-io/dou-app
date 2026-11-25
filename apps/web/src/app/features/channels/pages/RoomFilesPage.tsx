@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams, useSearchParams } from 'react-router-dom';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { useNavigateWithTransition } from '@chatic/shared';

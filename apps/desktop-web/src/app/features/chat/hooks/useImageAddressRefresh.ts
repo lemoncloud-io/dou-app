@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { RELAY_CLOUD_ID, runtime, type DomainChat } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, runtime, type DomainChat } from '@chatic/runtime-react';
 
 import { toChatFiles, toChatImages } from '../utils';
 

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { FlaskConical } from 'lucide-react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 

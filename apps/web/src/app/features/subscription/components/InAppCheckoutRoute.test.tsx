@@ -8,8 +8,8 @@ import { InAppCheckoutRoute } from './InAppCheckoutRoute';
 let mockCheckout: object = { kind: 'web', open: jest.fn() };
 const mockLoaded = jest.fn();
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         get checkout() {
             return mockCheckout;
         },

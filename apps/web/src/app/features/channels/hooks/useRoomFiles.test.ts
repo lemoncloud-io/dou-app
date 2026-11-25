@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { DomainChat, RoomMediaItem } from '@chatic/runtime';
+import type { DomainChat, RoomMediaItem } from '@chatic/runtime-react';
 import { MemoryStore } from '@chatic/storage';
 
 import { hideMedia, setLocalMediaPrefsStorage } from '../lib/localMediaPrefs';
@@ -18,8 +18,8 @@ const mockObserveList = jest.fn((_input: unknown, callback: () => void) => {
         if (at >= 0) mockObservers.splice(at, 1);
     };
 });
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: (() => {
                 let graph: unknown;

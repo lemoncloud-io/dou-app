@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useMembershipInfo, useProductPlans } from '../../../hooks/useMembership';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';

@@ -14,8 +14,8 @@ vi.mock('react-router-dom', () => ({ useNavigate: () => session.navigate }));
 
 vi.mock('../hooks/useSignOutGuest', () => ({ useSignOutGuest: () => vi.fn() }));
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
-vi.mock('@chatic/runtime', async () => {
-    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ auth: {} }) },
         session: {

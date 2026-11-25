@@ -1,4 +1,4 @@
-jest.mock('@chatic/runtime', () => {
+jest.mock('@chatic/runtime-react', () => {
     const sessionKeys = new Set([
         'chatic-relay-token',
         'chatic-cloud-delegation-token',
@@ -14,7 +14,7 @@ jest.mock('@chatic/runtime', () => {
         'chatic-device-id',
         'chatic-paired-cloud-ids',
     ]);
-    return jest.requireActual('@chatic/runtime/testing').fakeRuntimeModule({
+    return jest.requireActual('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: { isSessionKey: (key: string) => sessionKeys.has(key) },
     });
 });

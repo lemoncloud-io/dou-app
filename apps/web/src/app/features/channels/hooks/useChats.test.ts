@@ -1,12 +1,12 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime, type DomainChat, type DomainUser } from '@chatic/runtime';
+import { runtime, type DomainChat, type DomainUser } from '@chatic/runtime-react';
 
 import { useChannelHeadRefresh } from './useChannelHeadRefresh';
 import { useChats } from './useChats';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },

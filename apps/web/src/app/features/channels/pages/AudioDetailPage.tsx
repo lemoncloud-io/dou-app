@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
-import { runtime, canModifyMessage, chatMediaItems } from '@chatic/runtime';
+import { runtime, canModifyMessage, chatMediaItems } from '@chatic/runtime-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import {
     AudioDetailLayout,

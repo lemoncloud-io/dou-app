@@ -4,8 +4,8 @@ import type { StorageStores, WebHostFacts } from '@chatic/runtime-web';
 import { storageResolved } from './storage';
 
 const mockPrepare = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         boot: { prepareSecretStorage: (...args: unknown[]) => mockPrepare(...args) },
     })
 );

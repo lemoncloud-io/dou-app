@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { runtime, type DomainProfile } from '@chatic/runtime';
+import { runtime, type DomainProfile } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 
 export interface SenderProfileRef {

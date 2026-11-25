@@ -206,7 +206,7 @@ main.tsx
               └─ attachConfigStateLog()      libs/runtime-core's createRuntime — logs overridden keys, then each change
 ```
 
-Past the entry, an app reads and writes settings through `runtime.settings` (`@chatic/runtime`), which
+Past the entry, an app reads and writes settings through `runtime.settings` (`@chatic/runtime-react`), which
 forwards each call to this lib's `config` at the moment it is made; only the declaration imports
 `@chatic/config` itself.
 

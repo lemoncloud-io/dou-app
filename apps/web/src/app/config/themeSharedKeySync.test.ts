@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { WebStore } from '@chatic/storage';
 import { syncThemeFromSharedKey } from './themeSharedKeySync';
 

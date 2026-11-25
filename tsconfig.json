@@ -106,6 +106,9 @@
             "path": "./libs/contracts/ports"
         },
         {
+            "path": "./libs/runtime/react"
+        },
+        {
             "path": "./libs/runtime-web"
         },
         {

@@ -1,4 +1,4 @@
-import { chatAttachmentAccept, type ChatAttachmentRejection, type ChatAttachmentSource } from '@chatic/runtime';
+import { chatAttachmentAccept, type ChatAttachmentRejection, type ChatAttachmentSource } from '@chatic/runtime-react';
 
 import { PHONE_SENDS } from '../../../utils';
 

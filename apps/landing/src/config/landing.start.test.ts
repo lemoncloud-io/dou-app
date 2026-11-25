@@ -7,8 +7,10 @@ vi.mock('@chatic/runtime-web', async importOriginal => ({
     ...(await importOriginal<typeof RuntimeWeb>()),
     startRuntime,
 }));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({ session: { authFailureReaction: { register } } })
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
+        session: { authFailureReaction: { register } },
+    })
 );
 
 const env = () => undefined;

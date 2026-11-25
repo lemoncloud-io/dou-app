@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 import { useChatImagesStore } from '../stores';
 import { useChatImages } from './useChatImages';

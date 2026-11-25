@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 
 const requestMock = vi.hoisted(() => vi.fn());
-vi.mock('@chatic/runtime', async () => {
-    const testing = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const testing = await import('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         links: { ...testing.browserLinks(), kind: 'shell', linkPreview: { fetch: requestMock } },
     });

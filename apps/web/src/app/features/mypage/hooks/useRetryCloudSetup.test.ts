@@ -13,8 +13,8 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useCustomMutation: (mutationFn: (v: unknown) => Promise<unknown>) => ({ mutateAsync: mutationFn }),
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ cloud: { retryCloudSetup } }),
             cloudsKeys: { lists: () => ['clouds', 'list'] },

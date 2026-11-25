@@ -1,4 +1,4 @@
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 import { describe, expect, it } from 'vitest';
 
 import { channelsByPlace } from './channelsByPlace';

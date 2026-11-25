@@ -8,8 +8,8 @@ import { getVideoFrames, setVideoFramesForTest, useVideoFrames } from './useVide
 
 const readVideoFrame = jest.fn();
 let appMovesFiles = true;
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get files() {
             const files = testing.browserFiles();

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     FloatingButton,

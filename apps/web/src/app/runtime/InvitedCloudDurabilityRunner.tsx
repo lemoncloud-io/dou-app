@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { pushCloudIdOf, RELAY_CLOUD_ID, runtime } from '@chatic/runtime';
+import { pushCloudIdOf, RELAY_CLOUD_ID, runtime } from '@chatic/runtime-react';
 
 import { extractPushContext } from '../utils/resolveInAppPushRoute';
 

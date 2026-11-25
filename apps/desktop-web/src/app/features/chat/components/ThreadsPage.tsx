@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next';
 
 import { MessagesSquare } from 'lucide-react';
 
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 import { cn } from '@chatic/ui-kit';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import {
     PANE_HEADER,

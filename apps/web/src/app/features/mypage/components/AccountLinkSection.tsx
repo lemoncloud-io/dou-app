@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useLinkedAccounts } from '../../../hooks';
 import { PhoneVerifySheet } from '../../auth/components/PhoneVerifySheet';

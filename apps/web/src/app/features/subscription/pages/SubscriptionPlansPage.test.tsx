@@ -14,8 +14,8 @@ jest.mock('react-i18next', () => ({
 }));
 
 let mockGuest = false;
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: { useRuntimeProfile: () => ({ isGuest: mockGuest }) },
     })
 );

@@ -1,4 +1,4 @@
-import type { DomainChat, RoomMediaItem } from '@chatic/runtime';
+import type { DomainChat, RoomMediaItem } from '@chatic/runtime-react';
 
 import {
     groupByMonth,

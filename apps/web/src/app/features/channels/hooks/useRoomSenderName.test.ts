@@ -1,12 +1,12 @@
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 import { useRoomSenderName } from './useRoomSenderName';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: { useSessionSelection: () => ({ selectedSiteId: 's1' }) },
     })
 );

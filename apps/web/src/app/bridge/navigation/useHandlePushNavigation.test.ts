@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router-dom';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
@@ -16,8 +16,8 @@ const cacheRead = jest.fn();
 const getChat = jest.fn();
 const channelCacheRead = jest.fn();
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         connection: {
             waitUntilVerified: jest.fn(),
         },

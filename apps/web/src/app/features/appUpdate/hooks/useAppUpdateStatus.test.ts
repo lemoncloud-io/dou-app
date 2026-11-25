@@ -3,8 +3,8 @@ import { act, renderHook } from '@testing-library/react';
 const mockIsNative = jest.fn();
 const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };
 const mockCheckAppUpdate = jest.fn();
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         get appShell() {
             const storeUpdate = { check: () => mockCheckAppUpdate(), openStore: jest.fn() };

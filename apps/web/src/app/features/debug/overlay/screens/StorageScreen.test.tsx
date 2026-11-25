@@ -25,8 +25,8 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('../../../../runtime/launchSessionOwner', () => ({ readLaunchSessionOwner: () => undefined }));
 const requestSyncCursorReset = jest.fn(async () => undefined);
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { requestSyncCursorReset: () => requestSyncCursorReset() },
         session: { isSessionKey: (key: string) => key === 'chatic-cloud-token-cache' },
     })

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { RELAY_CLOUD_ID, type DomainCloud } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, type DomainCloud } from '@chatic/runtime-react';
 
 const isReachable = (cloud: DomainCloud): boolean => !cloud.status || cloud.status === 'active';
 

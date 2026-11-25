@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { shellCapabilities } from '../../../bridge/shellCapabilities';
 import { openSubWebViewTarget, subWebViewTargetOfUrl } from '../../../bridge/subWebViewLink';

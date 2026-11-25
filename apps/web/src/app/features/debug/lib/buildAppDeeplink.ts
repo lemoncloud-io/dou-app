@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const buildAppDeeplink = (input: string): string => {
     const trimmed = input.trim();

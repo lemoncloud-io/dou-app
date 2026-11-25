@@ -2,7 +2,7 @@ import { useCallback, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { asWebSubscriptionActive } from '../lib/webSubscriptionActive';

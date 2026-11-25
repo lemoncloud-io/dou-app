@@ -1,14 +1,14 @@
 import { act, renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 import { releaseShareIntake } from '../../../bridge/shareIntake';
 import type { ShareDestination } from './useShareDestinations';
 import { useShareSend, type SendFiles } from './useShareSend';
 
 const mockSendChatInCloud = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { sendChatInCloud: (...args: unknown[]) => mockSendChatInCloud(...args) },
     })
 );

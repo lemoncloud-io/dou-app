@@ -1,8 +1,8 @@
 import { copyMessageToClipboard } from './copyMessageToClipboard';
 
 const mockCopyText = jest.fn();
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         links: { ...testing.browserLinks(), copyText: (...args: unknown[]) => mockCopyText(...args) },
     });

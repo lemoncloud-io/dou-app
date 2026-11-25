@@ -1,6 +1,6 @@
-import type { DomainPlace } from '@chatic/runtime';
+import type { DomainPlace } from '@chatic/runtime-react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { usePlaces } from './usePlaces';
 

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { create } from 'zustand';
 
-import { chatAttachmentFormat, type ChatUploadKind } from '@chatic/runtime';
+import { chatAttachmentFormat, type ChatUploadKind } from '@chatic/runtime-react';
 
 import { attachmentKey, validateAttachments, type AttachmentRejection, type ChatImage } from '../utils';
 

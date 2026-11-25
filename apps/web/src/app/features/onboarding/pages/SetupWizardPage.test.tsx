@@ -19,8 +19,8 @@ jest.mock('../../../hooks', () => ({
     usePickImage: () => ({ open: jest.fn(), inputProps: { type: 'file', hidden: true } }),
 }));
 jest.mock('../../../runtime/useSiteSwitch', () => ({ useSiteSwitch: () => ({ switchSite }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'previous-site' }),
         },

@@ -1,4 +1,4 @@
-import { isCloudDm, type DomainChannel } from '@chatic/runtime';
+import { isCloudDm, type DomainChannel } from '@chatic/runtime-react';
 
 import { dmCounterpartId } from './dmDisplay';
 

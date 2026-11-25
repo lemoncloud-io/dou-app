@@ -8,8 +8,8 @@ import { UnreadBadgeRunner } from './UnreadBadgeRunner';
 
 const mockReadBadge = jest.fn();
 let mockIconBadge = true;
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         get appShell() {
             return { ...browserAppShell(), iconBadge: mockIconBadge ? { read: () => mockReadBadge() } : null };

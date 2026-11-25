@@ -14,7 +14,7 @@ import {
     Trash2,
 } from 'lucide-react';
 
-import { chatAttachmentSummary, isMessageEdited, type DomainChat, runtime } from '@chatic/runtime';
+import { chatAttachmentSummary, isMessageEdited, type DomainChat, runtime } from '@chatic/runtime-react';
 import {
     cn,
     Avatar,

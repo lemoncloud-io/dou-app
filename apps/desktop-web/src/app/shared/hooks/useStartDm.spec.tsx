@@ -14,8 +14,8 @@ const syncMeta = { getSyncedAt: vi.fn(), setSyncedAt: vi.fn() };
 const warn = vi.fn();
 const repositories = { channel: { startDm, getSelfChannel, syncChannels }, syncMeta };
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }),

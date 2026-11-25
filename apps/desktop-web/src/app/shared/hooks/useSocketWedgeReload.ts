@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { tabStore } from '../../storage';
 
 const WEDGE_GRACE_MS = 25_000;

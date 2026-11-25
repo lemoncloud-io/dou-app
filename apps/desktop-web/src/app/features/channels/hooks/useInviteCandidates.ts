@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useIsMutating } from '@tanstack/react-query';
 
-import { RELAY_CLOUD_ID, type DomainChannel, type DomainUser, runtime } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, type DomainChannel, type DomainUser, runtime } from '@chatic/runtime-react';
 
 import { isDmChannel, isSelfChannel, useChannels, useCurrentPlace } from '../../../shared';
 

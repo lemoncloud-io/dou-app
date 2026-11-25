@@ -1,4 +1,4 @@
-import { dmPlaceOf, placeOfDmId, RELAY_CLOUD_ID } from '@chatic/runtime';
+import { dmPlaceOf, placeOfDmId, RELAY_CLOUD_ID } from '@chatic/runtime-react';
 
 import type { PushChannelData } from './resolvePushCloudId';
 

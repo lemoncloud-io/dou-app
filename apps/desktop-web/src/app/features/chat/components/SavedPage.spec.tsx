@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat, DomainPlace } from '@chatic/runtime';
+import type { DomainChannel, DomainChat, DomainPlace } from '@chatic/runtime-react';
 import { TooltipProvider } from '@chatic/ui-kit';
 
 import '../../../../i18n';
@@ -23,8 +23,8 @@ const observeList = vi.fn((_query: unknown, callback: (result: { list: DomainCha
 });
 const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheRead, getChat, observeList } }));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             getCloudRepositories: (cid: string) => getCloudRepositories(cid),
             useRuntimeRepositories: () => ({ user: { observeItem: () => () => undefined } }),

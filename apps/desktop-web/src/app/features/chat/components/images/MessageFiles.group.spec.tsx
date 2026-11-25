@@ -6,7 +6,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { unzipSync } from 'fflate';
 import type { ReactNode } from 'react';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 import { TooltipProvider, toast } from '@chatic/ui-kit';
 
 import { downloadImages } from '../../utils';

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { RELAY_CLOUD_ID } from '@chatic/runtime';
+import { RELAY_CLOUD_ID } from '@chatic/runtime-react';
 
 import { useCloudSessionCatalog } from './useCloudCatalog';
 import { useOtherCloudUnreadContext } from './otherCloudUnreadContext';

@@ -6,8 +6,8 @@ import { openSubWebView } from './subWebView';
 let mockNative = true;
 const openURL = jest.fn();
 const requestOpen = jest.fn();
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get links() {
             return mockNative

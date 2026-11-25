@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export type CameraAccess = 'granted' | 'refused' | 'unknown';
 

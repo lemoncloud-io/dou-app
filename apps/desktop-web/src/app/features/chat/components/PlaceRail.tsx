@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { Home, MailPlus, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 
-import type { DomainPlace } from '@chatic/runtime';
+import type { DomainPlace } from '@chatic/runtime-react';
 import { cn, ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, toast } from '@chatic/ui-kit';
 import { usePlaceOrder } from '@chatic/shared';
 

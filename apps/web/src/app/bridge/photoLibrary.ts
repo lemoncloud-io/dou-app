@@ -1,4 +1,4 @@
-import { runtime, type ShellFileRef } from '@chatic/runtime';
+import { runtime, type ShellFileRef } from '@chatic/runtime-react';
 import type {
     OnListPhotoAlbumsPayload,
     OnListPhotosPayload,

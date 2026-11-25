@@ -1,8 +1,8 @@
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainChannel } from '@chatic/runtime';
-import { runtime } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
+import { runtime } from '@chatic/runtime-react';
 
 import {
     dmCounterpartId,

@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 export const compareByChatNo = (a: DomainChat, b: DomainChat): number => {
     const an = a.chatNo || Number.MAX_SAFE_INTEGER;

@@ -2,7 +2,7 @@ import { ChevronRight, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { Input } from '@chatic/ui-kit/components/ui/input';

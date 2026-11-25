@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
+import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime-react';
 
 import { useActiveCloudData, useHomeChannels, useMyProfile } from '../../../hooks';
 import { useCloudSelfChannels, useDmPeers } from '../../channels/hooks';

@@ -12,8 +12,8 @@ import { useTranslation } from 'react-i18next';
 
 import { ChevronDown, MessageSquare } from 'lucide-react';
 
-import { isMentioningViewer } from '@chatic/runtime';
-import type { DomainChat } from '@chatic/runtime';
+import { isMentioningViewer } from '@chatic/runtime-react';
+import type { DomainChat } from '@chatic/runtime-react';
 import { cn, toast } from '@chatic/ui-kit';
 
 import {

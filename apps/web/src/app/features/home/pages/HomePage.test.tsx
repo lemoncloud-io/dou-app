@@ -31,8 +31,8 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigateMock,
     usePinnedChannels: () => ({ pinnedIds: [], toggle: jest.fn(), reorder: jest.fn() }),
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),
             useSessionAuth: () => ({ isAuthenticated }),
@@ -40,7 +40,7 @@ jest.mock('@chatic/runtime', () =>
             usePairedCloudIds: () => pairedCloudIds,
             usePairedCloudNames: () => pairedCloudNames,
         },
-        appShell: require('@chatic/runtime/testing').browserAppShell(),
+        appShell: require('@chatic/runtime-react/testing').browserAppShell(),
     })
 );
 

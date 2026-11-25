@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { cn } from '@chatic/ui-kit';
 
 import { useHandlePushNavigation } from '../../bridge';

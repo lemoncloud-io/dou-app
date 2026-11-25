@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { hostProfile } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const APPLICATION = 'chatic';
 const DEFAULT_PLATFORM = 'desktop';

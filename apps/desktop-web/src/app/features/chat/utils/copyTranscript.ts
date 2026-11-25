@@ -1,5 +1,5 @@
 import { blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 import { attachmentPreview, formatClockTime, formatFullDate } from '../../../shared/utils';
 import { getTimestamp, messageKeyOf, startOfDay, type MessageRowItem } from './buildMessageRows';

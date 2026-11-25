@@ -8,8 +8,8 @@ interface SentRequest {
 const sent: SentRequest[] = [];
 const replies: ({ data: unknown } | { error: unknown })[] = [];
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         boot: {
             webTransport: {
                 buildSignedRequest: (config: SentRequest['config']) => {

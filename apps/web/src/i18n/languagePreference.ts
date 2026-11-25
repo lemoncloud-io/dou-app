@@ -1,5 +1,5 @@
 import { liveShellGlobals, liveShellValue } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const SUPPORTED_LANGUAGES = ['ko', 'en'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];

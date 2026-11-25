@@ -2,8 +2,8 @@ const isNativeMock = jest.fn();
 const sendSmsMock = jest.fn();
 const copyMessageToClipboardMock = jest.fn();
 
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get links() {
             return isNativeMock()

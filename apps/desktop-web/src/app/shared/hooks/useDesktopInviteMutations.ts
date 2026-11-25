@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const useDesktopInviteMutations = () => {
     const { invite: inviteRepository, user: userRepository } = runtime.data.useRuntimeRepositories();

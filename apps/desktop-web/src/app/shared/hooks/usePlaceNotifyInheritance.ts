@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
-import type { DomainChannel } from '@chatic/runtime';
-import { runtime } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
+import { runtime } from '@chatic/runtime-react';
 
 import { useNotificationPrefsStore } from '../stores';
 import { channelsByPlace, placeNotifyKey, placeNotifyTargets } from '../utils';

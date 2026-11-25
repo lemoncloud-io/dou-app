@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { DomainProfile } from '@chatic/runtime';
+import type { DomainProfile } from '@chatic/runtime-react';
 
 export interface MyPlaceProfileReader {
     getMyProfile(): Promise<DomainProfile | null>;

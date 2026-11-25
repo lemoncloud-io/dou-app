@@ -1,4 +1,4 @@
-import { runtime, type LinkPreviewReader } from '@chatic/runtime';
+import { runtime, type LinkPreviewReader } from '@chatic/runtime-react';
 import { useEffect, useState } from 'react';
 import { Link2 } from 'lucide-react';
 

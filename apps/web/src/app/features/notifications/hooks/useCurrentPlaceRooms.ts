@@ -7,7 +7,7 @@ import {
     isRelayDm,
     RELAY_CLOUD_ID,
     type DomainChannel,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 
 import { useActiveCloudData } from '../../../hooks/activeCloudDataContext';
 

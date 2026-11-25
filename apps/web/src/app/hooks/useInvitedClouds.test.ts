@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import type { DomainCloud } from '@chatic/runtime';
+import type { DomainCloud } from '@chatic/runtime-react';
 
 import { useInvitedClouds } from './useInvitedClouds';
 
@@ -21,8 +21,8 @@ const mockRepositories = {
     },
 };
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => mockRepositories, getAcceptorId: () => mockAcceptorId },
         session: { useSessionIdentity: () => ({ delegatorId: mockDelegatorId }) },
     })

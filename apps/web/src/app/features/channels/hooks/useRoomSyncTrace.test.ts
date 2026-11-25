@@ -10,7 +10,7 @@ import {
     useRoomSyncTrace,
 } from './useRoomSyncTrace';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 import type { PerfTrace, PerfTraceBackend } from '@chatic/perf';
 import type { UseRoomSyncTraceParams } from './useRoomSyncTrace';
 

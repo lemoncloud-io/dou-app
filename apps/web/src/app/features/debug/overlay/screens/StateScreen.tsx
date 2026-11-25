@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { CopyButton } from '../../components/CopyButton';
 import { useSlotStatuses } from '../../hooks/useSlotStatuses';

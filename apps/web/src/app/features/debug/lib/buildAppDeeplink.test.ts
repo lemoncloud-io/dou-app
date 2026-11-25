@@ -1,8 +1,8 @@
 import { buildAppDeeplink } from './buildAppDeeplink';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({ settings: { get: jest.fn() } })
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({ settings: { get: jest.fn() } })
 );
 
 const mockGet = runtime.settings.get as jest.Mock;

@@ -24,6 +24,15 @@ const projectName = dir => {
     return path.basename(dir);
 };
 
+const projectDirOf = (file, root = ROOT) => {
+    const parts = file.split('/');
+    for (let depth = parts.length - 1; depth > 2; depth--) {
+        const dir = parts.slice(0, depth).join('/');
+        if (['project.json', 'package.json'].some(name => fs.existsSync(path.join(root, dir, name)))) return dir;
+    }
+    return parts.slice(0, 2).join('/');
+};
+
 const excludedProjects = () => {
     const match = fs.readFileSync(VERIFY_WORKFLOW, 'utf8').match(/-t typecheck\s+--exclude=(\S+)/);
     return new Set(match ? match[1].split(',') : []);
@@ -69,7 +78,7 @@ const measure = () => {
     const excluded = excludedProjects();
     const testsByProject = new Map();
     for (const file of listFiles(['apps/*', 'libs/*']).filter(file => TEST_FILE.test(file))) {
-        const dir = file.split('/').slice(0, 2).join('/');
+        const dir = projectDirOf(file);
         if (!testsByProject.has(dir)) testsByProject.set(dir, []);
         testsByProject.get(dir).push(file);
     }
@@ -84,4 +93,4 @@ const measure = () => {
     return result;
 };
 
-module.exports = { BASELINE_FILE, coveredFiles, measure };
+module.exports = { BASELINE_FILE, coveredFiles, measure, projectDirOf };

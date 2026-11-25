@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import type { DomainProfile } from '@chatic/runtime';
+import type { DomainProfile } from '@chatic/runtime-react';
 
 const navigate = jest.fn();
 const toast = jest.fn();
@@ -31,8 +31,8 @@ jest.mock('@chatic/shared', () => ({
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 const repositories = { user: { cacheRead } };
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => repositories,
         },

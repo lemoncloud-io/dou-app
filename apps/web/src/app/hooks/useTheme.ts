@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { deviceStore } from '../storage';
 import type { Theme } from '../stores/preferenceKeys';
 

@@ -3,7 +3,7 @@ const os = require('os');
 const path = require('path');
 const ts = require('typescript');
 
-const { coveredFiles } = require('../ratchet/test-typecheck');
+const { coveredFiles, projectDirOf } = require('../ratchet/test-typecheck');
 
 const write = (dir, file, content) => {
     fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
@@ -71,5 +71,26 @@ describe('apps/web spec project', () => {
                 .readConfigFile(path.join(__dirname, '../../apps/web', file), ts.sys.readFile)
                 .config.references.map(reference => reference.path);
         expect(read('tsconfig.spec.json')).toEqual(expect.arrayContaining(read('tsconfig.app.json')));
+    });
+});
+
+describe('the project a test file belongs to', () => {
+    let dir;
+
+    beforeEach(() => {
+        dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'tp-')));
+        write(dir, 'libs/runtime/package.json', { name: '@chatic/runtime' });
+        write(dir, 'libs/runtime/react/project.json', { name: '@chatic/runtime-react' });
+    });
+
+    afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+    it('is the nearest folder with a project file, so a project nested in another counts on its own', () => {
+        expect(projectDirOf('libs/runtime/react/src/hooks/useX.test.ts', dir)).toBe('libs/runtime/react');
+        expect(projectDirOf('libs/runtime/src/a.test.ts', dir)).toBe('libs/runtime');
+    });
+
+    it('falls back to the first two segments when no project file is found', () => {
+        expect(projectDirOf('apps/web/src/a.test.ts', dir)).toBe('apps/web');
     });
 });

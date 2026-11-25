@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { normalizeHomeSectionsCollapsed } from '../../../stores/preferenceParsers';
 import type { HomeSectionId } from '../../../stores/preferenceKeys';
 

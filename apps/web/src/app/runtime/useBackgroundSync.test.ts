@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
 import { requestBackgroundRefresh } from './backgroundRefresh';
@@ -9,7 +9,7 @@ import { syncStreakReporter } from './logging/syncStreakReporter';
 import { useBackgroundSync } from './useBackgroundSync';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
-jest.mock('@chatic/runtime', () => ({
+jest.mock('@chatic/runtime-react', () => ({
     runtime: {
         session: {
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],

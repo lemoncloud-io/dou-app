@@ -24,8 +24,8 @@ const connectionMocks = {
     }),
 };
 
-vi.mock('@chatic/runtime', async () => {
-    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ channel: channelMocks }) },
         session: {

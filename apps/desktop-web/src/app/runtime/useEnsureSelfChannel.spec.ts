@@ -12,8 +12,8 @@ const getSelfChannel = vi.fn();
 const warn = vi.fn();
 
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => state.switching }));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ channel: { getSelfChannel } }) },
         session: {
             useGlobalSession: () => ({ activeServer: state.server }),

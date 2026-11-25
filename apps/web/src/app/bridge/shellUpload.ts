@@ -1,4 +1,4 @@
-import { runtime, type PutPort, type ShellFilePutPort } from '@chatic/runtime';
+import { runtime, type PutPort, type ShellFilePutPort } from '@chatic/runtime-react';
 
 export const getShellPut = (): PutPort => runtime.files.put;
 

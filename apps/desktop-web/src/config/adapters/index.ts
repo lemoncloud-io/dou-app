@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { defineAdapter, webLocalCachePorts } from '@chatic/runtime-web';
 import type { WebHostFacts } from '@chatic/runtime-web';
 

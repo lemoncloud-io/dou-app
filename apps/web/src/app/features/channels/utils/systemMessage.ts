@@ -1,4 +1,4 @@
-import type { ChatSubType } from '@chatic/runtime';
+import type { ChatSubType } from '@chatic/runtime-react';
 
 export const systemMessageSuffixKey = (subType: ChatSubType | undefined): string | null => {
     switch (subType) {

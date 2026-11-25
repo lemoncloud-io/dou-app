@@ -4,7 +4,7 @@
 signed in) shows an eight-digit code and its QR, and a signed-in app approves it. Every entry sits
 behind `feature.auth.devicePairing`, which is on in every stage; turning it off hides every entry again.
 
-The flow itself is `@chatic/runtime`'s (`runtime.session.usePairingRequest`, documented in its
+The flow itself is `@chatic/runtime-react`'s (`runtime.session.usePairingRequest`, documented in its
 session docs); this feature is the screens around it.
 
 ## Layout

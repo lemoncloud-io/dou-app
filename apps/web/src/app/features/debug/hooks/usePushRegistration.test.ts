@@ -3,8 +3,8 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 const mockIsNative = jest.fn();
 const mockFetchToken = jest.fn();
 jest.mock('@chatic/bridges', () => ({ hostProfile: () => ({ globals: {} }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         push: {
             useRegisterDeviceTokenMutation: jest.fn(),
             get deviceToken() {
@@ -18,7 +18,7 @@ jest.mock('@chatic/runtime', () =>
 );
 jest.mock('../../../hooks/useDeviceInfo', () => ({ useDeviceInfo: jest.fn() }));
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useDeviceInfo } from '../../../hooks/useDeviceInfo';
 
 import { usePushRegistration, type PushRegistrationMessages } from './usePushRegistration';

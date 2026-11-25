@@ -3,7 +3,7 @@ import '@testing-library/jest-dom';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { resetRoomAudioStore, useRoomAudioStore } from '../stores/roomAudioStore';
@@ -22,8 +22,8 @@ jest.mock('@chatic/shared', () => ({
 
 const mockCacheRead = jest.fn();
 const mockGetChat = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1' }),
             useUidInCloud: () => 'u1',

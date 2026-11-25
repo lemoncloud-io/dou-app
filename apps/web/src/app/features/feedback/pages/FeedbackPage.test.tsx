@@ -21,8 +21,8 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => mockNavigate,
     prepareImage: (file: File) => mockEncode(file),
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         report: {
             reportIssue: (...args: unknown[]) => mockReportIssue(...args),
         },

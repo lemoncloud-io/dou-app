@@ -5,7 +5,7 @@ import {
     isShellFileRef,
     type ChatAttachmentSource,
     type ShellFileRef,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 import type { AttachmentPickSource, PickedShellAttachment, RefusedAttachment } from '@chatic/bridge-messages';
 
 import { base64ToFile } from './photoLibrary';

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useNotificationStore } from '../stores/useNotificationStore';
 import { inScope, type NotificationItem } from '../utils/notifications';

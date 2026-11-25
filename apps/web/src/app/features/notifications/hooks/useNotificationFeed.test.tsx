@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime, type DomainChannel, type DomainChat, type DomainJoin } from '@chatic/runtime';
+import { runtime, type DomainChannel, type DomainChat, type DomainJoin } from '@chatic/runtime-react';
 
 import { ActiveCloudDataContext, type ActiveCloudData } from '../../../hooks/activeCloudDataContext';
 import { useNotificationStore } from '../../../stores/useNotificationStore';
@@ -9,8 +9,8 @@ import { EMPTY_OVERLAY } from '../../../utils/notifications';
 import { NOTIFICATION_ROOM_ROWS, useNotificationFeed } from './useNotificationFeed';
 
 jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: { useSessionSelection: jest.fn(), useUidInCloud: jest.fn(), useSessionIdentity: jest.fn() },
         connection: { useCloudVerified: jest.fn() },
         sync: { registerSyncTarget: jest.fn() },

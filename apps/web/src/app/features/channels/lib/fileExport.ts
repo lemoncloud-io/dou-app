@@ -1,5 +1,5 @@
 import type { OnSaveFilePayload } from '@chatic/bridge-messages';
-import { chatAttachmentFormat } from '@chatic/runtime';
+import { chatAttachmentFormat } from '@chatic/runtime-react';
 
 import type { DownloadProgress, DownloadResult, NativeDownload } from '../../../runtime/transfer';
 

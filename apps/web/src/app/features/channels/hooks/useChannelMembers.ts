@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { runtime, type DomainJoin, type DomainUser } from '@chatic/runtime';
+import { runtime, type DomainJoin, type DomainUser } from '@chatic/runtime-react';
 
 import type { ChannelMember } from '../types';
 import { hasLeftChannel } from '../utils/membership';

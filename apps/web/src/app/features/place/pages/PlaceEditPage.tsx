@@ -15,7 +15,7 @@ import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 import { useUpdatePlace } from '../../home';
 
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const MAX_NAME_LENGTH = 20;
 const MAX_DESC_LENGTH = 100;

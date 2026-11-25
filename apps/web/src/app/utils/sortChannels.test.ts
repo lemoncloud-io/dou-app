@@ -1,6 +1,6 @@
 import { sortChannels, toTime } from './sortChannels';
 
-import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/runtime';
+import type { DomainChannel, DomainChat, DomainJoin } from '@chatic/runtime-react';
 
 const channel = (id: string, updatedAt: number): DomainChannel => ({ id, updatedAt }) as unknown as DomainChannel;
 

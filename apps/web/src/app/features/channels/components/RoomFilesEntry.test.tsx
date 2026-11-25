@@ -12,8 +12,8 @@ jest.mock('@chatic/shared', () => ({
 }));
 
 const mockCountRoomMedia = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: (() => {
                 let graph: unknown;

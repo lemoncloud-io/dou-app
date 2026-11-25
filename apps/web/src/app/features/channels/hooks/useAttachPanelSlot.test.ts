@@ -13,8 +13,8 @@ import {
 } from './useAttachPanelSlot';
 
 let mockNative = true;
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         get appShell() {
             return { ...browserAppShell(), reportsKeyboardHeight: mockNative };

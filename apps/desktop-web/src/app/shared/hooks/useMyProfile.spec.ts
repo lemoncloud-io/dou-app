@@ -7,8 +7,8 @@ const mockRepositories = { profile: { setMyProfile: mockSetMyProfile, getMyProfi
 let mockSelectedSiteId: string | null = 'place-a';
 
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() } }));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => mockRepositories,
         },

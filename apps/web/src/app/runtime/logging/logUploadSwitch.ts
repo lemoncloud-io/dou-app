@@ -1,5 +1,5 @@
 import { liveShellValue } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const isLogCollectionEnabled = (): boolean => runtime.settings.get<boolean>('log.collection.enabled') !== false;
 

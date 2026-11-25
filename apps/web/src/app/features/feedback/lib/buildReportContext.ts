@@ -1,5 +1,5 @@
 import type { DeviceInfo, VersionInfo } from '@chatic/bridge-messages';
-import type { runtime } from '@chatic/runtime';
+import type { runtime } from '@chatic/runtime-react';
 
 import { getRouteTrail } from '../../../utils/routeTrail';
 import { getViewportSize } from '../../../utils/viewport';

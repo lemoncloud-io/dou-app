@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
 import { liveShellValue } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { DEBUG_STORAGE_KEY, DEBUG_OVERLAY_KEY as OVERLAY_KEY } from '../consts';
 import { tabStore } from '../../../storage';

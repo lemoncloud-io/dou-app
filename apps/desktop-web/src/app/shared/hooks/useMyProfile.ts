@@ -3,8 +3,8 @@ import { useCallback, useState } from 'react';
 import type { ProfileBody } from '@lemoncloud/chatic-socials-api';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
-import type { DomainProfile } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
+import type { DomainProfile } from '@chatic/runtime-react';
 
 export const useMyProfile = () => {
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();

@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { isEventChat, RELAY_CLOUD_ID } from '@chatic/runtime';
-import type { ChatMentionBody, DomainChannel } from '@chatic/runtime';
+import { isEventChat, RELAY_CLOUD_ID } from '@chatic/runtime-react';
+import type { ChatMentionBody, DomainChannel } from '@chatic/runtime-react';
 import { Button } from '@chatic/ui-kit';
 
 import {

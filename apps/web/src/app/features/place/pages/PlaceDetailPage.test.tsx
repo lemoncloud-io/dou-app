@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import type { DomainProfile } from '@chatic/runtime';
+import type { DomainProfile } from '@chatic/runtime-react';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 
 let mockPlace: Partial<MySiteView> | null = null;
@@ -20,8 +20,8 @@ const toast = jest.fn();
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ place: { observeItem, leavePlace, deletePlace } }),
         },

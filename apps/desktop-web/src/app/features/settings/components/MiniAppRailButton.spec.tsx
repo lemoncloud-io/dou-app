@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import type * as AppRuntimeModule from '@chatic/runtime';
+import type * as AppRuntimeModule from '@chatic/runtime-react';
 
 import type * as SharedModule from '../../../shared';
 
@@ -20,8 +20,8 @@ vi.mock('../utils/subWebViewShell', () => ({
     onShellSubWebViewClosed: () => () => undefined,
 }));
 
-vi.mock('@chatic/runtime', async () => {
-    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/runtime');
+vi.mock('@chatic/runtime-react', async () => {
+    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/runtime-react');
     return {
         ...actual,
         runtime: {

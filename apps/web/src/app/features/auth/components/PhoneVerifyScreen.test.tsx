@@ -20,8 +20,8 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => mockNavigate,
 }));
 jest.mock('react-router-dom', () => ({ useLocation: () => ({ pathname: '/invite/accept', search: '', hash: '' }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             confirmPhoneLogin: (...args: unknown[]) => mockConfirmPhoneLogin(...args),
             retryPhoneLogin: (...args: unknown[]) => mockRetryPhoneLogin(...args),

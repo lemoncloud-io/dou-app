@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         sync: {
             updateSyncSnapshot: jest.fn(),
             fetchRoomFeed: jest.fn(),
@@ -22,7 +22,7 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('../../../bridge', () => ({ useAppForeground: jest.fn() }));
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useAppForeground } from '../../../bridge';
 import { useForegroundChatRefresh } from './useForegroundChatRefresh';

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { pickPreviewChat } from '../utils';
 

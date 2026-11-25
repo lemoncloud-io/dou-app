@@ -5,7 +5,7 @@ jest.mock('./useDebugMode', () => ({
 
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 
 import { clearDebugObservation, getDebugObservation } from '../overlay/sharedObservationStore';
 import { useDebugRoomMirror, type DebugRoomMirrorInput } from './useDebugRoomMirror';

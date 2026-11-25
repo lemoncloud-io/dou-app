@@ -1,7 +1,7 @@
 import { type TransitionEvent, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime, type DomainPlace } from '@chatic/runtime';
+import { runtime, type DomainPlace } from '@chatic/runtime-react';
 
 import { IconPlus, ImageAvatar, PlaceChip } from '@chatic/web-ui-kit';
 

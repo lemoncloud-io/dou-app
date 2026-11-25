@@ -21,7 +21,7 @@ import {
     type ChatAttachmentJudgement,
     type ChatAttachmentSource,
     type ChatMentionBody,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
     AlertDialog,

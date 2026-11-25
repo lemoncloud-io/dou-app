@@ -13,8 +13,8 @@ const useSendImages = vi.fn((_input: unknown) => ({
     canRetry: canRetryImages,
     discard: discardImages,
 }));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useSendImages: (input: unknown) => useSendImages(input) },
         files: { put: filesPut },
     })
@@ -31,7 +31,7 @@ const toast = vi.fn();
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
-import { type DomainChat } from '@chatic/runtime';
+import { type DomainChat } from '@chatic/runtime-react';
 
 import { useComposerSend } from './useComposerSend';
 

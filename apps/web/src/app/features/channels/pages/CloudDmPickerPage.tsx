@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { DefaultAvatar, ImageAvatar, ListRow, SearchInput, Text } from '@chatic/web-ui-kit';
 

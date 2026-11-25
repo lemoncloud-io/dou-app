@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainCloud, DomainListResult } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
+import type { DomainCloud, DomainListResult } from '@chatic/runtime-react';
 
 export const CLOUD_NAME_MAX = 20;
 

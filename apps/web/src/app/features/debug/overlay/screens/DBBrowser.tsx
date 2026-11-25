@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { CopyButton } from '../../components/CopyButton';
 import { FilterBar } from '../../components/FilterBar';

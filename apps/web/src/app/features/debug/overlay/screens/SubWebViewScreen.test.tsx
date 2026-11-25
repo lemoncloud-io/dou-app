@@ -14,8 +14,8 @@ jest.mock('../../../../bridge', () => ({
     openSubWebView: (...args: unknown[]) => openSubWebView(...args),
     appBridge: { closeSubWebView: (...args: unknown[]) => closeSubWebView(...args) },
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         links: {
             subWebView: {
                 onClosed: (listener: (closed: Record<string, unknown>) => void) => {

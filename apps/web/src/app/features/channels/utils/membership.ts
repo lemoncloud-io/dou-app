@@ -1,4 +1,4 @@
-import type { DomainChannel, DomainJoin } from '@chatic/runtime';
+import type { DomainChannel, DomainJoin } from '@chatic/runtime-react';
 
 import { pickDmPeerId } from './dmPeer';
 

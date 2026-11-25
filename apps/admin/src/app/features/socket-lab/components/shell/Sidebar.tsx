@@ -1,6 +1,6 @@
 import { LogOut } from 'lucide-react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { ACCENT, hexToRgba } from '../../lib/stats';
 

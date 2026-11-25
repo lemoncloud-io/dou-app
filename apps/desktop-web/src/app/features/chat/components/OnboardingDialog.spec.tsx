@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const syncChannels = vi.fn(() => Promise.resolve({ syncedAt: 0, removedCount: 0 }));
 const repositories = { channel: { syncChannels } };
 const ids = { session: 'u1', relay: 'u1' as string | null };
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: ids.session }),
             useUidInCloud: (cid: string) => (cid === 'default' ? ids.relay : null),

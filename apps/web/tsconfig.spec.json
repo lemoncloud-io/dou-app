@@ -50,7 +50,7 @@
             "path": "../../libs/perf/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/runtime/tsconfig.lib.json"
+            "path": "../../libs/runtime/react/tsconfig.lib.json"
         },
         {
             "path": "../../libs/bridge-messages/tsconfig.lib.json"

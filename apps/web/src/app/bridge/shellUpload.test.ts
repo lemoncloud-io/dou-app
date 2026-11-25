@@ -1,13 +1,13 @@
 const mockFiles = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         get files() {
             return mockFiles();
         },
     })
 );
 
-import { browserFiles } from '@chatic/runtime/testing';
+import { browserFiles } from '@chatic/runtime-react/testing';
 
 import { getShellFilePut, getShellPut, syncShellTransfers } from './shellUpload';
 

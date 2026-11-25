@@ -1,4 +1,4 @@
-import type { ChatFileSlot } from '@chatic/runtime';
+import type { ChatFileSlot } from '@chatic/runtime-react';
 
 import type { AudioTrack } from '../stores/roomAudioStore';
 

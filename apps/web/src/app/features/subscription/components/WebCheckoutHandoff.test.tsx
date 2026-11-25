@@ -12,8 +12,8 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) =>
 let mockNative = false;
 const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
 const mockWeb = { kind: 'web', open: jest.fn() };
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         get checkout() {
             return mockNative ? mockStore : mockWeb;
         },

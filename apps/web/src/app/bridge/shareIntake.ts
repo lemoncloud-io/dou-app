@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import { runtime, type ShellFileRef } from '@chatic/runtime';
+import { runtime, type ShellFileRef } from '@chatic/runtime-react';
 import type { RefusedAttachment } from '@chatic/bridge-messages';
 
 import { toShellFile } from './attachmentPicker';

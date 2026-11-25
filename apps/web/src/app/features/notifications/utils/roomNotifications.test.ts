@@ -1,4 +1,4 @@
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 
 import { roomNotifications, type RoomNotificationInput } from './roomNotifications';
 

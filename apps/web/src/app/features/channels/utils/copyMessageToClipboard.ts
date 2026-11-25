@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const copyMessageToClipboard = async (text: string): Promise<boolean> => {
     if (!text) return false;

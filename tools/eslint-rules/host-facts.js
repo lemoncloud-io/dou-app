@@ -10,7 +10,7 @@ const path = require('node:path');
  * `CHATIC_APP_*` globals are read the same way, most often to tell one phone platform from the other.
  * Each guess holds only while every host with a bridge can do everything the phone can, and nothing
  * outside the page can change its answer. What a host can do reaches a feature through a host port
- * instead (`runtime.<port>` from `@chatic/runtime`), chosen once by the app's runtime declaration from
+ * instead (`runtime.<port>` from `@chatic/runtime-react`), chosen once by the app's runtime declaration from
  * what the host declared.
  *
  * So this reports, outside the allowed files:
@@ -126,8 +126,8 @@ module.exports = {
             },
         ],
         messages: {
-            probe: "'{{name}}' only says a bridge exists. Ask the capability's port (`runtime.<port>` from @chatic/runtime) instead; only the files on this rule's allow-list may use it.",
-            global: "'{{name}}' is a fact the host injected. Read it through the host ports (`runtime.<port>` from @chatic/runtime), or @chatic/bridges' host profile in infrastructure; only the files on this rule's allow-list may read it off the global object.",
+            probe: "'{{name}}' only says a bridge exists. Ask the capability's port (`runtime.<port>` from @chatic/runtime-react) instead; only the files on this rule's allow-list may use it.",
+            global: "'{{name}}' is a fact the host injected. Read it through the host ports (`runtime.<port>` from @chatic/runtime-react), or @chatic/bridges' host profile in infrastructure; only the files on this rule's allow-list may read it off the global object.",
         },
     },
     create(context) {

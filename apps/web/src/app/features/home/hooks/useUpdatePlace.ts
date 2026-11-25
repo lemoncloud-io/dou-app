@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 interface UpdatePlacePayload {
     id: string;

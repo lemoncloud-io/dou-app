@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 
-import type * as AppRuntime from '@chatic/runtime';
-import type { DomainChannel } from '@chatic/runtime';
+import type * as AppRuntime from '@chatic/runtime-react';
+import type { DomainChannel } from '@chatic/runtime-react';
 import { toast } from '@chatic/ui-kit';
 
 import { fetchFileBytes } from '../../utils';
@@ -29,7 +29,7 @@ vi.mock('../../../../shared', async importOriginal => ({
 const sendImages = vi.hoisted(() => vi.fn());
 const filesPut = vi.hoisted(() => vi.fn());
 const sendTargets = vi.hoisted(() => [] as { cid: string; channelId: string; attach?: boolean; put?: unknown }[]);
-vi.mock('@chatic/runtime', async importOriginal => {
+vi.mock('@chatic/runtime-react', async importOriginal => {
     const original = await importOriginal<typeof AppRuntime>();
     return {
         ...original,

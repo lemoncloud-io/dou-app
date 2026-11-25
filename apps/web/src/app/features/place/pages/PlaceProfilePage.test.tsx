@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import type { DomainProfile } from '@chatic/runtime';
+import type { DomainProfile } from '@chatic/runtime-react';
 
 const navigate = jest.fn();
 const setMyPlaceProfile = jest.fn();

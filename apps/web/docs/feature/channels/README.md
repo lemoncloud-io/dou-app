@@ -69,7 +69,7 @@ behind them.
 
 **Out** — the home list and its badges (`home`), relay invite issue and accept (`invite`), push
 navigation (`notifications`), place profiles beyond opening their editor (`place` / `home`), and
-everything below the repository call (`@chatic/data`, `@chatic/runtime`).
+everything below the repository call (`@chatic/data`, `@chatic/runtime-react`).
 
 ## Structure
 

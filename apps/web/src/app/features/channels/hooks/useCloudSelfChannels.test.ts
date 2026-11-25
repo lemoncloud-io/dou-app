@@ -2,7 +2,7 @@ import { createElement, type ReactNode } from 'react';
 
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 import { ActiveCloudDataContext, type ActiveCloudData } from '../../../hooks/activeCloudDataContext';
 import { useCloudSelfChannels } from './useCloudSelfChannels';

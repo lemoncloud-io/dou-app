@@ -11,8 +11,8 @@ jest.mock('@tanstack/react-query', () => ({
     useIsMutating: ({ mutationKey }: { mutationKey: string[] }) => mockSwitches[mutationKey.join('/')] ?? 0,
 }));
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         connection: { useRuntimeSocketState: () => ({ isVerified: mockIsVerified }) },
         session: {
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],

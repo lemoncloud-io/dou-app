@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 
 import { readSelectedCloudId, useSelectedCloudId } from '../../../hooks/useCloudScope';

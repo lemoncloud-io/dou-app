@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useAppForeground } from '../bridge';
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-import type { DomainMiniApp } from '@chatic/runtime';
+import type { DomainMiniApp } from '@chatic/runtime-react';
 import { MINI_APP_LINK_LIMIT } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { IconChevronRight, MenuCard, Switch } from '@chatic/web-ui-kit';

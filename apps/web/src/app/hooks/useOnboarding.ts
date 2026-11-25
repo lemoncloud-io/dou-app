@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const completeOnboarding = (): void => {
     runtime.settings.set('ui.onboardingCompleted', true, { lane: 'shell' });

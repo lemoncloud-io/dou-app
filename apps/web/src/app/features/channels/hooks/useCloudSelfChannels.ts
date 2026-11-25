@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 import { useActiveCloudData } from '../../../hooks';
 import { isInCloudSelfSection } from '../lib';

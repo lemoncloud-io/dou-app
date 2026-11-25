@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { parsePushDeeplink } from '../utils/parsePushDeeplink';
 

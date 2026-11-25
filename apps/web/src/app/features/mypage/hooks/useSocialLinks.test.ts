@@ -7,10 +7,10 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) =>
 
 const mockIsNative = jest.fn();
 const mockCredential = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         get signIn() {
-            const tab = require('@chatic/runtime/testing').browserSignIn();
+            const tab = require('@chatic/runtime-react/testing').browserSignIn();
             if (!mockIsNative()) return tab;
             return {
                 ...tab,

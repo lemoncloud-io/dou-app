@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import type { ChatFileSlot } from '@chatic/runtime';
+import type { ChatFileSlot } from '@chatic/runtime-react';
 
 import { DocumentPreview, type DocumentPreviewTarget } from './DocumentPreview';
 

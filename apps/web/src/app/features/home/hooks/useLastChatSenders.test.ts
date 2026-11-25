@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 
 import { useChannelProfiles } from '../../channels/hooks/useChannelProfiles';
 import { useLastChatSenders } from './useLastChatSenders';

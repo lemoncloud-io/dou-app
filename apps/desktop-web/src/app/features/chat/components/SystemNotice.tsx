@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 import { groupedJoinText, systemMessageText } from '../utils';
 

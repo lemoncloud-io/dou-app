@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useMatch } from 'react-router-dom';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useAppVisibility } from '../bridge';
 import { ROUTES } from '../routes/paths';

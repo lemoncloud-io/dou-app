@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import type { PushPayload, UnicastEvent, UnicastResult, ViewingTarget } from '@lemoncloud/chatic-sockets-api';
 

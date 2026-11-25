@@ -4,8 +4,8 @@ import type { TFunction } from 'i18next';
 
 import { Hash } from 'lucide-react';
 
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
-import { runtime } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
+import { runtime } from '@chatic/runtime-react';
 
 import { bareChannelName, messagePreview, senderNameIn, usePlaceProfilesStore } from '../../../../shared';
 import { useLastChats } from '../../hooks';

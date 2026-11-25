@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { deviceStore, plainStore } from '../../storage';
 
 import { CLOUD_RECORD_OWNER_KEY } from '../utils/cloudRecordOwnership';

@@ -3,8 +3,8 @@ import { MemoryStore } from '@chatic/storage';
 import type { ActiveStores, ActiveVault } from '../../../runtime/activeStorage';
 import { activeKeyValueMedia, formatValueForEdit, readKeyValueEntries, valueToStore } from './keyValueMedia';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: { isSessionKey: (key: string) => key === 'chatic-relay-token' },
     })
 );

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime, type DomainProfile } from '@chatic/runtime';
+import { runtime, type DomainProfile } from '@chatic/runtime-react';
 
 export const usePlaceOwnerProfile = (placeId?: string, ownerId?: string): DomainProfile | null => {
     const { profile: profileRepository } = runtime.data.useRuntimeRepositories();

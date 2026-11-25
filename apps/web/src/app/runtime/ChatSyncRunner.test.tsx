@@ -1,13 +1,13 @@
 import { render } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useCloudSelfChannels } from '../features/channels/hooks';
 import { useChatSyncRegistration } from '../hooks/useChatSyncRegistration';
 import { useHomeChannels } from '../hooks/useHomeChannels';
 import { ChatSyncRunner } from './ChatSyncRunner';
 
-jest.mock('@chatic/runtime', () => ({
+jest.mock('@chatic/runtime-react', () => ({
     runtime: { session: { useSessionSelection: jest.fn(), useUidInCloud: jest.fn() } },
 }));
 jest.mock('../hooks/useChatSyncRegistration', () => ({ useChatSyncRegistration: jest.fn() }));

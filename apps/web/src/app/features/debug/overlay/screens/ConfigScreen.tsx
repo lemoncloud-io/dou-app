@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import { runtime, type ConfigSnapshot, type SetResult } from '@chatic/runtime';
+import { runtime, type ConfigSnapshot, type SetResult } from '@chatic/runtime-react';
 
 import { readCheckoutOptions } from '../../../../runtime/checkoutOptions';
 import { CopyButton } from '../../components/CopyButton';

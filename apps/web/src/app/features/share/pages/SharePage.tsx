@@ -12,7 +12,7 @@ import {
     ModalTopBar,
     PickedFileStrip,
 } from '@chatic/web-ui-kit';
-import { IMAGE_MESSAGE_SLOT_MAX, judgeChatAttachments, type ShellFileRef } from '@chatic/runtime';
+import { IMAGE_MESSAGE_SLOT_MAX, judgeChatAttachments, type ShellFileRef } from '@chatic/runtime-react';
 
 import { ROUTES } from '../../../routes/paths';
 import { PHONE_SENDS } from '../../../utils';

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { User } from 'lucide-react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import {
     Avatar,
     AvatarFallback,

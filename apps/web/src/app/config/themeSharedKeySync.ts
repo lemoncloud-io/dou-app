@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import type { KeyValueStore } from '@chatic/storage';
 
 export const syncThemeFromSharedKey = (local: KeyValueStore): void => {

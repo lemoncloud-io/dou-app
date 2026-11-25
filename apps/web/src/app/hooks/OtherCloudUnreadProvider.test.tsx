@@ -43,14 +43,14 @@ let mockUids: Record<string, string | null> = {};
 let mockOwned: { id?: string }[] = [];
 const uidSubscribers = new Set<() => void>();
 
-jest.mock('@chatic/runtime', () => {
+jest.mock('@chatic/runtime-react', () => {
     const { useSyncExternalStore } = jest.requireActual('react');
     const repositories = {
         channel: { observeList: (...args: Parameters<ReturnType<typeof observe>>) => observe('channel')(...args) },
         place: { observeList: (...args: Parameters<ReturnType<typeof observe>>) => observe('site')(...args) },
         join: { observeList: (...args: Parameters<ReturnType<typeof observe>>) => observe('join')(...args) },
     };
-    return jest.requireActual('@chatic/runtime/testing').fakeRuntimeModule({
+    return jest.requireActual('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: mockSelected }),
             useUidInCloud: (cid: string) =>

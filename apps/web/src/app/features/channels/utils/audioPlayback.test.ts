@@ -1,4 +1,4 @@
-import type { ChatFileSlot } from '@chatic/runtime';
+import type { ChatFileSlot } from '@chatic/runtime-react';
 
 import { audioTrackOf, canPlayAudioType, isVoiceMessageName, resetAudioTypeProbe } from './audioPlayback';
 

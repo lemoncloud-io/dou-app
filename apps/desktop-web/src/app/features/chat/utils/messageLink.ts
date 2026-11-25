@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import type { PushDeeplinkTarget } from '../../../shared/utils/parsePushDeeplink';
 

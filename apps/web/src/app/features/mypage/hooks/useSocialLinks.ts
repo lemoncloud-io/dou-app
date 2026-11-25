@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useLinkAccount, useLinkedAccounts, type SocialAccountTokens } from '../../../hooks';
 import { getSocketErrorCode, toError } from '../../../utils/errors';

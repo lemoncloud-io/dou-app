@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 import { compareByChatNo, isNotifiableChat } from '../../../shared/utils';
 import { isFeedVisible } from './feedVisibility';

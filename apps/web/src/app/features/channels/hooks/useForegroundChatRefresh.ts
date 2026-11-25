@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import { getActivePerfTrace } from '@chatic/perf';
 

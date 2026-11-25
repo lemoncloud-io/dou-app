@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const isPhoneLoginEnabled = (): boolean => runtime.settings.get<boolean>('feature.auth.phoneLogin') !== false;
 

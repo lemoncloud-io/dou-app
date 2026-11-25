@@ -1,4 +1,4 @@
-import { chatAttachmentExtension } from '@chatic/runtime';
+import { chatAttachmentExtension } from '@chatic/runtime-react';
 
 import { isSafeImageUrl, type ChatImage } from './chatImages';
 

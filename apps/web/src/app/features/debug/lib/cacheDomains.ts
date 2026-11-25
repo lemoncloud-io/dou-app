@@ -1,4 +1,4 @@
-import type { runtime } from '@chatic/runtime';
+import type { runtime } from '@chatic/runtime-react';
 
 type PageRepositories = runtime.data.PageRepositories;
 

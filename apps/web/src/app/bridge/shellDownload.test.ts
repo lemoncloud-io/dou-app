@@ -1,7 +1,7 @@
 const request = jest.fn();
 let native = true;
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get files() {
             const files = testing.browserFiles();

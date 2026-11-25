@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainMiniApp } from '@chatic/runtime';
+import type { DomainMiniApp } from '@chatic/runtime-react';
 import { checkMiniAppLink } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { BottomSheet, Button, Switch, TextField } from '@chatic/web-ui-kit';

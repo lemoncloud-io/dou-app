@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const BACKGROUND_SYNC_POLL_MS = 60_000;
 

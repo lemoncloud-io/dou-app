@@ -21,7 +21,7 @@
     },
     "nx": {
         "tags": [
-            "layer:react-surface",
+            "layer:binding",
             "platform:web",
             "formfactor:any"
         ]

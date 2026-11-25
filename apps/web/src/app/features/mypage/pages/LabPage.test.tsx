@@ -11,8 +11,8 @@ const setPlaceInvite = jest.fn();
 const setChatInputLock = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         settings: {
             get: () => 'code',
             useConfigValue: (key: string) => (key === 'feature.miniApp.tab' ? mockMiniAppTab : undefined),

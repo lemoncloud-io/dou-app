@@ -193,4 +193,4 @@ SDK gone, nothing reads the key at all. An install that has it keeps a dead valu
 - **Mobile's `debugSettingsStore`** (`mockServiceMode`, `overlay*`, …) — apps/web has no screen that
   would use it, so it was never integrated. `logUploadHold`/`debugModeEnabled` already work through
   their own dedicated bridge messages, independent of this store.
-- **Session and tokens** — owned by `web-core` / `@chatic/runtime`, not this folder.
+- **Session and tokens** — owned by `web-core` / `@chatic/runtime-react`, not this folder.

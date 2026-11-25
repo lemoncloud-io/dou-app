@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import type * as AppRuntimeModule from '@chatic/runtime';
+import type * as AppRuntimeModule from '@chatic/runtime-react';
 import type { OnSubWebViewClosedPayload } from '@chatic/bridge-messages';
 
 import type * as SharedModule from '../../../shared';
@@ -33,8 +33,8 @@ vi.mock('../utils/subWebViewShell', () => ({
     },
 }));
 
-vi.mock('@chatic/runtime', async () => {
-    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/runtime');
+vi.mock('@chatic/runtime-react', async () => {
+    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/runtime-react');
     return {
         ...actual,
         runtime: {

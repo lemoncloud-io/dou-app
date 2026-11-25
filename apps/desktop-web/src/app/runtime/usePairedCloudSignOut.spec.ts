@@ -10,8 +10,8 @@ const env = vi.hoisted(() => ({
     toast: vi.fn(),
 }));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         session: {
             useSessionLogout: () => env.logout,
             usePairedCloudCheck: (onEnded: (cloudId: string) => void) => {

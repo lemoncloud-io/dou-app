@@ -1,10 +1,10 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { setPhotoSendGrouped, usePhotoSendGrouping } from './usePhotoSendGrouping';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         settings: { get: jest.fn(), set: jest.fn(), useConfigValue: jest.fn() },
     })
 );

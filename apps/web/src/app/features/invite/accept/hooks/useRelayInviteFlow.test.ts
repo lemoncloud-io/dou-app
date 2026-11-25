@@ -23,8 +23,8 @@ const loggerError = jest.fn();
 const loggerWarn = jest.fn();
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         connection: {
             RELAY_SLOT: 'default',
             waitUntilVerified: (...args: unknown[]) => mockWaitUntilVerified(...args),

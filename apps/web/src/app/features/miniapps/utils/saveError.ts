@@ -1,4 +1,4 @@
-import { miniAppSaveProblemOf, type MiniAppSaveProblem } from '@chatic/runtime';
+import { miniAppSaveProblemOf, type MiniAppSaveProblem } from '@chatic/runtime-react';
 import { MINI_APP_LINK_LIMIT, MINI_APP_LINK_NAME_MAX } from '@chatic/shared';
 
 export interface MiniAppSaveError {

@@ -1,6 +1,6 @@
 import { ingestLogEntry, logger } from '@chatic/bridges';
 import type { PendingReportInfo } from '@chatic/bridge-messages';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const FLUSH_DELAY_MS = 3_000;
 

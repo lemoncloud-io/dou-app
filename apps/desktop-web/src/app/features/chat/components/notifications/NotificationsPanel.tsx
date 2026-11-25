@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AtSign, Bell, Check, CheckCheck, ChevronDown, ListChecks, ListFilter, type LucideIcon } from 'lucide-react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 import {
     cn,
     DropdownMenu,

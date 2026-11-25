@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { SlidersHorizontal } from 'lucide-react';
 
-import type { DomainMiniApp } from '@chatic/runtime';
+import type { DomainMiniApp } from '@chatic/runtime-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { cn } from '@chatic/ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';

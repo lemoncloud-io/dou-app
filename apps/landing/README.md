@@ -301,8 +301,8 @@ test ! -d apps/landing/src/app/shared   # no shared/ wrapper
 # (the route table's lazy import of the barrel is the one allowed crossing; a public feature's
 # relative import of ../../subscription is the feature-to-feature command's to catch; the quote or
 # slash after the name keeps `@chatic/runtime` from matching some other package that starts with it,
-# while `runtime(-web)?` names runtime-web on purpose)
-git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|runtime(-web)?|auth)['/]" \
+# while `runtime(-web|-react)?` names runtime-web and runtime-react on purpose)
+git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|runtime(-web|-react)?|auth)['/]" \
     -- apps/landing/src ':!apps/landing/src/app/features/subscription' ':!apps/landing/src/app/routes' \
     ':!apps/landing/src/config'
 
@@ -563,7 +563,7 @@ answer to a session the server confirms is over — an alert and a jump to a log
 not have — is switched off: the port reports the refusal as `unauthenticated`, and the route root
 turns that into the sign-in page.
 
-Outside `src/config/`, the site reaches the runtime through `@chatic/runtime` alone. The one thing the
+Outside `src/config/`, the site reaches the runtime through `@chatic/runtime-react` alone. The one thing the
 facade does not sell is the device guest's sign-in (`loginGuestByDevice`), which the signed code exchange
 needs as a plain call rather than a hook; `startLandingRuntime` hands it on from the started engine.
 
@@ -816,7 +816,7 @@ reader walks away.
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
 Most of the libraries Nx's graph gives this app are not called from it. The public surface imports
-four; the account surface adds three more, `@chatic/runtime` (which reaches the server through
+four; the account surface adds three more, `@chatic/runtime-react` (which reaches the server through
 `libs/data` and `libs/http`), and `@chatic/runtime-web` and `@chatic/config` for the session runtime's
 declaration in `src/config/`, with
 `@portone/browser-sdk` and `@stripe/stripe-js` from the workspace root, inside a chunk of their own that loads on first use (see
@@ -836,7 +836,7 @@ the workspace root, inside its own chunk. The table is about the public pages.
 | `@chatic/ui-kit`          | transitive, via `shared`  | nothing here calls it                                                                  |
 | `@chatic/config`          | direct, 1 file            | `src/config/`: the session runtime's config ports                                      |
 | `@chatic/runtime-web`     | direct, 2 files           | `src/config/`: the session runtime's declaration, its adapters and its start           |
-| `@chatic/runtime`         | direct, 3 files           | the account surface's HTTP port (sign-in, session, repository); the start's one write  |
+| `@chatic/runtime-react`   | direct, 3 files           | the account surface's HTTP port (sign-in, session, repository); the start's one write  |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
 libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain

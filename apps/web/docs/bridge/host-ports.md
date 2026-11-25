@@ -11,7 +11,7 @@ through `isNative()` or a `CHATIC_APP_*` global. The declaration `main.tsx` star
 adapter per port, and `startRuntime` builds and publishes them once, right after it initialises config
 and before the runtime boots. Each port's default, `<port>.host` (`checkout.host` for checkout), answers
 what the host declared — or, for a shell built before declarations, the port's legacy rule — exactly as
-the entry's own chooser did before. A feature reads `runtime.<port>` from `@chatic/runtime` where it
+the entry's own chooser did before. A feature reads `runtime.<port>` from `@chatic/runtime-react` where it
 uses it; push's members join the push hooks' group one by one (`runtime.push.notifications`, …).
 Read before the publish, a port — or a push member — throws an error that names it (for example
 `push.notifications.onReceive`), so a module that reads one at module scope fails loudly.
@@ -95,7 +95,7 @@ that moves one port to the page, or a host that does the work a third way, chang
 `@nx/workspace-host-port-kind` (`tools/eslint-rules/host-port-kind.js`) reports a read of `kind` (and of
 `os` on `appShell` and `signIn`) off any of these seven ports anywhere but `apps/*/src/config/**` and
 tests. A test starts from `browserMedia()`, `browserFiles()`, `browserLinks()`, `browserAppShell()`,
-`browserSignIn()`, `browserDiagnostics()` or `browserPush()` (`@chatic/runtime/testing`) and lays the
+`browserSignIn()`, `browserDiagnostics()` or `browserPush()` (`@chatic/runtime-react/testing`) and lays the
 members it watches on top.
 
 Identity and config values the shell injects — device ids, version, stage, the config bag — are not

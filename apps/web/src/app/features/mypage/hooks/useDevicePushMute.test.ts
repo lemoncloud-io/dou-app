@@ -3,14 +3,14 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { resetHostProfileForTests } from '@chatic/bridges';
 
 import { useDevicePushMute } from './useDevicePushMute';
 
 let mockDeviceToken: { fetch: () => Promise<string | null> } | null = null;
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },

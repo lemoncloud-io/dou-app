@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import type { DomainMiniApp } from '@chatic/runtime';
+import type { DomainMiniApp } from '@chatic/runtime-react';
 
 import type { MiniAppEditing, MiniAppSheetFields } from '../components/MiniAppSheet';
 import type { CloudMiniApps } from './useCloudMiniApps';

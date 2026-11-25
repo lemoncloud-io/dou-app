@@ -4,10 +4,10 @@ import { useChatMessage } from './useChatMessage';
 
 const mockCacheRead = jest.fn();
 const mockGetChat = jest.fn();
-jest.mock('@chatic/runtime', () => {
+jest.mock('@chatic/runtime-react', () => {
     let graph: unknown;
     const roomGraph = () => (graph ??= { chat: { cacheRead: mockCacheRead } });
-    return jest.requireActual('@chatic/runtime/testing').fakeRuntimeModule({
+    return jest.requireActual('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: roomGraph,
             getCloudRepositories: () => ({ chat: { getChat: mockGetChat } }),

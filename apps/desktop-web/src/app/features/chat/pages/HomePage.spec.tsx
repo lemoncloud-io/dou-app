@@ -12,7 +12,7 @@ const { switchCalls, sessionState, socketState } = vi.hoisted(() => ({
     socketState: { isVerified: true },
 }));
 
-vi.mock('@chatic/runtime', async () => {
+vi.mock('@chatic/runtime-react', async () => {
     const useSiteSwitch = () => {
         const [pending, setPending] = useState(false);
         const switchSite = useCallback(async (siteId: string) => {
@@ -28,7 +28,7 @@ vi.mock('@chatic/runtime', async () => {
         }, []);
         return { switchSite, isSwitching: pending };
     };
-    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+    return (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         session: {
             useSiteSwitch,
             useSessionSelection: () => ({ selectedSiteId: sessionState.selectedSiteId }),

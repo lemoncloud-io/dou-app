@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { runtime, type DomainChannel } from '@chatic/runtime';
+import { runtime, type DomainChannel } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import type {
     ChannelCreateInput,

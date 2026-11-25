@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { runtime, pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/runtime';
+import { runtime, pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/runtime-react';
 
 import { useOwnedCloudIds } from './useCloudCatalog';
 

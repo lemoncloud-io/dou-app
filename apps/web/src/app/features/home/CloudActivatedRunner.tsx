@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { InAppNotificationCard } from '../../ui/components/InAppNotificationCard';
 

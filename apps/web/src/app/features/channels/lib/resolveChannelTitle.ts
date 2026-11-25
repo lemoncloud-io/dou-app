@@ -1,4 +1,4 @@
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 import { resolveDmTitle } from '../utils/dmTitle';
 import { resolveSelfChatTitle } from '../utils/selfChatTitle';

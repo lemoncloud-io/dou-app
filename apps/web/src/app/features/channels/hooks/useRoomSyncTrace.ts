@@ -4,7 +4,7 @@ import { clearActivePerfTrace } from '@chatic/perf';
 
 import { roomOpenTrace } from '../../../runtime/perf';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 import type { PerfTrace } from '@chatic/perf';
 
 export const ROOM_SYNC_TIMEOUT_MS = 30_000;

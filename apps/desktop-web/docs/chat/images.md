@@ -19,7 +19,7 @@ Components are in `features/chat/components/images/`, and the tray state is in
 ## Adding files
 
 - **"+"** (`AttachButton`) opens the OS picker directly. It used to open a menu whose only entry did
-  the same. Its `accept` is `CHAT_ATTACHMENT_ACCEPT` from `@chatic/runtime`: every type and every
+  the same. Its `accept` is `CHAT_ATTACHMENT_ACCEPT` from `@chatic/runtime-react`: every type and every
   extension, because a picker that does not know HWP's type only offers the file by its extension.
 - **Drop:** `AttachmentDropOverlay` covers the pane while files are dragged over it: "Drop images and
   files here to upload", the ten-per-message limit, and a line saying voice files (the extensions and
@@ -34,7 +34,7 @@ each refused file its reason, checked in this order:
 - `folder`: a dropped folder. It arrives among the files as an empty, typeless file named like the
   folder; `useFileDrop` reads the drop's entries to tell it apart (only a drop can carry one).
 - `empty`: a file of zero bytes, of any kind. The server refuses one when its upload completes.
-- `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/runtime` decides:
+- `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/runtime-react` decides:
   PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, DOC, XLS, PPT, HWP, HWPX, TXT, CSV, Markdown (`.md`), JSON and HTML
   (`.html`, `.htm`) documents, ZIP archives, and M4A, MP3, WAV and OGG audio. The server takes all
   of them; HTML is the one the phone app does not send, as it has no viewer for a page. DOC, XLS and
@@ -429,7 +429,7 @@ A deleted message reads "Message deleted" in all of these (`sidebar.deletedPrevi
 records deletes empties the body, which would leave a blank line, and an older one keeps it, which would
 quote words the author took back.
 
-The kind and count come from `chatAttachmentSummary` in `@chatic/runtime`. It counts from `upload$$`,
+The kind and count come from `chatAttachmentSummary` in `@chatic/runtime-react`. It counts from `upload$$`,
 or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo` (`image`, `video`,
 `audio` or `file`), read by `uploadSlotKind`. A slot still being sent has no `stereo`: a video,
 document or voice file is read from the content type its slot kept (a voice file as `audio`, the kind

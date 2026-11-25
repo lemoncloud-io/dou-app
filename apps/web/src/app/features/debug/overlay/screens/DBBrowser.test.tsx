@@ -2,13 +2,13 @@ import '@testing-library/jest-dom';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import type { runtime } from '@chatic/runtime';
+import type { runtime } from '@chatic/runtime-react';
 
 import { DBBrowser } from './DBBrowser';
 import { setDebugLanguageForTests } from '../../i18n';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({}), getCloudRepositories: jest.fn() },
     })
 );

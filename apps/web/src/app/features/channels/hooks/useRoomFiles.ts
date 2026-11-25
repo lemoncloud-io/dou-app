@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { runtime, type RoomMediaCounts } from '@chatic/runtime';
+import { runtime, type RoomMediaCounts } from '@chatic/runtime-react';
 
 import { useHiddenMedia } from '../lib/localMediaPrefs';
 import {

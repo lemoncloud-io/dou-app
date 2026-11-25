@@ -53,8 +53,8 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => navigate,
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),

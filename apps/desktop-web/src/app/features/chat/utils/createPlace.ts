@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { DomainPlace } from '@chatic/runtime';
+import type { DomainPlace } from '@chatic/runtime-react';
 
 import { classifyWireError, extractErrorMessage } from '../../../shared';
 

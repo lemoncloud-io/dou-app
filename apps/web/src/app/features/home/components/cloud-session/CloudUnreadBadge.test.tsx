@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { render, screen } from '@testing-library/react';
 
-import type { DomainCloud } from '@chatic/runtime';
+import type { DomainCloud } from '@chatic/runtime-react';
 
 import { CloudUnreadBadge } from './CloudUnreadBadge';
 import { DouHomeItem } from './DouHomeItem';

@@ -7,8 +7,8 @@ const cacheRead = vi.fn((id: string) => Promise.resolve(state.cached[id] ?? null
 const syncChannelUsers = vi.fn((_query: unknown) => Promise.resolve());
 const warn = vi.fn();
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ user: { cacheRead, syncChannelUsers } }) },
         connection: { useRuntimeSocketState: () => ({ isVerified: state.verified }) },
     })

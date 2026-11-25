@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const CAP = 200;
 

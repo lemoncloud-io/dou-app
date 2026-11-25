@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const setBlurLastMessage = (value: boolean): void => {
     runtime.settings.set('ui.blurLastMessage', value, { lane: 'shell' });

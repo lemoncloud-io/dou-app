@@ -4,8 +4,8 @@ let mockNative = true;
 const mockPick = jest.fn();
 const mockRead = jest.fn();
 const mockPrepare = jest.fn();
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get media() {
             return mockNative

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { isPlaceProfileAbsent } from '../utils/placeProfile';
 

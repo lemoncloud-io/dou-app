@@ -4,16 +4,21 @@
 and derives everything downstream from it: two WebSocket slots and their authentication, the HTTP
 client and the credential that signs it, the repository graph and its cache scope, the sync runtimes
 that keep those caches current, device-token registration, and the user issue report. It is the
-facade the call part of an app imports: one name, `runtime`, holding eight groups and the host's seven
+facade the call part of an app reaches: one name, `runtime`, holding eight groups and the host's seven
 ports, and beside it the domain's names. It was `@chatic/app-runtime` until the facade took that job.
+
+A React app imports it through [`@chatic/runtime-react`](./react/README.md), which re-exports this package
+unchanged for now ([ADR-0378](../../docs/adr/0378-a-react-app-imports-one-runtime-from-runtime-react.md)).
+The hooks, the connection host and the binders move there next, and this package keeps the headless
+`runtime` for consumers with no React.
 
 This document covers the **overview and structure** only. The per-layer detail is canonical under
 [`docs/`](#documents).
 
 ## Purpose
 
-Apps see the `@chatic/runtime` barrel and nothing else, and inside that barrel there is one runtime
-identifier. Imports that reach past it into internal paths number **zero** — `@chatic/runtime/testing`,
+Apps see this barrel only through `@chatic/runtime-react`, which re-exports it, and inside that barrel
+there is one runtime identifier. Imports that reach past it into internal paths number **zero** — `@chatic/runtime/testing`,
 the tests' fake, is the one subpath, and only tests import it — which is what lets the inside be
 rearranged with no blast radius.
 
@@ -21,8 +26,9 @@ rearranged with no blast radius.
 grep -rn "@chatic/runtime/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules | grep -v "/testing'"
 ```
 
-Four apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin`,
-and `apps/landing`'s account surface (sign-in and the subscription repository only). The surface itself is locked symbol by symbol by
+Four apps consume it, through `@chatic/runtime-react`, and nothing else does — `apps/web`,
+`apps/desktop-web`, `apps/admin`, and `apps/landing`'s account surface (sign-in and the subscription
+repository only). The surface itself is locked symbol by symbol by
 [`src/public-surface.test.ts`](./src/public-surface.test.ts): 138 value exports across the eight
 groups, the seven ports, and the 49 domain values beside `runtime` — a test fails if a group or a port
 appears, or a symbol moves between them.
@@ -61,9 +67,11 @@ What the facade hands out, beside the groups that were always here:
 
 ### Testing against it
 
-`@chatic/runtime/testing` is the one fake a test needs, for jest and vitest alike:
+`@chatic/runtime/testing` is the one fake a test needs, for jest and vitest alike. An app's test takes it
+as `@chatic/runtime-react/testing`, which re-exports it, and mocks `@chatic/runtime-react`, the module the
+app imports:
 
-- `fakeRuntimeModule(overrides)` is what a mock factory for `@chatic/runtime` returns. Each group starts
+- `fakeRuntimeModule(overrides)` is what a mock factory for the runtime module returns. Each group starts
   as the real one with the test's members laid on top, so a test names only what it replaces, and the
   domain's names stay real. A group or a port may be given as a getter, read on every access, for a test
   that flips an answer between cases. A port the test does not name reads the published one, or a
@@ -76,8 +84,8 @@ What the facade hands out, beside the groups that were always here:
   watches on top of one.
 
 ```ts
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         signIn: { providerSignIn: { providers: ['google'], credential: jest.fn() } },
     })
@@ -203,7 +211,7 @@ app layer — every `hooks/` folder, because hooks are React and React stays her
 one app-layer helper.
 
 The direction is also a tag: the four packages and `@chatic/data` are `layer:core-lib`, this one is
-`layer:react-surface`, and `@nx/enforce-module-boundaries` refuses a core package that reaches up — or
+`layer:binding` (with `@chatic/runtime-react`), and `@nx/enforce-module-boundaries` refuses a core package that reaches up — or
 imports React — and this package importing a platform adapter such as `@chatic/runtime-web`. The tags
 are in [`@chatic/runtime-core`](../runtime-core/README.md#layers).
 
@@ -305,7 +313,7 @@ the declaration is the one file that names them, and the rest of the app reaches
 through `runtime`.
 
 ```tsx
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const App = () => (
     // The host starts the connection controller, which derives the slots and owns the auth delegate.

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { DomainWebhook } from '@chatic/runtime';
+import type { DomainWebhook } from '@chatic/runtime-react';
 
 const hook = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 vi.mock('../hooks/useChannelWebhooks', () => ({ useChannelWebhooks: () => hook.current }));

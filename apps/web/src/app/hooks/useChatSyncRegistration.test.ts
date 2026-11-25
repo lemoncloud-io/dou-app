@@ -1,11 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime, type DomainChannel, type DomainLastChat } from '@chatic/runtime';
+import { runtime, type DomainChannel, type DomainLastChat } from '@chatic/runtime-react';
 
 import { readLastNos, useChatSyncRegistration } from './useChatSyncRegistration';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         sync: {
             registerSyncTarget: jest.fn(),
             updateSyncSnapshot: jest.fn(),

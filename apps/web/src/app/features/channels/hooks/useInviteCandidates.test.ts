@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import type { DomainChannel, DomainPlaceMember } from '@chatic/runtime';
+import type { DomainChannel, DomainPlaceMember } from '@chatic/runtime-react';
 
 let mockChannels: Array<Partial<DomainChannel>> = [];
 let mockIsLoading = false;
@@ -17,8 +17,8 @@ const listPlaceMembers = jest.fn(
 const cacheReadList = jest.fn((_query: { channelId: string }) => Promise.resolve({ list: mockTargetRoster }));
 const repositories = { user: { listPlaceMembers, cacheReadList } };
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: mockUserId }),
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: 'site-1' }),

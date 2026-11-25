@@ -1,11 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime, type DomainProfile } from '@chatic/runtime';
+import { runtime, type DomainProfile } from '@chatic/runtime-react';
 
 import { useChannelProfiles } from './useChannelProfiles';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },

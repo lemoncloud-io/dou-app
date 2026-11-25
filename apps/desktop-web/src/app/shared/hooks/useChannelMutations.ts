@@ -11,8 +11,8 @@ import type {
 } from '@lemoncloud/chatic-sockets-api';
 import type { JoinNotify } from '@lemoncloud/chatic-socials-api';
 
-import type { DomainChannel } from '@chatic/runtime';
-import { runtime } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
+import { runtime } from '@chatic/runtime-react';
 
 import { liveSelection, switchesSettled } from './switchesSettled';
 

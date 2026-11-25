@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 import { logger } from '@chatic/bridges';
 import { cn, Button, toast } from '@chatic/ui-kit';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { isRelayGuest } from '../../../shared';
 import { AuthCard } from '../../auth/components/AuthCard';

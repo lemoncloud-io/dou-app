@@ -4,12 +4,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 import { TooltipProvider } from '@chatic/ui-kit';
 
 const updateChat = vi.hoisted(() => vi.fn());
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 chat: { updateChat, deleteChat: vi.fn(), setReaction: vi.fn() },

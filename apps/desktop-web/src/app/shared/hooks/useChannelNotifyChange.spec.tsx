@@ -4,7 +4,7 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook as renderBareHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 const renderHook = <T,>(hook: () => T) =>
     renderBareHook(hook, {
@@ -14,8 +14,8 @@ const renderHook = <T,>(hook: () => T) =>
 
 const updateJoin = vi.fn(async () => ({}));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 channel: {},

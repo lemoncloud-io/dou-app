@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { cn } from '@chatic/ui-kit';
 import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';

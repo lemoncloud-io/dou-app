@@ -1,7 +1,7 @@
 import { useIsMutating } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { usePlaceProfileAbsent } from '../../../hooks/usePlaceProfileAbsent';
 import { usePlaceProfileBannerStore } from '../stores/usePlaceProfileBannerStore';

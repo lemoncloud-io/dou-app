@@ -1,4 +1,4 @@
-import type { ChatSubType, DomainChat } from '@chatic/runtime';
+import type { ChatSubType, DomainChat } from '@chatic/runtime-react';
 
 export type SystemMessageText = { kind: 'i18n'; key: string; name: string } | { kind: 'raw'; text: string };
 

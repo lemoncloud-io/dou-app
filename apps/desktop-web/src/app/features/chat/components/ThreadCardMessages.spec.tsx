@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render, screen } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 import { TooltipProvider } from '@chatic/ui-kit';
 
 import '../../../../i18n';
@@ -12,8 +12,8 @@ import '../../../../i18n';
 import { useSavedItemsStore } from '../../../shared';
 import { ThreadCardMessages } from './ThreadCardMessages';
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ user: { observeItem: () => () => undefined } }),
         },

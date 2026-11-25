@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { useCloudEmailGuard } from '../hooks';

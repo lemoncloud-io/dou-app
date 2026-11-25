@@ -1,5 +1,5 @@
 import type { HapticKind } from '@chatic/bridge-messages';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export interface Haptics {
     play(kind: HapticKind): void;

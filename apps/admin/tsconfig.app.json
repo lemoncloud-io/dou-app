@@ -15,19 +15,19 @@
             "path": "../../libs/runtime-web/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/config/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/storage/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/ui-kit/tsconfig.lib.json"
         },
         {
             "path": "../../libs/shared/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/storage/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/config/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/runtime/tsconfig.lib.json"
+            "path": "../../libs/runtime/react/tsconfig.lib.json"
         },
         {
             "path": "../../libs/bridges/tsconfig.lib.json"

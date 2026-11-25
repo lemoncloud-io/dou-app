@@ -1,4 +1,4 @@
-import { runtime, type DomainPlace } from '@chatic/runtime';
+import { runtime, type DomainPlace } from '@chatic/runtime-react';
 
 export interface CreatePlaceInput {
     name: string;

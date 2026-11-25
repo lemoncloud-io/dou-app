@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { runtime, type DomainMiniApp } from '@chatic/runtime';
+import { runtime, type DomainMiniApp } from '@chatic/runtime-react';
 import { buildMiniAppLaunchParams, subWebViewTrustOf, type SubWebViewTrust } from '@chatic/shared';
 
 import { openSubWebView, type SubWebViewOpening } from '../../../bridge/subWebView';

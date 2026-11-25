@@ -15,8 +15,8 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => navigate,
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ place: { observeItem } }),
         },

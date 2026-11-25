@@ -1,6 +1,6 @@
 import { useEffect, useReducer } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { drawVideoFrame, VIDEO_POSTER } from '@chatic/shared';
 
 import { base64ToFile } from '../../../bridge/photoLibrary';

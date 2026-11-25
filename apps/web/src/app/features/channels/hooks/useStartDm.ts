@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 
-import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
+import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';

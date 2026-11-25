@@ -1,6 +1,6 @@
 import { hashRunId, isSampledRun, PERF_SAMPLE_PERCENT } from '@chatic/perf';
 
-import type { runtime } from '@chatic/runtime';
+import type { runtime } from '@chatic/runtime-react';
 
 import {
     isStateOutboxSampledRun,

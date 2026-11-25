@@ -38,8 +38,8 @@ jest.mock('../../../../libs/runtime-web/src/createBridgedRuntime', () => ({
     createBridgedRuntime: jest.fn(() => mockMirrorEngine),
 }));
 const mockPrepare = jest.fn(async () => 'vault');
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         boot: { prepareSecretStorage: (...args: unknown[]) => mockPrepare(...(args as [])) },
     })
 );

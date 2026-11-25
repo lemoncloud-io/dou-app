@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-jest.mock('@chatic/runtime', () => ({
+jest.mock('@chatic/runtime-react', () => ({
     runtime: {
         connection: {
             recoverSocketsOnResume: jest.fn().mockResolvedValue(undefined),
@@ -18,7 +18,7 @@ jest.mock('../bridge', () => ({
     },
 }));
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useSocketWakeRecovery } from './useSocketWakeRecovery';
 

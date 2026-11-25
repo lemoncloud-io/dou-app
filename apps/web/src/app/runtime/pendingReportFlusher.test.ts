@@ -3,8 +3,8 @@ import type { PendingReportInfo } from '@chatic/bridge-messages';
 const mockIsNative = jest.fn(() => true);
 const mockIngestLogEntry = jest.fn();
 
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get diagnostics() {
             return {

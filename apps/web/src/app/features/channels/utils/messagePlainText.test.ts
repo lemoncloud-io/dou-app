@@ -5,7 +5,7 @@ import {
     messagePreview,
     messageSearchText,
 } from './messagePlainText';
-import { toPlainPreview } from '@chatic/runtime';
+import { toPlainPreview } from '@chatic/runtime-react';
 
 describe('messagePlainText', () => {
     it('flattens a Block Kit payload instead of returning its JSON', () => {

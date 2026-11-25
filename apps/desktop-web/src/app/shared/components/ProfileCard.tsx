@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, Copy, MessageCircle, StickyNote } from 'lucide-react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { Avatar, AvatarFallback, AvatarImage, Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit';
 

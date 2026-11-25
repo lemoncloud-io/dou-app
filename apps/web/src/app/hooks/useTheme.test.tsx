@@ -1,12 +1,12 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useTheme } from './useTheme';
 
 const mockIsNative = jest.fn(() => false);
 const mockSavePreference = jest.fn();
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         get appShell() {
             return {

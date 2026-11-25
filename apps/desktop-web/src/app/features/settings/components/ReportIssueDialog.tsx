@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import { Button, Dialog, DialogContent, DialogFooter, DialogTitle, Input, Textarea, toast } from '@chatic/ui-kit';
 

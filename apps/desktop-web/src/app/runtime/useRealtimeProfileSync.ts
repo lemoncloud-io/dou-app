@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const PROFILE_SYNC_TYPE = 'profile.sync';
 

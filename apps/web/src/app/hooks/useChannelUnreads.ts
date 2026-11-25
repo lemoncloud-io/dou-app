@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { isCloudDm, type DomainChannel, type DomainJoin } from '@chatic/runtime';
+import { isCloudDm, type DomainChannel, type DomainJoin } from '@chatic/runtime-react';
 
 import { unreadOf } from '../utils/countUnread';
 

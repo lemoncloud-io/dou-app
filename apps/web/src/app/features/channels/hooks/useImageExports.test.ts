@@ -35,8 +35,8 @@ jest.mock('../../../bridge/shellDownload', () => ({
 }));
 const getChat = jest.fn();
 let filesKind: 'shell' | 'browser' = 'shell';
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) },
         get files() {

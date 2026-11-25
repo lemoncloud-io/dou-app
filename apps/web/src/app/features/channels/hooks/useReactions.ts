@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const useReactions = () => {
     const { chat: chatRepository } = runtime.data.useRuntimeRepositories();

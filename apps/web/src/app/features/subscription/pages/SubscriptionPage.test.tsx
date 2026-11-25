@@ -16,8 +16,8 @@ let mockNative = true;
 let mockGuest = false;
 const mockStore = { kind: 'store', store: 'apple', openManagement: jest.fn() };
 const mockWeb = { kind: 'web', open: jest.fn() };
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: { useRuntimeProfile: () => ({ isGuest: mockGuest }) },
         get checkout() {
             return mockNative ? mockStore : mockWeb;

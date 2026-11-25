@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const setChatInputLockExperiment = (value: boolean): void => {
     runtime.settings.set('feature.chatInputLock', value, { lane: 'local' });

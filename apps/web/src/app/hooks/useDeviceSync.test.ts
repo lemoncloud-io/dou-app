@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { useMatch } from 'react-router-dom';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useAppVisibility } from '../bridge';
 import { useDeviceSync } from './useDeviceSync';
@@ -10,8 +10,8 @@ jest.mock('react-router-dom', () => ({
     useMatch: jest.fn(),
 }));
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },

@@ -16,6 +16,12 @@
 > session) and [ADR-0363](./0363-a-page-asks-a-shell-whose-runtime-already-holds-the-session.md)
 > · Related: [ADR-0375](./0375-platform-implementations-live-in-libs-as-families-of-one-port.md) and
 > [ADR-0377](./0377-every-project-carries-a-layer-a-platform-and-a-form-factor-tag-and-folders-group-families.md)
+>
+> **Amended by [ADR-0378](./0378-a-react-app-imports-one-runtime-from-runtime-react.md) (2026-11-25):** a React
+> app imports one name from one package, `import { runtime } from '@chatic/runtime-react'`, whose `runtime` is
+> the headless `runtime` with the hook groups added; its calls `runtime.<group>.use…()` stay as they are.
+> Decision 1's "a React app also imports its hooks from `@chatic/runtime-react`" and the consequence that a
+> React app's call part sees both packages no longer hold.
 
 ## Context
 
@@ -57,7 +63,8 @@ runtime-core and runtime-client merge into `@chatic/runtime`. Inside it, `engine
 engine becomes a package of its own only when a consumer that needs the engine alone appears.
 
 Command code everywhere imports `runtime` from `@chatic/runtime`; a React app also imports its hooks from
-`@chatic/runtime-react`. The declaration part keeps importing `startRuntime` from its platform's adapter
+`@chatic/runtime-react`. (Amended by ADR-0378: a React app imports `runtime` from `@chatic/runtime-react`
+alone, the headless `runtime` with the hook groups on it.) The declaration part keeps importing `startRuntime` from its platform's adapter
 (the declaration half of ADR-0343 decision 5, unchanged). Today's React facade moves to `@chatic/runtime-react` before the name
 `@chatic/runtime` takes the headless meaning, so a hook still imported from the old name fails to compile
 instead of resolving to something else.
@@ -149,7 +156,8 @@ only.
   without React, the DOM or a socket it does not need.
 - Supersedes ADR-0343 decision 4: runtime-client is no longer a package. Its content — the engine holder,
   commands and reads, the declaration API — is part of `@chatic/runtime`. ADR-0346 decision 3 is amended:
-  a React app's call part sees `@chatic/runtime` and `@chatic/runtime-react`.
+  a React app's call part sees `@chatic/runtime` and `@chatic/runtime-react` (amended by ADR-0378: it sees
+  `@chatic/runtime-react` alone).
 - `@chatic/runtime` changes meaning from the React facade to the headless runtime. The hooks move first,
   so the change shows up as compile errors, not as a different import silently resolving.
 - Moving the shell implementations out of runtime-web and switching the web and desktop-web declarations

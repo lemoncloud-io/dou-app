@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Search, X } from 'lucide-react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 import { cn, Button, Input } from '@chatic/ui-kit';
 
 import {

@@ -41,8 +41,10 @@ let mockSelection: { selectedCloudId: string | null; selectedSiteId: string | nu
     selectedCloudId: 'c',
     selectedSiteId: 's',
 };
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({ session: { useSessionSelection: () => mockSelection } })
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
+        session: { useSessionSelection: () => mockSelection },
+    })
 );
 let mockNavigationType = 'POP';
 jest.mock('react-router-dom', () => ({

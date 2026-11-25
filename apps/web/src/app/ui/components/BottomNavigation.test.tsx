@@ -8,7 +8,7 @@ import { BOTTOM_NAV_TOAST_LIFT, BottomNavigation } from './BottomNavigation';
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => jest.fn() }));
 let mockMiniAppTab = false;
-jest.mock('@chatic/runtime', () => ({
+jest.mock('@chatic/runtime-react', () => ({
     runtime: {
         settings: { useConfigValue: (key: string) => (key === 'feature.miniApp.tab' ? mockMiniAppTab : undefined) },
     },

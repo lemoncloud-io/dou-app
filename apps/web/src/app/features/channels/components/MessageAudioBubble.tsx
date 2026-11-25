@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import type { ChatFileSlot } from '@chatic/runtime';
+import type { ChatFileSlot } from '@chatic/runtime-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import {
     AudioMessageBubble,

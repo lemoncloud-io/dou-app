@@ -1,14 +1,14 @@
 import { renderHook } from '@testing-library/react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { runtime, type DomainPlace } from '@chatic/runtime';
+import { runtime, type DomainPlace } from '@chatic/runtime-react';
 
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { useSwitchPlace } from './useSwitchPlace';
 
 jest.mock('@tanstack/react-query', () => ({ useIsMutating: jest.fn() }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],
             SWITCH_CLOUD_MUTATION_KEY: ['session', 'switch-cloud'],

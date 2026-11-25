@@ -1,6 +1,6 @@
 import { resolveChannelTitle } from './resolveChannelTitle';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 const channel = (overrides: Partial<DomainChannel>): DomainChannel =>
     ({ id: 'ch-1', ...overrides }) as unknown as DomainChannel;

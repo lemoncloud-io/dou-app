@@ -1,5 +1,5 @@
 import { createLogId, liveShellGlobals, liveShellValue, logger, setLogContextProvider } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { getRouteTrail } from '../../utils/routeTrail';
 import { readLaunchSessionOwner } from '../launchSessionOwner';

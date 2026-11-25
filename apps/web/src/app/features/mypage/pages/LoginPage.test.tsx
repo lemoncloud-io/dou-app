@@ -32,14 +32,14 @@ jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ 
 
 const loginRelaySocial = jest.fn();
 const createCredentialsByProvider = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useLoginRelaySocial: () => ({ mutateAsync: loginRelaySocial, isPending: false }),
             createCredentialsByProvider: (...a: unknown[]) => createCredentialsByProvider(...a),
         },
         get signIn() {
-            const tab = require('@chatic/runtime/testing').browserSignIn();
+            const tab = require('@chatic/runtime-react/testing').browserSignIn();
             return mockIsNative ? { ...tab, providerSignIn: mockProviderSignIn } : tab;
         },
         settings: {

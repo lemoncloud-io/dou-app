@@ -1,11 +1,11 @@
 import { renderHook } from '@testing-library/react';
 
-import { runtime, type DomainChannel } from '@chatic/runtime';
+import { runtime, type DomainChannel } from '@chatic/runtime-react';
 
 import { useAwaitInviteChannel } from './useAwaitInviteChannel';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },
