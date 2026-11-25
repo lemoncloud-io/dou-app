@@ -1,6 +1,6 @@
 import i18next from 'i18next';
 
-import type { ChatAttachmentKind } from '@chatic/runtime';
+import type { ChatAttachmentKind } from '@chatic/runtime-react';
 
 import { attachmentLabel } from './messagePreview';
 import { messagePlainText } from './messagePlainText';

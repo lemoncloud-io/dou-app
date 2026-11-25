@@ -9,8 +9,8 @@ const relayVerified = vi.hoisted(() => ({ current: false }));
 const authenticated = vi.hoisted(() => ({ current: true }));
 const useSlotVerified = vi.hoisted(() => vi.fn((_slot: string) => relayVerified.current));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         session: { useSessionAuth: () => ({ isAuthenticated: authenticated.current }) },
         connection: { useSlotVerified, RELAY_SLOT: 'relay' },
         data: {

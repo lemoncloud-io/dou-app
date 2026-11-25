@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 
 import { isViewerId, resolveDisplay, useAuthorNames, useSiteProfileMap, viewerPlaceProfile } from '../../../shared';
 import { useMessageViewer } from '../hooks/useMessageViewer';

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { isEventChat, type DomainChannel, type DomainChat, runtime } from '@chatic/runtime';
+import { isEventChat, type DomainChannel, type DomainChat, runtime } from '@chatic/runtime-react';
 
 import { messagePlainText } from '../../../shared';
 

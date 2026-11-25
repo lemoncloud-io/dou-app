@@ -18,8 +18,8 @@ jest.mock('@chatic/shared', () => ({
     useNavigateWithTransition: () => mockNavigate,
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({ appShell: browserAppShell() });
 });
 jest.mock('@chatic/ui-kit/components/ui/toast', () => ({

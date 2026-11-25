@@ -35,14 +35,14 @@ jest.mock('@chatic/shared', () => ({
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/ui-kit', () => ({ cn: (...c: unknown[]) => c.filter(Boolean).join(' ') }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useIsPairedSession: () => mockPaired,
             useSessionSelection: () => ({ selectedCloudId: mockSelected }),
         },
         get signIn() {
-            const tab = require('@chatic/runtime/testing').browserSignIn();
+            const tab = require('@chatic/runtime-react/testing').browserSignIn();
             return mockNative ? { ...tab, sessionScope: 'device', approvesPairing: true } : tab;
         },
     })

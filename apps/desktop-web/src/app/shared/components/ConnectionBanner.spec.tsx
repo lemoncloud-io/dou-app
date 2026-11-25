@@ -6,8 +6,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 const { useConnectivity } = vi.hoisted(() => ({ useConnectivity: vi.fn() }));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         connection: { useConnectivity },
         session: { SWITCH_SITE_MUTATION_KEY: ['switch-site'], SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'] },
     })

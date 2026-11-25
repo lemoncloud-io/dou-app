@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Hash, Search, User } from 'lucide-react';
 import { create } from 'zustand';
 
-import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
+import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime-react';
 import { cn, Dialog, DialogContent, DialogDescription, DialogTitle, toast } from '@chatic/ui-kit';
 
 import { fetchFileBytes } from '../../utils';

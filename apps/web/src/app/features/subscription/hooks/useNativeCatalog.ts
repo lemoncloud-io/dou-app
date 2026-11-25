@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import type { IapProductSubscription } from '@chatic/bridge-messages';
 

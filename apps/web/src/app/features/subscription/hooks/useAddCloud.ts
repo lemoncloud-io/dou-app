@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime, type DomainCloud } from '@chatic/runtime';
+import { runtime, type DomainCloud } from '@chatic/runtime-react';
 import { useCustomMutation } from '@chatic/shared';
 
 import { subscriptionKeys } from '../../../hooks/queryKeys';

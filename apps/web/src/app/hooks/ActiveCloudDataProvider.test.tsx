@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 import { ActiveCloudDataProvider } from './ActiveCloudDataProvider';
 import { useActiveCloudData } from './activeCloudDataContext';

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as i18next from 'i18next';
 
 import { logger } from '@chatic/bridges';
-import { runtime, type DomainChannel, type DomainChat, type DomainJoin } from '@chatic/runtime';
+import { runtime, type DomainChannel, type DomainChat, type DomainJoin } from '@chatic/runtime-react';
 
 import { useActiveCloudData } from '../../../hooks/activeCloudDataContext';
 import { createPageGate } from '../../../hooks/chatCatchUp';

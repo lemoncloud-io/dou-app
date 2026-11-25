@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-import type { DomainChannel, DomainJoin } from '@chatic/runtime';
+import type { DomainChannel, DomainJoin } from '@chatic/runtime-react';
 
 import type { ChannelUnreads } from './useChannelUnreads';
 

@@ -3,15 +3,15 @@ jest.mock('../../../config/diagnosticsKind', () => ({
     diagnosticsKind: () => (mockInsideTheApp ? 'shell' : 'browser'),
 }));
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             getGlobalSessionContext: jest.fn(),
         },
     })
 );
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { logger, setLogContextProvider } from '@chatic/bridges';
 
 import { attachLogContext, readLogContext, reportRunIdJoin, resetWebRunId } from './logContext';

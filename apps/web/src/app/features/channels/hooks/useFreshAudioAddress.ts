@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime, isPendingUploadSlot } from '@chatic/runtime';
+import { runtime, isPendingUploadSlot } from '@chatic/runtime-react';
 
 import type { AudioTrack } from '../stores/roomAudioStore';
 

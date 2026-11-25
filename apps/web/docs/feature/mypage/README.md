@@ -7,7 +7,7 @@ app's settings surface, and it is also where three different kinds of profile me
 single thing most likely to be got wrong here.
 
 The feature holds no session and no repository of its own. Every read is a hook from `app/hooks/` or
-[`@chatic/runtime`](../../../../../libs/runtime/README.md); the chrome around it — the
+[`@chatic/runtime-react`](../../../../../libs/runtime/README.md); the chrome around it — the
 floating nav, safe areas, keyboard insets — belongs to
 [shell/layout-shell.md](../../shell/layout-shell.md).
 

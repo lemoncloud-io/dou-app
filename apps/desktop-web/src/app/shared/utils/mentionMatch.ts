@@ -1,5 +1,5 @@
-import { isMentioningViewer } from '@chatic/runtime';
-import type { DomainChat } from '@chatic/runtime';
+import { isMentioningViewer } from '@chatic/runtime-react';
+import type { DomainChat } from '@chatic/runtime-react';
 
 export const GROUP_MENTIONS = ['@channel', '@here', '@everyone', '@all', '@전체'];
 

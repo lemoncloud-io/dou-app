@@ -1,4 +1,4 @@
-import { placeOfDmId } from '@chatic/runtime';
+import { placeOfDmId } from '@chatic/runtime-react';
 
 export const openPlaceFor = (
     target: { placeId: string; channelId: string; placeBound?: boolean },

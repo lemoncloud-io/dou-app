@@ -7,7 +7,7 @@ import {
     type DomainChat,
     type DomainJoin,
     type DomainLastChat,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 
 export const useLastChats = (
     channels: DomainChannel[],

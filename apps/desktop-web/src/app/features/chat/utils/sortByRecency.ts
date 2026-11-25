@@ -1,4 +1,4 @@
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 
 const toTime = (value: unknown): number => {
     if (typeof value === 'number' && Number.isFinite(value)) return value;

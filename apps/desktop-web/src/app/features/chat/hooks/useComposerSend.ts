@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { toast } from '@chatic/ui-kit';
 
-import type { ChatMentionBody, DomainChat } from '@chatic/runtime';
+import type { ChatMentionBody, DomainChat } from '@chatic/runtime-react';
 
 import { useChatMutations } from '../../../shared/hooks/useChatMutations';
 import { isUnsentImageMessage } from '../utils';

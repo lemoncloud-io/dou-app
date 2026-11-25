@@ -2,8 +2,8 @@ import { syncLanguageChoiceToShell } from './languageChoice';
 
 const save = jest.fn();
 let mockPreferences = true;
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         get appShell() {
             return { ...browserAppShell(), preferences: mockPreferences ? { save, read: jest.fn() } : null };

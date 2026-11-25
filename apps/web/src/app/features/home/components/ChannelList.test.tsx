@@ -15,8 +15,8 @@ jest.mock('@chatic/shared', () => ({
 }));
 const mockUseChannelSync = jest.fn();
 const mockPrefetchRoomFeed = jest.fn().mockResolvedValue(undefined);
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         sync: {
             useChannelSync: (...args: unknown[]) => mockUseChannelSync(...args),
             prefetchRoomFeed: (...args: unknown[]) => mockPrefetchRoomFeed(...args),

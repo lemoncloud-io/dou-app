@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
-import type { DomainCloud } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
+import type { DomainCloud } from '@chatic/runtime-react';
 import { Button } from '@chatic/ui-kit';
 
 import { cloudLabel, useCloudSessionCatalog, useClouds, useJoinedCloudsStore } from '../../../shared';

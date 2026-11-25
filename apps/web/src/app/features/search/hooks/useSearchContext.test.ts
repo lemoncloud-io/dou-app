@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 
 import { usePeerCloudNames } from '../../channels/hooks/usePeerCloudNames';
@@ -8,8 +8,8 @@ import { useSenderProfiles } from '../../../hooks/useSenderProfiles';
 import { useSearchContext } from './useSearchContext';
 import type { GlobalSearchResults } from './useGlobalSearch';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useGlobalCacheSearch: jest.fn(),
             globalCacheRefKey: (cid: string, id: string) => `${cid}:${id}`,

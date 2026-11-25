@@ -8,8 +8,8 @@ const updateChat = vi.fn();
 const deleteChat = vi.fn();
 const cacheWrite = vi.fn();
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ chat: { updateChat, deleteChat, cacheWrite } }),
         },

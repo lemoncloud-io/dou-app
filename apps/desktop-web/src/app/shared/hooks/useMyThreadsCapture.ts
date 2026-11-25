@@ -8,7 +8,7 @@ import {
     isInJoinWindow,
     type DomainChannel,
     type DomainChat,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
 import { captureInboxReply } from './useInboxCapture';

@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { clampColumns } from '@chatic/web-ui-kit';
 
 export const setPhotoGridColumns = (columns: number): void => {

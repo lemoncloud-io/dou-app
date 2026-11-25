@@ -1,4 +1,4 @@
-import { runtime, type DomainCloud } from '@chatic/runtime';
+import { runtime, type DomainCloud } from '@chatic/runtime-react';
 import { useCustomMutation } from '@chatic/shared';
 
 export const useDeleteCloud = () => {

@@ -4,7 +4,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { Button } from '@chatic/ui-kit';
 
 import { PageShell, formatListTime, isRelayGuest, toastFailure, useCloudSessionCatalog } from '../../../shared';

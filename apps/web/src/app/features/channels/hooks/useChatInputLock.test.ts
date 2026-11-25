@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import type { StorageLike } from '@chatic/runtime';
+import type { StorageLike } from '@chatic/runtime-react';
 
 import { wireTestSettings } from '../../../../testing/settings';
 import { setChatInputLockExperiment } from '../../../hooks/useChatInputLockExperiment';

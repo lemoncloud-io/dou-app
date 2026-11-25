@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const env = vi.hoisted(() => ({ flag: undefined as unknown, native: false, guest: false }));
 
-vi.mock('@chatic/runtime', async () => {
-    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         settings: { get: () => env.flag },
         get signIn() {

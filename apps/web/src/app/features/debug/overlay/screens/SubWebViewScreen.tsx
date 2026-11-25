@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import type { SubWebViewParams } from '@chatic/bridge-messages';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { appBridge, openSubWebView } from '../../../../bridge';
 import { shellCapabilities } from '../../../../bridge/shellCapabilities';

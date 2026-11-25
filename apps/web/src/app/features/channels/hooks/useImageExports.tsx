@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime, isPendingUploadSlot, type DomainChat } from '@chatic/runtime';
+import { runtime, isPendingUploadSlot, type DomainChat } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';

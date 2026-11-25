@@ -4,7 +4,7 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 const updateJoin = vi.fn(async (_payload: unknown) => ({}));
 
@@ -13,8 +13,8 @@ const cache = vi.hoisted(() => ({
 }));
 const emit = (list: DomainChannel[]) => act(() => cache.listener?.({ list }));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 channel: {

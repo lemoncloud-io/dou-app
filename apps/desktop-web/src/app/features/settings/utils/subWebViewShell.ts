@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import type { OnSubWebViewClosedPayload, SubWebViewOpenScope, SubWebViewParams } from '@chatic/bridge-messages';
 
 export const readSubWebViewOpenScope = async (): Promise<SubWebViewOpenScope | null> =>

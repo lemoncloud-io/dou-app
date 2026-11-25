@@ -38,12 +38,12 @@ a wrong code arrives as `400 INVALID … (not-found)`, so the specific kinds are
 
 `socketErrorStatus` returns the status a rejected socket request carries, or `undefined`. A numeric
 `errorCode` on the error comes first: the socket library drops the server's code when it rejects, and
-`@chatic/runtime`'s socket manager puts it back on every request made through it. That is the only source
+`@chatic/runtime-react`'s socket manager puts it back on every request made through it. That is the only source
 of a status for a refusal whose message does not lead with one (a parameter check is coded 400 with
 nothing in front). Otherwise the status is read from the message prefix (`403 FORBIDDEN - …`, and the
 client's own `503 …` / `408 …`), never from the wording after it. Use it where one status means one
 thing and the wording is not a contract: the phone sign-in's wrong code and expired code differ by
-status alone. The same convention is in `@chatic/runtime` and in `apps/web`'s `getSocketErrorCode`; a
+status alone. The same convention is in `@chatic/runtime-react` and in `apps/web`'s `getSocketErrorCode`; a
 change to it belongs in all three.
 
 `serverErrorText` follows wrapped errors a bounded number of levels, so a cyclic `cause` cannot loop.

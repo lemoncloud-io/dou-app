@@ -7,7 +7,7 @@ import {
     type DomainChat,
     type DomainUser,
     type FeedRange,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 
 import { useSelectedCloudId } from '../../../hooks/useCloudScope';
 import { isFeedVisible, isOwnSystemChat } from '../../../utils';

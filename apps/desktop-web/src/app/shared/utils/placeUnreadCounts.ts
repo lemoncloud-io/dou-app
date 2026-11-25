@@ -1,4 +1,4 @@
-import { isCloudDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
+import { isCloudDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime-react';
 
 import { channelNotifyMode, isNotifyDm, type ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
 import type { MentionItem } from '../stores/useMentionsStore';

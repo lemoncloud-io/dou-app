@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const useSeedMyUserCache = (): void => {
     const { user } = runtime.data.useRuntimeRepositories();

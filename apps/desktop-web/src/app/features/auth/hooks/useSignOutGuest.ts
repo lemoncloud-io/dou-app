@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useAccountResetOnLogout } from '../../../shared';
 

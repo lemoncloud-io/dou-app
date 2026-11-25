@@ -1,6 +1,6 @@
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
-        diagnostics: require('@chatic/runtime/testing').browserDiagnostics(),
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
+        diagnostics: require('@chatic/runtime-react/testing').browserDiagnostics(),
     })
 );
 

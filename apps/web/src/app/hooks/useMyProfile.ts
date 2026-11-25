@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime, type DomainProfile } from '@chatic/runtime';
+import { runtime, type DomainProfile } from '@chatic/runtime-react';
 
 const inFlightByProfileId = new Map<string, Promise<unknown>>();
 

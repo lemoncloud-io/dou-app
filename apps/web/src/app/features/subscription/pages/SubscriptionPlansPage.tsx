@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { FloatingButton, IconBack, IconButton, ModalTopBar, ScreenLayout } from '@chatic/web-ui-kit';
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';

@@ -13,8 +13,8 @@ let scene = { isLoading: false, hasSubscription: true, banner: undefined as stri
 let quota = { used: 0, limit: 2 as number | null };
 let onNative = true;
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         get checkout() {
             return onNative ? { kind: 'store', store: 'apple' } : { kind: 'web', open: jest.fn() };
         },

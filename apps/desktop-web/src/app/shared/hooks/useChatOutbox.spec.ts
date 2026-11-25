@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { logger } from '@chatic/bridges';
-import type { DataRepositories, DomainChat } from '@chatic/runtime';
-import { runtime } from '@chatic/runtime';
+import type { DataRepositories, DomainChat } from '@chatic/runtime-react';
+import { runtime } from '@chatic/runtime-react';
 
 const clouds = vi.hoisted(() => ({
     uids: {} as Record<string, string | null>,
@@ -13,9 +13,9 @@ const clouds = vi.hoisted(() => ({
     sendInCloud: vi.fn(),
 }));
 
-vi.mock('@chatic/runtime', async () => {
+vi.mock('@chatic/runtime-react', async () => {
     const uidOf = (cid: string) => clouds.uids[cid] ?? null;
-    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+    return (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             getCloudRepositories: (cid: string) => clouds.graphs[cid],
             sendChatInCloud: (cid: string, payload: unknown) => clouds.sendInCloud(cid, payload),

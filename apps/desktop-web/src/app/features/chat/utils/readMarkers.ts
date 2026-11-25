@@ -1,4 +1,4 @@
-import { isInJoinWindow } from '@chatic/runtime';
+import { isInJoinWindow } from '@chatic/runtime-react';
 
 import type { MemberReadCursor } from '../../../shared';
 

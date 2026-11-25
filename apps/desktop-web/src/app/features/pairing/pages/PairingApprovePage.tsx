@@ -5,7 +5,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, Globe, Smartphone } from 'lucide-react';
 
 import { cn, Button, toast } from '@chatic/ui-kit';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { PageShell, isRelayGuest, useCloudSessionCatalog } from '../../../shared';
 import { useNow } from '../hooks/useNow';

@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/runtime-react",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/runtime/react/src",
+    "projectType": "library",
+    "tags": ["layer:binding", "platform:web", "formfactor:any"],
+    "targets": {}
+}

@@ -1,5 +1,5 @@
 import { blocksToPlainText, parseBlocks } from '@chatic/block-kit';
-import { isWebhookChat, toPlainPreview, toPlainText } from '@chatic/runtime';
+import { isWebhookChat, toPlainPreview, toPlainText } from '@chatic/runtime-react';
 
 export const messagePlainText = (content?: string): string => {
     const blocks = parseBlocks(content);

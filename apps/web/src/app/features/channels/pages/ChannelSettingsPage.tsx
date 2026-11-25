@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { runtime, type DomainPlace } from '@chatic/runtime';
+import { runtime, type DomainPlace } from '@chatic/runtime-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { DefaultAvatar, Divider, GroupLabel, IconChevronRight, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';

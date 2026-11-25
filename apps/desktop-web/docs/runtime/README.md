@@ -2,7 +2,7 @@
 
 What the page keeps running under every route (`src/app/runtime/`, mounted by `DesktopRuntime`, and
 the boot in `src/main.tsx`): the connection host, the credential refreshers, the background list sync
-and the notification wiring. No feature starts any of this; the layer assembles `@chatic/runtime`'s
+and the notification wiring. No feature starts any of this; the layer assembles `@chatic/runtime-react`'s
 declarative pieces and adds the few policies that are this app's own. The host ports it runs on are in
 [host](../host/README.md), where state is kept in [storage](../storage/README.md).
 

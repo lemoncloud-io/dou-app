@@ -219,14 +219,14 @@ The mobile app uses a **WebView + Native Bridge** pattern:
 All apps share code through `@chatic/*` path aliases:
 
 ```typescript
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { Button } from '@chatic/ui-kit';
 import { ThemeProvider } from '@chatic/theme';
 ```
 
 An app reaches the runtime in two parts. Its declaration — `src/config/` and the entry point — names
 one adapter per port from `@chatic/runtime-web` or `@chatic/runtime-mobile` and starts the runtime. In
-the web apps everything else imports only `@chatic/runtime`: the domain names, `runtime.settings` for
+the web apps everything else imports only `@chatic/runtime-react`: the domain names, `runtime.settings` for
 config, `runtime.<port>` for what the host can do, and the hooks; lint keeps `@chatic/config`,
 `@chatic/data`, `@chatic/db` and the adapter packages out of it. See
 [`libs/runtime-client`](libs/runtime-client/README.md#the-runtime-declaration).

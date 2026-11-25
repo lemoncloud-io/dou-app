@@ -9,8 +9,8 @@ let selectedSiteId: string | null = 'site-1';
 const createChannel = vi.fn();
 const repositories = { channel: { createChannel }, join: {} };
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             useSessionSelection: () => ({ selectedCloudId: activeCloudId, selectedSiteId }),

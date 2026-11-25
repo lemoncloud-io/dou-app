@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { perfNow } from '@chatic/perf';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export interface ImageRefreshReport {
     kind: 'image' | 'file';

@@ -10,7 +10,7 @@ import {
     useState,
 } from 'react';
 
-import type { ChatMentionBody } from '@chatic/runtime';
+import type { ChatMentionBody } from '@chatic/runtime-react';
 
 import {
     applyMentionPick,

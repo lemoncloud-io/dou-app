@@ -1,4 +1,4 @@
-import type { DomainProfile } from '@chatic/runtime';
+import type { DomainProfile } from '@chatic/runtime-react';
 
 import { isPlaceProfileAbsent, type MyPlaceProfileReader } from './placeProfile';
 

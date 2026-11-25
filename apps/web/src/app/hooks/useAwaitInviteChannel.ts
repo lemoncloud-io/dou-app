@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime, isInPlaceList, type DomainChannel } from '@chatic/runtime';
+import { runtime, isInPlaceList, type DomainChannel } from '@chatic/runtime-react';
 
 export const CHANNEL_WAIT_TIMEOUT_MS = 20_000;
 const CHANNEL_WAIT_POLL_MS = 3_000;

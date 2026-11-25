@@ -3,8 +3,8 @@ import { openExternalUrl } from './openExternalUrl';
 
 const mockIsNative = jest.fn();
 const mockOpenUrl = jest.fn();
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get links() {
             return mockIsNative()

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const useCloudSessionCatalog = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();

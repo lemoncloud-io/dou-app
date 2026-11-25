@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 
 import i18next from 'i18next';
 
-import type { DomainChannel, DomainJoin } from '@chatic/runtime';
-import { runtime } from '@chatic/runtime';
+import type { DomainChannel, DomainJoin } from '@chatic/runtime-react';
+import { runtime } from '@chatic/runtime-react';
 
 import { usePlaces } from './usePlaces';
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';

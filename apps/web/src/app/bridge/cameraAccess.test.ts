@@ -2,8 +2,8 @@ import { cameraAccess } from './cameraAccess';
 
 const requestPermission = jest.fn();
 let mockCameraPermission: { request: () => Promise<unknown> } | null = null;
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get media() {
             return { ...testing.browserMedia(), cameraPermission: mockCameraPermission };

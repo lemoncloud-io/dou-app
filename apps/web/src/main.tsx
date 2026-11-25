@@ -7,7 +7,7 @@ import './pageTransitions.css';
 
 import { logger, setupBridgeLogger, webClient } from '@chatic/bridges';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import {
     LATE_VAULT_MARK,
     readWebHostFacts,

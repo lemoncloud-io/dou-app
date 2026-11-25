@@ -21,7 +21,7 @@ Creating an account by email and resetting a password are next door in
 The invariant worth checking: nothing here builds a session by hand.
 
 ```bash
-grep -rn "from '@chatic/runtime'" apps/web/src/app/features/auth --include='*.ts' --include='*.tsx'
+grep -rn "from '@chatic/runtime-react'" apps/web/src/app/features/auth --include='*.ts' --include='*.tsx'
 ```
 
 Every hit should be a `runtime.session.*` or `runtime.data.*` call.

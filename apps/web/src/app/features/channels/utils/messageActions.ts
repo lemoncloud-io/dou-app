@@ -1,4 +1,4 @@
-import { chatMediaItems, type ChatFileSlot } from '@chatic/runtime';
+import { chatMediaItems, type ChatFileSlot } from '@chatic/runtime-react';
 
 import type { ClientChatView } from '../types';
 

@@ -1,4 +1,4 @@
-import { chatAttachmentSummary, type ChatAttachmentKind, type DomainChat } from '@chatic/runtime';
+import { chatAttachmentSummary, type ChatAttachmentKind, type DomainChat } from '@chatic/runtime-react';
 
 import { messagePreview } from './messagePlainText';
 

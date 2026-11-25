@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 
-import { runtime, isMessageEdited } from '@chatic/runtime';
+import { runtime, isMessageEdited } from '@chatic/runtime-react';
 
 export interface MessageActionFailure {
     id: string;

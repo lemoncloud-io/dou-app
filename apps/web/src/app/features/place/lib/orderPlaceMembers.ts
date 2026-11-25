@@ -1,4 +1,4 @@
-import type { DomainPlaceMember } from '@chatic/runtime';
+import type { DomainPlaceMember } from '@chatic/runtime-react';
 
 export const orderPlaceMembers = (members: DomainPlaceMember[], isMe: (id: string) => boolean): DomainPlaceMember[] => {
     const rank = (member: DomainPlaceMember) => (member.isOwner ? 0 : isMe(member.id) ? 1 : 2);

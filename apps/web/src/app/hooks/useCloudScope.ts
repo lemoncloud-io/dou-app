@@ -1,4 +1,4 @@
-import { runtime, RELAY_CLOUD_ID } from '@chatic/runtime';
+import { runtime, RELAY_CLOUD_ID } from '@chatic/runtime-react';
 
 export const toCloudId = (cid: string | null | undefined): string => cid || RELAY_CLOUD_ID;
 

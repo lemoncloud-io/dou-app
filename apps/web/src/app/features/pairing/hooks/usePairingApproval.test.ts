@@ -7,8 +7,8 @@ const approvePairing = jest.fn();
 const denyPairing = jest.fn();
 const classify = jest.fn((_op: string, _e: unknown) => 'notFound');
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ pairing: { checkPairing, approvePairing, denyPairing } }) },
         session: { classifyPairingError: (op: string, e: unknown) => classify(op, e) },
     })

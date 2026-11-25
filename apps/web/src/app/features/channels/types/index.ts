@@ -1,4 +1,4 @@
-import type { DomainChannel, DomainChat, DomainJoin, DomainUser } from '@chatic/runtime';
+import type { DomainChannel, DomainChat, DomainJoin, DomainUser } from '@chatic/runtime-react';
 
 export type { DomainChannel, DomainChat, DomainJoin, DomainUser };
 

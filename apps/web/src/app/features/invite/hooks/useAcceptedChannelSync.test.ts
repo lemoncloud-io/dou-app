@@ -4,8 +4,8 @@ const observeItemMock = jest.fn();
 const unsubscribeMock = jest.fn();
 const repositories = { channel: { observeItem: observeItemMock } };
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => repositories,
         },

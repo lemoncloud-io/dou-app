@@ -7,8 +7,8 @@ const mockSyncProfiles = vi.fn();
 const mockGetSyncedAt = vi.fn();
 const mockSetSyncedAt = vi.fn();
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 profile: { syncProfiles: mockSyncProfiles },

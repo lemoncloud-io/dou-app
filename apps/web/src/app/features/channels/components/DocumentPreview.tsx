@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Download, Share } from 'lucide-react';
 
-import type { ChatFileSlot } from '@chatic/runtime';
+import type { ChatFileSlot } from '@chatic/runtime-react';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { DocumentViewer, MediaViewerActionButton, type DocumentViewerStatus } from '@chatic/web-ui-kit';
 

@@ -2,7 +2,7 @@
 
 The page runs in two hosts: the desktop app's window (the Electron shell, `apps/desktop`) and, for
 pairing and sign-in hand-offs, a plain browser tab. Features never ask which one they are in. They call
-the host ports `runtime.<port>` from `@chatic/runtime`, and the app's runtime declaration
+the host ports `runtime.<port>` from `@chatic/runtime-react`, and the app's runtime declaration
 (`src/config/desktop-web.ts`) builds each port once at start from what the host declared.
 
 Every port carries its work as members; this app implements both sides of each in
@@ -52,7 +52,7 @@ never in a person's tab: reloading a tab the person opened would take their plac
 ## Device token registration
 
 `useDeviceTokenRegistration` is only the shell's side of push registration. The policy (sign-in gating,
-once per install, retry) lives in `@chatic/runtime`'s push registration and is shared with the phone app;
+once per install, retry) lives in `@chatic/runtime-react`'s push registration and is shared with the phone app;
 this hook hands it the pieces that depend on the host.
 
 - The token and its renewals come from the `push` port. The desktop app answers the token request itself

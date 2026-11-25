@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { runtime, type DomainIssuedWebhook, type DomainWebhook, type WebhookIssueInput } from '@chatic/runtime';
+import { runtime, type DomainIssuedWebhook, type DomainWebhook, type WebhookIssueInput } from '@chatic/runtime-react';
 
 import { isRuntimeNotAvailable } from '../utils/runtimeNotAvailable';
 

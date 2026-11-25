@@ -5,8 +5,8 @@ import {
     resolveLanguage,
 } from './languagePreference';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         settings: { storageKeyFor: (key: string) => `@chatic/config.${key}` },
     })
 );

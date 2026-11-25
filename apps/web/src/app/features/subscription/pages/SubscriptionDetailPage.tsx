@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 
 import { Lock, ShieldAlert } from 'lucide-react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import {
     Button,

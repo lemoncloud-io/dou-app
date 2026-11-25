@@ -3,7 +3,7 @@
 **The internal operator console** — subscription overrides, failure tracing, redeploying the
 subscription clouds after a server update, relay user registration, and the multi-client WebSocket
 lab used to verify the socket stack directly, all behind one login gate. It depends on
-`@chatic/runtime` alone for session, socket and repository access; it does not import
+`@chatic/runtime-react` alone for session, socket and repository access; it does not import
 `@chatic/data` directly, so the runtime stays the one window this app looks through the stack with.
 
 The app was called `admin-v2` until 2026-11; older ADRs, changelog entries and commit scopes use
@@ -63,8 +63,8 @@ separate `config.init` call in the entry.
 
 `src/config/` and `src/main.tsx` are the only code that names an implementation: they alone import
 `@chatic/runtime-web` and `@chatic/config`. Everything under `src/app/` reaches the runtime through
-`@chatic/runtime`, and its tests mock that module with `fakeRuntimeModule` from
-`@chatic/runtime/testing`. The one exception is the env: `src/app/config/stageEndpoints.ts` reads the
+`@chatic/runtime-react`, and its tests mock that module with `fakeRuntimeModule` from
+`@chatic/runtime-react/testing`. The one exception is the env: `src/app/config/stageEndpoints.ts` reads the
 per-stage service bases and the build's stage through the declaration's config ports
 (`webConfigPorts.env`), because `runtime.settings` reads settings, not the raw `VITE_*` values.
 

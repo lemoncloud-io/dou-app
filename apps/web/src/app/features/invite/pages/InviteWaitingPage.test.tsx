@@ -22,7 +22,7 @@ const canceledIds = new Set<string>();
 jest.mock('react-router-dom', () => ({ useParams: () => ({ inviteId: 'invite-1' }) }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
-jest.mock('@chatic/runtime', () => require('@chatic/runtime/testing').fakeRuntimeModule({}));
+jest.mock('@chatic/runtime-react', () => require('@chatic/runtime-react/testing').fakeRuntimeModule({}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({
     DropdownMenu: ({ children }: any) => <div>{children}</div>,

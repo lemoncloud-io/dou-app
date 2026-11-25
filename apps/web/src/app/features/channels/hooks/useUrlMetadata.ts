@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime, type LinkPreviewReader } from '@chatic/runtime';
+import { runtime, type LinkPreviewReader } from '@chatic/runtime-react';
 
 export interface UrlMetadata {
     url: string;

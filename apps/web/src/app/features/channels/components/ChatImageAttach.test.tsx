@@ -4,7 +4,7 @@ import { useRef } from 'react';
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
-import type { ChatAttachmentSource } from '@chatic/runtime';
+import type { ChatAttachmentSource } from '@chatic/runtime-react';
 import { IDENTITY_PHOTO_EDIT, SLIDE_MS, type PhotoEdit } from '@chatic/web-ui-kit';
 
 import type { AttachmentPick, AttachmentPicker } from '../../../bridge/attachmentPicker';
@@ -27,8 +27,8 @@ jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: () =>
 
 let mockNative = false;
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => mockNative }));
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, browserMedia, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, browserMedia, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         get media() {
             return mockNative

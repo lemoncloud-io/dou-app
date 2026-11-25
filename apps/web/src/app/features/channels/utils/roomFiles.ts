@@ -4,7 +4,7 @@ import {
     type DomainChat,
     type MediaItem,
     type RoomMediaItem,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 
 import { hiddenMediaKey } from '../lib/localMediaPrefs';
 

@@ -6,8 +6,8 @@ import i18next from 'i18next';
 const reportIssue = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => vi.fn());
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({ report: { reportIssue } })
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({ report: { reportIssue } })
 );
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 

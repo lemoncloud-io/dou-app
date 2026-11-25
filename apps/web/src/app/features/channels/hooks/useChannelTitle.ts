@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { runtime, type DomainChannel } from '@chatic/runtime';
+import { runtime, type DomainChannel } from '@chatic/runtime-react';
 
 import { useMyProfile } from '../../../hooks';
 import { resolveChannelTitle } from '../lib';

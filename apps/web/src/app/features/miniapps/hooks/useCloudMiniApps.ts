@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { runtime, type DomainMiniApp } from '@chatic/runtime';
+import { runtime, type DomainMiniApp } from '@chatic/runtime-react';
 
 import { useInvitedClouds } from '../../../hooks';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 import { TooltipProvider } from '@chatic/ui-kit';
 
 import { downloadImage } from '../../utils';
@@ -15,8 +15,8 @@ import '../../../../../i18n';
 
 const getChat = vi.hoisted(() => vi.fn());
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         session: { getGlobalSessionContext: () => ({ cloud: { cloudId: 'cl-1', siteId: 's-1' } }) },
         data: { getCloudRepositories: () => ({ chat: { getChat } }) },
     })

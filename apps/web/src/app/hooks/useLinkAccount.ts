@@ -7,7 +7,7 @@ import {
     type PhoneCodeSendOptions,
     type PhoneCodeVerifyResult,
     type SocialAccountTokens,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 import type { LinkSentView, LinkVerifiedView, LinkedView } from '@lemoncloud/chatic-backend-api';
 
 export type { AccountLinkMode, SocialAccountTokens };

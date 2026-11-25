@@ -1,6 +1,6 @@
 import { hashRunId, isPageHidden, PERF_SAMPLE_PERCENT, recordPerfSample } from '@chatic/perf';
 
-import type { runtime } from '@chatic/runtime';
+import type { runtime } from '@chatic/runtime-react';
 
 type StateOutboxSample = runtime.data.StateOutboxSample;
 

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { createQueryKeys } from '@chatic/shared';
 
 import { relayOverrideFor, type ServiceStage } from '../../../config/stageEndpoints';

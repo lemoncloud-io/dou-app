@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useIsMutating } from '@tanstack/react-query';
 
-import { RELAY_CLOUD_ID, runtime } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, runtime } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 
 export const useEnsureSelfChannel = (): void => {

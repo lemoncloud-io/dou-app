@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
-import type { DomainPlaceMember } from '@chatic/runtime';
+import type { DomainPlaceMember } from '@chatic/runtime-react';
 
 type MembersAnswer = { members: DomainPlaceMember[]; context: { cid: string; sid: string }; profiles: string };
 
@@ -34,8 +34,8 @@ jest.mock('@chatic/shared', () => ({
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() } }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: 'p1' }),

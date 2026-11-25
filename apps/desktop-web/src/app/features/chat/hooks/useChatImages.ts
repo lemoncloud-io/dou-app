@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 import { useChatImagesStore } from '../stores';
 import { toChatImages, type ChatImage } from '../utils';

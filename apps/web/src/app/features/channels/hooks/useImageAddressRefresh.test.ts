@@ -4,8 +4,8 @@ import { resetImageAddressRefresh, setImageRefreshObserver, useImageAddressRefre
 
 const getChat = jest.fn();
 const getCloudRepositories = jest.fn((_cid: string) => ({ chat: { getChat } }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { getCloudRepositories: (cid: string) => getCloudRepositories(cid) },
     })
 );

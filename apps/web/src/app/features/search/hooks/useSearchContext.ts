@@ -7,7 +7,7 @@ import {
     type DomainChannel,
     type GlobalCacheContext,
     type GlobalCacheRef,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 
 import { unreadOf } from '../../../utils/countUnread';

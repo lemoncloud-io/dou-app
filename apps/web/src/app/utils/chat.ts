@@ -6,4 +6,4 @@ export {
     isOwnSystemChat,
     isPreviewableChat,
     pickPreviewChat,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';

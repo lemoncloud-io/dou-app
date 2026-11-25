@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
-import type { DomainPlace } from '@chatic/runtime';
+import type { DomainPlace } from '@chatic/runtime-react';
 
 const places = [
     { id: 'p1', name: 'Studio' },
@@ -20,8 +20,8 @@ vi.mock('../../../shared/hooks/useCloudSwitchFlow', () => ({
 }));
 
 const selectedCloud = vi.hoisted(() => ({ id: 'c9' }));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: selectedCloud.id }),
         },

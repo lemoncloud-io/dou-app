@@ -12,7 +12,7 @@ const joinEmitters = new Map<string, Emit>();
 
 let native = true;
 
-vi.mock('@chatic/runtime', async () => {
+vi.mock('@chatic/runtime-react', async () => {
     const repositories = {
         channel: {
             observeList: (_query: unknown, onChange: Emit) => {
@@ -27,7 +27,7 @@ vi.mock('@chatic/runtime', async () => {
             },
         },
     };
-    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         connection: { useRuntimeSocketState: () => ({ isVerified: true }) },

@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { normalizeRecentSearches } from '../../../stores/preferenceParsers';
 import { MAX_RECENT_SEARCHES } from '../../../stores/preferenceKeys';
 

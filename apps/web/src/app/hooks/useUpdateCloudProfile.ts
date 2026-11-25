@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 interface UpdateCloudProfileData {
     id: string;

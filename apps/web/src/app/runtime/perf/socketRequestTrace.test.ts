@@ -1,6 +1,6 @@
 import { hashRunId, isSampledRun } from '@chatic/perf';
 
-import type { runtime } from '@chatic/runtime';
+import type { runtime } from '@chatic/runtime-react';
 
 import {
     isSocketRequestSampledRun,

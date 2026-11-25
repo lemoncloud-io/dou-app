@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { reconcileCloudRecordOwners } from '../utils/cloudRecordOwnership';
 

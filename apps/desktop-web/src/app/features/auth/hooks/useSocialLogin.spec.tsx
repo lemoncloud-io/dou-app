@@ -17,8 +17,8 @@ const session = vi.hoisted(() => ({
 vi.mock('@chatic/bridges', () => ({
     logger: { error: vi.fn(), warn: session.warn, info: vi.fn() },
 }));
-vi.mock('@chatic/runtime', async () => {
-    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({

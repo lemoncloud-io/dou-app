@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useCloudSessionCatalog } from './useCloudCatalog';
 
 import type { CloudView } from '@lemoncloud/chatic-backend-api';

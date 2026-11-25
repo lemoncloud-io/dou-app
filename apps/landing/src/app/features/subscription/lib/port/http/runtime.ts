@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { deviceStore } from '../../../../../storage';
 import { type LandingSession, startLandingRuntime } from '../../../../../../config/landing';

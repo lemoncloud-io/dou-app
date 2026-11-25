@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { useEffect } from 'react';
 
-import type { DomainCloud } from '@chatic/runtime';
+import type { DomainCloud } from '@chatic/runtime-react';
 
 import type { InviteContext } from './types';
 
@@ -111,8 +111,8 @@ let mockDevice = new FakeDevice();
 const mockInviteAnswers = new Map<string, ReturnType<FakeCloudServer['loginInvite']>>();
 const mockEnterStack = jest.fn();
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({ cloud: mockDevice.cloudRepository }),
             getAcceptorId: () => mockDevice.guest,

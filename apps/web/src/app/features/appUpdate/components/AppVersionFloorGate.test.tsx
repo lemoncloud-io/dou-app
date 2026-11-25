@@ -15,8 +15,8 @@ jest.mock('@chatic/bridges', () => ({
     ...jest.requireActual('@chatic/bridges'),
     logger: { info: (...args: unknown[]) => mockInfo(...args), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         get appShell() {
             return { ...browserAppShell(), storeUpdate: { check: jest.fn(), openStore: () => mockOpenStore() } };

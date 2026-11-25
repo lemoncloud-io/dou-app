@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const switchesSettled = (queryClient: QueryClient): Promise<void> =>
     new Promise(resolve => {

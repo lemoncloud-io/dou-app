@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { ACCOUNT_CHANNEL_SID } from '@chatic/runtime';
+import { ACCOUNT_CHANNEL_SID } from '@chatic/runtime-react';
 
 type Row = { id: string; name?: string; cid: string; sid: string; stereo?: string; memberIds?: string[] };
 
@@ -17,8 +17,8 @@ const observeList = vi.fn((_query: { sid: string }, onChange: (result: { list: R
 
 const repositories = { channel: { observeList } };
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: { useSessionIdentity: () => ({ userId: 'me' }) },
         connection: { useRuntimeSocketState: () => ({ isVerified: true }) },

@@ -11,7 +11,7 @@ import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin';
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin';
 import { $createParagraphNode, $getRoot, $getSelection, $isRangeSelection, type EditorState } from 'lexical';
 
-import type { ChatMentionBody } from '@chatic/runtime';
+import type { ChatMentionBody } from '@chatic/runtime-react';
 import { cn } from '@chatic/ui-kit';
 
 import { useComposerDraftStore } from '../../../shared';

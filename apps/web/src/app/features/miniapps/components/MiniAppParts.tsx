@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import type { DomainMiniApp } from '@chatic/runtime';
+import type { DomainMiniApp } from '@chatic/runtime-react';
 import { cn } from '@chatic/ui-kit';
 
 export const hostOf = (url: string): string => {

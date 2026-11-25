@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, Check } from 'lucide-react';
 
-import { RELAY_CLOUD_ID, runtime } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, runtime } from '@chatic/runtime-react';
 
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
 

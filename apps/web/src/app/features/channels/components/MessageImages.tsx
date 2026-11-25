@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime, chatMediaItems, isPendingUploadSlot, type DomainChat } from '@chatic/runtime';
+import { runtime, chatMediaItems, isPendingUploadSlot, type DomainChat } from '@chatic/runtime-react';
 import { cn } from '@chatic/ui-kit';
 import { MediaViewer, MESSAGE_IMAGE_VISIBLE_MAX, MessageFileCard, MessageMediaTiles } from '@chatic/web-ui-kit';
 

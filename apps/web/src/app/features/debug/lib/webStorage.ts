@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { BridgeStorageChannel, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
 import { asDomStorage, WebStore } from '@chatic/storage';
 

@@ -1,4 +1,4 @@
-import type { DomainPlace } from '@chatic/runtime';
+import type { DomainPlace } from '@chatic/runtime-react';
 
 export const placeToEnter = (
     places: readonly Pick<DomainPlace, 'id'>[],

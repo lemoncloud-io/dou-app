@@ -12,8 +12,8 @@ jest.mock('@chatic/shared', () => ({
 }));
 const mockOpenStore = jest.fn();
 let mockStoreUpdate = false;
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: false }),

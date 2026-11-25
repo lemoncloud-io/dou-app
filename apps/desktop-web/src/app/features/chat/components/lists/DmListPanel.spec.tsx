@@ -2,8 +2,8 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import type * as AppRuntime from '@chatic/runtime';
-import type { DomainChannel, DomainChat, DomainLastChat } from '@chatic/runtime';
+import type * as AppRuntime from '@chatic/runtime-react';
+import type { DomainChannel, DomainChat, DomainLastChat } from '@chatic/runtime-react';
 
 import '../../../../../i18n';
 
@@ -17,7 +17,7 @@ const current = vi.hoisted(() => ({
     place: {} as Record<string, { nick?: string; thumbnail?: string }>,
 }));
 
-vi.mock('@chatic/runtime', async importOriginal => {
+vi.mock('@chatic/runtime-react', async importOriginal => {
     const actual = await importOriginal<typeof AppRuntime>();
     return {
         ...actual,

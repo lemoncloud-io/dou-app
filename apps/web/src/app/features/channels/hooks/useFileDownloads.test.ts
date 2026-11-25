@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import type { ReactElement } from 'react';
 
-import type { ChatFileSlot } from '@chatic/runtime';
+import type { ChatFileSlot } from '@chatic/runtime-react';
 
 import type { DownloadProgress, DownloadResult } from '../../../runtime/transfer';
 import { resetFileDownloads, useFileDownloads } from './useFileDownloads';
@@ -59,8 +59,8 @@ const mockAppTransfers = {
     saveFile: async (uri: string, name: string) =>
         ((await request({ type: 'SaveFile', data: { uri, name } }, undefined)) as { data?: unknown } | undefined)?.data,
 };
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         data: { getCloudRepositories: () => ({ chat: { getChat: (input: unknown) => getChat(input) } }) },
         get files() {

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { toError } from '../../../shared';
 

@@ -1,4 +1,4 @@
-import type { DomainCloud } from '@chatic/runtime';
+import type { DomainCloud } from '@chatic/runtime-react';
 
 export const withAcceptor = (
     acceptedBy: readonly string[] | undefined,

@@ -12,8 +12,8 @@ const repos = Object.fromEntries(
 );
 const relayUser = vi.hoisted(() => ({ current: null as { userRole: string } | null }));
 const clearConfigKey = vi.fn().mockReturnValue({ ok: true });
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repos },
         session: { getRelaySessionUser: () => relayUser.current },
         settings: { clear: (...args: unknown[]) => clearConfigKey(...args) },

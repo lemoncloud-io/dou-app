@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import type { ChatAttachmentKind } from '@chatic/runtime';
+import type { ChatAttachmentKind } from '@chatic/runtime-react';
 import { deviceStore, persistStorageOver } from '../../storage';
 
 /** What a saved message carried, snapshotted with it: the Files filter and the card's file tile read it. */

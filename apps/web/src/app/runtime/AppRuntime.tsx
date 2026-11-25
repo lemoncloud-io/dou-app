@@ -5,7 +5,7 @@ const SONNER_SAFE_OFFSET = { top: 'calc(var(--safe-top, 0px) + 8px)' };
 
 import { GlobalLoader, useVersionCheck, VersionUpdateBanner } from '@chatic/shared';
 import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { Router } from '../routes';
 import { ActiveCloudDataProvider, OtherCloudUnreadProvider, useCloudCatalogRelayResync } from '../hooks';

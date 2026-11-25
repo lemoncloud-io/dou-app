@@ -4,8 +4,8 @@ const configValues: Record<string, unknown> = {
     'net.socialOauth.endpoint': 'https://relay.example',
     'net.deeplink.desktopProtocol': 'chatic-dev',
 };
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         settings: { get: (key: string) => configValues[key] },
     })
 );

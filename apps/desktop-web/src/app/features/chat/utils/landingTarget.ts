@@ -1,4 +1,4 @@
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 export type Landing = { kind: 'pending' | 'fallback'; channelId: string } | null;
 

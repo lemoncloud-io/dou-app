@@ -1,4 +1,4 @@
-import type { runtime } from '@chatic/runtime';
+import type { runtime } from '@chatic/runtime-react';
 
 type Repositories = ReturnType<typeof runtime.data.useRuntimeRepositories>;
 type PairingRepository = Repositories['pairing'];

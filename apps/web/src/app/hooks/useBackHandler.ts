@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useOnBackPressed } from '../bridge';
 import { backIsTheAppsToSpend, useStackBack } from '../navigation';
 

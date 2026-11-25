@@ -1,4 +1,4 @@
-import { dmPlaceOf, isCloudDm, placeOfDmId, type DomainChannel } from '@chatic/runtime';
+import { dmPlaceOf, isCloudDm, placeOfDmId, type DomainChannel } from '@chatic/runtime-react';
 
 export const pushRoomPlace = (
     channelId: string | null,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { ChatAttachmentSource } from '@chatic/runtime';
+import type { ChatAttachmentSource } from '@chatic/runtime-react';
 
 export const useLocalAudioDurations = (
     items: readonly ChatAttachmentSource[]

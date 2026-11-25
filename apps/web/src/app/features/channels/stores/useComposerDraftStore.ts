@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import type { ChatAttachmentSource } from '@chatic/runtime';
+import type { ChatAttachmentSource } from '@chatic/runtime-react';
 
 import { deviceStore, persistStorageOver } from '../../../storage';
 

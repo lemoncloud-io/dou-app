@@ -31,8 +31,8 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </button>
     ),
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => mockSelection,
             useUidInCloud: (cloudId: string) => (cloudId ? `uid-${cloudId}` : null),

@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 const readInCloud = vi.hoisted(() => vi.fn((..._args: unknown[]) => Promise.resolve()));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             getCloudRepositories: (cid: string) => ({
                 join: { readChat: (input: unknown) => Promise.resolve({ delivered: readInCloud(cid, input) }) },

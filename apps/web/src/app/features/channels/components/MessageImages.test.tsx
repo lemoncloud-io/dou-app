@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 import { resetRoomAudioStore, useRoomAudioStore } from '../stores/roomAudioStore';
 import { resetAudioTypeProbe } from '../utils/audioPlayback';
@@ -19,8 +19,8 @@ jest.mock('../lib/fileDownload', () => ({ downloadInBrowser: (...args: unknown[]
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 const mockSendProgress = new Map<string, (number | undefined)[]>();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useImageSendProgress: (pendingId?: string) => (pendingId ? mockSendProgress.get(pendingId) : undefined),
         },

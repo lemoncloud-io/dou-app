@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { runtime, type DomainChat } from '@chatic/runtime';
+import { runtime, type DomainChat } from '@chatic/runtime-react';
 
 export const useChatMessage = (cid: string | undefined, channelId: string | undefined, chatNo: number) => {
     const { chat: roomChats } = runtime.data.useRuntimeRepositories();

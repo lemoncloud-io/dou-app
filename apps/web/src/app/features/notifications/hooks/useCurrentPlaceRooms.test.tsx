@@ -1,13 +1,13 @@
 import type { ReactNode } from 'react';
 import { renderHook } from '@testing-library/react';
 
-import { runtime, type DomainChannel } from '@chatic/runtime';
+import { runtime, type DomainChannel } from '@chatic/runtime-react';
 
 import { ActiveCloudDataContext, type ActiveCloudData } from '../../../hooks/activeCloudDataContext';
 import { useCurrentPlaceRooms } from './useCurrentPlaceRooms';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: { useSessionSelection: jest.fn(), useUidInCloud: jest.fn() },
         connection: { useCloudVerified: jest.fn() },
         sync: { registerSyncTarget: jest.fn() },

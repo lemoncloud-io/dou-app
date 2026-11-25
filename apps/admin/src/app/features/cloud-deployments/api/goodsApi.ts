@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { findForeignProducts, SERVICE_CODES, type CloudService } from '../lib/cloudGroups';
 import { collectPages, type ListPage, type PagedList } from '../lib/listPaging';

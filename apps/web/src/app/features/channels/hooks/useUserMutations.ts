@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 
-import { runtime, type UserInviteBatchPayload } from '@chatic/runtime';
+import { runtime, type UserInviteBatchPayload } from '@chatic/runtime-react';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import type { UserInviteInput } from '@lemoncloud/chatic-sockets-api';
 

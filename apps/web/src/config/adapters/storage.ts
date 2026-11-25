@@ -1,5 +1,5 @@
 import { BridgeStorageChannel, webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { defineAdapter } from '@chatic/runtime-web';
 import type { StorageStores, WebHostFacts } from '@chatic/runtime-web';
 

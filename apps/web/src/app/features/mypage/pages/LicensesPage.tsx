@@ -2,7 +2,7 @@ import { ChevronDown, ExternalLink, Github, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { PageHeader } from '../../../ui/components';
 import { SafeAreaBottomSpacer } from '../../../ui/components/SafeAreaBottomSpacer';

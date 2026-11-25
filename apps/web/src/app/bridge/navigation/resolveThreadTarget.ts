@@ -1,4 +1,4 @@
-import { channelIdOfChatId, type DomainChat } from '@chatic/runtime';
+import { channelIdOfChatId, type DomainChat } from '@chatic/runtime-react';
 
 import { ROUTES } from '../../routes/paths';
 

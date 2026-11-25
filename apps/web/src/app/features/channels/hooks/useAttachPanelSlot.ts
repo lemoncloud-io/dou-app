@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { prefersReducedMotion, type AttachPanelHandle } from '@chatic/web-ui-kit';
 
 import { KEYBOARD_MIN_PX } from '../../../ui/hooks/useKeyboardOpen';

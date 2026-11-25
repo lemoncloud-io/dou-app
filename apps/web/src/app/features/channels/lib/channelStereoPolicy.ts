@@ -1,4 +1,4 @@
-import { isRelayDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
+import { isRelayDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime-react';
 
 type ChannelStereo = DomainChannel['stereo'];
 

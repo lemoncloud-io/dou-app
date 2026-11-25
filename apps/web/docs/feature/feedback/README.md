@@ -8,7 +8,7 @@ reproducible.
 
 The feature is deliberately small: two source files and their specs. Everything it sends leaves
 through `runtime.report.reportIssue`, which belongs to
-[`@chatic/runtime`](../../../../../libs/runtime/README.md).
+[`@chatic/runtime-react`](../../../../../libs/runtime/README.md).
 
 ## Layout
 
@@ -152,7 +152,7 @@ puts `user.isAuthenticated: false` in the payload rather than refusing.
 
 ## Further reading
 
-- [`@chatic/runtime`](../../../../../libs/runtime/README.md) — `runtime.report`, the wire
+- [`@chatic/runtime-react`](../../../../../libs/runtime/README.md) — `runtime.report`, the wire
   body, and what the sender adds on top of `extras`.
 - [mypage](../mypage/README.md) — the settings row that leads here.
 - [observability/logging.md](../../observability/logging.md) — why the logs travel separately.

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime, type DomainUser } from '@chatic/runtime';
+import { runtime, type DomainUser } from '@chatic/runtime-react';
 
 export const useUserRecords = (ids: string[]): Map<string, DomainUser> => {
     const { user: userRepository } = runtime.data.useRuntimeRepositories();

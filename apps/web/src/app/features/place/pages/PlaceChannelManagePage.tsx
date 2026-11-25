@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
-import { runtime, type DomainChannel, type DomainChat } from '@chatic/runtime';
+import { runtime, type DomainChannel, type DomainChat } from '@chatic/runtime-react';
 
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { Badge, Button, DefaultAvatar, ImageAvatar, ManageChannelItem } from '@chatic/web-ui-kit';

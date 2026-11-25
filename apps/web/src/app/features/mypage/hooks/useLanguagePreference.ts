@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { syncLanguageChoiceToShell } from '../../../bridge';
 import {

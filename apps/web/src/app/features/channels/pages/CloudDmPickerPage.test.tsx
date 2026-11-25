@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import type { DomainPlaceMember } from '@chatic/runtime';
+import type { DomainPlaceMember } from '@chatic/runtime-react';
 
 import type { PlaceMembersStatus } from '../../place/hooks/usePlaceMembers';
 
@@ -19,8 +19,8 @@ let mockIsStarting = false;
 let mockIsAvailable = true;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: 'p1' }),
             useSessionIdentity: () => ({ userId: 'me-session' }),

@@ -28,7 +28,7 @@ What the app does **not** own:
 
 | Concern                                               | Owner                                                             |
 | ----------------------------------------------------- | ----------------------------------------------------------------- |
-| Session, auth, connection lifecycle, sync, push, boot | [`@chatic/runtime`](../../libs/runtime/README.md)                 |
+| Session, auth, connection lifecycle, sync, push, boot | [`@chatic/runtime-react`](../../libs/runtime/README.md)           |
 | Repositories, local cache, observe streams            | [`@chatic/data`](../../libs/data/README.md)                       |
 | The native ↔ web message seam, and the logger facade | [`@chatic/bridges`](../../libs/bridges/README.md)                 |
 | Settings, environment, feature flags                  | [`@chatic/config`](../../libs/config/README.md)                   |
@@ -41,7 +41,7 @@ What the app does **not** own:
 | What the host injected at boot (the host profile)     | [`@chatic/bridges`](../../libs/bridges/README.md)                 |
 | Policy copy (terms, privacy, licenses)                | [`@chatic/policy-content`](../../libs/policy-content/README.md)   |
 
-`@chatic/http` and `@chatic/logger` reach the app indirectly: HTTP through `@chatic/runtime`,
+`@chatic/http` and `@chatic/logger` reach the app indirectly: HTTP through `@chatic/runtime-react`,
 the logger through the `logger` re-export in `@chatic/bridges`. The app imports neither package
 directly, and it should stay that way — the command above says whether it has.
 
@@ -81,7 +81,7 @@ resources; the app side of the native bridge; the debug overlay; boot wiring in 
 **Out** —
 
 - Session, auth, connection lifecycle, background sync, push registration, boot —
-  [`@chatic/runtime`](../../libs/runtime/README.md).
+  [`@chatic/runtime-react`](../../libs/runtime/README.md).
 - Repositories, local caches, observe streams — [`@chatic/data`](../../libs/data/README.md).
 - The native message transport and the logger facade —
   [`@chatic/bridges`](../../libs/bridges/README.md).
@@ -105,7 +105,7 @@ flowchart TD
     Feat["app/features/ × 14"]:::app
     SharedDirs["app/ui · hooks · stores · utils · bridge · config"]:::app
 
-    Runtime["@chatic/runtime<br/><i>runtime.session · connection · data · sync · boot · push · report</i>"]:::lib
+    Runtime["@chatic/runtime-react<br/><i>runtime.session · connection · data · sync · boot · push · report</i>"]:::lib
     Data["@chatic/data"]:::lib
     Bridges["@chatic/bridges"]:::lib
     Config["@chatic/config"]:::lib
@@ -147,7 +147,7 @@ Import direction _inside_ `app/` — which of those boxes may name which — is 
 sequenceDiagram
     participant Shell as host shell
     participant Main as main.tsx
-    participant RT as @chatic/runtime
+    participant RT as @chatic/runtime-react
     participant App as app.tsx / AppRuntime
     participant Router as routes/
 
@@ -209,7 +209,7 @@ Files you cannot guess from the name:
   `features/home`.
 - `config/` — the declaration part: the only code besides `main.tsx` that imports
   `@chatic/runtime-web` or `@chatic/config` (everything under `app/` reads the runtime through
-  `@chatic/runtime`). See [The runtime declarations](#the-runtime-declarations).
+  `@chatic/runtime-react`). See [The runtime declarations](#the-runtime-declarations).
 - `app/storage/` — the two stores this app's features keep their own state in: `deviceStore` (outlives
   the tab — drafts, recent emoji, the sent-invite log, the browser's log queue) and `tabStore` (dies
   with it — the pending invite channel, the crash sentinel, the debug unlock). `main.tsx` points them
@@ -245,7 +245,7 @@ The app runs in one of two connection modes, read from
 - **`cloud`** — a specific Cloud is active. The client talks to that Cloud's own backend with a
   cloud identity token, and re-authenticates when the Place changes.
 
-Both switches, and every re-auth they imply, are performed by `@chatic/runtime`. The app calls
+Both switches, and every re-auth they imply, are performed by `@chatic/runtime-react`. The app calls
 the switch hook and touches no token.
 
 ## Usage
@@ -259,7 +259,7 @@ yarn web:start          # nx serve web --port 5003
 Reading and writing data — repositories, obtained from the runtime:
 
 ```ts
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const { join: joinRepository } = runtime.data.useRuntimeRepositories();
 const uid = runtime.session.useGlobalSession().identity.userId;
@@ -275,7 +275,7 @@ grep -rn "from '@chatic/\(data\|runtime\)'" apps/web/src --include='*.tsx' --inc
   | grep -v 'import type' | sed 's/type [A-Za-z]*Repository//g' | grep -i repository
 ```
 
-The app takes `@chatic/data`'s domain names from `@chatic/runtime`, which re-exports them; that is not
+The app takes `@chatic/data`'s domain names from `@chatic/runtime-react`, which re-exports them; that is not
 itself a violation — most of it is `import type`, and a handful of pure helpers such as
 `isInJoinWindow` come across as values. A **Repository** crossing that line is the violation, because
 it would bypass the context the runtime binds to each call.
@@ -394,7 +394,7 @@ cache in component state, and do not reach for `@chatic/data` internals — the 
 
 Call the switch hook — `app/runtime/useSiteSwitch.ts` for a Place, the cloud switch under
 `features/home` for a Cloud — and render the result. Re-auth, socket rebind and cache repartition
-all happen inside `@chatic/runtime`. Writing `sid` or `cid` directly leaves the socket bound to
+all happen inside `@chatic/runtime-react`. Writing `sid` or `cid` directly leaves the socket bound to
 the old partition.
 
 ### 4. React to something the native shell does
@@ -470,4 +470,4 @@ Then the traps:
   step**, with the count of failures recorded in its own trailing comment. Web tests are the ones to
   run by hand before merging.
 - Changing a shared library is a wider change than it looks: `web` is the heaviest consumer of
-  `@chatic/runtime` and `@chatic/data`. Type check this app after touching either.
+  `@chatic/runtime-react` and `@chatic/data`. Type check this app after touching either.

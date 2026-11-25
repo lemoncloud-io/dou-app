@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { runtime, type MembershipDropsResult } from '@chatic/runtime';
+import { runtime, type MembershipDropsResult } from '@chatic/runtime-react';
 import { useCustomMutation } from '@chatic/shared';
 
 import { productPlansKeys, subscriptionKeys } from './queryKeys';

@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { copyMessageToClipboard } from '../../channels/utils/copyMessageToClipboard';
 

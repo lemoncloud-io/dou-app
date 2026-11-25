@@ -17,7 +17,7 @@ import {
     takeSourceLink,
 } from '@chatic/block-kit';
 import { cn } from '@chatic/ui-kit';
-import { chatMediaItems, extractFirstUrl, isMessageEdited, isWebhookChat } from '@chatic/runtime';
+import { chatMediaItems, extractFirstUrl, isMessageEdited, isWebhookChat } from '@chatic/runtime-react';
 
 import { hiddenPartsOf } from '../lib/localMediaPrefs';
 import type { ClientChatView } from '../types';

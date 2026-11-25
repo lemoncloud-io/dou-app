@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { ACCOUNT_CHANNEL_SID, isCloudDm, RELAY_CLOUD_ID, type DomainChannel, runtime } from '@chatic/runtime';
+import { ACCOUNT_CHANNEL_SID, isCloudDm, RELAY_CLOUD_ID, type DomainChannel, runtime } from '@chatic/runtime-react';
 
 import { computeChannelUnread, listingPlaces, placeMemberPeers, roomPlaces } from '../utils';
 import { useMentionsStore, useReadCursorStore } from '../stores';

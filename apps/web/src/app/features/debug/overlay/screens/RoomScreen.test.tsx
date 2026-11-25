@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 
 import { setDebugLanguageForTests } from '../../i18n';
 import { clearDebugObservation, publishDebugObservation } from '../sharedObservationStore';
@@ -14,8 +14,8 @@ const mockChannelCacheRead = jest.fn();
 const mockRefreshOneInCloud = jest.fn();
 const mockGetCloudRepositories = jest.fn();
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             getCloudRepositories: (cid: string) => {
                 mockGetCloudRepositories(cid);

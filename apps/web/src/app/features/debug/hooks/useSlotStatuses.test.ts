@@ -3,8 +3,8 @@ import { act, renderHook } from '@testing-library/react';
 import { useSlotStatuses } from './useSlotStatuses';
 
 const mockGetSlotStatuses = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         connection: { getSlotStatuses: () => mockGetSlotStatuses() },
     })
 );

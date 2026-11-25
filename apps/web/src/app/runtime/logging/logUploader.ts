@@ -5,7 +5,7 @@ import {
     createQueueLogStore,
     logHub,
 } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { isBelowAppVersionFloor, readShellVersion } from '../../features/appUpdate/lib/appVersionFloor';
 import { diagnosticsKind } from '../../../config/diagnosticsKind';

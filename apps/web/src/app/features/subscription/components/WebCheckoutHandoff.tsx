@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { IconSpinner } from '@chatic/web-ui-kit';
 
 import { useMembershipInfo } from '../../../hooks/useMembership';

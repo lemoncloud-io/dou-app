@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { LogOut, MoreVertical, Pencil, Settings, Trash2, UserPlus } from 'lucide-react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 import {
     DropdownMenu,
     DropdownMenuContent,

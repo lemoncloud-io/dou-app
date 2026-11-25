@@ -14,7 +14,7 @@ import {
     IconNavMySolid,
 } from '@chatic/web-ui-kit';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { haptics } from '../../bridge/haptics';
 import { ROUTES } from '../../routes/paths';

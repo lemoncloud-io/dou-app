@@ -6,8 +6,8 @@ let isError = false;
 let native = true;
 const completeFromHandoff = vi.fn();
 
-vi.mock('@chatic/runtime', async () => {
-    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const { browserSignIn, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         settings: { get: () => 'chatic-dev' },
         get signIn() {

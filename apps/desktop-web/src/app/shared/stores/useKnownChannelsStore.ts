@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { isCloudDm, type DomainChannel } from '@chatic/runtime';
+import { isCloudDm, type DomainChannel } from '@chatic/runtime-react';
 
 import { dmCounterpartId } from '../utils/dmDisplay';
 import { deviceStore, persistStorageOver } from '../../storage';

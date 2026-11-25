@@ -1,4 +1,4 @@
-import type { ChatMentionBody } from '@chatic/runtime';
+import type { ChatMentionBody } from '@chatic/runtime-react';
 
 export const EVERYONE_ALIASES: readonly string[] = ['all', '전체', 'channel', 'here', 'everyone'];
 

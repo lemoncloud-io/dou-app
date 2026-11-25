@@ -1,6 +1,6 @@
 # state — how data reaches a screen
 
-`apps/web` owns no session, socket, cache or repository — those are `@chatic/runtime` and
+`apps/web` owns no session, socket, cache or repository — those are `@chatic/runtime-react` and
 `@chatic/data`. What it does own is the wiring: which store holds transient client state, how a
 screen observes server data, and who decides that data is stale.
 

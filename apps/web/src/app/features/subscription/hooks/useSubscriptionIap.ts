@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { runtime, type StoreCheckout } from '@chatic/runtime';
+import { runtime, type StoreCheckout } from '@chatic/runtime-react';
 import { subscriptionKeys } from '../../../hooks/queryKeys';
 import { useValidateMembership } from '../../../hooks/useMembership';
 

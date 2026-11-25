@@ -6,7 +6,7 @@ import { CheckCheck, ChevronLeft, LogOut, Star, Trash2 } from 'lucide-react';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { Button } from '@chatic/ui-kit';
 
-import { runtime, RELAY_CLOUD_ID } from '@chatic/runtime';
+import { runtime, RELAY_CLOUD_ID } from '@chatic/runtime-react';
 
 import {
     lastChatNoOf,

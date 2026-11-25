@@ -4,7 +4,7 @@ import { createElement, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 const updateJoin = vi.hoisted(() => vi.fn(async (_payload: unknown) => ({})));
 const observeList = vi.hoisted(() => vi.fn());
@@ -22,8 +22,8 @@ const repositories = vi.hoisted(() => ({
     join: { updateJoin: (payload: unknown) => updateJoin(payload) },
 }));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1', selectedSiteId: 'p1' }),

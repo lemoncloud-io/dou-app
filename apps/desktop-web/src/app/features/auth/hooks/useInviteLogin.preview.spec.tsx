@@ -15,8 +15,8 @@ const { loginGuest, registerUserWithInviteCode, getIdentityContext, getActiveSes
 
 vi.mock('../apis', () => ({ fetchInviteCodeInfo }));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         session: {
             useDynamicDeviceId: () => ({ deviceId: 'device-1' }),
             useLoginRelayGuestByDevice: () => ({ mutateAsync: loginGuest }),

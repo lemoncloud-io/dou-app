@@ -9,7 +9,9 @@ and the translation cache. Each item is something that fails quietly if undone.
   captures a subpath like `config/react` and points at a file that does not exist (the real entry is
   `libs/config/src/react/index.ts`). Subpath entries therefore come first: `@chatic/ui-kit/*`,
   `@chatic/config/*`, `@chatic/shared/phone` (kept out of the root barrel because of libphonenumber's
-  metadata) and `@chatic/runtime/testing` (the runtime's test fake, kept out of its barrel). The same
+  metadata), `@chatic/runtime-react` and its `/testing` (the package lives at `libs/runtime/react`, one
+  folder deeper than the rule assumes) and `@chatic/runtime/testing` (the runtime's test fake, kept out of
+  its barrel, which runtime-react's fake re-exports). The same
   trap bit `libs/config`'s own Jest config.
 - **`@chatic/assets` lives at the repository root**, so the greedy fallback would resolve it to a
   `libs/assets/` that does not exist. It is stubbed with a recursive `Proxy` (`__mocks__/assetsMock.js`)

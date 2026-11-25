@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import type { PairingCheckView, PairingTarget } from '@chatic/http';
 
 export type PairingApprovalStep =

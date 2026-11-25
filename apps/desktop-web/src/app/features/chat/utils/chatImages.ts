@@ -6,7 +6,7 @@ import {
     isPendingUploadSlot,
     uploadSlotKind,
     type DomainChat,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 
 import type { SavedAttachment } from '../../../shared/stores/useSavedItemsStore';
 import { isVoiceSlot } from '../../../shared/utils/messagePreview';

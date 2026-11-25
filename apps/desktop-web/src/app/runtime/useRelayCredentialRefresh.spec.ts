@@ -6,8 +6,8 @@ const mockCheck = vi.fn();
 const mockGuard = vi.fn(() => ({ check: mockCheck }));
 const mockSlotVerified = vi.fn(() => true);
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         session: {
             useSessionStalenessGuard: (...args: unknown[]) => mockGuard(...(args as [])),
         },

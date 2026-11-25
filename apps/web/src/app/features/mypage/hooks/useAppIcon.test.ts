@@ -13,8 +13,8 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('../../../runtime/telemetry/appIcon', () => ({ recordAppIconChange: jest.fn() }));
 const mockIsNative = jest.fn((): boolean => false);
 const mockAppIcon = { current: jest.fn(), options: jest.fn(), change: jest.fn() };
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         get appShell() {
             return { ...browserAppShell(), appIcon: mockIsNative() ? mockAppIcon : null };

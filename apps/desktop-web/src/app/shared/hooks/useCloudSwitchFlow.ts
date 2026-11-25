@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { ToastAction, type ToastActionElement } from '@chatic/ui-kit';
-import { runtime, pushCloudIdOf } from '@chatic/runtime';
+import { runtime, pushCloudIdOf } from '@chatic/runtime-react';
 
 import { MobileAppPointer } from '../components/MobileAppPointer';
 import { useOwnedCloudIds } from './useCloudCatalog';

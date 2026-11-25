@@ -5,7 +5,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { miniApp, renderAt } from '../testing/setup';
 import { MiniAppsPage } from './MiniAppsPage';
 
-import type { DomainMiniApp } from '@chatic/runtime';
+import type { DomainMiniApp } from '@chatic/runtime-react';
 
 const mockOpenSubWebView = jest.fn();
 const mockToast = jest.fn();
@@ -31,8 +31,8 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => mockNavigate,
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => mockSelection,
             useUidInCloud: (cloudId: string) => (cloudId ? `uid-${cloudId}` : null),

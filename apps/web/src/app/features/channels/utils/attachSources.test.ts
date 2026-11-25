@@ -1,4 +1,4 @@
-import { chatAttachmentAccept, judgeChatAttachments } from '@chatic/runtime';
+import { chatAttachmentAccept, judgeChatAttachments } from '@chatic/runtime-react';
 
 import { PHONE_SENDS } from '../../../utils';
 import { albumAccept, documentAccept, isAppleTouchWebKit, rejectionKey } from './attachSources';

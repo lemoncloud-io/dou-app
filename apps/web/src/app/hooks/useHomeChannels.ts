@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { isInPlaceList, type DomainChannel } from '@chatic/runtime';
+import { isInPlaceList, type DomainChannel } from '@chatic/runtime-react';
 
 import { useActiveCloudData } from './activeCloudDataContext';
 

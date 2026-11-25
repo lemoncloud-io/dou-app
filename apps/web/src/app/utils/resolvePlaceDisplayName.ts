@@ -1,6 +1,6 @@
 import type { TFunction } from 'i18next';
 
-import type { DomainPlace } from '@chatic/runtime';
+import type { DomainPlace } from '@chatic/runtime-react';
 
 export const HOME_PLACE_ID = '0000';
 

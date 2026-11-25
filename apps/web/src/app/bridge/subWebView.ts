@@ -1,5 +1,5 @@
 import type { SubWebViewParams } from '@chatic/bridge-messages';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { shellCapabilities } from './shellCapabilities';
 

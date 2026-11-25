@@ -9,8 +9,8 @@ let stored: unknown;
 const setConfig = jest.fn((_key: string, value: unknown, _options?: unknown) => {
     stored = value;
 });
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         settings: {
             set: (key: string, value: unknown, options: unknown) => setConfig(key, value, options),
             storageKeyFor: (key: string) => `@chatic/config.${key}`,

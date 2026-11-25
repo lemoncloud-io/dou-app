@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { logger, webClient } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { createNativeDownloads, type NativeDownloads } from '../runtime/transfer';
 import { shellCapabilities, useCanExportImages } from './shellCapabilities';

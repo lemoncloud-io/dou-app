@@ -7,8 +7,8 @@ import type * as SharedModule from '../../../shared';
 
 const pairingEnv = vi.hoisted(() => ({ native: false, paired: false }));
 
-vi.mock('@chatic/runtime', async () => {
-    const testing = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const testing = await import('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         session: { useIsPairedSession: () => pairingEnv.paired },
         links: testing.browserLinks(),

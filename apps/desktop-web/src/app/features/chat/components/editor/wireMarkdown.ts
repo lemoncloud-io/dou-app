@@ -3,7 +3,7 @@ import { $convertFromMarkdownString, $convertToMarkdownString } from '@lexical/m
 import { $dfs } from '@lexical/utils';
 import { $getRoot, $isTextNode, type TextNode } from 'lexical';
 
-import type { ChatMentionBody } from '@chatic/runtime';
+import type { ChatMentionBody } from '@chatic/runtime-react';
 
 import { GROUP_MENTIONS, MENTION_TOKEN_SOURCE } from '../../../../shared';
 import { WIRE_TRANSFORMERS } from './editorConfig';

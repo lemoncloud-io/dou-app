@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { runtime, RELAY_ORIGIN_CID } from '@chatic/runtime';
+import { runtime, RELAY_ORIGIN_CID } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import { readSubWebViewLinkPath, subWebViewPageUrlOfNavigatePath } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';

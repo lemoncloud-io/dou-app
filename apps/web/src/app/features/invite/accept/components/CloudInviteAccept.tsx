@@ -2,7 +2,7 @@ import { useState, type JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { AlertDialog } from '@chatic/web-ui-kit';
 
 import { InviteAcceptLoading } from './InviteAcceptLoading';

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
-import type { DomainChannel } from '@chatic/runtime';
-import { runtime } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
+import { runtime } from '@chatic/runtime-react';
 
 import { isPlaceholderName } from '../../../shared';
 import type { MessageViewer } from '../utils';

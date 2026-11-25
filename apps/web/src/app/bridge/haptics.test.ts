@@ -2,8 +2,8 @@ import { haptics } from './haptics';
 
 const play = jest.fn();
 let mockHaptics = true;
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         get appShell() {
             return { ...browserAppShell(), haptics: mockHaptics ? { play } : null };

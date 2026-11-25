@@ -1,4 +1,4 @@
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 export const isDmChannel = (channel: DomainChannel): boolean =>
     channel.stereo === 'dm' || (!channel.name && (channel.memberIds?.length ?? channel.memberNo ?? 0) === 2);

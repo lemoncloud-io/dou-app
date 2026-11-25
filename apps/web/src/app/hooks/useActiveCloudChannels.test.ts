@@ -2,15 +2,15 @@ import { createElement, type ReactNode } from 'react';
 
 import { act, renderHook } from '@testing-library/react';
 
-import { runtime, ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/runtime';
+import { runtime, ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/runtime-react';
 
 import { useChannelSyncMarkStore } from '../stores/useChannelSyncMarkStore';
 import { COLD_LIST_WINDOW_MS } from './useColdListWindow';
 import { ActiveCloudDataContext } from './activeCloudDataContext';
 import { useActiveCloudChannels, useActiveCloudChannelsSource } from './useActiveCloudChannels';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: jest.fn(),
         },

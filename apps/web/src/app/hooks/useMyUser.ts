@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 
-import { runtime, type DomainUser } from '@chatic/runtime';
+import { runtime, type DomainUser } from '@chatic/runtime-react';
 import type { LinkedAccountsView, UserView } from '@lemoncloud/chatic-backend-api';
 
 export type MyUser = DomainUser & {

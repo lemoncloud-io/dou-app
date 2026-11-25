@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { normalizeChannelSort } from '../stores/preferenceParsers';
 import type { ChannelSortMethod } from '../stores/preferenceKeys';
 

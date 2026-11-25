@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import { useCustomMutation } from '@chatic/shared';
 

@@ -11,7 +11,7 @@ const cache = vi.hoisted(() => ({
     getMyProfile: vi.fn(),
 }));
 
-vi.mock('@chatic/runtime', async () => {
+vi.mock('@chatic/runtime-react', async () => {
     const emit = () => cache.listeners.forEach(listener => listener({ list: [...cache.rows] }));
     cache.getMyProfile.mockImplementation(async () => {
         const row = { uid: 'me', sid: 'S1', nick: 'Captain', thumbnail: 'place.png' };
@@ -29,7 +29,7 @@ vi.mock('@chatic/runtime', async () => {
             getMyProfile: cache.getMyProfile,
         },
     };
-    return (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+    return (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
         session: { useGlobalSession: () => ({ activeServer: { siteId: 'S1' } }) },

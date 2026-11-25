@@ -1,4 +1,4 @@
-import { chatAttachmentFormat } from '@chatic/runtime';
+import { chatAttachmentFormat } from '@chatic/runtime-react';
 
 export type BrowserShareResult = 'shared' | 'dismissed' | 'needs-gesture' | 'failed';
 

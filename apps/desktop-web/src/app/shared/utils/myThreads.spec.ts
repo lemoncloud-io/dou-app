@@ -12,7 +12,7 @@ import {
     type MyThreads,
     type ThreadReply,
 } from './myThreads';
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 
 const reply = (over: Partial<ThreadReply> = {}): ThreadReply => ({
     cid: 'c1',

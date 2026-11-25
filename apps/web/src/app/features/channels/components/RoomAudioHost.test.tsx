@@ -13,8 +13,8 @@ const mockToast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => mockToast(arg) }));
 const mockGetChat = jest.fn();
 const mockGetCloudRepositories = jest.fn((_cid: string) => ({ chat: { getChat: mockGetChat } }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { getCloudRepositories: (cid: string) => mockGetCloudRepositories(cid) },
     })
 );

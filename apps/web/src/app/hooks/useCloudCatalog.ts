@@ -2,7 +2,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Query } from '@tanstack/react-query';
 
-import { runtime, type DomainCloud, type DomainListResult } from '@chatic/runtime';
+import { runtime, type DomainCloud, type DomainListResult } from '@chatic/runtime-react';
 
 import { useIsAccountGuest } from './useMyUser';
 

@@ -4,13 +4,13 @@ import userEvent from '@testing-library/user-event';
 
 import { ConfigScreen } from './ConfigScreen';
 import { setDebugLanguageForTests } from '../../i18n';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const snapshotAll = jest.fn();
 const set = jest.fn();
 const clear = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         settings: {
             snapshotAll: () => snapshotAll(),
             set: (key: string, value: unknown, options: unknown) => set(key, value, options),

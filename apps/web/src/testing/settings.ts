@@ -1,5 +1,5 @@
 import { config } from '@chatic/config';
-import type { StorageLike } from '@chatic/runtime';
+import type { StorageLike } from '@chatic/runtime-react';
 
 export const wireTestSettings = (storage: { local: StorageLike; session: StorageLike }): void => {
     config.init({

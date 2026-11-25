@@ -7,8 +7,8 @@ type Query = { sid?: string } | undefined;
 
 const state = vi.hoisted(() => ({ siteId: 'S1' as string | undefined, rows: [] as Row[] }));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({
                 profile: {

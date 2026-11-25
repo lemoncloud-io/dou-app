@@ -37,8 +37,8 @@ jest.mock('../../../runtime/backgroundRefresh', () => ({
     requestBackgroundRefresh: () => requestBackgroundRefresh(),
 }));
 const repositories = { channel: { startDm: (...args: unknown[]) => startDmRequest(...args) } };
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'],

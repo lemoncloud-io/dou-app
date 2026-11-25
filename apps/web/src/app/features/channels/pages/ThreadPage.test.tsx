@@ -55,8 +55,8 @@ jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
     useNavigateWithTransition: () => jest.fn(),
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionIdentity: () => ({ userId: 'session-uid' }),
             useUidInCloud: (cid: string) => (cid === 'default' || cid === 'cloud-a' ? 'me' : null),

@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { CLOUD_PROMO_DISMISS_TTL_MS } from '../../../stores/preferenceKeys';
 
 export interface CloudPromoOptions {

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, AudioLines, LoaderCircle, Pause, Play } from 'lucide-react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { cn } from '@chatic/ui-kit';
 
 import { formatFileSize, formatPlaybackTime, type ChatFile } from '../../utils';

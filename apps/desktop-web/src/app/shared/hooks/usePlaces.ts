@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { DomainPlace } from '@chatic/runtime';
-import { runtime } from '@chatic/runtime';
+import type { DomainPlace } from '@chatic/runtime-react';
+import { runtime } from '@chatic/runtime-react';
 
 export const usePlaces = () => {
     const { place: placeRepository } = runtime.data.useRuntimeRepositories();

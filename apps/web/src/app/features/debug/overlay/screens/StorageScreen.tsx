@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import type { OnFetchNativeStorageSummaryPayload } from '@chatic/bridge-messages';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { isNative, logger } from '@chatic/bridges';
 
 import { Row } from '../../components/Row';

@@ -1,11 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import { runtime, type DomainUser } from '@chatic/runtime';
+import { runtime, type DomainUser } from '@chatic/runtime-react';
 
 import { usePeerCloudNames, type CloudDmPeerRef } from './usePeerCloudNames';
 
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { useRuntimeRepositories: jest.fn() },
         connection: { useCloudVerified: jest.fn() },
         session: { useSessionSelection: jest.fn(), getGlobalSessionContext: jest.fn(), useUidInCloud: jest.fn() },

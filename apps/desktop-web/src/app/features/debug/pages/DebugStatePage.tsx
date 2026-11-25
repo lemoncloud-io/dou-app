@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useChannels, useClouds, usePlaces, useSelectedChannelStore } from '../../../shared';
 

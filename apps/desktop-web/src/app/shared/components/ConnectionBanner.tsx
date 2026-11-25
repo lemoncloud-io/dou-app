@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useIsMutating } from '@tanstack/react-query';
 
 import { cn } from '@chatic/ui-kit';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const ConnectionBanner = ({ quiet = false }: { quiet?: boolean }) => {
     const { t } = useTranslation();

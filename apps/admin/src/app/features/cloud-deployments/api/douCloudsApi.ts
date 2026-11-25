@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { collectPages, type ListPage } from '../lib/listPaging';
 import { asRequestError } from '../lib/requestError';

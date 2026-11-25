@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { cn, Button } from '@chatic/ui-kit';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { listPhoneCountries } from '@chatic/shared/phone';
 
 import { AuthCard, NewAccountName } from '../components';

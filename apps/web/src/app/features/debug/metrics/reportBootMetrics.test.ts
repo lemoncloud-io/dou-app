@@ -1,7 +1,7 @@
 const mockIsNative = jest.fn();
 const mockSendBootMetrics = jest.fn();
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get diagnostics() {
             return {

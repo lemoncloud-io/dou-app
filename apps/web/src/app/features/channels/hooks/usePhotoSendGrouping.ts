@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const setPhotoSendGrouped = (grouped: boolean): void => {
     runtime.settings.set('ui.photoSendGrouped', grouped, { lane: 'local' });

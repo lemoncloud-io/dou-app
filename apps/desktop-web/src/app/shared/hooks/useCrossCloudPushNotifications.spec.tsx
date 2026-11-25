@@ -16,8 +16,8 @@ let activeServer: { kind: 'relay' } | { kind: 'cloud'; cloudId: string } = { kin
 
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 
-vi.mock('@chatic/runtime', async () => {
-    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         session: {
             getGlobalSessionContext: () => ({

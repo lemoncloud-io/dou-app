@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { logger } from '@chatic/bridges';
-import type { DomainChannel } from '@chatic/runtime';
+import type { DomainChannel } from '@chatic/runtime-react';
 import type { ChannelCreateInput } from '@lemoncloud/chatic-sockets-api';
 
 import { useChannelMutations } from './useChannelMutations';

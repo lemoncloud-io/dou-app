@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import type { UserInviteBatchPayload } from '@chatic/runtime';
+import type { UserInviteBatchPayload } from '@chatic/runtime-react';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useUserMutations } from './useUserMutations';
 import { useMyProfile } from '../../../hooks/useMyProfile';

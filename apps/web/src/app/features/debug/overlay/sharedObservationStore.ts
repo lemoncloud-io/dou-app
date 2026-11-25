@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 
 import type { ActiveCloudData, OtherCloudUnread } from '../../../hooks';
 

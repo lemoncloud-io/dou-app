@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime, type DomainChannel } from '@chatic/runtime';
+import { runtime, type DomainChannel } from '@chatic/runtime-react';
 
 import { profilePlaceOf } from '../lib/channelStereoPolicy';
 import { resolveChatOwnerName, type DisplayNameSources } from '../utils/displayName';

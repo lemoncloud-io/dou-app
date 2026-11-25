@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { PreferenceKey } from '@chatic/bridge-messages';
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { syncLanguageChoiceToShell } from '../bridge';
 import { toLanguagePreference } from '../../i18n/languagePreference';

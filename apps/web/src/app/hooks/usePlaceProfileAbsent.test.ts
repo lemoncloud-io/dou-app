@@ -5,8 +5,8 @@ let mockSid: string | null = 'site-1';
 let mockUid: string | null = 'user-1';
 
 const repositories = { profile: { id: 'profile-repo' } };
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => repositories,
         },

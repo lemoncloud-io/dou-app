@@ -10,8 +10,8 @@ const repo = vi.hoisted(() => ({
 }));
 const socket = vi.hoisted(() => ({ isVerified: true }));
 
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => ({ webhook: repo }) },
         connection: { useRuntimeSocketState: () => ({ isVerified: socket.isVerified }) },
     })

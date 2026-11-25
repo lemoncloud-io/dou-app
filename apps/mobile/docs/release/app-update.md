@@ -44,7 +44,7 @@ dialog re-checks every time the app returns to the foreground.
 
 `useAppUpdatePrompt` opens `UpdatePromptDialog` when `updateAvailable` is true **and** the live
 version differs from the one the user already dismissed
-(`runtime.settings.useConfigValue('ui.dismissedUpdateVersion')` from `@chatic/runtime`, `lane: 'local'`). Both "later" and
+(`runtime.settings.useConfigValue('ui.dismissedUpdateVersion')` from `@chatic/runtime-react`, `lane: 'local'`). Both "later" and
 "update" persist the current `latestVersion` as dismissed — "update" as well, because a user who
 went to the store does not need to be asked again for the same version. A newer live version clears
 the effective dismissal simply because it no longer matches.

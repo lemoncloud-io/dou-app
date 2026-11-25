@@ -1,8 +1,8 @@
-import { pushCloudIdOf, type GlobalCacheContext, type GlobalCacheRef } from '@chatic/runtime';
+import { pushCloudIdOf, type GlobalCacheContext, type GlobalCacheRef } from '@chatic/runtime-react';
 
 import type { PushCloudHint } from '../../../utils/resolveInAppPushRoute';
 
-export { RELAY_CLOUD_ID } from '@chatic/runtime';
+export { RELAY_CLOUD_ID } from '@chatic/runtime-react';
 
 export interface ResolvePushCloudIdDeps {
     cids: string[];

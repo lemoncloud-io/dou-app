@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { runtime, RELAY_CLOUD_ID } from '@chatic/runtime';
+import { runtime, RELAY_CLOUD_ID } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 

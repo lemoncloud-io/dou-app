@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import type { ReactElement } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
-import type { DomainChat, RoomMediaItem } from '@chatic/runtime';
+import type { DomainChat, RoomMediaItem } from '@chatic/runtime-react';
 import { MemoryStore } from '@chatic/storage';
 
 import { readHiddenMedia, setLocalMediaPrefsStorage } from '../lib/localMediaPrefs';
@@ -13,7 +13,7 @@ import { RoomFilesPage } from './RoomFilesPage';
 
 let mockGraphInstance: unknown;
 const mockRoomGraph = () => {
-    mockGraphInstance ??= jest.requireMock('@chatic/runtime').runtime.data.getCloudRepositories();
+    mockGraphInstance ??= jest.requireMock('@chatic/runtime-react').runtime.data.getCloudRepositories();
     return mockGraphInstance;
 };
 jest.mock('../hooks/useRoomSenderName', () => ({
@@ -44,8 +44,8 @@ jest.mock('@chatic/ui-kit/components/ui/toast', () => ({
 const mockListRoomMedia = jest.fn();
 const mockCountRoomMedia = jest.fn();
 const mockRefreshList = jest.fn();
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1' }),
             useUidInCloud: () => 'u1',

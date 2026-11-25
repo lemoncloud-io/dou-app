@@ -10,7 +10,7 @@ import {
     type DomainChannel,
     type DomainChat,
     type DomainJoin,
-} from '@chatic/runtime';
+} from '@chatic/runtime-react';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 

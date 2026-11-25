@@ -1,7 +1,7 @@
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 import { useRelaySessionGuard } from '../hooks/useRelaySessionGuard';
 import { useSocketWakeRecovery } from '../hooks/useSocketWakeRecovery';

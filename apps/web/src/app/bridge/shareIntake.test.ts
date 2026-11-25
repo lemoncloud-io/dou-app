@@ -4,8 +4,8 @@ let mockNative = true;
 const mockFetch = jest.fn();
 const mockRelease = jest.fn();
 const mockLogger = { warn: jest.fn() };
-jest.mock('@chatic/runtime', () => {
-    const testing = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const testing = require('@chatic/runtime-react/testing');
     return testing.fakeRuntimeModule({
         get links() {
             return mockNative

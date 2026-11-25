@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { DomainChat } from '@chatic/runtime';
+import type { DomainChat } from '@chatic/runtime-react';
 
 const getChat = vi.fn();
 const repositories = { chat: { getChat } };
@@ -11,8 +11,8 @@ const session = vi.hoisted(() => ({ siteId: 'place-a' as string | null, switchin
 
 vi.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => warn(...args) } }));
 vi.mock('@tanstack/react-query', () => ({ useIsMutating: () => session.switching }));
-vi.mock('@chatic/runtime', async () =>
-    (await import('@chatic/runtime/testing')).fakeRuntimeModule({
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
         data: { useRuntimeRepositories: () => repositories },
         session: {
             useSessionSelection: () => ({ selectedSiteId: session.siteId }),

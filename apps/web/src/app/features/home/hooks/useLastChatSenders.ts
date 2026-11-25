@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DomainChannel, DomainChat } from '@chatic/runtime';
+import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 
 import { useChannelProfiles } from '../../channels/hooks/useChannelProfiles';
 import { LIST_PROFILE_SYNC_INTERVAL_MS } from '../../channels/hooks/useDmPeers';

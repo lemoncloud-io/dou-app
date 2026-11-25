@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { runtime, type DomainJoin } from '@chatic/runtime';
+import { runtime, type DomainJoin } from '@chatic/runtime-react';
 
 export interface ChannelJoins {
     joins: DomainJoin[];

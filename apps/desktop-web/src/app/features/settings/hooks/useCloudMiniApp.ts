@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const miniAppUrlKey = (cloudId: string) => [...runtime.data.cloudsKeys.detail(cloudId), 'miniApp'] as const;
 

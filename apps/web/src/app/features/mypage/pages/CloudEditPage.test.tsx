@@ -22,8 +22,8 @@ jest.mock('@chatic/shared', () => ({
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ setQueriesData }) }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         data: { cloudsKeys: { lists: () => ['clouds', 'list'] } },
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'OTHER' }),

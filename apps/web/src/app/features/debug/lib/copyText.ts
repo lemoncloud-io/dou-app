@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const copyTextWithResult = async (value: string | null | undefined): Promise<boolean> => {
     if (!value) return false;

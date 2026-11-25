@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { OnListPhotosPayload } from '@chatic/bridge-messages';
-import type { ChatAttachmentSource } from '@chatic/runtime';
+import type { ChatAttachmentSource } from '@chatic/runtime-react';
 import type { PhotoEdit } from '@chatic/web-ui-kit';
 
 import type { PhotoLibrary } from '../../../bridge/photoLibrary';
@@ -22,8 +22,8 @@ jest.mock('react-i18next', () => ({
 }));
 jest.mock('../../../bridge/appBridge', () => ({ appBridge: { openSettings: jest.fn() } }));
 jest.mock('@chatic/bridges', () => ({ ...jest.requireActual('@chatic/bridges'), isNative: () => false }));
-jest.mock('@chatic/runtime', () => {
-    const { browserAppShell, browserMedia, fakeRuntimeModule } = require('@chatic/runtime/testing');
+jest.mock('@chatic/runtime-react', () => {
+    const { browserAppShell, browserMedia, fakeRuntimeModule } = require('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         media: browserMedia(),
         appShell: browserAppShell(),

@@ -8,10 +8,10 @@ const { ownsWindow } = vi.hoisted(() => ({ ownsWindow: vi.fn(() => true) }));
 vi.mock('@chatic/bridges', () => ({
     logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
-vi.mock('@chatic/runtime', async () => {
+vi.mock('@chatic/runtime-react', async () => {
     const { create } = await vi.importActual<typeof ZustandModule>('zustand');
     const socketStore = create(() => ({ isVerified: false }));
-    const { browserAppShell, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+    const { browserAppShell, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         connection: {
             useRuntimeSocketState: socketStore,
@@ -24,7 +24,7 @@ vi.mock('@chatic/runtime', async () => {
     });
 });
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 type MockStore<T> = { getState: () => T; setState: (partial: Partial<T>) => void };
 const socketStore = runtime.connection.useRuntimeSocketState as unknown as MockStore<{ isVerified: boolean }>;

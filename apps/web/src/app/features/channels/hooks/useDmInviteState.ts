@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import type { DomainChannel, DomainJoin } from '@chatic/runtime';
+import type { DomainChannel, DomainJoin } from '@chatic/runtime-react';
 
 import { useRelayInvites, useSentInviteLog } from '../../../hooks';
 import { useInviteCountdown, type InviteCountdown } from '../../invite/hooks/useInviteCountdown';

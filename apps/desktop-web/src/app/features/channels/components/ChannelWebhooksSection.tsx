@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainWebhook } from '@chatic/runtime';
-import { isWebhookExpired } from '@chatic/runtime';
+import type { DomainWebhook } from '@chatic/runtime-react';
+import { isWebhookExpired } from '@chatic/runtime-react';
 import { Badge, Button } from '@chatic/ui-kit';
 
 import { toastFailure } from '../../../shared';

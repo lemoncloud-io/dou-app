@@ -18,13 +18,13 @@ const isLinked = jest.fn((provider: SocialProvider) => mockLinkedProvider === pr
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: { last4?: string }) => (o?.last4 ? `${k}|${o.last4}` : k) }),
 }));
-jest.mock('@chatic/runtime', () =>
-    require('@chatic/runtime/testing').fakeRuntimeModule({
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
         session: {
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
         },
         get signIn() {
-            const tab = require('@chatic/runtime/testing').browserSignIn();
+            const tab = require('@chatic/runtime-react/testing').browserSignIn();
             if (!mockIsNative()) return tab;
             return { ...tab, providerSignIn: { providers: mockProviders, credential: jest.fn() } };
         },

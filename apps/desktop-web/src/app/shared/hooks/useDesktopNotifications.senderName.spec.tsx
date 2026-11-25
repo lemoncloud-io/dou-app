@@ -10,8 +10,8 @@ const CLOUD_UID = 'cloud-user-9';
 let feedHandler: ((feed: unknown) => void) | null = null;
 const present = vi.hoisted(() => vi.fn());
 
-vi.mock('@chatic/runtime', async () => {
-    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime/testing');
+vi.mock('@chatic/runtime-react', async () => {
+    const { browserPush, fakeRuntimeModule } = await import('@chatic/runtime-react/testing');
     return fakeRuntimeModule({
         data: {
             useRuntimeRepositories: () => ({

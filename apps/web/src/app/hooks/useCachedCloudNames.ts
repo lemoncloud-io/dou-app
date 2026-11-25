@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 export const useCachedCloudNames = (): Record<string, string> => {
     const { cloud } = runtime.data.useRuntimeRepositories();

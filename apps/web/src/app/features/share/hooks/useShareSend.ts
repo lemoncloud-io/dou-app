@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-import { runtime, type ChatAttachmentSource, type ShellFileRef } from '@chatic/runtime';
+import { runtime, type ChatAttachmentSource, type ShellFileRef } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 

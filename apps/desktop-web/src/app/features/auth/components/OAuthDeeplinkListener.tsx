@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 

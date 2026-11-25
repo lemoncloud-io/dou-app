@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { DomainIssuedWebhook, WebhookIssueInput } from '@chatic/runtime';
+import type { DomainIssuedWebhook, WebhookIssueInput } from '@chatic/runtime-react';
 import { Button, Dialog, DialogContent, DialogFooter, DialogTitle, Input } from '@chatic/ui-kit';
 
 import { toastFailure, useCopyToClipboard } from '../../../shared';

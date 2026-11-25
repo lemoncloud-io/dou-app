@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { runtime } from '@chatic/runtime-react';
 
 const protocolScheme = (): string => runtime.settings.get<string>('net.deeplink.desktopProtocol') ?? 'chatic';
 
