@@ -2,6 +2,16 @@
 
 ## [2026-11-25] - No version updates
 
+### Bug Fixes
+
+- (ratchet) count a nested project's test files against that project
+
+### Refactor
+
+- (runtime) import the runtime from @chatic/runtime-react in the react apps
+
+## [2026-11-25] - No version updates
+
 ### Refactor
 
 - (ports) collect the runtime and host port contracts in @chatic/ports
