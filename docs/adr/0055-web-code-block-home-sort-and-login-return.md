@@ -196,7 +196,7 @@ row-structure complexity and entanglement with the `blurLastMessage` setting).
 - **Lift the `useLastChat` observation up to the list level.** Today `ChannelItem` (the row) calls it
   individually, but sorting needs to know the time **before** the rows are drawn. Since both the
   register and subscribe APIs are imperative (`getSyncManager().register`,
-  `repositories.chat.observeList` — [`useSyncTarget.ts`](../../libs/runtime/src/socket/sync/hooks/useSyncTarget.ts)),
+  `repositories.chat.observeList` — [`useSyncTarget.ts`](../../libs/runtime/react/src/socket/sync/hooks/useSyncTarget.ts)),
   a list-level hook handling N items is feasible. Rows **receive the result as a prop** — no
   duplicate observation is created.
 - **`'unread'` sort and pinning stay as-is.** Both are stable sorts layered on top of this base order,

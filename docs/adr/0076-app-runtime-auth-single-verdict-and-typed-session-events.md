@@ -43,7 +43,7 @@ Answering one question requires reading seven different values from seven differ
 | 7   | `hasStoredRelaySession()`                                                     | lemon store existence                     |
 
 The rule for combining these seven is rewritten **in two places** —
-[`useSessionStalenessGuard`](../../libs/runtime/src/session/hooks/app/useSessionStalenessGuard.ts) ·
+[`useSessionStalenessGuard`](../../libs/runtime/react/src/session/hooks/app/useSessionStalenessGuard.ts) ·
 [`requestRelaySessionRefresh`](../../libs/auth/src/socket/requestRelaySessionRefresh.ts) ·
 [`recoverUnverifiedSockets`](../../libs/auth/src/socket/recoverUnverifiedSockets.ts). Both
 ask the same question — "can this slot's socket auth be used right now" — and each justifies itself
@@ -53,9 +53,9 @@ can reuse this verdict, so reproducing an incident means a human has to line up 
 > **Originally counted as four places, and phase 3's execution corrected that to two.** The other
 > two were not copies of the same verdict —
 >
-> - [`useConnectivity`](../../libs/runtime/src/connection/hooks/useConnectivity.ts) is a **display
+> - [`useConnectivity`](../../libs/runtime/react/src/connection/hooks/useConnectivity.ts) is a **display
 >   verdict** (the three grounds under §Decision 1).
-> - [`useSessionStalenessGuard`](../../libs/runtime/src/session/hooks/app/useSessionStalenessGuard.ts)
+> - [`useSessionStalenessGuard`](../../libs/runtime/react/src/session/hooks/app/useSessionStalenessGuard.ts)
 >   uses two clocks under **different policies**: it always refreshes the stored session's
 >   expiration and counts failures toward the teardown streak (admin-v2 logs out after three
 >   consecutive failures), while the credential margin only fires with `forceRefresh` opt-in +
@@ -114,7 +114,7 @@ on both sides.
 
 The decision to keep the two guards separate after ADR-0070 is on record
 (["adding a `kind` option here would put two unrelated recovery strategies behind one
-switch"](../../libs/runtime/src/session/hooks/app/useSessionStalenessGuard.ts)), and that
+switch"](../../libs/runtime/react/src/session/hooks/app/useSessionStalenessGuard.ts)), and that
 judgment still holds. The problem is that it **expresses the policy split only in comments**.
 `libs/http` has already solved the same problem with types — `ICredentialRecoverer` has two
 implementations, `NoCredentialRecovery` and `PortCredentialRecoverer`, attached to it. There is no

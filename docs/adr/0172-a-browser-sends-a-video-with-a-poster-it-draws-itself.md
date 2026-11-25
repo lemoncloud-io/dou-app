@@ -1,7 +1,7 @@
 # ADR-0172: A browser sends a video with a poster it draws itself, and a phone draws the frame of one that came without
 
 > Status: Accepted · Decided: 2026-10-06 · Implemented: `feat/video-poster-and-grid-videos`
-> · Scope: `libs/shared/src/image/videoPoster.ts` · `libs/runtime/src/data/hooks/useSendImages.ts`
+> · Scope: `libs/shared/src/image/videoPoster.ts` · `libs/runtime/react/src/data/hooks/useSendImages.ts`
 > (`prepareAttachment`) · `apps/web/src/app/features/channels/` (`lib/videoFrames.ts`, `hooks/useVideoFrames.ts`,
 > `lib/imageCache.ts`, `MessageImages`) · `libs/web-ui-kit` `MessageMediaTiles` (`frameUrl`) ·
 > `libs/app-messages` `ReadVideoFrame` · the iOS and Android `AttachmentPicker` modules

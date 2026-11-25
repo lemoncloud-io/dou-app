@@ -16,7 +16,7 @@ It is spread over two folders of this package and one of runtime-core, and the s
 dependency direction rather than subject: `socket/` holds the wiring and the policy (20 source files,
 18 tests), `session/` holds the material it reads and writes ([docs/session/](../session/README.md)),
 and the two guards that _trigger_ renewal are runtime-core classes in its `session/`, which an app
-starts through @chatic/runtime's hooks
+starts through @chatic/runtime-react's hooks
 ([runtime-core's session doc](../../../runtime-core/docs/session/README.md#the-credential-guards)). The renewers live
 in `socket/` because `socket → session` is an existing edge and the reverse is not; putting them under
 `session/` would close a cycle.
@@ -83,7 +83,7 @@ export const SDK_REFRESH_CYCLE_MS = AUTH_OPTIONS.refreshIntervalMs;
 — `deriveAuthStatus`, the relay staleness guard and the cloud credential guard. They all rest on one
 piece of reasoning: **a healthy socket re-mints its credential every cycle, so a credential with less
 than a cycle left proves its socket is not keeping up.** `constants.ts` (in `@chatic/transport`) holds
-the cadence, so @chatic/runtime's credential guards in `session/hooks/app/**` read the same number.
+the cadence, so @chatic/runtime-react's credential guards in `session/hooks/app/**` read the same number.
 
 ## The status truth table
 

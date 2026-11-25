@@ -131,11 +131,11 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  * - `layer:client` — `@chatic/runtime-client`, the half of the React surface that calls the core:
  *   the engine holder, the commands and reads through it, and the plain functions the hooks wrap. It
  *   sits on the core libs, the contracts, runtime-core and the foundation, no UI framework — an allow-list like
- *   runtime-core's, so what the hooks need from React, react-query or zustand stays in @chatic/runtime.
- * - `layer:binding` — `@chatic/runtime-react`, what React apps import, and `@chatic/runtime` while it
- *   holds the facade. It never imports an adapter directly (an allow-list: runtime's test-only `@chatic/db`
- *   edge would fail every re-export): which platform fills the ports is the entry point's choice. Some
- *   files still import the core libs instead of `layer:client`; nothing here stops them.
+ *   runtime-core's, so what the hooks need from React, react-query or zustand stays in @chatic/runtime-react.
+ * - `layer:runtime` — `@chatic/runtime`, the headless runtime: the same `runtime` with no hook group,
+ *   for consumers with no React. An allow-list like the client's, and no UI library, react-query or zustand.
+ * - `layer:binding` — `@chatic/runtime-react`, what React apps import: the headless runtime plus the hooks.
+ *   It never imports an adapter directly (an allow-list): which platform fills the ports is the entry's.
  * - `layer:bridge` — `@chatic/bridges` (with `@chatic/fake-shell` and `@chatic/chatic-apps-sdk`), the transport across the WebView boundary: the web-side
  *   client, the shell-side host and the `webClient` singleton. The core libs, runtime-core and the
  *   client layer may not depend on it: none of what they hold — the session, the sockets, sync, the
@@ -168,6 +168,7 @@ const runtimeLayerConstraints = [
             'layer:runtime-core',
             'layer:client',
             'layer:adapter',
+            'layer:runtime',
             'layer:binding',
             'layer:bridge',
             'layer:ui',
@@ -195,7 +196,7 @@ const runtimeLayerConstraints = [
         bannedExternalImports: UI_FRAMEWORK_IMPORTS,
     },
     {
-        // React, react-query and zustand are what @chatic/runtime keeps; this layer is the part of the
+        // React, react-query and zustand are what @chatic/runtime-react keeps; this layer is the part of the
         // surface that would work unchanged under another UI library.
         sourceTag: 'layer:client',
         onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:contract', 'layer:runtime-core', 'layer:foundation'],
@@ -212,6 +213,18 @@ const runtimeLayerConstraints = [
         bannedExternalImports: REACT_IMPORTS,
     },
     {
+        sourceTag: 'layer:runtime',
+        onlyDependOnLibsWithTags: [
+            'layer:core-lib',
+            'layer:contract',
+            'layer:runtime-core',
+            'layer:client',
+            'layer:foundation',
+        ],
+        notDependOnLibsWithTags: ['layer:bridge', 'layer:ui'],
+        bannedExternalImports: [...UI_FRAMEWORK_IMPORTS, '@tanstack/*', 'zustand', 'zustand/*'],
+    },
+    {
         sourceTag: 'layer:binding',
         onlyDependOnLibsWithTags: [
             'layer:foundation',
@@ -219,6 +232,7 @@ const runtimeLayerConstraints = [
             'layer:contract',
             'layer:runtime-core',
             'layer:client',
+            'layer:runtime',
             'layer:binding',
             'layer:bridge',
             'layer:ui',

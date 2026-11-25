@@ -4,7 +4,7 @@
 > [ADR-0304](./0304-the-core-packages-read-no-page.md): `xhrPut` lives in `@chatic/runtime-web`, not `@chatic/data`;
 > decision 2 superseded by [ADR-0364](./0364-desktop-sends-text-and-files-as-one-message.md): text and files
 > typed together are one message
-> Scope: `libs/runtime/src/data/hooks/useSendImages.ts` · `libs/data/src/uploads/xhrPut.ts` ·
+> Scope: `libs/runtime/react/src/data/hooks/useSendImages.ts` · `libs/data/src/uploads/xhrPut.ts` ·
 > `apps/web/src/app/features/channels/hooks/useSendImages.ts` ·
 > `apps/desktop-web/src/app/features/chat/**` (`useComposerSend` · `useChatImages` · `chatImages` ·
 > `imageActions` · `Composer` · `ChatPane` · `ThreadPanel` · `MessageRow` · image components)

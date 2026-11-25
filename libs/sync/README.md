@@ -16,7 +16,7 @@ a target's, and it is described under [Background receive](#background-receive).
 
 ## Who imports it
 
-`@chatic/runtime`, whose `sync` facade group and registration hooks are built on it. **Apps do
+`@chatic/runtime` and `@chatic/runtime-react`, whose `sync` facade group and registration hooks are built on it. **Apps do
 not**: they register through `runtime.sync`. The barrel sells the refusal writers
 (`recordRefusedChannel`, `clearRefusedChannel`) and the manager itself, which an app must not reach
 around the hooks; the root eslint config closes the package to apps and every other lib.
@@ -321,7 +321,7 @@ is, a minute is the latency to plan for.
 
 ### Registering outside React
 
-The screens register through the hooks in @chatic/runtime, and an app registers outside them through
+The screens register through the hooks in @chatic/runtime-react, and an app registers outside them through
 `runtime.sync.registerSyncTarget`, which goes through the engine to the manager's `register`. Inside the
 runtime, `getSyncManager().register*` registers and returns the dispose:
 

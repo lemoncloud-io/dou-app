@@ -1,7 +1,3 @@
-export { useDeviceTokenRegistration } from './hooks/useDeviceTokenRegistration';
-export type { DeviceTokenDelegate } from './hooks/useDeviceTokenRegistration';
-export { useRegisterDeviceTokenMutation } from '../data/hooks/device';
-
 export {
     pushKind as kind,
     pushNotifications as notifications,

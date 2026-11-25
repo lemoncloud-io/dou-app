@@ -73,8 +73,11 @@ before.
 
 The same factories as values a runtime declaration plugs in (see runtime-client's
 [The runtime declaration](../runtime-client/README.md#the-runtime-declaration)). The barrel hands on
-`defineRuntime`, `startRuntime`, `requires`, `conflicts`, `defineAdapter` and the declaration types, so a
-web app's declaration imports this package alone. Each export is named after its id. `supports` is asked
+`defineRuntime`, `requires`, `conflicts`, `defineAdapter` and the declaration types, so a web app's
+declaration imports this package alone. Its `startRuntime` is runtime-client's with one step first: it
+hands `webPlatform` to `@chatic/runtime` (`providePlatform`, from `@chatic/runtime/platform`) — the page's
+address and whether a shell bridge is there, for `runtime.report.reportIssue`, and the shell's platform
+and the user agent, for `runtime.session.pairingClientOf` — so the headless runtime reads no DOM. Each export is named after its id. `supports` is asked
 of `webHostFacts()` (`readWebHostFacts()`, once per start).
 
 | Export                 | Id                      | `supports`                                                    | Builds                                                                                                                                      |
@@ -324,8 +327,9 @@ way the host sells, in its order, for the checkout adapters a toggle may switch 
 
 ## Rules
 
-- Tagged `layer:adapter` and `platform:web`: it may not import `@chatic/runtime` (the React
-  surface), React, or React Native. See [the layers](../runtime-core/README.md#layers).
+- Tagged `layer:adapter` and `platform:web`: it may not import `@chatic/runtime-react` (the React
+  binding), React, or React Native. It imports `@chatic/runtime/platform` alone from the headless
+  runtime, to hand its platform in. See [the layers](../runtime-core/README.md#layers).
 - Nothing in the runtime imports it. An app's declaration and entry point do, and `startRuntime` passes
   what the declared adapters build into the assembly.
 - It holds the readers, not their meaning: what an `online` false means for the link, or which

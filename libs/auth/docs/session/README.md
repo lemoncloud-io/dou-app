@@ -2,7 +2,7 @@
 
 Login, token exchange, cloud entry, site selection and teardown: the use cases that write the stores
 in [`@chatic/session`](../../../session/README.md). They are the only writers of those stores. What
-reads them for React — the hooks — is @chatic/runtime's
+reads them for React — the hooks — is @chatic/runtime-react's
 ([its session doc](../../../runtime/docs/session/README.md)).
 
 ## Responsibilities
@@ -34,7 +34,7 @@ Each is a class with a single exported singleton; the class itself stays private
 **No login hands a screen its token.** The app-facing logins answer with the account's fields
 (`SessionAccountView`, the token view without `Token` — `withoutToken` in
 [`accountView.ts`](../../src/session/accountView.ts)), or less: `createCredentialsByProvider` and the
-@chatic/runtime login hooks. On the phone the session can belong to another process, and the page then
+@chatic/runtime-react login hooks. On the phone the session can belong to another process, and the page then
 must not hold a credential. An invite login's answer is the invitee's own cloud token, so
 `registerUserWithInviteCode` keeps it ([`inviteLogins.ts`](../../src/session/inviteLogins.ts)) and
 answers with an `InviteLogin` — a handle (with a random part, so a stale one names nothing) and the

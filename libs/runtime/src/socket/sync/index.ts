@@ -1,4 +1,3 @@
-export { useChatSync, useChannelSync, usePlaceSync } from './hooks/useSyncTarget';
 export { listSyncTargets, registerSyncTarget, updateSyncSnapshot } from '@chatic/runtime-client';
 export type { SyncRegisterOptions, SyncTargetListing } from '@chatic/sync';
 export { refreshBackgroundClouds } from '@chatic/runtime-client';

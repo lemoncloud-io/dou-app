@@ -4,7 +4,7 @@ import { createPairingRequestFlow } from '@chatic/runtime-client';
 import type { PairingRequestFlow, PairingRequestState } from '@chatic/runtime-client';
 
 import { useRuntimeRepositories } from '../../../data/hooks/useRuntimeRepositories';
-import { pairingClientOf } from '../../pageDevice';
+import { pairingClientOf } from '@chatic/runtime/session';
 import { useDynamicDeviceId } from '../app/useDynamicDeviceId';
 import { useSwitchCloudSession } from '../session/actions/useSwitchCloudSession';
 

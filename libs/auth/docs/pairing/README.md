@@ -17,7 +17,7 @@ The rest: `pairingRequestFlow.ts` is the code screen's request-and-poll loop, `p
 relay approval's session token out of the claim's answer, `pairingErrors.ts` names the approval side's
 failures.
 
-- **`PairingRequestFlow`**, a class with no React in it, is the code screen's loop (@chatic/runtime's
+- **`PairingRequestFlow`**, a class with no React in it, is the code screen's loop (@chatic/runtime-react's
   `usePairingRequest` drives it): request a code, poll `claim` every `interval` seconds, then sign in. The
   claim it is handed answers token-free (`PairingClaimAnswer`): a relay approval's session is a
   `sessionHandle`, and `applySession(sessionHandle)` signs in with it. A cloud approval enters that cloud

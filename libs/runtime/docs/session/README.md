@@ -123,7 +123,7 @@ connection host starts ([runtime-core docs/session/](../../../runtime-core/docs/
 
 The two guards in `hooks/app/` take an app-supplied policy; they are below.
 
-[`hooks/mutationKeys.ts`](../../src/session/hooks/mutationKeys.ts) holds `SWITCH_SITE_MUTATION_KEY`
+[`hooks/mutationKeys.ts`](../../react/src/session/hooks/mutationKeys.ts) holds `SWITCH_SITE_MUTATION_KEY`
 and `SWITCH_CLOUD_MUTATION_KEY`. They are public so an app can observe a switch in flight globally —
 `apps/web` uses them to stop periodic background sync while one is running.
 
@@ -135,10 +135,10 @@ unmount, and hands back a stable `check` for a trigger only the app knows (apps/
 foreground). What the guards do, and why, is
 [runtime-core docs/session/](../../../runtime-core/docs/session/README.md#the-credential-guards).
 
-| Hook                                                                                          | Guard                  | Policy                                                                                                             |
-| --------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| [`useSessionStalenessGuard(policy)`](../../src/session/hooks/app/useSessionStalenessGuard.ts) | `RelayCredentialGuard` | `enabled`, `intervalMs` (`null` for edge-driven callers), `checkOnVisible`, `checkOnRelayVerified`, `forceRefresh` |
-| [`useCloudCredentialGuard(policy)`](../../src/session/hooks/app/useCloudCredentialGuard.ts)   | `CloudCredentialGuard` | `enabled`, `marginMs`, `checkOnVisible`                                                                            |
+| Hook                                                                                                | Guard                  | Policy                                                                                                             |
+| --------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [`useSessionStalenessGuard(policy)`](../../react/src/session/hooks/app/useSessionStalenessGuard.ts) | `RelayCredentialGuard` | `enabled`, `intervalMs` (`null` for edge-driven callers), `checkOnVisible`, `checkOnRelayVerified`, `forceRefresh` |
+| [`useCloudCredentialGuard(policy)`](../../react/src/session/hooks/app/useCloudCredentialGuard.ts)   | `CloudCredentialGuard` | `enabled`, `marginMs`, `checkOnVisible`                                                                            |
 
 Neither ends a session. The relay guard used to take a teardown policy (`onTeardown`,
 `consecutiveFailureLimit`, `missingSessionCountsAsFailure`); no app used it, and it is gone.

@@ -15,13 +15,14 @@ import { browserSignIn } from './hostPorts/signIn';
 import type * as RuntimeModule from '../index';
 
 type Runtime = typeof facade;
+type RuntimeShape = Pick<Runtime, (typeof NAMESPACE_GROUPS)[number]>;
 
 const NAMESPACE_GROUPS = ['boot', 'session', 'connection', 'data', 'sync', 'push', 'report', 'settings'] as const;
 
 type PortGroup = Exclude<keyof HostPorts, 'push'>;
 const PORT_GROUPS = HOST_PORT_NAMES.filter((name): name is PortGroup => name !== 'push');
 
-export type RuntimeOverrides = { [G in keyof Runtime]?: Record<string, unknown> };
+export type RuntimeOverrides<R = Runtime> = { [G in keyof R]?: Record<string, unknown> };
 
 export { browserAppShell, browserDiagnostics, browserFiles, browserLinks, browserMedia, browserPush, browserSignIn };
 
@@ -44,14 +45,19 @@ export const publishTestHostPorts = (overrides: Partial<HostPorts> = {}): Readon
 
 export const resetTestHostPorts = (): void => host.resetForTests();
 
-const groupView = (group: (typeof NAMESPACE_GROUPS)[number], over: object | undefined, fallback: HostPorts) => {
-    const view: Record<string, unknown> = { ...facade[group] };
+const groupView = (
+    source: RuntimeShape,
+    group: (typeof NAMESPACE_GROUPS)[number],
+    over: object | undefined,
+    fallback: HostPorts
+) => {
+    const view: Record<string, unknown> = { ...source[group] };
     if (group === 'push') {
         for (const field of Object.keys(fallback.push) as (keyof HostPorts['push'])[]) {
             Object.defineProperty(view, field, {
                 enumerable: true,
                 configurable: true,
-                get: () => (host.isPublished ? facade.push[field] : fallback.push[field]),
+                get: () => (host.isPublished ? source.push[field] : fallback.push[field]),
             });
         }
     }
@@ -59,7 +65,7 @@ const groupView = (group: (typeof NAMESPACE_GROUPS)[number], over: object | unde
     return view;
 };
 
-export const fakeRuntime = (overrides: RuntimeOverrides = {}): Runtime => {
+export const fakeRuntimeOf = <R extends RuntimeShape>(source: R, overrides: RuntimeOverrides<R> = {}): R => {
     const fallback = browserHostPorts();
     const runtime: Record<string, unknown> = {};
 
@@ -69,10 +75,10 @@ export const fakeRuntime = (overrides: RuntimeOverrides = {}): Runtime => {
         if (getOverride) {
             Object.defineProperty(runtime, group, {
                 enumerable: true,
-                get: () => groupView(group, getOverride.call(overrides), fallback),
+                get: () => groupView(source, group, getOverride.call(overrides), fallback),
             });
         } else {
-            runtime[group] = groupView(group, given?.value, fallback);
+            runtime[group] = groupView(source, group, given?.value, fallback);
         }
     }
 
@@ -87,8 +93,10 @@ export const fakeRuntime = (overrides: RuntimeOverrides = {}): Runtime => {
         );
     }
 
-    return runtime as unknown as Runtime;
+    return runtime as unknown as R;
 };
+
+export const fakeRuntime = (overrides: RuntimeOverrides = {}): Runtime => fakeRuntimeOf(facade, overrides);
 
 export const fakeRuntimeModule = (overrides: RuntimeOverrides = {}): typeof RuntimeModule => ({
     ...domain,

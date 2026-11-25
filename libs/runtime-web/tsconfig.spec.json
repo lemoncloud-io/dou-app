@@ -13,6 +13,9 @@
             "path": "../storage/tsconfig.lib.json"
         },
         {
+            "path": "../runtime/tsconfig.lib.json"
+        },
+        {
             "path": "../session/tsconfig.lib.json"
         },
         {

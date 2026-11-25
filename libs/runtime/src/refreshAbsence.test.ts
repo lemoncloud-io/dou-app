@@ -2,9 +2,17 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 
 const LIBS = join(__dirname, '..', '..');
-const ROOTS = ['runtime', 'runtime-client', 'runtime-core', 'runtime-web', 'session', 'transport', 'sync', 'auth'].map(
-    lib => join(LIBS, lib, 'src')
-);
+const ROOTS = [
+    'runtime',
+    'runtime/react',
+    'runtime-client',
+    'runtime-core',
+    'runtime-web',
+    'session',
+    'transport',
+    'sync',
+    'auth',
+].map(lib => join(LIBS, lib, 'src'));
 
 const walk = (dir: string): string[] =>
     readdirSync(dir).flatMap(entry => {
