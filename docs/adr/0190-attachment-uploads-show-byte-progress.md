@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-10-12 · Implemented: `feat/upload-progress`
 > · Scope: `libs/data/src/uploads/xhrPut.ts` (`xhr.upload` listener) · `libs/data/src/uploads/sendImageMessage.ts`
 > (`onProgress`) · `apps/web/src/app/runtime/upload/nativePut.ts` (`running` states)
-> · `libs/runtime/src/data/hooks/imageSendProgress.ts` · `libs/web-ui-kit/src/composites/chat/ProgressRing.tsx`
+> · `libs/runtime/react/src/data/hooks/imageSendProgress.ts` · `libs/web-ui-kit/src/composites/chat/ProgressRing.tsx`
 > · The module docs are [libs/data uploads](../../libs/data/docs/uploads/README.md),
 > [libs/runtime data/image-send.md](../../libs/runtime/docs/data/image-send.md) and
 > [apps/web channels/image-send.md](../../apps/web/docs/feature/channels/image-send.md)

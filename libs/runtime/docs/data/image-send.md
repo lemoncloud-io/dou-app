@@ -1,6 +1,6 @@
 # image send — `useSendImages`
 
-> Canonical code: [`hooks/useSendImages.ts`](../../src/data/hooks/useSendImages.ts). The sequence it
+> Canonical code: [`hooks/useSendImages.ts`](../../react/src/data/hooks/useSendImages.ts). The sequence it
 > runs is `@chatic/data`'s, documented in
 > [libs/data docs/uploads](../../../data/docs/uploads/README.md). Consumers: `apps/desktop-web`'s room and
 > thread composers (`useComposerSend`, which binds `xhrPut`), and `apps/web`'s shell binding
@@ -346,6 +346,6 @@ with no message pointing at them; there is no call to take them back.
 ## How to verify
 
 ```bash
-npx jest --config libs/runtime/jest.config.js libs/runtime/src/data/hooks/useSendImages \
-  libs/runtime/src/data/hooks/imageSendProgress
+npx jest --config libs/runtime/react/jest.config.js libs/runtime/react/src/data/hooks/useSendImages \
+  libs/runtime/react/src/data/hooks/imageSendProgress
 ```

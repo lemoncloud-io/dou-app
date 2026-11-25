@@ -2,7 +2,7 @@
 
 > Status: Accepted (decision 4's terminal-expiry cache rule is amended → [ADR-0119](0119-every-joined-cloud-keeps-a-socket-session.md)) · Decided: 2026-09-28 · Implemented: `feat/per-cloud-socket-auth`
 > · Scope: `libs/runtime/src/session/auth/**` · `libs/runtime/src/session/store/cloudStore.ts` ·
-> `libs/runtime/src/socket/auth/**` · `libs/runtime/src/session/hooks/app/useCloudCredentialGuard.ts`
+> `libs/runtime/src/socket/auth/**` · `libs/runtime/react/src/session/hooks/app/useCloudCredentialGuard.ts`
 > · Builds on: [ADR-0115](./0115-a-socket-slot-is-keyed-by-the-cloud-it-serves.md) (slots keyed by cid) ·
 > [ADR-0116](./0116-the-active-socket-slot-is-a-pointer-the-binder-sets.md) (the active slot is a pointer)
 > · Related: [ADR-0076](./0076-app-runtime-auth-single-verdict-and-typed-session-events.md) (the per-kind delegate and

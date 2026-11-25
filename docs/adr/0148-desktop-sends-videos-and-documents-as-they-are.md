@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-09-30 · The format list is extended by
 > [ADR-0184](./0184-desktop-sends-a-zip-archive-and-the-phone-does-not.md), which adds ZIP as a thirteenth
-> · Scope: `libs/data/src/domain/chatAttachments.ts` · `libs/runtime/src/data/hooks/useSendImages.ts`
+> · Scope: `libs/data/src/domain/chatAttachments.ts` · `libs/runtime/react/src/data/hooks/useSendImages.ts`
 > · `libs/data/src/repositories/ChatRepository.ts` (`createPendingImageChat`) · `libs/app-messages` (`PendingUploadSlot`)
 > · `apps/desktop-web/src/app/features/chat/` (composer tray, `toChatFiles`, `MessageFiles`)
 > · The module docs are [apps/desktop-web chat/images.md](../../apps/desktop-web/docs/chat/images.md)

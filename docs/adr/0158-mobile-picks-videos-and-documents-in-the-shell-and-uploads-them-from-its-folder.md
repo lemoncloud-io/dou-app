@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-01
 > · Scope: `libs/app-messages/src/types/model/attachment-picker.ts` · `libs/data/src/{domain/chatImages,uploads/types}.ts` ·
-> `libs/runtime/src/data/hooks/useSendImages.ts` ·
+> `libs/runtime/react/src/data/hooks/useSendImages.ts` ·
 > `apps/web/src/app/{bridge/attachmentPicker.ts,runtime/upload/nativePut.ts,features/channels/components/ChatImageAttach.tsx}` ·
 > `apps/mobile/ios/Bridges/{AttachmentPicker/,Transfer/Core/UploadSources.swift}` ·
 > `apps/mobile/android/app/src/main/java/io/chatic/dou/{attach/,transfer/core/UploadSources.kt,module/AttachmentPickerModule.kt}`

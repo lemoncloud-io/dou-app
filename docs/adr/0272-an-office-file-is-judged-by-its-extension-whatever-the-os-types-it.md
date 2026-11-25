@@ -31,7 +31,7 @@ server does not know.**
 
 - The file goes up as the document its extension names, under the server's content type for it. The
   send path already declares the format's type, not the picked file's
-  (`libs/runtime/src/data/hooks/useSendImages.ts`), so the server sees a type it takes.
+  (`libs/runtime/react/src/data/hooks/useSendImages.ts`), so the server sees a type it takes.
 - A type that is one of the server's own formats still decides. A `.docx` typed as a PDF is still
   refused, because the name and the type disagree.
 - The other formats are unchanged. An unknown type on any other extension is still refused, so an HEIC

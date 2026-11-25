@@ -1,7 +1,7 @@
 # ADR-0378: A React app imports one runtime, from runtime-react
 
 > Status: Accepted · Decided: 2026-11-25 · Implemented: `refactor/libs-m3-1-runtime-react` (the import
-> paths), then the step that moves the React code out of `@chatic/runtime`
+> paths) and `refactor/libs-m3-2-react-split` (the React code moved out of `@chatic/runtime`)
 > · Amends: [ADR-0376](./0376-the-runtime-is-one-headless-package-a-react-binding-and-platform-adapters.md)
 > decision 1 (a React app's hooks came from a second import) and the consequence that amends
 > [ADR-0346](./0346-every-app-starts-from-a-declaration-and-its-call-part-sees-only-the-runtime.md) decision 3
@@ -37,7 +37,11 @@ TanStack's react-query re-exports query-core. The domain names beside `runtime` 
   `runtime` has no hook groups.
 - An app's call part may not import `@chatic/runtime` or its subpaths (lint), so no file drifts back.
 - The layer tag `layer:react-surface` becomes `layer:binding`, carried by runtime-react and, until its
-  React code leaves, by `@chatic/runtime`.
+  React code leaves, by `@chatic/runtime`, which then takes `layer:runtime`: no React, `@tanstack/*` or
+  zustand.
+- What only a page can answer — its address, the shell bridge, the user agent — is handed to
+  `@chatic/runtime` by the platform adapter (`@chatic/runtime-web`'s `startRuntime`), so the headless
+  package reads no DOM.
 
 ## Alternatives
 

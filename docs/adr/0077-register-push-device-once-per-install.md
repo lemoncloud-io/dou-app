@@ -12,7 +12,7 @@ noise.
 ### Current call structure
 
 The registration policy lives in
-`libs/runtime/src/push/hooks/useDeviceTokenRegistration.ts`, and the app (`apps/web`) only
+`libs/runtime/react/src/push/hooks/useDeviceTokenRegistration.ts`, and the app (`apps/web`) only
 injects the FCM token fetch and the platform value as a delegate. There are two triggers.
 
 1. **On authentication** (`isAuthenticated` → true): unconditionally once after `floor.reset()` —

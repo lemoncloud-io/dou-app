@@ -8,7 +8,7 @@ module.exports = {
         '/utils/buildEnv$': '<rootDir>/__mocks__/buildEnvMock.js',
         '^@chatic/config/(.*)$': '<rootDir>/../../libs/config/src/$1/index.ts',
         '^@chatic/shared/phone$': '<rootDir>/../../libs/shared/src/phone/index.ts',
-        '^@chatic/runtime/testing$': '<rootDir>/../../libs/runtime/src/testing/index.ts',
+        '^@chatic/runtime/(.*)$': '<rootDir>/../../libs/runtime/src/$1',
         '^@chatic/runtime-react/testing$': '<rootDir>/../../libs/runtime/react/src/testing/index.ts',
         '^@chatic/runtime-react$': '<rootDir>/../../libs/runtime/react/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',

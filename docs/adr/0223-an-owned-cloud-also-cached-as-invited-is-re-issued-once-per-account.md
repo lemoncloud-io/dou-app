@@ -2,7 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-21 · Implemented: `fix/owned-cloud-guest-token`
 > · Scope: `libs/runtime/src/socket/auth/reclaimOwnedClouds.ts` ·
-> `libs/runtime/src/connection/hooks/useReclaimOwnedClouds.ts` ·
+> `libs/runtime/react/src/connection/hooks/useReclaimOwnedClouds.ts` ·
 > `libs/runtime/src/session/auth/cloudTokens.ts` (`reissueCloudTokens`, `lastIssuedForOf`) ·
 > `libs/runtime/src/session/store/cloudStore.ts` (`chatic-reclaimed-clouds`) ·
 > `apps/web/src/app/hooks/useInvitedClouds.ts` · `apps/web/src/app/runtime/BackgroundCloudsRunner.tsx` ·

@@ -27,6 +27,8 @@ const BARRELS = [
     'report/index.ts',
 ];
 
+const PLATFORM_SEAM = ['platform.ts'];
+
 const LOGIC_STILL_TO_MOVE = ['report/reportIssue.ts', 'session/pageDevice.ts', 'utils/isNativeApp.ts'];
 
 const nonReexports = (file: string): string[] => {
@@ -47,11 +49,11 @@ describe('@chatic/runtime holds no logic of its own', () => {
         expect(BARRELS.flatMap(nonReexports)).toEqual([]);
     });
 
-    it('keeps every other source file a hook or a component', () => {
+    it('keeps no hook or component, and logic only in the platform seam and the files listed to move', () => {
         const others = sourceFiles(SRC)
             .filter(file => !BARRELS.includes(file))
             .filter(file => !file.startsWith('testing/'))
-            .filter(file => !file.split('/').includes('hooks') && !file.endsWith('.tsx'))
+            .filter(file => !PLATFORM_SEAM.includes(file))
             .sort();
 
         expect(others).toEqual([...LOGIC_STILL_TO_MOVE].sort());

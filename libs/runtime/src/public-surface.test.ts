@@ -25,8 +25,6 @@ const GROUPS: Record<string, readonly string[]> = {
         'PHONE_LOGIN_NOTHING_PENDING',
         'PHONE_LOGIN_NO_TOKEN',
         'PHONE_LOGIN_SWITCH_FAILED',
-        'SWITCH_CLOUD_MUTATION_KEY',
-        'SWITCH_SITE_MUTATION_KEY',
         'authFailureReaction',
         'cancelPhoneLogin',
         'classifyPairingError',
@@ -56,38 +54,9 @@ const GROUPS: Record<string, readonly string[]> = {
         'registerUserWithInviteCode',
         'retryPhoneLogin',
         'updateAccountProfile',
-        'useCloudCredentialGuard',
-        'useDynamicDeviceId',
-        'useFindAlias',
-        'useGlobalSession',
-        'useInviteFlow',
-        'useInviteInfo',
-        'useIsPairedSession',
-        'useLogin',
-        'useLoginRelayGuestByDevice',
-        'useLoginRelaySocial',
-        'useLogoutCloudSession',
-        'usePairedCloudCheck',
-        'usePairedCloudIds',
-        'usePairedCloudNames',
-        'usePairingAwareLogout',
-        'usePairingRequest',
-        'useRegisterUserV2',
-        'useRuntimeProfile',
-        'useSessionAuth',
-        'useSessionIdentity',
-        'useSessionLogout',
-        'useSessionSelection',
-        'useSessionStalenessGuard',
-        'useSiteSwitch',
-        'useSwitchCloudSession',
-        'useUidInCloud',
-        'useVerifyAlias',
     ],
     connection: [
         'RELAY_SLOT',
-        'RuntimeAuthHost',
-        'RuntimeConnectionHost',
         'getRuntimeSocketState',
         'getSlotStatuses',
         'observeSocketRequests',
@@ -96,23 +65,14 @@ const GROUPS: Record<string, readonly string[]> = {
         'reconnectSocket',
         'recoverSocketsOnResume',
         'recoverUnverifiedSockets',
-        'useBackgroundClouds',
-        'useCloudVerified',
-        'useConnectivity',
-        'useReclaimOwnedClouds',
-        'useRuntimeSocketState',
-        'useSlotVerified',
-        'useVerifiedClouds',
         'waitUntilVerified',
     ],
     data: [
         'clearLocalCaches',
-        'cloudsKeys',
         'createChatOutbox',
         'getAcceptorId',
         'getCacheMetricsSource',
         'getCloudRepositories',
-        'globalCacheRefKey',
         'isAcceptedBy',
         'recoverInvitedCloudIfMissing',
         'requestSyncCursorReset',
@@ -120,12 +80,6 @@ const GROUPS: Record<string, readonly string[]> = {
         'setStateOutboxObserver',
         'syncInvitedCloudName',
         'syncPairedCloudName',
-        'useGlobalCacheSearch',
-        'useImageSendProgress',
-        'useInvitedCloudNameSync',
-        'usePairedCloudNameSync',
-        'useRuntimeRepositories',
-        'useSendImages',
         'waitForCloudSocket',
         'withAcceptor',
     ],
@@ -139,19 +93,8 @@ const GROUPS: Record<string, readonly string[]> = {
         'subscribeBackgroundDeltas',
         'subscribeRefusedChannels',
         'updateSyncSnapshot',
-        'useChannelSync',
-        'useChatSync',
-        'usePlaceSync',
     ],
-    push: [
-        'deviceToken',
-        'kind',
-        'localBanner',
-        'notifications',
-        'tokenRenewal',
-        'useDeviceTokenRegistration',
-        'useRegisterDeviceTokenMutation',
-    ],
+    push: ['deviceToken', 'kind', 'localBanner', 'notifications', 'tokenRenewal'],
     report: ['reportIssue', 'uploadLogBatch'],
     settings: [
         'CONFIG_UNLOCK_KEY',
@@ -165,7 +108,6 @@ const GROUPS: Record<string, readonly string[]> = {
         'snapshotAll',
         'storageKeyFor',
         'subscribe',
-        'useConfigValue',
     ],
 };
 
@@ -223,7 +165,7 @@ const DOMAIN_VALUES = [
     'uploadSlotKind',
 ];
 
-describe('@chatic/runtime public surface', () => {
+describe('@chatic/runtime public surface (headless)', () => {
     afterEach(() => host.resetForTests());
 
     it.each(Object.keys(GROUPS))('runtime.%s는 정확히 이 심볼들을 판다', group => {
@@ -259,11 +201,11 @@ describe('@chatic/runtime public surface', () => {
         expect(api.runtime.push.deviceToken).toBeNull();
     });
 
-    it('runtime.data publishes the image send options, and sendImages takes them second', () => {
-        type SendImages = ReturnType<typeof api.runtime.data.useSendImages>['sendImages'];
-        const options: api.runtime.data.SendImagesOptions = { separately: true, content: 'caption' };
-        const taken: Parameters<SendImages>[1] = options;
+    it('holds no hook and no component', () => {
+        const reactNames = Object.keys(GROUPS)
+            .flatMap(group => Object.keys(api.runtime[group as keyof typeof api.runtime] as object))
+            .filter(name => /^use[A-Z]/.test(name) || /Host$/.test(name));
 
-        expect(taken).toEqual({ separately: true, content: 'caption' });
+        expect(reactNames).toEqual([]);
     });
 });

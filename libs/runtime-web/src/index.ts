@@ -137,8 +137,9 @@ export {
     defineRuntime,
     engineCore,
     requires,
-    startRuntime,
 } from '@chatic/runtime-client';
+export { startRuntime } from './platform/startRuntime';
+export { webPlatform } from './platform/webPlatform';
 export type {
     Adapter,
     ChoiceLane,

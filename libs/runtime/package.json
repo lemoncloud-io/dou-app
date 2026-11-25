@@ -17,12 +17,52 @@
             "import": "./src/testing/index.ts",
             "default": "./src/testing/index.ts"
         },
+        "./facade": {
+            "types": "./src/facade.ts",
+            "import": "./src/facade.ts",
+            "default": "./src/facade.ts"
+        },
+        "./session": {
+            "types": "./src/session/index.ts",
+            "import": "./src/session/index.ts",
+            "default": "./src/session/index.ts"
+        },
+        "./connection": {
+            "types": "./src/connection/index.ts",
+            "import": "./src/connection/index.ts",
+            "default": "./src/connection/index.ts"
+        },
+        "./data": {
+            "types": "./src/data/index.ts",
+            "import": "./src/data/index.ts",
+            "default": "./src/data/index.ts"
+        },
+        "./socket/sync": {
+            "types": "./src/socket/sync/index.ts",
+            "import": "./src/socket/sync/index.ts",
+            "default": "./src/socket/sync/index.ts"
+        },
+        "./push": {
+            "types": "./src/push/index.ts",
+            "import": "./src/push/index.ts",
+            "default": "./src/push/index.ts"
+        },
+        "./settings": {
+            "types": "./src/settings.ts",
+            "import": "./src/settings.ts",
+            "default": "./src/settings.ts"
+        },
+        "./platform": {
+            "types": "./src/platform.ts",
+            "import": "./src/platform.ts",
+            "default": "./src/platform.ts"
+        },
         "./package.json": "./package.json"
     },
     "nx": {
         "tags": [
-            "layer:binding",
-            "platform:web",
+            "layer:runtime",
+            "platform:any",
             "formfactor:any"
         ]
     }

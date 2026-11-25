@@ -1,0 +1,62 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../../dist/out-tsc/runtime-react-spec",
+        "jsx": "react-jsx",
+        "types": ["jest", "node", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/__mocks__/**/*.ts"],
+    "references": [
+        {
+            "path": "../tsconfig.lib.json"
+        },
+        {
+            "path": "../../runtime-client/tsconfig.lib.json"
+        },
+        {
+            "path": "../../runtime-core/tsconfig.lib.json"
+        },
+        {
+            "path": "../../db/tsconfig.lib.json"
+        },
+        {
+            "path": "../../storage/tsconfig.lib.json"
+        },
+        {
+            "path": "../../http/tsconfig.lib.json"
+        },
+        {
+            "path": "../../config/tsconfig.lib.json"
+        },
+        {
+            "path": "../../logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../../shared/tsconfig.lib.json"
+        },
+        {
+            "path": "../../bridge-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../../data/tsconfig.lib.json"
+        },
+        {
+            "path": "../../session/tsconfig.lib.json"
+        },
+        {
+            "path": "../../transport/tsconfig.lib.json"
+        },
+        {
+            "path": "../../sync/tsconfig.lib.json"
+        },
+        {
+            "path": "../../auth/tsconfig.lib.json"
+        },
+        {
+            "path": "../../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../../perf/tsconfig.lib.json"
+        }
+    ]
+}
