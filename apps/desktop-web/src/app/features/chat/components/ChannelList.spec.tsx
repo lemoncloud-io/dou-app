@@ -11,7 +11,7 @@ import type * as Shared from '@chatic/shared';
 import type * as Channels from '../../channels';
 import type * as ReadCursorStore from '../../../shared/stores/useReadCursorStore';
 import type * as AppShared from '../../../shared';
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 const menu = vi.hoisted(() => ({
     openDialog: vi.fn(),

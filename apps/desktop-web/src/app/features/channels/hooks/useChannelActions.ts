@@ -1,8 +1,7 @@
 import { createElement, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { ToastAction, toast, type ToastActionElement } from '@chatic/ui-kit';
 
 import { useComposerFocusStore, useDesktopChannelMutations, toastFailure } from '../../../shared';
 import { channelActionErrorKey } from '../utils';

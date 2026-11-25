@@ -17,25 +17,33 @@ hears on every screen are required from the caller — the dialog and sheet clos
 `closeLabel` and the `Toaster` region's `label` — because an English default there was the one
 English word a Korean screen reader still read out. Open/selected state belongs to the host.
 
-Unlike every other lib here, **consumers do not import components through a barrel.** `src/index.ts`
-is one line (`export * from './utils'`), so the barrel carries `cn` and nothing else, and every `cn`
-import goes through it; a component is reached at
-its own path, `@chatic/ui-kit/components/ui/<name>`. That is the contract `components.json` encodes,
-and it is what lets the generator overwrite one file without touching the rest.
+**The package has two import paths, and they are moving to one.** The entry, `@chatic/ui-kit`
+(`src/index.ts`), exports `cn` and the 17 primitives `apps/desktop-web` renders. A component is
+also still reachable at its own path, `@chatic/ui-kit/components/ui/<name>` — the path
+`components.json` encodes, so the generator can overwrite one file without touching the rest.
+ADR-0377 makes the entry a package's only public surface, so the deep path is on its way out:
+
+- `apps/desktop-web` imports this package through the entry only, and lint refuses a
+  `@chatic/ui-kit/*` import there (`no-restricted-imports` in the root `eslint.config.mjs`).
+  Its specs still `vi.mock` the deep paths (`components/ui/use-toast`, `components/ui/avatar`):
+  a mock names the resolved file, which the entry re-exports, so it works only while the
+  `@chatic/ui-kit/*` path alias in `tsconfig.base.json` does.
+- `apps/web`, `apps/admin`, `libs/web-ui-kit` and `libs/shared` still import components by deep
+  path; `apps/block-kit-builder` and `libs/block-kit` take `cn` alone, through the entry.
 
 ```bash
 grep -rn "@chatic/ui-kit" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-Five projects import components: `apps/web`, `apps/desktop-web`, `apps/admin`, `libs/web-ui-kit`
-and `libs/shared`. Two more — `apps/block-kit-builder` and `libs/block-kit` — reach this module for
-`cn` alone, through the barrel, `@chatic/ui-kit`.
+**`package.json` says `"sideEffects": false`, and the entry depends on it.** Rollup counts a
+top-level `forwardRef` call and a `displayName` assignment as side effects, so without the flag every
+app that imports anything from the entry — `cn` alone included — bundles all 17 primitives and the
+Radix packages under them. Measured when the entry grew: block-kit-builder +143 KB of JavaScript,
+admin +92 KB, web +25 KB; with the flag, admin is byte-identical and the others within a few bytes or
+smaller. No file here runs anything on import (module state in `use-toast.ts` and `toaster.tsx` is
+plain declarations reached through their exports), and none may start to.
 
-```bash
-grep -rln "from '@chatic/ui-kit'" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
-```
-
-`cn` has one import path, the barrel. `components.json`'s `utils` alias points there too, so a
+`cn` has one import path, the entry. `components.json`'s `utils` alias points there too, so a
 generated component imports it the same way as everything else.
 
 This lib does **not** own the tokens its classes resolve against. `bg-surface`, `text-main-accent`
@@ -84,9 +92,11 @@ and desktop-web, the other app that raises toasts, no longer renders it.
    live here, in the table below and in "Why a few overlay classes are written the way they are".
 3. **Behaviour here, appearance in the host.** Components take Radix behaviour and semantic
    Tailwind classes. They never hard-code a hex, and they never read app state.
-4. **No barrel over `components/ui/`.** Deep paths are the public API. Adding an `index.ts` that
-   re-exports all 21 would make every consumer pull all thirteen Radix packages and `lucide-react`
-   to render a `Button`.
+4. **The entry re-exports what an entry-only app uses, and `sideEffects: false` keeps it cheap.**
+   A primitive joins `src/index.ts` when `apps/desktop-web` (or another app that has moved to the
+   entry) renders it. Rollup drops what an importer does not use only because `package.json`
+   declares the package free of side effects; deleting that line costs the apps that take `cn` alone
+   every primitive in their bundle.
 5. **One `cn`, and it is not just `clsx`.** `src/utils/index.ts` extends `tailwind-merge` with the
    repo's own `font-size` scale. Without that registration `twMerge` reads `text-callout` as a text
    _colour_ and drops it whenever a span also carries `text-foreground`, collapsing the type scale to
@@ -117,7 +127,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     W["apps/web<br/><i>89 files</i>"]:::ext
-    D["apps/desktop-web<br/><i>50 files</i>"]:::ext
+    D["apps/desktop-web<br/><i>154 files, through the entry</i>"]:::ext
     A["apps/admin<br/><i>6 files</i>"]:::ext
     K["libs/web-ui-kit<br/><i>5 files</i>"]:::ext
     S["libs/shared<br/><i>4 files</i>"]:::ext
@@ -144,16 +154,16 @@ flowchart TD
 
 The arrow that is missing is the point: **nothing in this lib imports another `@chatic` module.**
 `cn` looks like an exception because the primitives import it as `@chatic/ui-kit`, but that is this
-lib's own barrel, which resolves back into this same directory.
+lib's own entry, which resolves back into this same directory.
 
-Those five counts are files reaching a `components/ui/` path — 154 in all. Every file that takes `cn`
-imports the barrel itself and gets only `cn` from it.
+The web, admin, web-ui-kit and shared counts are files reaching a `components/ui/` path; desktop-web's
+are files importing a primitive through the entry.
 
 ### Directories
 
 ```text
 libs/ui-kit/src/
-├── index.ts            public barrel — one line, and it exports `cn` only
+├── index.ts            the entry — `cn` and the 17 primitives desktop-web renders
 ├── utils/index.ts      `cn`: clsx + a tailwind-merge extended with the repo's font-size, z-index and animation names
 ├── utils/openerFocus.tsx  focus back to whatever opened a dialog (dialog, alert-dialog)
 └── components/ui/      21 primitives, one file each, plus use-toast.ts
@@ -163,7 +173,7 @@ Three files hold something the name does not give away:
 
 - `use-toast.ts` is not a component. It is the toast store — a reducer, a module-level listener list
   and a toast limit of 1 that an app can raise with `setToastLimit` — and it is the single most
-  imported module here, at 79 files.
+  imported module here, at 187 files.
 - `toaster.tsx` is the mount point `apps/web` renders once in `AppRuntime`; desktop-web builds its own
   `AppToaster` from `toast.tsx` and takes only `TOAST_DURATION_MS` from here. It is
   fully rewritten against `toast.tsx` and shares only its name with the generator's version. It also
@@ -189,46 +199,47 @@ Three files hold something the name does not give away:
 - `utils/index.ts` is where the `font-size` class group is registered with `tailwind-merge`, which
   is the reason `cn` is a wrapper rather than a re-export.
 
-There is no `package.json`, no `tailwind.config.js`, no jest config and no stories. `project.json`
+`package.json` carries only the name and `"sideEffects": false`. There is no `tailwind.config.js`, no jest config and no stories. `project.json`
 declares an empty `targets` map and Nx infers `build`, `lint` and `typecheck` from the tsconfigs.
 `src/components/ui/.tabs.tsx.swp` is a committed vim swap file, not a source file.
 
 ### The catalogue
 
-All 22 modules, with the number of files outside this lib that import each path. Replace the name to
-re-measure any row:
+All 22 modules: the files outside this lib that import each one by deep path (desktop-web's `vi.mock`
+strings left out), and the desktop-web files that take it from the entry. Replace the name to
+re-measure a deep-path row:
 
 ```bash
 grep -rln "@chatic/ui-kit/components/ui/button'" --include='*.ts' --include='*.tsx' apps libs \
     | grep -v node_modules | grep -v '^libs/ui-kit/'
 ```
 
-| Module          | Importers | Where                                          | Local edits                                                                   |
-| --------------- | --------: | ---------------------------------------------- | ----------------------------------------------------------------------------- |
-| `use-toast`     |        79 | web 68 · desktop-web 11                        | `TOAST_REMOVE_DELAY` cut to 1s                                                |
-| `button`        |        27 | desktop-web 15 · web 5 · shared 4 · admin 3    | `link` in ink, underlined · 2px focus ring with gap                           |
-| `dialog`        |        24 | web 13 · desktop-web 10 · admin 1              | variants · required `closeLabel` · width cap · focus return · `overlay` scrim |
-| `dropdown-menu` |        15 | web 7 · desktop-web 5 · web-ui-kit 3           | —                                                                             |
-| `avatar`        |        13 | desktop-web 13                                 | —                                                                             |
-| `alert-dialog`  |         9 | web 4 · desktop-web 3 · admin 1 · web-ui-kit 1 | width cap · focus on open and return · `overlay` scrim                        |
-| `input`         |         9 | desktop-web 6 · admin 2 · web 1                | restyled to DoU tokens                                                        |
-| `tooltip`       |         7 | desktop-web 6 · web 1                          | —                                                                             |
-| `label`         |         5 | desktop-web 3 · admin 2                        | —                                                                             |
-| `sheet`         |         5 | web 4 · web-ui-kit 1                           | required `closeLabel` · width cap on bottom · `overlay` scrim                 |
-| `popover`       |         4 | desktop-web 4                                  | —                                                                             |
-| `switch`        |         3 | desktop-web 2 · admin 1                        | 3:1 track, ink edge and thumb when on                                         |
-| `table`         |         3 | admin 3                                        | —                                                                             |
-| `badge`         |         2 | admin 2                                        | —                                                                             |
-| `checkbox`      |         2 | admin 2                                        | —                                                                             |
-| `toaster`       |         2 | web 1 · desktop-web 1                          | rewritten · required region `label`                                           |
-| `card`          |         1 | web 1                                          | —                                                                             |
-| `tabs`          |         1 | desktop-web 1                                  | —                                                                             |
-| `context-menu`  |         1 | desktop-web 1                                  | icon sizing on items                                                          |
-| `skeleton`      |         1 | admin 1                                        | —                                                                             |
-| `textarea`      |         1 | admin 1                                        | —                                                                             |
-| `toast`         |         0 | rendered by `toaster`                          | restyled · viewport moved to top                                              |
+| Module          | Deep-path importers | Where                          | desktop-web, through the entry | Local edits                                                                   |
+| --------------- | ------------------: | ------------------------------ | -----------------------------: | ----------------------------------------------------------------------------- |
+| `use-toast`     |                 146 | web 146                        |                             41 | `TOAST_REMOVE_DELAY` cut to 1s                                                |
+| `button`        |                  19 | admin 9 · web 6 · shared 4     |                             51 | `link` in ink, underlined · 2px focus ring with gap                           |
+| `dialog`        |                  17 | web 16 · admin 1               |                             30 | variants · required `closeLabel` · width cap · focus return · `overlay` scrim |
+| `tooltip`       |                   1 | web 1                          |                             43 | —                                                                             |
+| `input`         |                   6 | admin 4 · web 2                |                             19 | restyled to DoU tokens                                                        |
+| `avatar`        |                   0 | —                              |                             21 | —                                                                             |
+| `dropdown-menu` |                   9 | web 6 · web-ui-kit 3           |                             12 | —                                                                             |
+| `alert-dialog`  |                  11 | web 6 · admin 3 · web-ui-kit 2 |                              6 | width cap · focus on open and return · `overlay` scrim                        |
+| `toaster`       |                  11 | web-ui-kit 7 · web 4           |                              4 | rewritten · required region `label`                                           |
+| `toast`         |                   7 | web 7                          |                              7 | restyled · viewport moved to top                                              |
+| `label`         |                   4 | admin 4                        |                              9 | —                                                                             |
+| `badge`         |                   7 | admin 7                        |                              1 | —                                                                             |
+| `sheet`         |                   7 | web 6 · web-ui-kit 1           |                              — | required `closeLabel` · width cap on bottom · `overlay` scrim                 |
+| `switch`        |                   3 | admin 3                        |                              2 | 3:1 track, ink edge and thumb when on                                         |
+| `popover`       |                   0 | —                              |                              4 | —                                                                             |
+| `textarea`      |                   2 | admin 2                        |                              2 | —                                                                             |
+| `table`         |                   3 | admin 3                        |                              — | —                                                                             |
+| `checkbox`      |                   2 | admin 2                        |                              — | —                                                                             |
+| `context-menu`  |                   0 | —                              |                              2 | icon sizing on items                                                          |
+| `tabs`          |                   0 | —                              |                              2 | —                                                                             |
+| `card`          |                   1 | web 1                          |                              — | —                                                                             |
+| `skeleton`      |                   1 | admin 1                        |                              — | —                                                                             |
 
-**Every primitive has an importer** except `toast`, and `toaster` renders that one. Do not add a
+**Every primitive has an importer.** Do not add a
 primitive ahead of the screen that needs it: until then it is a dependency every install pulls and a
 file no rendering can check, and when that screen comes it is a single `shadcn add`
 ([Adding a primitive](#1-adding-a-primitive)).
@@ -396,7 +407,8 @@ the caller's favour, so one leftover `max-w-[…]` opts that dialog out and noth
 
 Run `npx shadcn@latest add <name>` from the repo root, then read the file it wrote: the generator
 targets the current registry, so a new file may not match the conventions of its neighbours. Nothing
-else needs touching — there is no barrel to update and no test to add.
+else needs touching — no test to add — until an entry-only app renders it: then add a line to
+`src/index.ts`.
 
 ### 2. A component looks wrong in one app
 
@@ -450,7 +462,7 @@ elsewhere on close moves it in `onCloseAutoFocus` and calls `preventDefault()`.
   `tsconfig.spec.json` because there are no specs.
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves. `rm -rf` and look again.
 - Downstream, a changed identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin`,
-  `libs/web-ui-kit` and `libs/shared`. `.github/workflows/verify.yml` type checks `desktop-web` (50 files, the
+  `libs/web-ui-kit` and `libs/shared`. `.github/workflows/verify.yml` type checks `desktop-web` (154 files, the
   second-largest consumer) along with the others.
 
 ```bash

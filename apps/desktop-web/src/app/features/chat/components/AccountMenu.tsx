@@ -5,17 +5,17 @@ import { useNavigate } from 'react-router-dom';
 import { User } from 'lucide-react';
 
 import { runtime } from '@chatic/runtime';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+    Button,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
-import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -23,7 +23,7 @@ import {
     AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogTitle,
-} from '@chatic/ui-kit/components/ui/alert-dialog';
+} from '@chatic/ui-kit';
 
 import { useJoinDialogStore } from '../../auth';
 import { PairingLogoutDialog } from '../../pairing/components/PairingLogoutDialog';

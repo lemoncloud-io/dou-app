@@ -2,7 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { useToast } from '@chatic/ui-kit';
 import { runtime } from '@chatic/runtime';
 import { serverErrorText, toastFailure } from '../utils';
 

@@ -6,8 +6,7 @@ import { format } from 'date-fns';
 import { AlertCircle, ChevronDown, Download, FileText, Film } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/runtime';
-import { cn } from '@chatic/ui-kit';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { cn, toast } from '@chatic/ui-kit';
 
 import {
     canPreview,

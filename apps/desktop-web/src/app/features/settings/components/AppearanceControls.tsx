@@ -2,9 +2,8 @@ import { useCallback, useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CircleCheck } from 'lucide-react';
 
-import { cn } from '@chatic/ui-kit';
+import { cn, toast } from '@chatic/ui-kit';
 import { type Theme, useTheme } from '@chatic/theme';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     radioGroupOptions,

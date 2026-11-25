@@ -5,8 +5,7 @@ import type { ReactNode } from 'react';
 
 import type * as AppRuntime from '@chatic/runtime';
 import type { DomainChat } from '@chatic/runtime';
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { TooltipProvider, toast } from '@chatic/ui-kit';
 
 import { useForwardFileStore } from './ForwardFileDialog';
 import { MessageFiles } from './MessageFiles';

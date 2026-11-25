@@ -6,7 +6,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import { $getRoot, $getSelection, $isRangeSelection, type LexicalEditor } from 'lexical';
 
 import type { DomainChat } from '@chatic/runtime';
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 const updateChat = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/runtime', async () =>

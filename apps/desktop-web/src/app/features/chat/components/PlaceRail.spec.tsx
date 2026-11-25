@@ -6,7 +6,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import i18next from 'i18next';
 
 import type { DomainPlace } from '@chatic/runtime';
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import type * as DndCore from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';

@@ -6,7 +6,7 @@ import { MessageCircle } from 'lucide-react';
 import type { DomainChannel, DomainChat } from '@chatic/runtime';
 import { runtime } from '@chatic/runtime';
 import { placeScopeKey } from '@chatic/shared';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit';
 
 import { avatarStyle, isOwnChat, isSelfChannel, messagePreview, type ResolvedDisplay } from '../../../../shared';
 import { useDmIdentities, useLastChats, type DmPeerRef } from '../../hooks';

@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/ui-kit';
 import {
+    cn,
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -9,7 +9,7 @@ import {
     AlertDialogDescription,
     AlertDialogTitle,
     AlertDialogFooter,
-} from '@chatic/ui-kit/components/ui/alert-dialog';
+} from '@chatic/ui-kit';
 
 interface ConfirmDialogProps {
     open: boolean;

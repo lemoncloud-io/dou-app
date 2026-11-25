@@ -3,11 +3,9 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, ChevronDown, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 
-import { cn } from '@chatic/ui-kit';
-import { useCloudOrder } from '@chatic/shared';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-
 import {
+    cn,
+    toast,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -17,8 +15,6 @@ import {
     DropdownMenuSubContent,
     DropdownMenuSubTrigger,
     DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
-import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -27,7 +23,8 @@ import {
     AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
-} from '@chatic/ui-kit/components/ui/alert-dialog';
+} from '@chatic/ui-kit';
+import { useCloudOrder } from '@chatic/shared';
 
 import {
     cloudTiles,

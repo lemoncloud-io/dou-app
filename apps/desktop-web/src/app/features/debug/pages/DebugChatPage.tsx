@@ -4,7 +4,7 @@ import { Trash2 } from 'lucide-react';
 
 import type { DomainChannel, DomainChat, DomainListResult } from '@chatic/runtime';
 import { runtime } from '@chatic/runtime';
-import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Button } from '@chatic/ui-kit';
 
 const makeId = (prefix: string): string => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 const nowLabel = (): string => new Date().toLocaleTimeString();

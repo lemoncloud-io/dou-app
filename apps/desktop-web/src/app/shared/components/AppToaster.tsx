@@ -2,17 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/ui-kit';
 import {
+    cn,
     Toast,
     ToastClose,
     ToastDescription,
     ToastProvider,
     ToastTitle,
     ToastViewport,
-} from '@chatic/ui-kit/components/ui/toast';
-import { TOAST_DURATION_MS } from '@chatic/ui-kit/components/ui/toaster';
-import { setToastLimit, useToast } from '@chatic/ui-kit/components/ui/use-toast';
+    TOAST_DURATION_MS,
+    setToastLimit,
+    useToast,
+} from '@chatic/ui-kit';
 
 const ICONS = {
     default: <CheckCircle2 className="mt-px size-[18px] shrink-0 text-main-accent" aria-hidden />,

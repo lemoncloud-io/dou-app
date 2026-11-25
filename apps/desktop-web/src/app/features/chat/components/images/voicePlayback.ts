@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 import i18next from 'i18next';
 
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { toast } from '@chatic/ui-kit';
 
 const PLAYBACK_RATES = [1, 1.5, 2] as const;
 

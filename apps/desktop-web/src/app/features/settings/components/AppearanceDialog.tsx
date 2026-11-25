@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
 
 import { useAppearanceDialogStore } from '../stores/useAppearanceDialogStore';
 import { AppearanceControls } from './AppearanceControls';

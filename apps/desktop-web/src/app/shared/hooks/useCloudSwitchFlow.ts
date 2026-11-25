@@ -2,7 +2,7 @@ import { Fragment, createElement, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
+import { ToastAction, type ToastActionElement } from '@chatic/ui-kit';
 import { runtime, pushCloudIdOf } from '@chatic/runtime';
 
 import { MobileAppPointer } from '../components/MobileAppPointer';

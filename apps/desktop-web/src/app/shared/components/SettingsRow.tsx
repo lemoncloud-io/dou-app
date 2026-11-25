@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react';
 
 import { ChevronRight } from 'lucide-react';
 
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
+import { Switch } from '@chatic/ui-kit';
 
 const GROUP = 'overflow-hidden rounded-xl border border-border bg-card divide-y divide-border';
 

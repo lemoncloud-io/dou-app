@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { DomainIssuedWebhook, WebhookIssueInput } from '@chatic/runtime';
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
+import { Button, Dialog, DialogContent, DialogFooter, DialogTitle, Input } from '@chatic/ui-kit';
 
 import { toastFailure, useCopyToClipboard } from '../../../shared';
 import type { WebhookExpiryPresetId } from '../utils';

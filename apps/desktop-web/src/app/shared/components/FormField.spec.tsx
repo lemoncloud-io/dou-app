@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { render, screen } from '@testing-library/react';
 
-import { Input } from '@chatic/ui-kit/components/ui/input';
+import { Input } from '@chatic/ui-kit';
 
 import { FormError, FormField } from './FormField';
 

@@ -6,8 +6,7 @@ import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 
 import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';
 import type { ChatMentionBody, DomainChannel, DomainChat } from '@chatic/runtime';
-import { cn } from '@chatic/ui-kit';
-import { Button } from '@chatic/ui-kit/components/ui/button';
+import { cn, Button } from '@chatic/ui-kit';
 
 import {
     Hint,

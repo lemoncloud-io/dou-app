@@ -2,8 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, MapPin } from 'lucide-react';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import { Button, Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit';
 
 import {
     NotifyLevelSection,

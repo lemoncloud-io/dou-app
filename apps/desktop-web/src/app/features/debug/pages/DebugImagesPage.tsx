@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Button } from '@chatic/ui-kit';
 
 import { useChats, useSelectedChannelStore } from '../../../shared';
 import { useChatImagesStore } from '../../chat/stores';

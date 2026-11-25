@@ -2,10 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { Button, Input, Label, toast } from '@chatic/ui-kit';
 
 import { runtime } from '@chatic/runtime';
 

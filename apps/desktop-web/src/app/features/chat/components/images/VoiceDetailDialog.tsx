@@ -17,14 +17,17 @@ import {
     X,
 } from 'lucide-react';
 
-import { cn } from '@chatic/ui-kit';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import {
+    cn,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
+} from '@chatic/ui-kit';
 
 import { formatFileSize, formatPlaybackTime, splitFileName } from '../../utils';
 import { AuthorAvatar, type ImageAuthor } from './ImageViewer';

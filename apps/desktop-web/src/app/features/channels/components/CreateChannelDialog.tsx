@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '@chatic/ui-kit';
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit/components/ui/dialog';
+import { cn, Button, toast, Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit';
 
 import { MobileAppPointer, radioGroupOptions, useDesktopChannelMutations, toastFailure } from '../../../shared';
 import { useCreateChannelDialogStore } from '../stores';

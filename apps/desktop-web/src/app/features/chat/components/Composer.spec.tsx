@@ -4,7 +4,7 @@ import i18next from 'i18next';
 import { $createParagraphNode, $createTextNode, $getRoot, type LexicalEditor } from 'lexical';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import '../../../../i18n';
 

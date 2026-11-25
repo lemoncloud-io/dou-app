@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat } from '@chatic/runtime';
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import type { useThreadRoot as UseThreadRoot } from '../hooks/useThreadRoot';
 import type { MemberReadCursor, ReadCount } from '../../../shared';

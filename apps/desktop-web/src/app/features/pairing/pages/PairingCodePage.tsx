@@ -5,10 +5,8 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { logger } from '@chatic/bridges';
-import { cn } from '@chatic/ui-kit';
+import { cn, Button, toast } from '@chatic/ui-kit';
 import { runtime } from '@chatic/runtime';
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { isRelayGuest } from '../../../shared';
 import { AuthCard } from '../../auth/components/AuthCard';

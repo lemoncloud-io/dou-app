@@ -2,14 +2,16 @@ import { useTranslation } from 'react-i18next';
 
 import { MoreHorizontal } from 'lucide-react';
 
-import { cn } from '@chatic/ui-kit';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
+    cn,
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
+} from '@chatic/ui-kit';
 
 import type { ChannelMember } from '../hooks';
 import { UserProfilePopover, avatarStyle, displayName, useDisplayProfile } from '../../../shared';

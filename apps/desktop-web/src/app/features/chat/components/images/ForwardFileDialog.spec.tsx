@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 
 import type * as AppRuntime from '@chatic/runtime';
 import type { DomainChannel } from '@chatic/runtime';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { toast } from '@chatic/ui-kit';
 
 import { fetchFileBytes } from '../../utils';
 import { ForwardFileHost, useForwardFileStore } from './ForwardFileDialog';

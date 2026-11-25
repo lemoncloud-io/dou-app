@@ -4,17 +4,19 @@ import { ImagePlus } from 'lucide-react';
 
 import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
 import { logger } from '@chatic/bridges';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
+    Button,
     Dialog,
     DialogContent,
     DialogDescription,
     DialogTitle,
     DialogFooter,
-} from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+    Input,
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+    toast,
+} from '@chatic/ui-kit';
 
 import { useRelayAccount, type RelayAccount, FormError, FormField, toastFailure } from '../../../shared';
 

@@ -13,7 +13,7 @@ import {
     AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogTitle,
-} from '@chatic/ui-kit/components/ui/alert-dialog';
+} from '@chatic/ui-kit';
 
 import { useUnsendableFilesStore, type RefusedFile } from '../../hooks';
 import { formatFileSize } from '../../utils';

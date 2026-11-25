@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TOAST_DURATION_MS, Toaster } from '@chatic/ui-kit/components/ui/toaster';
+import { TOAST_DURATION_MS, Toaster } from '@chatic/ui-kit';
 
 import '../../../i18n';
 

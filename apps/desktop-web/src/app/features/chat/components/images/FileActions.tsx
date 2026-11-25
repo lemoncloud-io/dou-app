@@ -2,12 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Download, Forward, Link2, MessageSquareReply, MoreVertical, Trash2 } from 'lucide-react';
 
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@chatic/ui-kit';
 
 import { Hint } from '../../../../shared';
 

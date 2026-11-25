@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Users } from 'lucide-react';
 
-import { cn } from '@chatic/ui-kit';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import { cn, Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit';
 
 import { avatarStyle } from '../../../shared';
 

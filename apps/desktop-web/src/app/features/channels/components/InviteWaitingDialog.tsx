@@ -3,15 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogTitle,
-    DialogFooter,
-} from '@chatic/ui-kit/components/ui/dialog';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, DialogFooter, toast } from '@chatic/ui-kit';
 
 import {
     resolveInviteCode,

@@ -3,11 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/runtime';
 import { logger } from '@chatic/bridges';
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { Button, Dialog, DialogContent, DialogFooter, DialogTitle, Input, Textarea, toast } from '@chatic/ui-kit';
 
 import { FormError, FormField, toastFailure } from '../../../shared';
 

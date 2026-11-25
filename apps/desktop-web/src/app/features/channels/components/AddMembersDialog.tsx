@@ -3,12 +3,19 @@ import { useTranslation } from 'react-i18next';
 
 import { Check, Search } from 'lucide-react';
 
-import { cn } from '@chatic/ui-kit';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import {
+    cn,
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+    Button,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    Input,
+    toast,
+} from '@chatic/ui-kit';
 
 import {
     MobileAppPointer,

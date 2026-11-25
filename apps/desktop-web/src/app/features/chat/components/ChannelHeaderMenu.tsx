@@ -9,7 +9,7 @@ import {
     DropdownMenuItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
+} from '@chatic/ui-kit';
 
 import { ChannelActionDialogs, isChannelOwner, useChannelSettingsStore, type useChannelActions } from '../../channels';
 import { HEADER_ICON_BUTTON } from './headerStyles';

@@ -5,9 +5,7 @@ import { Hash, Search, User } from 'lucide-react';
 import { create } from 'zustand';
 
 import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime';
-import { cn } from '@chatic/ui-kit';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { cn, Dialog, DialogContent, DialogDescription, DialogTitle, toast } from '@chatic/ui-kit';
 
 import { fetchFileBytes } from '../../utils';
 import { rankChannels } from '../QuickSwitcher';

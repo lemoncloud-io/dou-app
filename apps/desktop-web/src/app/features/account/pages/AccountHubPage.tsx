@@ -2,8 +2,7 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
+import { Button, Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit';
 
 import { isPlaceholderName, PageShell, SettingsNavRow, SettingsRowGroup, useRelayAccount } from '../../../shared';
 import { isPhoneLoginEnabled, isSocialLoginEnabled } from '../../auth';

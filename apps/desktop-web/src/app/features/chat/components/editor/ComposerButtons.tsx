@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Send, Smile } from 'lucide-react';
 
-import { cn } from '@chatic/ui-kit';
-import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
+import { cn, Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit';
 
 import { EmojiPicker } from '../EmojiPicker';
 import { Hint } from '../../../../shared';

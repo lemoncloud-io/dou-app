@@ -15,17 +15,21 @@ import {
 } from 'lucide-react';
 
 import { chatAttachmentSummary, isMessageEdited, type DomainChat, runtime } from '@chatic/runtime';
-import { cn } from '@chatic/ui-kit';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
+    cn,
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
-import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+    toast,
+} from '@chatic/ui-kit';
 
 import { ConfirmDialog } from '../../channels';
 import {

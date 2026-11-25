@@ -7,10 +7,7 @@ import { unzipSync } from 'fflate';
 import type { ReactNode } from 'react';
 
 import type { DomainChat } from '@chatic/runtime';
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
-
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import type * as UseToast from '@chatic/ui-kit/components/ui/use-toast';
+import { TooltipProvider, toast } from '@chatic/ui-kit';
 
 import { downloadImages } from '../../utils';
 import type * as Utils from '../../utils';
@@ -19,7 +16,7 @@ import { MessageFiles } from './MessageFiles';
 import '../../../../../i18n';
 
 vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
-    ...(await importOriginal<typeof UseToast>()),
+    ...(await importOriginal<object>()),
     toast: vi.fn(),
 }));
 

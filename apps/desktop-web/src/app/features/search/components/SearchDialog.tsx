@@ -5,8 +5,7 @@ import { Hash, Search, User } from 'lucide-react';
 
 import { runtime } from '@chatic/runtime';
 import type { DomainChannel, DomainChat } from '@chatic/runtime';
-import { cn } from '@chatic/ui-kit';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import { cn, Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
 
 import {
     channelKind,
