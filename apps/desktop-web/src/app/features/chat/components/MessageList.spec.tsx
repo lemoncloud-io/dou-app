@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { StrictMode, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -785,6 +785,236 @@ describe('MessageList jumps', () => {
         } finally {
             heights.mockRestore();
         }
+    });
+});
+
+describe('MessageList landing and following', () => {
+    const feed = [message(1, 'ada', 'one'), message(2, 'ada', 'two'), message(3, 'ada', 'three')];
+    let height = 2000;
+    let dividerTop = 1000;
+    let resizeObserved: ResizeObserverCallback | null = null;
+
+    beforeEach(() => {
+        vi.useFakeTimers({
+            toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'setTimeout', 'clearTimeout'],
+        });
+        height = 2000;
+        dividerTop = 1000;
+        vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockImplementation(() => height);
+        vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(500);
+        vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+            const scroller = this.closest<HTMLElement>('[role="log"]');
+            if (this.getAttribute('role') === 'log') return new DOMRect(0, 0, 800, 500);
+            if (scroller && this.getAttribute('data-row-key')?.includes('unread')) {
+                return new DOMRect(0, dividerTop - scroller.scrollTop, 800, 40);
+            }
+            return new DOMRect();
+        });
+    });
+
+    afterEach(() => {
+        cleanup();
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+        resizeObserved = null;
+    });
+
+    const advance = (ms: number) =>
+        act(() => {
+            vi.advanceTimersByTime(ms);
+        });
+    const list = (props: Partial<Parameters<typeof MessageList>[0]> = {}) => (
+        <MessageList
+            messages={feed}
+            isLoading={false}
+            viewer={VIEWER}
+            names={new Map([['ada', 'Ada']])}
+            baselineReadNo={3}
+            {...props}
+        />
+    );
+    const scrollerOf = (container: HTMLElement) => {
+        const scroller = container.querySelector<HTMLElement>('[role="log"]');
+        if (!scroller) throw new Error('feed scroller missing');
+        return scroller;
+    };
+    const dividerShown = () => screen.queryByText(en['chat.newMessages']) !== null;
+    const stubResizeObserver = () =>
+        vi.stubGlobal(
+            'ResizeObserver',
+            class {
+                constructor(callback: ResizeObserverCallback) {
+                    resizeObserved = callback;
+                }
+                observe = vi.fn();
+                unobserve = vi.fn();
+                disconnect = vi.fn();
+            }
+        );
+    const resize = (node: Element, size: number) =>
+        act(() => {
+            resizeObserved?.(
+                [{ target: node, borderBoxSize: [{ blockSize: size }], contentRect: { height: size } }] as never,
+                {} as ResizeObserver
+            );
+        });
+
+    it('stays at the bottom when the feed reflows after opening, and follows the next message', () => {
+        const { container, rerender } = render(list(), { wrapper });
+        const scroller = scrollerOf(container);
+        advance(16);
+        expect(scroller.scrollTop).toBe(2000);
+
+        height = 3200;
+        fireEvent.scroll(scroller);
+        advance(700);
+        expect(scroller.scrollTop).toBe(3200);
+
+        height = 3300;
+        rerender(list({ messages: [...feed, message(4, 'bo', 'four')] }));
+        expect(scroller.scrollTop).toBe(3300);
+        expect(screen.queryByRole('button', { name: en['chat.jumpToLatest'] })).toBeNull();
+    });
+
+    it('lands at the bottom under StrictMode, which runs the first fill twice', () => {
+        const { container } = render(<StrictMode>{list()}</StrictMode>, { wrapper });
+        advance(700);
+        expect(scrollerOf(container).scrollTop).toBe(2000);
+    });
+
+    it('puts a re-measured feed back on the bottom, but not once the reader has scrolled up', () => {
+        stubResizeObserver();
+        const { container } = render(list(), { wrapper });
+        const scroller = scrollerOf(container);
+        advance(700);
+        const row = container.querySelector('[data-row-key]');
+        if (!row) throw new Error('no row');
+
+        height = 2600;
+        resize(row, 300);
+        expect(scroller.scrollTop).toBe(2600);
+
+        scroller.scrollTop = 100;
+        fireEvent.scroll(scroller);
+        advance(16);
+        height = 2900;
+        resize(row, 400);
+        expect(scroller.scrollTop).toBe(100);
+    });
+
+    it('leaves a reader who nudged up inside the bottom band where they are when a row is re-measured', () => {
+        stubResizeObserver();
+        const { container } = render(list(), { wrapper });
+        const scroller = scrollerOf(container);
+        advance(700);
+        const row = container.querySelector('[data-row-key]');
+        if (!row) throw new Error('no row');
+
+        scroller.scrollTop = 2000 - 500 - 40;
+        fireEvent.scroll(scroller);
+        advance(16);
+        height = 2300;
+        resize(row, 300);
+        expect(scroller.scrollTop).toBe(1460);
+    });
+
+    it('lets the reader take over from the landing pin with a key', () => {
+        const { container } = render(list(), { wrapper });
+        const scroller = scrollerOf(container);
+        advance(16);
+        fireEvent.keyDown(scroller, { key: 'ArrowUp' });
+        scroller.scrollTop = 100;
+        advance(200);
+        expect(scroller.scrollTop).toBe(100);
+    });
+
+    it('asks for older history once a landing pin ends near the top of the page', () => {
+        const onLoadOlder = vi.fn();
+        dividerTop = 100;
+        render(list({ baselineReadNo: 1, hasMore: true, onLoadOlder }), { wrapper });
+        advance(300);
+        expect(onLoadOlder).not.toHaveBeenCalled();
+        advance(500);
+        expect(onLoadOlder).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks for older history when the reader takes over a landing pin near the top of the page', () => {
+        const onLoadOlder = vi.fn();
+        dividerTop = 100;
+        const { container } = render(list({ baselineReadNo: 1, hasMore: true, onLoadOlder }), { wrapper });
+        advance(32);
+        fireEvent.wheel(scrollerOf(container));
+        expect(onLoadOlder).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry a failed older page on reader input with no pin running', () => {
+        const onLoadOlder = vi.fn();
+        dividerTop = 100;
+        const { container } = render(list({ baselineReadNo: 1, hasMore: true, onLoadOlder, loadOlderFailed: true }), {
+            wrapper,
+        });
+        advance(800);
+        fireEvent.wheel(scrollerOf(container));
+        fireEvent.keyDown(scrollerOf(container), { key: 'ArrowUp' });
+        expect(onLoadOlder).not.toHaveBeenCalled();
+    });
+
+    it('lets the reader take over from the landing pin with the wheel', () => {
+        const { container } = render(list(), { wrapper });
+        const scroller = scrollerOf(container);
+        advance(16);
+        fireEvent.wheel(scroller);
+        scroller.scrollTop = 100;
+        advance(200);
+        expect(scroller.scrollTop).toBe(100);
+    });
+
+    it('stops the landing pin when a jump starts', () => {
+        const { container, rerender } = render(list(), { wrapper });
+        const scroller = scrollerOf(container);
+        advance(16);
+        rerender(list({ jumpTarget: { chatNo: 2, nonce: 1 } }));
+        scroller.scrollTop = 300;
+        advance(200);
+        expect(scroller.scrollTop).toBe(300);
+    });
+
+    it('keeps the divider centred while the feed reflows after opening', () => {
+        const { container } = render(list({ baselineReadNo: 1 }), { wrapper });
+        const scroller = scrollerOf(container);
+        advance(16);
+        expect(scroller.scrollTop).toBe(770);
+
+        dividerTop = 1400;
+        advance(100);
+        expect(scroller.scrollTop).toBe(1170);
+    });
+
+    it('keeps the divider when the feed reaches the bottom while a landing pin settles', () => {
+        vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+        height = 600;
+        const { container } = render(list({ baselineReadNo: 1, openAtBottom: true }), { wrapper });
+        const scroller = scrollerOf(container);
+        advance(610);
+        scroller.scrollTop = 0;
+        fireEvent.scroll(scroller);
+        advance(16);
+        scroller.scrollTop = 600;
+        fireEvent.scroll(scroller);
+        advance(16);
+
+        advance(2000);
+        expect(dividerShown()).toBe(true);
+    });
+
+    it('lands on the divider, not the bottom, in a room opened after a send elsewhere', () => {
+        const { container } = render(list({ baselineReadNo: 1, scrollSignal: 3 }), { wrapper });
+        advance(16);
+        expect(scrollerOf(container).scrollTop).toBe(770);
+
+        advance(2000);
+        expect(dividerShown()).toBe(true);
     });
 });
 

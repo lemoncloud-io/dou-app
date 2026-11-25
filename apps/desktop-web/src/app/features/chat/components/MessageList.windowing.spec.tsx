@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 
 import type { DomainChat } from '@chatic/runtime-react';
 import { TooltipProvider } from '@chatic/ui-kit';
@@ -59,8 +59,13 @@ const message = (chatNo: number): DomainChat =>
 const FEED = Array.from({ length: 200 }, (_, i) => message(i + 1));
 
 describe('MessageList windowing', { timeout: 30_000 }, () => {
+    beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['requestAnimationFrame', 'cancelAnimationFrame', 'performance'] });
+    });
+
     afterEach(() => {
         cleanup();
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
@@ -79,6 +84,11 @@ describe('MessageList windowing', { timeout: 30_000 }, () => {
         vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(30000);
     };
 
+    const settleLanding = () =>
+        act(() => {
+            vi.advanceTimersByTime(700);
+        });
+
     const mountedRows = (container: HTMLElement) => container.querySelectorAll('[data-row-key]').length;
     const spacerHeight = (container: HTMLElement, which: string) => {
         const spacer = container.querySelector(`[data-feed-spacer="${which}"]`);
@@ -96,11 +106,19 @@ describe('MessageList windowing', { timeout: 30_000 }, () => {
         mockLayout();
         const { container } = renderFeed();
         const scroller = scrollerOf(container);
-
+        settleLanding();
+        scroller.scrollTop = 15000;
         fireEvent.scroll(scroller);
-        await waitFor(() => expect(mountedRows(container)).toBeLessThan(100));
+        settleLanding();
+        await waitFor(() => expect(spacerHeight(container, 'top')).toBeTruthy());
+
+        scroller.scrollTop = 0;
+        fireEvent.scroll(scroller);
+        settleLanding();
+        await waitFor(() => expect(spacerHeight(container, 'top')).toBeNull());
 
         expect(container.querySelector('[data-chat-no="1"]')).toBeTruthy();
+        expect(mountedRows(container)).toBeLessThan(100);
         expect(container.querySelector('[data-chat-no="200"]')).toBeNull();
         expect(spacerHeight(container, 'top')).toBeNull();
         const bottom = spacerHeight(container, 'bottom');
@@ -113,9 +131,11 @@ describe('MessageList windowing', { timeout: 30_000 }, () => {
         mockLayout();
         const { container } = renderFeed();
         const scroller = scrollerOf(container);
+        settleLanding();
 
         scroller.scrollTop = 15000;
         fireEvent.scroll(scroller);
+        settleLanding();
         await waitFor(() => expect(spacerHeight(container, 'top')).toBeTruthy());
 
         expect(container.querySelector('[data-chat-no="1"]')).toBeNull();
@@ -130,9 +150,11 @@ describe('MessageList windowing', { timeout: 30_000 }, () => {
         const onJumpConsumed = vi.fn();
         const { container, rerender } = renderFeed();
         const scroller = scrollerOf(container);
+        settleLanding();
 
         scroller.scrollTop = 29000;
         fireEvent.scroll(scroller);
+        settleLanding();
         await waitFor(() => expect(container.querySelector('[data-chat-no="5"]')).toBeNull());
 
         rerender(
