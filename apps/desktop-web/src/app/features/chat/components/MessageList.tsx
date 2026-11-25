@@ -6,6 +6,7 @@ import {
     useRef,
     useState,
     type ClipboardEvent,
+    type KeyboardEvent,
     type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -98,6 +99,9 @@ const MAX_FOOTER_REPLIERS = 3;
 const DIVIDER_CLEAR_DELAY_MS = 1000;
 const DIVIDER_FADE_MS = 300;
 const JUMP_HIGHLIGHT_MS = 3000;
+const PIN_MS = 600;
+const PIN_SETTLE_MS = 100;
+const FLUSH_BOTTOM_PX = 2;
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
@@ -154,17 +158,54 @@ export const MessageList = ({
     const roving = useRovingFocus(scrollRef);
     const openAtBottomRef = useRef(openAtBottom);
     const pinRafRef = useRef(0);
+    const pinUntilRef = useRef(0);
+    const pinModeRef = useRef<'bottom' | 'centre' | null>(null);
+    const landedOnRowRef = useRef(false);
+    const wasNearBottomRef = useRef(true);
+    const flushBottomRef = useRef(true);
+    const loadOlderNearTopRef = useRef(() => undefined as void);
 
-    const pinToBottom = () => {
+    const cancelPin = () => {
         cancelAnimationFrame(pinRafRef.current);
-        const deadline = performance.now() + 600;
+        pinUntilRef.current = 0;
+        pinModeRef.current = null;
+    };
+    const releasePin = () => {
+        const wasPinned = performance.now() < pinUntilRef.current;
+        cancelPin();
+        if (wasPinned) loadOlderNearTopRef.current();
+    };
+    const pin = (mode: 'bottom' | 'centre', place: (el: HTMLElement) => void) => {
+        cancelAnimationFrame(pinRafRef.current);
+        const deadline = performance.now() + PIN_MS;
+        pinUntilRef.current = deadline + PIN_SETTLE_MS;
+        pinModeRef.current = mode;
         const snap = () => {
             const el = scrollRef.current;
-            if (el) el.scrollTop = el.scrollHeight;
-            if (performance.now() < deadline) pinRafRef.current = requestAnimationFrame(snap);
+            if (el) place(el);
+            if (performance.now() < deadline) {
+                pinRafRef.current = requestAnimationFrame(snap);
+                return;
+            }
+            pinModeRef.current = null;
+            loadOlderNearTopRef.current();
         };
         pinRafRef.current = requestAnimationFrame(snap);
     };
+    const pinToBottom = () => {
+        landedOnRowRef.current = false;
+        pin('bottom', el => {
+            el.scrollTop = el.scrollHeight;
+        });
+    };
+    const pinToCentre = (target: () => HTMLElement | null) =>
+        pin('centre', el => {
+            const node = target();
+            if (!node) return;
+            const row = node.getBoundingClientRect();
+            const view = el.getBoundingClientRect();
+            el.scrollTop += (row.top + row.bottom - view.top - view.bottom) / 2;
+        });
     const [atBottom, setAtBottom] = useState(true);
     const prependRef = useRef<{ pending: boolean; prevHeight: number; prevTop: number }>({
         pending: false,
@@ -425,15 +466,22 @@ export const MessageList = ({
             didInitRef.current = true;
             const rootNo = newReplyRootRef.current;
             const replyRoot = rootNo === null ? null : el.querySelector<HTMLElement>(`[data-chat-no="${rootNo}"]`);
-            if (openAtBottomRef.current) {
+            const landing = openAtBottomRef.current ? null : (unreadRef.current ?? replyRoot);
+            if (landing) {
+                landing.scrollIntoView({ block: 'center' });
+                pinToCentre(
+                    landing === unreadRef.current
+                        ? () => unreadRef.current
+                        : () => el.querySelector<HTMLElement>(`[data-chat-no="${rootNo}"]`)
+                );
+                const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+                atBottomRef.current = nearBottom;
+                wasNearBottomRef.current = nearBottom;
+                landedOnRowRef.current = true;
+                setAtBottom(nearBottom);
+            } else {
                 setAtBottom(true);
                 pinToBottom();
-            } else if (unreadRef.current) {
-                unreadRef.current.scrollIntoView({ block: 'center' });
-            } else if (replyRoot) {
-                replyRoot.scrollIntoView({ block: 'center' });
-            } else {
-                bottomRef.current?.scrollIntoView({ block: 'end' });
             }
             return;
         }
@@ -444,15 +492,22 @@ export const MessageList = ({
         syncViewport();
     }, [messages, atBottom, maxChatNo, viewer]);
 
+    useLayoutEffect(() => {
+        const el = scrollRef.current;
+        if (!measuredTick || !el || !atBottomRef.current || prependRef.current.pending) return;
+        if (landedOnRowRef.current || pinModeRef.current === 'centre' || !flushBottomRef.current) return;
+        if (jumpRef.current && !jumpRef.current.done) return;
+        el.scrollTop = el.scrollHeight;
+    }, [measuredTick]);
+
+    const mountSignalRef = useRef(scrollSignal);
     useEffect(() => {
-        if (!scrollSignal) return;
+        if (!scrollSignal || scrollSignal === mountSignalRef.current) return;
         setAtBottom(true);
         scheduleDividerClear();
         pinToBottom();
         return () => cancelAnimationFrame(pinRafRef.current);
     }, [scrollSignal]);
-
-    const wasNearBottomRef = useRef(true);
 
     useEffect(() => {
         if (!jumpTarget) return;
@@ -460,6 +515,7 @@ export const MessageList = ({
         if (!el) return;
         if (jumpRef.current?.nonce !== jumpTarget.nonce) {
             jumpRef.current = { nonce: jumpTarget.nonce, pages: 0, done: false, windowRetries: 0 };
+            cancelPin();
         }
         if (jumpRef.current.done) return;
         const restoreToBottom = () => {
@@ -544,7 +600,9 @@ export const MessageList = ({
             clearTimeout(highlightTimer.current ?? undefined);
             clearTimeout(jumpWindowTimer.current ?? undefined);
             clearTimeout(dividerClearTimer.current ?? undefined);
-            cancelAnimationFrame(pinRafRef.current);
+            cancelPin();
+            didInitRef.current = false;
+            prevLenRef.current = 0;
         },
         []
     );
@@ -562,23 +620,39 @@ export const MessageList = ({
         const el = scrollRef.current;
         if (!el) return;
         syncViewport();
-        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM_PX;
+        const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+        const nearBottom = gap < NEAR_BOTTOM_PX;
+        flushBottomRef.current = gap < FLUSH_BOTTOM_PX;
         setAtBottom(nearBottom);
         if (onReadingPosition) onReadingPosition(nearBottom ? null : firstVisibleChatNo(el));
-        if (nearBottom && !wasNearBottomRef.current && isWindowActive()) {
+        const pinned = performance.now() < pinUntilRef.current;
+        if (!pinned) landedOnRowRef.current = false;
+        if (nearBottom && !wasNearBottomRef.current && isWindowActive() && !pinned) {
             scheduleDividerClear();
         } else if (!nearBottom) {
             cancelDividerClear();
         }
         wasNearBottomRef.current = nearBottom;
-        if (el.scrollTop < LOAD_OLDER_PX && hasMore && !isLoadingOlder && onLoadOlder) {
-            prependRef.current = { pending: true, prevHeight: el.scrollHeight, prevTop: el.scrollTop };
-            onLoadOlder();
-        }
+        if (!pinned) loadOlderNearTop();
     };
+    const loadOlderNearTop = () => {
+        const el = scrollRef.current;
+        if (!el || el.scrollTop >= LOAD_OLDER_PX || !hasMore || isLoadingOlder || loadOlderFailed || !onLoadOlder) {
+            return;
+        }
+        prependRef.current = { pending: true, prevHeight: el.scrollHeight, prevTop: el.scrollTop };
+        onLoadOlder();
+    };
+    loadOlderNearTopRef.current = loadOlderNearTop;
 
-    const scrollToBottom = () =>
+    const scrollToBottom = () => {
+        cancelPin();
         bottomRef.current?.scrollIntoView({ block: 'end', behavior: reducedMotion ? 'auto' : 'smooth' });
+    };
+    const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        releasePin();
+        roving.onKeyDown(event);
+    };
 
     const pagingIntoEmpty = messages.length === 0 && !!hasMore && !!onLoadOlder;
     if (isLoading || (pagingIntoEmpty && !loadOlderFailed)) {
@@ -656,7 +730,10 @@ export const MessageList = ({
                 onScroll={onScroll}
                 onCopy={onCopy}
                 onFocus={roving.onFocus}
-                onKeyDown={roving.onKeyDown}
+                onKeyDown={onKeyDown}
+                onWheel={releasePin}
+                onTouchStart={releasePin}
+                onPointerDown={releasePin}
                 role="log"
                 aria-live="polite"
                 aria-relevant="additions"

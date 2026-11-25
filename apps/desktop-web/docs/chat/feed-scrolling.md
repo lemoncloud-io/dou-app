@@ -15,9 +15,23 @@ On the channel's first fill, the first of these that applies wins:
 3. No divider, but the channel was badged for replies: the oldest root with a reply the reader has
    not seen is centred (see [threads.md](./threads.md)). A reply takes a slot in the channel's unread
    count but is not a row of the feed, so without this the badge would lead nowhere.
-4. Otherwise the bottom.
+4. Otherwise the bottom, pinned the same way as a notification open (see "Following the newest
+   message").
 
-The feed remounts per channel, so each room gets its own first fill.
+Landing on the divider or a root re-centres it on every animation frame for 600 ms, for the same reason
+the bottom is pinned: the window swaps estimated row heights for measured ones right after the first
+scroll and carries a one-shot landing more than a screen off the row. The "at the bottom" state is
+settled from where the view ended up, instead of waiting for the first scroll frame, and a later
+re-measure does not pull a row landing down to the bottom until the reader scrolls.
+
+The feed remounts per channel, so each room gets its own first fill; the pane around it does not, so a
+send in an earlier room is not replayed as a send on the new room's first render. Under StrictMode's
+mount, unmount and mount in development, the first fill runs again on the second mount.
+
+Reader input on the feed (wheel, touch, pointer, keys, the jump-to-latest control) and a new jump stop
+a running pin at once, so the reader is never pulled back for the rest of the 600 ms. While a pin runs,
+reaching the top of the feed does not ask for an older page; the check runs once the pin ends or the
+reader takes over, so a landing at the top of the page still pulls the page before it.
 
 ## The divider's baseline
 
@@ -41,8 +55,9 @@ line is worse than the first real message below it.
   divider is raised and the read cursor is held back too (the home screen advances it only while the
   window is visible and focused), so the sidebar badge and the divider agree.
 - **Scrolling down into the bottom.** Only a genuine move from "not near the bottom" to "near the
-  bottom" (within 80 px) clears it. Opening a channel, a focus change and live-follow also land at the
-  bottom, but they must not dismiss a divider the reader has not scrolled past. Clearing waits 1 s so
+  bottom" (within 80 px) clears it; a move during a pin, or within 100 ms after it, is not one. Opening
+  a channel, a focus change and live-follow also land at the bottom, but they must not dismiss a
+  divider the reader has not scrolled past. Clearing waits 1 s so
   the divider is seen first, then fades for 300 ms, then `seenUpTo` jumps to the newest persisted
   message. Scrolling back up before the timer fires cancels it; scrolling up mid-fade brings it back.
 - **Refocusing the window** while at the bottom clears it on the same edge as the badge, so the two
@@ -56,11 +71,17 @@ possible integer, and advancing to it would suppress every later divider).
 
 - A new message while pinned to the bottom sets `scrollTop` directly. Scrolling a zero-height anchor
   into view lands a message-height short in this flex column.
-- After the reader sends, and for the first fill of a notification open, the feed pins to the bottom
-  on every animation frame for 600 ms. A single scroll lands short: the list keeps reflowing for a few
-  frames (avatars load, text wraps, the optimistic row is swapped for the server's, an older page
-  auto-fills), and each reflow nudges the viewport off the bottom. These writes are instant jumps, so
-  reduced-motion needs no branch.
+- After the reader sends, and for every first fill that lands at the bottom, the feed pins to the
+  bottom on every animation frame for 600 ms. A single scroll lands short: the list keeps reflowing for
+  a few frames (the window swaps estimated row heights for measured ones, avatars load, text wraps, the
+  optimistic row is swapped for the server's, an older page auto-fills), and each reflow nudges the
+  viewport off the bottom. A room opened with one scroll used to settle more than a screen above its
+  last message, so it read as scrolled up: new messages were not followed and raised the divider above
+  them. These writes are instant jumps, so reduced-motion needs no branch.
+- While the feed sits flush on the bottom (within 2 px at the last scroll), a row that is re-measured
+  (a picture or a long message in a new row finishes laying out) puts the feed back on the bottom, so
+  the newest message is not left half below the fold. A reader who nudged up, even inside the 80 px
+  band, is left where they are.
 - Scrolled up, the reader sees a jump-to-latest control. When messages from others have arrived since
   the bottom was last reached it becomes a filled "N new messages" pill (shown as "99+" past 99).
   Clicking it scrolls smoothly, or instantly under reduced motion: the `behavior` argument is a
