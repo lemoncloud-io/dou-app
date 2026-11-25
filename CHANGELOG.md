@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-25] - root@0.175.2, @chatic/desktop-web@0.61.2
+
+### Bug Fixes
+
+- (desktop-web) land a room's feed where it opens and keep it there
+
 ## [2026-11-25] - No version updates
 
 ### Refactor
