@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Home, MailPlus, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/runtime';
-import { cn } from '@chatic/ui-kit';
+import { cn, ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, toast } from '@chatic/ui-kit';
 import { usePlaceOrder } from '@chatic/shared';
 
 import { ConfirmDialog, useSendInviteStore } from '../../channels';
@@ -18,13 +18,6 @@ import {
     placeFailure,
     type PlaceFailure,
 } from '../utils';
-import {
-    ContextMenu,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuTrigger,
-} from '@chatic/ui-kit/components/ui/context-menu';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     Hint,

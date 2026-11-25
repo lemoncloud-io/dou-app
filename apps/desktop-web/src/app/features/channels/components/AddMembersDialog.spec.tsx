@@ -13,7 +13,7 @@ vi.mock('../hooks', () => ({
     }),
 }));
 
-import { Toaster } from '@chatic/ui-kit/components/ui/toaster';
+import { Toaster } from '@chatic/ui-kit';
 
 import '../../../../i18n';
 import { useSiteProfilesStore } from '../../../shared';

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
 
 import type { ComposerAttachment } from '../../hooks';
 import { canPreview, type ChatFile } from '../../utils';

@@ -1,7 +1,7 @@
 import { runtime } from '@chatic/runtime';
 import { useState } from 'react';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Button } from '@chatic/ui-kit';
 
 const nowLabel = (): string => new Date().toLocaleTimeString();
 

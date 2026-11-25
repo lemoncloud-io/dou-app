@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { cn } from '@chatic/ui-kit';
+import { cn, Button } from '@chatic/ui-kit';
 import { runtime } from '@chatic/runtime';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import {
     PageShell,

@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next';
 
 import { CheckCheck, ChevronDown, Trash2, X } from 'lucide-react';
 
-import { cn } from '@chatic/ui-kit';
 import {
+    cn,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
+} from '@chatic/ui-kit';
 
 import { SelectMark } from './NotificationCard';
 

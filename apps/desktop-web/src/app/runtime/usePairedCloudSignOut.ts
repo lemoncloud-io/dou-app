@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/runtime';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { toast } from '@chatic/ui-kit';
 
 import { useAccountResetOnLogout } from '../shared';
 

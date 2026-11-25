@@ -5,7 +5,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import i18next from 'i18next';
 
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import type * as SharedModule from '../../../shared';
 

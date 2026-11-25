@@ -5,8 +5,7 @@ import { AlertCircle, Check } from 'lucide-react';
 
 import { RELAY_CLOUD_ID, runtime } from '@chatic/runtime';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import { Button, Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
 
 import { focusComposerIfDropped } from '../../../shared';
 import { hasSeenOnboarding, markOnboardingSeen, useOnboardingStore } from '../stores';

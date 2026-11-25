@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
 
 import { ALT_KEY as ALT, MOD_KEY as MOD } from '../../../shared';
 import { useShortcutsDialogStore } from '../stores';

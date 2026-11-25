@@ -9,17 +9,15 @@ import {
     AlertDialogDescription,
     AlertDialogFooter,
     AlertDialogTitle,
-} from '@chatic/ui-kit/components/ui/alert-dialog';
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import {
+    Button,
     Dialog,
     DialogContent,
     DialogDescription,
     DialogFooter,
     DialogTitle,
-} from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+    Input,
+    toast,
+} from '@chatic/ui-kit';
 
 import { FormError, FormField } from '../../../shared';
 

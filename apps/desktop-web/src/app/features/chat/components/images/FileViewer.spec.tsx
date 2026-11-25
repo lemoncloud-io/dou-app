@@ -5,7 +5,7 @@ import { Blob as NodeBlob } from 'node:buffer';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import { fetchFileBytes } from '../../utils';
 import type * as Utils from '../../utils';

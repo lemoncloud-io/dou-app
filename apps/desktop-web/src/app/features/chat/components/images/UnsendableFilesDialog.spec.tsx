@@ -4,7 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 
 import '../../../../../i18n';
 
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import { useFileDrop, useImageAttachments, useUnsendableFilesStore } from '../../hooks';
 import { UnsendableFilesHost } from './UnsendableFilesDialog';

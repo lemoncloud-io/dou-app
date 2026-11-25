@@ -1,9 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
+import { Button, Input, Label } from '@chatic/ui-kit';
 
 import { useRelayAccount } from '../../../shared';
 import { ACCOUNT_NAME_MAX } from '../../account/components/AccountProfileDialog';

@@ -2,7 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Button } from '@chatic/ui-kit';
 
 const ErrorScreen = ({ onReload }: { onReload: () => void }) => {
     const { t } = useTranslation();

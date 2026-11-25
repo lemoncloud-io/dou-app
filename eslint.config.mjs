@@ -352,6 +352,7 @@ const ADAPTER_MESSAGE =
     "Import the runtime from @chatic/runtime. Which adapter fills a port is the app's declaration's choice, in src/config/, started from main.tsx.";
 const DB_MESSAGE =
     "The cache engine is the app's declaration's choice, in src/config/. Read the cache through `runtime` from @chatic/runtime.";
+const UI_KIT_MESSAGE = 'Import from @chatic/ui-kit, its entry; its folders are not its public surface (ADR-0377).';
 const HOST_MESSAGE = 'Read the host ports as `runtime.<port>` from @chatic/runtime; @chatic/host is gone.';
 
 /**
@@ -579,15 +580,26 @@ export default [
         // helper that seeds settings for the tests (`apps/web/src/testing/settings.ts`). Tests that only
         // `jest.mock` one of these packages need no exception: a mock is not an import.
         basePath: REPO_ROOT,
-        files: [
-            'apps/{web,desktop-web,admin,landing}/src/**/*.ts',
-            'apps/{web,desktop-web,admin,landing}/src/**/*.tsx',
-        ],
+        files: ['apps/{web,admin,landing}/src/**/*.ts', 'apps/{web,admin,landing}/src/**/*.tsx'],
         ignores: ['apps/*/src/config/**', 'apps/*/src/main.tsx', 'apps/web/src/testing/settings.ts'],
         rules: {
             '@typescript-eslint/no-restricted-imports': [
                 'error',
                 { paths: APP_CALL_PART_PATHS, patterns: APP_CALL_PART_PATTERNS },
+            ],
+        },
+    },
+    {
+        basePath: REPO_ROOT,
+        files: ['apps/desktop-web/src/**/*.ts', 'apps/desktop-web/src/**/*.tsx'],
+        ignores: ['apps/desktop-web/src/config/**', 'apps/desktop-web/src/main.tsx'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                {
+                    paths: APP_CALL_PART_PATHS,
+                    patterns: [...APP_CALL_PART_PATTERNS, { group: ['@chatic/ui-kit/*'], message: UI_KIT_MESSAGE }],
+                },
             ],
         },
     },

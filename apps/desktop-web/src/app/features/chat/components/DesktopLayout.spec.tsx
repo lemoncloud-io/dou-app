@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import '../../../../i18n';
 

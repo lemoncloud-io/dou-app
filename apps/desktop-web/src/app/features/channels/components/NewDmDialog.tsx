@@ -3,9 +3,16 @@ import { useTranslation } from 'react-i18next';
 
 import { Search } from 'lucide-react';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
+import {
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+    Input,
+} from '@chatic/ui-kit';
 import { runtime } from '@chatic/runtime';
 
 import {

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { QrCode, Smartphone } from 'lucide-react';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Button } from '@chatic/ui-kit';
 
 import { canRequestPairing } from '../../pairing/utils/devicePairing';
 import { AppleIcon, AuthCard, GoogleIcon } from '../components';

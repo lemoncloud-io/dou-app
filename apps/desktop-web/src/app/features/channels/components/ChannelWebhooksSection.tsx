@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { DomainWebhook } from '@chatic/runtime';
 import { isWebhookExpired } from '@chatic/runtime';
-import { Badge } from '@chatic/ui-kit/components/ui/badge';
-import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Badge, Button } from '@chatic/ui-kit';
 
 import { toastFailure } from '../../../shared';
 import { useChannelWebhooks } from '../hooks/useChannelWebhooks';

@@ -2,7 +2,7 @@ import { runtime } from '@chatic/runtime';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Button } from '@chatic/ui-kit';
 
 import { AuthCard } from '../components';
 import { useSocialLogin } from '../hooks';

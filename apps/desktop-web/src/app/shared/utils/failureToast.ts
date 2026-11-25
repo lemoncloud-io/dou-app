@@ -1,7 +1,6 @@
 import { createElement, Fragment, type ReactNode } from 'react';
 
-import type { ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { toast, type ToastActionElement } from '@chatic/ui-kit';
 
 import { serverErrorText } from './errors';
 

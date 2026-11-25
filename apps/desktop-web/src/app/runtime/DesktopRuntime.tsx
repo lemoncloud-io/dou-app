@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from 'react';
 
 import { runtime } from '@chatic/runtime';
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import { useInviteLoginPageStore } from '../features/auth/stores/useInviteLoginPageStore';
 import { AppRouter } from '../routes';

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react';
 
 import type { DomainChat } from '@chatic/runtime';
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 const updateChat = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/runtime', async () =>

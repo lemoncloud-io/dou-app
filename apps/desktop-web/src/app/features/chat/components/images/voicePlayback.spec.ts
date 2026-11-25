@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { toast } from '@chatic/ui-kit';
 
 import { useVoicePlayback, voiceElementFor } from './voicePlayback';
 

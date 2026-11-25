@@ -4,9 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { AtSign, BellOff, Hash, Pencil, Plus, Star } from 'lucide-react';
 
 import { RELAY_CLOUD_ID, type DomainChannel, runtime } from '@chatic/runtime';
-import { cn } from '@chatic/ui-kit';
+import { cn, Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit';
 import { applyChannelOrder, moveChannel, placeScopeKey, useChannelOrder, usePinnedChannels } from '@chatic/shared';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
 import {
     Hint,

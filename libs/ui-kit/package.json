@@ -1,0 +1,7 @@
+{
+    "name": "@chatic/ui-kit",
+    "version": "0.0.0",
+    "dependencies": {},
+    "private": true,
+    "sideEffects": false
+}

@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, toast } from '@chatic/ui-kit';
 
 import { isPlaceholderName, useRelayAccount } from '../../../shared';
 import { useSignOutGuest } from '../hooks/useSignOutGuest';

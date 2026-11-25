@@ -1,6 +1,6 @@
 import { createElement } from 'react';
 
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { toast } from '@chatic/ui-kit';
 
 import { MobileAppPointer, isExpiredCloud, type RailCloud } from '../../../shared';
 

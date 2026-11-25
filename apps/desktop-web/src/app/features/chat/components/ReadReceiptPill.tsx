@@ -1,8 +1,17 @@
 import { useTranslation } from 'react-i18next';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import { Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit/components/ui/popover';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@chatic/ui-kit/components/ui/tabs';
+import {
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from '@chatic/ui-kit';
 
 import { avatarStyle } from '../../../shared';
 

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { runtime, pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/runtime';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { toast } from '@chatic/ui-kit';
 
 import {
     buildOpenDeeplink,

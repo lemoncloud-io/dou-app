@@ -4,18 +4,20 @@ import { useTranslation } from 'react-i18next';
 import { AtSign, Bell, Check, CheckCheck, ChevronDown, ListChecks, ListFilter, type LucideIcon } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/runtime';
-import { cn } from '@chatic/ui-kit';
 import {
+    cn,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuLabel,
     DropdownMenuRadioGroup,
     DropdownMenuRadioItem,
     DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
-import { Tabs, TabsList, TabsTrigger } from '@chatic/ui-kit/components/ui/tabs';
-import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+    Tabs,
+    TabsList,
+    TabsTrigger,
+    ToastAction,
+    toast,
+} from '@chatic/ui-kit';
 
 import {
     INBOX_SORTS,

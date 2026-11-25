@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit/components/ui/dialog';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Label } from '@chatic/ui-kit/components/ui/label';
+import { Button, Dialog, DialogContent, DialogTitle, DialogFooter, Input, Label } from '@chatic/ui-kit';
 
 import {
     CLOUD_NAME_MAX,

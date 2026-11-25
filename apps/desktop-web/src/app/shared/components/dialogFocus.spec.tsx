@@ -8,8 +8,11 @@ import {
     AlertDialogContent,
     AlertDialogDescription,
     AlertDialogTitle,
-} from '@chatic/ui-kit/components/ui/alert-dialog';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+} from '@chatic/ui-kit';
 
 const StateDialog = ({ withField = false }: { withField?: boolean }) => {
     const [open, setOpen] = useState(false);

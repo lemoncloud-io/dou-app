@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
+import { Switch } from '@chatic/ui-kit';
 
 import { useNotificationPrefsStore } from '../../../shared';
 

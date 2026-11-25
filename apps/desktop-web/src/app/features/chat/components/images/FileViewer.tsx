@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AlertCircle, Download, X } from 'lucide-react';
 
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
 
 import {
     HTML_PREVIEW_MAX_BYTES,

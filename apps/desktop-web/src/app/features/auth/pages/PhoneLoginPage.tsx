@@ -2,10 +2,9 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
-import { cn } from '@chatic/ui-kit';
+import { cn, Button } from '@chatic/ui-kit';
 import { runtime } from '@chatic/runtime';
 import { listPhoneCountries } from '@chatic/shared/phone';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { AuthCard, NewAccountName } from '../components';
 import { PHONE_CODE_LENGTH, usePhoneLogin } from '../hooks/usePhoneLogin';

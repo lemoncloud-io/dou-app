@@ -14,7 +14,7 @@ import {
     ContextMenuSubContent,
     ContextMenuSubTrigger,
     ContextMenuTrigger,
-} from '@chatic/ui-kit/components/ui/context-menu';
+} from '@chatic/ui-kit';
 
 import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore, useSendInviteStore } from '../../channels';
 import { isDmBucket } from '../utils';

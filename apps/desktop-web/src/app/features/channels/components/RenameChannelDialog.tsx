@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit/components/ui/dialog';
+import { Button, Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit';
 
 import { useDesktopChannelMutations, toastFailure } from '../../../shared';
 import { CHANNEL_NAME_MAX, CHANNEL_NAME_MIN, channelActionErrorKey } from '../utils';

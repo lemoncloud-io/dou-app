@@ -11,7 +11,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
+} from '@chatic/ui-kit';
 
 import {
     formatClockTime,

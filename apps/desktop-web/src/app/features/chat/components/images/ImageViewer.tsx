@@ -3,10 +3,17 @@ import { useTranslation } from 'react-i18next';
 
 import { ChevronLeft, ChevronRight, Download, FoldVertical, Minus, Plus, RotateCw, X } from 'lucide-react';
 
-import { cn } from '@chatic/ui-kit';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import {
+    cn,
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+    Button,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+} from '@chatic/ui-kit';
 
 import { avatarStyle, Hint } from '../../../../shared';
 import type { ChatImage } from '../../utils';

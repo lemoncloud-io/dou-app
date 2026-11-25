@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { runtime } from '@chatic/runtime';
 import type { DomainProfile } from '@chatic/runtime';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage, Button } from '@chatic/ui-kit';
 
 import {
     PageShell,

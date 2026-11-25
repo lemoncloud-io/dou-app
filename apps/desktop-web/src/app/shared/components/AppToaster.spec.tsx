@@ -1,8 +1,7 @@
 import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
-import { toast, useToast } from '@chatic/ui-kit/components/ui/use-toast';
+import { toast, useToast, type ToastActionElement } from '@chatic/ui-kit';
 
 import i18n from '../../../i18n';
 import { AppToaster } from './AppToaster';

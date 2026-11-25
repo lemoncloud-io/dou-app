@@ -4,7 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
 import type { DomainChannel } from '@chatic/runtime';
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import type * as SharedModule from '../../../shared';
 

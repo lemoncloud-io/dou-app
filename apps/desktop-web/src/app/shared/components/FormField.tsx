@@ -1,6 +1,6 @@
 import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
 
-import { Label } from '@chatic/ui-kit/components/ui/label';
+import { Label } from '@chatic/ui-kit';
 
 export const FormField = ({
     label,

@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import type { ComponentPropsWithoutRef, ElementRef, ReactElement, ReactNode } from 'react';
 
-import { Tooltip, TooltipContent, TooltipTrigger } from '@chatic/ui-kit/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@chatic/ui-kit';
 
 interface HintProps extends Omit<ComponentPropsWithoutRef<typeof TooltipTrigger>, 'asChild' | 'children'> {
     label: ReactNode;

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import i18next from 'i18next';
 
-import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { TooltipProvider } from '@chatic/ui-kit';
 
 import { emojiNames } from '../../../../locales/emoji/ko';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';

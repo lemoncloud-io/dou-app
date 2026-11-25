@@ -2,10 +2,16 @@ import { describe, expect, it } from 'vitest';
 
 import { render, screen } from '@testing-library/react';
 
-import { buttonVariants } from '@chatic/ui-kit/components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
-import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
+import {
+    buttonVariants,
+    Dialog,
+    DialogContent,
+    DialogTitle,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    Textarea,
+} from '@chatic/ui-kit';
 
 describe('kit target sizes and control edges', () => {
     it('draws the small button at the 36px floor', () => {

@@ -1,9 +1,7 @@
 import { createElement, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
-import { TOAST_DURATION_MS } from '@chatic/ui-kit/components/ui/toaster';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+import { ToastAction, TOAST_DURATION_MS, toast, type ToastActionElement } from '@chatic/ui-kit';
 
 import { getDownloadsApi, type DownloadsApi } from '../utils/electronApi';
 
