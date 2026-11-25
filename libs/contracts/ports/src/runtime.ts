@@ -1,0 +1,38 @@
+import type { AuthPlatformPorts } from '@chatic/auth';
+import type { LocalCachePorts } from '@chatic/data';
+import type { SessionStoragePorts } from '@chatic/session';
+import type { KeyValueStore } from '@chatic/storage';
+import type { TransportPlatformPorts } from '@chatic/transport';
+
+export interface ForegroundPort {
+    read(): boolean;
+    subscribe(listener: () => void): () => void;
+}
+
+export interface DeviceStorePort {
+    device: KeyValueStore;
+}
+
+export type StoragePort = SessionStoragePorts & DeviceStorePort;
+export type TransportPort = TransportPlatformPorts;
+export type AuthPort = AuthPlatformPorts;
+export type CachePort = LocalCachePorts;
+
+export interface RuntimePorts {
+    storage: StoragePort;
+    transport: TransportPort;
+    auth: AuthPort;
+    cache: CachePort;
+    foreground: ForegroundPort;
+}
+
+export type ForegroundSignal = ForegroundPort;
+export type RuntimeStorePorts = DeviceStorePort;
+
+export type OptionalKeys<T> = { [K in keyof T]-?: {} extends Pick<T, K> ? K : never }[keyof T];
+
+export type AllRequired<T> = [OptionalKeys<T>] extends [never] ? true : false;
+
+type Assert<T extends true> = T;
+
+export type RuntimePortsAreRequired = Assert<AllRequired<RuntimePorts>>;

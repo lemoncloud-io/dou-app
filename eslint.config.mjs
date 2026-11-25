@@ -118,9 +118,9 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  * - `layer:foundation` — logger, config, perf, http, storage, bridge-messages: what the core libs
  *   and the assembly are built on. They depend on one another and on nothing else.
  * - `layer:runtime-core` — `@chatic/runtime-core`, which collects the ports and assembles the
- *   runtime from them. It sits on the core libs and the foundation and on nothing else. This is an
- *   allow-list, not a deny-list, so a dependency it gains later has to be tagged on purpose rather
- *   than slipping in untagged.
+ *   runtime from them. It sits on the core libs, the contracts and the foundation and nothing else. An
+ *   allow-list, not a deny-list; `layer:contract` is `@chatic/ports`, types only. A new dependency is tagged
+ *   on purpose rather than slipping in untagged.
  * - `layer:adapter` — the packages that fill the ports for one platform (`@chatic/runtime-web`,
  *   `@chatic/runtime-mobile`, `@chatic/web-checkout`), and the cache engines they build on (`@chatic/db`: IndexedDB, the
  *   shell's SQLite over the bridge, Web Storage). Nothing in the runtime depends on them; they never reach up into the
@@ -130,7 +130,7 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  *   other way — `layer:client`'s allow-list has no `layer:adapter`.
  * - `layer:client` — `@chatic/runtime-client`, the half of the React surface that calls the core:
  *   the engine holder, the commands and reads through it, and the plain functions the hooks wrap. It
- *   sits on the core libs, runtime-core and the foundation, and no UI framework — an allow-list like
+ *   sits on the core libs, the contracts, runtime-core and the foundation, no UI framework — an allow-list like
  *   runtime-core's, so what the hooks need from React, react-query or zustand stays in @chatic/runtime.
  * - `layer:react-surface` — `@chatic/runtime`, what apps render against. It never imports an
  *   adapter: which platform fills the ports is the entry point's choice, not the surface's. Reaching
@@ -164,6 +164,7 @@ const runtimeLayerConstraints = [
     {
         sourceTag: 'layer:core-lib',
         notDependOnLibsWithTags: [
+            'layer:contract',
             'layer:runtime-core',
             'layer:client',
             'layer:adapter',
@@ -180,8 +181,14 @@ const runtimeLayerConstraints = [
         onlyDependOnLibsWithTags: ['layer:foundation'],
     },
     {
+        sourceTag: 'layer:contract',
+        onlyDependOnLibsWithTags: ['layer:foundation', 'layer:core-lib'],
+        notDependOnLibsWithTags: ['layer:bridge', 'layer:ui'],
+        bannedExternalImports: UI_FRAMEWORK_IMPORTS,
+    },
+    {
         sourceTag: 'layer:runtime-core',
-        onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:foundation'],
+        onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:contract', 'layer:foundation'],
         // Already outside the allow-list; named so the ban survives a change to it, and because this
         // one also follows the dependencies of what the allow-list lets in.
         notDependOnLibsWithTags: ['layer:bridge', 'layer:ui'],
@@ -191,7 +198,7 @@ const runtimeLayerConstraints = [
         // React, react-query and zustand are what @chatic/runtime keeps; this layer is the part of the
         // surface that would work unchanged under another UI library.
         sourceTag: 'layer:client',
-        onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:runtime-core', 'layer:foundation'],
+        onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:contract', 'layer:runtime-core', 'layer:foundation'],
         notDependOnLibsWithTags: ['layer:bridge', 'layer:ui'],
         bannedExternalImports: [...UI_FRAMEWORK_IMPORTS, '@tanstack/*', 'zustand', 'zustand/*'],
     },
@@ -341,6 +348,28 @@ const CLOSED_PATTERNS = [
         group: ['@chatic/runtime-core/*'],
         message:
             'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+    },
+];
+
+const CONTRACT_PATHS = [
+    {
+        name: '@chatic/bridge-messages',
+        message:
+            'A contract speaks in domain types, not bridge payloads. Define the shape in @chatic/ports — see libs/contracts/ports/README.md.',
+    },
+];
+
+const CONTRACT_PATTERNS = [
+    ...CLOSED_PATTERNS,
+    {
+        group: ['@chatic/bridge-messages/*'],
+        message:
+            'A contract speaks in domain types, not bridge payloads. Define the shape in @chatic/ports — see libs/contracts/ports/README.md.',
+    },
+    {
+        group: ['@chatic/*', '!@chatic/bridge-messages'],
+        allowTypeImports: true,
+        message: 'A contract takes types only from the packages below it — see libs/contracts/ports/README.md.',
     },
 ];
 
@@ -572,6 +601,16 @@ export default [
         files: ['**/*.ts', '**/*.tsx'],
         rules: {
             '@typescript-eslint/no-restricted-imports': ['error', { paths: CLOSED_PATHS, patterns: CLOSED_PATTERNS }],
+        },
+    },
+    {
+        basePath: REPO_ROOT,
+        files: ['libs/contracts/**/*.{ts,tsx,mts,cts}'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                { paths: CONTRACT_PATHS, patterns: CONTRACT_PATTERNS },
+            ],
         },
     },
     {

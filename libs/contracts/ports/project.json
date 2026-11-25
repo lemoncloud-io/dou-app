@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/ports",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/contracts/ports/src",
+    "projectType": "library",
+    "tags": ["layer:contract", "platform:any", "formfactor:any"],
+    "targets": {}
+}

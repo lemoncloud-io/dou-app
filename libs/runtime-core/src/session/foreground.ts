@@ -1,7 +1,6 @@
-export interface ForegroundSignal {
-    read(): boolean;
-    subscribe(listener: () => void): () => void;
-}
+import type { ForegroundSignal } from '@chatic/ports';
+
+export type { ForegroundSignal };
 
 export interface IForegroundPlatform {
     configure(signal: ForegroundSignal): void;

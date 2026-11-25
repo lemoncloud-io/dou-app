@@ -103,6 +103,9 @@
             "path": "./libs/runtime-core"
         },
         {
+            "path": "./libs/contracts/ports"
+        },
+        {
             "path": "./libs/runtime-web"
         },
         {

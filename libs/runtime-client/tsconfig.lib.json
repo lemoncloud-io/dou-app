@@ -25,6 +25,9 @@
     "include": ["src/**/*.ts"],
     "references": [
         {
+            "path": "../contracts/ports/tsconfig.lib.json"
+        },
+        {
             "path": "../sync/tsconfig.lib.json"
         },
         {

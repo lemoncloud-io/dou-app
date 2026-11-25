@@ -6,7 +6,7 @@ point hands over, the host ports it publishes, the commands and reads that go th
 the settings' reads and writes, and the plain functions
 @chatic/runtime's hooks wrap. No `react`, `react-dom`, `@tanstack/*` or `zustand` — the root lint's
 `layer:client` constraint refuses them, and it may depend only on the core packages
-(`layer:core-lib`), `@chatic/runtime-core` and the foundation packages.
+(`layer:core-lib`), the contracts (`@chatic/ports`), `@chatic/runtime-core` and the foundation packages.
 
 **Apps never import it.** They reach every name here through `runtime` from `@chatic/runtime`,
 which re-exports what its groups sell; the rest is @chatic/runtime's own wiring. The one exception is the
@@ -18,7 +18,8 @@ libs/runtime-client/src/
 ├── index.ts               the package barrel
 ├── init.ts                the engine holder: initAppRuntime · runtimeEngine · resetRuntimeEngine (tests)
 ├── declare/               the runtime declaration: defineRuntime · resolvePorts · startRuntime
-├── host/                  the host ports: their contracts, the one holder (host) and its live bindings
+├── host/                  the host ports: the one holder (host), its live bindings, HOST_PORT_NAMES and
+│                          re-exports of the contracts from @chatic/ports
 ├── settings/              the config facade's reads and writes, as runtime.settings sells them
 ├── sessionStorageBoot.ts  prepareSecretStorage and the web session copy, handed on from runtime-core
 ├── connection/            the sockets through the engine; the connectivity verdict (deriveConnectivity)
@@ -52,11 +53,16 @@ entry point from what the shell declared before the page ran. The reasons are AD
 feature never asks which host it is in, only what the port says, so a host that cannot do something
 is an implementation that says so rather than a check scattered across screens.
 
-This package holds the two halves that are not a page's:
+The two halves that are not a page's:
 
-- **The contracts** (`host/ports.ts`, and a file of its own for each port — `host/checkout.ts`,
-  `host/media.ts`, `host/files.ts`, `host/links.ts`, `host/appShell.ts`, `host/signIn.ts`,
-  `host/diagnostics.ts`, `host/push.ts`): `HostPorts`, one field per port, and each port's type.
+- **The contracts** live in [`@chatic/ports`](../contracts/ports/README.md) (`src/host/`, a file for
+  each port). `host/ports.ts` and the per-port files here (`host/checkout.ts`, `host/media.ts`,
+  `host/files.ts`, `host/links.ts`, `host/appShell.ts`, `host/signIn.ts`, `host/diagnostics.ts`,
+  `host/push.ts`) re-export them under the names they always had, so no caller changed; `host/ports.ts`
+  also keeps `HOST_PORT_NAMES`, the one value, because `@chatic/ports` holds types only.
+  `host/contractShapes.spec.ts` checks at typecheck that each domain type the contracts use is exactly the same
+  shape as the bridge payload an adapter hands through. `HostPorts` has one field per port, and each
+  port has its type.
   `checkout` is a union — `store` (an app store, with `products()`, `purchase()`, `finish()`,
   `currentPurchases()`, `openManagement()`), `web` (`open(url)`, the website sells) or `none`. Every
   other port keeps its choice, `kind: 'shell' | 'browser'` (`ShellOrBrowser`, with `os` on `appShell`

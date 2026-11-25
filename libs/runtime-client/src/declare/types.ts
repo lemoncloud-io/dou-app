@@ -1,6 +1,8 @@
 import type { ConfigRuntimePorts, ConfigSnapshot, ValueOrigin } from '@chatic/config';
 import type { RuntimeConfig, RuntimeEngine, RuntimePorts } from '@chatic/runtime-core';
 
+import type { HostPortName } from '@chatic/ports';
+
 import type { HostPorts } from '../host/ports';
 
 export type PortName = keyof RuntimePorts;
@@ -16,7 +18,7 @@ export type PortNamesAreComplete = Assert<
         : false
 >;
 
-export type HostPortName = keyof HostPorts;
+export type { HostPortName };
 
 export type SlotName = PortName | HostPortName | 'engine';
 
