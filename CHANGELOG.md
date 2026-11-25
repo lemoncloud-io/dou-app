@@ -2,6 +2,12 @@
 
 ## [2026-11-25] - No version updates
 
+### Refactor
+
+- (runtime) move the react code into @chatic/runtime-react
+
+## [2026-11-25] - No version updates
+
 ### Bug Fixes
 
 - (ratchet) count a nested project's test files against that project
