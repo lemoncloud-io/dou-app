@@ -1,8 +1,7 @@
+import type { RuntimeStorePorts } from '@chatic/ports';
 import type { KeyValueStore } from '@chatic/storage';
 
-export interface RuntimeStorePorts {
-    device: KeyValueStore;
-}
+export type { RuntimeStorePorts };
 
 let ports: RuntimeStorePorts | null = null;
 

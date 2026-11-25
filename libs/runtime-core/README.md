@@ -5,14 +5,15 @@ sockets, sync and the data layer run in two places: in the web page for the brow
 shell, and in the native process for the mobile app. What differs between those places — where the
 session is stored, how a socket is opened, what "online" means, where the cache's rows live, whether
 the app is in front of the user — comes
-into the runtime as a **port**. This package holds the type that lists them all, `RuntimePorts`, and
+into the runtime as a **port**. The type that lists them all, `RuntimePorts`, is a contract and lives in
+[`@chatic/ports`](../contracts/ports/README.md); this package re-exports it and holds
 `createRuntime(config)`, which wires the core packages together from them: the same assembly on every
 platform.
 
 ```text
 libs/runtime-core/src/
 ├── index.ts            the package barrel — what the React surface reads
-├── ports.ts            RuntimePorts, every field required
+├── ports.ts            re-exports RuntimePorts and its every-field-required check from @chatic/ports
 ├── createRuntime.ts    the assembly: every wiring call, in order; returns the engine
 ├── engine.ts           RuntimeEngine — what the React surface starts its lifecycle work from
 ├── config/             records the effective settings in the logs at boot
@@ -98,7 +99,8 @@ adapter that forgot it, not a fallback discovered on a device.
 ## Design principles
 
 1. **Every port is required.** `RuntimePorts` has no optional field. `RuntimePortsAreRequired` in
-   [`ports.ts`](./src/ports.ts) is a type that stops compiling if one is declared with `?`. A port has
+   [`@chatic/ports`](../contracts/ports/src/runtime.ts) is a type that stops compiling if one is declared
+   with `?`; [`ports.spec.ts`](./src/ports.spec.ts) checks it through this package's re-export. A port has
    no neutral default — the only values in reach are one platform's — so there is nothing a default
    could safely be.
 2. **The package that uses a port declares it.** `RuntimePorts.storage` is `@chatic/session`'s own
@@ -106,18 +108,20 @@ adapter that forgot it, not a fallback discovered on a device.
    `TransportPlatformPorts` (the online signal, the device, how a socket is opened) and
    `RuntimePorts.auth` is `@chatic/auth`'s `AuthPlatformPorts` (the address, the way home at logout)
    and `RuntimePorts.cache` is `@chatic/data`'s `LocalCachePorts` (where each cache domain lives);
-   this package names them, it does not redefine them. `RuntimePorts.foreground` (whether the app is
-   in front of the user) is this package's own `ForegroundSignal`, because only its session controller
-   reads it.
+   `@chatic/ports` names them, it does not redefine them. `RuntimePorts.foreground` (whether the app is
+   in front of the user) is `ForegroundSignal`, and the runtime's own `device` store is
+   `RuntimeStorePorts`; both are declared in `@chatic/ports` and re-exported here
+   (`session/foreground.ts`, `storage/runtimeStores.ts`), because only this package reads them.
 3. **No platform here.** The package compiles without the browser's types or Node's (`lib:
 ["es2022"]`, `types: []` in `tsconfig.lib.json`), its tests run in jest's `node` environment (a test
    whose fixtures play a page names `../../tools/jest/jsdom-environment.js` in a docblock), and
    it imports neither React nor React Native nor `@chatic/bridges`. One gap: React Native's global
    types (`fetch` among them) still arrive through `@chatic/bridge-messages`, which `@chatic/data`
-   imports — globals both runtimes have.
-4. **Only the core packages and the foundation below it.** It may depend on a package tagged
-   `layer:core-lib` or `layer:foundation` (logger, config, perf, http, storage, bridge-messages) and on
-   nothing else — an allow-list, so taking a new dependency means tagging it on purpose.
+   imports, and through `@chatic/ports`, whose store checkout types are `react-native-iap`'s — globals
+   both runtimes have.
+4. **Only the core packages, the contracts and the foundation below it.** It may depend on a package
+   tagged `layer:core-lib`, `layer:contract` (`@chatic/ports`) or `layer:foundation` (logger, config,
+   perf, http, storage, bridge-messages) and on nothing else — an allow-list, so taking a new dependency means tagging it on purpose.
 5. **Process-wide, one per launch.** `createRuntime` wires module singletons and returns the core
    engine; a second call replaces the wiring and says so in the log.
 
@@ -136,6 +140,7 @@ flowchart TD
     Web["@chatic/runtime-web<br/><i>layer:adapter · platform:web</i>"]
     Native["@chatic/runtime-mobile<br/><i>layer:adapter · platform:mobile</i>"]
     Core["@chatic/runtime-core<br/><i>layer:runtime-core</i>"]
+    Ports["@chatic/ports<br/><i>layer:contract</i>"]
     Libs["session · transport · sync · auth · data<br/><i>layer:core-lib</i>"]
     Found["logger · config · perf · http · storage · bridge-messages<br/><i>layer:foundation</i>"]
 
@@ -150,29 +155,34 @@ flowchart TD
     Client --> Libs
     Web --> Core
     Native --> Core
+    Core --> Ports
+    Client --> Ports
+    Ports -. types .-> Libs
+    Ports -. types .-> Found
     Core --> Libs
     Core --> Found
     Libs --> Found
 ```
 
-| Tag                   | May not depend on                                                                                                                                                                   |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `layer:core-lib`      | runtime-core, an adapter, the React surface, the bridge or a UI library, directly or through another package; React or React Native                                                 |
-| `layer:runtime-core`  | anything not tagged `layer:core-lib` or `layer:foundation`, and the bridge or a UI library through one that is; React or React Native                                               |
-| `layer:foundation`    | anything not tagged `layer:foundation` — it knows nothing of the runtime above it                                                                                                   |
-| `layer:client`        | anything not tagged `layer:core-lib`, `layer:runtime-core` or `layer:foundation`, and the bridge or a UI library through one that is; React, React Native, `@tanstack/*` or zustand |
-| `layer:adapter`       | the React surface or a UI library; React                                                                                                                                            |
-| `layer:react-surface` | an adapter — which platform fills the ports is the entry point's choice                                                                                                             |
-| `platform:any`        | anything not tagged `platform:any`                                                                                                                                                  |
-| `platform:web`        | anything not tagged `platform:any` or `platform:web`; React Native                                                                                                                  |
-| `platform:mobile`     | anything not tagged `platform:any` or `platform:mobile`, and a `platform:web` package through one that is                                                                           |
-| `platform:desktop`    | anything not tagged `platform:any` or `platform:desktop`                                                                                                                            |
-| `platform:node`       | anything not tagged `platform:any` or `platform:node`                                                                                                                               |
-| `formfactor:any`      | a `formfactor:mobile` or `formfactor:desktop` package, directly or through another package                                                                                          |
-| `formfactor:mobile`   | a `formfactor:desktop` package, directly or through another package                                                                                                                 |
-| `formfactor:desktop`  | a `formfactor:mobile` package, directly or through another package                                                                                                                  |
-| `layer:bridge`        | — (`@chatic/bridges`, the WebView transport, with `@chatic/fake-shell` and `@chatic/chatic-apps-sdk`; tagged so the layers above can refuse it)                                     |
-| `layer:ui`            | — (`@chatic/ui-kit`, `@chatic/web-ui-kit`, `@chatic/block-kit`, `@chatic/theme`, `@chatic/shared`, `@chatic/assets`; tagged so the runtime side can refuse them)                    |
+| Tag                   | May not depend on                                                                                                                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `layer:core-lib`      | the contracts, runtime-core, an adapter, the React surface, the bridge or a UI library, directly or through another package; React or React Native                                                    |
+| `layer:contract`      | anything not tagged `layer:core-lib` or `layer:foundation`, and the bridge or a UI library through one that is; React or React Native; a value (only types) or `@chatic/bridge-messages` at all       |
+| `layer:runtime-core`  | anything not tagged `layer:core-lib`, `layer:contract` or `layer:foundation`, and the bridge or a UI library through one that is; React or React Native                                               |
+| `layer:foundation`    | anything not tagged `layer:foundation` — it knows nothing of the runtime above it                                                                                                                     |
+| `layer:client`        | anything not tagged `layer:core-lib`, `layer:contract`, `layer:runtime-core` or `layer:foundation`, and the bridge or a UI library through one that is; React, React Native, `@tanstack/*` or zustand |
+| `layer:adapter`       | the React surface or a UI library; React                                                                                                                                                              |
+| `layer:react-surface` | an adapter — which platform fills the ports is the entry point's choice                                                                                                                               |
+| `platform:any`        | anything not tagged `platform:any`                                                                                                                                                                    |
+| `platform:web`        | anything not tagged `platform:any` or `platform:web`; React Native                                                                                                                                    |
+| `platform:mobile`     | anything not tagged `platform:any` or `platform:mobile`, and a `platform:web` package through one that is                                                                                             |
+| `platform:desktop`    | anything not tagged `platform:any` or `platform:desktop`                                                                                                                                              |
+| `platform:node`       | anything not tagged `platform:any` or `platform:node`                                                                                                                                                 |
+| `formfactor:any`      | a `formfactor:mobile` or `formfactor:desktop` package, directly or through another package                                                                                                            |
+| `formfactor:mobile`   | a `formfactor:desktop` package, directly or through another package                                                                                                                                   |
+| `formfactor:desktop`  | a `formfactor:mobile` package, directly or through another package                                                                                                                                    |
+| `layer:bridge`        | — (`@chatic/bridges`, the WebView transport, with `@chatic/fake-shell` and `@chatic/chatic-apps-sdk`; tagged so the layers above can refuse it)                                                       |
+| `layer:ui`            | — (`@chatic/ui-kit`, `@chatic/web-ui-kit`, `@chatic/block-kit`, `@chatic/theme`, `@chatic/shared`, `@chatic/assets`; tagged so the runtime side can refuse them)                                      |
 
 Two packages carry `platform:any` while part of them is web, until each is split: `@chatic/db` (its
 IndexedDB and Web Storage engines sit beside the bridge one) and `@chatic/chatic-apps-sdk` (its
