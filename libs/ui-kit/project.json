@@ -3,7 +3,7 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/ui-kit/src",
     "projectType": "library",
-    "tags": ["layer:ui"],
+    "tags": ["layer:ui", "platform:web", "formfactor:any"],
     "// targets": "to see all targets run: nx show project ui-kit --web",
     "targets": {}
 }

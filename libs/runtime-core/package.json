@@ -16,7 +16,9 @@
     },
     "nx": {
         "tags": [
-            "layer:runtime-core"
+            "layer:runtime-core",
+            "platform:any",
+            "formfactor:any"
         ]
     }
 }

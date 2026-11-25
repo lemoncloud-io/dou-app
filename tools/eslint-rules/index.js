@@ -12,5 +12,6 @@ module.exports = {
         'host-facts': require('./host-facts'),
         'host-port-kind': require('./host-port-kind'),
         ratchet: require('./ratchet'),
+        'project-tags': require('./project-tags'),
     },
 };

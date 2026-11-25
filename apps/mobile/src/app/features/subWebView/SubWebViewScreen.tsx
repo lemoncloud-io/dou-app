@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackNavigationOptions, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SubWebViewOrientation } from '@chatic/bridge-messages';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; the sub-webview trust rules move to a platform-free mini-app protocol package
 import { subWebViewOriginOf } from '@chatic/shared/subWebViewTrust';
 
 import { useResolvedTheme } from '../../hooks';

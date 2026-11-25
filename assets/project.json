@@ -3,7 +3,7 @@
     "$schema": "../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "assets/src",
     "projectType": "library",
-    "tags": [],
+    "tags": ["layer:ui", "platform:web", "formfactor:any"],
     "// targets": "to see all targets run: nx show project assets --web",
     "targets": {}
 }

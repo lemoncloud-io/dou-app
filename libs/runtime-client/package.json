@@ -16,7 +16,9 @@
     },
     "nx": {
         "tags": [
-            "layer:client"
+            "layer:client",
+            "platform:any",
+            "formfactor:any"
         ]
     }
 }

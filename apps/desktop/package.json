@@ -46,5 +46,12 @@
                 "url": "https://desktop.dou.chatic.io/updates"
             }
         ]
+    },
+    "nx": {
+        "tags": [
+            "layer:app",
+            "platform:desktop",
+            "formfactor:desktop"
+        ]
     }
 }

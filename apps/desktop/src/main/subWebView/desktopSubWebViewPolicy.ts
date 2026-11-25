@@ -1,4 +1,5 @@
 import type { SubWebViewContext, SubWebViewDisplay } from '@chatic/bridge-messages';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; the sub-webview trust rules move to a platform-free mini-app protocol package
 import {
     SUB_WEBVIEW_TITLE_LIMIT,
     subWebViewDisplayOf,

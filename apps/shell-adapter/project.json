@@ -3,7 +3,7 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "apps/shell-adapter/src",
     "projectType": "application",
-    "tags": [],
+    "tags": ["layer:app", "platform:web", "formfactor:any"],
     "// targets": "to see all targets run: nx show project shell-adapter --web",
     "targets": {}
 }

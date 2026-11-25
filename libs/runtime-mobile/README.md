@@ -223,7 +223,7 @@ has to build the string itself.
 
 ## Rules
 
-- Tagged `layer:adapter` and `platform:native`: it may not import `@chatic/runtime` (the React
+- Tagged `layer:adapter` and `platform:mobile`: it may not import `@chatic/runtime` (the React
   surface), React, or a `platform:web` package such as `@chatic/runtime-web`. See
   [the layers](../runtime-core/README.md#layers).
 - Nothing in the runtime imports it. The app's runtime modules do (`apps/mobile`'s
@@ -232,8 +232,9 @@ has to build the string itself.
 - Its own source compiles without the DOM's types or Node's (`tsconfig.lib.json`); React Native's own
   types supply its globals.
 - One exception it carries knowingly: the cache ports import the `@chatic/db` barrel, which also holds
-  the page's IndexedDB and Web Storage engines and reaches `@chatic/bridges`. Neither package carries a
-  platform tag, so the `platform:native` rule cannot see that edge, and db is compiled with the DOM's
+  the page's IndexedDB and Web Storage engines and reaches `@chatic/bridges`. db is tagged
+  `platform:any` until it is split into its web and bridge engines (bridges is genuinely both sides), so
+  the `platform:mobile` rule cannot see that edge, and db is compiled with the DOM's
   types (this package type-checks it only through `skipLibCheck`). What runs here is `NativeDBAdapter`,
   `NativeGlobalSearchSource` and the metrics source, which touch no page global — the device check
   covers them — and a DOM use added to `BaseDbAdapter` or those three would fail on a device first.

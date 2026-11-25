@@ -3,7 +3,7 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/web-ui-kit/src",
     "projectType": "library",
-    "tags": ["layer:ui"],
+    "tags": ["layer:ui", "platform:web", "formfactor:mobile"],
     "// targets": "to see all targets run: nx show project web-ui-kit --web",
     "targets": {}
 }

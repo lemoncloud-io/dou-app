@@ -10,7 +10,12 @@
             "run-android": {
                 "continuous": false
             }
-        }
+        },
+        "tags": [
+            "layer:app",
+            "platform:mobile",
+            "formfactor:mobile"
+        ]
     },
     "scripts": {
         "test": "jest --config ./jest.config.js",

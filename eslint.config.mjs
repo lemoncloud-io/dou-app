@@ -122,7 +122,7 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  *   allow-list, not a deny-list, so a dependency it gains later has to be tagged on purpose rather
  *   than slipping in untagged.
  * - `layer:adapter` — the packages that fill the ports for one platform (`@chatic/runtime-web`,
- *   `@chatic/runtime-mobile`), and the cache engines they build on (`@chatic/db`: IndexedDB, the
+ *   `@chatic/runtime-mobile`, `@chatic/web-checkout`), and the cache engines they build on (`@chatic/db`: IndexedDB, the
  *   shell's SQLite over the bridge, Web Storage). Nothing in the runtime depends on them; they never reach up into the
  *   React surface, and a port is not UI, so no React either. They do depend on `layer:client`: an
  *   app's declaration (`defineRuntime`, `startRuntime`) lives there, and each adapter package hands
@@ -136,7 +136,7 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  *   adapter: which platform fills the ports is the entry point's choice, not the surface's. Reaching
  *   the core through `layer:client` is the direction it is moving in, not a rule: some of its files
  *   still import the core libs directly, and nothing here stops them.
- * - `layer:bridge` — `@chatic/bridges`, the transport across the WebView boundary: the web-side
+ * - `layer:bridge` — `@chatic/bridges` (with `@chatic/fake-shell` and `@chatic/chatic-apps-sdk`), the transport across the WebView boundary: the web-side
  *   client, the shell-side host and the `webClient` singleton. The core libs, runtime-core and the
  *   client layer may not depend on it: none of what they hold — the session, the sockets, sync, the
  *   data layer, the assembly — is specific to a WebView, and an import of it would tie them to that
@@ -146,12 +146,12 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  * - `layer:ui` — the component libraries and what draws with them: `@chatic/ui-kit`,
  *   `@chatic/web-ui-kit`, `@chatic/block-kit` and `@chatic/theme`. The runtime side — core libs,
  *   runtime-core, the client layer and the adapters — may not depend on one; a UI library is the apps'
- *   and the React surface's to render. `@chatic/shared` is a catch-all of React parts rather than a
- *   layer and carries no tag.
- * - `platform:web` — a package that only runs in a web page. It may not pull React Native in.
- * - `platform:native` — a package that only runs in React Native's JS process
- *   (`@chatic/runtime-mobile`). It may not depend on a `platform:web` package: what is true of a page
- *   is false there, and nothing would say so until a device ran it.
+ *   and the React surface's to render, `@chatic/shared` and `@chatic/assets` included.
+ * - `platform:*` — where a package runs: `any`, `web`, `mobile`, `desktop`, `node`. One depends on
+ *   `platform:any` and its own platform only; `web` may not pull React Native in, and `mobile` may not
+ *   reach a `web` package through a lib in between either. `formfactor:mobile` and `formfactor:desktop`
+ *   never depend on each other. `layer:app` and `layer:feature` are free. A project under apps/ or
+ *   libs/ with no tag on one of the three axes fails lint (`@nx/workspace-project-tags`).
  *
  * `notDependOnLibsWithTags` also follows the target's own dependencies, so a core lib cannot reach
  * an adapter through a lib in between. `onlyDependOnLibsWithTags` checks direct dependencies only.
@@ -209,12 +209,38 @@ const runtimeLayerConstraints = [
         notDependOnLibsWithTags: ['layer:adapter'],
     },
     {
+        sourceTag: 'platform:any',
+        onlyDependOnLibsWithTags: ['platform:any'],
+    },
+    {
         sourceTag: 'platform:web',
+        onlyDependOnLibsWithTags: ['platform:any', 'platform:web'],
         bannedExternalImports: REACT_NATIVE_IMPORTS,
     },
     {
-        sourceTag: 'platform:native',
+        sourceTag: 'platform:mobile',
+        onlyDependOnLibsWithTags: ['platform:any', 'platform:mobile'],
         notDependOnLibsWithTags: ['platform:web'],
+    },
+    {
+        sourceTag: 'platform:desktop',
+        onlyDependOnLibsWithTags: ['platform:any', 'platform:desktop'],
+    },
+    {
+        sourceTag: 'platform:node',
+        onlyDependOnLibsWithTags: ['platform:any', 'platform:node'],
+    },
+    {
+        sourceTag: 'formfactor:any',
+        notDependOnLibsWithTags: ['formfactor:mobile', 'formfactor:desktop'],
+    },
+    {
+        sourceTag: 'formfactor:mobile',
+        notDependOnLibsWithTags: ['formfactor:desktop'],
+    },
+    {
+        sourceTag: 'formfactor:desktop',
+        notDependOnLibsWithTags: ['formfactor:mobile'],
     },
 ];
 
@@ -588,6 +614,13 @@ export default [
         files: ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts', '**/*.js', '**/*.jsx', '**/*.mjs', '**/*.cjs'],
         rules: {
             '@nx/workspace-ratchet': 'error',
+        },
+    },
+    {
+        basePath: REPO_ROOT,
+        files: ['{apps,libs}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}'],
+        rules: {
+            '@nx/workspace-project-tags': ['error', { axes: ['layer', 'platform', 'formfactor'] }],
         },
     },
     {

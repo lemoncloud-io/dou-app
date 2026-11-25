@@ -3,6 +3,7 @@ import { Alert, Linking, Platform } from 'react-native';
 
 import { getEffectiveLanguage, t } from '../utils';
 import { versionService } from '../services';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; these link and store-URL helpers move to platform-free packages (mini-app protocol, host links)
 import { STORE_URLS } from '@chatic/shared';
 
 export interface VersionCheckResult {

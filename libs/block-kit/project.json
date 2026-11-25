@@ -3,5 +3,5 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/block-kit/src",
     "projectType": "library",
-    "tags": ["layer:ui"]
+    "tags": ["layer:ui", "platform:web", "formfactor:any"]
 }
