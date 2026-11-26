@@ -13,20 +13,29 @@ on:
     push:
         branches:
             - develop
+    # Hands develop a ratchet judge newer than its compare base — tools/eslint-rules/README.md
+    # § Who judges a change.
+    workflow_dispatch:
+        inputs:
+            judge:
+                description: 'A develop commit whose ratchet scripts, modes and baselines judge this run'
+                required: true
+                type: string
 
 # Read-only by default; the `base` job adds `actions: read` for its lookup.
 permissions:
     contents: read
 
+# A manual run gets a group of its own, so the next merge to develop cannot cancel it.
 concurrency:
-    group: verify-${{ github.ref }}
+    group: verify-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && '-manual' || '' }}
     cancel-in-progress: true
 
 jobs:
     # The commit both jobs below compare against, resolved once so they cannot disagree.
     #
     # A pull request is compared with its base branch. A push to develop is compared with the
-    # commit the last successful push run on develop checked, not with the commit just before it:
+    # commit the last successful push or manual run on develop checked, not with the commit just before it:
     # a run cancelled by the next merge, or a red one, would otherwise drop its commits out of
     # every later comparison, and a merge that touches some other project would turn develop green
     # while the broken one is still broken.
@@ -34,6 +43,12 @@ jobs:
     # Empty when there is nothing trustworthy to compare with — no successful run yet, a failed
     # lookup, a base that is not an ancestor of HEAD after a rewritten history — and both jobs then
     # check everything rather than guess.
+    #
+    # `judge` is the commit the ratchet steps take their judge and baselines from: the compare base,
+    # except in a manual run, where it is the `judge` input. That must be a commit on develop's
+    # first-parent line (a merge or a direct push, never a commit inside a merged branch), no older
+    # than the compare base, and carry the ratchet. Lint, typecheck and test still cover everything
+    # since the compare base.
     base:
         name: resolve the compare base
         runs-on: ubuntu-latest
@@ -42,6 +57,7 @@ jobs:
             actions: read
         outputs:
             sha: ${{ steps.base.outputs.sha }}
+            judge: ${{ steps.base.outputs.judge }}
         steps:
             - uses: actions/checkout@v4
               with:
@@ -52,17 +68,44 @@ jobs:
               env:
                   GH_TOKEN: ${{ github.token }}
                   PR_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+                  JUDGE_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.judge || '' }}
               run: |
                   if [ -n "$PR_BASE" ]; then
                       base=$(git rev-parse --verify --quiet "$PR_BASE^{commit}") || base=''
                   else
-                      base=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/verify.yml/runs?branch=develop&event=push&status=success&per_page=1" \
-                          --jq '.workflow_runs[0].head_sha // empty') || base=''
+                      base=$(for event in push workflow_dispatch; do
+                          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/verify.yml/runs?branch=develop&event=$event&status=success&per_page=1" \
+                              --jq '.workflow_runs[0] | select(.) | "\(.created_at) \(.head_sha)"' || echo failed
+                      done | sort -r | head -n 1 | cut -d' ' -f2)
+                      case "$base" in *failed* | '') base='' ;; esac
                       if [ -n "$base" ] && ! git merge-base --is-ancestor "$base" HEAD 2>/dev/null; then
                           base=''
                       fi
                   fi
+                  judge=$base
+                  if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+                      if [ "$GITHUB_REF" != refs/heads/develop ]; then
+                          echo "::error title=ratchet::a manual run judges develop only, not $GITHUB_REF"
+                          exit 1
+                      fi
+                      shown=${JUDGE_INPUT//[^0-9A-Za-z._\/-]/?}
+                      judge=$(git rev-parse --verify --quiet "$JUDGE_INPUT^{commit}") || judge=''
+                      if [ -z "$judge" ] || ! git rev-list --first-parent HEAD | grep -x "$judge" >/dev/null; then
+                          echo "::error title=ratchet::judge '$shown' is not a commit on develop's first-parent line"
+                          exit 1
+                      fi
+                      if [ -n "$base" ] && ! git merge-base --is-ancestor "$base" "$judge"; then
+                          echo "::error title=ratchet::judge $judge is older than the compare base $base"
+                          exit 1
+                      fi
+                      if ! git cat-file -e "$judge:scripts/ratchet.js" 2>/dev/null; then
+                          echo "::error title=ratchet::judge $judge carries no ratchet"
+                          exit 1
+                      fi
+                      echo "::notice title=ratchet::compare base ${base:-none}; ratchet judge $judge, chosen by $GITHUB_ACTOR"
+                  fi
                   echo "sha=$base" >> "$GITHUB_OUTPUT"
+                  echo "judge=$judge" >> "$GITHUB_OUTPUT"
 
     verify:
         needs: base
@@ -199,25 +242,26 @@ jobs:
             # module, the modes in scripts/ratchet/modes.json — is checked out from the compare base,
             # and the counts this tree may not exceed are the base's baselines (followed through
             # renames), so a change that loosens a check or raises a baseline is still judged by the
-            # old one. Until the base carries the ratchet, this tree judges itself.
+            # old one. Until the base carries the ratchet, this tree judges itself. A manual run takes
+            # the judge from its `judge` input instead (the `base` job).
             - name: Ratchet judge from the compare base
               id: judge
               if: ${{ !cancelled() }}
               env:
-                  BASE: ${{ needs.base.outputs.sha }}
+                  BASE: ${{ needs.base.outputs.judge }}
               run: |
                   if [ -n "$BASE" ] && git cat-file -e "$BASE:scripts/ratchet.js" 2>/dev/null; then
                       git worktree add --detach "$RUNNER_TEMP/ratchet-judge" "$BASE"
                       echo "dir=$RUNNER_TEMP/ratchet-judge" >> "$GITHUB_OUTPUT"
                   else
-                      echo "::notice title=ratchet::the compare base has no ratchet yet; this tree judges itself"
+                      echo "::notice title=ratchet::the judge commit has no ratchet yet; this tree judges itself"
                       echo "dir=$GITHUB_WORKSPACE" >> "$GITHUB_OUTPUT"
                   fi
 
             - name: Ratchet baselines only go down
-              if: ${{ !cancelled() && steps.judge.outcome == 'success' && needs.base.outputs.sha != '' }}
+              if: ${{ !cancelled() && steps.judge.outcome == 'success' && needs.base.outputs.judge != '' }}
               env:
-                  BASE: ${{ needs.base.outputs.sha }}
+                  BASE: ${{ needs.base.outputs.judge }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
                   RATCHET_ROOT: ${{ github.workspace }}
               run: node "$JUDGE/scripts/ratchet.js" verify-baseline --base "$BASE"
@@ -225,7 +269,7 @@ jobs:
             - name: Ratchet · comments, escape hatches, useEffect
               if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
               env:
-                  BASE: ${{ needs.base.outputs.sha }}
+                  BASE: ${{ needs.base.outputs.judge }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
                   RATCHET_ROOT: ${{ github.workspace }}
               run: node "$JUDGE/scripts/ratchet.js" check --only source ${BASE:+--reference "$BASE"}
@@ -233,7 +277,7 @@ jobs:
             - name: Ratchet · unused code (knip)
               if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
               env:
-                  BASE: ${{ needs.base.outputs.sha }}
+                  BASE: ${{ needs.base.outputs.judge }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
                   RATCHET_ROOT: ${{ github.workspace }}
               run: node "$JUDGE/scripts/ratchet.js" check --only knip ${BASE:+--reference "$BASE"}
@@ -241,7 +285,7 @@ jobs:
             - name: Ratchet · copy-paste (jscpd)
               if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
               env:
-                  BASE: ${{ needs.base.outputs.sha }}
+                  BASE: ${{ needs.base.outputs.judge }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
                   RATCHET_ROOT: ${{ github.workspace }}
               run: node "$JUDGE/scripts/ratchet.js" check --only jscpd ${BASE:+--reference "$BASE"}
@@ -252,7 +296,7 @@ jobs:
             - name: Ratchet · test files outside every typecheck
               if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
               env:
-                  BASE: ${{ needs.base.outputs.sha }}
+                  BASE: ${{ needs.base.outputs.judge }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
                   RATCHET_ROOT: ${{ github.workspace }}
               run: |
