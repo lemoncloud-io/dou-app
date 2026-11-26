@@ -37,6 +37,11 @@ jobs:
           xcrun --find metal || xcodebuild -downloadComponent MetalToolchain
           xcrun --find metal
 
+      - name: protoc for fcm-push-listener
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then brew install protobuf; else choco install protoc -y --no-progress; fi
+
       - name: OpenSSL for fcm-push-listener (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
