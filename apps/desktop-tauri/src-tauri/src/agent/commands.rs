@@ -63,12 +63,7 @@ pub fn agent_choose_cloud(
     cloud: String,
 ) -> Result<(), String> {
     from_agent_window(&webview)?;
-    if cloud.is_empty()
-        || cloud.len() > 64
-        || !cloud
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-    {
+    if !is_cloud_id(&cloud) {
         return Err("That is not a cloud id.".to_string());
     }
     if let Engine::Running { cloud: current, .. } | Engine::Starting { cloud: current } =
@@ -88,9 +83,7 @@ pub fn agent_open_approve_page(webview: Webview, app: AppHandle) -> Result<(), S
     let main = app
         .get_webview_window("main")
         .ok_or("the main window is gone")?;
-    let origin = crate::bridge::origin_of(main.url().map_err(|e| e.to_string())?.as_str())
-        .ok_or("the main window has no web address")?;
-    let origin = serde_json::Value::String(origin);
+    let origin = serde_json::Value::String(app.state::<crate::bridge::Bridge>().origin.clone());
     main.eval(format!(
         "if (location.origin === {origin}) {{ history.pushState({{}}, '', '/mypage/pairing/approve'); \
          window.dispatchEvent(new PopStateEvent('popstate')); }}"
@@ -139,9 +132,27 @@ pub async fn agent_rooms(webview: Webview, agent: Shared<'_>) -> Result<Value, S
     Ok(json!(list))
 }
 
+fn is_cloud_id(cloud: &str) -> bool {
+    !cloud.is_empty()
+        && cloud.len() <= 64
+        && cloud
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_cloud_id_is_a_short_word_of_letters_digits_dash_and_underscore() {
+        assert!(is_cloud_id("1000004"));
+        assert!(is_cloud_id("cloud-9_a"));
+        assert!(!is_cloud_id(""));
+        assert!(!is_cloud_id("../x"));
+        assert!(!is_cloud_id(&"a".repeat(65)));
+        assert!(is_cloud_id(&"a".repeat(64)));
+    }
 
     #[test]
     fn the_state_of_a_new_agent_says_signed_out_and_stopped() {

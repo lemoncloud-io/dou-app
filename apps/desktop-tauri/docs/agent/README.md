@@ -33,4 +33,4 @@ Status is read from the config files (`mcpServers.dou` and the launcher it point
 
 `ui/agent/` is plain HTML and JavaScript served from the app, under a strict content security policy, in a window with its own capability. Every `agent_*` command checks that the caller is the window labelled `agent`; the remote web's capability allows `bridge_request` only. The window is opened from the Agent menu (Ctrl or Cmd + Shift + A). A debug build also opens it when `DOU_OPEN_AGENT` is set, and starts pairing at launch when `DOU_AGENT_AUTOPAIR` is set and prints the code, for unattended runs.
 
-`DOU_VAULT_KEY_FILE` (any value) keeps the vault key in a file in the app data directory instead of the OS keychain; for unattended runs and CI, where a keychain prompt cannot be answered.
+`DOU_VAULT_KEY_FILE` (any value) keeps the vault key in a file in the app data directory instead of the OS keychain; read in debug builds only, for unattended runs and CI, where a keychain prompt cannot be answered; a release build ignores it.

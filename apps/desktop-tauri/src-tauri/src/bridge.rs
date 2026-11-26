@@ -9,7 +9,7 @@ use crate::globals::{ShellInfo, init_script, language_subtag};
 
 pub struct Bridge {
     host: Arc<BridgeHost>,
-    origin: String,
+    pub(crate) origin: String,
 }
 
 pub fn origin_of(address: &str) -> Option<String> {
