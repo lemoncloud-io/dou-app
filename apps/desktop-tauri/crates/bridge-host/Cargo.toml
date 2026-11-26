@@ -1,0 +1,16 @@
+[package]
+name = "bridge-host"
+description = "The Rust side of the web to app bridge envelope"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }

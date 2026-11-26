@@ -34,6 +34,14 @@
                 "cwd": "apps/desktop-tauri/src-tauri"
             },
             "cache": false
+        },
+        "check-bridge-contract": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "node apps/desktop-tauri/scripts/check-bridge-contract.mjs",
+                "cwd": "{workspaceRoot}"
+            },
+            "cache": false
         }
     }
 }

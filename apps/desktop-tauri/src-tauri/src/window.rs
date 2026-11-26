@@ -23,10 +23,11 @@ pub fn loader_path(web: &str) -> String {
     format!("index.html?{query}")
 }
 
-pub fn open_main(app: &AppHandle) -> tauri::Result<()> {
-    let path = loader_path(&web_url());
+pub fn open_main(app: &AppHandle, web: &str, init_script: &str) -> tauri::Result<()> {
+    let path = loader_path(web);
     WebviewWindowBuilder::new(app, "main", WebviewUrl::App(path.into()))
         .title("DoU")
+        .initialization_script(init_script)
         .inner_size(1100.0, 760.0)
         .min_inner_size(420.0, 560.0)
         .build()?;
