@@ -46,7 +46,7 @@ flowchart LR
   `syncLanguageChoiceToShell`). That covers a shell too old to have kept a config bag, and a
   `SavePreference` that was dropped.
 - **`t()` learns the choice by registration**, not by import. `utils/i18n` sits under the services
-  (`NotificationService` names its channels with `t`), and the store sits on top of them, so the store
+  (the push options in `src/config/families.ts` name the channels with `t`), and the store sits on top of them, so the store
   registers itself when it loads. Before that, `t()` answers with the device language.
 - **Copied to shared storage on every change and once per launch.** The push services build banners
   while the app may not be running and cannot reach MMKV. The launch-time copy covers an install that

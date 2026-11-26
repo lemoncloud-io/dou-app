@@ -18,29 +18,34 @@ jest.mock('@invertase/react-native-apple-authentication', () => ({
     },
 }));
 
-jest.mock('react-native-config', () => ({ __esModule: true, default: { VITE_GOOGLE_WEB_CLIENT_ID: 'web-id' } }));
-
 jest.mock('react-native', () => ({
     Platform: { OS: 'ios' },
 }));
 
 const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
+const OPTIONS = { googleWebClientId: 'web-id' };
 
 describe('OAuthService login', () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
+    it('configures Google sign-in with the web client id it was handed', () => {
+        new OAuthService(logger, OPTIONS);
+
+        expect(GoogleSignin.configure).toHaveBeenCalledWith({ webClientId: 'web-id', offlineAccess: true });
+    });
+
     it('resolves null when the user cancels Google sign-in', async () => {
         (GoogleSignin.signIn as jest.Mock).mockResolvedValue({ type: 'cancelled' });
-        const service = new OAuthService(logger);
+        const service = new OAuthService(logger, OPTIONS);
 
         await expect(service.login('google')).resolves.toBeNull();
     });
 
     it('throws when Google sign-in fails outright', async () => {
         (GoogleSignin.signIn as jest.Mock).mockRejectedValue(new Error('network down'));
-        const service = new OAuthService(logger);
+        const service = new OAuthService(logger, OPTIONS);
 
         await expect(service.login('google')).rejects.toThrow('network down');
     });
@@ -48,21 +53,21 @@ describe('OAuthService login', () => {
     it('throws when a Google success carries no idToken', async () => {
         (GoogleSignin.signIn as jest.Mock).mockResolvedValue({ type: 'success', data: { idToken: null } });
         (GoogleSignin.getTokens as jest.Mock).mockResolvedValue({ accessToken: 'at' });
-        const service = new OAuthService(logger);
+        const service = new OAuthService(logger, OPTIONS);
 
         await expect(service.login('google')).rejects.toThrow(/idToken/);
     });
 
     it('resolves null when the user cancels Apple sign-in', async () => {
         (appleAuth.performRequest as jest.Mock).mockRejectedValue({ code: 'CANCELED' });
-        const service = new OAuthService(logger);
+        const service = new OAuthService(logger, OPTIONS);
 
         await expect(service.login('apple')).resolves.toBeNull();
     });
 
     it('throws when Apple sign-in fails outright', async () => {
         (appleAuth.performRequest as jest.Mock).mockRejectedValue(new Error('sheet failed'));
-        const service = new OAuthService(logger);
+        const service = new OAuthService(logger, OPTIONS);
 
         await expect(service.login('apple')).rejects.toThrow('sheet failed');
     });
@@ -70,7 +75,7 @@ describe('OAuthService login', () => {
     it('throws when the Apple credential state is not authorized', async () => {
         (appleAuth.performRequest as jest.Mock).mockResolvedValue({ user: 'u1', identityToken: 'tok' });
         (appleAuth.getCredentialStateForUser as jest.Mock).mockResolvedValue('REVOKED');
-        const service = new OAuthService(logger);
+        const service = new OAuthService(logger, OPTIONS);
 
         await expect(service.login('apple')).rejects.toThrow(/credential state/);
     });
@@ -78,7 +83,7 @@ describe('OAuthService login', () => {
     it('resolves a credential on a clean Google sign-in', async () => {
         (GoogleSignin.signIn as jest.Mock).mockResolvedValue({ type: 'success', data: { idToken: 'id-1' } });
         (GoogleSignin.getTokens as jest.Mock).mockResolvedValue({ accessToken: 'at-1' });
-        const service = new OAuthService(logger);
+        const service = new OAuthService(logger, OPTIONS);
 
         await expect(service.login('google')).resolves.toMatchObject({ provider: 'google', idToken: 'id-1' });
     });

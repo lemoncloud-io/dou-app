@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-import { en, ko } from '../../utils/i18n/locales';
+import { en, ko } from './locales';
 
 const MOBILE_ROOT = join(__dirname, '../../../..');
 

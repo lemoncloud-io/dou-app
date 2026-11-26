@@ -27,7 +27,7 @@ grep -rhoE "from '@chatic/[a-z-]+'" --include='*.ts' --include='*.tsx' apps/mobi
   | sort | uniq -c | sort -rn
 ```
 
-Ten workspace packages, and `@chatic/bridge-messages` outnumbers the rest together.
+Thirteen workspace packages, and `@chatic/bridge-messages` outnumbers the rest together.
 [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) declares every message name and payload;
 [`@chatic/bridges`](../../libs/bridges/README.md) owns the transport, the reply matching and the
 timeouts on both sides of the boundary; [`@chatic/logger`](../../libs/logger/README.md) owns the log
@@ -37,6 +37,11 @@ shared pieces, and the User-Agent prefixes this app stamps on its WebView are de
 `@chatic/bridge-messages`. [`@chatic/runtime-mobile`](../../libs/runtime-mobile/README.md) and
 [`@chatic/db`](../../libs/db/README.md) are the runtime the app declares on its own storage (`src/config/mobile.ts`,
 `services/runtime/`), and `@chatic/data` is read by tests only.
+The store purchases, push and social sign-in services are their own packages, each pulling its native
+SDK: [`@chatic/checkout-store`](../../libs/checkout/store/README.md),
+[`@chatic/push-mobile`](../../libs/push/mobile/README.md) and
+[`@chatic/sign-in-mobile`](../../libs/sign-in/mobile/README.md). The app chooses and configures them
+in `src/config/families.ts` and builds them in `services/provider.ts`.
 
 What this app does **not** own: product screens, routing between them, data fetching and the debug
 panel UI (`apps/web`); the message vocabulary (`@chatic/bridge-messages`); the framing and the request
@@ -102,7 +107,7 @@ flowchart TD
     WV["webview/AppWebView"]
     Router["webview/hooks<br/>useWebMessageRouter"]
     Handlers["webview/hooks<br/>31 handlers"]
-    Services["services/<br/>23 domains"]
+    Services["services/<br/>21 domains"]
     BridgeTS["bridge/<br/>14 native modules"]
     Store["database/<br/>SQLite · MMKV"]
 
@@ -157,14 +162,15 @@ before the web client's own pre-paint code, and only the second survives a reloa
 apps/mobile/
 ├── src/
 │   ├── main.tsx           AppRegistry.registerComponent('Chatic', App) — four lines, nothing else
-│   ├── config/            the session runtime's declaration (mobile.ts) and its app-only adapters
+│   ├── config/            the session runtime's declaration (mobile.ts) and its app-only adapters;
+│   │                      families.ts picks and configures the store, push and sign-in packages
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash
 │       ├── webview/       101 files: AppWebView, the router, 31 handlers, injection
 │       ├── subWebView/    the second WebView, for a page on another origin — its own host, answering a
 │       │                  subset of the vocabulary
-│       ├── services/      143 files across 23 domains, assembled in provider.ts
+│       ├── services/      139 files across 21 domains, assembled in provider.ts
 │       ├── bridge/        14 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
 │       │                  push marks, share intake, shared language, system bars, file transfer

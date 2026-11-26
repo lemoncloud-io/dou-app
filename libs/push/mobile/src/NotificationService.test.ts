@@ -2,14 +2,14 @@ import notifee from '@notifee/react-native';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
 import { Platform } from 'react-native';
 
-import { BadgeSyncBridge } from '../../bridge';
 import { foregroundAPNsCopy, NotificationService } from './NotificationService';
+import type { NotificationServiceOptions, PushCopyLocalizer } from './types';
 
 const mockPermissionCheck = jest.fn();
 const mockPermissionRequest = jest.fn();
 const mockMessagingRequest = jest.fn();
-const mockGetInitialNotification = jest.fn(async () => null);
-const mockApnsGetInitial = jest.fn(async () => null);
+const mockGetInitialNotification = jest.fn(async (..._args: unknown[]) => null);
+const mockApnsGetInitial = jest.fn(async (..._args: unknown[]) => null);
 jest.mock('react-native', () => ({
     PermissionsAndroid: {
         PERMISSIONS: { POST_NOTIFICATIONS: 'post' },
@@ -42,33 +42,44 @@ jest.mock('@react-native-community/push-notification-ios', () => ({
         getInitialNotification: (...args: unknown[]) => mockApnsGetInitial(...args),
     },
 }));
-jest.mock('../../bridge', () => ({ BadgeSyncBridge: { setBase: jest.fn().mockResolvedValue(undefined) } }));
-let mockLanguage = 'ko';
-jest.mock('../../utils', () => ({
-    t: (key: string) => key,
-    getEffectiveLanguage: () => mockLanguage,
-    formatPushCopy: jest.requireActual('../../utils/i18n/formatPushCopy').formatPushCopy,
-}));
+
+const COPY: Record<string, string> = {
+    push_chat_message_title: '{0}',
+    push_chat_image_body: 'Sent a photo',
+    push_chat_images_body: 'Sent {0} photos',
+};
+
+const fakeLocalize: PushCopyLocalizer = (locKey, locArgs) => {
+    const args = Array.isArray(locArgs) ? locArgs.map(String) : [];
+    return (COPY[locKey] ?? locKey).replace(/\{(\d+)\}/g, (_, index: string) => args[Number(index)] ?? '');
+};
+
+const setBaseMock = jest.fn().mockResolvedValue(undefined);
+
+const options = (overrides: Partial<NotificationServiceOptions> = {}): NotificationServiceOptions => ({
+    copy: { channelName: channel => `channel.${channel}`, localize: fakeLocalize },
+    badgeMirror: { setBase: setBaseMock },
+    ...overrides,
+});
 
 const notifeeSetBadge = notifee.setBadgeCount as jest.Mock;
-const setBaseMock = BadgeSyncBridge.setBase as jest.Mock;
 
-describe('NotificationService 뱃지 — 네이티브 base 동기화', () => {
-    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
+describe('NotificationService badge — native base mirror', () => {
+    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() };
     let service: NotificationService;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        service = new NotificationService(logger);
+        service = new NotificationService(logger, options());
     });
 
-    it('setBadgeCount는 notifee와 네이티브 base를 같은 값으로 갱신한다', async () => {
+    it('setBadgeCount writes the same count to notifee and the badge mirror', async () => {
         await service.setBadgeCount(7);
         expect(notifeeSetBadge).toHaveBeenCalledWith(7);
         expect(setBaseMock).toHaveBeenCalledWith(7);
     });
 
-    it('clearBadge는 notifee와 네이티브 base를 모두 0으로 되돌린다', async () => {
+    it('clearBadge resets notifee and the badge mirror to 0', async () => {
         await service.clearBadge();
         expect(notifeeSetBadge).toHaveBeenCalledWith(0);
         expect(setBaseMock).toHaveBeenCalledWith(0);
@@ -76,11 +87,8 @@ describe('NotificationService 뱃지 — 네이티브 base 동기화', () => {
 });
 
 describe('foregroundAPNsCopy', () => {
-    beforeEach(() => {
-        mockLanguage = 'ko';
-    });
-
-    it('builds an attachment body from loc_key and loc_args in the shell language', () => {
+    it('builds the title and body from the loc keys and args through the localizer', () => {
+        const localize = jest.fn(fakeLocalize);
         const data = {
             loc_key: 'push_chat_images_body',
             loc_args: ['3'],
@@ -88,22 +96,25 @@ describe('foregroundAPNsCopy', () => {
             title_loc_args: ['Raine'],
         };
 
-        expect(foregroundAPNsCopy(data, 'chat', '')).toEqual({ title: 'Raine', body: '사진 3장을 보냈습니다' });
-
-        mockLanguage = 'en';
-        expect(foregroundAPNsCopy(data, 'chat', '')).toEqual({ title: 'Raine', body: 'Sent 3 photos' });
+        expect(foregroundAPNsCopy(data, 'chat', '', localize)).toEqual({ title: 'Raine', body: 'Sent 3 photos' });
+        expect(localize).toHaveBeenCalledWith('push_chat_message_title', ['Raine'], 'title');
+        expect(localize).toHaveBeenCalledWith('push_chat_images_body', ['3'], 'body');
     });
 
-    it('shows the fallback copy for a text key that arrived without its arg', () => {
-        expect(foregroundAPNsCopy({ loc_key: 'push_chat_message_body' }, 'Raine', '').body).toBe('새 메시지');
-    });
+    it('keeps the APNs alert for a payload with no loc keys, without asking the localizer', () => {
+        const localize = jest.fn(fakeLocalize);
 
-    it('keeps the APNs alert for a payload with no loc keys', () => {
-        expect(foregroundAPNsCopy({}, 'Test title', 'Test body')).toEqual({ title: 'Test title', body: 'Test body' });
+        expect(foregroundAPNsCopy({}, 'Test title', 'Test body', localize)).toEqual({
+            title: 'Test title',
+            body: 'Test body',
+        });
+        expect(localize).not.toHaveBeenCalled();
     });
 
     it('keeps the APNs alert title when the title template formats to nothing', () => {
-        expect(foregroundAPNsCopy({ title_loc_key: 'push_chat_message_title' }, 'chat', 'x').title).toBe('chat');
+        expect(foregroundAPNsCopy({ title_loc_key: 'push_chat_message_title' }, 'chat', 'x', fakeLocalize).title).toBe(
+            'chat'
+        );
     });
 
     it('leaves a silent push without copy', () => {
@@ -113,31 +124,40 @@ describe('foregroundAPNsCopy', () => {
             title_loc_args: ['Raine'],
         };
 
-        expect(foregroundAPNsCopy({ ...data, silent: true }, undefined, undefined)).toEqual({
+        expect(foregroundAPNsCopy({ ...data, silent: true }, undefined, undefined, fakeLocalize)).toEqual({
             title: undefined,
             body: undefined,
         });
-        expect(foregroundAPNsCopy({ ...data, silent: 'true' }, undefined, undefined)).toEqual({
+        expect(foregroundAPNsCopy({ ...data, silent: 'true' }, undefined, undefined, fakeLocalize)).toEqual({
             title: undefined,
             body: undefined,
         });
-        expect(foregroundAPNsCopy({ ...data, silent: false }, undefined, undefined).body).toBe('사진을 보냈습니다');
+        expect(foregroundAPNsCopy({ ...data, silent: false }, undefined, undefined, fakeLocalize).body).toBe(
+            'Sent a photo'
+        );
     });
 
     it('reads the camelCase aliases the extension also accepts', () => {
-        const data = { bodyLocKey: 'push_chat_files_body', bodyLocArgs: '["2"]' };
+        const localize = jest.fn(fakeLocalize);
+        const data = {
+            bodyLocKey: 'push_chat_files_body',
+            bodyLocArgs: '["2"]',
+            titleLocKey: 'push_chat_message_title',
+        };
 
-        expect(foregroundAPNsCopy(data, 'Raine', '').body).toBe('파일 2개를 보냈습니다');
+        foregroundAPNsCopy(data, 'Raine', '', localize);
+
+        expect(localize).toHaveBeenCalledWith('push_chat_files_body', '["2"]', 'body');
+        expect(localize).toHaveBeenCalledWith('push_chat_message_title', undefined, 'title');
     });
 });
 
 describe('NotificationService onMessage — iOS foreground', () => {
-    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
+    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() };
     const addEventListener = PushNotificationIOS.addEventListener as jest.Mock;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockLanguage = 'en';
         (Platform as { OS: string }).OS = 'ios';
     });
 
@@ -147,7 +167,7 @@ describe('NotificationService onMessage — iOS foreground', () => {
 
     it('hands the callback the copy built from the payload, not the bare APNs alert', () => {
         const callback = jest.fn();
-        new NotificationService(logger).onMessage(callback);
+        new NotificationService(logger, options()).onMessage(callback);
         const [event, handleAPNs] = addEventListener.mock.calls[0];
         const data = {
             loc_key: 'push_chat_image_body',
@@ -167,7 +187,7 @@ describe('NotificationService onMessage — iOS foreground', () => {
 });
 
 describe('NotificationService permission prompt', () => {
-    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
+    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() };
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -179,7 +199,7 @@ describe('NotificationService permission prompt', () => {
         mockPermissionCheck.mockResolvedValue(false);
         let lift!: () => void;
         const beforePrompt = jest.fn(() => new Promise<void>(resolve => (lift = resolve)));
-        const service = new NotificationService(logger, beforePrompt);
+        const service = new NotificationService(logger, options({ beforePrompt }));
 
         const result = service.requestPermission();
         await new Promise(resolve => setTimeout(resolve, 0));
@@ -194,7 +214,7 @@ describe('NotificationService permission prompt', () => {
     it('does not wait when the permission is already decided, since no prompt will show', async () => {
         mockPermissionCheck.mockResolvedValue(true);
         const beforePrompt = jest.fn(() => Promise.resolve());
-        const service = new NotificationService(logger, beforePrompt);
+        const service = new NotificationService(logger, options({ beforePrompt }));
 
         await expect(service.requestPermission()).resolves.toBe(true);
         expect(beforePrompt).not.toHaveBeenCalled();
@@ -202,14 +222,14 @@ describe('NotificationService permission prompt', () => {
 });
 
 describe('NotificationService cold-start capture', () => {
-    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
+    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() };
     let service: NotificationService;
 
     beforeEach(() => {
         jest.clearAllMocks();
         mockGetInitialNotification.mockResolvedValue(null);
         mockApnsGetInitial.mockResolvedValue(null);
-        service = new NotificationService(logger);
+        service = new NotificationService(logger, options());
     });
 
     it('returns null and logs when the FCM cold-start lookup rejects', async () => {
@@ -233,6 +253,23 @@ describe('NotificationService cold-start capture', () => {
         } finally {
             (Platform as unknown as { OS: string }).OS = 'android';
         }
+    });
+
+    it('names each channel with the copy it was handed', async () => {
+        const notifeeModule = jest.requireMock('@notifee/react-native').default;
+        notifeeModule.createChannel = jest.fn().mockResolvedValue(undefined);
+
+        await service.createNotificationChannel();
+
+        expect(
+            notifeeModule.createChannel.mock.calls.map(([channel]: [{ id: string; name: string }]) => channel)
+        ).toEqual([
+            expect.objectContaining({ id: 'dou_chat', name: 'channel.chat', importance: 4 }),
+            expect.objectContaining({ id: 'dou_chat_muted', name: 'channel.chat', importance: 2 }),
+            expect.objectContaining({ id: 'dou_notice', name: 'channel.notice', importance: 3 }),
+            expect.objectContaining({ id: 'dou_marketing', name: 'channel.marketing', importance: 2 }),
+            expect.objectContaining({ id: 'dou_cloud', name: 'channel.cloud', importance: 4 }),
+        ]);
     });
 
     it('logs and resolves when creating notification channels fails', async () => {

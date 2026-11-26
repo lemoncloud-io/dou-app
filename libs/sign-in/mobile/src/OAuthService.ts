@@ -6,28 +6,31 @@ import type {
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import type { AppleCredentialState, AppleRequestResponse } from '@invertase/react-native-apple-authentication';
 import { appleAuth } from '@invertase/react-native-apple-authentication';
-import type { OAuthLoginProvider, OAuthTokenResult, Platform as PlatformType } from '@chatic/bridge-messages';
-import Config from 'react-native-config';
 import { Platform } from 'react-native';
-import type { IOAuthService } from './types';
-import type { ILogService } from '../log';
+import type { Logger } from '@chatic/logger';
+import type { SignInPlatform, SignInProvider, SignInToken } from '@chatic/ports';
+
+import type { IOAuthService, OAuthServiceOptions } from './types';
 
 const isAppleCancel = (error: unknown): boolean =>
     typeof error === 'object' && error !== null && (error as { code?: unknown }).code === appleAuth.Error.CANCELED;
 
 export class OAuthService implements IOAuthService {
-    constructor(private readonly logger: ILogService) {
+    constructor(
+        private readonly logger: Logger,
+        { googleWebClientId }: OAuthServiceOptions
+    ) {
         GoogleSignin.configure({
-            webClientId: Config.VITE_GOOGLE_WEB_CLIENT_ID,
+            webClientId: googleWebClientId,
             offlineAccess: true,
         });
     }
 
-    private getPlatform(): PlatformType {
+    private getPlatform(): SignInPlatform {
         return Platform.OS === 'ios' ? 'ios' : 'android';
     }
 
-    async login(provider: OAuthLoginProvider): Promise<OAuthTokenResult | null> {
+    async login(provider: SignInProvider): Promise<SignInToken | null> {
         switch (provider) {
             case 'google':
                 return await this.signInWithGoogle();
@@ -38,7 +41,7 @@ export class OAuthService implements IOAuthService {
         }
     }
 
-    async logout(provider: OAuthLoginProvider): Promise<boolean> {
+    async logout(provider: SignInProvider): Promise<boolean> {
         try {
             switch (provider) {
                 case 'google':
@@ -60,7 +63,7 @@ export class OAuthService implements IOAuthService {
         }
     }
 
-    private async signInWithGoogle(): Promise<OAuthTokenResult | null> {
+    private async signInWithGoogle(): Promise<SignInToken | null> {
         try {
             await GoogleSignin.signOut();
             const userInfo: SignInSuccessResponse | CancelledResponse = await GoogleSignin.signIn();
@@ -97,7 +100,7 @@ export class OAuthService implements IOAuthService {
         }
     }
 
-    private async signInWithApple(): Promise<OAuthTokenResult | null> {
+    private async signInWithApple(): Promise<SignInToken | null> {
         try {
             const response: AppleRequestResponse = await appleAuth.performRequest({
                 requestedOperation: appleAuth.Operation.LOGIN,

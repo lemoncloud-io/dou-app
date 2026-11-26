@@ -3,35 +3,38 @@ import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import messaging, { AuthorizationStatus } from '@react-native-firebase/messaging';
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import PushNotificationIOS from '@react-native-community/push-notification-ios';
-import type { INotificationService } from './types';
-import type { ILogService } from '../log';
-import { BadgeSyncBridge } from '../../bridge';
-import { formatPushCopy, getEffectiveLanguage, t } from '../../utils';
+import type { Logger } from '@chatic/logger';
+
+import type { INotificationService, NotificationServiceOptions, PushCopyLocalizer } from './types';
 
 const asString = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined);
 
 export const foregroundAPNsCopy = (
     data: Record<string, unknown>,
     alertTitle: string | undefined,
-    alertBody: string | undefined
+    alertBody: string | undefined,
+    localize: PushCopyLocalizer
 ): { title: string | undefined; body: string | undefined } => {
     if (data.silent === true || data.silent === 'true') return { title: alertTitle, body: alertBody };
-    const lang = getEffectiveLanguage();
     const titleKey = asString(data.title_loc_key) ?? asString(data.titleLocKey);
     const bodyKey = asString(data.loc_key) ?? asString(data.bodyLocKey);
     const titleArgs = data.title_loc_args ?? data.titleLocArgs;
     const bodyArgs = data.loc_args ?? data.bodyLocArgs;
     return {
-        title: (titleKey && formatPushCopy(titleKey, titleArgs, lang, 'title')) || alertTitle,
-        body: (bodyKey && formatPushCopy(bodyKey, bodyArgs, lang, 'body')) || alertBody,
+        title: (titleKey && localize(titleKey, titleArgs, 'title')) || alertTitle,
+        body: (bodyKey && localize(bodyKey, bodyArgs, 'body')) || alertBody,
     };
 };
 
 export class NotificationService implements INotificationService {
+    private readonly beforePrompt: () => Promise<void>;
+
     constructor(
-        private readonly logger: ILogService,
-        private readonly beforePrompt: () => Promise<void> = () => Promise.resolve()
-    ) {}
+        private readonly logger: Logger,
+        private readonly options: NotificationServiceOptions
+    ) {
+        this.beforePrompt = options.beforePrompt ?? (() => Promise.resolve());
+    }
 
     async hasPermission(): Promise<FirebaseMessagingTypes.AuthorizationStatus> {
         return messaging().hasPermission();
@@ -41,31 +44,31 @@ export class NotificationService implements INotificationService {
         try {
             await notifee.createChannel({
                 id: 'dou_chat',
-                name: t('notification.channel.chat'),
+                name: this.options.copy.channelName('chat'),
                 importance: AndroidImportance.HIGH,
                 sound: 'default',
             });
             await notifee.createChannel({
                 id: 'dou_chat_muted',
-                name: t('notification.channel.chat'),
+                name: this.options.copy.channelName('chat'),
                 importance: AndroidImportance.LOW,
             });
 
             await notifee.createChannel({
                 id: 'dou_notice',
-                name: t('notification.channel.notice'),
+                name: this.options.copy.channelName('notice'),
                 importance: AndroidImportance.DEFAULT,
             });
 
             await notifee.createChannel({
                 id: 'dou_marketing',
-                name: t('notification.channel.marketing'),
+                name: this.options.copy.channelName('marketing'),
                 importance: AndroidImportance.LOW,
             });
 
             await notifee.createChannel({
                 id: 'dou_cloud',
-                name: t('notification.channel.cloud'),
+                name: this.options.copy.channelName('cloud'),
                 importance: AndroidImportance.HIGH,
             });
         } catch (e) {
@@ -165,7 +168,12 @@ export class NotificationService implements INotificationService {
             const handleAPNs = (notification: any) => {
                 const data = (notification.getData() ?? {}) as Record<string, unknown>;
                 const normalizedMessage = {
-                    notification: foregroundAPNsCopy(data, notification.getTitle(), notification.getMessage()),
+                    notification: foregroundAPNsCopy(
+                        data,
+                        notification.getTitle(),
+                        notification.getMessage(),
+                        this.options.copy.localize
+                    ),
                     data: data as Record<string, string>,
                     sentTime: Date.now(),
                 } as FirebaseMessagingTypes.RemoteMessage;
@@ -223,7 +231,7 @@ export class NotificationService implements INotificationService {
     async setBadgeCount(count: number): Promise<void> {
         try {
             await notifee.setBadgeCount(count);
-            await BadgeSyncBridge.setBase(count);
+            await this.options.badgeMirror.setBase(count);
         } catch (e) {
             this.logger.error('NOTIFICATION', 'Set badge error.', e);
         }
@@ -232,7 +240,7 @@ export class NotificationService implements INotificationService {
     async clearBadge(): Promise<void> {
         try {
             await notifee.setBadgeCount(0);
-            await BadgeSyncBridge.setBase(0);
+            await this.options.badgeMirror.setBase(0);
         } catch (e) {
             this.logger.error('NOTIFICATION', 'Clear badge error.', e);
         }

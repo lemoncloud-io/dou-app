@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { DeviceEventEmitter, Platform } from 'react-native';
 import { logger, notificationService, pushEventManager } from '../../services';
 import { BadgeSyncBridge, PushMarksBridge } from '../../bridge';
-import { acquirePushToken } from '../../services/notification/pushToken';
+import { acquirePushToken } from '@chatic/push-mobile';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { WebMessageData } from '@chatic/bridge-messages';
 

@@ -231,7 +231,6 @@
     "apps/mobile/src/app/services/runtime/runtimeBridge.test.ts": {"comments":3},
     "apps/mobile/src/app/services/subWebView/SubWebViewService.test.ts": {"asAny":1},
     "apps/mobile/src/app/services/subWebView/subWebViewStorage.ts": {"comments":1},
-    "apps/mobile/src/app/services/subscriptionIap/SubscriptionIapService.ts": {"asAny":1},
     "apps/mobile/src/app/services/unfurl/UnfurlService.test.ts": {"asAny":7,"comments":1},
     "apps/mobile/src/app/services/unfurl/UnfurlService.ts": {"comments":1},
     "apps/mobile/src/app/subWebView/SubWebView.test.tsx": {"asAny":1},

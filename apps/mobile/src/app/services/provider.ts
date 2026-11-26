@@ -20,14 +20,13 @@ import type { IClipboardService } from './clipboard';
 import { ClipboardService } from './clipboard';
 import type { IPermissionService } from './permission';
 import { PermissionService } from './permission';
-import type { INotificationService, IPushEventManager } from './notification';
-import { NotificationService } from './notification';
-import { PushEventManager } from './notification/PushEventManager';
+import type { INotificationService, IPushEventManager } from '@chatic/push-mobile';
+import { NotificationService, PushEventManager } from '@chatic/push-mobile';
 import { DeepLinkManager } from './deeplinks/DeepLinkManager';
 import type { IDeeplinkService } from './deeplinks/DeeplinkService';
 import { DeeplinkService } from './deeplinks/DeeplinkService';
-import type { IOAuthService } from './oauth';
-import { OAuthService } from './oauth';
+import type { IOAuthService } from '@chatic/sign-in-mobile';
+import { OAuthService } from '@chatic/sign-in-mobile';
 import type { IDynamicAppIconService } from './dynamicAppIcon';
 import { DynamicAppIconService } from './dynamicAppIcon';
 import type { IBootSplashService } from './bootSplash';
@@ -35,8 +34,9 @@ import { BootSplashService } from './bootSplash';
 import { BootSplashBridge } from '../bridge/BootSplashBridge';
 import type { IFirebaseCrashlyticsService, IFirebaseInstallationService } from './firebase';
 import { FirebaseCrashlyticsService, FirebaseInstallationService, FirebasePerfTraceBackend } from './firebase';
-import type { ISubscriptionIapService } from './subscriptionIap';
-import { SubscriptionIapService } from './subscriptionIap';
+import type { ISubscriptionIapService } from '@chatic/checkout-store';
+import { SubscriptionIapService } from '@chatic/checkout-store';
+import { pushBadgeMirror, pushCopy, signInOptions, storeCheckout } from '../../config/families';
 import type { IConfigKvService } from './config';
 import { ConfigKvService } from './config';
 import type { IPreferenceService } from './preference';
@@ -150,9 +150,11 @@ class DependencyProvider {
 
         this.bootSplashService = new BootSplashService(this.logService, BootSplashBridge);
         this.bootSplashService.subscribe(reason => this.bootMetricsService.recordReveal(reason));
-        this.notificationService = new NotificationService(this.logService, () =>
-            this.bootSplashService.whenRevealed()
-        );
+        this.notificationService = new NotificationService(this.logService, {
+            copy: pushCopy,
+            badgeMirror: pushBadgeMirror,
+            beforePrompt: () => this.bootSplashService.whenRevealed(),
+        });
         this.pushEventManager = new PushEventManager(this.logService);
         this.deeplinkManager = new DeepLinkManager(this.logService);
         this.deeplinkService = new DeeplinkService(this.deeplinkManager, this.logService);
@@ -279,7 +281,7 @@ class DependencyProvider {
     }
 
     public get oauthService(): IOAuthService {
-        if (!this._oauthService) this._oauthService = new OAuthService(this.logService);
+        if (!this._oauthService) this._oauthService = new OAuthService(this.logService, signInOptions());
         return this._oauthService;
     }
 
@@ -299,7 +301,7 @@ class DependencyProvider {
 
     public get subscriptionIapService(): ISubscriptionIapService {
         if (!this._subscriptionIapService) {
-            this._subscriptionIapService = new SubscriptionIapService(this.logService);
+            this._subscriptionIapService = new SubscriptionIapService(this.logService, storeCheckout());
         }
         return this._subscriptionIapService;
     }

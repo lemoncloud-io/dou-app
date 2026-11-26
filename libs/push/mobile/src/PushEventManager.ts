@@ -1,11 +1,11 @@
 import type { FirebaseMessagingTypes } from '@react-native-firebase/messaging';
 import type { IPushEventManager } from './types';
-import type { ILogService } from '../log';
+import type { Logger } from '@chatic/logger';
 
 export class PushEventManager implements IPushEventManager {
     private readonly receiveListeners = new Set<(message: FirebaseMessagingTypes.RemoteMessage) => void>();
 
-    constructor(private readonly logger: ILogService) {}
+    constructor(private readonly logger: Logger) {}
 
     onReceiveNotification(callback: (message: FirebaseMessagingTypes.RemoteMessage) => void): () => void {
         this.receiveListeners.add(callback);
