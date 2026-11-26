@@ -1,0 +1,150 @@
+{
+  "source": "libs/http/src/signing/sigV4.ts",
+  "vectors": [
+    {
+      "name": "get-no-params",
+      "credential": {
+        "accessKey": "AKIAFIXTUREKEY0001",
+        "secretKey": "fixture/secret+key0123456789ABCDEFghijkl"
+      },
+      "endpoint": "https://relay.example.test/pairings",
+      "method": "get",
+      "region": "ap-northeast-2",
+      "now": "2026-11-26T09:41:07.123Z",
+      "headers": {
+        "Accept": "application/json",
+        "x-amz-date": "20261126T094107Z",
+        "Authorization": "AWS4-HMAC-SHA256 Credential=AKIAFIXTUREKEY0001/20261126/ap-northeast-2/execute-api/aws4_request, SignedHeaders=accept;host;x-amz-date, Signature=8077a2da873f8e1d410907fab97282bf91c3ca69be86870d1d43a875cf2ea5c6",
+        "Content-Type": "application/json"
+      }
+    },
+    {
+      "name": "get-params-sorted-and-escaped",
+      "credential": {
+        "accessKey": "AKIAFIXTUREKEY0001",
+        "secretKey": "fixture/secret+key0123456789ABCDEFghijkl"
+      },
+      "endpoint": "https://relay.example.test:8443/v1/users/me",
+      "method": "get",
+      "params": {
+        "zeta": "a b",
+        "alpha": "it's (1)*!",
+        "token": 1,
+        "flag": true,
+        "한글": "값"
+      },
+      "region": "ap-northeast-2",
+      "now": "2026-11-26T09:41:07.123Z",
+      "headers": {
+        "Accept": "application/json",
+        "x-amz-date": "20261126T094107Z",
+        "Authorization": "AWS4-HMAC-SHA256 Credential=AKIAFIXTUREKEY0001/20261126/ap-northeast-2/execute-api/aws4_request, SignedHeaders=accept;host;x-amz-date, Signature=b0e7adf004cf061b9d44f2dbdac61fe617dc0f8e580742a6ab4c8c8ee2dee305",
+        "Content-Type": "application/json"
+      }
+    },
+    {
+      "name": "post-object-body",
+      "credential": {
+        "accessKey": "AKIAFIXTUREKEY0001",
+        "secretKey": "fixture/secret+key0123456789ABCDEFghijkl",
+        "sessionToken": "fixture-session-token//with+chars=="
+      },
+      "endpoint": "https://relay.example.test/pairings/0/request",
+      "method": "post",
+      "body": {
+        "purpose": "web",
+        "deviceId": "dev-1",
+        "client": {
+          "name": "Chrome · macOS",
+          "platform": "macOS"
+        }
+      },
+      "region": "ap-northeast-2",
+      "now": "2026-11-26T09:41:07.123Z",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "x-amz-date": "20261126T094107Z",
+        "Authorization": "AWS4-HMAC-SHA256 Credential=AKIAFIXTUREKEY0001/20261126/ap-northeast-2/execute-api/aws4_request, SignedHeaders=accept;content-type;host;x-amz-date, Signature=8682749ffbfbaaa516e34a73e86b8602c89304aa0c4ac80576d7d372f243b53a",
+        "x-amz-security-token": "fixture-session-token//with+chars=="
+      }
+    },
+    {
+      "name": "post-no-body",
+      "credential": {
+        "accessKey": "AKIAFIXTUREKEY0001",
+        "secretKey": "fixture/secret+key0123456789ABCDEFghijkl"
+      },
+      "endpoint": "https://relay.example.test/pairings/abc/claim",
+      "method": "post",
+      "region": "ap-northeast-2",
+      "now": "2026-11-26T09:41:07.123Z",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "x-amz-date": "20261126T094107Z",
+        "Authorization": "AWS4-HMAC-SHA256 Credential=AKIAFIXTUREKEY0001/20261126/ap-northeast-2/execute-api/aws4_request, SignedHeaders=accept;content-type;host;x-amz-date, Signature=30021527597ef0630375fd37b6c263f0992996e52b31011096b22740cd03046f"
+      }
+    },
+    {
+      "name": "post-empty-object",
+      "credential": {
+        "accessKey": "AKIAFIXTUREKEY0001",
+        "secretKey": "fixture/secret+key0123456789ABCDEFghijkl"
+      },
+      "endpoint": "https://relay.example.test/x",
+      "method": "post",
+      "body": {},
+      "region": "ap-northeast-2",
+      "now": "2026-11-26T09:41:07.123Z",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "x-amz-date": "20261126T094107Z",
+        "Authorization": "AWS4-HMAC-SHA256 Credential=AKIAFIXTUREKEY0001/20261126/ap-northeast-2/execute-api/aws4_request, SignedHeaders=accept;content-type;host;x-amz-date, Signature=aa8986783dd59b5dc6e3ae3afcb84a499f7f91f6d8589044633967ad1d3abf90"
+      }
+    },
+    {
+      "name": "path-with-unicode-and-specials",
+      "credential": {
+        "accessKey": "AKIAFIXTUREKEY0001",
+        "secretKey": "fixture/secret+key0123456789ABCDEFghijkl",
+        "sessionToken": "fixture-session-token//with+chars=="
+      },
+      "endpoint": "https://relay.example.test/a b/한글/it's/(x)*!~",
+      "method": "put",
+      "body": {
+        "text": "line1\nline2\t\"quoted\" \\ \u0001 한글 😀"
+      },
+      "region": "ap-northeast-2",
+      "now": "2026-11-26T09:41:07.123Z",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "x-amz-date": "20261126T094107Z",
+        "Authorization": "AWS4-HMAC-SHA256 Credential=AKIAFIXTUREKEY0001/20261126/ap-northeast-2/execute-api/aws4_request, SignedHeaders=accept;content-type;host;x-amz-date, Signature=0e0baf4c2ba7b0b2c2224061ce97dbd87c917f745079c4c246f3213fa72d7d3c",
+        "x-amz-security-token": "fixture-session-token//with+chars=="
+      }
+    },
+    {
+      "name": "delete-with-params",
+      "credential": {
+        "accessKey": "AKIAFIXTUREKEY0001",
+        "secretKey": "fixture/secret+key0123456789ABCDEFghijkl"
+      },
+      "endpoint": "https://relay.example.test/rooms/9",
+      "method": "delete",
+      "params": {
+        "force": "yes"
+      },
+      "region": "ap-northeast-2",
+      "now": "2026-11-26T09:41:07.123Z",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "x-amz-date": "20261126T094107Z",
+        "Authorization": "AWS4-HMAC-SHA256 Credential=AKIAFIXTUREKEY0001/20261126/ap-northeast-2/execute-api/aws4_request, SignedHeaders=accept;content-type;host;x-amz-date, Signature=57850e0d9befeb547cd63bc55f0fba3f296f88251c6628feaf72cf8125bbb4bb"
+      }
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+    "name": "desktop-native",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/desktop-native/crates",
+    "projectType": "application",
+    "tags": ["layer:app", "platform:desktop", "formfactor:desktop"],
+    "targets": {
+        "rust-build": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "cargo build --workspace",
+                "cwd": "apps/desktop-native"
+            }
+        },
+        "rust-test": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "cargo test --workspace",
+                "cwd": "apps/desktop-native"
+            }
+        },
+        "rust-lint": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": ["cargo fmt --check", "cargo clippy --workspace --all-targets -- -D warnings"],
+                "cwd": "apps/desktop-native",
+                "parallel": false
+            }
+        },
+        "vectors": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx esbuild apps/desktop-native/vectors/generate.ts --bundle --platform=node --format=cjs --log-level=warning --outfile=apps/desktop-native/target/vectors/generate.cjs && node apps/desktop-native/target/vectors/generate.cjs",
+                "cwd": "{workspaceRoot}"
+            },
+            "cache": false
+        },
+        "vectors-check": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "npx esbuild apps/desktop-native/vectors/generate.ts --bundle --platform=node --format=cjs --log-level=warning --outfile=apps/desktop-native/target/vectors/generate.cjs && node apps/desktop-native/target/vectors/generate.cjs --check",
+                "cwd": "{workspaceRoot}"
+            },
+            "cache": false
+        }
+    }
+}
