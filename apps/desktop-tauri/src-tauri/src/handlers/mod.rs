@@ -2,6 +2,7 @@ mod notify;
 mod simple;
 mod storage;
 mod subview;
+mod update;
 
 use std::future::ready;
 use std::sync::Arc;
@@ -21,6 +22,8 @@ pub const HANDLED: &[&str] = &[
     "ShowNotification",
     "OpenSubWebView",
     "CloseSubWebView",
+    "StartUpdateDownload",
+    "RestartToUpdate",
     "StorageGet",
     "StorageSave",
     "StorageClear",
@@ -39,6 +42,7 @@ pub fn register_all(host: &mut BridgeHost, context: &Context) {
     simple::register(host, context);
     notify::register(host, context);
     subview::register(host, context);
+    update::register(host, context);
     storage::register(host, context);
 }
 
