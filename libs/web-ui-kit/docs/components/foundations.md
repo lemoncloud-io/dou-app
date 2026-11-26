@@ -1,6 +1,7 @@
 # Foundations
 
-Base components in `src/foundations/` and the icon set in `src/resources/icons/`.
+Base components in `src/foundations/`. The icon set lives in `@chatic/design-system-assets` and is re-exported from
+`src/resources/icons/`.
 
 ## Buttons
 
@@ -109,7 +110,8 @@ Base components in `src/foundations/` and the icon set in `src/resources/icons/`
 
 ## Icons
 
-- `src/resources/icons/index.ts` is the only file that imports `lucide-react`; components import `Icon*` aliases.
+- `libs/design-system/assets/src/icons/index.ts` is the only file that imports `lucide-react`; components import
+  `Icon*` aliases through `src/resources/icons`.
   An alias without a current caller staying exported is normal.
 - Figma-exported glyphs are one component per file, fill `currentColor`, and take `size` in pixels.
 - `NavIcons` and `NotifyGlyphs` do not reproduce the design's masked 3px stroke. The app sets a `<base href>`

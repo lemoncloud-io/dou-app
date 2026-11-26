@@ -2,8 +2,8 @@
 
 > Scope: `apps/web/src/app/ui/layouts/UnifiedLayout.tsx`,
 > `apps/web/src/app/ui/components/{BottomNavigation,BottomNavSpacer}.tsx`,
-> `libs/web-ui-kit` `composites/navigation/FloatingTabBar.tsx` and `resources/icons/NavIcons.tsx`,
-> `apps/web/src/styles.css` (`--app-width`, `--nav-ink`), and the bottom insets of the chat composer
+> `libs/web-ui-kit` `composites/navigation/FloatingTabBar.tsx`, `libs/design-system/assets` `src/icons/NavIcons.tsx`,
+> the mobile tokens in `libs/design-system/tokens/mobile` (`--app-width`, `--nav-ink`), and the bottom insets of the chat composer
 > (`ChannelRoomPage`, `ThreadPage`).
 
 `UnifiedLayout` wraps every route and renders the floating bottom navigation exactly once,
@@ -294,7 +294,7 @@ draws behind the status bar and home indicator and pads for them itself. The she
 
 `apps/web` runs in a WebView on a phone-class device; the same bundle is also reachable from a
 desktop browser through an invite or share link. One rule covers both: every surface fills the
-device up to `--app-width` (600px, `apps/web/src/styles.css`) and centers past it, with the sides
+device up to `--app-width` (600px, the mobile tokens in `libs/design-system/tokens/mobile/src/light.css`) and centers past it, with the sides
 left as an empty margin.
 
 `--app-width` is **a phone's column, not the widest device**. Every phone is narrower, so on a phone
@@ -322,7 +322,8 @@ to the trailing side would push them past the column's edge into the margin.
 | A notice dialog                            | `dialog` / `alert-dialog` default variant — its own width, NOT the column (below)     |
 | A global floating bar                      | `FloatingTabBar` (web-ui-kit) reads the same variable directly                        |
 
-The number lives in exactly one place — `apps/web/src/styles.css` — because everything above it is
+The number lives in exactly one place — `libs/design-system/tokens/mobile/src/light.css`, which
+`apps/web/src/styles.css` imports — because everything above it is
 either laid out in-flow under the shell (which owns the cap once) or `fixed` and portalled to
 `document.body` (which escapes the shell and has to re-declare the cap for itself). The libraries
 that re-declare it (`libs/ui-kit`, `libs/web-ui-kit`) are shared with `apps/desktop-web`, so they read

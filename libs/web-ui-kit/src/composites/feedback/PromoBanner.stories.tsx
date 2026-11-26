@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 
-import myCloudIllustration from '../../resources/assets/my-cloud.svg';
+import { myCloudIllustration } from '../../resources/assets';
 import { PromoBanner } from './PromoBanner';
 
 const meta: Meta<typeof PromoBanner> = {

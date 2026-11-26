@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/design-system-assets",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/design-system/assets/src",
+    "projectType": "library",
+    "tags": ["layer:ui", "platform:web", "formfactor:any"],
+    "targets": {}
+}

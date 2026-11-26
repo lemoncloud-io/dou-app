@@ -1,4 +1,5 @@
 const { join } = require('path');
+const { desktopColors, radius } = require('../../libs/design-system/tokens/desktop/src/tailwind.cjs');
 
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
 
@@ -28,113 +29,8 @@ module.exports = {
                 popover: '50',
                 alert: '60',
             },
-            colors: {
-                border: 'hsl(var(--border))',
-                input: 'hsl(var(--input))',
-                ring: 'hsl(var(--ring))',
-                background: 'hsl(var(--background))',
-                foreground: 'hsl(var(--foreground))',
-                primary: {
-                    DEFAULT: 'hsl(var(--primary))',
-                    foreground: 'hsl(var(--primary-foreground))',
-                    ink: 'hsl(var(--primary-ink))',
-                },
-                presence: { online: 'hsl(var(--presence-online))' },
-                profile: {
-                    disc: 'hsl(var(--profile-disc))',
-                    'disc-foreground': 'hsl(var(--profile-disc-foreground))',
-                },
-                link: 'hsl(var(--link))',
-                swatch: {
-                    light: 'hsl(var(--swatch-light))',
-                    dark: 'hsl(var(--swatch-dark))',
-                    border: 'hsl(var(--swatch-border))',
-                },
-                secondary: {
-                    DEFAULT: 'hsl(var(--secondary))',
-                    foreground: 'hsl(var(--secondary-foreground))',
-                },
-                destructive: {
-                    DEFAULT: 'hsl(var(--destructive))',
-                    foreground: 'hsl(var(--destructive-foreground))',
-                },
-                warning: {
-                    DEFAULT: 'hsl(var(--warning))',
-                    foreground: 'hsl(var(--warning-foreground))',
-                },
-                muted: {
-                    DEFAULT: 'hsl(var(--muted))',
-                    foreground: 'hsl(var(--muted-foreground))',
-                },
-                accent: {
-                    DEFAULT: 'hsl(var(--accent))',
-                    foreground: 'hsl(var(--accent-foreground))',
-                },
-                popover: {
-                    DEFAULT: 'hsl(var(--popover))',
-                    foreground: 'hsl(var(--popover-foreground))',
-                },
-                card: {
-                    DEFAULT: 'hsl(var(--card))',
-                    foreground: 'hsl(var(--card-foreground))',
-                },
-                rail: {
-                    DEFAULT: 'hsl(var(--rail))',
-                    foreground: 'hsl(var(--rail-foreground))',
-                    muted: 'hsl(var(--rail-muted))',
-                    elevated: 'hsl(var(--rail-elevated))',
-                    active: {
-                        DEFAULT: 'hsl(var(--rail-active))',
-                        foreground: 'hsl(var(--rail-active-foreground))',
-                    },
-                },
-                sidebar: {
-                    DEFAULT: 'hsl(var(--sidebar))',
-                    foreground: 'hsl(var(--sidebar-foreground))',
-                },
-                label: 'hsl(var(--label))',
-                placeholder: 'hsl(var(--placeholder))',
-                description: 'hsl(var(--description))',
-                surface: 'hsl(var(--surface))',
-                'main-accent': 'hsl(var(--main-accent))',
-                'input-border': 'hsl(var(--input-border))',
-                'control-border': 'hsl(var(--control-border))',
-                'focus-border': 'hsl(var(--focus-border))',
-                toast: {
-                    DEFAULT: 'hsl(var(--toast))',
-                    foreground: 'hsl(var(--toast-foreground))',
-                    muted: 'hsl(var(--toast-muted))',
-                },
-                'dialog-subtitle': 'hsl(var(--dialog-subtitle))',
-                'bubble-mine': {
-                    DEFAULT: 'hsl(var(--bubble-mine))',
-                    foreground: 'hsl(var(--bubble-mine-foreground))',
-                },
-                'bubble-other': {
-                    DEFAULT: 'hsl(var(--bubble-other))',
-                    foreground: 'hsl(var(--bubble-other-foreground))',
-                },
-                'badge-unread': {
-                    DEFAULT: 'hsl(var(--badge-unread))',
-                    foreground: 'hsl(var(--badge-unread-foreground))',
-                },
-                'badge-member': 'hsl(var(--badge-member))',
-                favorite: 'hsl(var(--favorite))',
-                'tab-active': 'hsl(var(--tab-active))',
-                'tab-inactive': 'hsl(var(--tab-inactive))',
-                overlay: 'hsl(var(--overlay))',
-                'on-overlay': 'hsl(var(--on-overlay))',
-                'tile-active': 'hsl(var(--tile-active))',
-                elevated: 'hsl(var(--elevated))',
-                hairline: 'hsl(var(--hairline))',
-                well: 'hsl(var(--well))',
-                'code-inline': 'hsl(var(--code-inline))',
-            },
-            borderRadius: {
-                lg: 'var(--radius)',
-                md: 'calc(var(--radius) - 2px)',
-                sm: 'calc(var(--radius) - 4px)',
-            },
+            colors: desktopColors,
+            borderRadius: radius,
             fontSize: {
                 headline: ['1.25rem', { lineHeight: '1.75rem', letterSpacing: '-0.012em' }],
                 lead: ['1rem', { lineHeight: '1.5rem', letterSpacing: '-0.006em' }],
