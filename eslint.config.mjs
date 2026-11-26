@@ -550,7 +550,7 @@ export default [
     ...nx.configs['flat/javascript'],
     {
         basePath: REPO_ROOT,
-        ignores: ['**/dist', '**/out-tsc', 'apps/desktop/out', '**/vite.config.*.timestamp*', '**/public'],
+        ignores: ['**/dist', '**/out-tsc', 'apps/desktop/out', '**/vite.config.*.timestamp*', '**/public', '**/target'],
     },
     {
         plugins: {

@@ -1,0 +1,39 @@
+{
+    "name": "desktop-tauri",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/desktop-tauri/src-tauri/src",
+    "projectType": "application",
+    "tags": ["layer:app", "platform:desktop", "formfactor:desktop"],
+    "targets": {
+        "rust-build": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "cargo build --workspace",
+                "cwd": "apps/desktop-tauri"
+            }
+        },
+        "rust-test": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "cargo test --workspace",
+                "cwd": "apps/desktop-tauri"
+            }
+        },
+        "rust-lint": {
+            "executor": "nx:run-commands",
+            "options": {
+                "commands": ["cargo fmt --all --check", "cargo clippy --workspace --all-targets -- -D warnings"],
+                "cwd": "apps/desktop-tauri",
+                "parallel": false
+            }
+        },
+        "dev": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "cargo tauri dev",
+                "cwd": "apps/desktop-tauri/src-tauri"
+            },
+            "cache": false
+        }
+    }
+}

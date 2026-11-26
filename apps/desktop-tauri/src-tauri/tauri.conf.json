@@ -1,0 +1,21 @@
+{
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "DoU Tauri",
+    "version": "0.0.1",
+    "identifier": "io.chatic.desktop.tauri",
+    "build": {
+        "frontendDist": "../ui"
+    },
+    "app": {
+        "withGlobalTauri": false,
+        "windows": [],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"]
+    }
+}
