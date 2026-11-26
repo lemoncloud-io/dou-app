@@ -93,8 +93,9 @@
                 )
             );
         } else {
-            if (pairing.kind === 'failed')
+            if (pairing.kind === 'failed') {
                 card.append(el('p', {}, badge('pairing failed', 'bad'), ' ' + pairing.message));
+            }
             card.append(
                 el(
                     'div',
@@ -197,7 +198,7 @@
                 )
             );
         }
-        if (rows.length === 0)
+        if (rows.length === 0) {
             roomBox.append(
                 el(
                     'p',
@@ -205,6 +206,7 @@
                     state.engine.kind === 'running' ? 'No rooms.' : 'Start the engine to list rooms.'
                 )
             );
+        }
 
         const perMinute = el('input', {
             type: 'number',

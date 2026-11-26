@@ -39,16 +39,20 @@ const rustResponses = new Map(
 );
 
 const problems = [];
-for (const name of tauri)
-    if (!expected.has(name))
+for (const name of tauri) {
+    if (!expected.has(name)) {
         problems.push(`Tauri handles ${name}, which Electron does not and which is not a documented addition`);
+    }
+}
 if (complete) for (const name of expected) if (!tauri.has(name)) problems.push(`Tauri does not handle ${name}`);
 for (const [request, response] of tsResponses) {
-    if (rustResponses.get(request) !== response)
+    if (rustResponses.get(request) !== response) {
         problems.push(`response type of ${request}: TS ${response}, Rust ${rustResponses.get(request) ?? 'missing'}`);
+    }
 }
-for (const request of rustResponses.keys())
+for (const request of rustResponses.keys()) {
     if (!tsResponses.has(request)) problems.push(`Rust response table has ${request}, which TS does not`);
+}
 
 if (problems.length > 0) {
     console.error(problems.join('\n'));
