@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (runtime) start a runtime from the modules it names
+
+## [2026-11-26] - No version updates
+
+### Refactor
+
 - (checkout-store,push-mobile,sign-in-mobile,mobile) move the native sdk services into libs
 
 ## [2026-11-26] - No version updates
