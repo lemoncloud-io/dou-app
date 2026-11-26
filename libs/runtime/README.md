@@ -31,8 +31,9 @@ Apps see this barrel only through `@chatic/runtime-react`, which re-exports it, 
 there is one runtime identifier. Apps import none of its subpaths — the root lint refuses `@chatic/runtime/*` in an app — which is
 what lets the inside be rearranged with no blast radius. The subpaths are for the packages built on it:
 `@chatic/runtime/testing`, the tests' fake; `@chatic/runtime/engine`, `/remote`, `/api` and `/declare`,
-which the two re-export packages hand on; and the group subpaths runtime-react and the adapters read
-(below). A subpath names its folder.
+which the two re-export packages hand on; `@chatic/runtime/modules`, the module values the adapters hand
+on to a declaration ([modules](./docs/declare/modules.md)); and the group subpaths runtime-react and the
+adapters read (below). A subpath names its folder.
 
 ```bash
 grep -rn "@chatic/runtime/" --include='*.ts' --include='*.tsx' apps | grep -v node_modules
@@ -311,7 +312,9 @@ libs/runtime/src/
 │   ├── report/       `reportIssue` over the handed-in origin, and the `report` group
 │   ├── diagnostics/  the issue report payload and the log-batch upload
 │   └── utils/        1 file — isNativeApp
-└── declare/          the runtime declaration: defineRuntime · resolvePorts · startRuntime — docs/declare/
+├── declare/          the runtime declaration: defineRuntime · resolvePorts · startRuntime — docs/declare/
+└── modules/          `@chatic/runtime/modules` — the module values and presets, and their Node boot test
+                      — docs/declare/modules.md
 
 libs/runtime/react/src/   @chatic/runtime-react — the same groups, each re-exporting this package's and adding
 ├── connection/       the host and 8 hooks
@@ -562,6 +565,7 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 | [docs/remote/](./docs/remote/README.md)                        | The runtime across the bridge: who owns the session each launch, the contract version, the messages, errors                                                       |
 | [docs/api/](./docs/api/README.md)                              | The engine holder, the host ports, settings, and the commands and reads an app calls                                                                              |
 | [docs/declare/](./docs/declare/README.md)                      | The runtime declaration, how a port's adapter is resolved, and the start                                                                                          |
+| [docs/declare/modules](./docs/declare/modules.md)              | The modules a runtime is built from, the three presets, and where a missing port or module is caught                                                              |
 
 The socket manager and the HTTP manager are documented with `@chatic/transport`:
 [transport docs/socket/](../transport/docs/socket/README.md) and [transport docs/http/](../transport/docs/http/README.md).
@@ -573,7 +577,7 @@ with [`@chatic/auth`](../auth/README.md).
 
 ```bash
 npx tsc -b libs/runtime/tsconfig.json         # every project tsconfig.json references
-npx jest --config libs/runtime/jest.config.js # 80 test files
+npx jest --config libs/runtime/jest.config.js # 81 test files
 cd libs/runtime && npx eslint src             # flat config — run it from this directory
 ```
 

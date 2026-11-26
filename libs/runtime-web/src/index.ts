@@ -139,6 +139,18 @@ export {
     requires,
 } from '@chatic/runtime-client';
 export { startRuntime } from './platform/startRuntime';
+export {
+    allModules,
+    cacheModule,
+    headlessModules,
+    httpModule,
+    minimalModules,
+    pushModule,
+    sessionModule,
+    socketsModule,
+    syncModule,
+} from '@chatic/runtime/modules';
+export type { ModuleName, RuntimeModule, RuntimeModules, RuntimeOf } from '@chatic/runtime/modules';
 export { webPlatform } from './platform/webPlatform';
 export type {
     Adapter,

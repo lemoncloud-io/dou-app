@@ -1,3 +1,5 @@
+import type { RuntimeModules } from '../engine';
+
 import { HOST_PORT_NAMES } from '../api/host/ports';
 import { engineCore } from './engine';
 import { PORT_NAMES } from './types';
@@ -10,12 +12,13 @@ import type {
     PortChoiceReader,
     PortChoices,
     PortConstraint,
+    PortDeclaration,
     PortName,
     RuntimeDeclaration,
     SlotName,
 } from './types';
 
-type MutableChoices<Facts> = { [P in PortName]: PortChoice<P, Facts> };
+type MutableChoices<Facts> = { [P in PortName]?: PortChoice<P, Facts> };
 
 interface Candidate<Facts> {
     readonly id: string;
@@ -80,22 +83,22 @@ const chooseSlot = <S extends SlotName, Facts>(
 
 const choosePort = <P extends PortName, Facts>(
     port: P,
-    declaration: RuntimeDeclaration<Facts, unknown>,
+    declaration: Pick<RuntimeDeclaration<Facts, unknown>, 'name'> & { readonly ports: object },
     facts: Facts,
     read: PortChoiceReader
 ): PortChoice<P, Facts> =>
     chooseSlot<P, Facts>(
         port,
-        declaration.ports[port] as unknown as SlotDeclared<AdapterOf<P, Facts>>,
+        (declaration.ports as Record<PortName, unknown>)[port] as SlotDeclared<AdapterOf<P, Facts>>,
         declaration.name,
         facts,
         read
     );
 
-const isChosen = <Facts>(choices: PortChoices<Facts>, ref: { id: string; port: PortName }): boolean =>
-    choices[ref.port].id === ref.id;
+const isChosen = <Facts>(choices: MutableChoices<Facts>, ref: { id: string; port: PortName }): boolean =>
+    choices[ref.port]?.id === ref.id;
 
-const brokenBy = <Facts>(choices: PortChoices<Facts>, constraint: PortConstraint): PortName[] | null => {
+const brokenBy = <Facts>(choices: MutableChoices<Facts>, constraint: PortConstraint): PortName[] | null => {
     switch (constraint.kind) {
         case 'requires':
             return isChosen(choices, constraint.adapter) && !isChosen(choices, constraint.needs)
@@ -113,19 +116,21 @@ const describe = (constraint: PortConstraint): string =>
         ? `'${constraint.adapter.id}' requires '${constraint.needs.id}'`
         : `'${constraint.adapter.id}' conflicts with '${constraint.other.id}'`;
 
-export const resolvePorts = <Facts, Owner = never>(
-    declaration: RuntimeDeclaration<Facts, Owner>,
+export const resolvePorts = <Facts, Owner = never, M extends RuntimeModules = RuntimeModules>(
+    declaration: RuntimeDeclaration<Facts, Owner, M>,
     facts: Facts,
-    read: PortChoiceReader
-): PortChoices<Facts> => {
+    read: PortChoiceReader,
+    wanted: readonly PortName[] = PORT_NAMES
+): PortChoices<Facts, M> => {
+    const declared = declaration.ports as { readonly [P in PortName]?: PortDeclaration<P, Facts> };
     const choices = {} as MutableChoices<Facts>;
-    for (const port of PORT_NAMES) {
-        (choices as Record<PortName, PortChoice<PortName, Facts>>)[port] = choosePort(
-            port,
-            declaration as RuntimeDeclaration<Facts, unknown>,
-            facts,
-            read
-        );
+    for (const port of PORT_NAMES.filter(name => wanted.includes(name))) {
+        if (!declared[port]) {
+            throw new RuntimeDeclarationError(
+                `[runtime] ${declaration.name}: no adapter is declared for the ${port} port`
+            );
+        }
+        (choices as Record<PortName, PortChoice<PortName, Facts>>)[port] = choosePort(port, declaration, facts, read);
     }
 
     const constraints = declaration.constraints ?? [];
@@ -134,27 +139,27 @@ export const resolvePorts = <Facts, Owner = never>(
         for (const constraint of constraints) {
             const ports = brokenBy(choices, constraint);
             if (!ports) continue;
-            const port = ports.find(p => choices[p].adapter !== declaration.ports[p].default);
+            const port = ports.find(p => choices[p]?.adapter !== declared[p]?.default);
             if (!port) {
                 throw new RuntimeDeclarationError(
                     `[runtime] ${declaration.name}: the default adapters break a constraint — ${describe(constraint)}`
                 );
             }
-            const given = choices[port];
+            const given = choices[port] as PortChoice<PortName, Facts>;
             (choices as Record<PortName, PortChoice<PortName, Facts>>)[port] = defaultChoice(
                 port,
-                declaration.ports[port] as unknown as SlotDeclared<AdapterOf<PortName, Facts>>,
+                declared[port] as unknown as SlotDeclared<AdapterOf<PortName, Facts>>,
                 { requested: given.id, from: given.origin as ChoiceLane, because: describe(constraint) }
             );
             repaired = true;
             break;
         }
-        if (!repaired) return choices;
+        if (!repaired) return choices as unknown as PortChoices<Facts, M>;
     }
 };
 
-export const resolveHostPorts = <Facts, Owner = never>(
-    declaration: RuntimeDeclaration<Facts, Owner>,
+export const resolveHostPorts = <Facts, Owner = never, M extends RuntimeModules = RuntimeModules>(
+    declaration: RuntimeDeclaration<Facts, Owner, M>,
     facts: Facts,
     read: PortChoiceReader
 ): HostPortChoices<Facts> | undefined => {
@@ -173,8 +178,8 @@ export const resolveHostPorts = <Facts, Owner = never>(
     return choices;
 };
 
-export const resolveEngine = <Facts, Owner = never>(
-    declaration: RuntimeDeclaration<Facts, Owner>,
+export const resolveEngine = <Facts, Owner = never, M extends RuntimeModules = RuntimeModules>(
+    declaration: RuntimeDeclaration<Facts, Owner, M>,
     facts: Facts,
     read: PortChoiceReader
 ): PortChoice<'engine', Facts> =>

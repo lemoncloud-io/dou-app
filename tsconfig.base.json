@@ -57,6 +57,7 @@
             "@chatic/runtime/api/sync": ["libs/runtime/src/api/sync/index.ts"],
             "@chatic/runtime/declare": ["libs/runtime/src/declare/index.ts"],
             "@chatic/runtime/engine": ["libs/runtime/src/engine/index.ts"],
+            "@chatic/runtime/modules": ["libs/runtime/src/modules/index.ts"],
             "@chatic/runtime/remote": ["libs/runtime/src/remote/index.ts"],
             "@chatic/runtime/testing": ["libs/runtime/src/testing/index.ts"],
             "@chatic/runtime-client": ["libs/runtime-client/src/index.ts"],

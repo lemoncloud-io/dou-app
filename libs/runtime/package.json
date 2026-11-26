@@ -37,6 +37,11 @@
             "import": "./src/declare/index.ts",
             "default": "./src/declare/index.ts"
         },
+        "./modules": {
+            "types": "./src/modules/index.ts",
+            "import": "./src/modules/index.ts",
+            "default": "./src/modules/index.ts"
+        },
         "./api/facade": {
             "types": "./src/api/facade.ts",
             "import": "./src/api/facade.ts",

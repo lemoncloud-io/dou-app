@@ -10,6 +10,10 @@ remote connection and the app API; nothing in the package imports it back. It wa
 Apps never import it here: an app's entry takes it from `@chatic/runtime-web` or `@chatic/runtime-mobile`,
 each of which hands it on beside its own adapters.
 
+Which parts of the runtime a declaration starts — the session, HTTP, sockets, sync, the local cache,
+push — is its `modules`, covered in [modules](./modules.md). A declaration that names none starts all
+of them.
+
 ## The runtime declaration
 
 An app says which adapter fills each port as a value, in a declaration, and its entry starts the
