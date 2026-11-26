@@ -1,6 +1,7 @@
 mod notify;
 mod simple;
 mod storage;
+mod subview;
 
 use std::future::ready;
 use std::sync::Arc;
@@ -18,6 +19,8 @@ pub const HANDLED: &[&str] = &[
     "SetBadgeCount",
     "OpenURL",
     "ShowNotification",
+    "OpenSubWebView",
+    "CloseSubWebView",
     "StorageGet",
     "StorageSave",
     "StorageClear",
@@ -35,6 +38,7 @@ pub fn sync(f: impl Fn(Value) -> Value + Send + Sync + 'static) -> Handler {
 pub fn register_all(host: &mut BridgeHost, context: &Context) {
     simple::register(host, context);
     notify::register(host, context);
+    subview::register(host, context);
     storage::register(host, context);
 }
 
