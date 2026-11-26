@@ -63,6 +63,14 @@ pub fn agent_choose_cloud(
     cloud: String,
 ) -> Result<(), String> {
     from_agent_window(&webview)?;
+    if cloud.is_empty()
+        || cloud.len() > 64
+        || !cloud
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err("That is not a cloud id.".to_string());
+    }
     if let Engine::Running { cloud: current, .. } | Engine::Starting { cloud: current } =
         agent.engine()
         && current != cloud
@@ -80,10 +88,13 @@ pub fn agent_open_approve_page(webview: Webview, app: AppHandle) -> Result<(), S
     let main = app
         .get_webview_window("main")
         .ok_or("the main window is gone")?;
-    main.eval(
-        "history.pushState({}, '', '/mypage/pairing/approve'); \
-         window.dispatchEvent(new PopStateEvent('popstate'));",
-    )
+    let origin = crate::bridge::origin_of(main.url().map_err(|e| e.to_string())?.as_str())
+        .ok_or("the main window has no web address")?;
+    let origin = serde_json::Value::String(origin);
+    main.eval(format!(
+        "if (location.origin === {origin}) {{ history.pushState({{}}, '', '/mypage/pairing/approve'); \
+         window.dispatchEvent(new PopStateEvent('popstate')); }}"
+    ))
     .map_err(|e| e.to_string())?;
     main.show().map_err(|e| e.to_string())?;
     main.set_focus().map_err(|e| e.to_string())

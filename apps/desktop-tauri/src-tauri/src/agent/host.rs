@@ -94,13 +94,16 @@ impl Agent {
     }
 
     pub fn start_pairing(self: &Arc<Self>) -> Result<(), String> {
-        if matches!(
-            self.pairing(),
-            Pairing::Starting | Pairing::Waiting { .. } | Pairing::Applying
-        ) {
-            return Ok(());
+        {
+            let mut state = lock(&self.pairing);
+            if matches!(
+                *state,
+                Pairing::Starting | Pairing::Waiting { .. } | Pairing::Applying
+            ) {
+                return Ok(());
+            }
+            *state = Pairing::Starting;
         }
-        *lock(&self.pairing) = Pairing::Starting;
         let agent = Arc::clone(self);
         tauri::async_runtime::spawn(async move {
             let outcome = agent.pair().await;
@@ -120,7 +123,6 @@ impl Agent {
 
     async fn pair(&self) -> Result<(), String> {
         let profile = Profile::open(&self.profile_dir).map_err(|e| e.to_string())?;
-        profile.clear_session().map_err(|e| e.to_string())?;
         let device_id = profile.device_id().map_err(|e| e.to_string())?;
         let api = self.api()?;
         let device = api

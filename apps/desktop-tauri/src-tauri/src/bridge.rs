@@ -44,13 +44,15 @@ fn device_id(app: &App) -> String {
     id
 }
 
-fn push_to_web(app: &AppHandle, message: &str) {
+fn push_to_web(app: &AppHandle, origin: &str, message: &str) {
     let Some(window) = app.get_webview_window("main") else {
         return;
     };
     let literal = serde_json::Value::String(message.to_string());
-    let script =
-        format!("window.dispatchEvent(new MessageEvent('message', {{ data: {literal} }}));");
+    let guard = serde_json::Value::String(origin.to_string());
+    let script = format!(
+        "if (location.origin === {guard}) window.dispatchEvent(new MessageEvent('message', {{ data: {literal} }}));"
+    );
     let _ = window.eval(script);
 }
 
@@ -79,21 +81,23 @@ pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
     let script = init_script(&info, &origin);
 
     let handle = app.handle().clone();
+    let reply_origin = origin.clone();
     let mut host = BridgeHost::new(Config {
         version: BRIDGE_VERSION.to_string(),
-        send_to_web: Arc::new(move |message| push_to_web(&handle, &message)),
+        send_to_web: Arc::new(move |message| push_to_web(&handle, &reply_origin, &message)),
         sub_webview_open_scope: Some("anyHttps".to_string()),
     });
 
     let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    let keys: Box<dyn vault::KeySource> = if std::env::var_os("DOU_VAULT_KEY_FILE").is_some() {
-        Box::new(vault::FileKeys::new(app_data.join("vault.key")))
-    } else {
-        Box::new(vault::KeyringKeys::new(
-            "io.chatic.desktop.tauri",
-            "vault-key",
-        ))
-    };
+    let keys: Box<dyn vault::KeySource> =
+        if cfg!(debug_assertions) && std::env::var_os("DOU_VAULT_KEY_FILE").is_some() {
+            Box::new(vault::FileKeys::new(app_data.join("vault.key")))
+        } else {
+            Box::new(vault::KeyringKeys::new(
+                "io.chatic.desktop.tauri",
+                "vault-key",
+            ))
+        };
     let vault = Arc::new(vault::Vault::open(app_data.join("secrets.bin"), keys));
     crate::handlers::register_all(
         &mut host,
