@@ -180,12 +180,13 @@ impl Views {
         }
     }
 
-    pub fn closed(&self) -> Option<String> {
-        self.state
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .1
-            .take()
+    pub fn closed(&self, view_id: &str) -> bool {
+        let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if state.1.as_deref() == Some(view_id) {
+            state.1 = None;
+            return true;
+        }
+        false
     }
 }
 
@@ -285,7 +286,8 @@ mod tests {
         assert_eq!(views.close(Some(&id)), Err(Refusal::NotOpen));
         let next = views.open().expect("second");
         assert_ne!(next, id);
-        assert_eq!(views.closed(), Some(next));
-        assert_eq!(views.closed(), None);
+        assert!(!views.closed(&id));
+        assert!(views.closed(&next));
+        assert!(!views.closed(&next));
     }
 }

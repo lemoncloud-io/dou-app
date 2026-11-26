@@ -8,7 +8,9 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use super::{Context, sync};
 use crate::bridge::push_event;
 
-const LABEL: &str = "subview";
+fn label_of(view_id: &str) -> String {
+    format!("subview-{view_id}")
+}
 
 fn refused(response_type: &str, refusal: Refusal) -> Value {
     json!({
@@ -46,7 +48,7 @@ fn open(app: &AppHandle, views: &Arc<Views>, message: &Value) -> Value {
             .clone()
             .unwrap_or_else(|| request.origin.trim_start_matches("https://").to_string()),
     };
-    let built = WebviewWindowBuilder::new(app, LABEL, WebviewUrl::External(url))
+    let built = WebviewWindowBuilder::new(app, label_of(&view_id), WebviewUrl::External(url))
         .title(title)
         .inner_size(960.0, 720.0)
         .on_navigation(move |target| {
@@ -56,7 +58,7 @@ fn open(app: &AppHandle, views: &Arc<Views>, message: &Value) -> Value {
     let window = match built {
         Ok(window) => window,
         Err(error) => {
-            views.closed();
+            views.closed(&view_id);
             return json!({
                 "type": "OnOpenSubWebView",
                 "success": false,
@@ -66,11 +68,10 @@ fn open(app: &AppHandle, views: &Arc<Views>, message: &Value) -> Value {
     };
     let handle = app.clone();
     let views = Arc::clone(views);
+    let watched = view_id.clone();
     window.on_window_event(move |event| {
-        if matches!(event, WindowEvent::Destroyed)
-            && let Some(id) = views.closed()
-        {
-            closed_event(&handle, &id, "user");
+        if matches!(event, WindowEvent::Destroyed) && views.closed(&watched) {
+            closed_event(&handle, &watched, "user");
         }
     });
     json!({ "type": "OnOpenSubWebView", "success": true, "data": { "viewId": view_id } })
@@ -79,7 +80,7 @@ fn open(app: &AppHandle, views: &Arc<Views>, message: &Value) -> Value {
 fn close(app: &AppHandle, views: &Views, message: &Value) -> Value {
     match views.close(message["data"]["viewId"].as_str()) {
         Ok(id) => {
-            if let Some(window) = app.get_webview_window(LABEL) {
+            if let Some(window) = app.get_webview_window(&label_of(&id)) {
                 let _ = window.destroy();
             }
             closed_event(app, &id, "host");
