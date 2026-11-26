@@ -193,3 +193,44 @@ pub async fn call(
         Ok(Err(reply["error"].clone()))
     }
 }
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::os::unix::fs::PermissionsExt;
+
+    use super::*;
+
+    fn scratch(mode: u32) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("dc-{}", uuid_like()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(mode)).unwrap();
+        dir
+    }
+
+    fn uuid_like() -> String {
+        format!(
+            "{:x}",
+            path_hash(&std::env::temp_dir().join(format!("{:?}", std::time::Instant::now())))
+        )
+    }
+
+    #[test]
+    fn a_directory_open_to_group_or_others_is_refused_by_the_client() {
+        let dir = scratch(0o755);
+        let name = dir.join("cli.sock").to_string_lossy().into_owned();
+        let error = secure_parent(&name, false).unwrap_err().to_string();
+        assert!(error.contains("not a private directory"), "{error}");
+    }
+
+    #[test]
+    fn serving_tightens_a_directory_the_user_owns_and_accepts_it() {
+        let dir = scratch(0o755);
+        let name = dir.join("cli.sock").to_string_lossy().into_owned();
+        secure_parent(&name, true).unwrap();
+        assert_eq!(
+            std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777,
+            0o700
+        );
+        secure_parent(&name, false).unwrap();
+    }
+}
