@@ -1,0 +1,97 @@
+name: desktop-native-spike
+
+on:
+  push:
+    branches: [spike/gpui-desktop-gate]
+    paths:
+      - 'apps/desktop-native-spike/**'
+      - '.github/workflows/desktop-native-spike.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  spike:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: apps/desktop-native-spike
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustc --version
+          cargo --version
+
+      - name: Metal toolchain (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          xcrun --find metal || xcodebuild -downloadComponent MetalToolchain
+          xcrun --find metal
+
+      - name: Build release
+        shell: bash
+        run: cargo build --release 2>&1 | grep -v 'rerun-if' | tail -60; test ${PIPESTATUS[0]} -eq 0
+
+      - name: Install (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dest = Join-Path $env:LOCALAPPDATA 'desktop-native-spike'
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item target/release/desktop-native-spike.exe $dest
+          Copy-Item -Recurse assets $dest
+          Get-ChildItem $dest | Format-Table Name, Length
+          "SPIKE install dir: $dest"
+
+      - name: FCM probe (no credentials)
+        shell: bash
+        run: ./target/release/desktop-native-spike* --fcm || target/release/desktop-native-spike.exe --fcm
+
+      - name: Smoke run (window + 10k-row scroll)
+        id: smoke
+        continue-on-error: true
+        shell: pwsh
+        env:
+          SPIKE_SMOKE: '1'
+        run: |
+          $exe = if ($IsWindows) { 'target/release/desktop-native-spike.exe' } else { 'target/release/desktop-native-spike' }
+          New-Item -ItemType Directory -Force -Path ../../spike-out | Out-Null
+          $out = '../../spike-out/smoke-stdout.txt'
+          $err = '../../spike-out/smoke-stderr.txt'
+          $p = Start-Process -FilePath $exe -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+          Start-Sleep -Seconds 1
+          if ($IsWindows) {
+            try {
+              Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+              $b = [System.Windows.Forms.SystemInformation]::VirtualScreen
+              $bmp = New-Object System.Drawing.Bitmap $b.Width, $b.Height
+              [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($b.Location, [System.Drawing.Point]::Empty, $b.Size)
+              $bmp.Save((Join-Path (Resolve-Path ../../spike-out) 'windows-screen.png'))
+            } catch { "screenshot failed: $_" }
+          } else {
+            screencapture -x ../../spike-out/macos-screen.png
+          }
+          if (-not $p.WaitForExit(60000)) { $p.Kill(); 'SPIKE smoke timed out' }
+          "exit code: $($p.ExitCode)"
+          Get-Content $out
+          Get-Content $err -ErrorAction SilentlyContinue | Select-Object -First 40
+          if ((Get-Content $out -Raw) -notmatch 'SPIKE scroll done') { throw 'no scroll-done line' }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: spike-${{ matrix.os }}
+          path: |
+            spike-out/
+            apps/desktop-native-spike/target/release/desktop-native-spike
+            apps/desktop-native-spike/target/release/desktop-native-spike.exe
+          if-no-files-found: warn

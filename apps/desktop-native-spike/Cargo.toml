@@ -1,0 +1,15 @@
+[package]
+name = "desktop-native-spike"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+gpui = "=0.2.2"
+unicode-segmentation = "1"
+fcm-push-listener = "=4.1.2"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "io-util"] }
+reqwest = "0.13"
+tokio-stream = "0.1"
+
+[workspace]
