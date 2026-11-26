@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use bridge_host::BridgeHost;
+use bridge_host::{BridgeHost, HandlerError};
 use serde_json::{Value, json};
 use vault::{Snapshot, Vault};
 
-use super::{Context, sync};
+use super::Context;
 
 const MEDIUM: &str = "nativeSecure";
 
@@ -78,23 +78,21 @@ pub fn clear(vault: &Vault, message: &Value) -> Value {
     json!({ "type": "OnStorageClear", "success": true, "data": { "ok": vault.clear() } })
 }
 
+fn blocking(vault: Arc<Vault>, work: fn(&Vault, &Value) -> Value) -> bridge_host::Handler {
+    Arc::new(move |message| {
+        let vault = Arc::clone(&vault);
+        Box::pin(async move {
+            tauri::async_runtime::spawn_blocking(move || Some(work(&vault, &message)))
+                .await
+                .map_err(|e| HandlerError::new("INTERNAL_ERROR", &e.to_string()))
+        })
+    })
+}
+
 pub fn register(host: &mut BridgeHost, context: &Context) {
-    let vault = Arc::clone(&context.vault);
-    host.register(
-        "StorageGet",
-        sync({
-            let vault = Arc::clone(&vault);
-            move |message| get(&vault, &message)
-        }),
-    );
-    host.register(
-        "StorageSave",
-        sync({
-            let vault = Arc::clone(&vault);
-            move |message| save(&vault, &message)
-        }),
-    );
-    host.register("StorageClear", sync(move |message| clear(&vault, &message)));
+    host.register("StorageGet", blocking(Arc::clone(&context.vault), get));
+    host.register("StorageSave", blocking(Arc::clone(&context.vault), save));
+    host.register("StorageClear", blocking(Arc::clone(&context.vault), clear));
 }
 
 #[cfg(test)]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-agent-pair-start"
+description = "Enables the agent_pair_start command without any pre-configured scope."
+commands.allow = ["agent_pair_start"]
+
+[[permission]]
+identifier = "deny-agent-pair-start"
+description = "Denies the agent_pair_start command without any pre-configured scope."
+commands.deny = ["agent_pair_start"]

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-agent-clouds"
+description = "Enables the agent_clouds command without any pre-configured scope."
+commands.allow = ["agent_clouds"]
+
+[[permission]]
+identifier = "deny-agent-clouds"
+description = "Denies the agent_clouds command without any pre-configured scope."
+commands.deny = ["agent_clouds"]

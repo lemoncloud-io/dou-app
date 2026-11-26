@@ -56,20 +56,22 @@ fn push_to_web(app: &AppHandle, message: &str) {
 
 pub struct Installed {
     pub init_script: String,
+    pub stage: String,
 }
 
 pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
     let origin =
         origin_of(web_url).ok_or_else(|| format!("not a usable web address: {web_url}"))?;
+    let stage = option_env!("DOU_STAGE")
+        .unwrap_or(if cfg!(debug_assertions) {
+            "dev"
+        } else {
+            "prod"
+        })
+        .to_string();
     let info = ShellInfo {
         device_id: device_id(app),
-        stage: option_env!("DOU_STAGE")
-            .unwrap_or(if cfg!(debug_assertions) {
-                "dev"
-            } else {
-                "prod"
-            })
-            .to_string(),
+        stage: stage.clone(),
         version: app.package_info().version.to_string(),
         language: language_subtag(sys_locale::get_locale().as_deref()),
         model: std::env::consts::OS.to_string(),
@@ -83,18 +85,16 @@ pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
         sub_webview_open_scope: Some("anyHttps".to_string()),
     });
 
-    let vault_path = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?
-        .join("secrets.bin");
-    let vault = Arc::new(vault::Vault::open(
-        vault_path,
+    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let keys: Box<dyn vault::KeySource> = if std::env::var_os("DOU_VAULT_KEY_FILE").is_some() {
+        Box::new(vault::FileKeys::new(app_data.join("vault.key")))
+    } else {
         Box::new(vault::KeyringKeys::new(
             "io.chatic.desktop.tauri",
             "vault-key",
-        )),
-    ));
+        ))
+    };
+    let vault = Arc::new(vault::Vault::open(app_data.join("secrets.bin"), keys));
     crate::handlers::register_all(
         &mut host,
         &crate::handlers::Context {
@@ -117,6 +117,7 @@ pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
     });
     Ok(Installed {
         init_script: script,
+        stage,
     })
 }
 

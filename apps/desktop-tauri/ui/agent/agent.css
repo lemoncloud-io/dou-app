@@ -1,0 +1,158 @@
+:root {
+    color-scheme: light dark;
+    --accent: #3b7d00;
+    --line: #8884;
+}
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    font:
+        14px/1.45 system-ui,
+        sans-serif;
+}
+header {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--line);
+}
+h1 {
+    font-size: 16px;
+    margin: 0;
+}
+nav {
+    display: flex;
+    gap: 4px;
+}
+nav button {
+    font: inherit;
+    padding: 6px 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+nav button[aria-selected='true'] {
+    border-color: var(--line);
+    font-weight: 600;
+}
+main {
+    padding: 20px;
+    max-width: 640px;
+}
+section[hidden] {
+    display: none;
+}
+h2 {
+    font-size: 14px;
+    margin: 20px 0 8px;
+}
+h2:first-child {
+    margin-top: 0;
+}
+p {
+    margin: 6px 0;
+}
+.muted {
+    opacity: 0.7;
+}
+.card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 10px 0;
+}
+.row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+.code {
+    font:
+        600 28px/1.2 ui-monospace,
+        monospace;
+    letter-spacing: 0.12em;
+    padding: 8px 0;
+}
+.badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    font-size: 12px;
+}
+.badge.ok {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.badge.bad {
+    border-color: #b00020;
+    color: #b00020;
+}
+button.action {
+    font: inherit;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+button.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+select,
+input[type='number'] {
+    font: inherit;
+    padding: 4px 6px;
+}
+input[type='number'] {
+    width: 90px;
+}
+.rooms {
+    max-height: 220px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+.rooms label {
+    display: block;
+    padding: 2px 0;
+}
+code {
+    font:
+        12px ui-monospace,
+        monospace;
+    word-break: break-all;
+}
+#notice {
+    position: fixed;
+    left: 20px;
+    right: 20px;
+    bottom: 12px;
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #2a2a2a;
+    color: #fff;
+    display: none;
+}
+#notice.show {
+    display: block;
+}
+#notice.error {
+    background: #b00020;
+}

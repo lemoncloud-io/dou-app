@@ -20,6 +20,7 @@ pub enum Snapshot {
 }
 
 enum State {
+    Unread,
     Available { values: Values, reset: bool },
     Unavailable,
 }
@@ -82,13 +83,18 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 impl Vault {
     pub fn open(path: impl Into<PathBuf>, keys: Box<dyn KeySource>) -> Self {
-        let path = path.into();
-        let state = Self::read(&path, keys.as_ref());
         Self {
-            path,
+            path: path.into(),
             keys,
-            state: Mutex::new(state),
+            state: Mutex::new(State::Unread),
         }
+    }
+
+    fn loaded<'a>(&self, state: &'a mut State) -> &'a mut State {
+        if matches!(state, State::Unread) {
+            *state = Self::read(&self.path, self.keys.as_ref());
+        }
+        state
     }
 
     fn read(path: &Path, keys: &dyn KeySource) -> State {
@@ -121,7 +127,9 @@ impl Vault {
     }
 
     pub fn get(&self) -> Snapshot {
-        match &*lock(&self.state) {
+        let mut guard = lock(&self.state);
+        match &*self.loaded(&mut guard) {
+            State::Unread => Snapshot::Unavailable,
             State::Available { values, reset } => Snapshot::Available {
                 values: values.clone(),
                 reset: *reset,
@@ -131,7 +139,8 @@ impl Vault {
     }
 
     pub fn save(&self, set: &Values, remove: &[String]) -> bool {
-        let mut state = lock(&self.state);
+        let mut guard = lock(&self.state);
+        let state = self.loaded(&mut guard);
         let State::Available { values, .. } = &*state else {
             return false;
         };
@@ -163,7 +172,8 @@ impl Vault {
     }
 
     pub fn clear(&self) -> bool {
-        let mut state = lock(&self.state);
+        let mut guard = lock(&self.state);
+        let state = self.loaded(&mut guard);
         match fs::remove_file(&self.path) {
             Ok(()) => {}
             Err(error) if error.kind() == ErrorKind::NotFound => {}

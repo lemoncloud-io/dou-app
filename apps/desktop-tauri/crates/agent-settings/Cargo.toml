@@ -1,0 +1,17 @@
+[package]
+name = "agent-settings"
+description = "Validation of the MCP permission settings edited from the app screen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json.workspace = true
+dou-control = { path = "../../../desktop-native/crates/dou-control" }
+
+[dev-dependencies]
+tempfile = "3"

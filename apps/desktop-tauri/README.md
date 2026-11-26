@@ -4,14 +4,16 @@ The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the dep
 
 ## Layout
 
-| Path                 | What it is                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| `src-tauri/`         | the Tauri app crate (`dou-tauri`)                                                    |
-| `ui/`                | local pages the app serves itself: the loader shown while the web address is checked |
-| `crates/bridge-host` | the bridge envelope in Rust, free of any UI toolkit                                  |
-| `crates/vault`       | the encrypted `nativeSecure` store                                                   |
-| `scripts/`           | `check-bridge-contract.mjs`                                                          |
-| `docs/`              | [bridge](./docs/bridge/README.md), [shell](./docs/shell/README.md)                   |
+| Path                    | What it is                                                                                                                               |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `src-tauri/`            | the Tauri app crate (`dou-tauri`)                                                                                                        |
+| `ui/`                   | local pages the app serves itself: the loader shown while the web address is checked                                                     |
+| `crates/bridge-host`    | the bridge envelope in Rust, free of any UI toolkit                                                                                      |
+| `crates/agent-settings` | validation of the MCP permission settings                                                                                                |
+| `crates/connectors`     | registering the launcher with Claude Desktop and Claude Code                                                                             |
+| `crates/vault`          | the encrypted `nativeSecure` store                                                                                                       |
+| `scripts/`              | `check-bridge-contract.mjs`                                                                                                              |
+| `docs/`                 | [agent](./docs/agent/README.md), [bridge](./docs/bridge/README.md), [storage](./docs/storage/README.md), [shell](./docs/shell/README.md) |
 
 ## Commands
 
