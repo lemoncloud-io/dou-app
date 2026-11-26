@@ -1,6 +1,6 @@
 # ADR-0285: The home line is the room's last top-level message, its time and order the latest activity
 
-> Status: Accepted · Decided: 2026-11-04
+> Status: Superseded by [ADR-0379](./0379-the-home-line-is-the-latest-activity-and-a-reply-row-opens-its-thread.md) for the home list · Decided: 2026-11-04
 > Scope: `libs/data/src/domain/chatPreview.ts` (`isPreviewableChat`, `isActivityChat`,
 > `DomainLastChat`) · `apps/mobile/src/app/data/cache/ChatDataSource.ts` (`PREVIEWABLE_SQL`,
 > `ACTIVITY_SQL`) · `apps/web/src/app/hooks/useLastChats.ts`

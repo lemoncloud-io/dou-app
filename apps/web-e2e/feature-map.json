@@ -21,6 +21,7 @@
         "feedback": [],
         "home": [
             "cloud-switch.spec.ts",
+            "home-thread-reply.spec.ts",
             "chaos/boot-http-faults.spec.ts",
             "chaos/cloud-switch-chaos.spec.ts",
             "load/room-list.spec.ts",
