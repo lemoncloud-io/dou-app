@@ -263,7 +263,7 @@ const main = async (): Promise<void> => {
             } catch {
                 current = '';
             }
-            if (current !== next) drifted.push(name);
+            if (current.replace(/\r\n/g, '\n') !== next) drifted.push(name);
         } else {
             mkdirSync(dirname(path), { recursive: true });
             writeFileSync(path, next);
