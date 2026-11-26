@@ -196,9 +196,13 @@ name = "dou-cli"
 version = "0.0.0"
 dependencies = [
  "dou-auth",
+ "dou-control",
  "dou-core",
+ "dou-engine",
  "dou-http",
+ "dou-mcp",
  "dou-socket",
+ "dou-store",
  "serde_json",
  "tokio",
 ]

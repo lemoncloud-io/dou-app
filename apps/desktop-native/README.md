@@ -6,12 +6,19 @@ The Rust side of DoU desktop v2: a headless engine and a local MCP server that r
 
 | Path                 | What it is                                                                                          |
 | -------------------- | --------------------------------------------------------------------------------------------------- |
-| `crates/dou-core`    | shared types and errors                                                                             |
+| `crates/dou-core`    | shared types, errors, clock                                                                         |
 | `crates/dou-signing` | the request and socket signature, matched to the TS formula by vectors                              |
+| `crates/dou-http`    | SigV4 signing, request building and the HTTP client, matched by vectors                             |
+| `crates/dou-auth`    | relay API, device pairing, relay refresh, the on-disk profile and session vault                     |
+| `crates/dou-socket`  | the socket protocol, handshake, and a reconnecting link                                              |
+| `crates/dou-store`   | SQLite cache of rooms, messages and the outbox                                                      |
+| `crates/dou-engine`  | rooms, messages, send/reply/react, the outbox and event classification                              |
+| `crates/dou-control` | permissions (tier, allow-list, rate limit), the event log and the local control IPC                 |
+| `crates/dou-mcp`     | the stdio MCP server; a thin client of the control IPC                                              |
+| `crates/dou-cli`     | the `dou` binary: pair, serve, mcp, local commands, `perm`                                         |
 | `vectors/`           | JSON written by the TS code with fixed inputs; Rust must reproduce it byte for byte                 |
 | `docs/`              | [engine](./docs/engine/README.md), [mcp](./docs/mcp/README.md), [vectors](./docs/vectors/README.md) |
 
-More crates (`dou-http`, `dou-auth`, `dou-socket`, `dou-store`, `dou-engine`, `dou-control`, `dou-mcp`, `dou-cli`) are added as the engine grows; each is listed here when it lands.
 
 ## Commands
 
@@ -24,3 +31,16 @@ npx nx run desktop-native:rust-lint
 ```
 
 The same checks run on macOS and Windows in `.github/workflows/desktop-native.yml` when a Rust path changes, or when a TS source the vectors or strings come from changes (`libs/auth`, `libs/transport`, `libs/data`, `libs/sync`, `libs/runtime-core`, the web locales).
+
+## Running it
+
+```sh
+dou --profile DIR --env-file FILE pair              # prints a code; approve it from a signed-in device
+dou --profile DIR --env-file FILE serve --cloud ID  # keeps the engine and the control IPC running
+dou --profile DIR perm tier write                   # permissions are edited here, never through MCP
+dou --profile DIR perm allow ROOM_ID
+dou --profile DIR rooms | read ROOM | send ROOM TEXT | wait --timeout 30000
+dou --profile DIR mcp                               # stdio MCP for an agent
+```
+
+Every text sent by an MCP write tool starts with `[AI] `; the engine adds it and no tool argument turns it off.

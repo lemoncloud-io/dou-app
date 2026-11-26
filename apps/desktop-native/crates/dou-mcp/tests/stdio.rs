@@ -68,10 +68,12 @@ impl Client {
 }
 
 async fn start() -> (Client, Recorder, std::path::PathBuf) {
-    let dir = std::path::PathBuf::from(format!(
-        "/tmp/dm-{}",
-        &uuid::Uuid::new_v4().to_string()[..8]
-    ));
+    let root = if cfg!(windows) {
+        std::env::temp_dir()
+    } else {
+        std::path::PathBuf::from("/tmp")
+    };
+    let dir = root.join(format!("dm-{}", &uuid::Uuid::new_v4().to_string()[..8]));
     std::fs::create_dir_all(&dir).unwrap();
     let recorder = Recorder::default();
     let engine = Engine::new(
