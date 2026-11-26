@@ -26,4 +26,6 @@ npx nx run desktop-tauri:rust-lint
 npx nx run desktop-tauri:dev      # cargo tauri dev; needs: cargo install tauri-cli --locked --version '^2'
 ```
 
-`DOU_WEB_URL` at build time overrides the web address; without it a debug build opens `https://dou-dev.chatic.io` and a release build `https://dou.chatic.io`.
+`DOU_WEB_URL` and `DOU_STAGE` at build time pick the web address and the stage; `cargo build --release --bin dou-mcp` first, then `cargo tauri build --bundles app` bundles `dou-mcp` next to the app binary so Connectors finds it.
+
+Without them without it a debug build opens `https://dou-dev.chatic.io` and a release build `https://dou.chatic.io`.
