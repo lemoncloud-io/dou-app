@@ -26,6 +26,7 @@ apps/web/public/licenses.json
 
 # compiled output
 dist
+apps/desktop-native/target
 tmp
 out-tsc
 *.tsbuildinfo
