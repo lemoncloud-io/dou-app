@@ -9,7 +9,7 @@
 > `subWebViewRuntimeConsent.ts` — per place; `subWebViewRuntimeConsentPrompt.ts` — the question) ·
 > `libs/chatic-apps-sdk` (the version, the mock)
 > · The behaviour is documented in [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md#runtime-reads),
-> [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md#a-sub-webview-page-a-whitelist-of-reads)
+> [libs/runtime-core docs/bridge](../../libs/runtime/docs/remote/README.md#a-sub-webview-page-a-whitelist-of-reads)
 > and [libs/chatic-apps-sdk README](../../libs/chatic-apps-sdk/README.md)
 > · Amends: [ADR-0320](./0320-a-sub-webview-page-reads-the-current-cloud-through-a-whitelist-of-runtime-requests.md)
 > decisions 2, 5, 8, 9 and 10 — one write, under a seventh permission, with a check and a budget of

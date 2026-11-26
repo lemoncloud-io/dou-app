@@ -1,5 +1,5 @@
 import { startRuntime as startDeclaredRuntime } from '@chatic/runtime-client';
-import { providePlatform } from '@chatic/runtime/platform';
+import { providePlatform } from '@chatic/runtime/api/platform';
 
 import { webPlatform } from './webPlatform';
 

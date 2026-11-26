@@ -1,0 +1,268 @@
+import {
+    CONNECTION_CALL_METHODS,
+    CONNECTION_LOCAL_MEMBERS,
+    CONNECTION_STREAMS,
+    CONNECTION_TARGET,
+    SESSION_COMMANDS_TARGET,
+    SESSION_COMMAND_METHODS,
+    SYNC_CALL_METHODS,
+    SYNC_STREAMS,
+    SYNC_TARGET,
+    answerRuntimeHello,
+    chooseRuntimeContract,
+    offerHoldsSession,
+    readRuntimeOffer,
+    settleRuntimeHello,
+} from './contract';
+import { createCoreSessionCommands } from '../engine/session/commands';
+import { TOKEN_ISSUING_AUTH_METHODS } from '../engine/data/pageRepositories';
+import { createCoreRuntimeData } from '../engine/data/runtimeData';
+import {
+    DATA_CALL_METHODS,
+    DATA_STREAMS,
+    REPOSITORY_CALL_METHODS,
+    REPOSITORY_METHODS,
+    REPOSITORY_STREAMS,
+} from './repositories';
+import { createCoreRuntimeConnection } from '../engine/connection/runtimeConnection';
+import { createCoreRuntimeSync } from '../engine/sync/runtimeSync';
+import type { RuntimeHelloHost } from './contract';
+import { emptySessionSnapshot } from '../engine/testing/sessionView';
+
+const snapshot = emptySessionSnapshot();
+
+describe('chooseRuntimeContract', () => {
+    it('takes the newest version both sides speak', () => {
+        expect(chooseRuntimeContract([1, 2, 3], [2, 3, 4])).toBe(3);
+    });
+
+    it('is null when they share none', () => {
+        expect(chooseRuntimeContract([1], [2])).toBeNull();
+    });
+});
+
+describe('readRuntimeOffer', () => {
+    it('reads an offer in one of the contracts it speaks', () => {
+        expect(readRuntimeOffer({ sessionOwner: 'native', contracts: [1, 2] }, [2])).toEqual({
+            sessionOwner: 'native',
+            contracts: [1, 2],
+        });
+    });
+
+    it.each([
+        ['nothing injected', undefined],
+        ['null', null],
+        ['a string', 'native'],
+        ['another owner', { sessionOwner: 'web', contracts: [1] }],
+        ['no contracts', { sessionOwner: 'native' }],
+        ['contracts that are not versions', { sessionOwner: 'native', contracts: ['1'] }],
+        ['a zero version', { sessionOwner: 'native', contracts: [0] }],
+    ])('is null for %s', (_label, value) => {
+        expect(readRuntimeOffer(value, [1])).toBeNull();
+    });
+
+    it('is null for an offer in none of its contracts — not worth a handshake', () => {
+        expect(readRuntimeOffer({ sessionOwner: 'native', contracts: [9] }, [1])).toBeNull();
+    });
+
+    it('is null for an injected value whose getter throws, instead of failing the boot', () => {
+        const hostile = Object.defineProperty({}, 'sessionOwner', {
+            get: () => {
+                throw new Error('nope');
+            },
+        });
+
+        expect(readRuntimeOffer(hostile, [1])).toBeNull();
+    });
+
+    it('copies the contracts, so a later change to the injected value does not reach it', () => {
+        const injected = { sessionOwner: 'native', contracts: [1] };
+        const offer = readRuntimeOffer(injected, [1]);
+        injected.contracts.push(2);
+
+        expect(offer?.contracts).toEqual([1]);
+    });
+});
+
+describe('offerHoldsSession', () => {
+    it('is true for an offer that says its runtime holds the session', () => {
+        expect(offerHoldsSession({ sessionOwner: 'native', contracts: [1], held: true })).toBe(true);
+    });
+
+    it('is true even when the offer shares no contract with the page — the page must still not boot its own', () => {
+        expect(offerHoldsSession({ sessionOwner: 'native', contracts: [9], held: true })).toBe(true);
+    });
+
+    it.each([
+        ['nothing injected', undefined],
+        ['an offer not yet held', { sessionOwner: 'native', contracts: [1] }],
+        ['held: false', { sessionOwner: 'native', contracts: [1], held: false }],
+        ['a held that is not a boolean', { sessionOwner: 'native', contracts: [1], held: 1 }],
+        ['another owner', { sessionOwner: 'web', contracts: [1], held: true }],
+    ])('is false for %s', (_label, value) => {
+        expect(offerHoldsSession(value)).toBe(false);
+    });
+
+    it('is false for an injected value whose getter throws', () => {
+        const hostile = Object.defineProperty({ sessionOwner: 'native' }, 'held', {
+            get: () => {
+                throw new Error('nope');
+            },
+        });
+
+        expect(offerHoldsSession(hostile)).toBe(false);
+    });
+});
+
+describe('answerRuntimeHello', () => {
+    const host = (overrides: Partial<RuntimeHelloHost> = {}): RuntimeHelloHost => ({
+        contracts: [1, 2],
+        owns: true,
+        session: jest.fn(() => ({ seq: 7, session: snapshot })),
+        ...overrides,
+    });
+
+    it('takes the session under the newest shared contract, with the session as it is now', () => {
+        expect(answerRuntimeHello({ contracts: [1, 2, 3] }, host())).toEqual({
+            sessionOwner: 'native',
+            contract: 2,
+            seq: 7,
+            session: snapshot,
+        });
+    });
+
+    it('leaves the session with the page when it does not run its runtime this launch', () => {
+        const declining = host({ owns: false });
+
+        expect(answerRuntimeHello({ contracts: [1] }, declining)).toEqual({ sessionOwner: 'web' });
+        expect(declining.session).not.toHaveBeenCalled();
+    });
+
+    it('leaves the session with the page when they share no contract', () => {
+        expect(answerRuntimeHello({ contracts: [3] }, host())).toEqual({ sessionOwner: 'web' });
+    });
+
+    it('leaves the session with the page for a hello that names no contracts', () => {
+        expect(answerRuntimeHello({} as never, host())).toEqual({ sessionOwner: 'web' });
+    });
+});
+
+describe('settleRuntimeHello', () => {
+    const taken = { sessionOwner: 'native' as const, contract: 1, seq: 3, session: { userId: 'u1' } };
+    const answered = (answer: unknown) => ({ answer: answer as never });
+
+    it('mirrors the shell for a complete answer under one of its contracts', () => {
+        expect(settleRuntimeHello(answered(taken), [1])).toEqual(taken);
+    });
+
+    it('mirrors the shell for a null session — a shell with nobody signed in still owns the session', () => {
+        expect(settleRuntimeHello(answered({ ...taken, session: null }), [1])).toEqual({ ...taken, session: null });
+    });
+
+    it('runs its own runtime when the shell declines', () => {
+        expect(settleRuntimeHello(answered({ sessionOwner: 'web' }), [1])).toEqual({ sessionOwner: 'web' });
+    });
+
+    it('runs its own runtime when the shell has no hello handler (NOT_FOUND) — it has no runtime to own the session', () => {
+        expect(settleRuntimeHello({ failure: { code: 'NOT_FOUND' } }, [1])).toEqual({ sessionOwner: 'web' });
+    });
+
+    it.each([
+        ['a timeout', { failure: { code: 'TIMEOUT' } }],
+        ['another bridge failure', { failure: { code: 'INTERNAL_ERROR' } }],
+        ['no answer', answered(undefined)],
+        ['an answer naming no owner', answered({})],
+        ['a contract it never offered', answered({ ...taken, contract: 2 })],
+        ['no contract', answered({ ...taken, contract: undefined })],
+        ['no sequence number', answered({ ...taken, seq: undefined })],
+        ['a fractional sequence number', answered({ ...taken, seq: 1.5 })],
+        ['no session', answered({ ...taken, session: undefined })],
+    ])('settles nothing for %s, so the page asks again', (_label, outcome) => {
+        expect(settleRuntimeHello(outcome as never, [1])).toEqual({ sessionOwner: null });
+    });
+});
+
+describe('the session commands a runtime call may name', () => {
+    it('are every command the core engine runs, each once, under the session target', () => {
+        expect([...SESSION_COMMAND_METHODS].sort()).toEqual(Object.keys(createCoreSessionCommands()).sort());
+        expect(new Set(SESSION_COMMAND_METHODS).size).toBe(SESSION_COMMAND_METHODS.length);
+        expect(SESSION_COMMANDS_TARGET).toBe('session');
+    });
+});
+
+describe('the sockets and the sync engine across the bridge', () => {
+    it("list every member of the core engine's connection once — calls, streams, local ones, the view's two", () => {
+        const listed = [
+            ...CONNECTION_CALL_METHODS,
+            ...CONNECTION_STREAMS,
+            ...CONNECTION_LOCAL_MEMBERS,
+            'snapshot',
+            'subscribe',
+        ];
+
+        expect([...listed].sort()).toEqual(Object.keys(createCoreRuntimeConnection()).sort());
+        expect(new Set(listed).size).toBe(listed.length);
+        expect(CONNECTION_STREAMS).toEqual(['onServerEvent', 'observeRequests']);
+        expect(CONNECTION_LOCAL_MEMBERS).toEqual(['requestOnSlot', 'onServerMessage']);
+        expect(CONNECTION_TARGET).toBe('connection');
+    });
+
+    it("list every member of the core engine's sync once — a registration is a stream, refusals a view", () => {
+        const listed = [
+            ...SYNC_CALL_METHODS,
+            ...SYNC_STREAMS,
+            'isChannelRefused',
+            'subscribeRefusedChannels',
+            'refusedChannels',
+        ];
+
+        expect([...listed].sort()).toEqual(Object.keys(createCoreRuntimeSync()).sort());
+        expect(SYNC_STREAMS).toEqual(['registerTarget', 'onBackgroundDelta']);
+        expect(SYNC_TARGET).toBe('sync');
+    });
+});
+
+describe('the data across the bridge', () => {
+    it('names every repository method once, and every observe* as a stream', () => {
+        const all = [...REPOSITORY_CALL_METHODS, ...REPOSITORY_STREAMS];
+
+        expect(new Set(all).size).toBe(all.length);
+        expect(REPOSITORY_STREAMS.every(method => method.split('.')[1].startsWith('observe'))).toBe(true);
+        expect(REPOSITORY_CALL_METHODS.some(method => method.split('.')[1].startsWith('observe'))).toBe(false);
+        expect(Object.keys(REPOSITORY_METHODS)).toHaveLength(15);
+    });
+
+    it("carries a channel's webhooks as calls — an app built before them answers RUNTIME_NOT_AVAILABLE", () => {
+        expect(REPOSITORY_METHODS.webhook).toEqual({
+            list: 'call',
+            issue: 'call',
+            setPaused: 'call',
+            setExpiresAt: 'call',
+            remove: 'call',
+        });
+        expect(REPOSITORY_CALL_METHODS).toEqual(expect.arrayContaining(['webhook.list', 'webhook.issue']));
+    });
+
+    it("carries the room's media reads as calls — an app built before them answers RUNTIME_NOT_AVAILABLE", () => {
+        expect(REPOSITORY_METHODS.chat.listRoomMedia).toBe('call');
+        expect(REPOSITORY_METHODS.chat.countRoomMedia).toBe('call');
+        expect(REPOSITORY_CALL_METHODS).toEqual(expect.arrayContaining(['chat.listRoomMedia', 'chat.countRoomMedia']));
+    });
+
+    it("has no token issuer, no pairing claim and no lifecycle on the page's graph", () => {
+        const auth = Object.keys(REPOSITORY_METHODS.auth);
+
+        for (const method of TOKEN_ISSUING_AUTH_METHODS.filter(m => m !== 'confirmPhoneCode')) {
+            expect(auth).not.toContain(method);
+        }
+        expect(Object.keys(REPOSITORY_METHODS.pairing)).not.toContain('claimPairing');
+        expect(REPOSITORY_CALL_METHODS.some(method => method.endsWith('.dispose'))).toBe(false);
+    });
+
+    it("list every member of the core engine's data, the graphs themselves being the page's handles", () => {
+        const listed = [...DATA_CALL_METHODS, ...DATA_STREAMS, 'repositories', 'cloudRepositories'];
+
+        expect([...listed].sort()).toEqual(Object.keys(createCoreRuntimeData()).sort());
+        expect(DATA_STREAMS).toEqual(['holdCloud', 'observeStateOutbox']);
+    });
+});

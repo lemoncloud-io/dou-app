@@ -5,7 +5,7 @@
 > `libs/runtime-core/src/bridge/repositories.ts` and `host.ts` (`data.holdCloud` as a listenerless
 > stream); `libs/runtime/react/src/data/hooks/useSendImages.ts` and `dataCommands.ts`
 > · The behaviour is documented in [app-runtime docs/data/image-send.md](../../libs/runtime/docs/data/image-send.md)
-> and [runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md)
+> and [runtime-core docs/bridge](../../libs/runtime/docs/remote/README.md)
 > · Amends: [ADR-0256](./0256-a-chat-send-is-addressed-to-the-cloud-it-was-written-in.md) decision 1 —
 > the image send no longer runs inside `runInCloud`
 

@@ -1,0 +1,57 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist/neutral",
+        "lib": ["es2022"],
+        "types": [],
+        "rootDir": "src",
+        "tsBuildInfoFile": "dist/tsconfig.neutral.tsbuildinfo"
+    },
+    "include": ["src/engine/**/*.ts", "src/remote/**/*.ts", "src/api/**/*.ts", "src/declare/**/*.ts"],
+    "exclude": [
+        "src/**/*.spec.ts",
+        "src/**/*.test.ts",
+        "src/**/__mocks__/**",
+        "src/api/facade.ts",
+        "src/api/boot.ts",
+        "src/api/utils/**"
+    ],
+    "references": [
+        {
+            "path": "../sync/tsconfig.lib.json"
+        },
+        {
+            "path": "../config/tsconfig.lib.json"
+        },
+        {
+            "path": "../data/tsconfig.lib.json"
+        },
+        {
+            "path": "../transport/tsconfig.lib.json"
+        },
+        {
+            "path": "../session/tsconfig.lib.json"
+        },
+        {
+            "path": "../auth/tsconfig.lib.json"
+        },
+        {
+            "path": "../contracts/ports/tsconfig.lib.json"
+        },
+        {
+            "path": "../perf/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridge-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../http/tsconfig.lib.json"
+        },
+        {
+            "path": "../storage/tsconfig.lib.json"
+        },
+        {
+            "path": "../logger/tsconfig.lib.json"
+        }
+    ]
+}

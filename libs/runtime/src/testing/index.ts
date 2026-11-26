@@ -1,8 +1,8 @@
-import { HOST_PORT_NAMES, host } from '@chatic/runtime-client';
-import type { HostPorts } from '@chatic/runtime-client';
+import { HOST_PORT_NAMES, host } from '../api';
+import type { HostPorts } from '../api';
 
-import * as domain from '../domain';
-import * as facade from '../facade';
+import * as domain from '../api/domain';
+import * as facade from '../api/facade';
 
 import { browserAppShell } from './hostPorts/appShell';
 import { browserDiagnostics } from './hostPorts/diagnostics';

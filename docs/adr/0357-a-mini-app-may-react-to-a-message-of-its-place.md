@@ -9,7 +9,7 @@
 > place, the question) · `apps/mobile/src/app/services/subWebView/subWebViewManifest.ts` ·
 > `libs/chatic-apps-sdk` (the version)
 > · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md#runtime-reads),
-> [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md)
+> [libs/runtime-core docs/bridge](../../libs/runtime/docs/remote/README.md)
 > · Related: [ADR-0325](./0325-a-sub-webview-page-may-send-a-text-message-to-a-room-of-its-place.md)
 > (the first write, whose form this follows), [ADR-0347](./0347-a-mini-app-reads-only-the-place-its-view-opened-on.md)
 > (the place binding)

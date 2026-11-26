@@ -1,4 +1,4 @@
-import type { DiagnosticsPort } from '@chatic/runtime-client';
+import type { DiagnosticsPort } from '../../api';
 
 export const browserDiagnostics = (): DiagnosticsPort => ({
     kind: 'browser',

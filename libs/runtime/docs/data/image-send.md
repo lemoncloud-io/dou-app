@@ -40,7 +40,7 @@ message (`content`), and await nothing.
 **Everything is addressed to `cid`, the room's own cloud** — the channel row's `cid`, never the
 selection. Each pending entry remembers it, every repository call goes through
 `getCloudRepositories(cid)`, and the upload and the send run inside one hold of that cloud's socket
-(`holdCloud(cid)`, through runtime-client's `withCloudHold`), taken before the first request and released once the send settles, sent or
+(`holdCloud(cid)`, through the app API's `withCloudHold`), taken before the first request and released once the send settles, sent or
 failed. An upload takes seconds, and a cloud switch in that time used to put the finished message on
 the next cloud's socket while its row stayed in the first; now the row, the upload and the send stay
 together whichever cloud is on screen by the time it ends.

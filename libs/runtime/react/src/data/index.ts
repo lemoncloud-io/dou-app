@@ -1,4 +1,4 @@
-export * from '@chatic/runtime/data';
+export * from '@chatic/runtime/api/data';
 export { useRuntimeRepositories } from './hooks/useRuntimeRepositories';
 export { useSendImages } from './hooks/useSendImages';
 export { useImageSendProgress } from './hooks/imageSendProgress';

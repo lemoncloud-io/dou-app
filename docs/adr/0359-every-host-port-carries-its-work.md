@@ -8,7 +8,7 @@
 > `apps/web` and `apps/desktop-web` (their implementations and every caller), the root lint config
 > · The behaviour is documented in [apps/web docs/bridge/host-ports.md](../../apps/web/docs/bridge/host-ports.md),
 > [apps/desktop-web docs/host](../../apps/desktop-web/docs/host/README.md),
-> [libs/runtime-client](../../libs/runtime-client/README.md) and
+> [libs/runtime-client](../../libs/runtime/docs/api/README.md) and
 > [libs/runtime-web](../../libs/runtime-web/README.md)
 > · Builds on: [ADR-0352](./0352-a-host-port-carries-its-work-and-features-never-ask-which-side-does-it.md),
 > and finishes what its "What stayed" left: the four ports that still carried only their choice
