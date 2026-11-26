@@ -21,6 +21,7 @@ pub fn info_value(info: &ShellInfo) -> Value {
         "CHATIC_APP_INSTALLATION_ID": info.device_id,
         "CHATIC_APP_LATEST_VERSION": info.version,
         "CHATIC_APP_SHOULD_UPDATE": "false",
+        "CHATIC_APP_STORAGE_MEDIA": ["nativeSecure"],
         "CHATIC_APP_CAPABILITIES": { "version": 1, "checkout": [] },
     })
 }
@@ -74,6 +75,7 @@ mod tests {
         assert_eq!(value["CHATIC_APP_INSTALLATION_ID"], "dev-1");
         assert_eq!(value["CHATIC_APP_CAPABILITIES"]["checkout"], json!([]));
         assert_eq!(value["CHATIC_APP_CAPABILITIES"]["version"], 1);
+        assert_eq!(value["CHATIC_APP_STORAGE_MEDIA"], json!(["nativeSecure"]));
     }
 
     #[test]

@@ -1,0 +1,19 @@
+[package]
+name = "vault"
+description = "The encrypted key-value store behind the nativeSecure storage medium"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json.workspace = true
+chacha20poly1305 = "0.10"
+getrandom = "0.3"
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+
+[dev-dependencies]
+tempfile = "3"

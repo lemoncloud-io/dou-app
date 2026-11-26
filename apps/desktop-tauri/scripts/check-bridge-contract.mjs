@@ -18,8 +18,10 @@ const electron = new Set([
 ]);
 const expected = new Set([...electron, ...ADDED_OVER_ELECTRON]);
 
-const handledBlock = read('apps/desktop-tauri/src-tauri/src/handlers.rs').match(/HANDLED: &\[&str\] = &\[([^\]]*)\]/);
-if (!handledBlock) throw new Error('HANDLED list not found in src-tauri/src/handlers.rs');
+const handledBlock = read('apps/desktop-tauri/src-tauri/src/handlers/mod.rs').match(
+    /HANDLED: &\[&str\] = &\[([^\]]*)\]/
+);
+if (!handledBlock) throw new Error('HANDLED list not found in src-tauri/src/handlers/mod.rs');
 const tauri = new Set([...handledBlock[1].matchAll(/"(\w+)"/g)].map(match => match[1]));
 
 const tsResponses = new Map(

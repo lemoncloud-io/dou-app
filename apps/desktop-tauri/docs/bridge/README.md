@@ -22,9 +22,13 @@ The capability `web-bridge` (added at start-up for the baked origin) is the only
 
 `globals.rs` sets the `CHATIC_APP_*` values the web reads: platform `desktop`, the stage, a device id kept in the app data directory, the version, the OS language's bare subtag and `CHATIC_APP_CAPABILITIES = { version: 1, checkout: [] }`, so the web offers no subscription or purchase.
 
+## Simple handlers
+
+`SavePreference` is accepted and not stored (the page keeps its theme). `FetchFcmToken` answers an empty token until FCM exists. `SetBadgeCount` sets the dock badge on macOS and draws the page's PNG overlay on the Windows taskbar button. `OpenURL` opens an http or https address in the system browser and refuses anything else. A second launch brings the running window to the front instead of starting another process.
+
 ## What is handled
 
-The list is `HANDLED` in `src-tauri/src/handlers.rs`. `scripts/check-bridge-contract.mjs` compares it with the Electron handler list (`apps/desktop/src/main/bridgeHandlers.ts`, `updater.ts`): Tauri may handle what Electron handles and two additions, `OAuthLogin` and `OpenURL`. `--complete` requires equality. The script also checks that the Rust response-type table equals `WEB_MESSAGE_RESPONSE_TYPE`.
+The list is `HANDLED` in `src-tauri/src/handlers/mod.rs`. `scripts/check-bridge-contract.mjs` compares it with the Electron handler list (`apps/desktop/src/main/bridgeHandlers.ts`, `updater.ts`): Tauri may handle what Electron handles and two additions, `OAuthLogin` and `OpenURL`. `--complete` requires equality. The script also checks that the Rust response-type table equals `WEB_MESSAGE_RESPONSE_TYPE`.
 
 ```sh
 npx nx run desktop-tauri:check-bridge-contract

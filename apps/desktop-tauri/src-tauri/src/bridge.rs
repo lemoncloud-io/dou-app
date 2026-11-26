@@ -83,7 +83,25 @@ pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
         sub_webview_open_scope: Some("anyHttps".to_string()),
     });
 
-    crate::handlers::register_all(&mut host);
+    let vault_path = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("secrets.bin");
+    let vault = Arc::new(vault::Vault::open(
+        vault_path,
+        Box::new(vault::KeyringKeys::new(
+            "io.chatic.desktop.tauri",
+            "vault-key",
+        )),
+    ));
+    crate::handlers::register_all(
+        &mut host,
+        &crate::handlers::Context {
+            app: app.handle().clone(),
+            vault,
+        },
+    );
 
     app.add_capability(
         CapabilityBuilder::new("web-bridge")

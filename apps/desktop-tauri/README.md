@@ -9,6 +9,7 @@ The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the dep
 | `src-tauri/`         | the Tauri app crate (`dou-tauri`)                                                    |
 | `ui/`                | local pages the app serves itself: the loader shown while the web address is checked |
 | `crates/bridge-host` | the bridge envelope in Rust, free of any UI toolkit                                  |
+| `crates/vault`       | the encrypted `nativeSecure` store                                                   |
 | `scripts/`           | `check-bridge-contract.mjs`                                                          |
 | `docs/`              | [bridge](./docs/bridge/README.md), [shell](./docs/shell/README.md)                   |
 
