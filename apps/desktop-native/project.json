@@ -5,6 +5,9 @@
     "projectType": "application",
     "tags": ["layer:app", "platform:desktop", "formfactor:desktop"],
     "targets": {
+        "lint": {
+            "executor": "nx:noop"
+        },
         "rust-build": {
             "executor": "nx:run-commands",
             "options": {
