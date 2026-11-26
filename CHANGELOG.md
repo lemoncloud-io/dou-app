@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (design-system,web,desktop-web,web-ui-kit) fold the token sets into design-system packages
+
+## [2026-11-26] - No version updates
+
+### Refactor
+
 - (runtime,runtime-core,runtime-client) fold the engine and the client into @chatic/runtime
 
 ## [2026-11-25] - root@0.175.2, @chatic/desktop-web@0.61.2
