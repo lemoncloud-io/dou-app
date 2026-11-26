@@ -1,0 +1,907 @@
+{
+  "source": "libs/runtime-core/src/data/outbox.ts",
+  "vectors": [
+    {
+      "name": "inert-until-start",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts is inert until start()",
+      "ops": [
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "start"
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "order-within-a-channel",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts preserves send order within a channel",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "c",
+          "cid": "c1",
+          "channelId": "ch1"
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a",
+            "b"
+          ],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a",
+            "b",
+            "c"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "waits-for-a-verified-socket",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts does not drain while the transport is not ready",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "sent": [
+            "a",
+            "b"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "duplicate-enqueue-is-ignored",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts ignores a duplicate enqueue",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "remove-drops-a-queued-entry",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts drops a queued entry on remove()",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "remove",
+          "id": "a"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "b"
+          ]
+        },
+        {
+          "sent": [
+            "b"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "stop-halts-draining",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts stops draining after stop()",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "stop"
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c1",
+          "channelId": "ch1"
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": [
+            "b"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "channels-drain-independently",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts drains channels independently",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c1",
+          "channelId": "ch2"
+        },
+        {
+          "op": "enqueue",
+          "id": "c",
+          "cid": "c1",
+          "channelId": "ch1"
+        }
+      ],
+      "failIds": [
+        "a"
+      ],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a",
+            "b"
+          ],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a",
+            "b",
+            "c"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "a-failed-send-is-retired-without-a-second-attempt",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts a failed send retires the entry",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        }
+      ],
+      "failIds": [
+        "a"
+      ],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "a-failed-send-does-not-block-the-entries-behind-it",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts does not block the entries behind it",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "c",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        }
+      ],
+      "failIds": [
+        "a"
+      ],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a",
+            "b",
+            "c"
+          ]
+        },
+        {
+          "sent": [
+            "a",
+            "b",
+            "c"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "an-entry-that-landed-is-not-sent-again",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts does not re-send an entry the catch-up already pulled in",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        }
+      ],
+      "failIds": [],
+      "landedIds": [
+        "a"
+      ],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "sent": [
+            "b"
+          ],
+          "discarded": [
+            "a"
+          ],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "a-failed-landing-probe-resends",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts resends when the landing probe itself fails",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [
+        "a"
+      ],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "only-ready-clouds-drain",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts drains only the clouds whose socket is ready",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c2",
+          "channelId": "ch1"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        },
+        {
+          "op": "ready",
+          "cid": "c2",
+          "ready": true
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": [
+            "b"
+          ]
+        },
+        {
+          "sent": [
+            "a",
+            "b"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "the-same-channel-id-in-two-clouds-is-two-queues",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts keeps the same channel id in two clouds as two queues",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch"
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c2",
+          "channelId": "ch"
+        },
+        {
+          "op": "ready",
+          "cid": "c2",
+          "ready": true
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "sent": [
+            "b"
+          ],
+          "discarded": [],
+          "pending": [
+            "a"
+          ]
+        },
+        {
+          "sent": [
+            "b",
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    },
+    {
+      "name": "a-cloud-going-unready-mid-queue-holds-its-entries",
+      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts stops a cloud that goes unready mid-queue",
+      "ops": [
+        {
+          "op": "start"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        },
+        {
+          "op": "enqueue",
+          "id": "a",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": false
+        },
+        {
+          "op": "enqueue",
+          "id": "b",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "enqueue",
+          "id": "c",
+          "cid": "c1",
+          "channelId": "ch1"
+        },
+        {
+          "op": "ready",
+          "cid": "c1",
+          "ready": true
+        }
+      ],
+      "failIds": [],
+      "landedIds": [],
+      "probeFailIds": [],
+      "steps": [
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": []
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": [
+            "b"
+          ]
+        },
+        {
+          "sent": [
+            "a"
+          ],
+          "discarded": [],
+          "pending": [
+            "b",
+            "c"
+          ]
+        },
+        {
+          "sent": [
+            "a",
+            "b",
+            "c"
+          ],
+          "discarded": [],
+          "pending": []
+        }
+      ]
+    }
+  ]
+}

@@ -5,6 +5,7 @@ import axios from 'axios';
 
 import { LemonHmacSigner } from '../../../libs/auth/src/signing';
 import { signRequest } from '../../../libs/http/src/signing/sigV4';
+import { createChatOutbox } from '../../../libs/runtime-core/src/data/outbox';
 import { createRequestTransport } from '../../../libs/http/src/transport/requestTransport';
 
 type Vector = { name: string } & Record<string, unknown>;
@@ -242,10 +243,157 @@ const requestsFile = async (): Promise<VectorFile> => {
     return { source: 'libs/http/src/transport/requestTransport.ts', vectors };
 };
 
+type OutboxOp =
+    | { op: 'start' }
+    | { op: 'stop' }
+    | { op: 'ready'; cid: string; ready: boolean }
+    | { op: 'enqueue'; id: string; cid: string; channelId: string }
+    | { op: 'remove'; id: string };
+
+type OutboxCase = {
+    name: string;
+    derivedFrom: string;
+    ops: OutboxOp[];
+    failIds?: string[];
+    landedIds?: string[];
+    probeFailIds?: string[];
+};
+
+const enq = (id: string, cid = 'c1', channelId = 'ch1'): OutboxOp => ({ op: 'enqueue', id, cid, channelId });
+const ready = (cid: string, on = true): OutboxOp => ({ op: 'ready', cid, ready: on });
+const START: OutboxOp = { op: 'start' };
+const TEST = 'libs/runtime-core/src/data/outbox.test.ts';
+
+const outboxCases: OutboxCase[] = [
+    { name: 'inert-until-start', derivedFrom: `${TEST} is inert until start()`, ops: [ready('c1'), enq('a'), START] },
+    {
+        name: 'order-within-a-channel',
+        derivedFrom: `${TEST} preserves send order within a channel`,
+        ops: [START, ready('c1'), enq('a'), enq('b'), enq('c')],
+    },
+    {
+        name: 'waits-for-a-verified-socket',
+        derivedFrom: `${TEST} does not drain while the transport is not ready`,
+        ops: [START, enq('a'), enq('b'), ready('c1')],
+    },
+    {
+        name: 'duplicate-enqueue-is-ignored',
+        derivedFrom: `${TEST} ignores a duplicate enqueue`,
+        ops: [START, enq('a'), enq('a')],
+    },
+    {
+        name: 'remove-drops-a-queued-entry',
+        derivedFrom: `${TEST} drops a queued entry on remove()`,
+        ops: [START, enq('a'), enq('b'), { op: 'remove', id: 'a' }, ready('c1')],
+    },
+    {
+        name: 'stop-halts-draining',
+        derivedFrom: `${TEST} stops draining after stop()`,
+        ops: [START, ready('c1'), enq('a'), { op: 'stop' }, enq('b')],
+    },
+    {
+        name: 'channels-drain-independently',
+        derivedFrom: `${TEST} drains channels independently`,
+        ops: [START, ready('c1'), enq('a', 'c1', 'ch1'), enq('b', 'c1', 'ch2'), enq('c', 'c1', 'ch1')],
+        failIds: ['a'],
+    },
+    {
+        name: 'a-failed-send-is-retired-without-a-second-attempt',
+        derivedFrom: `${TEST} a failed send retires the entry`,
+        ops: [START, ready('c1'), enq('a')],
+        failIds: ['a'],
+    },
+    {
+        name: 'a-failed-send-does-not-block-the-entries-behind-it',
+        derivedFrom: `${TEST} does not block the entries behind it`,
+        ops: [START, enq('a'), enq('b'), enq('c'), ready('c1')],
+        failIds: ['a'],
+    },
+    {
+        name: 'an-entry-that-landed-is-not-sent-again',
+        derivedFrom: `${TEST} does not re-send an entry the catch-up already pulled in`,
+        ops: [START, enq('a'), enq('b'), ready('c1')],
+        landedIds: ['a'],
+    },
+    {
+        name: 'a-failed-landing-probe-resends',
+        derivedFrom: `${TEST} resends when the landing probe itself fails`,
+        ops: [START, enq('a'), ready('c1')],
+        probeFailIds: ['a'],
+    },
+    {
+        name: 'only-ready-clouds-drain',
+        derivedFrom: `${TEST} drains only the clouds whose socket is ready`,
+        ops: [START, enq('a', 'c1'), enq('b', 'c2'), ready('c1'), ready('c2')],
+    },
+    {
+        name: 'the-same-channel-id-in-two-clouds-is-two-queues',
+        derivedFrom: `${TEST} keeps the same channel id in two clouds as two queues`,
+        ops: [START, enq('a', 'c1', 'ch'), enq('b', 'c2', 'ch'), ready('c2'), ready('c1')],
+    },
+    {
+        name: 'a-cloud-going-unready-mid-queue-holds-its-entries',
+        derivedFrom: `${TEST} stops a cloud that goes unready mid-queue`,
+        ops: [START, ready('c1'), enq('a'), ready('c1', false), enq('b'), enq('c'), ready('c1')],
+    },
+];
+
+const outboxFile = async (): Promise<VectorFile> => {
+    const vectors: Vector[] = [];
+    for (const c of outboxCases) {
+        const sent: string[] = [];
+        const discarded: string[] = [];
+        const outbox = createChatOutbox({
+            send: async entry => {
+                sent.push(entry.id);
+                if (c.failIds?.includes(entry.id)) throw new Error('send failed');
+            },
+            hasLanded: async entry => {
+                if (c.probeFailIds?.includes(entry.id)) throw new Error('probe failed');
+                return c.landedIds?.includes(entry.id) ?? false;
+            },
+            discard: async entry => {
+                discarded.push(entry.id);
+            },
+        });
+        const steps: { sent: string[]; discarded: string[]; pending: string[] }[] = [];
+        for (const op of c.ops) {
+            if (op.op === 'start') outbox.start();
+            else if (op.op === 'stop') outbox.stop();
+            else if (op.op === 'ready') outbox.setReady(op.cid, op.ready);
+            else if (op.op === 'enqueue')
+                outbox.enqueue({
+                    id: op.id,
+                    cid: op.cid,
+                    channelId: op.channelId,
+                    payload: { channelId: op.channelId, content: op.id } as never,
+                });
+            else outbox.remove(op.id);
+            await outbox.flush();
+            steps.push({
+                sent: [...sent],
+                discarded: [...discarded],
+                pending: outbox.pending().map(entry => entry.id),
+            });
+        }
+        vectors.push({
+            name: c.name,
+            derivedFrom: c.derivedFrom,
+            ops: c.ops,
+            failIds: c.failIds ?? [],
+            landedIds: c.landedIds ?? [],
+            probeFailIds: c.probeFailIds ?? [],
+            steps,
+        });
+    }
+    return { source: 'libs/runtime-core/src/data/outbox.ts', vectors };
+};
+
 const FILES: Record<string, () => VectorFile | Promise<VectorFile>> = {
     'signing.json': signingFile,
     'http-sigv4.json': sigv4File,
     'http-requests.json': requestsFile,
+    'chat-outbox.json': outboxFile,
 };
 
 const render = (file: VectorFile): string => `${JSON.stringify(file, null, 2)}\n`;

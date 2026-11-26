@@ -10,6 +10,10 @@ pub enum Error {
     InvalidKey,
     #[error("http {status}: {message}")]
     Http { status: u16, message: String },
+    #[error("pairing ended: {0}")]
+    Pairing(String),
+    #[error("storage: {0}")]
+    Storage(String),
     #[error("network: {0}")]
     Network(String),
     #[error("invalid response: {0}")]
