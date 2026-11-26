@@ -109,6 +109,15 @@
             "path": "./libs/runtime/react"
         },
         {
+            "path": "./libs/checkout/store"
+        },
+        {
+            "path": "./libs/push/mobile"
+        },
+        {
+            "path": "./libs/sign-in/mobile"
+        },
+        {
             "path": "./libs/runtime-web"
         },
         {

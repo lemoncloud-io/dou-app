@@ -35,3 +35,24 @@ export interface IPushEventManager {
 
     emitReceiveNotification(message: FirebaseMessagingTypes.RemoteMessage): void;
 }
+
+export type NotificationChannelName = 'chat' | 'notice' | 'marketing' | 'cloud';
+
+export type PushCopyField = 'title' | 'body';
+
+export type PushCopyLocalizer = (locKey: string, locArgs: unknown, field: PushCopyField) => string;
+
+export interface PushCopy {
+    channelName(channel: NotificationChannelName): string;
+    localize: PushCopyLocalizer;
+}
+
+export interface BadgeMirror {
+    setBase(count: number): Promise<void>;
+}
+
+export interface NotificationServiceOptions {
+    copy: PushCopy;
+    badgeMirror: BadgeMirror;
+    beforePrompt?: () => Promise<void>;
+}
