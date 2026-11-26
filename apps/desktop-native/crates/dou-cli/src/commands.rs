@@ -4,7 +4,7 @@ use std::time::Duration;
 use dou_auth::{
     Endpoints, PairingPhase, PairingRequest, Profile, RelayApi, TokenView, refresh_relay,
 };
-use dou_control::{Settings, Tier, control_name};
+use dou_control::{Client, Settings, Tier, control_name};
 use dou_http::HttpClient;
 use serde_json::{Value, json};
 
@@ -47,7 +47,7 @@ pub async fn run(invocation: Invocation) -> Result<(), String> {
         "whoami" => return whoami(&profile),
         "perm" => return perm(&invocation, &profile),
         "mcp" => {
-            let name = control_name(profile.dir());
+            let name = control_name(profile.dir(), Client::Mcp);
             return dou_mcp::run(tokio::io::stdin(), tokio::io::stdout(), name)
                 .await
                 .map_err(fail);
@@ -175,7 +175,7 @@ async fn serve_app(invocation: &Invocation, api: RelayApi, profile: Profile) -> 
 }
 
 async fn local(invocation: &Invocation, profile: &Profile) -> Result<(), String> {
-    let name = control_name(profile.dir());
+    let name = control_name(profile.dir(), Client::Cli);
     let arg = |index: usize, what: &str| -> Result<&String, String> {
         invocation
             .rest
@@ -223,7 +223,7 @@ async fn local(invocation: &Invocation, profile: &Profile) -> Result<(), String>
         ),
         _ => return Err(USAGE.to_string()),
     };
-    match dou_control::call(&name, "cli", method, params).await {
+    match dou_control::call(&name, method, params).await {
         Ok(Ok(result)) => print(&result),
         Ok(Err(error)) => Err(format!("{}: {}", error["code"], error["message"])),
         Err(error) => Err(format!("is 'dou serve' running for this profile? {error}")),

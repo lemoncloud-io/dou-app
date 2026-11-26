@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use dou_control::{RateLimit, Service, Settings, Tier, arc, control_name, serve};
+use dou_control::{Client as Side, RateLimit, Service, Settings, Tier, arc, control_name, serve};
 use dou_core::Result;
 use dou_engine::{Engine, Remote};
 use dou_store::Store;
@@ -83,9 +83,9 @@ async fn start() -> (Client, Recorder, std::path::PathBuf) {
         "me",
     );
     let service = arc(Service::new(engine, dir.join("settings.json")));
-    let name = control_name(&dir);
+    let name = control_name(&dir, Side::Mcp);
     let server_name = name.clone();
-    tokio::spawn(async move { serve(&server_name, service).await });
+    tokio::spawn(async move { serve(&server_name, service, Side::Mcp).await });
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
 
     let (client_in, server_in) = tokio::io::duplex(1 << 16);

@@ -132,6 +132,7 @@ impl Socket {
                     Ok(Err(_)) | Err(_) => {
                         missed += 1;
                         if missed >= 2 {
+                            socket.closed.send_replace(true);
                             return;
                         }
                     }

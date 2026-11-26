@@ -62,7 +62,9 @@ impl Settings {
 
     pub fn save(&self, path: &Path) -> Result<()> {
         let text = serde_json::to_string_pretty(self).map_err(|e| Error::Storage(e.to_string()))?;
-        std::fs::write(path, text).map_err(|e| Error::Storage(e.to_string()))
+        let staged = path.with_extension("json.tmp");
+        std::fs::write(&staged, text).map_err(|e| Error::Storage(e.to_string()))?;
+        std::fs::rename(&staged, path).map_err(|e| Error::Storage(e.to_string()))
     }
 
     pub fn allows_room(&self, channel_id: &str) -> bool {

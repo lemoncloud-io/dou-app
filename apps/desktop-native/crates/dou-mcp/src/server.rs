@@ -26,7 +26,7 @@ fn tool_result(value: &Value, is_error: bool) -> Value {
 }
 
 async fn control(name: &str, method: &str, params: Value) -> std::result::Result<Value, Value> {
-    match dou_control::call(name, "mcp", method, params).await {
+    match dou_control::call(name, method, params).await {
         Ok(answer) => answer,
         Err(error) => Err(
             json!({ "code": "app_not_running", "message": format!("The DoU app is not running or not reachable: {error}") }),
@@ -79,7 +79,7 @@ async fn handle(
             if request["params"]["uri"] != EVENTS_URI {
                 return Some(failure(id, -32002, "unknown resource"));
             }
-            match control(name, "events_list", json!({ "since": 0, "limit": 50 })).await {
+            match control(name, "events_list", json!({ "tail": true, "limit": 50 })).await {
                 Ok(mut events) => {
                     wrap_untrusted(&mut events);
                     reply(

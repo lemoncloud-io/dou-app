@@ -31,6 +31,10 @@ impl Invocation {
         let mut positional = Vec::new();
         let mut iter = raw.iter();
         while let Some(arg) = iter.next() {
+            if arg == "--" {
+                positional.extend(iter.by_ref().cloned());
+                break;
+            }
             if let Some(name) = arg.strip_prefix("--") {
                 if let Some((key, value)) = name.split_once('=') {
                     flags.insert(key.to_string(), value.to_string());
@@ -95,6 +99,12 @@ mod tests {
                 .unwrap_err()
                 .starts_with("usage:")
         );
+    }
+
+    #[test]
+    fn everything_after_a_double_dash_is_text() {
+        let parsed = parse(&["send", "room", "--", "--- done"]).unwrap();
+        assert_eq!(parsed.rest, ["room", "--- done"]);
     }
 
     #[test]

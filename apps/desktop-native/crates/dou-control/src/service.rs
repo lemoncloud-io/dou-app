@@ -185,16 +185,12 @@ impl<R: Remote> Service<R> {
             }
             "send" | "reply" | "mention" => {
                 let channel = text(&params, "channelId")?;
-                self.gate(
-                    client,
-                    &Action::Write {
-                        channel_id: channel,
-                    },
-                )?;
                 let body = text(&params, "text")?;
                 let mut options = SendOptions::default();
                 if method == "reply" {
-                    options.parent_id = Some(text(&params, "parentId")?.to_string());
+                    let parent = text(&params, "parentId")?;
+                    in_channel(channel, parent, "parentId")?;
+                    options.parent_id = Some(parent.to_string());
                 }
                 if method == "mention" {
                     options.mention_user_ids = params
@@ -210,6 +206,12 @@ impl<R: Remote> Service<R> {
                         return Err(rpc("bad_params", "userIds is required"));
                     }
                 }
+                self.gate(
+                    client,
+                    &Action::Write {
+                        channel_id: channel,
+                    },
+                )?;
                 let origin = if client == Client::Mcp {
                     Origin::Ai
                 } else {
@@ -224,14 +226,15 @@ impl<R: Remote> Service<R> {
             }
             "react" => {
                 let channel = text(&params, "channelId")?;
+                let chat = text(&params, "chatId")?;
+                let emoji = text(&params, "emoji")?;
+                in_channel(channel, chat, "chatId")?;
                 self.gate(
                     client,
                     &Action::Write {
                         channel_id: channel,
                     },
                 )?;
-                let chat = text(&params, "chatId")?;
-                let emoji = text(&params, "emoji")?;
                 let on = params.get("on").and_then(Value::as_bool).unwrap_or(true);
                 self.engine
                     .react(chat, emoji, on)
@@ -272,8 +275,17 @@ impl<R: Remote> Service<R> {
     }
 
     fn events_since(&self, params: &Value) -> Result<Value, Value> {
-        let since = number(params, "since", 0);
         let limit = usize::try_from(number(params, "limit", 50).clamp(1, 200)).unwrap_or(50);
+        let since = if params.get("tail").and_then(Value::as_bool) == Some(true) {
+            let last = self
+                .engine
+                .store()
+                .journal_last()
+                .map_err(|e| rpc("internal", e.to_string()))?;
+            (last - i64::try_from(limit).unwrap_or(50)).max(0)
+        } else {
+            number(params, "since", 0)
+        };
         let rows = self
             .engine
             .store()
@@ -288,6 +300,27 @@ impl<R: Remote> Service<R> {
     }
 }
 
+fn in_channel(channel: &str, id: &str, field: &str) -> Result<(), Value> {
+    if id.contains(':') && !id.starts_with(&format!("{channel}:")) {
+        return Err(rpc(
+            "bad_params",
+            format!("{field} does not belong to room {channel}"),
+        ));
+    }
+    Ok(())
+}
+
 pub fn arc<R: Remote>(service: Service<R>) -> Arc<Service<R>> {
     Arc::new(service)
+}
+#[cfg(test)]
+mod channel_tests {
+    use super::in_channel;
+
+    #[test]
+    fn an_id_from_another_room_is_refused_and_a_bare_number_passes() {
+        assert!(in_channel("A", "A:5", "chatId").is_ok());
+        assert!(in_channel("A", "5", "parentId").is_ok());
+        assert!(in_channel("A", "B:5", "chatId").is_err());
+    }
 }

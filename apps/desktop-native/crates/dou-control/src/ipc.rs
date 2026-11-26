@@ -23,21 +23,36 @@ fn path_hash(profile_dir: &Path) -> u64 {
     hash
 }
 
+fn label(client: Client) -> &'static str {
+    match client {
+        Client::Cli => "cli",
+        Client::Mcp => "mcp",
+    }
+}
+
 #[cfg(unix)]
-pub fn control_name(profile_dir: &Path) -> String {
+pub fn control_name(profile_dir: &Path, client: Client) -> String {
     let beside = profile_dir
-        .join("control.sock")
+        .join(format!("{}.sock", label(client)))
         .to_string_lossy()
         .into_owned();
     if beside.len() <= 90 {
         return beside;
     }
-    format!("/tmp/dou-native-{:016x}.sock", path_hash(profile_dir))
+    format!(
+        "/tmp/dou-native-{:016x}-{}.sock",
+        path_hash(profile_dir),
+        label(client)
+    )
 }
 
 #[cfg(not(unix))]
-pub fn control_name(profile_dir: &Path) -> String {
-    format!("dou-native-{:016x}", path_hash(profile_dir))
+pub fn control_name(profile_dir: &Path, client: Client) -> String {
+    format!(
+        "dou-native-{:016x}-{}",
+        path_hash(profile_dir),
+        label(client)
+    )
 }
 
 #[cfg(unix)]
@@ -72,12 +87,17 @@ impl<R: dou_engine::Remote + 'static> Handler for crate::service::Service<R> {
     }
 }
 
-pub async fn serve<H: Handler>(name: &str, handler: Arc<H>) -> Result<()> {
+pub async fn serve<H: Handler>(name: &str, handler: Arc<H>, client: Client) -> Result<()> {
     let listener = ListenerOptions::new()
         .name(name_of(name)?)
         .try_overwrite(true)
         .create_tokio()
         .map_err(io)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(name, std::fs::Permissions::from_mode(0o600)).map_err(io)?;
+    }
     loop {
         let connection = listener.accept().await.map_err(io)?;
         let handler = Arc::clone(&handler);
@@ -85,7 +105,7 @@ pub async fn serve<H: Handler>(name: &str, handler: Arc<H>) -> Result<()> {
             let mut writer = &connection;
             let mut lines = BufReader::new(&connection).lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                let reply = answer(&*handler, &line).await;
+                let reply = answer(&*handler, client, &line).await;
                 if writer
                     .write_all(format!("{reply}\n").as_bytes())
                     .await
@@ -98,16 +118,9 @@ pub async fn serve<H: Handler>(name: &str, handler: Arc<H>) -> Result<()> {
     }
 }
 
-async fn answer<H: Handler>(handler: &H, line: &str) -> Value {
+async fn answer<H: Handler>(handler: &H, client: Client, line: &str) -> Value {
     let Ok(request) = serde_json::from_str::<Value>(line) else {
         return json!({ "ok": false, "error": { "code": "bad_request", "message": "not JSON" } });
-    };
-    let client = match request.get("client").and_then(Value::as_str) {
-        Some("mcp") => Client::Mcp,
-        Some("cli") => Client::Cli,
-        _ => {
-            return json!({ "ok": false, "error": { "code": "bad_request", "message": "client must be mcp or cli" } });
-        }
     };
     let method = request
         .get("method")
@@ -123,13 +136,12 @@ async fn answer<H: Handler>(handler: &H, line: &str) -> Value {
 
 pub async fn call(
     name: &str,
-    client: &str,
     method: &str,
     params: Value,
 ) -> Result<std::result::Result<Value, Value>> {
     let stream = Stream::connect(name_of(name)?).await.map_err(io)?;
     let mut writer = &stream;
-    let request = json!({ "client": client, "method": method, "params": params });
+    let request = json!({ "method": method, "params": params });
     writer
         .write_all(format!("{request}\n").as_bytes())
         .await

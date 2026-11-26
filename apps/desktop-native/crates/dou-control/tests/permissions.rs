@@ -252,14 +252,17 @@ async fn events_wait_returns_a_mention_that_arrives_while_waiting() {
 #[tokio::test]
 async fn the_ipc_carries_a_request_and_its_denial_to_another_connection() {
     let (service, _, dir) = setup(None);
-    let name = control_name(&dir);
     let service = arc(service);
-    let server = Arc::clone(&service);
-    tokio::spawn(async move { serve(&control_name(&dir), server).await });
+    let name = control_name(&dir, Client::Mcp);
+    let owner = control_name(&dir, Client::Cli);
+    for (served, client) in [(name.clone(), Client::Mcp), (owner.clone(), Client::Cli)] {
+        let server = Arc::clone(&service);
+        tokio::spawn(async move { serve(&served, server, client).await });
+    }
     let mut reply = None;
     let mut last_error = String::new();
     for _ in 0..50 {
-        match call(&name, "mcp", "rooms", Value::Null).await {
+        match call(&name, "rooms", Value::Null).await {
             Ok(answer) => {
                 reply = Some(answer);
                 break;
@@ -274,9 +277,6 @@ async fn the_ipc_carries_a_request_and_its_denial_to_another_connection() {
             .unwrap_err()["code"],
         "tier_off"
     );
-    let cli = call(&name, "cli", "clouds", Value::Null)
-        .await
-        .unwrap()
-        .unwrap();
+    let cli = call(&owner, "clouds", Value::Null).await.unwrap().unwrap();
     assert_eq!(cli["list"][0]["id"], "c1");
 }
