@@ -106,7 +106,10 @@ impl Agent {
             let outcome = agent.pair().await;
             *lock(&agent.pairing) = match outcome {
                 Ok(()) => Pairing::Idle,
-                Err(message) => Pairing::Failed { message },
+                Err(message) => {
+                    eprintln!("agent pairing failed: {message}");
+                    Pairing::Failed { message }
+                }
             };
             if agent.pairing() == Pairing::Idle {
                 agent.autostart_engine();

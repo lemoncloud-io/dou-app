@@ -4,14 +4,8 @@ use serde::{Deserialize, Serialize};
 
 pub use dou_auth::Endpoints;
 
-const DEV: (&str, &str) = (
-    "https://api.eureka.codes/dou-d1",
-    "wss://wss.eureka.codes/cht-d1",
-);
-const PROD: (&str, &str) = (
-    "https://api.eureka.codes/dou-v1",
-    "wss://wss.eureka.codes/cht-v1",
-);
+const DEV: (&str, &str) = ("https://api.chatic.io/dou-d1", "wss://wss.chatic.io/cht-d1");
+const PROD: (&str, &str) = ("https://api.chatic.io/dou-v1", "wss://wss.chatic.io/cht-v1");
 
 pub fn endpoints_for(stage: &str) -> Endpoints {
     let relay = option_env!("DOU_RELAY_ENDPOINT");
