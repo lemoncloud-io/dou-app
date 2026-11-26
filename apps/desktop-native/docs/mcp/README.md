@@ -2,7 +2,7 @@
 
 The local MCP server for Claude Desktop and Claude Code. A stdio launcher connects to the control interface of the running app (a Unix socket on macOS, a named pipe on Windows); it holds no account state of its own.
 
-The app listens on two endpoints in the profile directory (file mode 0600; a named pipe on Windows): `mcp.sock`, whose clients are always treated as MCP and so are gated, and `cli.sock`, whose clients are the owner and are not gated. The client kind comes from the endpoint, never from the request. The trust model is that a process able to open `cli.sock` or edit `settings.json` runs as the same OS user and is the owner, so an agent with an unrestricted shell on the same account can already act as the owner; the gate is for an MCP client that has no shell.
+The app listens on two endpoints inside a private directory (mode 0700, owned by the user, checked by both sides): the profile directory, or `/tmp/dou-native-<hash>/` when the profile path is too long for a socket name (unix); a named pipe on Windows. The socket files are 0600: `mcp.sock`, whose clients are always treated as MCP and so are gated, and `cli.sock`, whose clients are the owner and are not gated. The client kind comes from the endpoint, never from the request. The trust model is that a process able to open `cli.sock` or edit `settings.json` runs as the same OS user and is the owner, so an agent with an unrestricted shell on the same account can already act as the owner; the gate is for an MCP client that has no shell.
 
 Permission rules the control interface enforces:
 

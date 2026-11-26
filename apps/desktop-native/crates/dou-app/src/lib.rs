@@ -104,7 +104,9 @@ pub async fn start(
 
     let store = Arc::new(Store::open(&profile.dir().join("dou.db")).map_err(|e| e.to_string())?);
     let engine = Engine::new(link.clone(), store, cloud, &me);
-    let _ = engine.rooms().await;
+    if let Err(error) = engine.rooms().await {
+        eprintln!("first room load failed: {error}");
+    }
     let service = arc(Service::new(engine, settings_path(profile.dir())));
     let pump = Arc::clone(&service);
     let events = link.subscribe();

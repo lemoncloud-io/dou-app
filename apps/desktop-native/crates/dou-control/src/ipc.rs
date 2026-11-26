@@ -40,7 +40,7 @@ pub fn control_name(profile_dir: &Path, client: Client) -> String {
         return beside;
     }
     format!(
-        "/tmp/dou-native-{:016x}-{}.sock",
+        "/tmp/dou-native-{:016x}/{}.sock",
         path_hash(profile_dir),
         label(client)
     )
@@ -67,6 +67,36 @@ fn name_of(name: &str) -> Result<Name<'_>> {
     name.to_ns_name::<GenericNamespaced>().map_err(io)
 }
 
+#[cfg(unix)]
+fn own_uid() -> Result<u32> {
+    use std::os::unix::fs::MetadataExt;
+    let home = std::env::var_os("HOME").ok_or_else(|| io("HOME is not set"))?;
+    Ok(std::fs::metadata(home).map_err(io)?.uid())
+}
+
+#[cfg(unix)]
+fn secure_parent(name: &str, create: bool) -> Result<()> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    let parent = Path::new(name)
+        .parent()
+        .ok_or_else(|| io("endpoint has no directory"))?;
+    let me = own_uid()?;
+    if create {
+        std::fs::create_dir_all(parent).map_err(io)?;
+        if std::fs::metadata(parent).map_err(io)?.uid() == me {
+            std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700)).map_err(io)?;
+        }
+    }
+    let meta = std::fs::metadata(parent).map_err(io)?;
+    if meta.uid() != me || meta.mode() & 0o077 != 0 {
+        return Err(io(format!(
+            "{} is not a private directory of this user",
+            parent.display()
+        )));
+    }
+    Ok(())
+}
+
 pub trait Handler: Send + Sync + 'static {
     fn handle(
         &self,
@@ -88,6 +118,8 @@ impl<R: dou_engine::Remote + 'static> Handler for crate::service::Service<R> {
 }
 
 pub async fn serve<H: Handler>(name: &str, handler: Arc<H>, client: Client) -> Result<()> {
+    #[cfg(unix)]
+    secure_parent(name, true)?;
     let listener = ListenerOptions::new()
         .name(name_of(name)?)
         .try_overwrite(true)
@@ -139,6 +171,8 @@ pub async fn call(
     method: &str,
     params: Value,
 ) -> Result<std::result::Result<Value, Value>> {
+    #[cfg(unix)]
+    secure_parent(name, false)?;
     let stream = Stream::connect(name_of(name)?).await.map_err(io)?;
     let mut writer = &stream;
     let request = json!({ "method": method, "params": params });

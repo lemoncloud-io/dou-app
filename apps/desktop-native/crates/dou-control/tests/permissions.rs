@@ -124,6 +124,30 @@ async fn write_tier_refuses_a_room_off_the_allow_list_and_sends_nothing() {
 }
 
 #[tokio::test]
+async fn a_reaction_or_reply_aimed_at_another_room_is_refused_and_sends_nothing() {
+    let (service, recorder, _) = setup(Some(allowed(Tier::Write)));
+    let react = service
+        .handle(
+            Client::Mcp,
+            "react",
+            json!({ "channelId": "r1", "chatId": "other:5", "emoji": "x" }),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(react["code"], "bad_params");
+    let reply = service
+        .handle(
+            Client::Mcp,
+            "reply",
+            json!({ "channelId": "r1", "parentId": "other:5", "text": "x" }),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(reply["code"], "bad_params");
+    assert!(recorder.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
 async fn the_third_write_in_a_minute_is_rate_limited() {
     let (service, recorder, _) = setup(Some(allowed(Tier::Write)));
     assert!(write_as_mcp(&service, "r1").await.is_ok());
