@@ -91,12 +91,13 @@ and shows a "Theme applied" toast (picking the one already on does nothing).
   `:root:not(.dark)` and dark ones under `:root.dark`, so switching the display mode needs no rewrite.
   The rails and the list draw with page tokens too, so the rail elements carry `data-shell-rail="cloud"`
   or `"nav"` and the list `data-shell-sidebar`, and the rules set those tokens inside them only.
-- `styles.css` keeps Mist's light values on `:root`: that is what paints before the app starts.
+- The desktop tokens (`libs/design-system/tokens/desktop/src/light.css`, imported by `styles.css`) keep
+  Mist's light values on `:root`: that is what paints before the app starts.
 - The choice is kept with the other appearance preferences (`palette` and `customPalette` in
   `chatic-appearance-prefs`, version 1) and also written to the root as `data-palette`. A palette name
   this build does not know, malformed custom colours, or Custom with none saved read as Mist.
 - The sample cards draw from the same rule, each under its own `data-palette-preview`, so a card always
-  shows its own palette. Mist's card in dark mode repeats the dark shell's three values from `styles.css`.
+  shows its own palette. Mist's card in dark mode repeats the dark shell's three values in a `styles.css` rule.
 - `shellPalette.spec.ts` measures the rule on the presets and on a sweep of seeded random colours, in
   both modes.
 
@@ -111,7 +112,7 @@ with a preview of two sample messages that changes as the choice does. Both are 
   clears the override instead of writing 16px, so a reader who changed the browser's base size keeps it.
 - **Message density** (compact, comfy, spacious) sets `--message-row-py` and `--message-gap`, which only
   the message rows read (the padding of an author block and the gap between its messages). Comfy equals
-  the spacing before the setting existed, and `styles.css` carries the same values as fallbacks.
+  the spacing before the setting existed, and the desktop tokens carry the same values as fallbacks.
 
 `main.tsx` applies the stored values before the first render; the store hydrates localStorage
 synchronously, so the app never paints at the default size first. After that a subscription in the

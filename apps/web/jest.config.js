@@ -11,6 +11,8 @@ module.exports = {
         '^@chatic/runtime/(.*)$': '<rootDir>/../../libs/runtime/src/$1',
         '^@chatic/runtime-react/testing$': '<rootDir>/../../libs/runtime/react/src/testing/index.ts',
         '^@chatic/runtime-react$': '<rootDir>/../../libs/runtime/react/src/index.ts',
+        '^@chatic/design-system-assets$': '<rootDir>/../../libs/design-system/assets/src/index.ts',
+        '^@chatic/design-system-assets/(.*)$': '<rootDir>/../../libs/design-system/assets/src/$1/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/../../libs/web-ui-kit/src/__mocks__/styleMock.js',
         '\\.(png|jpe?g|gif|svg|webp)$': '<rootDir>/../../libs/web-ui-kit/src/__mocks__/fileMock.js',

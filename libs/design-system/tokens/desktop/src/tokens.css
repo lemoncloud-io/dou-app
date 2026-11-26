@@ -1,0 +1,4 @@
+@import '../../src/light.css';
+@import './light.css';
+@import '../../src/dark.css';
+@import './dark.css';

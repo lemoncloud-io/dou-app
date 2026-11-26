@@ -376,10 +376,10 @@ clear those floors on its own ground; `apps/desktop-web` asserts its pairs in
 `Toaster`, and the thing to fix first if it ever does. `overlay` is declared by every host that
 renders a kit overlay: `apps/web` and `apps/desktop-web` had it, `apps/admin` declares it black
 (the scrim it had before the kit read a token), and `libs/web-ui-kit`'s Storybook `tokens.css`
-mirrors `apps/web`'s values.
+imports `apps/web`'s values from `libs/design-system/tokens/mobile`.
 
 ```bash
-grep -rn "surface:\|input-border\|main-accent\|toast:\|control-border\|ink:\|overlay:" apps/*/tailwind.config.js
+grep -rn "surface:\|input-border\|main-accent\|toast:\|control-border\|ink:\|overlay:" apps/*/tailwind.config.js libs/design-system/tokens/src/tailwind.cjs libs/design-system/tokens/*/src/tailwind.cjs
 ```
 
 `--app-width` is the other host-owned value, and it is a CSS variable rather than a Tailwind token on

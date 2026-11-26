@@ -1,8 +1,8 @@
 /**
  * The payload editor's syntax colours.
  *
- * Its own file, not an addition to `styles.css`: that file is byte-identical to
- * desktop-web's copy, and this is the only app in the workspace that draws code.
+ * Its own file, not an addition to `styles.css`: that file mirrors desktop-web's
+ * token names, and this is the only app in the workspace that draws code.
  * Editing the shared copy to serve one app is how two files that must stay the
  * same start drifting.
  *

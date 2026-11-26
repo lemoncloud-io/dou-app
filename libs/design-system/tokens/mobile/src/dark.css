@@ -1,0 +1,85 @@
+.dark {
+    /* Chatic Dark Theme */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 98%;
+    --primary-foreground: 220 20% 10%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 64%;
+    --accent: 72 85% 50%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 83%;
+
+    /* Figma design system gray scale (dark) */
+    --label: 216 3% 64%; /* #9FA2A7 - lighter for dark bg */
+    --placeholder: 216 3% 42%; /* #6B6D72 - muted on dark bg */
+    --description: 216 3% 64%; /* #9FA2A7 */
+    --surface: 0 0% 7%; /* same as bg */
+    --main-accent: 76 93% 39%; /* #90C304 - same */
+    --verified: 211 100% 50%; /* #007AFF - same */
+    --point-blue: 215 90% 56%; /* #2A7EF4 - same */
+    --point-pink: 348.6 100% 58.8%; /* #FF2D55 - same */
+    --point-orange: 35 100% 50%; /* #FF9500 - same */
+    --alert-red: 350 100% 62%; /* #FF3B5C - same */
+    --chip-ink: 226 46% 20%; /* #1C274C - same, white text stays on it */
+    --chip-surface: 0 0% 13%; /* raised chip on dark bg */
+    --chip-border: 0 0% 23%; /* #3A3C40 */
+    --tab-idle: 216 3% 50%; /* dimmed tab text on dark bg */
+    --action-soft: 0 0% 15%; /* tile fill on dark bg */
+    --notify-name: 0 0% 96%;
+    --notify-ink: 0 0% 85%;
+    --notify-muted: 216 3% 50%;
+    --input-border: 0 0% 23%; /* #3A3C40 */
+    --focus-border: 216 3% 64%; /* #9FA2A7 */
+
+    /* Block Kit message surfaces (dark) */
+    --hairline: 0 0% 23%; /* same weight as the dark card border */
+    --well: 0 0% 12%; /* recessed against the 7% page ground */
+    --primary-ink: 215 90% 56%; /* = --point-blue, unchanged on dark */
+    --link: 250 90% 76%; /* lifted for the dark card */
+
+    /* Brand + control tokens (Figma) */
+    --brand-ink: 217 63% 17%; /* #102346 */
+    --control-idle: 220 3% 40%; /* muted control on dark bg */
+    --avatar-ring: 0 0% 18%; /* subtle ring on dark bg */
+    --avatar-stroke: 0 0% 18%; /* avatar stroke on dark bg */
+    --control-surface: 0 0% 15%; /* tile fill on dark bg */
+    --nav-ink: 0 0% 92%; /* light glyphs on the dark glass bar */
+
+    /* Attach menu + photo picker */
+    --glyph-green: 135 59% 49%; /* same */
+    --glyph-indigo: 241 61% 59%; /* same */
+    --glyph-cyan: 199 78% 55%; /* same */
+    --tile-ring: 220 5% 30%; /* ring on dark bg */
+    --media-tile: 220 5% 24%; /* same */
+    --media-tile-foreground: 240 4% 92%; /* same */
+
+    /* Toast (raised dark surface on the dark bg). Not the inverted light card it once was:
+       the snackbar's success check is the lime `primary`, which all but vanishes on a light
+       card (under 2:1); on BK_800 it keeps the light theme's contrast, and the navy itself
+       is too close to #121212 to read as a raised surface. */
+    --toast: 220 5% 24%; /* #3A3C40 - BK_800 */
+    --toast-foreground: 210 6% 96%; /* #F4F5F5 - same as light */
+    --toast-muted: 220 3% 81%; /* #CFD0D3 - same as light */
+
+    /* Dialog */
+    --dialog-subtitle: 216 3% 64%; /* #9FA2A7 */
+
+    /* Chatic custom tokens (dark) */
+    --bubble-mine: 218 63% 16%; /* #102346 - my messages */
+    --bubble-other: 0 0% 15%;
+    --bubble-other-foreground: 0 0% 98%;
+    --badge-unread: 0 75% 55%;
+    --badge-member: 72 85% 50%;
+    --tab-active: 0 0% 98%;
+    --tab-inactive: 0 0% 50%;
+}

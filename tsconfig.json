@@ -122,6 +122,9 @@
         },
         {
             "path": "./libs/chatic-apps-devtools"
+        },
+        {
+            "path": "./libs/design-system/assets"
         }
     ]
 }

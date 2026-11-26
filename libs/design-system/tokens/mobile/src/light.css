@@ -1,0 +1,100 @@
+:root {
+    /**
+     * The app's column — the single source of truth for the app's width.
+     *
+     * A phone's column, not the widest device. On every phone the column is the device; on
+     * anything wider (an unfolded foldable, iPhone Duo's inner display, a tablet, a desktop
+     * browser opening an invite link) it stops here and centres, and `body` shows a grey margin
+     * either side, rather than a phone layout stretched across the display.
+     *
+     * 600px leaves room past the largest phones without a list or a chat line running long, and
+     * sits just above the width a form of a few fields reads well at, so no screen needs a
+     * narrower column of its own. The `body` margin rule in apps/web/src/styles.css repeats the
+     * number in its media query (a variable cannot go there); change both together.
+     *
+     * Read two ways: `max-w-app` inside `apps/web`, and `max-w-[var(--app-width,…)]` inside
+     * `libs/ui-kit` / `libs/web-ui-kit`, where the value cannot be hardcoded because other apps
+     * share those primitives.
+     *
+     * A CSS variable rather than a Tailwind-only token because the overlay primitives are
+     * `fixed` and portalled to `document.body`, so they escape the shell's cap and have to
+     * re-declare it themselves — from a lib that must not know this app's number.
+     */
+    --app-width: 600px;
+    --foreground: 220 20% 10%;
+    --card-foreground: 220 20% 10%;
+    --popover-foreground: 220 20% 10%;
+    --primary-foreground: 220 20% 10%;
+    --secondary: 220 10% 96%;
+    --secondary-foreground: 220 20% 10%;
+    --muted: 220 10% 95%;
+    --muted-foreground: 220 10% 50%;
+    --accent: 72 85% 50%;
+    --accent-foreground: 220 30% 18%;
+    --destructive: 0 84% 60%;
+    --border: 220 15% 91%;
+    --input: 220 15% 91%;
+    --ring: 220 30% 18%;
+    --radius: 0.75rem;
+
+    /* Figma design system gray scale */
+    --label: 220 4% 35%; /* #53555B - input labels, secondary text */
+    --placeholder: 223 4% 74%; /* #BABCC0 - input placeholders */
+    --description: 218 4% 54%; /* #84888F - descriptions, sub text */
+    --main-accent: 76 93% 39%; /* #90C304 - focus ring, verification accent */
+    --verified: 211 100% 50%; /* #007AFF - blue verified/selected check (web-ui-kit VerifiedBadge) */
+    --point-blue: 215 90% 56%; /* #2A7EF4 - Figma point_blue, inline text links */
+    --point-pink: 348.6 100% 58.8%; /* #FF2D55 - Figma Colors/Pink, unread count pill */
+
+    /* Notifications · place chips · jump pills (Figma 5774:29146) */
+    --point-orange: 35 100% 50%; /* #FF9500 - Figma Colors/Orange, mention chip + mention jump pill */
+    --alert-red: 350 100% 62%; /* #FF3B5C - unread dot, destructive action button */
+    --chip-ink: 226 46% 20%; /* #1C274C - selected place chip, jump pill, selection check; same in dark */
+    --chip-surface: 0 0% 97%; /* #F8F8F8 - unselected place chip */
+    --chip-border: 192 18% 91%; /* #E3EBED - filter chip outline */
+    --tab-idle: 226 6% 57%; /* #8C8F99 - unselected count tab, filter chip text */
+    --action-soft: 204 23% 96%; /* #F2F5F7 - secondary action button fill */
+    --notify-name: 220 3% 14%; /* #222325 - BK_900, notification sender */
+    --notify-ink: 220 5% 24%; /* #3B3D40 - BK_800, notification body + location */
+    --notify-muted: 216 3% 64%; /* #9FA2A7 - BK_500, notification context phrase */
+    --input-border: 240 4% 92%; /* #EAEAEC - input/card borders */
+    --focus-border: 210 5% 24%; /* #3A3C40 - focused input border */
+
+    /* Block Kit message surfaces (libs/block-kit renders with these) */
+    --hairline: 240 4% 92%; /* rule inside a message — same weight as a card border */
+    --well: 240 5% 96%; /* recessed ground under a code block */
+    --primary-ink: 215 90% 56%; /* = --point-blue; links/mentions in message bodies */
+    --link: 250 70% 60%; /* #6A52E0 - links in a Block Kit card (libs/block-kit), the design's purple */
+
+    /* Brand + control tokens (Figma) */
+    --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge, active send) */
+    --control-idle: 220 3% 81%; /* #CFD0D3 - idle/disabled control fill */
+    --avatar-ring: 210 22% 96%; /* #F4F5F5 - place/chat avatar stroke + light avatar disc */
+    --avatar-stroke: 195 17% 91%; /* #E4EAEC - photo/person avatar stroke */
+    --control-surface: 210 22% 96%; /* #F4F5F5 - circular action tile fill (chat attach menu) */
+    --nav-ink: 226 46% 20%; /* #1C274C - bottom nav glyphs */
+
+    /* Attach menu + photo picker (Figma) */
+    --glyph-green: 135 59% 49%; /* #34C759 - photos glyph */
+    --glyph-indigo: 241 61% 59%; /* #5856D6 - camera glyph */
+    --glyph-cyan: 199 78% 55%; /* #32ADE6 - files glyph */
+    --tile-ring: 220 5% 88%; /* #DFE0E2 - photo select ring, picked-strip remove chip */
+    --media-tile: 220 5% 24%; /* #3A3C40 - camera tile in the photo grid */
+    --media-tile-foreground: 240 4% 92%; /* #EAEAEC - camera tile label */
+
+    /* Toast (always dark surface) */
+    --toast: 222 75% 12%; /* #081837 */
+
+    /* Dialog */
+    --dialog-subtitle: 218 4% 54%; /* #84888F */
+
+    /* Chatic custom tokens */
+    --bubble-mine: 218 63% 16%; /* #102346 - my messages */
+    --bubble-other: 220 10% 95%;
+    --bubble-other-foreground: 220 20% 10%;
+    --badge-unread: 0 75% 55%;
+    --badge-member: 72 85% 50%;
+    --tab-active: 220 30% 18%;
+    --tab-inactive: 220 10% 60%;
+    --overlay: 220 20% 10%;
+}
