@@ -15,6 +15,7 @@ The Rust side of DoU desktop v2: a headless engine and a local MCP server that r
 | `crates/dou-engine`  | rooms, messages, send/reply/react, the outbox and event classification                              |
 | `crates/dou-control` | permissions (tier, allow-list, rate limit), the event log and the local control IPC                 |
 | `crates/dou-mcp`     | the stdio MCP server; a thin client of the control IPC                                              |
+| `crates/dou-app`     | starts the engine for a profile and a cloud: link, relay renewal, store, control service           |
 | `crates/dou-cli`     | the `dou` binary: pair, serve, mcp, local commands, `perm`                                         |
 | `vectors/`           | JSON written by the TS code with fixed inputs; Rust must reproduce it byte for byte                 |
 | `docs/`              | [engine](./docs/engine/README.md), [mcp](./docs/mcp/README.md), [vectors](./docs/vectors/README.md) |
@@ -44,3 +45,11 @@ dou --profile DIR mcp                               # stdio MCP for an agent
 ```
 
 Every text sent by an MCP write tool starts with `[AI] `; the engine adds it and no tool argument turns it off.
+
+## Embedding it (the Tauri shell)
+
+Path dependencies, no binary needed:
+
+- `dou_app::start(api, &profile, cloud_id, user_agent) -> Running` connects, renews the relay credential in the background and builds the control service. `Running { me, cloud, control_name, service }`; `running.serve().await` serves the local control IPC (the CLI and `dou mcp` talk to it), and `running.service` is the in-process handle: `service.handle(client, method, params)`.
+- Permissions for an app screen: `dou_control::Settings::load(&dou_app::settings_path(dir))`, change `tier`, `allow_rooms`, `rate_limit`, then `settings.save(&path)`. The service rereads the file on each call. This is not exposed through MCP or the control IPC.
+- Sign-in: `dou_auth::{Profile, RelayApi, PairingRequest}` (see `dou-cli/src/commands.rs` `pair`).

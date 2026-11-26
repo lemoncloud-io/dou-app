@@ -10,14 +10,12 @@ name = "dou"
 path = "src/main.rs"
 
 [dependencies]
+dou-app = { path = "../dou-app" }
 dou-auth = { path = "../dou-auth" }
 dou-core = { path = "../dou-core" }
 dou-control = { path = "../dou-control" }
-dou-engine = { path = "../dou-engine" }
 dou-http = { path = "../dou-http" }
 dou-mcp = { path = "../dou-mcp" }
-dou-store = { path = "../dou-store" }
-dou-socket = { path = "../dou-socket" }
 serde_json.workspace = true
 tokio.workspace = true
 

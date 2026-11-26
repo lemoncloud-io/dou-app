@@ -1,21 +1,16 @@
 use std::path::Path;
-use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use dou_auth::{
     Endpoints, PairingPhase, PairingRequest, Profile, RelayApi, TokenView, refresh_relay,
 };
-use dou_control::{Settings, Tier, arc, control_name, serve};
-use dou_engine::Engine;
+use dou_control::{Settings, Tier, control_name};
 use dou_http::HttpClient;
-use dou_socket::{Link, open_session};
-use dou_store::Store;
 use serde_json::{Value, json};
 
 use crate::args::{Invocation, USAGE};
 
 const USER_AGENT: &str = concat!("DoU-Desktop-Native/", env!("CARGO_PKG_VERSION"));
-const DEVICE_NAME: &str = "DoU Desktop (native)";
 
 fn fail<E: std::fmt::Display>(error: E) -> String {
     error.to_string()
@@ -38,7 +33,7 @@ fn session_of(profile: &Profile) -> Result<TokenView, String> {
 }
 
 fn settings_path(profile: &Profile) -> std::path::PathBuf {
-    profile.dir().join("settings.json")
+    dou_app::settings_path(profile.dir())
 }
 
 fn print(value: &Value) -> Result<(), String> {
@@ -170,82 +165,13 @@ async fn serve_app(invocation: &Invocation, api: RelayApi, profile: Profile) -> 
     let cloud = invocation
         .flags
         .get("cloud")
-        .ok_or("serve needs --cloud ID")?
-        .clone();
-    let device_id = profile.device_id().map_err(fail)?;
-    let stored = Arc::new(Mutex::new(session_of(&profile)?));
-
-    let renew_api = api.clone();
-    let renew_device = device_id.clone();
-    let renew_store = Arc::clone(&stored);
-    let profile_dir = profile.dir().to_path_buf();
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(20 * 60)).await;
-            let current = match renew_store.lock() {
-                Ok(held) => held.clone(),
-                Err(_) => continue,
-            };
-            if let Ok(renewed) =
-                refresh_relay(renew_api.endpoints(), USER_AGENT, &renew_device, &current).await
-            {
-                if let Ok(profile) = Profile::open(&profile_dir) {
-                    let _ = profile.save_relay_token(&renewed);
-                }
-                if let Ok(mut held) = renew_store.lock() {
-                    *held = renewed;
-                }
-            }
-        }
-    });
-
-    let connect_api = api.clone();
-    let connect_cloud = cloud.clone();
-    let connect_store = Arc::clone(&stored);
-    let link = Link::start(move || {
-        let api = connect_api.clone();
-        let cloud = connect_cloud.clone();
-        let store = Arc::clone(&connect_store);
-        let device_id = device_id.clone();
-        async move {
-            let session = store
-                .lock()
-                .map(|s| s.clone())
-                .map_err(|_| dou_core::Error::Storage("session lock poisoned".into()))?;
-            let delegation = api.delegate_cloud(&session, &cloud).await?;
-            let cloud_token = api.exchange_token(&session, &delegation).await?;
-            let identity = cloud_token
-                .identity_token()
-                .ok_or(dou_core::Error::MissingField("identityToken"))?;
-            open_session(
-                &delegation.wss,
-                USER_AGENT,
-                identity,
-                &device_id,
-                DEVICE_NAME,
-            )
-            .await
-        }
-    });
-    let state = link
-        .wait_connected(Duration::from_secs(30))
-        .await
-        .map_err(|e| format!("could not connect to cloud {cloud}: {e}"))?;
-    let me = state["memberId"]
-        .as_str()
-        .ok_or("auth.update answered no memberId")?
-        .to_string();
-
-    let store = Arc::new(Store::open(&profile.dir().join("dou.db")).map_err(fail)?);
-    let engine = Engine::new(link.clone(), store, &cloud, &me);
-    let service = arc(dou_control::Service::new(engine, settings_path(&profile)));
-    let pump = Arc::clone(&service);
-    let events = link.subscribe();
-    tokio::spawn(async move { pump.pump(events).await });
-
-    let name = control_name(profile.dir());
-    eprintln!("serving cloud {cloud} as member {me}; control endpoint {name}");
-    serve(&name, service).await.map_err(fail)
+        .ok_or("serve needs --cloud ID")?;
+    let running = dou_app::start(api, &profile, cloud, USER_AGENT).await?;
+    eprintln!(
+        "serving cloud {} as member {}; control endpoint {}",
+        running.cloud, running.me, running.control_name
+    );
+    running.serve().await
 }
 
 async fn local(invocation: &Invocation, profile: &Profile) -> Result<(), String> {

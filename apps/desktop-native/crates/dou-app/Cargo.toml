@@ -1,0 +1,18 @@
+[package]
+name = "dou-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+dou-auth = { path = "../dou-auth" }
+dou-control = { path = "../dou-control" }
+dou-core = { path = "../dou-core" }
+dou-engine = { path = "../dou-engine" }
+dou-socket = { path = "../dou-socket" }
+dou-store = { path = "../dou-store" }
+tokio.workspace = true
+
+[lints]
+workspace = true

@@ -178,6 +178,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2db04e74f0a9a93103b50e90b96024c9b2bdca8bce6a632ec71b88736d3d359"
 
 [[package]]
+name = "dou-app"
+version = "0.0.0"
+dependencies = [
+ "dou-auth",
+ "dou-control",
+ "dou-core",
+ "dou-engine",
+ "dou-socket",
+ "dou-store",
+ "tokio",
+]
+
+[[package]]
 name = "dou-auth"
 version = "0.0.0"
 dependencies = [
@@ -195,14 +208,12 @@ dependencies = [
 name = "dou-cli"
 version = "0.0.0"
 dependencies = [
+ "dou-app",
  "dou-auth",
  "dou-control",
  "dou-core",
- "dou-engine",
  "dou-http",
  "dou-mcp",
- "dou-socket",
- "dou-store",
  "serde_json",
  "tokio",
 ]
