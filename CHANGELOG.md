@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (checkout-store,push-mobile,sign-in-mobile,mobile) move the native sdk services into libs
+
+## [2026-11-26] - No version updates
+
+### Refactor
+
 - (design-system,web,desktop-web,web-ui-kit) fold the token sets into design-system packages
 
 ## [2026-11-26] - No version updates
