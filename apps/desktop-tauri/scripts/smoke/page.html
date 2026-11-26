@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>smoke</title>
+<body>
+    smoke
+</body>
+<script>
+    const handler = window.ChaticMessageHandler;
+    const say = (type, data) => handler.postMessage(JSON.stringify({ type, refId: type, version: '2.35.0', data }));
+    const finish = (ok, why) => fetch('/done?ok=' + (ok ? 1 : 0) + '&why=' + encodeURIComponent(why || ''));
+    window.addEventListener('message', event => {
+        const reply = JSON.parse(event.data);
+        if (reply.type === 'OnWebAppReady') {
+            say('StorageSave', { medium: 'nativeSecure', set: { a: '1' }, remove: [] });
+        } else if (reply.type === 'OnStorageSave') {
+            say('StorageGet', { medium: 'nativeSecure' });
+        } else if (reply.type === 'OnStorageGet') {
+            const ok = reply.data && reply.data.values && reply.data.values.a === '1';
+            finish(ok, ok ? '' : 'the saved value did not come back');
+        } else if (reply.type === 'ERROR') {
+            finish(false, 'bridge error ' + JSON.stringify(reply.error));
+        }
+    });
+    if (!handler) finish(false, 'no ChaticMessageHandler');
+    else say('WebAppReady', {});
+</script>

@@ -12,7 +12,7 @@ The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the dep
 | `crates/agent-settings` | validation of the MCP permission settings                                                                                                |
 | `crates/connectors`     | registering the launcher with Claude Desktop and Claude Code                                                                             |
 | `crates/vault`          | the encrypted `nativeSecure` store                                                                                                       |
-| `scripts/`              | `check-bridge-contract.mjs`                                                                                                              |
+| `scripts/`              | `check-bridge-contract.mjs`; `smoke/` (a fixture page and a server for the CI smoke run)                                                 |
 | `docs/`                 | [agent](./docs/agent/README.md), [bridge](./docs/bridge/README.md), [storage](./docs/storage/README.md), [shell](./docs/shell/README.md) |
 
 ## Commands
@@ -29,3 +29,7 @@ npx nx run desktop-tauri:dev      # cargo tauri dev; needs: cargo install tauri-
 `DOU_WEB_URL` and `DOU_STAGE` at build time pick the web address and the stage; `cargo build --release --bin dou-mcp` first, then `cargo tauri build --bundles app` bundles `dou-mcp` next to the app binary so Connectors finds it.
 
 Without them a debug build opens `https://dou-dev.chatic.io` and a release build `https://dou.chatic.io`.
+
+## CI
+
+`.github/workflows/desktop-tauri.yml` runs on `macos-latest` and `windows-latest`: the contract check, fmt, clippy, tests, a debug build, then the app is started against `scripts/smoke/page.html` served on `http://localhost:4173`. The page performs the bridge handshake and a vault save and read; the run passes when the page reports back. Run it by hand: `DOU_WEB_URL=http://localhost:4173 DOU_STAGE=dev DOU_VAULT_KEY_FILE=1 cargo build`, `node scripts/smoke/server.mjs`, then `target/debug/dou-tauri`.

@@ -25,7 +25,7 @@
     };
 
     retry.addEventListener('click', go);
-    if (!target || !/^https:\/\//.test(target)) {
+    if (!target || !/^(https:\/\/|http:\/\/localhost[:/])/.test(target)) {
         status.textContent = 'No address to open';
     } else {
         go();

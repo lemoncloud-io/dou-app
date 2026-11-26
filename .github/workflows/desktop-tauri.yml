@@ -1,0 +1,81 @@
+name: desktop-tauri
+
+on:
+    pull_request:
+        paths: &paths
+            - apps/desktop-tauri/**
+            - apps/desktop-native/**
+            - apps/desktop/src/main/**
+            - libs/bridge-messages/**
+            - .github/workflows/desktop-tauri.yml
+    push:
+        branches:
+            - develop
+        paths: *paths
+
+permissions:
+    contents: read
+
+concurrency:
+    group: desktop-tauri-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    shell:
+        name: shell (${{ matrix.os }})
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [macos-latest, windows-latest]
+        defaults:
+            run:
+                working-directory: apps/desktop-tauri
+        env:
+            DOU_WEB_URL: http://localhost:4173
+            DOU_STAGE: dev
+            DOU_VAULT_KEY_FILE: '1'
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: rustfmt, clippy
+
+            - uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: apps/desktop-tauri
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: .nvmrc
+                  cache: yarn
+
+            - run: yarn install --frozen-lockfile --ignore-scripts
+              working-directory: .
+
+            - run: node scripts/check-bridge-contract.mjs
+
+            - run: cargo fmt --all --check
+
+            - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+
+            - run: cargo test --locked --workspace
+
+            - run: cargo build --locked --workspace
+
+            - name: start the app against a fixture page and wait for its handshake
+              shell: bash
+              run: |
+                  node scripts/smoke/server.mjs 4173 120000 &
+                  server=$!
+                  sleep 1
+                  binary=target/debug/dou-tauri
+                  if [ "$RUNNER_OS" = "Windows" ]; then binary=target/debug/dou-tauri.exe; fi
+                  "$binary" > smoke-app.log 2>&1 &
+                  app=$!
+                  status=0
+                  wait $server || status=$?
+                  kill $app 2>/dev/null || true
+                  cat smoke-app.log
+                  exit $status
