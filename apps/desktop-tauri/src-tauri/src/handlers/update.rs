@@ -11,11 +11,55 @@ use crate::bridge::push_event;
 
 const CHECK_EVERY: Duration = Duration::from_secs(30 * 60);
 
-#[derive(Default)]
-struct State {
-    found: Option<Update>,
+struct State<U = Update> {
+    found: Option<U>,
     bytes: Option<Vec<u8>>,
     busy: bool,
+}
+
+impl<U> Default for State<U> {
+    fn default() -> Self {
+        Self {
+            found: None,
+            bytes: None,
+            busy: false,
+        }
+    }
+}
+
+impl<U: Clone> State<U> {
+    fn offer(&mut self, update: U) -> bool {
+        if self.busy {
+            return false;
+        }
+        self.found = Some(update);
+        true
+    }
+
+    fn begin_download(&mut self) -> Option<U> {
+        if self.busy {
+            return None;
+        }
+        let update = self.found.clone()?;
+        self.busy = true;
+        Some(update)
+    }
+
+    fn downloaded(&mut self, bytes: Vec<u8>) {
+        self.bytes = Some(bytes);
+    }
+
+    fn take_ready(&mut self) -> Option<(U, Vec<u8>)> {
+        let bytes = self.bytes.take()?;
+        let update = self.found.clone()?;
+        Some((update, bytes))
+    }
+
+    fn fail(&mut self) {
+        self.found = None;
+        self.bytes = None;
+        self.busy = false;
+    }
 }
 
 pub fn percent(received: u64, total: Option<u64>) -> u8 {
@@ -34,9 +78,6 @@ fn lock(state: &Mutex<State>) -> std::sync::MutexGuard<'_, State> {
 }
 
 async fn check(app: &AppHandle, feed: &str, state: &Mutex<State>) {
-    if lock(state).busy {
-        return;
-    }
     let Ok(url) = feed.parse() else {
         return;
     };
@@ -50,19 +91,16 @@ async fn check(app: &AppHandle, feed: &str, state: &Mutex<State>) {
     match checked {
         Ok(Some(update)) => {
             let version = update.version.clone();
-            lock(state).found = Some(update);
-            status(app, json!({ "status": "available", "version": version }));
+            if lock(state).offer(update) {
+                status(app, json!({ "status": "available", "version": version }));
+            }
         }
         Ok(None) => {}
         Err(error) => eprintln!("update check failed: {error}"),
     }
 }
 
-async fn download(app: AppHandle, state: Arc<Mutex<State>>) {
-    let Some(update) = lock(&state).found.clone() else {
-        lock(&state).busy = false;
-        return;
-    };
+async fn download(app: AppHandle, state: Arc<Mutex<State>>, update: Update) {
     let mut received: u64 = 0;
     let mut last = 255u8;
     let progress_app = app.clone();
@@ -84,14 +122,14 @@ async fn download(app: AppHandle, state: Arc<Mutex<State>>) {
         .await;
     match result {
         Ok(bytes) => {
-            lock(&state).bytes = Some(bytes);
+            lock(&state).downloaded(bytes);
             status(
                 &app,
                 json!({ "status": "downloaded", "version": update.version }),
             );
         }
         Err(error) => {
-            lock(&state).busy = false;
+            lock(&state).fail();
             status(
                 &app,
                 json!({ "status": "error", "message": error.to_string() }),
@@ -119,16 +157,10 @@ pub fn register(host: &mut BridgeHost, context: &Context) {
     host.register(
         "StartUpdateDownload",
         sync(move |_| {
-            let started = {
-                let mut state = lock(&shared);
-                let startable = state.found.is_some() && !state.busy;
-                if startable {
-                    state.busy = true;
-                }
-                startable
-            };
-            if started {
-                tauri::async_runtime::spawn(download(app.clone(), Arc::clone(&shared)));
+            let begun = lock(&shared).begin_download();
+            let started = begun.is_some();
+            if let Some(update) = begun {
+                tauri::async_runtime::spawn(download(app.clone(), Arc::clone(&shared), update));
             }
             json!({ "type": "OnStartUpdateDownload", "success": true, "data": { "success": started } })
         }),
@@ -138,20 +170,30 @@ pub fn register(host: &mut BridgeHost, context: &Context) {
     host.register(
         "RestartToUpdate",
         sync(move |_| {
-            let ready = {
-                let mut state = lock(&state);
-                state.found.clone().zip(state.bytes.take())
-            };
+            let ready = lock(&state).take_ready();
             let restarting = ready.is_some();
             if let Some((update, bytes)) = ready {
                 let app = app.clone();
+                let state = Arc::clone(&state);
                 tauri::async_runtime::spawn(async move {
-                    match update.install(bytes) {
-                        Ok(()) => app.restart(),
-                        Err(error) => status(
-                            &app,
-                            json!({ "status": "error", "message": error.to_string() }),
-                        ),
+                    let installed =
+                        tauri::async_runtime::spawn_blocking(move || update.install(bytes)).await;
+                    match installed {
+                        Ok(Ok(())) => app.restart(),
+                        Ok(Err(error)) => {
+                            lock(&state).fail();
+                            status(
+                                &app,
+                                json!({ "status": "error", "message": error.to_string() }),
+                            );
+                        }
+                        Err(error) => {
+                            lock(&state).fail();
+                            status(
+                                &app,
+                                json!({ "status": "error", "message": error.to_string() }),
+                            );
+                        }
                     }
                 });
             }
@@ -171,5 +213,46 @@ mod tests {
         assert_eq!(percent(400, Some(200)), 100);
         assert_eq!(percent(10, None), 0);
         assert_eq!(percent(10, Some(0)), 0);
+    }
+
+    #[test]
+    fn a_download_starts_once_and_only_for_an_offered_update() {
+        let mut state = State::<u32>::default();
+        assert_eq!(state.begin_download(), None);
+        assert!(state.offer(2));
+        assert_eq!(state.begin_download(), Some(2));
+        assert_eq!(state.begin_download(), None);
+    }
+
+    #[test]
+    fn a_new_offer_is_refused_while_a_download_runs() {
+        let mut state = State::<u32>::default();
+        state.offer(2);
+        state.begin_download();
+        assert!(!state.offer(3));
+        assert_eq!(state.found, Some(2));
+    }
+
+    #[test]
+    fn restart_needs_the_downloaded_bytes_and_uses_them_once() {
+        let mut state = State::<u32>::default();
+        state.offer(2);
+        assert_eq!(state.take_ready(), None);
+        state.begin_download();
+        state.downloaded(vec![1, 2]);
+        assert_eq!(state.take_ready(), Some((2, vec![1, 2])));
+        assert_eq!(state.take_ready(), None);
+    }
+
+    #[test]
+    fn after_a_failure_the_next_check_and_download_can_start_over() {
+        let mut state = State::<u32>::default();
+        state.offer(2);
+        state.begin_download();
+        state.downloaded(vec![9]);
+        state.take_ready();
+        state.fail();
+        assert!(state.offer(2));
+        assert_eq!(state.begin_download(), Some(2));
     }
 }
