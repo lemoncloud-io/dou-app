@@ -5,7 +5,7 @@
 > `SocketReauthBinder`, the background reads, moved from `libs/runtime/src/connection/` with their
 > tests); `libs/runtime/src/connection/` (`RuntimeConnectionHost`, `useConnectionController`);
 > `resolveDeviceIds` beside `useDynamicDeviceId`
-> · The behaviour is documented in [libs/runtime-core docs/connection](../../libs/runtime-core/docs/connection/README.md)
+> · The behaviour is documented in [libs/runtime-core docs/connection](../../libs/runtime/docs/engine/connection.md)
 > and [libs/runtime docs/connection](../../libs/runtime/docs/connection/README.md)
 
 ## Context

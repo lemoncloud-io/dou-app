@@ -29,7 +29,7 @@ libs/contracts/ports/src/
 | ------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Type                     | `RuntimePorts`                                                                                             | `HostPorts`                                                                               |
 | Members                  | `storage` · `transport` · `auth` · `cache` · `foreground`                                                  | `checkout` · `media` · `files` · `links` · `appShell` · `signIn` · `diagnostics` · `push` |
-| Read by                  | the engine (`@chatic/runtime-core`'s `createRuntime`)                                                      | features, as `runtime.<port>`                                                             |
+| Read by                  | the engine (`@chatic/runtime`'s `createRuntime`)                                                           | features, as `runtime.<port>`                                                             |
 | When a platform lacks it | not possible: every field is required, and `RuntimePortsAreRequired` stops compiling if one turns optional | the member is `null`, or `checkout.kind` is `'none'`                                      |
 | Published by             | the app's entry, through `startRuntime` (which calls `createRuntime`)                                      | the app's entry, through `startRuntime` (which calls `host.publish`)                      |
 
@@ -39,15 +39,16 @@ Each runtime port has a short name beside the one its owning package gave it: `S
 stay as aliases (`ForegroundSignal`, `RuntimeStorePorts`, and the core packages' own), so nothing that
 already names a port changes.
 
-`@chatic/runtime-core` and `@chatic/runtime-client` re-export these types from the modules that used to
-define them, under the same names. A caller can keep importing from there; a new implementation imports
+`@chatic/runtime` re-exports these types from the modules that used to define them (`src/engine/ports.ts`,
+`src/api/host/`), under the same names, and so do `@chatic/runtime-core` and `@chatic/runtime-client`, which
+re-export those folders. A caller can keep importing from there; a new implementation imports
 from here.
 
 ## Rules
 
 - **Types only.** No value, no function, nothing that runs. A bundler or a test runner never has to
   resolve this package: every import of it is erased. The one value the host ports need,
-  `HOST_PORT_NAMES`, stays in `@chatic/runtime-client`, which publishes the ports.
+  `HOST_PORT_NAMES`, stays in `@chatic/runtime` (`src/api/host/ports.ts`), which publishes the ports.
 - **Below the runtime, above the core.** Tagged `layer:contract · platform:any · formfactor:any`. It may
   take types from `layer:foundation` and `layer:core-lib` packages and nothing else; the core packages
   may not depend on it. The root `eslint.config.mjs` holds both: the layer constraint, and a
@@ -58,7 +59,7 @@ from here.
   (`PickedAttachments`, not `OnPickAttachmentsPayload`), so an implementation outside a WebView does not
   need the wire vocabulary. Converting a payload to a domain type belongs in the implementation that
   speaks the wire. While the shapes are equal, an adapter that passes a payload through compiles
-  unchanged; `@chatic/runtime-client`'s `host/contractShapes.spec.ts` checks at typecheck that every one
+  unchanged; `@chatic/runtime`'s `src/api/host/contractShapes.spec.ts` checks at typecheck that every one
   of them is still exactly equal (no extra optional field, `readonly` or `any` slips through).
 - **No UI framework.** React and React Native are refused. The one exception is
   `checkout.ts`, whose store product and purchase are still `react-native-iap`'s own types, imported as

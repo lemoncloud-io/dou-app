@@ -1,4 +1,4 @@
-import type { SignInPort } from '@chatic/runtime-client';
+import type { SignInPort } from '../../api';
 
 export const browserSignIn = (): SignInPort => ({
     kind: 'browser',

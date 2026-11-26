@@ -5,7 +5,7 @@
 > the barrel keeping only the lifecycle classes' types; `libs/runtime-web/src/createWebRuntime.ts` and
 > `storage/resolveStorageStores.ts` (moved from `libs/runtime/src/storage/`); `libs/runtime/src/init.ts`
 > (`initAppRuntime(engine)`, `runtimeEngine()`) and the hosts and hooks that read it; the four apps' entry points
-> · The behaviour is documented in [libs/runtime-core](../../libs/runtime-core/README.md#the-engine) and
+> · The behaviour is documented in [libs/runtime-core](../../libs/runtime/docs/engine/README.md#the-engine) and
 > [libs/runtime-web](../../libs/runtime-web/README.md)
 > · Amends: [ADR-0305](./0305-the-runtime-is-assembled-in-runtime-core.md) — the app-facing names its
 > Decision 1 kept (`initAppRuntime(config)`, `AppRuntimeConfig`), and the store choice it left in app-runtime

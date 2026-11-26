@@ -4,7 +4,7 @@
 > · Scope: `tsconfig.lib.json` of `libs/{session,transport,sync,auth}`; root `eslint.config.mjs`
 > (`PAGE_GLOBALS`); `libs/{transport,auth}/src/testing/platform.ts`; `xhrPut` moved from
 > `libs/data/src/uploads/` to `libs/runtime-web/src/`; its importers in `apps/web` and `apps/desktop-web`
-> · The behaviour is documented in [libs/runtime-core § Layers](../../libs/runtime-core/README.md#layers)
+> · The behaviour is documented in [libs/runtime-core § Layers](../../libs/runtime/docs/engine/README.md#layers)
 > · Supersedes in part: [ADR-0135](./0135-desktop-sends-images-through-the-runtime-image-send.md) — where
 > `xhrPut` lives
 

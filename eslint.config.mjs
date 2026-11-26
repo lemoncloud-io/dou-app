@@ -110,42 +110,41 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * The direction the runtime's layers depend in, read from the `nx.tags` in each package's
- * `package.json`. `libs/runtime-core/README.md` draws the layers and says why each edge points the
+ * `package.json`. `libs/runtime/docs/layers/README.md` draws the layers and says why each edge points the
  * way it does; in short:
  *
  * - `layer:core-lib` — session, transport, sync, auth, data. Platform-neutral. They know nothing
- *   above them: no runtime assembly, no adapter, no React surface, and no UI framework at all.
+ *   above them: no runtime, no adapter, no React surface, and no UI framework at all.
  * - `layer:foundation` — logger, config, perf, http, storage, bridge-messages: what the core libs
- *   and the assembly are built on. They depend on one another and on nothing else.
- * - `layer:runtime-core` — `@chatic/runtime-core`, which collects the ports and assembles the
- *   runtime from them. It sits on the core libs, the contracts and the foundation and nothing else. An
- *   allow-list, not a deny-list; `layer:contract` is `@chatic/ports`, types only. A new dependency is tagged
- *   on purpose rather than slipping in untagged.
+ *   and the runtime are built on. They depend on one another and on nothing else.
+ * - `layer:runtime` — `@chatic/runtime`, the headless runtime: the engine that collects the ports and
+ *   assembles the runtime, the remote connection across a bridge, the app API (the engine holder, the
+ *   commands and reads, the same `runtime` with no hook group) and the declaration. Its folders keep
+ *   their own direction, engine ← remote ← api ← declare, held by `libs/runtime/src/layering.test.ts`.
+ *   It sits on the core libs, the contracts and the foundation and nothing else. An allow-list, not a
+ *   deny-list; `layer:contract` is `@chatic/ports`, types only. A new dependency is tagged on purpose
+ *   rather than slipping in untagged. `@chatic/runtime-core` and `@chatic/runtime-client` carry the
+ *   same tag: each re-exports part of `@chatic/runtime` under its old name, so the allow-list names
+ *   `layer:runtime` itself for their one edge into it. No UI library, react-query or zustand.
  * - `layer:adapter` — the packages that fill the ports for one platform (`@chatic/runtime-web`,
  *   `@chatic/runtime-mobile`, `@chatic/web-checkout`), and the cache engines they build on (`@chatic/db`: IndexedDB, the
  *   shell's SQLite over the bridge, Web Storage). Nothing in the runtime depends on them; they never reach up into the
- *   binding, and a port is not UI, so no React either. They do depend on `layer:client`: an
+ *   binding, and a port is not UI, so no React either. They do depend on `layer:runtime`: an
  *   app's declaration (`defineRuntime`, `startRuntime`) lives there, and each adapter package hands
  *   it on beside its own adapters, so an app's entry imports one package. The edge never points the
- *   other way — `layer:client`'s allow-list has no `layer:adapter`.
- * - `layer:client` — `@chatic/runtime-client`, the half of the React surface that calls the core:
- *   the engine holder, the commands and reads through it, and the plain functions the hooks wrap. It
- *   sits on the core libs, the contracts, runtime-core and the foundation, no UI framework — an allow-list like
- *   runtime-core's, so what the hooks need from React, react-query or zustand stays in @chatic/runtime-react.
- * - `layer:runtime` — `@chatic/runtime`, the headless runtime: the same `runtime` with no hook group,
- *   for consumers with no React. An allow-list like the client's, and no UI library, react-query or zustand.
+ *   other way — `layer:runtime`'s allow-list has no `layer:adapter`.
  * - `layer:binding` — `@chatic/runtime-react`, what React apps import: the headless runtime plus the hooks.
  *   It never imports an adapter directly (an allow-list): which platform fills the ports is the entry's.
  * - `layer:bridge` — `@chatic/bridges` (with `@chatic/fake-shell` and `@chatic/chatic-apps-sdk`), the transport across the WebView boundary: the web-side
- *   client, the shell-side host and the `webClient` singleton. The core libs, runtime-core and the
- *   client layer may not depend on it: none of what they hold — the session, the sockets, sync, the
- *   data layer, the assembly — is specific to a WebView, and an import of it would tie them to that
- *   boundary. What a page's bridge answers reaches them through a port its adapter fills, and `logger`,
- *   the one name they used to take from it, is `@chatic/logger`'s. (The message vocabulary,
+ *   client, the shell-side host and the `webClient` singleton. The core libs and the runtime may not
+ *   depend on it: none of what they hold — the session, the sockets, sync, the data layer, the
+ *   assembly — is specific to a WebView, and an import of it would tie them to that boundary. What a
+ *   page's bridge answers reaches them through a port its adapter fills, and `logger`, the one name
+ *   they used to take from it, is `@chatic/logger`'s. (The message vocabulary,
  *   `@chatic/bridge-messages`, is `layer:foundation`: it carries no transport.)
  * - `layer:ui` — the component libraries and what draws with them: `@chatic/ui-kit`,
  *   `@chatic/web-ui-kit`, `@chatic/block-kit` and `@chatic/theme`. The runtime side — core libs,
- *   runtime-core, the client layer and the adapters — may not depend on one; a UI library is the apps'
+ *   the runtime and the adapters — may not depend on one; a UI library is the apps'
  *   and the React surface's to render, `@chatic/shared` and `@chatic/assets` included.
  * - `platform:*` — where a package runs: `any`, `web`, `mobile`, `desktop`, `node`. One depends on
  *   `platform:any` and its own platform only; `web` may not pull React Native in, and `mobile` may not
@@ -165,8 +164,6 @@ const runtimeLayerConstraints = [
         sourceTag: 'layer:core-lib',
         notDependOnLibsWithTags: [
             'layer:contract',
-            'layer:runtime-core',
-            'layer:client',
             'layer:adapter',
             'layer:runtime',
             'layer:binding',
@@ -176,7 +173,7 @@ const runtimeLayerConstraints = [
         bannedExternalImports: UI_FRAMEWORK_IMPORTS,
     },
     {
-        // An allow-list too: runtime-core's own allow-list checks its direct dependencies only, so a
+        // An allow-list too: the runtime's own allow-list checks its direct dependencies only, so a
         // foundation package that took an untagged one would carry it into the assembly unseen.
         sourceTag: 'layer:foundation',
         onlyDependOnLibsWithTags: ['layer:foundation'],
@@ -188,24 +185,8 @@ const runtimeLayerConstraints = [
         bannedExternalImports: UI_FRAMEWORK_IMPORTS,
     },
     {
-        sourceTag: 'layer:runtime-core',
-        onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:contract', 'layer:foundation'],
-        // Already outside the allow-list; named so the ban survives a change to it, and because this
-        // one also follows the dependencies of what the allow-list lets in.
-        notDependOnLibsWithTags: ['layer:bridge', 'layer:ui'],
-        bannedExternalImports: UI_FRAMEWORK_IMPORTS,
-    },
-    {
-        // React, react-query and zustand are what @chatic/runtime-react keeps; this layer is the part of the
-        // surface that would work unchanged under another UI library.
-        sourceTag: 'layer:client',
-        onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:contract', 'layer:runtime-core', 'layer:foundation'],
-        notDependOnLibsWithTags: ['layer:bridge', 'layer:ui'],
-        bannedExternalImports: [...UI_FRAMEWORK_IMPORTS, '@tanstack/*', 'zustand', 'zustand/*'],
-    },
-    {
         sourceTag: 'layer:adapter',
-        // `layer:client` is within reach on purpose (the declaration API), and so is `layer:bridge`: a
+        // `layer:runtime` is within reach on purpose (the declaration API), and so is `layer:bridge`: a
         // page's ports are read across it. The binding and the UI libraries are not.
         notDependOnLibsWithTags: ['layer:binding', 'layer:ui'],
         // React only: the native adapter is made of React Native modules, so which native framework
@@ -213,14 +194,12 @@ const runtimeLayerConstraints = [
         bannedExternalImports: REACT_IMPORTS,
     },
     {
+        // React, react-query and zustand are what @chatic/runtime-react keeps; this layer is the part
+        // that would work unchanged under another UI library, or none.
         sourceTag: 'layer:runtime',
-        onlyDependOnLibsWithTags: [
-            'layer:core-lib',
-            'layer:contract',
-            'layer:runtime-core',
-            'layer:client',
-            'layer:foundation',
-        ],
+        onlyDependOnLibsWithTags: ['layer:core-lib', 'layer:contract', 'layer:foundation', 'layer:runtime'],
+        // Already outside the allow-list; named so the ban survives a change to it, and because this
+        // one also follows the dependencies of what the allow-list lets in.
         notDependOnLibsWithTags: ['layer:bridge', 'layer:ui'],
         bannedExternalImports: [...UI_FRAMEWORK_IMPORTS, '@tanstack/*', 'zustand', 'zustand/*'],
     },
@@ -230,8 +209,6 @@ const runtimeLayerConstraints = [
             'layer:foundation',
             'layer:core-lib',
             'layer:contract',
-            'layer:runtime-core',
-            'layer:client',
             'layer:runtime',
             'layer:binding',
             'layer:bridge',
@@ -295,7 +272,7 @@ const RUNTIME_WIRING = {
         { object: 'authRepositorySource', name: 'provide' },
         { object: 'syncDataGraph', name: 'provide' },
     ],
-    allowedFiles: ['libs/runtime-core/src/createRuntime.ts'],
+    allowedFiles: ['libs/runtime/src/engine/createRuntime.ts'],
 };
 
 /**
@@ -328,12 +305,12 @@ const CLOSED_PATHS = [
     {
         name: '@chatic/runtime-client',
         message:
-            'Read the runtime through `runtime` from @chatic/runtime-react. @chatic/runtime-client is the core side @chatic/runtime is built on — see libs/runtime-client/README.md.',
+            'Read the runtime through `runtime` from @chatic/runtime-react. @chatic/runtime-client re-exports the app API and the declaration of @chatic/runtime — see libs/runtime/README.md.',
     },
     {
         name: '@chatic/runtime-core',
         message:
-            'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+            'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core re-exports the engine and the remote connection of @chatic/runtime — see libs/runtime/README.md.',
     },
 ];
 
@@ -345,7 +322,7 @@ const CLOSED_PATTERNS = [
     {
         group: ['@chatic/runtime-client/*'],
         message:
-            'Read the runtime through `runtime` from @chatic/runtime-react. @chatic/runtime-client is the core side @chatic/runtime is built on — see libs/runtime-client/README.md.',
+            'Read the runtime through `runtime` from @chatic/runtime-react. @chatic/runtime-client re-exports the app API and the declaration of @chatic/runtime — see libs/runtime/README.md.',
     },
     {
         group: ['@chatic/session/*'],
@@ -370,7 +347,7 @@ const CLOSED_PATTERNS = [
     {
         group: ['@chatic/runtime-core/*'],
         message:
-            'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+            'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core re-exports the engine and the remote connection of @chatic/runtime — see libs/runtime/README.md.',
     },
 ];
 
@@ -479,7 +456,7 @@ const STORAGE_GLOBALS = [
 const CORE_LIB_SOURCES = ['session', 'transport', 'sync', 'auth', 'data'].map(name => `libs/${name}/src/**/*.ts`);
 
 const PAGE_GLOBAL_MESSAGE =
-    'The core packages run outside a page too. Take what the platform answers through a port its adapter fills — see libs/runtime-core/README.md.';
+    'The core packages run outside a page too. Take what the platform answers through a port its adapter fills — see libs/runtime/README.md.';
 
 const PAGE_GLOBALS = [
     'window',

@@ -1,10 +1,10 @@
 # data — the React surface over the repository graph
 
 The graph itself — `DataManager`, the factories, the scoped graphs, the outboxes, invited and paired
-clouds, the cache clear — is the runtime's assembly and lives in `@chatic/runtime-core`: see
-[runtime-core docs/data](../../../runtime-core/docs/data/README.md). What stays here is what React
+clouds, the cache clear — is the runtime's assembly and lives in the engine (`src/engine/`): see
+[docs/engine/data](../engine/data.md). What stays here is what React
 reads it through, and the `data` group of the `runtime` facade that sells both. All of it goes through
-the engine (`runtimeEngine().data`, in runtime-client's `data/dataCommands.ts`), never the data manager: on the phone the
+the engine (`runtimeEngine().data`, in `src/api/data/dataCommands.ts`), never the data manager: on the phone the
 repositories and their cache may live in another process.
 
 The graph a screen gets is the **page's graph** (`PageRepositories`): every repository, minus what
@@ -26,10 +26,10 @@ effect's dependencies does not re-run it.
 | `getAcceptorId()`                                                                              | the id an invited cloud row records, read from the session view       |
 
 `holdCloud(cid)` — the engine's hold on a cloud's socket, until the returned release is called — is
-not on the package's surface: it is what `useSendImages` holds a cloud with, through runtime-client's
+not on the package's surface: it is what `useSendImages` holds a cloud with, through the app API's
 `withCloudHold(cid, work)`, which takes the hold, runs `work` against that cloud's chat repository and
 releases the hold when `work` settles. The two cloud-name hooks below are React triggers over
-runtime-client's once-per-cloud gates (`createInvitedCloudNameSync`, `createPairedCloudNameSync`). Sending media
+the app API's once-per-cloud gates (`createInvitedCloudNameSync`, `createPairedCloudNameSync`). Sending media
 reaches the session only through the engine: the hold, the upload targets, the completion and the send.
 The files stay in the page, which uploads their bytes itself, so nothing that cannot cross a bridge is
 handed to the engine ([image-send.md](./image-send.md)).
@@ -60,5 +60,5 @@ deliberate duplication, and what is shared is the repository call.
 
 ## Further reading
 
-- [runtime-core docs/data](../../../runtime-core/docs/data/README.md) — the graph these hooks read
+- [docs/engine/data](../engine/data.md) — the graph these hooks read
 - [image-send.md](./image-send.md) — `useSendImages`: the pending row, the file memory, retry, leftovers and upload progress

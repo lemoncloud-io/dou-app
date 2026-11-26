@@ -7,7 +7,15 @@ that keep those caches current, device-token registration, and the user issue re
 facade the call part of an app reaches: one name, `runtime`, holding eight groups and the host's seven
 ports, and beside it the domain's names. It was `@chatic/app-runtime` until the facade took that job.
 
-This package is the **headless** half: no React, no react-query, no zustand (`layer:runtime`, held by lint).
+This package is the **headless** runtime, and all of it: the engine that assembles the core packages
+(`src/engine/`), the runtime across a bridge (`src/remote/`), the app API with the facade groups
+(`src/api/`) and the runtime declaration an app starts from (`src/declare/`). Each folder imports only
+the ones below it — engine ← remote ← api ← declare, held by
+[`src/layering.test.ts`](./src/layering.test.ts) ([docs/layers](./docs/layers/README.md#inside-chaticruntime)).
+`@chatic/runtime-core` and `@chatic/runtime-client` were two of those folders; each is now a package of
+two `export *` lines that re-exports them under its old name, for the consumers that still import it.
+
+No React, no react-query, no zustand (`layer:runtime`, held by lint).
 A React app imports [`@chatic/runtime-react`](./react/README.md) instead, whose `runtime` is this one with
 the hook groups added — the hooks, the connection host and the query and mutation keys live there
 ([ADR-0378](../../docs/adr/0378-a-react-app-imports-one-runtime-from-runtime-react.md)). A consumer with no
@@ -20,12 +28,14 @@ This document covers the **overview and structure** only. The per-layer detail i
 ## Purpose
 
 Apps see this barrel only through `@chatic/runtime-react`, which re-exports it, and inside that barrel
-there is one runtime identifier. Imports that reach past it into internal paths number **zero** — `@chatic/runtime/testing`,
-the tests' fake, is the one subpath, and only tests import it — which is what lets the inside be
-rearranged with no blast radius.
+there is one runtime identifier. Apps import none of its subpaths — the root lint refuses `@chatic/runtime/*` in an app — which is
+what lets the inside be rearranged with no blast radius. The subpaths are for the packages built on it:
+`@chatic/runtime/testing`, the tests' fake; `@chatic/runtime/engine`, `/remote`, `/api` and `/declare`,
+which the two re-export packages hand on; and the group subpaths runtime-react and the adapters read
+(below). A subpath names its folder.
 
 ```bash
-grep -rn "@chatic/runtime/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules | grep -v "/testing'"
+grep -rn "@chatic/runtime/" --include='*.ts' --include='*.tsx' apps | grep -v node_modules
 ```
 
 Four apps consume it, through `@chatic/runtime-react`, and nothing else does — `apps/web`,
@@ -35,7 +45,7 @@ repository only). The surface itself is locked symbol by symbol by
 groups, the seven ports, and the 49 domain values beside `runtime` — a test fails if a group or a port
 appears, or a symbol moves between them.
 
-This lib is the **composition root, not an engine**. It builds and wires; the engines it assembles
+This lib is the **composition root**. It builds and wires; the managers it assembles
 live elsewhere and do not leak to apps: the socket and HTTP managers
 ([`libs/transport`](../transport/README.md)), the socket transport and its auth controller
 (`@lemoncloud/chatic-sockets-lib`), the data layer ([`libs/data`](../data/README.md)), the HTTP
@@ -51,32 +61,32 @@ An app has two parts. The **declaration part** — its `src/config/` and its ent
 `@chatic/runtime-web` or `@chatic/runtime-mobile`, names an adapter per port, publishes the host's
 ports and starts the runtime. The **call part** — every screen, hook and feature module — imports
 `@chatic/runtime-react` and nothing below it (UI kits, the bridges' logger and tools aside). That package
-holds hooks, components and re-exports only, and this one re-exports only: logic lives in
-[`@chatic/runtime-client`](../runtime-client/README.md), which has no React, or in the core packages.
-[`src/facade.test.ts`](./src/facade.test.ts) and its twin in `react/src/` hold that line by reading the
-source: every barrel is made of `export … from` statements and nothing else; here no other file is a hook
-or a component, and `platform.ts`, the seam the platform adapter hands in through, stands apart, and the three others with logic of their own are listed to move out — that list only shrinks.
+holds hooks, components and re-exports only. The facade groups here re-export only; the logic sits
+beside them in [`src/api/`](./docs/api/README.md) (the commands and reads through the engine), in the
+engine, or in the core packages. [`src/api/facade.test.ts`](./src/api/facade.test.ts) and its twin in
+`react/src/` hold that line by reading the source: every group barrel is made of `export … from`
+statements and nothing else, and no file in this package is a hook or a component.
 
-Two of them, `report/reportIssue.ts` and `session/pageDevice.ts`, answer from the platform: the page's
+Two files in `src/api/`, `report/reportIssue.ts` and `session/pageDevice.ts`, answer from the platform: the page's
 address, whether a shell bridge is there, the shell's platform and the user agent. The platform adapter
 hands that in — `@chatic/runtime-web`'s `startRuntime` calls `providePlatform(webPlatform)` from
-`@chatic/runtime/platform` before it starts the declared runtime — so this package reads no DOM and no
+`@chatic/runtime/api/platform` before it starts the declared runtime — so this package reads no DOM and no
 bridge. Before the hand-in `reportIssue` rejects, naming the missed step, and `pairingClientOf` reads the
 transport port's device.
 
-`@chatic/runtime-react` re-exports each group through this package's subpaths (`@chatic/runtime/session`,
-`/connection`, `/data`, `/socket/sync`, `/push`, `/settings`, `/facade`) and adds its hooks beside them,
-so a name keeps one symbol in both packages. Those subpaths and `/platform` are for runtime-react and the
-adapters; an app's lint refuses `@chatic/runtime` and every subpath.
+`@chatic/runtime-react` re-exports each group through this package's subpaths (`@chatic/runtime/api/session`,
+`/api/connection`, `/api/data`, `/api/sync`, `/api/push`, `/api/settings`, `/api/facade`) and adds its
+hooks beside them, so a name keeps one symbol in both packages. Those subpaths and `/api/platform` are for
+runtime-react and the adapters; an app's lint refuses `@chatic/runtime` and every subpath.
 
 What the facade hands out, beside the groups that were always here:
 
 | Name                                                                               | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `runtime.settings`                                                                 | The config facade under its own method names — `get`, `snapshot`, `snapshotAll`, `overriddenSnapshots`, `set`, `clear`, `subscribe`, `isInitialized` — plus `useConfigValue`, `CONFIG_UNLOCK_KEY`, `encodeValue` and `storageKeyFor`. Each call goes to the process's one `config` when it is made, so a value written through `config` reads back here and a test that mocks `@chatic/config` still reaches these. `init` stays with the entry point. |
-| `runtime.checkout`, `media`, `files`, `links`, `appShell`, `signIn`, `diagnostics` | The host's ports as the entry point published them — the very objects `host.ports.<port>` holds. They are runtime-client's live bindings: a read sees the published port, and a read before the publish throws, naming the missed step. Read one where it is used, never at module scope, and only in an app that publishes them — `apps/admin` and `apps/landing` publish none, and nothing in this package reads them.                               |
+| `runtime.checkout`, `media`, `files`, `links`, `appShell`, `signIn`, `diagnostics` | The host's ports as the entry point published them — the very objects `host.ports.<port>` holds. They are `src/api/host/`'s live bindings: a read sees the published port, and a read before the publish throws, naming the missed step. Read one where it is used, never at module scope, and only in an app that publishes them — `apps/admin` and `apps/landing` publish none, and nothing in this package reads them.                              |
 | `runtime.push.kind`, `notifications`, `deviceToken`, `tokenRenewal`, `localBanner` | The push port's fields, one by one beside the push hooks the group already held: `kind` is `'shell'` or `'browser'` and `undefined` until the publish; each member is what the app does for push, `null` where it does none of it, and throws on use until the publish.                                                                                                                                                                                |
-| the domain's names                                                                 | The shapes `@chatic/data` returns and the pure helpers over them (`RELAY_CLOUD_ID`, `isInJoinWindow`, `isCloudDm`, …), plus the settings' types, flat beside `runtime`. [`src/domain.ts`](./src/domain.ts) names each one: a name added to `@chatic/data` reaches apps only when it is written there.                                                                                                                                                  |
+| the domain's names                                                                 | The shapes `@chatic/data` returns and the pure helpers over them (`RELAY_CLOUD_ID`, `isInJoinWindow`, `isCloudDm`, …), plus the settings' types, flat beside `runtime`. [`src/api/domain.ts`](./src/api/domain.ts) names each one: a name added to `@chatic/data` reaches apps only when it is written there.                                                                                                                                          |
 
 ### Testing against it
 
@@ -115,28 +125,30 @@ a factory that loaded it would load itself. A jest config whose catch-all maps `
 1. **Session state has one home and one writer, and that writer is passive.** The store lives in [`@chatic/session`](../session/README.md), the package below this one; it stores and announces and knows nothing about sockets, data, HTTP or the use cases here. The package graph refuses the reverse edge, and that package's eslint config bans the rest inside `store/**`, with exactly one exempt file.
 2. **Every engine has one creation point.** `getSocketManager()` · `getSyncManager()` · `getHttpManager()` · `getDataRuntime()`. A second `new` for any of them is a bug. The socket and HTTP ones live in [`@chatic/transport`](../transport/README.md) and the sync one in [`@chatic/sync`](../sync/README.md), the packages below this one.
 3. **Nothing here calls a refresh endpoint, and nothing here builds an `auth.update` packet.** The SDK's auth controller owns both. Two tests walk this package's source and every package cut from it, and fail on the string: [`refreshAbsence.test.ts`](./src/refreshAbsence.test.ts) and [`authUpdateAbsence.test.ts`](./src/authUpdateAbsence.test.ts). Path-based lint was tried first and died silently when the symbols moved.
-4. **Every server call is a repository call.** Gateway instances are known only inside `data/` and `@chatic/transport`'s `http/`; even the login and token-exchange use cases in `@chatic/auth` go through `AuthRepository` (ADR-0036). The one exception is the relay account's profile: account screens read and write it on the relay slot whichever cloud is active, through the session commands `runtime.session.fetchAccountProfile` / `updateAccountProfile` (the relay `user` gateway they use is built in runtime-core's session commands), because a repository's cache is read under the live scope and would not read a relay row back while a cloud is on screen (apps/web/docs/feature/place/relay-default-place-scoping.md §6).
+4. **Every server call is a repository call.** Gateway instances are known only inside `data/` and `@chatic/transport`'s `http/`; even the login and token-exchange use cases in `@chatic/auth` go through `AuthRepository` (ADR-0036). The one exception is the relay account's profile: account screens read and write it on the relay slot whichever cloud is active, through the session commands `runtime.session.fetchAccountProfile` / `updateAccountProfile` (the relay `user` gateway they use is built in the engine's session commands), because a repository's cache is read under the live scope and would not read a relay row back while a cloud is on screen (apps/web/docs/feature/place/relay-default-place-scoping.md §6).
 5. **The three scope views are never collapsed.** `selected` flips optimistically, `bound` is observed from the live socket, `committed` follows the token. Their disagreement _is_ optimistic cloud switching; merging them brings back cross-cloud cache poisoning.
 6. **One truth table answers "is this slot authenticated".** `deriveAuthStatus` is a pure function of six signals, and any file that recombines the sources itself is a regression (ADR-0076).
 7. **A store write emits a typed signal, and one use case is one fan-out.** Every writer emits its `SessionSignalKind`; a use case wraps itself in `sessionSignal.batch()` so subscribers never observe a half-applied switch.
 8. **relay refreshes, a cloud re-issues — and that asymmetry is two classes, not a comment.** A relay token has no parent, so its only renewal is the socket's own refresh; a cloud token is minted from the relay identity, so it is re-issued. `ICredentialRenewer` has one implementation for relay and one instance per cloud, addressed by slot (`credentialRenewers.forSlot`).
-9. **Boot is an explicit call.** The entry point starts the runtime from its app's declaration (`await startRuntime(declaration)`, from `@chatic/runtime-web` or `@chatic/runtime-mobile`), which runs runtime-core's `createRuntime` and hands the engine to `initAppRuntime(engine)`. The call is in the entry point — the wiring used to happen as an import side effect, where it was invisible there and a tree-shake could move or drop it.
+9. **Boot is an explicit call.** The entry point starts the runtime from its app's declaration (`await startRuntime(declaration)`, from `@chatic/runtime-web` or `@chatic/runtime-mobile`), which runs the engine's `createRuntime` and hands the engine to `initAppRuntime(engine)`. The call is in the entry point — the wiring used to happen as an import side effect, where it was invisible there and a tree-shake could move or drop it.
 10. **Only interfaces and domain types cross a boundary.** Contracts are `I*` interfaces, implementations are classes taking their dependencies as constructor arguments, and an implementation class never leaves its assembly point.
 11. **File kind decides file placement, and two tests check it.** Hooks live in their module's `hooks/` ([`hookPlacement.test.ts`](./react/src/hookPlacement.test.ts), which checks exported `use*` declarations, not just filenames); types live in `types.ts` with **zero value exports** — the three here, and those of the packages below, whose barrels re-export theirs wholesale, so a value put there would leak onto them. Value constants go in `constants.ts`, pure helpers in `utils/`.
 12. **There are no value import cycles.** [`importCycleAbsence.test.ts`](./src/importCycleAbsence.test.ts) re-measures the tree on every run rather than trusting a lint path.
 
 ## Scope
 
-**In** — the React session surface, the host that starts runtime-core's connection controller and the hooks that read connection state,
-the hooks a screen registers sync targets with, the repository graph and cache-storage routing, the offline chat outbox, device-token
-registration, the user issue report and the log-batch upload, and the boot call that wires them.
+**In** — the assembly and the engine (the session and connection controllers, the credential guards, the
+repository graph and cache-storage routing, the offline chat outbox, device-token registration), the runtime
+across a bridge, the commands and reads an app calls through the engine, the host ports, the user issue
+report and the log-batch upload, the runtime declaration, and the boot call that wires them. The hooks
+over all of it are `@chatic/runtime-react`'s.
 
 **Out** — the session's state: the three stores, their signal, the derived contexts and the scope
 ([`libs/session`](../session/README.md)); the socket manager and its slots, and the HTTP manager
 and its routes ([`libs/transport`](../transport/README.md)); the sync manager, the app's sync plans and
 the receive loops that keep the clouds off screen current ([`libs/sync`](../sync/README.md)); which socket slots exist
 (relay, the committed cloud, and a background slot per other joined cloud) and the binders that keep them
-([runtime-core docs/connection](../runtime-core/docs/connection/README.md)); the
+([docs/engine/connection](./docs/engine/connection.md)); the
 login/logout/switch use cases, device pairing, socket authentication wiring and credential renewal
 ([`libs/auth`](../auth/README.md)); the socket transport and its `AuthController`
 (`@lemoncloud/chatic-sockets-lib`); repositories, data sources and mappers
@@ -156,11 +168,11 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     App["apps/*"]:::ext
-    Init["@chatic/runtime-core · createRuntime<br/><i>the boot wiring; returns the engine initAppRuntime takes</i>"]:::root
-    Host["connection/<br/><i>RuntimeConnectionHost → runtime-core's connection controller</i>"]:::root
+    Init["engine/ · createRuntime<br/><i>the boot wiring; returns the engine initAppRuntime takes</i>"]:::root
+    Host["connection/<br/><i>RuntimeConnectionHost → the engine's connection controller</i>"]:::root
 
     Hooks["session/hooks<br/><i>readers · actions · guards</i>"]:::sess
-    View["@chatic/runtime-core · engine.session<br/><i>the session as screens read it, no token</i>"]:::root
+    View["engine/ · engine.session<br/><i>the session as screens read it, no token</i>"]:::root
     Auth["@chatic/auth<br/><i>login · sign · renew · expiry · pairing</i>"]:::sess
     Store["@chatic/session · store<br/><i>relay · cloud · identity · signal</i>"]:::sess
     Scope["@chatic/session · scope<br/><i>ActiveScope — selected · bound · committed</i>"]:::sess
@@ -211,26 +223,27 @@ HTTP without closing a cycle.
 This package is the top of a stack of packages, cut out of it one layer at a time (ADR-0253). Each
 imports only the ones below it, and the package graph refuses the reverse:
 
-| Package                                             | Holds                                                                              | Imports            |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------ |
-| [`@chatic/session`](../session/README.md)           | the session's state: three stores, their signal, the contexts, the scope           | —                  |
-| [`@chatic/transport`](../transport/README.md)       | the socket manager and its slots, the HTTP manager                                 | session            |
-| [`@chatic/sync`](../sync/README.md)                 | the sync manager, its plans, the background receive                                | session, transport |
-| [`@chatic/auth`](../auth/README.md)                 | the session use cases, pairing, socket authentication and renewal                  | session, transport |
-| [`@chatic/runtime-core`](../runtime-core/README.md) | the assembly (`createRuntime`) and the repository graph, over the platform's ports | all of the above   |
-| `@chatic/runtime`                                   | the `runtime` facade with no hook: push, report, boot, the groups' plain names     | all of the above   |
-| `@chatic/runtime-react`                             | every hook and component, over this package's groups                               | all of the above   |
+| Package                                       | Holds                                                                                                                                                | Imports            |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| [`@chatic/session`](../session/README.md)     | the session's state: three stores, their signal, the contexts, the scope                                                                             | —                  |
+| [`@chatic/transport`](../transport/README.md) | the socket manager and its slots, the HTTP manager                                                                                                   | session            |
+| [`@chatic/sync`](../sync/README.md)           | the sync manager, its plans, the background receive                                                                                                  | session, transport |
+| [`@chatic/auth`](../auth/README.md)           | the session use cases, pairing, socket authentication and renewal                                                                                    | session, transport |
+| `@chatic/runtime`                             | the assembly and the repository graph over the platform's ports, the runtime across a bridge, the `runtime` facade with no hook, and the declaration | all of the above   |
+| `@chatic/runtime-react`                       | every hook and component, over this package's groups                                                                                                 | all of the above   |
 
 Sync and auth sit side by side: each one's eslint config refuses the other. Every `hooks/` folder is
-runtime-react's, because hooks are React; `utils/` here is one app-layer helper.
+runtime-react's, because hooks are React; `api/utils/` here is one app-layer helper. Inside this
+package the four folders keep a direction of their own, engine ← remote ← api ← declare
+([docs/layers](./docs/layers/README.md#inside-chaticruntime)).
 
 The direction is also a tag: the four packages and `@chatic/data` are `layer:core-lib`, this one is
 `layer:runtime` (an allow-list, and no React, `@tanstack/*` or zustand), runtime-react is `layer:binding`,
 and `@nx/enforce-module-boundaries` refuses a core package that reaches up — or imports React — and
 either package importing a platform adapter such as `@chatic/runtime-web`. The tags
-are in [`@chatic/runtime-core`](../runtime-core/README.md#layers).
+are in [docs/layers](./docs/layers/README.md#between-packages).
 
-The repository graph is assembled in `data/`, above the two packages that read it. So it is **handed
+The repository graph is assembled in `engine/data/`, above the two packages that read it. So it is **handed
 down at boot** instead of imported: `createRuntime()` gives `@chatic/auth`'s `authRepositorySource` an
 accessor for the `AuthRepository`, and `@chatic/sync`'s `syncDataGraph` one for the scoped graphs. Both
 are read on every call — the graph is still built lazily — and both throw a message naming
@@ -242,7 +255,7 @@ are read on every call — the graph is still built lazily — and both throw a 
 sequenceDiagram
     participant App as apps/* entry
     participant Host as RuntimeConnectionHost
-    participant C as connection controller (runtime-core)
+    participant C as connection controller (engine/)
     participant B as SocketBinder
     participant M as SocketManager
     participant A as client.auth (SDK)
@@ -276,46 +289,54 @@ device is registered on that connection, and the SDK sends both on the same `con
 ```text
 libs/runtime/src/
 ├── index.ts          public barrel — one export, `runtime`, and the domain names
-├── facade.ts         the groups, assembled from group barrels
-├── boot.ts           the `boot` group's barrel; it has no module of its own
-├── platform.ts       what the platform adapter hands in (`providePlatform`)
-├── connection/       the `connection` group
-├── session/          the `session` group and this device's pairing name (`pageDevice.ts`); the use cases are @chatic/auth
-├── socket/           the `sync` group; the managers stay in their own packages
-├── data/             the `data` group; the graph itself is @chatic/runtime-core's
-├── push/             the `push` group
-├── report/           `reportIssue` over the handed-in origin, and the `report` group
-└── utils/            1 file — isNativeApp
+├── layering.test.ts  the four folders' direction, engine ← remote ← api ← declare
+├── testing/          the tests' fake (`@chatic/runtime/testing`)
+├── engine/           the assembly (`createRuntime`), `RuntimeEngine`, the session and connection
+│                     controllers, the credential guards, push registration, the repository graph — docs/engine/
+├── remote/           the runtime across a bridge: the contract, the handshake, errors, the shell's host,
+│                     the page's mirror engine — docs/remote/
+├── api/              what an app calls — docs/api/
+│   ├── facade.ts     the groups, assembled from group barrels
+│   ├── boot.ts       the `boot` group's barrel; it has no module of its own
+│   ├── platform.ts   what the platform adapter hands in (`providePlatform`)
+│   ├── init.ts       the engine holder (`initAppRuntime`)
+│   ├── host/         the host ports' holder and live bindings
+│   ├── connection/   the `connection` group and the sockets through the engine
+│   ├── session/      the `session` group, the reads and commands through the engine, and this device's
+│   │                 pairing name (`pageDevice.ts`); the use cases are @chatic/auth
+│   ├── sync/         the `sync` group and the sync engine as the app drives it; the managers stay in their own packages
+│   ├── data/         the `data` group and the repositories through the engine; the graph itself is engine/'s
+│   ├── settings/     the `settings` group and the config facade's reads and writes
+│   ├── push/         the `push` group
+│   ├── report/       `reportIssue` over the handed-in origin, and the `report` group
+│   ├── diagnostics/  the issue report payload and the log-batch upload
+│   └── utils/        1 file — isNativeApp
+└── declare/          the runtime declaration: defineRuntime · resolvePorts · startRuntime — docs/declare/
 
 libs/runtime/react/src/   @chatic/runtime-react — the same groups, each re-exporting this package's and adding
 ├── connection/       the host and 8 hooks
 ├── session/hooks/    readers, actions, guards, pairing; the mutation keys
 ├── socket/sync/      the sync registration hooks
 ├── data/hooks/       the repository and send hooks; the query keys
-└── push/hooks/       the hook that starts runtime-core's `PushRegistration`
+└── push/hooks/       the hook that starts the engine's `PushRegistration`
+
+libs/runtime-core/src/index.ts     export * from '@chatic/runtime/engine' and '/remote' — until its consumers move
+libs/runtime-client/src/index.ts   export * from '@chatic/runtime/api' and '/declare' — until its consumers move
 ```
 
-Everything here that needs no UI library lives in
-[`@chatic/runtime-client`](../runtime-client/README.md): the engine holder (`initAppRuntime`), the
-commands and reads that go through the engine (connection, data, session, sync), the user's issue
-report and the log-batch upload, and the plain functions the hooks wrap — the connectivity verdict,
-the once-per-cloud name syncs, the cloud hold of an image send, the paired-cloud check, the pairing
-request flow, a room's prime. runtime-react keeps the hooks, the hosts, the query and mutation keys and
-the shell's injected device ids; what only a page can answer (the host profile, the page's address and
-user agent) is handed in by the platform adapter; this package re-exports from runtime-client what its
-groups sell. Its hooks take the
-core's types and constants through runtime-client too, so a hook imports one package for the core.
-
-The assembly, the graph and the lifecycle work are `@chatic/runtime-core`'s; the code that calls them is `@chatic/runtime-client`'s.
+runtime-react keeps the hooks, the hosts, the query and mutation keys and the shell's injected device
+ids; what only a page can answer (the host profile, the page's address and user agent) is handed in by
+the platform adapter. Its hooks take the core's types and constants through `@chatic/runtime-client`
+too, so a hook imports one package for the core.
 
 Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
 `ScopedSocketClient` all live in `@chatic/transport`'s
 [`socket/types.ts`](../transport/src/socket/types.ts) — there is no `ISocketManager.ts`. `SocketSessionDelegate` and `ReauthDelegate` live in `@chatic/auth`'s
 [`socket/types.ts`](../auth/src/socket/types.ts); `IDataManager` and `CacheAssemblyOptions` in
-[`data/types.ts`](../runtime-core/src/data/types.ts); `ISyncManager` in `@chatic/sync`'s
+[`engine/data/types.ts`](./src/engine/data/types.ts); `ISyncManager` in `@chatic/sync`'s
 [`types.ts`](../sync/src/types.ts). The `boot` group is a **file**,
-`boot.ts`, not a directory — booting is not one of the runtime's parts, so the logic stays in whichever module owns
-each piece. `config/` and `utils/` have no `index.ts` at all: they are not facade groups
+`api/boot.ts`, not a directory — booting is not one of the runtime's parts, so the logic stays in whichever module owns
+each piece. `engine/config/` and `api/utils/` have no `index.ts` at all: they are not facade groups
 and in-package callers reach them by concrete path.
 
 ## Usage
@@ -324,7 +345,7 @@ One boot call and one component. Everything else is a hook.
 
 ```ts
 // apps/*/src/main.tsx — once, before render. `declaration` is the app's own (`defineRuntime`, in its
-// src/config/), naming an adapter per port; see runtime-client's "The runtime declaration".
+// src/config/), naming an adapter per port; see docs/declare/.
 import { startRuntime } from '@chatic/runtime-web';
 
 await startRuntime(declaration); // builds the ports and hands the engine to the hooks
@@ -377,7 +398,7 @@ apps/*/src/main.tsx
   ├─ host.publish(ports)                  the host's ports, before anything renders
   ├─ storage adapter                      in a shell that keeps a vault: prepareSecretStorage loads it, moves web copies in
   ├─ the engine's ports, from the declaration's adapters (and its signedOutKeyPrefixes?, data?)
-  │    = createRuntime (@chatic/runtime-core, src/createRuntime.ts) ↓ ten steps, in this order; returns the engine
+  │    = createRuntime (src/engine/createRuntime.ts) ↓ ten steps, in this order; returns the engine
   │    ├─ sessionStores.configure()       the stores behind the session's secret and plain ports — required
   │    │  runtimeStores.configure()       … and the runtime's own device store (the cursor watermark) — required
   │    │  transportPlatform.configure()   the online signal, the device and the socket factory — required
@@ -412,13 +433,15 @@ logging wiring, because it logs; **before** anything that can read the session, 
 `relayStore.getBackend()` throws rather than guessing when its resolvers are missing — a loud
 failure that names `createRuntime()` beats a request going out with an empty host. A hook or host that
 asks for the engine before `initAppRuntime(engine)` throws the same way, and so does a test that renders
-one: it hands over an engine first — `initAppRuntime(coreEngine)` from `@chatic/runtime-core/engine`, or a
+one: it hands over an engine first — `initAppRuntime(coreEngine)` from `src/engine/engine.ts`, or a
 fake one whose members are `jest.fn` when the point is what the surface asks the engine for. Anything
 that reads the session reads `engine.session`, so a fake engine carries a session view: `fakeSessionView()`
-from `@chatic/runtime-core/testing/sessionView`, as `initAppRuntime({ ...coreEngine, session })`, with
+from `src/engine/testing/sessionView.ts`, as `initAppRuntime({ ...coreEngine, session })`, with
 `session.set(...)` to change it. Anything that changes the session runs `engine.commands`, so a test of it
-passes `fakeSessionCommands({ ... })` from `@chatic/runtime-core/testing/sessionCommands` as `commands`,
-with only the commands it expects — any other rejects, naming itself.
+passes `fakeSessionCommands({ ... })` from `src/engine/testing/sessionCommands.ts` as `commands`,
+with only the commands it expects — any other rejects, naming itself. runtime-react's tests still name
+these files by the old package (`@chatic/runtime-core/engine`), which `tsconfig.base.json` and their jest
+config map into `src/engine/`.
 
 Most of the steps delegate to the module that owns the thing being configured. Credential
 recovery does not, because it owns nothing: it joins the HTTP registry to the socket renewers, and
@@ -426,7 +449,7 @@ the registry imports nothing at runtime precisely so the two sides never meet. H
 graph down is the same kind of wiring — the graph sits above the layers that read it ([Layers](#layers)).
 A wiring with no owner belongs to the composition root.
 
-**Every wiring call is in `createRuntime` (`libs/runtime-core/src/createRuntime.ts`), and lint holds
+**Every wiring call is in `createRuntime` (`libs/runtime/src/engine/createRuntime.ts`), and lint holds
 it there.** Each of the calls above that hands a
 package something — `sessionStores.configure`, `runtimeStores.configure`, `signedOutAppKeys.register`,
 `configureSessionStore`, `credentialRecovery.register`, `transportPlatform.configure`, `authPlatform.configure`,
@@ -526,14 +549,19 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 
 ## Documents
 
-| Folder                                                         | What it covers                                                                                                                                                                           |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [docs/session/](./docs/session/README.md)                      | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                                                                       |
-| [docs/connection/](./docs/connection/README.md)                | The host that starts runtime-core's connection controller, and the connection-state hooks — the controller is [runtime-core docs/connection/](../runtime-core/docs/connection/README.md) |
-| [docs/sync/](./docs/sync/README.md)                            | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                                                                             |
-| [docs/data/](./docs/data/README.md)                            | The hooks over the repository graph — the graph itself is [runtime-core docs/data/](../runtime-core/docs/data/README.md)                                                                 |
-| [runtime-web docs/cache/](../runtime-web/docs/cache/README.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it                                                       |
-| [docs/push/](./docs/push/README.md)                            | The hook that starts device-token registration — the policy is [runtime-core docs/push/](../runtime-core/docs/push/README.md)                                                            |
+| Folder                                                         | What it covers                                                                                                                                                    |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/session/](./docs/session/README.md)                      | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                                                |
+| [docs/connection/](./docs/connection/README.md)                | The host that starts the engine's connection controller, and the connection-state hooks — the controller is [docs/engine/connection](./docs/engine/connection.md) |
+| [docs/sync/](./docs/sync/README.md)                            | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                                                      |
+| [docs/data/](./docs/data/README.md)                            | The hooks over the repository graph — the graph itself is [docs/engine/data](./docs/engine/data.md)                                                               |
+| [runtime-web docs/cache/](../runtime-web/docs/cache/README.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it                                |
+| [docs/push/](./docs/push/README.md)                            | The hook that starts device-token registration — the policy is [docs/engine/push](./docs/engine/push.md)                                                          |
+| [docs/layers/](./docs/layers/README.md)                        | The tags between packages, and the four folders' direction inside this one                                                                                        |
+| [docs/engine/](./docs/engine/README.md)                        | The assembly, the engine, and the graph, connection, session and push policy beneath the hooks                                                                    |
+| [docs/remote/](./docs/remote/README.md)                        | The runtime across the bridge: who owns the session each launch, the contract version, the messages, errors                                                       |
+| [docs/api/](./docs/api/README.md)                              | The engine holder, the host ports, settings, and the commands and reads an app calls                                                                              |
+| [docs/declare/](./docs/declare/README.md)                      | The runtime declaration, how a port's adapter is resolved, and the start                                                                                          |
 
 The socket manager and the HTTP manager are documented with `@chatic/transport`:
 [transport docs/socket/](../transport/docs/socket/README.md) and [transport docs/http/](../transport/docs/http/README.md).
@@ -545,15 +573,15 @@ with [`@chatic/auth`](../auth/README.md).
 
 ```bash
 npx tsc -b libs/runtime/tsconfig.json         # every project tsconfig.json references
-npx jest --config libs/runtime/jest.config.js # 40 test files
+npx jest --config libs/runtime/jest.config.js # 80 test files
 cd libs/runtime && npx eslint src             # flat config — run it from this directory
 ```
 
-- Type checking must be `tsc -b`. Inside `libs/runtime`, `tsconfig.json` is a solution file (`files: []`, `include: []`), so `tsc --noEmit` checks zero files and exits 0. `tsc -b tsconfig.json` builds what that file references — the lib project, and the spec project when it is on the reference list. `tsc -b tsconfig.lib.json` checks only the lib.
+- Type checking must be `tsc -b`. Inside `libs/runtime`, `tsconfig.json` is a solution file (`files: []`, `include: []`), so `tsc --noEmit` checks zero files and exits 0. `tsc -b tsconfig.json` builds what that file references — the lib project, the spec project, and `tsconfig.neutral.json`, the four folders with no DOM and no Node types. `tsc -b tsconfig.lib.json` checks only the lib.
 - Jest does not type check: the base sets `isolatedModules`, so ts-jest transpiles. A fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime unless the spec project is checked too.
-- A test of this package that mocks a module of `@chatic/session`, `@chatic/transport`, `@chatic/runtime-core`, `@chatic/runtime-client`, `@chatic/sync` or `@chatic/auth` names the concrete file (`@chatic/<package>/<path>`), not the barrel, and imports that file's other symbols by the same path. Mocking the barrel leaves the package's own internal imports on the real file. Production code takes the barrels alone, and eslint keeps it that way.
-- Jest stubs `@chatic/assets` with a recursive proxy; no test asserts on image URLs. Any property answers with the stub, so growing asset maps need no upkeep. The shared jsdom environment provides `TextEncoder`/`TextDecoder`, which the socket library touches at import (ADR-0371), and `uuid`, which ships ESM only, is transformed rather than passed through.
-- Six tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts`, one per package (the headless groups with no hook; runtime-react's 142 symbols, their groups, the ports and the 49 domain values, each headless name the very same value), `facade.test.ts`, one per package (barrels hold re-exports only; runtime-react's other files are hooks or components), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk this package's source and the packages cut from it for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph of each), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
+- A test of this package that mocks a module of its own names it by a relative path. One that mocks a module of `@chatic/session`, `@chatic/transport`, `@chatic/sync` or `@chatic/auth` names the concrete file (`@chatic/<package>/<path>`), not the barrel, and imports that file's other symbols by the same path. Mocking the barrel leaves the package's own internal imports on the real file. Production code takes the barrels alone, and eslint keeps it that way.
+- Jest runs in the `node` environment, as the engine's and the app API's tests always did; a test whose fixtures play a page names `tools/jest/jsdom-environment.js` in a docblock, which provides the `TextEncoder`/`TextDecoder` the socket library touches at import (ADR-0371). Jest stubs `@chatic/assets` with a recursive proxy; no test asserts on image URLs. `uuid`, which ships ESM only, is transformed rather than passed through.
+- Seven tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts`, one per package (the headless groups with no hook; runtime-react's 142 symbols, their groups, the ports and the 49 domain values, each headless name the very same value), `facade.test.ts`, one per package (barrels hold re-exports only; runtime-react's other files are hooks or components), `layering.test.ts` (engine ← remote ← api ← declare), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk this package's source and the packages cut from it for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph of each), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
 - Do not run `yarn install` in a worktree. Node resolution walks up to the parent repo's `node_modules`, so the binaries are already reachable; installing here rewrites `apps/mobile/ios/Podfile.lock` and a leftover symlink poisons the parent on the next install.
 - `.github/workflows/verify.yml` runs `lint`, `typecheck` and `test` for this project on every pull request, so a red gate here is a red CI.
 - Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin` and `libs/data`. That workflow type checks all of them.

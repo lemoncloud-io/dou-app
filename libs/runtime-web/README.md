@@ -71,8 +71,8 @@ before.
 
 ### The adapters
 
-The same factories as values a runtime declaration plugs in (see runtime-client's
-[The runtime declaration](../runtime-client/README.md#the-runtime-declaration)). The barrel hands on
+The same factories as values a runtime declaration plugs in (see
+[The runtime declaration](../runtime/docs/declare/README.md#the-runtime-declaration)). The barrel hands on
 `defineRuntime`, `requires`, `conflicts`, `defineAdapter` and the declaration types, so a web app's
 declaration imports this package alone. Its `startRuntime` is runtime-client's with one step first: it
 hands `webPlatform` to `@chatic/runtime` (`providePlatform`, from `@chatic/runtime/platform`) — the page's
@@ -215,7 +215,7 @@ On a phone launch whose shell runs the session, the page builds no runtime of it
 `createBridgedRuntime({ hello, port })` returns runtime-core's mirror engine (`createMirrorEngine`) over
 the page's bridge, built from the session the shell's `native` answer to the page's hello carried.
 Nothing is wired in the page — no stores, sockets or cache — and every member reaches the shell's
-runtime as runtime-core's [docs/bridge](../runtime-core/docs/bridge/README.md#the-pages-half-the-mirror-engine)
+runtime as runtime-core's [docs/bridge](../runtime/docs/remote/README.md#the-pages-half-the-mirror-engine)
 describes. It is the counterpart of the core engine (`engine.core`), never built alongside it: one
 launch has one owner. The web app builds it through its declaration's `engine.mirror` once `settleSessionOwner` has
 settled on the shell (below).
@@ -291,7 +291,7 @@ What else still has a browser answer inside a package moves here as its wiring b
 ### The host ports a page publishes
 
 A web app's entry point chooses its host ports — the contracts and the holder are
-[runtime-client's](../runtime-client/README.md#the-host-ports) — from what the shell declared before the
+[runtime-client's](../runtime/docs/api/README.md#the-host-ports) — from what the shell declared before the
 page ran (`CHATIC_APP_CAPABILITIES`, read through `@chatic/bridges`' host profile, beside the rest of
 `readWebHostFacts`). `src/hostCapabilities/` reads it, one resolver per port, each defaulting to this
 page's own profile:
@@ -329,7 +329,7 @@ way the host sells, in its order, for the checkout adapters a toggle may switch 
 
 - Tagged `layer:adapter` and `platform:web`: it may not import `@chatic/runtime-react` (the React
   binding), React, or React Native. It imports `@chatic/runtime/platform` alone from the headless
-  runtime, to hand its platform in. See [the layers](../runtime-core/README.md#layers).
+  runtime, to hand its platform in. See [the layers](../runtime/docs/engine/README.md#layers).
 - Nothing in the runtime imports it. An app's declaration and entry point do, and `startRuntime` passes
   what the declared adapters build into the assembly.
 - It holds the readers, not their meaning: what an `online` false means for the link, or which

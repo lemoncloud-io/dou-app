@@ -5,7 +5,7 @@
 > `REPOSITORY_RECEIPTS`), `host.ts` (`receiptMember`), `mirror/conversation.ts` (`receipt`),
 > `wire.ts` (`NotOnTheWire`, `PromiseCrossing`, `CheckedCrossing`) and the contract tables in
 > `contract.ts`; `libs/runtime-core/src/testing/mirrorLoopback.ts`
-> · The behaviour is documented in [runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md#write-receipts)
+> · The behaviour is documented in [runtime-core docs/bridge](../../libs/runtime/docs/remote/README.md#write-receipts)
 > · Amends: [ADR-0309](./0309-the-phone-shell-may-own-the-session-settled-per-launch.md) — how a
 > repository method crosses is no longer read off its signature alone; a promise's value is checked too
 

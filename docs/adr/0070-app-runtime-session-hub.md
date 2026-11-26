@@ -709,7 +709,7 @@ checking at that point, still holds.
 > now says the policy.
 
 > **2026-09-02: that separate piece of work got done.**
-> [`initAppRuntime(config)`](../../libs/runtime-client/src/init.ts) now exists, and all four apps (`web`,
+> [`initAppRuntime(config)`](../../libs/runtime/src/api/init.ts) now exists, and all four apps (`web`,
 > `desktop-web`, `admin-v2`, `testbed`) call it in their entry point before render. Two side effects
 > (`session/store` barrel's `configureSessionStore()`, and `connection` barrel's
 > `configureCredentialRecovery()`) were removed, and `configureDataRuntime` dropped out of the public

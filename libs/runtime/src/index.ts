@@ -1,3 +1,3 @@
-export * as runtime from './facade';
+export * as runtime from './api/facade';
 
-export * from './domain';
+export * from './api/domain';

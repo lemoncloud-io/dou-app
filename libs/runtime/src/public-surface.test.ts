@@ -1,4 +1,4 @@
-import { host } from '@chatic/runtime-client';
+import { host } from './api';
 
 import * as api from './index';
 import {

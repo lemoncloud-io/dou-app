@@ -4,8 +4,8 @@ The session's state lives in [`@chatic/session`](../../../session/README.md), an
 write it, device pairing and the socket authentication live in [`@chatic/auth`](../../../auth/README.md).
 This folder holds what React reads and drives them through: the hooks under `session/hooks/` and the
 `session` facade group in `session/index.ts`. The readers (`session/sessionReads.ts`) and the commands
-(`session/sessionCommands.ts`) they call are [`@chatic/runtime-client`](../../../runtime-client/README.md)'s. Both go through the engine — the readers through
-`runtimeEngine().session`, the commands through `runtimeEngine().commands` (runtime-core) — and neither
+(`session/sessionCommands.ts`) they call are the [app API](../api/README.md)'s. Both go through the engine — the readers through
+`runtimeEngine().session`, the commands through `runtimeEngine().commands` (the engine) — and neither
 touches the stores or the use cases. Every edge runs one way, never back.
 
 ## Layout
@@ -36,11 +36,11 @@ in [`@chatic/auth`'s session doc](../../../auth/docs/session/README.md).
 The readers — these hooks, `useUidInCloud`, the three pairing readers, and the synchronous getters
 (`getGlobalSessionContext`, `getIdentityContext`, `getUidInCloud`, `isPairedSession` and the rest) —
 read the session through the engine the entry point handed over (`runtimeEngine().session`, in
-runtime-client's [`sessionReads.ts`](../../../runtime-client/src/session/sessionReads.ts)), never the stores. The engine's session is a
+the app API's [`sessionReads.ts`](../../src/api/session/sessionReads.ts)), never the stores. The engine's session is a
 snapshot without a token — on the phone the session may live in another process, and the page then
 has none — so `getGlobalSessionContext()` has no `identityToken`, `delegationToken` or `cloudToken`,
 and an error is its message. The core engine reads this process's stores; what it holds and how it
-keeps each part the same object is [runtime-core docs/session/](../../../runtime-core/docs/session/README.md#the-session-view).
+keeps each part the same object is [docs/engine/session](../engine/session.md#the-session-view).
 `useSessionSelection` derives from `useGlobalSession`.
 
 The commands go through the engine as well: the action, login and pairing hooks and the non-React
@@ -48,7 +48,7 @@ commands (`logoutSession`, `clearSiteSelection`, `patchRelaySessionUser`, the ph
 `createCredentialsByProvider`, `forgetRefusedPairedCloud`, and the relay account's profile —
 `fetchAccountProfile`, `updateAccountProfile`, read and written on the relay slot whichever cloud is
 active) call `runtimeEngine().commands`, in
-runtime-client's [`sessionCommands.ts`](../../../runtime-client/src/session/sessionCommands.ts). A command resolves once the session view
+the app API's [`sessionCommands.ts`](../../src/api/session/sessionCommands.ts). A command resolves once the session view
 shows its change, so a screen that awaits one and then reads the session reads the new one. Those whose
 caller does not wait — `clearSiteSelection`, `patchRelaySessionUser`, `cancelPhoneLogin`,
 `forgetInviteLogin` — stay synchronous to the screen and log a failure instead of throwing it.
@@ -58,11 +58,11 @@ engine's `endPairedCloud`. What stays in the page: the mutation keys (`SWITCH_*`
 still sees a switch, and the `cloud_switch` trace, taken around the command by `useSwitchCloudSession`.
 The calls that change no session — `useFindAlias`, `useVerifyAlias`, `useInviteInfo`, the two
 `useRegisterUser*`, and `fetchInviteInfoWithCode` — go through the engine's auth repository
-(runtime-client's `authLookups.ts`), so they run wherever the session runs.
+(the app API's `authLookups.ts`), so they run wherever the session runs.
 
 What the page keeps for the signed-in person and drops at a sign-out (composer drafts, input locks, the
 notification inbox, the log queue) is registered with `registerSessionLogoutCallback`. The registry is
-runtime-client's and listens to the engine's `session.onLogout`, so the callbacks fire whichever process
+the app API's and listens to the engine's `session.onLogout`, so the callbacks fire whichever process
 ran the sign-out; one registered before the engine is handed over — the log uploader starts first — is
 attached when it is.
 
@@ -116,8 +116,8 @@ refuses a handle the runtime does not hold with `INVITE_LOGIN_UNKNOWN`; a screen
 with one calls `forgetInviteLogin`. How long an answer is kept is
 [`@chatic/auth`'s session doc](../../../auth/docs/session/README.md). Twenty-one of these 22 are on the package barrel; the one that is not
 is `useRegisterUser` (superseded by `useRegisterUserV2`, still reachable in-package). The session's
-init and guest keep-alive are no longer hooks: they are runtime-core's session controller, which the
-connection host starts ([runtime-core docs/session/](../../../runtime-core/docs/session/README.md)).
+init and guest keep-alive are no longer hooks: they are the engine's session controller, which the
+connection host starts ([docs/engine/session](../engine/session.md)).
 `useRuntimeProfile` is on the barrel but reached by concrete path, because
 `hooks/session/index.ts` publishes only the other four readers.
 
@@ -129,11 +129,11 @@ and `SWITCH_CLOUD_MUTATION_KEY`. They are public so an app can observe a switch 
 
 ### The two guards
 
-An app mounts these; they are not automatic. Each is a thin hook over a guard class in runtime-core —
+An app mounts these; they are not automatic. Each is a thin hook over a guard class in the engine —
 it starts the guard on mount, re-arms its triggers when the policy's triggers change, stops it on
 unmount, and hands back a stable `check` for a trigger only the app knows (apps/web's WebView
 foreground). What the guards do, and why, is
-[runtime-core docs/session/](../../../runtime-core/docs/session/README.md#the-credential-guards).
+[docs/engine/session](../engine/session.md#the-credential-guards).
 
 | Hook                                                                                                | Guard                  | Policy                                                                                                             |
 | --------------------------------------------------------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -149,9 +149,9 @@ Neither ends a session. The relay guard used to take a teardown policy (`onTeard
 `claimPairing`, which keeps a relay approval's session token and answers with a handle that
 `applyPairingSession` signs in with; a cloud approval is prepared by `preparePairedCloudEntry` and then
 entered with the screen's own `switchCloud`, so the switch keeps its trace and its in-flight key. That
-wiring is runtime-client's `createPairingRequestFlow`; the hook supplies the page's request (its device
+wiring is the app API's `createPairingRequestFlow`; the hook supplies the page's request (its device
 id and client) and the screen's switch, and holds the flow for the mount. Likewise
-`usePairedCloudCheck` decides when to check and runtime-client's `createPairedCloudCheck` runs it.
+`usePairedCloudCheck` decides when to check and the app API's `createPairedCloudCheck` runs it.
 `useIsPairedSession` /
 `usePairedCloudIds` / `usePairedCloudNames` read the pairing checks and the paired clouds' names; what they read is
 [`@chatic/auth`'s pairing doc](../../../auth/docs/pairing/README.md). Two hooks carry policy of their own:
@@ -208,6 +208,6 @@ those are the ones an app should reach for.
 ## Further reading
 
 - [`@chatic/auth`](../../../auth/README.md) — the use cases, pairing, and staying authenticated on every socket
-- [runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md#how-a-slot-is-derived) — how `deriveSocketSlots` turns this state into socket slots: relay, the committed cloud and the background ones
-- [runtime-core docs/data/](../../../runtime-core/docs/data/README.md) — what `ActiveScope` is injected into
+- [docs/engine/connection](../engine/connection.md#how-a-slot-is-derived) — how `deriveSocketSlots` turns this state into socket slots: relay, the committed cloud and the background ones
+- [docs/engine/data](../engine/data.md) — what `ActiveScope` is injected into
 - [`libs/data`](../../../data/README.md) — `DataContextProvider`, `scopeGuards`, and `contextOverride`

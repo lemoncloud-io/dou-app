@@ -17,45 +17,65 @@
             "import": "./src/testing/index.ts",
             "default": "./src/testing/index.ts"
         },
-        "./facade": {
-            "types": "./src/facade.ts",
-            "import": "./src/facade.ts",
-            "default": "./src/facade.ts"
+        "./engine": {
+            "types": "./src/engine/index.ts",
+            "import": "./src/engine/index.ts",
+            "default": "./src/engine/index.ts"
         },
-        "./session": {
-            "types": "./src/session/index.ts",
-            "import": "./src/session/index.ts",
-            "default": "./src/session/index.ts"
+        "./remote": {
+            "types": "./src/remote/index.ts",
+            "import": "./src/remote/index.ts",
+            "default": "./src/remote/index.ts"
         },
-        "./connection": {
-            "types": "./src/connection/index.ts",
-            "import": "./src/connection/index.ts",
-            "default": "./src/connection/index.ts"
+        "./api": {
+            "types": "./src/api/index.ts",
+            "import": "./src/api/index.ts",
+            "default": "./src/api/index.ts"
         },
-        "./data": {
-            "types": "./src/data/index.ts",
-            "import": "./src/data/index.ts",
-            "default": "./src/data/index.ts"
+        "./declare": {
+            "types": "./src/declare/index.ts",
+            "import": "./src/declare/index.ts",
+            "default": "./src/declare/index.ts"
         },
-        "./socket/sync": {
-            "types": "./src/socket/sync/index.ts",
-            "import": "./src/socket/sync/index.ts",
-            "default": "./src/socket/sync/index.ts"
+        "./api/facade": {
+            "types": "./src/api/facade.ts",
+            "import": "./src/api/facade.ts",
+            "default": "./src/api/facade.ts"
         },
-        "./push": {
-            "types": "./src/push/index.ts",
-            "import": "./src/push/index.ts",
-            "default": "./src/push/index.ts"
+        "./api/session": {
+            "types": "./src/api/session/index.ts",
+            "import": "./src/api/session/index.ts",
+            "default": "./src/api/session/index.ts"
         },
-        "./settings": {
-            "types": "./src/settings.ts",
-            "import": "./src/settings.ts",
-            "default": "./src/settings.ts"
+        "./api/connection": {
+            "types": "./src/api/connection/index.ts",
+            "import": "./src/api/connection/index.ts",
+            "default": "./src/api/connection/index.ts"
         },
-        "./platform": {
-            "types": "./src/platform.ts",
-            "import": "./src/platform.ts",
-            "default": "./src/platform.ts"
+        "./api/data": {
+            "types": "./src/api/data/index.ts",
+            "import": "./src/api/data/index.ts",
+            "default": "./src/api/data/index.ts"
+        },
+        "./api/sync": {
+            "types": "./src/api/sync/index.ts",
+            "import": "./src/api/sync/index.ts",
+            "default": "./src/api/sync/index.ts"
+        },
+        "./api/push": {
+            "types": "./src/api/push/index.ts",
+            "import": "./src/api/push/index.ts",
+            "default": "./src/api/push/index.ts"
+        },
+        "./api/settings": {
+            "types": "./src/api/settings/index.ts",
+            "import": "./src/api/settings/index.ts",
+            "default": "./src/api/settings/index.ts"
+        },
+        "./api/platform": {
+            "types": "./src/api/platform.ts",
+            "import": "./src/api/platform.ts",
+            "default": "./src/api/platform.ts"
         },
         "./package.json": "./package.json"
     },

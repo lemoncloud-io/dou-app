@@ -8,7 +8,7 @@
 > `libs/config` (the `port.*` keys), the root lint config, and `apps/admin` as the first app on a
 > declaration
 > · The behaviour is documented in
-> [libs/runtime-client § The runtime declaration](../../libs/runtime-client/README.md#the-runtime-declaration),
+> [libs/runtime-client § The runtime declaration](../../libs/runtime/docs/api/README.md#the-runtime-declaration),
 > the adapters in [libs/runtime-web](../../libs/runtime-web/README.md#the-adapters) and
 > [libs/runtime-mobile](../../libs/runtime-mobile/README.md#the-adapters), the toggles in
 > [libs/config docs/registry](../../libs/config/docs/registry/README.md#port-choices--port)

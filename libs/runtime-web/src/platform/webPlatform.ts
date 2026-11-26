@@ -1,5 +1,5 @@
 import { hostProfile } from '@chatic/bridges';
-import type { RuntimePlatform } from '@chatic/runtime/platform';
+import type { RuntimePlatform } from '@chatic/runtime/api/platform';
 
 export const webPlatform: RuntimePlatform = {
     issueOrigin: {

@@ -3,9 +3,6 @@
     "version": "0.0.1",
     "main": "./src/index.ts",
     "types": "./src/index.ts",
-    "scripts": {
-        "test": "jest"
-    },
     "exports": {
         ".": {
             "types": "./src/index.ts",
@@ -16,7 +13,7 @@
     },
     "nx": {
         "tags": [
-            "layer:client",
+            "layer:runtime",
             "platform:any",
             "formfactor:any"
         ]

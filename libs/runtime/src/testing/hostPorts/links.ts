@@ -1,4 +1,4 @@
-import type { LinksPort } from '@chatic/runtime-client';
+import type { LinksPort } from '../../api';
 
 export const browserLinks = (): LinksPort => ({
     kind: 'browser',

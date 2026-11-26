@@ -11,7 +11,7 @@
 > `subWebViewRuntimeBridge.ts`, `subWebViewRuntimeConsent.ts`, `subWebViewReadBudget.ts`) and
 > `services/subWebView/subWebViewManifest.ts` · `libs/chatic-apps-sdk` (`apps.runtime`, the mock)
 > · The specification is [apps/mobile docs/webview/mini-app-protocol.md](../../apps/mobile/docs/webview/mini-app-protocol.md#runtime-reads);
-> the whitelist's rules are in [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md#a-sub-webview-page-a-whitelist-of-reads)
+> the whitelist's rules are in [libs/runtime-core docs/bridge](../../libs/runtime/docs/remote/README.md#a-sub-webview-page-a-whitelist-of-reads)
 > · Related: [ADR-0265](./0265-a-page-on-another-origin-opens-in-a-sub-webview-with-a-bridge-of-its-own.md),
 > whose "nothing that identifies the user" this amends;
 > [ADR-0278](./0278-a-sub-webview-page-declares-what-it-reaches-in-a-manifest-on-its-own-origin.md),

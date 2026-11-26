@@ -7,7 +7,7 @@
 > `consecutiveFailureLimit: null`); the policy specs of `apps/web`, `apps/desktop-web` and `apps/admin`
 > · Amends: [ADR-0076](./0076-app-runtime-auth-single-verdict-and-typed-session-events.md) — the
 > teardown streak it describes, and Decision 7's move of admin's guard teardown to the strong logout
-> · The behaviour is documented in [libs/runtime-core docs/session](../../libs/runtime-core/docs/session/README.md#the-credential-guards)
+> · The behaviour is documented in [libs/runtime-core docs/session](../../libs/runtime/docs/engine/session.md#the-credential-guards)
 
 ## Context
 

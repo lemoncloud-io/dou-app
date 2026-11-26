@@ -10,7 +10,7 @@
 > `fix/host-capability-legacy-values` (the old spellings read again)
 > · The profile is documented in [libs/bridges § The host profile](../../libs/bridges/README.md#the-host-profile),
 > the ports in `libs/host` until ADR-0346 removed it (now
-> [libs/runtime-client § The host ports](../../libs/runtime-client/README.md#the-host-ports))
+> [libs/runtime-client § The host ports](../../libs/runtime/docs/api/README.md#the-host-ports))
 > · Scope (step 0): removed `libs/device-utils`; `libs/bridges` (`src/host/`), `libs/bridge-messages`,
 > `libs/runtime-web`, `libs/shared`; the config adapters of `apps/web`, `apps/desktop-web` and
 > `apps/admin`; `apps/web` (the device store, the runtime offer)
