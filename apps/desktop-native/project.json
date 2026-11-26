@@ -5,21 +5,21 @@
     "projectType": "application",
     "tags": ["layer:app", "platform:desktop", "formfactor:desktop"],
     "targets": {
-        "build": {
+        "rust-build": {
             "executor": "nx:run-commands",
             "options": {
                 "command": "cargo build --workspace",
                 "cwd": "apps/desktop-native"
             }
         },
-        "test": {
+        "rust-test": {
             "executor": "nx:run-commands",
             "options": {
                 "command": "cargo test --workspace",
                 "cwd": "apps/desktop-native"
             }
         },
-        "lint": {
+        "rust-lint": {
             "executor": "nx:run-commands",
             "options": {
                 "commands": ["cargo fmt --check", "cargo clippy --workspace --all-targets -- -D warnings"],

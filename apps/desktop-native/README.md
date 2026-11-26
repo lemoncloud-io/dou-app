@@ -15,10 +15,12 @@ More crates (`dou-http`, `dou-auth`, `dou-socket`, `dou-store`, `dou-engine`, `d
 
 ## Commands
 
+The Rust targets are named `rust-build`, `rust-test` and `rust-lint` so the repo-wide `-t build`, `-t test` and `-t lint` gate on ubuntu does not run a Rust toolchain; `.github/workflows/desktop-native.yml` is this project's own gate.
+
 ```sh
-npx nx run desktop-native:build
-npx nx run desktop-native:test
-npx nx run desktop-native:lint
+npx nx run desktop-native:rust-build
+npx nx run desktop-native:rust-test
+npx nx run desktop-native:rust-lint
 ```
 
 The same checks run on macOS and Windows in `.github/workflows/desktop-native.yml` when a Rust path changes, or when a TS source the vectors or strings come from changes (`libs/auth`, `libs/transport`, `libs/data`, `libs/sync`, `libs/runtime-core`, the web locales).
