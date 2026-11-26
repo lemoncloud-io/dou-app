@@ -1,3 +1,4 @@
+mod notify;
 mod simple;
 mod storage;
 
@@ -16,6 +17,7 @@ pub const HANDLED: &[&str] = &[
     "FetchFcmToken",
     "SetBadgeCount",
     "OpenURL",
+    "ShowNotification",
     "StorageGet",
     "StorageSave",
     "StorageClear",
@@ -32,6 +34,7 @@ pub fn sync(f: impl Fn(Value) -> Value + Send + Sync + 'static) -> Handler {
 
 pub fn register_all(host: &mut BridgeHost, context: &Context) {
     simple::register(host, context);
+    notify::register(host, context);
     storage::register(host, context);
 }
 

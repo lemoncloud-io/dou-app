@@ -24,7 +24,7 @@ The capability `web-bridge` (added at start-up for the baked origin) is the only
 
 ## Simple handlers
 
-`SavePreference` is accepted and not stored (the page keeps its theme). `FetchFcmToken` answers an empty token until FCM exists. `SetBadgeCount` sets the dock badge on macOS and draws the page's PNG overlay on the Windows taskbar button. `OpenURL` opens an http or https address in the system browser and refuses anything else. A second launch brings the running window to the front instead of starting another process.
+`SavePreference` is accepted and not stored (the page keeps its theme). `FetchFcmToken` answers an empty token until FCM exists. `SetBadgeCount` sets the dock badge on macOS and draws the page's PNG overlay on the Windows taskbar button. `OpenURL` opens an http or https address in the system browser and refuses anything else. `ShowNotification` shows an OS notification with the title (at most 200 characters, required) and the body (at most 1000); the `deeplink` is not used yet, so a click does not open the room. A second launch brings the running window to the front instead of starting another process.
 
 ## What is handled
 

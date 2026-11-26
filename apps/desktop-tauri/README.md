@@ -28,4 +28,4 @@ npx nx run desktop-tauri:dev      # cargo tauri dev; needs: cargo install tauri-
 
 `DOU_WEB_URL` and `DOU_STAGE` at build time pick the web address and the stage; `cargo build --release --bin dou-mcp` first, then `cargo tauri build --bundles app` bundles `dou-mcp` next to the app binary so Connectors finds it.
 
-Without them without it a debug build opens `https://dou-dev.chatic.io` and a release build `https://dou.chatic.io`.
+Without them a debug build opens `https://dou-dev.chatic.io` and a release build `https://dou.chatic.io`.
