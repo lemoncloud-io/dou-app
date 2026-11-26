@@ -37,9 +37,20 @@ jobs:
           xcrun --find metal || xcodebuild -downloadComponent MetalToolchain
           xcrun --find metal
 
+      - name: OpenSSL for fcm-push-listener (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          vcpkg install openssl:x64-windows-static-md
+          $root = Join-Path $env:VCPKG_INSTALLATION_ROOT 'installed/x64-windows-static-md'
+          "OPENSSL_DIR=$root" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "OPENSSL_STATIC=1" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
       - name: Build release
         shell: bash
-        run: cargo build --release 2>&1 | grep -v 'rerun-if' | tail -60; test ${PIPESTATUS[0]} -eq 0
+        run: |
+          set -o pipefail
+          cargo build --release 2>&1 | grep -v 'rerun-if' | grep -v 'cargo:rustc-check-cfg' | tail -80
 
       - name: Install (Windows)
         if: runner.os == 'Windows'
