@@ -1,14 +1,15 @@
 import { config as sharedConfig } from '@chatic/config';
 import type { ConfigFacade } from '@chatic/config';
 import { logger } from '@chatic/logger';
-import { createRuntime as createCoreRuntime } from '../engine';
-import type { RuntimeConfig, RuntimeEngine, RuntimePorts } from '../engine';
+import { allModules, createRuntime as createCoreRuntime, describeModuleGap, moduleGaps, moduleSetOf } from '../engine';
+import type { ModuleNames, RuntimeConfig, RuntimeEngine, RuntimeModules, RuntimePorts } from '../engine';
 
 import { host } from '../api/host/hostPorts';
 import { HOST_PORT_NAMES } from '../api/host/ports';
 import type { HostPorts } from '../api/host/ports';
 import { initAppRuntime } from '../api/init';
 import { RuntimeDeclarationError, resolveEngine, resolveHostPorts, resolvePorts } from './resolvePorts';
+import { runtimeOf } from './runtimeHandle';
 import { PORT_NAMES } from './types';
 import type {
     AdapterContext,
@@ -57,8 +58,8 @@ const logToLogger =
             },
         });
 
-const ensureConfig = <Facts, Owner>(
-    declaration: RuntimeDeclaration<Facts, Owner>,
+const ensureConfig = (
+    declaration: Pick<RuntimeDeclaration<unknown>, 'name' | 'config'>,
     config: RuntimeConfigAccess
 ): void => {
     const initialised = config.isInitialized();
@@ -80,21 +81,42 @@ const ensureConfig = <Facts, Owner>(
     }
 };
 
-export const startRuntime = async <Facts, Owner = never>(
-    declaration: RuntimeDeclaration<Facts, Owner>,
+const checkModules = <Facts, Owner, M extends RuntimeModules>(
+    declaration: RuntimeDeclaration<Facts, Owner, M>,
+    modules: RuntimeModules
+): void => {
+    const declared = declaration.ports as Partial<Record<PortName, unknown>>;
+    const gaps = moduleGaps(
+        modules,
+        PORT_NAMES.filter(port => declared[port] !== undefined)
+    );
+    if (gaps.length === 0) return;
+    throw new RuntimeDeclarationError(
+        `[runtime] ${declaration.name}: the modules do not fit together — ${gaps.map(describeModuleGap).join('; ')}`
+    );
+};
+
+export const startRuntime = async <Facts, Owner = never, const M extends RuntimeModules = RuntimeModules>(
+    declaration: RuntimeDeclaration<Facts, Owner, M>,
     options: StartRuntimeOptions = {}
-): Promise<StartedRuntime<Facts, Owner>> => {
+): Promise<StartedRuntime<Facts, Owner, M>> => {
+    const modules: RuntimeModules = declaration.modules ?? allModules();
+    checkModules(declaration, modules);
+    const moduleSet = moduleSetOf(modules);
+    const ports = PORT_NAMES.filter(port => moduleSet.ports.has(port));
+
     const facts = declaration.facts();
     const config = options.config ?? sharedConfig;
     ensureConfig(declaration, config);
 
     const read: PortChoiceReader = options.read ?? (key => config.snapshot(key));
-    const choices: PortChoices<Facts> = resolvePorts(declaration, facts, read);
+    const choices = resolvePorts(declaration, facts, read, ports) as PortChoices<Facts, M>;
+    const chosen = choices as unknown as PortChoices<Facts>;
     const hostChoices = resolveHostPorts(declaration, facts, read);
     const engineChoice = resolveEngine(declaration, facts, read);
 
     const log = options.log ?? logToLogger(declaration.name);
-    for (const port of PORT_NAMES) log(formatPortChoice(choices[port]), choices[port]);
+    for (const port of ports) log(formatPortChoice(chosen[port]), chosen[port]);
     log(formatPortChoice(engineChoice), engineChoice);
     if (hostChoices) for (const port of HOST_PORT_NAMES) log(formatPortChoice(hostChoices[port]), hostChoices[port]);
 
@@ -112,17 +134,18 @@ export const startRuntime = async <Facts, Owner = never>(
     }
 
     const buildCore = async (sessionOwner?: SessionOwnerSide): Promise<RuntimeEngine> => {
-        const storage = await choices.storage.adapter.create(sessionOwner ? { facts, sessionOwner } : { facts });
+        const storage = await chosen.storage.adapter.create(sessionOwner ? { facts, sessionOwner } : { facts });
         const built = { storage } as RuntimePorts;
-        for (const port of PORT_NAMES) {
+        for (const port of ports) {
             if (port === 'storage') continue;
-            const create = choices[port].adapter.create as (
+            const create = chosen[port].adapter.create as (
                 context: AdapterContext<Exclude<PortName, 'storage'>, Facts>
             ) => RuntimePorts[typeof port] | Promise<RuntimePorts[typeof port]>;
             (built as Record<PortName, unknown>)[port] = await create({ facts, storage });
         }
         return (options.createRuntime ?? createCoreRuntime)({
             ...built,
+            ...(declaration.modules ? { modules } : {}),
             signedOutKeyPrefixes: declaration.signedOutKeyPrefixes,
             data: declaration.data,
         });
@@ -137,6 +160,8 @@ export const startRuntime = async <Facts, Owner = never>(
     if (outcome.engine) (options.initEngine ?? initAppRuntime)(outcome.engine);
     return {
         engine: outcome.engine,
+        modules: modules.map(module => module.name) as ModuleNames<M>[],
+        runtime: runtimeOf<M>(moduleSet),
         choices,
         ...(hostChoices ? { hostChoices } : {}),
         engineChoice,

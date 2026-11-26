@@ -41,6 +41,9 @@
         },
         {
             "path": "../runtime-core/tsconfig.lib.json"
+        },
+        {
+            "path": "../runtime/tsconfig.lib.json"
         }
     ]
 }

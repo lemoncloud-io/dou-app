@@ -53,3 +53,31 @@ export type { SessionStalenessPolicy } from './session/relayCredentialGuard';
 export type { CloudCredentialPolicy } from './session/cloudCredentialGuard';
 export type { DeviceTokenDelegate, PushDeviceIds, PushRegistrationOptions } from './push/pushRegistration';
 export type { ChatPrimeOutcome, PrimeChatRoomOptions } from './sync/primeChatRoom';
+export {
+    allModules,
+    cacheModule,
+    describeModuleGap,
+    headlessModules,
+    httpModule,
+    minimalModules,
+    moduleGaps,
+    moduleSetOf,
+    pushModule,
+    sessionModule,
+    socketsModule,
+    syncModule,
+} from './modules';
+export type {
+    AnyRuntimeModule,
+    DataGraphModules,
+    HasDataGraph,
+    MissingModules,
+    ModuleGap,
+    ModuleName,
+    ModuleNames,
+    ModuleSet,
+    RequiredPorts,
+    RuntimeModule,
+    RuntimeModules,
+} from './modules';
+export { describeOwner, isOn } from './moduleWiring';

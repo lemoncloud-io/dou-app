@@ -1,4 +1,4 @@
-import type { RuntimePorts } from '../engine';
+import type { RuntimeModules, RuntimePorts } from '../engine';
 
 import type { HostPorts } from '../api/host/ports';
 import type {
@@ -12,9 +12,9 @@ import type {
     RuntimeDeclaration,
 } from './types';
 
-export const defineRuntime = <Facts, Owner = never>(
-    declaration: RuntimeDeclaration<Facts, Owner>
-): RuntimeDeclaration<Facts, Owner> => declaration;
+export const defineRuntime = <Facts, Owner = never, const M extends RuntimeModules = RuntimeModules>(
+    declaration: RuntimeDeclaration<Facts, Owner, M>
+): RuntimeDeclaration<Facts, Owner, M> => declaration;
 
 export const defineAdapter = <P extends PortName, Facts = unknown, Impl extends RuntimePorts[P] = RuntimePorts[P]>(
     adapter: Adapter<P, Impl, Facts>
