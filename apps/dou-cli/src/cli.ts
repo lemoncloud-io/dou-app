@@ -19,6 +19,7 @@ export interface CommandContext {
     signal: AbortSignal;
     booted: Booted;
     hooks: ServeHooks;
+    profile: string;
 }
 
 const COMMANDS = {
@@ -55,13 +56,14 @@ export const runCli = async (argv: string[], { boot, io, signal, hooks = {} }: R
         return parsed.values.help ? 0 : 2;
     }
     const envFile = parsed.values['env-file'];
+    const profile = resolveProfile(parsed.values.profile);
     const booted = await boot({
-        profile: resolveProfile(parsed.values.profile),
+        profile,
         writeLine: io.out,
         ...(envFile ? { env: { ...process.env, ...readEnvFile(envFile) } } : {}),
     });
     try {
-        return await COMMANDS[name]({ io, signal: signal ?? new AbortController().signal, booted, hooks });
+        return await COMMANDS[name]({ io, signal: signal ?? new AbortController().signal, booted, hooks, profile });
     } finally {
         if (name !== 'serve') await booted.stop();
     }

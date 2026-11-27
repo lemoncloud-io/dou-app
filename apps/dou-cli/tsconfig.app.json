@@ -13,6 +13,7 @@
         { "path": "../../libs/runtime-node/tsconfig.lib.json" },
         { "path": "../../libs/host/node/tsconfig.lib.json" },
         { "path": "../../libs/runtime/tsconfig.lib.json" },
-        { "path": "../../libs/config/tsconfig.lib.json" }
+        { "path": "../../libs/config/tsconfig.lib.json" },
+        { "path": "../../libs/agent-tools/tsconfig.lib.json" }
     ]
 }
