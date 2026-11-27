@@ -27,7 +27,7 @@ grep -rhoE "from '@chatic/[a-z-]+'" --include='*.ts' --include='*.tsx' apps/mobi
   | sort | uniq -c | sort -rn
 ```
 
-Thirteen workspace packages, and `@chatic/bridge-messages` outnumbers the rest together.
+Fourteen workspace packages, and `@chatic/bridge-messages` is imported about as often as the rest together.
 [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) declares every message name and payload;
 [`@chatic/bridges`](../../libs/bridges/README.md) owns the transport, the reply matching and the
 timeouts on both sides of the boundary; [`@chatic/logger`](../../libs/logger/README.md) owns the log
@@ -41,7 +41,11 @@ The store purchases, push and social sign-in services are their own packages, ea
 SDK: [`@chatic/checkout-store`](../../libs/checkout/store/README.md),
 [`@chatic/push-mobile`](../../libs/push/mobile/README.md) and
 [`@chatic/sign-in-mobile`](../../libs/sign-in/mobile/README.md). The app chooses and configures them
-in `src/config/families.ts` and builds them in `services/provider.ts`.
+in `src/config/families.ts` and builds them in `services/provider.ts`. The device capabilities the
+web asks the shell for (clipboard, contacts, photo and document picking, permissions, SMS, link
+previews, deep links, the app icon, the store version, error reports and the restart note) are
+[`@chatic/host-mobile`](../../libs/host/mobile/README.md); the app hands it its own native modules
+and storage in `services/provider.ts`.
 
 What this app does **not** own: product screens, routing between them, data fetching and the debug
 panel UI (`apps/web`); the message vocabulary (`@chatic/bridge-messages`); the framing and the request
@@ -170,7 +174,7 @@ apps/mobile/
 │       ├── webview/       101 files: AppWebView, the router, 31 handlers, injection
 │       ├── subWebView/    the second WebView, for a page on another origin — its own host, answering a
 │       │                  subset of the vocabulary
-│       ├── services/      139 files across 21 domains, assembled in provider.ts
+│       ├── services/      96 files across 12 domains, assembled in provider.ts
 │       ├── bridge/        14 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
 │       │                  push marks, share intake, shared language, system bars, file transfer
@@ -258,7 +262,8 @@ is the bridge's job, not this app's.
 
 Declare the request and response types in
 [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md). Write the service under
-`services/<domain>/`, register it in `services/provider.ts`, and add a handler hook under
+`services/<domain>/` (or in [`@chatic/host-mobile`](../../libs/host/mobile/README.md) when another
+mobile app could use it), register it in `services/provider.ts`, and add a handler hook under
 `webview/hooks/` wired into `useWebMessageRouter`. If it needs the OS, add the TypeScript module under
 `bridge/` and both native implementations — Kotlin under `android/app/src/main/java/io/chatic/dou/`
 and Swift under `ios/Bridges/`. See [docs/native/README.md](./docs/native/README.md) and

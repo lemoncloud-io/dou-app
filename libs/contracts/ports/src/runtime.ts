@@ -1,7 +1,7 @@
 import type { AuthPlatformPorts } from '@chatic/auth';
 import type { DbPort } from '@chatic/data';
 import type { SessionStoragePorts } from '@chatic/session';
-import type { KeyValueStore } from '@chatic/storage';
+import type { KeyValueStore } from '@chatic/storage-compose';
 import type { TransportPlatformPorts } from '@chatic/transport';
 
 export interface ForegroundPort {
@@ -13,7 +13,18 @@ export interface DeviceStorePort {
     device: KeyValueStore;
 }
 
-export type StoragePort = SessionStoragePorts & DeviceStorePort;
+export type { KeyValueStore };
+
+export interface StoragePorts {
+    secret: KeyValueStore;
+    plain: KeyValueStore;
+    device: KeyValueStore;
+    tab: KeyValueStore;
+}
+
+export type StorageRole = keyof StoragePorts;
+
+export type StoragePort = SessionStoragePorts & DeviceStorePort & Partial<Pick<StoragePorts, 'tab'>>;
 export type TransportPort = TransportPlatformPorts;
 export type AuthPort = AuthPlatformPorts;
 export type { DbPort };

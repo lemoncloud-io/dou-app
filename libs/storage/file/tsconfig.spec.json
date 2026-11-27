@@ -15,6 +15,12 @@
         },
         {
             "path": "../../../libs/logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../compose/tsconfig.lib.json"
+        },
+        {
+            "path": "../memory/tsconfig.lib.json"
         }
     ]
 }

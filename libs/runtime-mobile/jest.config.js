@@ -6,6 +6,7 @@ module.exports = {
         '^@chatic/runtime/(.*)$': '<rootDir>/../runtime/src/$1',
         '^@chatic/data-(model|api|local|repositories)$': '<rootDir>/../data/$1/src/index.ts',
         '^@chatic/db-(indexeddb|bridge|memory)$': '<rootDir>/../db/$1/src/index.ts',
+        '^@chatic/storage-(compose|memory|web-local|web-session|vault-bridge)$': '<rootDir>/../storage/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
     },
     transform: {

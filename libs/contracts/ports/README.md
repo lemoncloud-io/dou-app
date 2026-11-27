@@ -34,10 +34,18 @@ libs/contracts/ports/src/
 | Published by             | the app's entry, through `startRuntime` (which calls `createRuntime`)                                      | the app's entry, through `startRuntime` (which calls `host.publish`)                      |
 
 Each runtime port has a short name beside the one its owning package gave it: `StoragePort`
-(`SessionStoragePorts` and the runtime's `device` store), `TransportPort` (`TransportPlatformPorts`),
+(`SessionStoragePorts`, the runtime's `device` store and an optional `tab`), `TransportPort` (`TransportPlatformPorts`),
 `AuthPort` (`AuthPlatformPorts`), `DbPort` (`LocalCachePorts`; `CachePort` stays as an alias) and `ForegroundPort`. The older names
 stay as aliases (`ForegroundSignal`, `RuntimeStorePorts`, and the core packages' own), so nothing that
 already names a port changes.
+
+**Storage is four roles, a store each.** `StoragePorts` names them — `secret` (the session's tokens),
+`plain` (the session's values that are not secret), `device` (what lives as long as the device, such as
+sync cursors) and `tab` (what ends with the tab, such as a small cache domain) — over one contract,
+`KeyValueStore`, re-exported here from [`@chatic/storage-compose`](../../storage/compose/README.md). The
+contract is declared there, in the foundation, because the core packages declare their own ports against
+it and may not depend on this package. The runtime's `StoragePort` takes `tab` as optional until every
+app's storage adapter hands one; the adapters in `libs/` already do.
 
 **The db port keeps the member name `cache` for now.** Its type is `DbPort`: the outbox and other rows that
 must not expire live there too, so the port is the medium, not the policy (ADR-0375 decision 5). The member

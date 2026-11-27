@@ -38,7 +38,7 @@ const fakeVault = (values: Record<string, string> = {}) => {
 const setup = (vaultValues?: Record<string, string>) => {
     const vault = fakeVault(vaultValues);
     const plain = new MemoryStore();
-    const storage = { secret: nativeSecretStore(vault), plain, device: new MemoryStore() };
+    const storage = { secret: nativeSecretStore(vault), plain, device: new MemoryStore(), tab: new MemoryStore() };
     return { vault, plain, storage, load: () => loadNativeSession(storage, vault) };
 };
 

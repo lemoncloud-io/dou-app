@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (mobile,host-mobile) move the shell's device capabilities into @chatic/host-mobile
+
+## [2026-11-27] - No version updates
+
+### Refactor
+
 - (host) move the web host port implementations into host/web
 
 ## [2026-11-27] - No version updates

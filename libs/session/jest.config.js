@@ -4,6 +4,7 @@ module.exports = {
     moduleNameMapper: {
         '^@chatic/config/(.*)$': '<rootDir>/../config/src/$1/index.ts',
         '^@chatic/data-(model|api|local|repositories)$': '<rootDir>/../data/$1/src/index.ts',
+        '^@chatic/storage-(compose|memory|web-local|web-session|vault-bridge)$': '<rootDir>/../storage/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
     },
     transform: {

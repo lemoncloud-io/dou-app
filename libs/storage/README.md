@@ -31,32 +31,31 @@ talking to every shell still in use.
   plain store's keys, and **`@chatic/runtime`**'s push registration record keeps its web copy
   there.
 
-It imports nothing from the workspace.
+## Layout — the `storage/*` family
 
-## Layout
+This package is now the old entry: `src/index.ts` re-exports, under the names it always had, what the
+family packages beside it hold ([ADR-0375](../../docs/adr/0375-platform-implementations-live-in-libs-as-families-of-one-port.md)).
+Importers do not change; a new implementation imports the family package it needs.
 
-```text
-libs/storage/src/
-├── index.ts                    the barrel — re-exports the two folders
-├── stores/                     the stores themselves
-│   ├── types.ts                StoreName, KeyValueStore
-│   ├── memoryStore.ts          MemoryStore
-│   ├── nativeSecure/           NativeSecureStore — the device vault, loaded once, written back in batches
-│   ├── webStore.ts             WebStore — local(), session(), over()
-│   ├── tolerantStore.ts        TolerantStore — a failed read is absent, a failed write a no-op
-│   ├── switchableStore.ts      SwitchableStore — forwards to whichever store it points at
-│   └── globalStorage.util.ts   reads the localStorage / sessionStorage global without throwing
-└── dom/                        a store seen as a DOM Storage
-    ├── domStorageAdapter.ts    DomStorageAdapter
-    └── asDomStorage.mapper.ts  the factory over it
-```
+| Package                                                    | Folder          | Holds                                                                            | Layer      | Platform |
+| ---------------------------------------------------------- | --------------- | -------------------------------------------------------------------------------- | ---------- | -------- |
+| [`@chatic/storage-compose`](./compose/README.md)           | `compose/`      | `KeyValueStore`, `StoreName`, `TolerantStore`, `SwitchableStore`, `asDomStorage` | foundation | any      |
+| [`@chatic/storage-memory`](./memory/README.md)             | `memory/`       | `MemoryStore`, `memoryStore()`, `memoryStoragePorts()`                           | foundation | any      |
+| [`@chatic/storage-web-local`](./web-local/README.md)       | `web-local/`    | `WebStore`, `webLocalStore()`                                                    | foundation | any      |
+| [`@chatic/storage-web-session`](./web-session/README.md)   | `web-session/`  | `webSessionStore()`                                                              | foundation | any      |
+| [`@chatic/storage-vault-bridge`](./vault-bridge/README.md) | `vault-bridge/` | `NativeSecureStore`, `NativeStore`, `NativeStorageChannel`, `isNativeStore`      | foundation | any      |
+| [`@chatic/storage-file`](./file/README.md)                 | `file/`         | `fileStore(path)`, `fileStoragePorts(directory)`                                 | adapter    | node     |
 
-A folder per concern, each with its own `index.ts`; interfaces in that folder's `types.ts`, one class
-per file, each test beside the file it covers. A new store goes in `stores/`.
+Every package but `file` is `layer:foundation`, as this one has always been: `@chatic/session` and
+`@chatic/auth` (core) import the stores, and a core package may depend on the foundation but not on an
+adapter or a contract. The web stores stay `platform:any` because they fall back to memory where web
+storage does not exist, and the session's default store is one of them. `memory` and `file` were built
+first, for the Node runtime; `MemoryStore` joined `memory`, where the functional store already lived.
 
-`memory/` and `file/` beside `src/` are their own projects, the first of the `storage/*` family:
-[`@chatic/storage-memory`](./memory/README.md) and [`@chatic/storage-file`](./file/README.md). This
-project's Jest config skips them.
+The four roles a runtime fills — `secret`, `plain`, `device`, `tab`, a store each — are `StoragePorts`
+in [`@chatic/ports`](../contracts/ports/README.md), which also re-exports `KeyValueStore`.
+
+This project's Jest config skips the family folders; each runs its own.
 
 ## The contract
 
@@ -115,8 +114,8 @@ what that means (`@chatic/auth`'s secret storage boot keeps the person signed in
 falls back to `localStorage`: that is the copy the vault exists to replace.
 
 The store reaches the shell through a `NativeStorageChannel` the entry point hands it
-(`@chatic/bridges`' `BridgeStorageChannel`), so this package still imports nothing from the
-workspace. Whether the shell keeps a vault at all is read from `window.CHATIC_APP_STORAGE_MEDIA`
+(`@chatic/bridges`' `BridgeStorageChannel`), so [`@chatic/storage-vault-bridge`](./vault-bridge/README.md)
+imports no bridge. Whether the shell keeps a vault at all is read from `window.CHATIC_APP_STORAGE_MEDIA`
 (`shellKeepsStorageMedium`), never from `isNative()`, which is true in every shell.
 
 ### No app-wide storage
@@ -153,6 +152,5 @@ await startRuntime(declareRuntime(stores)); // the app's src/config/ declaration
 
 ```bash
 npx tsc -b libs/storage/tsconfig.json
-npx jest --config libs/storage/jest.config.js
-cd libs/storage && npx eslint src
+npx nx run-many -t test,lint --projects='@chatic/storage*'
 ```

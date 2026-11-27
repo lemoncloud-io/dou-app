@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 
 const fromRepo = (file: string) => fileURLToPath(new URL(`../../../${file}`, import.meta.url));
 const SHARED_FOR_DEEPLINKS = fromRepo('libs/shared/src/utils/index.ts');
-const deeplinkSource = readFileSync(fromRepo('apps/mobile/src/app/services/deeplinks/deeplinkUtils.ts'), 'utf8');
+const deeplinkSource = readFileSync(fromRepo('libs/host/mobile/src/deeplinks/deeplinkUtils.ts'), 'utf8');
 
 const sharedValueImports = [
     ...deeplinkSource.matchAll(/(?:import|export)\s*\{([^}]*)\}\s*from\s*['"]@chatic\/shared['"]/g),

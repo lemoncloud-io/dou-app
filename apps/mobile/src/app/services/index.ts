@@ -1,25 +1,17 @@
 import { provider } from './provider';
 
 export * from './provider';
-export * from './device';
-export * from './clipboard';
-export * from './sms';
-export * from './dynamicAppIcon';
 export * from './log';
-export * from './report';
-export * from './permission';
 export * from './firebase';
 export * from './preference';
 export * from './config';
-export * from './version';
-export * from './unfurl';
 export * from './subWebView';
 export * from './perf';
 export * from './cache';
 export * from './secureStorage';
 export * from '../database';
-export * from './deeplinks/DeeplinkService';
-export * from './deeplinks/DeepLinkManager';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- host-mobile still reads its link and store-URL helpers from web-only shared until they move to a platform-free package
+export * from '@chatic/host-mobile';
 
 export const logger = provider.logService;
 export const logUploadQueueService = provider.logUploadQueueService;

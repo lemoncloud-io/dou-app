@@ -1,0 +1,20 @@
+{
+    "name": "@chatic/host-mobile",
+    "version": "0.0.1",
+    "private": true,
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "import": "./src/index.ts",
+            "default": "./src/index.ts"
+        },
+        "./links": {
+            "types": "./src/links.ts",
+            "import": "./src/links.ts",
+            "default": "./src/links.ts"
+        },
+        "./package.json": "./package.json"
+    }
+}
