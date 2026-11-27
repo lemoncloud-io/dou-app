@@ -60,6 +60,7 @@ export const runCli = async (argv: string[], { boot, io, signal, hooks = {} }: R
     const booted = await boot({
         profile,
         writeLine: io.out,
+        sockets: name === 'serve',
         ...(envFile ? { env: { ...process.env, ...readEnvFile(envFile) } } : {}),
     });
     try {
