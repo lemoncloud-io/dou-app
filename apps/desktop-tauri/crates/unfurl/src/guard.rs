@@ -5,13 +5,16 @@ use url::{Host, Url};
 const PRIVATE_SUFFIXES: [&str; 3] = [".localhost", ".local", ".internal"];
 
 fn private_v4(ip: Ipv4Addr) -> bool {
-    let [a, b, ..] = ip.octets();
+    let [a, b, c, _] = ip.octets();
     a == 0
         || a == 10
         || a == 127
+        || a >= 224
         || (a == 169 && b == 254)
         || (a == 172 && (16..=31).contains(&b))
         || (a == 192 && b == 168)
+        || (a == 192 && b == 0 && c == 0)
+        || (a == 198 && (18..=19).contains(&b))
         || (a == 100 && (64..=127).contains(&b))
 }
 
@@ -19,13 +22,16 @@ fn private_v6(ip: Ipv6Addr) -> bool {
     if let Some(mapped) = ip.to_ipv4_mapped() {
         return private_v4(mapped);
     }
-    let segments = ip.segments();
-    let first = segments[0];
+    let s = ip.segments();
+    let first = s[0];
     (first & 0xfe00) == 0xfc00
-        || first == 0x2002
-        || (first == 0x64 && segments[1] == 0xff9b && segments[2..6].iter().all(|s| *s == 0))
         || (first & 0xffc0) == 0xfe80
-        || ip.segments()[..6].iter().all(|segment| *segment == 0)
+        || (first & 0xffc0) == 0xfec0
+        || (first & 0xff00) == 0xff00
+        || first == 0x2002
+        || (first == 0x2001 && s[1] == 0)
+        || (first == 0x64 && s[1] == 0xff9b && (s[2..6].iter().all(|x| *x == 0) || s[2] == 1))
+        || s[..6].iter().all(|x| *x == 0)
 }
 
 fn private_name(name: &str) -> bool {
@@ -115,6 +121,17 @@ mod tests {
             "http://[::ffff:10.0.0.1]/",
             "http://[::7f00:1]/",
             "http://[64:ff9b::7f00:1]/",
+            "http://[64:ff9b:1::1]/",
+            "http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/",
+            "http://[fec0::1]/",
+            "http://[ff02::1]/",
+            "http://[ff0e::1]/",
+            "http://[::ffff:192.168.1.1]/",
+            "http://[::ffff:169.254.169.254]/",
+            "http://224.0.0.1/",
+            "http://255.255.255.255/",
+            "http://192.0.0.8/",
+            "http://198.18.0.1/",
             "http://[2002:7f00:1::]/",
         ] {
             assert!(!fetchable(url), "{url}");
