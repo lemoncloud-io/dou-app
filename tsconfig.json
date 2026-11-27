@@ -139,6 +139,9 @@
             "path": "./libs/host/node"
         },
         {
+            "path": "./libs/host/mobile"
+        },
+        {
             "path": "./libs/storage/memory"
         },
         {

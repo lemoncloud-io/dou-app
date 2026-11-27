@@ -11,27 +11,43 @@ import { MmkvLogUploadQueuePersistence } from './log/uploadQueue/persistence';
 import { attachNativeLoggerBridge } from './log/native/nativeLoggerBridge';
 import { attachNativeLogContext, readNativeLogContext, setLogSessionOwnerSource } from './log/native/nativeLogContext';
 import { launchSessionOwner, settledSessionOwner } from './runtime/launchSessionOwner';
-import type { IPendingReportQueueService } from './report';
-import { PendingReportQueueService } from './report/PendingReportQueueService';
-import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './report/nativeErrorDetection';
-import type { IDeviceService } from './device';
-import { DeviceService } from './device';
-import type { IClipboardService } from './clipboard';
-import { ClipboardService } from './clipboard';
-import type { IPermissionService } from './permission';
-import { PermissionService } from './permission';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- host-mobile still reads its link and store-URL helpers from web-only shared until they move to a platform-free package
+import type {
+    IClipboardService,
+    IDeeplinkService,
+    IDeviceService,
+    IDynamicAppIconService,
+    IPendingReportQueueService,
+    IPermissionService,
+    ISmsService,
+    IUnfurlService,
+    IVersionService,
+    RejectionTrackingConfig,
+} from '@chatic/host-mobile';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- host-mobile still reads its link and store-URL helpers from web-only shared until they move to a platform-free package
+import {
+    ClipboardService,
+    DeepLinkManager,
+    DeeplinkService,
+    DeviceService,
+    DynamicAppIconService,
+    PendingReportQueueService,
+    PermissionService,
+    SmsService,
+    UnfurlService,
+    VersionService,
+    checkCrashOnPreviousExecution,
+    installNativeErrorDetection,
+} from '@chatic/host-mobile';
+import crashlytics from '@react-native-firebase/crashlytics';
 import type { INotificationService, IPushEventManager } from '@chatic/push-mobile';
 import { NotificationService, PushEventManager } from '@chatic/push-mobile';
-import { DeepLinkManager } from './deeplinks/DeepLinkManager';
-import type { IDeeplinkService } from './deeplinks/DeeplinkService';
-import { DeeplinkService } from './deeplinks/DeeplinkService';
 import type { IOAuthService } from '@chatic/sign-in-mobile';
 import { OAuthService } from '@chatic/sign-in-mobile';
-import type { IDynamicAppIconService } from './dynamicAppIcon';
-import { DynamicAppIconService } from './dynamicAppIcon';
 import type { IBootSplashService } from './bootSplash';
 import { BootSplashService } from './bootSplash';
 import { BootSplashBridge } from '../bridge/BootSplashBridge';
+import { AppIconBridge } from '../bridge/AppIconBridge';
 import type { IFirebaseCrashlyticsService, IFirebaseInstallationService } from './firebase';
 import { FirebaseCrashlyticsService, FirebaseInstallationService, FirebasePerfTraceBackend } from './firebase';
 import type { ISubscriptionIapService } from '@chatic/checkout-store';
@@ -43,14 +59,8 @@ import type { IPreferenceService } from './preference';
 import { PreferenceService } from './preference';
 import type { ICacheCrudService, ICacheSearchService } from './cache';
 import { CacheCrudService, CacheSearchService } from './cache';
-import type { ISmsService } from './sms';
-import { SmsService } from './sms';
 import type { IBootMetricsService } from './perf';
 import { BootMetricsService, createNativeTelemetryRecorder } from './perf';
-import type { IVersionService } from './version';
-import { VersionService } from './version';
-import type { IUnfurlService } from './unfurl';
-import { UnfurlService } from './unfurl';
 import type { ISubWebViewService, SubWebViewManifestStore } from './subWebView';
 import { createSubWebViewManifestStore, SubWebViewService } from './subWebView';
 import DeviceInfo from 'react-native-device-info';
@@ -181,6 +191,9 @@ class DependencyProvider {
             logService: this.logService,
             logUploadQueue: this.logUploadQueueService,
             pendingReports: this.pendingReportQueueService,
+            didCrashOnPreviousExecution: () => crashlytics().didCrashOnPreviousExecution(),
+            enableRejectionTracking: (config: RejectionTrackingConfig) =>
+                require('promise/setimmediate/rejection-tracking').enable(config),
         };
         installNativeErrorDetection(detectionDeps);
         void checkCrashOnPreviousExecution(detectionDeps);
@@ -287,7 +300,11 @@ class DependencyProvider {
 
     public get dynamicAppIconService(): IDynamicAppIconService {
         if (!this._dynamicAppIconService) {
-            this._dynamicAppIconService = new DynamicAppIconService(this.logService, this.keyValueStorage);
+            this._dynamicAppIconService = new DynamicAppIconService(
+                this.logService,
+                this.keyValueStorage,
+                AppIconBridge
+            );
         }
         return this._dynamicAppIconService;
     }

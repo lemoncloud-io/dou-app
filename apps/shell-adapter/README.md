@@ -79,8 +79,9 @@ its vault — is checked on a simulator ([a device check](../../docs/config/skil
 | `vite.shell.config.mts`, `src/stubs/`                    | The alias that reaches those functions, and the stub for the one native module they import — read by the shell server only    |
 | `scenarios/`                                             | Scenario files the shell lists and runs                                                                                       |
 
-The routing functions are the mobile app's own, not copies: reached through an alias (an import would
-make `@chatic/mobile` a dependency of this project, and its typecheck would build the mobile app), with
+The routing functions are the mobile app's own (in `@chatic/host-mobile`), not copies: reached through
+an alias (an import would make a `platform:mobile` project a dependency of this one, and its typecheck
+would build it), with
 their types written by hand in `src/mobile.d.ts`. `src/routes.spec.ts` calls the real functions through
 the same alias, so a change in what the app returns fails it. The handlers' `OpenURL` checks a URL with
 the app's own `isOpenableUrl`, reached and declared the same way, so the shell refuses exactly what a

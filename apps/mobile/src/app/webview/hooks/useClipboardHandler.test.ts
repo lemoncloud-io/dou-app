@@ -1,4 +1,5 @@
-import type { IClipboardService } from '../../services/clipboard';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- host-mobile still reads its link and store-URL helpers from web-only shared until they move to a platform-free package
+import type { IClipboardService } from '@chatic/host-mobile';
 import type { ILogService } from '../../services/log';
 import { createClipboardHandlers } from './clipboardHandlers';
 

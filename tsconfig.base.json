@@ -44,6 +44,8 @@
             "@chatic/policy-content": ["libs/policy-content/src/index.ts"],
             "@chatic/checkout-store": ["libs/checkout/store/src/index.ts"],
             "@chatic/ports": ["libs/contracts/ports/src/index.ts"],
+            "@chatic/host-mobile": ["libs/host/mobile/src/index.ts"],
+            "@chatic/host-mobile/links": ["libs/host/mobile/src/links.ts"],
             "@chatic/host-node": ["libs/host/node/src/index.ts"],
             "@chatic/push-desktop": ["libs/push/desktop/src/index.ts"],
             "@chatic/push-mobile": ["libs/push/mobile/src/index.ts"],
