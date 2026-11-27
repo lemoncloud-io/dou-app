@@ -68,7 +68,10 @@ pub fn enabled_for(feed: Option<&str>, pubkey: Option<&str>) -> bool {
 }
 
 pub fn enabled() -> bool {
-    enabled_for(option_env!("DOU_UPDATE_FEED"), option_env!("DOU_UPDATE_PUBKEY"))
+    enabled_for(
+        option_env!("DOU_UPDATE_FEED"),
+        option_env!("DOU_UPDATE_PUBKEY"),
+    )
 }
 
 pub fn pubkey() -> Option<&'static str> {

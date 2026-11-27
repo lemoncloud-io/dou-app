@@ -75,6 +75,8 @@ impl Watchdog {
 }
 
 fn show_offline(app: &AppHandle, web: &str) {
+    #[cfg(debug_assertions)]
+    eprintln!("the web is unreachable; showing the offline page");
     if let (Some(window), Some(url)) = (app.get_webview_window("main"), offline_url(web)) {
         let _ = window.navigate(url);
     }
@@ -122,7 +124,10 @@ pub fn open_main(app: &AppHandle, web: &str, init_script: &str) -> tauri::Result
                     hook_watchdog.finish();
                     #[cfg(debug_assertions)]
                     if let Some(started) = STARTED.get() {
-                        eprintln!("main page loaded {} ms after launch", started.elapsed().as_millis());
+                        eprintln!(
+                            "main page loaded {} ms after launch",
+                            started.elapsed().as_millis()
+                        );
                     }
                 }
             }
@@ -187,7 +192,10 @@ mod tests {
             "offline.html?to=https%3A%2F%2Fdou-dev.chatic.io"
         );
         let url = offline_url("https://x.test/").expect("url");
-        assert!(url.as_str().ends_with("/offline.html?to=https%3A%2F%2Fx.test%2F"));
+        assert!(
+            url.as_str()
+                .ends_with("/offline.html?to=https%3A%2F%2Fx.test%2F")
+        );
     }
 
     #[test]

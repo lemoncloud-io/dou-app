@@ -7,7 +7,7 @@ The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the dep
 | Path                    | What it is                                                                                                                               |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `src-tauri/`            | the Tauri app crate (`dou-tauri`)                                                                                                        |
-| `ui/`                   | local pages the app serves itself: the loader shown while the web address is checked                                                     |
+| `ui/`                   | local pages the app serves itself: the offline page shown when the web cannot be reached                                                 |
 | `crates/bridge-host`    | the bridge envelope in Rust, free of any UI toolkit                                                                                      |
 | `crates/agent-settings` | validation of the MCP permission settings                                                                                                |
 | `crates/connectors`     | registering the launcher with Claude Desktop and Claude Code                                                                             |
@@ -26,7 +26,7 @@ npx nx run desktop-tauri:rust-lint
 npx nx run desktop-tauri:dev      # cargo tauri dev; needs: cargo install tauri-cli --locked --version '^2'
 ```
 
-`DOU_WEB_URL` and `DOU_STAGE` at build time pick the web address and the stage; `cargo build --release --bin dou-mcp` first, then `cargo tauri build --bundles app` bundles `dou-mcp` next to the app binary so Connectors finds it.
+`DOU_WEB_URL` and `DOU_STAGE` at build time pick the web address and the stage; `DOU_UPDATE_FEED` with `DOU_UPDATE_PUBKEY` turns the updater on and `DOU_BUILD_NUMBER` sets the build number (see [shell](./docs/shell/README.md)); `cargo build --release --bin dou-mcp` first, then `cargo tauri build --bundles app` bundles `dou-mcp` next to the app binary so Connectors finds it.
 
 For a production bundle that sits beside the dev one, add `--config '{"identifier":"io.chatic.desktop.tauri.prod","productName":"DoU Tauri Prod"}'` and leave `DOU_WEB_URL` and `DOU_STAGE` unset: it opens `https://dou.chatic.io`, uses the production relay, and keeps its app data, agent profile and keychain entry under the `.prod` identifier, apart from the dev app. Without them a debug build opens `https://dou-dev.chatic.io` and a release build `https://dou.chatic.io`.
 

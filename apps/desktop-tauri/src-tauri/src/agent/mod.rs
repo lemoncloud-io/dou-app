@@ -3,4 +3,4 @@ mod config;
 pub mod connect;
 mod host;
 
-pub use host::autostart;
+pub use host::{Agent, autostart};

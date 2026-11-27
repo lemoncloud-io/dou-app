@@ -14,6 +14,10 @@ The engine is its own device. The Agent window starts a pairing request and show
 
 Then the person picks a cloud (listed from the relay) and the engine starts. Switching to another cloud needs an app restart.
 
+## State push
+
+While the Agent window is visible and not minimised, `src-tauri/src/agent_push.rs` builds the window state once a second and emits `agent-state` to that window only when it differs from the last one sent; `agent.js` re-renders the Account tab on the event instead of polling. A hidden, closed or minimised window costs one visibility check a second. The tick lives in Rust because `agent/host.rs` has no change notification; a hook there would replace the tick.
+
 ## Permissions
 
 The Permissions tab edits `settings.json` in the profile directory through `crates/agent-settings`: the tier (off, read, write, full; off by default), the rooms writes are allowed in, and the write rate limit (1–600 a minute, 1–10000 an hour, hour not below minute, at most 500 rooms). It is the only writer: the MCP socket and the owner socket of `dou-control` cannot change it. The control service reads the file on each call, so a save applies at once.
@@ -31,6 +35,6 @@ Status is read from the config files (`mcpServers.dou` and the launcher it point
 
 ## The window
 
-`ui/agent/` is plain HTML and JavaScript served from the app, under a strict content security policy, in a window with its own capability. Every `agent_*` command checks that the caller is the window labelled `agent`; the remote web's capability allows `bridge_request` only. The window is opened from the Agent menu (Ctrl or Cmd + Shift + A). A debug build also opens it when `DOU_OPEN_AGENT` is set, and starts pairing at launch when `DOU_AGENT_AUTOPAIR` is set and prints the code, for unattended runs.
+`ui/agent/` is plain HTML and JavaScript served from the app, under a strict content security policy, in a window with its own capability. Every `agent_*` command checks that the caller is the window labelled `agent`; the remote web's capability allows `bridge_request` only. The window is opened from the Agent menu, the tray (Open DoU Agent…) (Ctrl or Cmd + Shift + A). A debug build also opens it when `DOU_OPEN_AGENT` is set, and starts pairing at launch when `DOU_AGENT_AUTOPAIR` is set and prints the code, for unattended runs.
 
 `DOU_VAULT_KEY_FILE` (any value) keeps the vault key in a file in the app data directory instead of the OS keychain; read in debug builds only, for unattended runs and CI, where a keychain prompt cannot be answered; a release build ignores it.

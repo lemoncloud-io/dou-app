@@ -376,8 +376,16 @@
         return run().catch(fail);
     };
 
+    const internals = window.__TAURI_INTERNALS__;
+    const listen = (event, handler) =>
+        invoke('plugin:event|listen', {
+            event,
+            target: { kind: 'Any' },
+            handler: internals.transformCallback(handler),
+        });
+
     show('account');
-    setInterval(() => {
+    listen('agent-state', () => {
         if (current === 'account') render();
-    }, 1500);
+    }).catch(fail);
 })();

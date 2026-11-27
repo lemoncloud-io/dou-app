@@ -200,7 +200,11 @@ mod tests {
             "http://tauri.localhost/index.html",
             "about:blank",
         ] {
-            assert_eq!(caller(url), Err("the caller is not the web".to_string()), "{url}");
+            assert_eq!(
+                caller(url),
+                Err("the caller is not the web".to_string()),
+                "{url}"
+            );
         }
     }
 

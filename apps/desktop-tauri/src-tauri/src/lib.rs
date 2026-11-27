@@ -1,9 +1,11 @@
 mod agent;
+mod agent_push;
 mod bridge;
 #[cfg(test)]
 mod command_drift_tests;
 mod globals;
 pub mod handlers;
+mod shell_ui;
 mod window;
 
 fn updater_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry, tauri_plugin_updater::Config> {
@@ -25,6 +27,7 @@ pub fn run() {
             }
         }))
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(shell_ui::shortcut_plugin())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(updater_plugin())
@@ -49,6 +52,8 @@ pub fn run() {
             handlers::listen_for_sign_in(app.handle());
             window::open_main(app.handle(), &web, &installed.init_script)?;
             window::install_menu(app.handle())?;
+            agent_push::start(app.handle());
+            shell_ui::install(app.handle())?;
             if std::env::var_os("DOU_OPEN_AGENT").is_some() {
                 window::open_agent(app.handle())?;
             }

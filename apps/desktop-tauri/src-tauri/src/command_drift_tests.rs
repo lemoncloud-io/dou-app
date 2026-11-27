@@ -26,7 +26,13 @@ fn handler_commands() -> Vec<String> {
         .and_then(|rest| rest.split(']').next())
         .expect("generate_handler in lib.rs");
     list.split(',')
-        .map(|path| path.trim().rsplit("::").next().unwrap_or_default().to_string())
+        .map(|path| {
+            path.trim()
+                .rsplit("::")
+                .next()
+                .unwrap_or_default()
+                .to_string()
+        })
         .filter(|name| !name.is_empty())
         .collect()
 }
@@ -64,5 +70,9 @@ fn every_agent_command_is_granted_to_the_agent_window() {
 
 #[test]
 fn the_agent_window_cannot_reach_the_bridge() {
-    assert!(!granted_to_agent().iter().any(|name| name == "bridge_request"));
+    assert!(
+        !granted_to_agent()
+            .iter()
+            .any(|name| name == "bridge_request")
+    );
 }
