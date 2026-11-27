@@ -1,5 +1,5 @@
-import { readWebHostFacts } from '@chatic/runtime-web';
-import type { StorageStores, WebHostFacts } from '@chatic/runtime-web';
+import { readWebHostFacts } from '@chatic/runtime-hybrid-web';
+import type { StorageStores, WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import type { WebRuntimeDeclaration } from './policies';
 import { webBrowser } from './webBrowser';

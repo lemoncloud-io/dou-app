@@ -4,7 +4,7 @@ Source: `cache.ts`. See the [index](./README.md) for conventions. The phone shel
 server data (the web's own IndexedDB is the other store); these messages read and write it. Every cache
 message carries `cacheType` (one of `channel`, `chat`, `user`, `join`, `site`, `invitecloud`, `profile`, `meta`,
 `invite`) plus the `cid` / `uid` partition. Which domain goes to which engine is the runtime's decision, and
-the negotiation lives in [runtime-web's cache doc](../../../runtime-web/docs/cache/README.md).
+the negotiation lives in [runtime-hybrid-web's cache doc](../../../runtime-hybrid-web/docs/cache/README.md).
 
 `CacheDomainVersions` is a per-domain contract version, `Partial<Record<CacheType, number>>`. The app reports
 the version it **implements**, the web the one it **requires**, each independently; only the type is shared,

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { WebHostFacts } from '@chatic/runtime-web';
+import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 const bridges = vi.hoisted(() => ({
     onEvent: vi.fn(),

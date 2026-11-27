@@ -4,7 +4,7 @@ import { NativeDBAdapter, NativeGlobalSearchSource } from '@chatic/db';
 import type { CacheBridgeClient } from '@chatic/db';
 import { webClient } from '@chatic/bridges';
 
-import type { SearchableWebCacheStore } from './cacheStore';
+import type { SearchableWebCacheStore } from '@chatic/runtime-web';
 import { isCacheMessageHandledBy } from './nativeCacheSupport';
 import type { NativeCacheSupport } from './nativeCacheSupport';
 

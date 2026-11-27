@@ -1,14 +1,11 @@
 import { webPlatform } from './webPlatform';
 
-let mockBridge: string | null = null;
-jest.mock('@chatic/bridges', () => ({
-    ...jest.requireActual('@chatic/bridges'),
-    hostProfile: () => ({ bridge: mockBridge, globals: {} }),
-}));
-
 beforeEach(() => {
-    mockBridge = null;
     window.history.replaceState({}, '', '/settings/feedback?x=1');
+});
+
+afterEach(() => {
+    delete (window as unknown as Record<string, unknown>).ReactNativeWebView;
 });
 
 describe('webPlatform.issueOrigin', () => {
@@ -18,10 +15,18 @@ describe('webPlatform.issueOrigin', () => {
         expect(webPlatform.issueOrigin.pageUrl()).toBe(`${window.location.origin}/rooms/1`);
     });
 
-    it('says a shell bridge is there only when the host profile found one', () => {
-        expect(webPlatform.issueOrigin.hasShellBridge()).toBe(false);
+    it('never says a shell bridge is there: a browser-only page does not look for one', () => {
+        (window as unknown as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
 
-        mockBridge = 'react-native-webview';
-        expect(webPlatform.issueOrigin.hasShellBridge()).toBe(true);
+        expect(webPlatform.issueOrigin.hasShellBridge()).toBe(false);
+    });
+});
+
+describe('webPlatform.device', () => {
+    it("reads the page's own user agent and no shell platform", () => {
+        (window as unknown as Record<string, unknown>).CHATIC_APP_PLATFORM = 'ios';
+
+        expect(webPlatform.device()).toEqual({ appPlatform: undefined, userAgent: navigator.userAgent });
+        delete (window as unknown as Record<string, unknown>).CHATIC_APP_PLATFORM;
     });
 });

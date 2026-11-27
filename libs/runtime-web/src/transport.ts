@@ -1,5 +1,3 @@
-import { hostProfile } from '@chatic/bridges';
-
 import type { RuntimePorts } from '@chatic/runtime-core';
 
 type TransportPorts = RuntimePorts['transport'];
@@ -21,7 +19,7 @@ export interface WebTransportOptions {
     appPlatform?: () => string | undefined;
 }
 
-const profilePlatform = (): string | undefined => hostProfile().globals.CHATIC_APP_PLATFORM;
+const noAppPlatform = (): string | undefined => undefined;
 
 const deviceReader =
     (appPlatform: () => string | undefined): TransportPorts['device'] =>
@@ -35,7 +33,7 @@ const deviceReader =
 
 const createSocket: TransportPorts['createSocket'] = ({ url, protocols }) => new WebSocket(url, protocols);
 
-export const webTransportPorts = ({ appPlatform = profilePlatform }: WebTransportOptions = {}): TransportPorts => ({
+export const webTransportPorts = ({ appPlatform = noAppPlatform }: WebTransportOptions = {}): TransportPorts => ({
     online,
     device: deviceReader(appPlatform),
     createSocket,

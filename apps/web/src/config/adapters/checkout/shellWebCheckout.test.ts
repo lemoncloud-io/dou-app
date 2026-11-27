@@ -1,4 +1,4 @@
-import { SHELL_HARNESS_GLOBAL } from '@chatic/runtime-web';
+import { SHELL_HARNESS_GLOBAL } from '@chatic/runtime-hybrid-web';
 
 import { hybridWebCheckout, isProductionBuild, shellWebCheckout } from './shellWebCheckout';
 import { webCheckout } from './webCheckout';

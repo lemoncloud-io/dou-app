@@ -9,6 +9,9 @@ Rules that never fire still cost reading time and false confidence. Once a month
    committed) records every `would-block`, `blocked`,
    `override` and `escalated` outcome. A rule with no entry across the sessions of the window is a removal
    candidate.
+   A hook with two checks has a mode key and a log file per check: the commit hook writes
+   `gate-before-commit.jsonl` (with the failed gate `steps`, plus `could-not-run` and `wip-passed`) and
+   `verified-by-trailer.jsonl`; trailer entries from before the split are in `gate-before-commit.jsonl`.
 3. **Promotion.** A hook in `observe` whose `would-block` entries were all real problems moves to `enforce` in
    `.claude/hooks/modes.json`. Entries that were false positives are fixed in the hook first. Every `override`
    reason is read; a recurring reason means the gate is wrong, not the agent.

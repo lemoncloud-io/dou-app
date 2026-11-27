@@ -319,7 +319,7 @@ const CLOSED_PATHS = [
     {
         name: '@chatic/runtime-core',
         message:
-            'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core re-exports the engine and the remote connection of @chatic/runtime — see libs/runtime/README.md.',
+            'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a browser-only page), @chatic/runtime-hybrid-web (a page that also runs in a shell) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core re-exports the engine and the remote connection of @chatic/runtime — see libs/runtime/README.md.',
     },
     ...DATA_SUBPACKAGES.map(name => ({ name, message: DATA_SUBPACKAGE_MESSAGE })),
 ];
@@ -361,7 +361,7 @@ const CLOSED_PATTERNS = [
     {
         group: ['@chatic/runtime-core/*'],
         message:
-            'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core re-exports the engine and the remote connection of @chatic/runtime — see libs/runtime/README.md.',
+            'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a browser-only page), @chatic/runtime-hybrid-web (a page that also runs in a shell) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core re-exports the engine and the remote connection of @chatic/runtime — see libs/runtime/README.md.',
     },
 ];
 
@@ -427,6 +427,7 @@ const APP_CALL_PART_PATHS = [
     { name: '@chatic/data', message: DATA_MESSAGE },
     ...DATA_SUBPACKAGES.map(name => ({ name, message: DATA_MESSAGE })),
     { name: '@chatic/runtime-web', message: ADAPTER_MESSAGE },
+    { name: '@chatic/runtime-hybrid-web', message: ADAPTER_MESSAGE },
     { name: '@chatic/runtime-mobile', message: ADAPTER_MESSAGE },
     { name: '@chatic/db', message: DB_MESSAGE },
     { name: '@chatic/runtime', message: BINDING_MESSAGE },
@@ -437,7 +438,10 @@ const APP_CALL_PART_PATTERNS = [
     { group: ['@chatic/host/*'], message: HOST_MESSAGE },
     { group: ['@chatic/config/*'], message: SETTINGS_MESSAGE },
     { group: ['@chatic/data/*'], message: DATA_MESSAGE },
-    { group: ['@chatic/runtime-web/*', '@chatic/runtime-mobile/*'], message: ADAPTER_MESSAGE },
+    {
+        group: ['@chatic/runtime-web/*', '@chatic/runtime-hybrid-web/*', '@chatic/runtime-mobile/*'],
+        message: ADAPTER_MESSAGE,
+    },
     { group: ['@chatic/db/*'], message: DB_MESSAGE },
     { group: ['@chatic/runtime/*'], message: BINDING_MESSAGE },
 ];

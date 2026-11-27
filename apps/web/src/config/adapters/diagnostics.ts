@@ -1,5 +1,5 @@
-import { diagnosticsAdapters } from '@chatic/runtime-web';
-import type { ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { diagnosticsAdapters } from '@chatic/runtime-hybrid-web';
+import type { ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 import { appBridge } from '../../app/bridge/appBridge';
 

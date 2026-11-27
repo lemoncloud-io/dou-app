@@ -1,6 +1,6 @@
 # cache storage routing
 
-> Where `webLocalCachePorts(tab)` (`src/localCache/`) puts each cache domain in a web page. The
+> Where runtime-hybrid-web's `webLocalCachePorts(tab)` (`src/localCache/`) puts each cache domain in a web page that may run in a shell. A browser-only page (runtime-web's `webLocalCachePorts`) keeps rule 0 and rule 1 alone. The
 > runtime asks the port once per domain per session and keys its sync cursors on the answers; that
 > assembly side is [runtime-core's data doc](../../../runtime/docs/engine/data.md).
 
@@ -11,14 +11,21 @@ is the tab's `sessionStorage`, which ends with the tab. **One function decides w
 and nothing else may branch on it.**
 
 ```ts
-export const resolveCacheBackendFor = (type: CacheType, host: CacheRoutingHost): CacheBackend => {
-    if (type === 'invitecloud' && host.bridge === null) return 'session'; // 0. lives as long as the tab's guest
-    if (!isPhoneAppBridge(host.bridge)) return 'web'; // 1. no shell, no other store to reach
-    if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web'; // 2. pinned, with a reason
-    if (!isCacheTypeUsableBy(host.support, type)) return 'web'; // 3. the shell cannot be trusted with it
-    return 'native'; // 4. the durable one
+export const CACHE_DOMAIN_CANDIDATES = {
+    default: [nativeBackend, webBackend],
+    domains: { invitecloud: [sessionBackend, nativeBackend, webBackend] },
 };
+// session: no bridge — lives as long as the tab's guest (0)
+// native:  the phone app's bridge, not pinned, and the shell can be trusted with the type (2, 3, 4)
+// web:     IndexedDB, everywhere else (1)
 ```
+
+Each domain takes the first candidate in its list whose `supports` holds (`chooseCacheBackendFor`,
+`src/localCache/routing.ts`), and the choice carries its reason — the chosen candidate's, then why each
+earlier one was passed over. `resolveCacheBackendFor` is that choice's backend. The numbered rules below
+are the conditions those candidates check. When the data graph is built, `routed` writes one boot-log line
+(`app.runtime_port`, `[hybrid] cache domains → chat → native, … (bridge …)`) with every domain's reason in
+its data, before the fallback line described below.
 
 The host — the bridge channel and the shell's report — is handed in; a page's cache hands in its host
 profile's bridge and a reader of the report `setNativeCacheSupport` recorded, read at each decision.

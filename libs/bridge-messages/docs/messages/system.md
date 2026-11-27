@@ -17,7 +17,7 @@ Source: `system.ts`, `device.ts`, `clipboard.ts`, `haptic.ts`. See the [index](.
       implements; wins when present), `supportedCacheTypes` (legacy name list, read as "version 1 of
       each") and `cacheSchemaVersion` (the physical SQLite version, kept for debugging and for old web
       bundles; no longer used for routing). A host with no local cache DB, the Electron main process,
-      sends none of them. Negotiation: [runtime-web's cache doc](../../../runtime-web/docs/cache/README.md).
+      sends none of them. Negotiation: [runtime-hybrid-web's cache doc](../../../runtime-hybrid-web/docs/cache/README.md).
     - `capabilities` carries feature flags; new features are negotiated there before use.
     - `subWebView` is sent only by a sub WebView's own host: the same object as `window.ChaticSubWebView`,
       sent at a moment the page knows, because on Android the global can be defined after the page's first

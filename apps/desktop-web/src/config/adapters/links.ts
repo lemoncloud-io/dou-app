@@ -1,7 +1,7 @@
 import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 import { logger, webClient } from '@chatic/bridges';
-import { linksAdapters, pageLinks } from '@chatic/runtime-web';
-import type { LinksPort, ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { linksAdapters, pageLinks } from '@chatic/runtime-hybrid-web';
+import type { LinksPort, ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 const noPhoneLinks = { shareSheet: null, shareIntake: null, contacts: null, sms: null } as const;
 

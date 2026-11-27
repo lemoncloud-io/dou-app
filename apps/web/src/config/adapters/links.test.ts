@@ -1,6 +1,6 @@
 import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 import { logger, webClient } from '@chatic/bridges';
-import type { WebHostFacts } from '@chatic/runtime-web';
+import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { appBridge } from '../../app/bridge/appBridge';
 import { shellCapabilities } from '../../app/bridge/shellCapabilities';

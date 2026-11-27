@@ -12,7 +12,7 @@
 > `services/cache/`; `libs/bridges/src/version.ts` (2.25.0)
 > · The behaviour is documented in [libs/data docs/local](../../libs/data/docs/local/README.md#room-media-index),
 > [libs/db](../../libs/db/README.md), [apps/mobile docs/storage/cache.md](../../apps/mobile/docs/storage/cache.md)
-> and [libs/runtime-web docs/cache](../../libs/runtime-web/docs/cache/README.md)
+> and [libs/runtime-hybrid-web docs/cache](../../libs/runtime-hybrid-web/docs/cache/README.md)
 
 ## Context
 

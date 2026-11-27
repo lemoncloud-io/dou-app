@@ -10,11 +10,13 @@ import type {
 } from '@chatic/data';
 import { NativeCacheMetricsSource } from '@chatic/db';
 import { logger } from '@chatic/logger';
+import type { SearchableWebCacheStore, WebCacheStore } from '@chatic/runtime-web';
 
-import type { SearchableWebCacheStore, WebCacheStore } from './cacheStore';
+import { logHybridChoice } from '../candidates';
+
 import { isCacheTypeUsableBy } from './nativeCacheSupport';
 import type { NativeCacheSupport } from './nativeCacheSupport';
-import { type CacheBackend, isPhoneAppBridge, resolveCacheBackendFor } from './routing';
+import { type CacheBackend, chooseCacheBackendFor, isPhoneAppBridge, resolveCacheBackendFor } from './routing';
 
 export interface RoutedCachePortsOptions {
     bridge: BridgeChannel | null;
@@ -41,6 +43,35 @@ const reportPhoneCacheFallback = (
     logger.info('CACHE', `${fellBack.length} cache domain(s) fell back to web storage`, {
         data: { domains: [...fellBack].sort() },
     });
+};
+
+const reasonFor = (
+    type: CacheType,
+    route: string,
+    bridge: BridgeChannel | null,
+    support: NativeCacheSupport | null
+): string => {
+    const choice = chooseCacheBackendFor(type, { bridge, support });
+    return choice.chosen.id === route
+        ? choice.reason
+        : `${choice.chosen.id} chosen, but this cache holds no such store`;
+};
+
+const logDomainChoices = (
+    routes: readonly CacheRoute[],
+    bridge: BridgeChannel | null,
+    support: NativeCacheSupport | null
+): void => {
+    if (routes.length === 0) return;
+    const domains = Object.fromEntries(
+        [...routes]
+            .sort((a, b) => a.type.localeCompare(b.type))
+            .map(({ type, route }) => [type, { route, because: reasonFor(type, route, bridge, support) }])
+    );
+    const summary = Object.entries(domains)
+        .map(([type, { route }]) => `${type} → ${route}`)
+        .join(', ');
+    logHybridChoice('cache domains', summary, bridge === null ? 'no shell' : `bridge ${bridge}`, { domains });
 };
 
 export const routedCachePorts = ({
@@ -73,9 +104,13 @@ export const routedCachePorts = ({
             case 'web':
                 return indexedDb.storage(type, contextProvider, options);
         }
-        throw new Error(`[runtime-web] unknown cache route '${route}' for '${type}'`);
+        throw new Error(`[runtime-hybrid-web] unknown cache route '${route}' for '${type}'`);
     },
-    routed: routes => reportPhoneCacheFallback(routes, bridge, support()),
+    routed: routes => {
+        const reported = support();
+        logDomainChoices(routes, bridge, reported);
+        reportPhoneCacheFallback(routes, bridge, reported);
+    },
     globalSearch: () =>
         isPhoneAppBridge(bridge) && shellSqlite ? shellSqlite.globalSearch() : indexedDb.globalSearch(),
     metrics,

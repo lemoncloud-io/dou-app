@@ -16,7 +16,10 @@ else. English.
 - One concern per commit: when the type or the scope splits, the commit splits.
 - End with a `Verified-by:` trailer naming the methods that actually ran, from the verification report:
   `Verified-by: gate, web-e2e, chaos`, or `Verified-by: none` (by convention with the reason in the body). The commit
-  hook checks only that the trailer is there.
+  hook blocks a commit whose `yarn gate` fails (`gate-before-commit: enforce`) and only logs a missing trailer
+  (`verified-by-trailer: observe` in `.claude/hooks/modes.json`). A gate that could not run (timeout, no merge
+  base, `node_modules` out of sync with `yarn.lock` per `yarn check --integrity`, stale `dist/out-tsc` (TS6305), a `cd` or `-C` the hook cannot
+  resolve) and a `wip` commit pass with a note instead.
 
 ```
 fix(runtime): end a server-revoked relay session on auth.switch

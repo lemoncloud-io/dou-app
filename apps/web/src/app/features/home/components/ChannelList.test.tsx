@@ -9,9 +9,10 @@ import type { NotificationItem } from '../../../utils/notifications';
 import { roomOpenTrace } from '../../../runtime/perf';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }) }));
+const mockNavigate = jest.fn();
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
-    useNavigateWithTransition: () => jest.fn(),
+    useNavigateWithTransition: () => mockNavigate,
 }));
 const mockUseChannelSync = jest.fn();
 const mockPrefetchRoomFeed = jest.fn().mockResolvedValue(undefined);
@@ -275,7 +276,7 @@ describe('ChannelList self-chat row', () => {
         mockLastChatByChannel = null;
     });
 
-    it('orders by the latest activity while the line stays on the last message the room shows', () => {
+    it('prints the newest thread reply behind its mark and orders by it', () => {
         mockLastChatByChannel = new Map([
             ['a', { content: 'a의 일반 메시지', createdAtMs: 100 }],
             ['b', { content: 'b의 마지막', createdAtMs: 200 }],
@@ -293,10 +294,71 @@ describe('ChannelList self-chat row', () => {
         );
 
         expect(screen.getAllByTestId('row-title').map(el => el.textContent)).toEqual(['A방', 'B방']);
-        expect(screen.getByText('a의 일반 메시지')).toBeInTheDocument();
-        expect(screen.queryByText('a의 스레드 답글')).not.toBeInTheDocument();
+        expect(screen.getByText('chat.preview.thread')).toBeInTheDocument();
+        expect(screen.queryByText('a의 일반 메시지')).not.toBeInTheDocument();
         mockLastChatByChannel = null;
         mockLastActivityByChannel = null;
+    });
+
+    describe('opening a row', () => {
+        const renderRow = () =>
+            render(
+                <ChannelList
+                    sid="s1"
+                    channels={[makeChannel({ id: 'a', stereo: 'group', memberNo: 1, name: 'A방' })]}
+                    isLoading={false}
+                />
+            );
+
+        beforeEach(() => {
+            mockNavigate.mockClear();
+            mockLastChatByChannel = new Map([['a', { content: 'a의 일반 메시지', chatNo: 1, createdAtMs: 100 }]]);
+            useComposerDraftStore.setState({ texts: {}, held: {} });
+        });
+        afterEach(() => {
+            mockLastChatByChannel = null;
+            mockLastActivityByChannel = null;
+            useComposerDraftStore.setState({ texts: {}, held: {} });
+        });
+
+        it('opens the thread of the reply the row prints, on that reply', () => {
+            mockLastActivityByChannel = new Map([
+                ['a', { content: 'a의 스레드 답글', parentId: 'a:1', chatNo: 9, createdAtMs: 300 }],
+            ]);
+            renderRow();
+
+            roomOpenTrace.reset();
+            mockPrefetchRoomFeed.mockClear();
+            fireEvent.click(screen.getByText('A방'));
+
+            expect(mockNavigate).toHaveBeenCalledWith('/channels/a/thread/1?chatNo=9');
+            expect(roomOpenTrace.peek('a')).toBeUndefined();
+            expect(mockPrefetchRoomFeed).not.toHaveBeenCalled();
+        });
+
+        it('opens the room when the row prints a top-level message', () => {
+            renderRow();
+
+            fireEvent.click(screen.getByText('A방'));
+
+            expect(mockNavigate).toHaveBeenCalledWith('/channels/a/room', {
+                state: { channel: expect.objectContaining({ id: 'a' }) },
+            });
+        });
+
+        it('opens the room when the row prints its draft over a reply', () => {
+            mockLastActivityByChannel = new Map([
+                ['a', { content: 'a의 스레드 답글', parentId: 'a:1', chatNo: 9, createdAtMs: 300 }],
+            ]);
+            useComposerDraftStore.getState().setText('a', 'half a thought');
+            renderRow();
+
+            fireEvent.click(screen.getByText('A방'));
+
+            expect(mockNavigate).toHaveBeenCalledWith('/channels/a/room', {
+                state: { channel: expect.objectContaining({ id: 'a' }) },
+            });
+        });
     });
 
     describe('a cloud 1:1 beside group rooms', () => {

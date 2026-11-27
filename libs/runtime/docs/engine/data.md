@@ -39,9 +39,9 @@ The `data` group of the `runtime` facade (`index.ts`) and the hooks (`hooks/`) a
 surface's, in `libs/runtime/src/data/`.
 
 Where each domain's rows live is not here. It is the platform's — `LocalCachePorts` in `@chatic/data`,
-filled in a page by a cache adapter of the app's declaration over `@chatic/runtime-web` (`webLocalCachePorts`), which holds the routing
+filled in a page by a cache adapter of the app's declaration over `@chatic/runtime-hybrid-web` (`webLocalCachePorts`; a browser-only app's over `@chatic/runtime-web`), which holds the routing
 (`resolveCacheBackendFor`), the shell's capability report (`setNativeCacheSupport`), the IndexedDB and
-bridge adapters and a tab's invited-cloud import; see [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
+bridge adapters and a tab's invited-cloud import; see [runtime-hybrid-web docs/cache](../../../runtime-hybrid-web/docs/cache/README.md).
 The start builds the runtime with them (`startRuntime(declaration)`, which calls
 `createRuntime({ cache })`), and `localCachePlatform.ports()` throws until it has.
 
@@ -154,7 +154,7 @@ Each returns only the interfaces a repository consumes; no gateway instance esca
 
 `localFactory` also records a **routing fingerprint** from the routes it was given, which is what stops
 a sync cursor outliving the storage it described; see
-[runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
+[runtime-hybrid-web docs/cache](../../../runtime-hybrid-web/docs/cache/README.md).
 
 **A rejected `channel.sync-users` is read as a membership verdict.** The socket factory wraps that one
 call. A `403` records the room as refused (`recordRefusedChannel`, which `isChannelRefused` answers
@@ -291,7 +291,7 @@ nothing to restore it from.
 
 Where the row lives follows the device user that can enter it. In a plain browser tab that user is the
 tab's guest, kept in `sessionStorage`, so the row is kept there too and ends with the tab
-([runtime-web docs/cache](../../../runtime-web/docs/cache/README.md#check-0-invited-clouds-in-a-plain-tab-live-with-the-tabs-guest)
+([runtime-hybrid-web docs/cache](../../../runtime-hybrid-web/docs/cache/README.md#check-0-invited-clouds-in-a-plain-tab-live-with-the-tabs-guest)
 has the routing and the one-time import from IndexedDB). Inside the mobile shell it is native SQLite;
 inside the desktop shell, IndexedDB.
 
@@ -381,13 +381,13 @@ belongs to [`libs/data`](../../../data/README.md).
 
 - The factories are stateless functions — receive, assemble, return. Module-level mutable state is allowed only for the runtime singletons; the one physical shared resource, the IndexedDB connection, lives with the web cache ports in `@chatic/runtime-web`.
 - `createLocalDataSources` accepts an injected `cacheStorageFactory`. Injecting one leaves the routing fingerprint empty and reports no routes, which **disables** the cursor check — fine in a test, but it means a fingerprint test has to go through the ports (`localFactory.test.ts` configures fake ones).
-- `setNativeCacheSupport` (from `@chatic/runtime-web`) must run before the data runtime is built — `apps/web` calls it from `main.tsx`. A report arriving later cannot move a routing decision that has already been made.
+- `setNativeCacheSupport` (from `@chatic/runtime-hybrid-web`) must run before the data runtime is built — `apps/web` calls it from `main.tsx`. A report arriving later cannot move a routing decision that has already been made.
 - `@chatic/data` builds one storage per `(cid, uid)` partition, on first use, so the factory also runs after assembly. `createLocalDataSources` therefore asks `route()` the first time it builds a type and reuses the answer for every later partition — without that, a partition first reached after a late handshake would put `invite` on SQLite while the rest of the session, and the next boot, read IndexedDB (ADR-0112).
-- The type × environment routing matrix is asserted where the routing lives, in `@chatic/runtime-web`'s `localCache/routing.spec.ts`.
+- The type × environment routing matrix is asserted where the routing lives, in `@chatic/runtime-hybrid-web`'s `localCache/routing.spec.ts`.
 
 ## Further reading
 
-- [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md) — where a cache type lands, and the version negotiation behind it
+- [runtime-hybrid-web docs/cache](../../../runtime-hybrid-web/docs/cache/README.md) — where a cache type lands, and the version negotiation behind it
 - [@chatic/runtime docs/data](../../../runtime/docs/data/README.md) — the hooks over this graph, and `useSendImages`
 - [@chatic/runtime docs/session/](../../../runtime/docs/session/README.md) — the session's React surface
 - [transport docs/http/](../../../transport/docs/http/README.md) — the gateways `httpFactory` builds over

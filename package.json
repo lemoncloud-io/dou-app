@@ -1,6 +1,6 @@
 {
   "name": "@chatic/source",
-  "version": "0.175.2",
+  "version": "0.176.0",
   "license": "Apache-2.0",
   "scripts": {
     "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
@@ -22,6 +22,7 @@
     "ratchet:update": "node scripts/ratchet.js update",
     "gate": "node scripts/gate.js",
     "worktree:setup": "node scripts/worktree-setup.js",
+    "hooks:install": "node scripts/install-claude-hooks.js",
     "generate:emoji-names": "node scripts/generate-emoji-names.js",
     "generate:app-icons": "node scripts/generate-app-icons.js",
     "block-kit:test": "cd libs/block-kit && ../../node_modules/.bin/vitest run",

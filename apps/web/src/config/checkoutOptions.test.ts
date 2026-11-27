@@ -1,4 +1,4 @@
-import type { WebHostFacts } from '@chatic/runtime-web';
+import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { checkoutOptionsOf } from './checkoutOptions';
 import { webBrowser } from './webBrowser';

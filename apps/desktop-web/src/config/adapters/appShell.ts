@@ -1,6 +1,6 @@
 import { webClient } from '@chatic/bridges';
-import { appShellAdapters } from '@chatic/runtime-web';
-import type { ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { appShellAdapters } from '@chatic/runtime-hybrid-web';
+import type { ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 export const desktopAppShell: ShellOrBrowserImplementations<'appShell'> = {
     shell: base => ({
