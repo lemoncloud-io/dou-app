@@ -119,12 +119,26 @@ pub struct Sidecar {
     worker: Mutex<Option<JoinHandle<()>>>,
 }
 
+fn for_each_line(stream: impl Read, mut each: impl FnMut(String)) {
+    let mut reader = BufReader::new(stream);
+    let mut buffer = Vec::new();
+    loop {
+        buffer.clear();
+        match reader.read_until(b'\n', &mut buffer) {
+            Ok(0) | Err(_) => return,
+            Ok(_) => each(
+                String::from_utf8_lossy(&buffer)
+                    .trim_end_matches(['\n', '\r'])
+                    .to_string(),
+            ),
+        }
+    }
+}
+
 fn pipe_lines(sink: &Arc<Sink>, level: &'static str, stream: impl Read + Send + 'static) {
     let sink = Arc::clone(sink);
     std::thread::spawn(move || {
-        for line in BufReader::new(stream).lines().map_while(Result::ok) {
-            sink.stamped(level, &line);
-        }
+        for_each_line(stream, |line| sink.stamped(level, &line));
     });
 }
 
@@ -302,21 +316,19 @@ pub fn run_pair(spec: &Spec, mut on_state: impl FnMut(Pairing)) -> Pairing {
     };
     let errors = child.stderr.take().map(|stream| {
         std::thread::spawn(move || {
-            BufReader::new(stream)
-                .lines()
-                .map_while(Result::ok)
-                .last()
-                .unwrap_or_default()
+            let mut last = String::new();
+            for_each_line(stream, |line| last = line);
+            last
         })
     });
     let mut paired = false;
     if let Some(out) = child.stdout.take() {
-        for line in BufReader::new(out).lines().map_while(Result::ok) {
+        for_each_line(out, |line| {
             if let Some(state) = parse_pair_line(&line) {
                 paired = state == Pairing::Applying;
                 on_state(state);
             }
-        }
+        });
     }
     let status = child.wait();
     let last_error = errors
@@ -387,6 +399,13 @@ mod tests {
         std::fs::write(paths.dou_env(), "").expect("env");
         let with_env = locate(&paths, dir.path(), &none, "serve").expect("env");
         assert!(with_env.args.contains(&"--env-file".to_string()));
+    }
+
+    #[test]
+    fn lines_survive_bytes_that_are_not_utf8() {
+        let mut seen = Vec::new();
+        for_each_line(&b"bad \xff byte\r\nnext\n"[..], |line| seen.push(line));
+        assert_eq!(seen, ["bad \u{fffd} byte", "next"]);
     }
 
     #[test]

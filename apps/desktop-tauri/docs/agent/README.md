@@ -15,7 +15,7 @@ The shell starts one `dou-cli --profile <dir> serve` per profile (see [shell](..
 | Permissions                             | `settings.json` through `crates/agent-settings`; dou-cli re-reads it on every call                                                                    |
 | Connectors                              | registers `dou-mcp --profile <dir>`, the byte pipe from a client's stdio to `mcp.sock`                                                                |
 
-Without a `dou-cli` beside the app (or `DOU_CLI_BIN` / `DOU_CLI_NODE_SCRIPT`) the engine shows as stopped and pairing says the sidecar was not found.
+Without a `dou-cli` beside the app (or, in a debug build, `DOU_CLI_BIN` / `DOU_CLI_NODE_SCRIPT`) the engine shows as stopped and pairing says the sidecar was not found.
 
 ## Permissions
 

@@ -61,9 +61,11 @@ The screenshot is taken by the webview (`takeSnapshot` on WKWebView, `CapturePre
 
 ## Node sidecar
 
+The sidecar depends on `--parent-pipe` and the `build-sidecar` target of dou-cli, which land in their own pull request (`apps/dou-cli` is not part of this folder). The control sockets are Unix sockets; on Windows the MCP request from the Agent window has no read timeout yet.
+
 The shell starts `dou-cli --profile <dir> --parent-pipe serve` and keeps its stdin pipe open: when the shell dies the pipe closes and dou-cli exits, so no orphan keeps `mcp.sock`. It stops dou-cli on exit. Output goes to `logs/node.log` (rotated like the others, readable with `logs_tail` and `dou-shellctl logs node`).
 
-- **Where dou-cli comes from:** `DOU_CLI_NODE_SCRIPT` (a built `main.mjs`, run with `node` or `DOU_CLI_NODE`), else `DOU_CLI_BIN`, else `dou-cli` beside the app executable (the bundled single executable). If none exists the shell logs it and runs without MCP.
+- **Where dou-cli comes from:** in a debug build `DOU_CLI_NODE_SCRIPT` (a built `main.mjs`, run with `node` or `DOU_CLI_NODE`), else `DOU_CLI_BIN`; otherwise `dou-cli` beside the app executable (the bundled single executable). If none exists the shell logs it and runs without MCP.
 - **Crashes:** a stopped dou-cli restarts after 1, 2, 4 … 30 seconds. A run of a minute or more resets the count; after eight quick failures the shell stops trying and the Agent window shows the failure.
 - **Pairing:** the shell pauses the sidecar, runs `dou-cli pair`, then resumes it (one process per profile may own the session files).
 - **`dou-mcp --profile <dir>`:** a byte pipe from stdin and stdout to `mcp.sock`. It waits up to 15 seconds for the socket, then exits 1 with one line. Claude Code registers this command from the Connectors tab.

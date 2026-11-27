@@ -144,7 +144,11 @@ pub fn run() {
             let exe_dir = std::env::current_exe()
                 .ok()
                 .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf));
-            let env = |name: &str| std::env::var(name).ok();
+            let env = |name: &str| {
+                cfg!(debug_assertions)
+                    .then(|| std::env::var(name).ok())
+                    .flatten()
+            };
             let locate = |command: &str| {
                 exe_dir
                     .as_deref()
