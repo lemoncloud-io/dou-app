@@ -6,18 +6,18 @@ Desktop v2 logic runs in TypeScript on `@chatic/runtime` in a Node process the s
 
 ## Layout
 
-| Path                    | What it is                                                                                                                               |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `src-tauri/`            | the Tauri app crate (`dou-tauri`)                                                                                                        |
-| `ui/`                   | local pages the app serves itself: the offline page shown when the web cannot be reached                                                 |
-| `crates/bridge-host`    | the bridge envelope in Rust, free of any UI toolkit                                                                                      |
-| `crates/agent-settings` | validation of the MCP permission settings                                                                                                |
-| `crates/connectors`     | registering the launcher with Claude Desktop and Claude Code                                                                             |
-| `crates/vault`          | the encrypted `nativeSecure` store                                                                                                       |
-| `crates/subview`        | the mini-app window's rules: trust, navigation, manifest, titles, the page protocol                                                      |
-| `crates/capture`        | PNG of the main webview, taken by the webview itself (the only crate allowed `unsafe`)                                                   |
-| `scripts/`              | `check-bridge-contract.mjs`; `stage-dou-mcp.mjs`; `smoke/` (a fixture page and a server for the CI smoke run)                            |
-| `docs/`                 | [agent](./docs/agent/README.md), [bridge](./docs/bridge/README.md), [storage](./docs/storage/README.md), [shell](./docs/shell/README.md) |
+| Path                    | What it is                                                                                                                                                                                                     |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src-tauri/`            | the Tauri app crate (`dou-tauri`)                                                                                                                                                                              |
+| `ui/`                   | local pages the app serves itself: the offline page shown when the web cannot be reached                                                                                                                       |
+| `crates/bridge-host`    | the bridge envelope in Rust, free of any UI toolkit                                                                                                                                                            |
+| `crates/agent-settings` | validation of the MCP permission settings                                                                                                                                                                      |
+| `crates/connectors`     | registering the launcher with Claude Desktop and Claude Code                                                                                                                                                   |
+| `crates/vault`          | the encrypted `nativeSecure` store                                                                                                                                                                             |
+| `crates/subview`        | the mini-app window's rules: trust, navigation, manifest, titles, the page protocol                                                                                                                            |
+| `crates/capture`        | PNG of the main webview, taken by the webview itself (the only crate allowed `unsafe`)                                                                                                                         |
+| `scripts/`              | `check-bridge-contract.mjs`; `stage-dou-mcp.mjs`; `smoke/` (a fixture page and a server for the CI smoke run); `bench-desktop.sh`, `bench-proxy.mjs`, `bench-window.swift` (the Tauri vs Electron measurement) |
+| `docs/`                 | [agent](./docs/agent/README.md), [bridge](./docs/bridge/README.md), [storage](./docs/storage/README.md), [shell](./docs/shell/README.md), [perf](./docs/perf/README.md)                                        |
 
 ## Commands
 

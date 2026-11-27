@@ -6,3 +6,4 @@
 | [storage](./storage/README.md) | the nativeSecure vault: format, key, reset and failure rules                                                     |
 | [agent](./agent/README.md)     | the Agent window on dou-cli: pairing, permissions and connectors                                                 |
 | [shell](./shell/README.md)     | the main window, offline page, tray, updater values, profiles, app source, logs, shell.sock and the Node sidecar |
+| [perf](./perf/README.md)       | how the shell is measured against Electron, and the dated results                                                |
