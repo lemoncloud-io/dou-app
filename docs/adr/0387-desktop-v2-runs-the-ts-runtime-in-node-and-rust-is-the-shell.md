@@ -8,7 +8,7 @@ ADR-0382 gave desktop v2 a second engine in Rust, held to the TS engine by vecto
 
 ## Decision
 
-1. **The Rust engine is parked.** The crates `dou-auth`, `dou-socket`, `dou-app`, `dou-engine` and `dou-store` stay in the tree, are not extended and are not depended on by the shell. Work in flight on them stops; their pull requests stay open as drafts.
+1. **The Rust engine is parked.** The crates `dou-auth`, `dou-socket`, `dou-app`, `dou-engine` and `dou-store` stay in the tree, are not extended, and the shell stops depending on them in a follow-up step; until then they are frozen. `dou-control`, `dou-http` and `dou-mcp` are not parked. Work in flight on them stops; their pull requests stay open as drafts.
 2. **DoU logic runs in TypeScript, in Node.** A headless `apps/dou-cli` process on `@chatic/runtime` through `libs/runtime-node` owns the session, the pairing and the tools. The page does not run the logic, and no Rust copy of it exists.
 3. **The screens are `apps/web`** in its mobile form factor, inside the Tauri webview. A desktop-specific web app is not built for this line.
 4. **The shell starts one Node process per profile** and ships a single-file Node executable with the app. It does not rely on a Node installation and does not let an agent client start the process itself.
@@ -29,4 +29,4 @@ ADR-0382 gave desktop v2 a second engine in Rust, held to the TS engine by vecto
 - One engine serves web, mobile, Electron and desktop v2; a domain change in TS needs no Rust counterpart, and the contract vectors of ADR-0382 are no longer a gate for this line.
 - The app carries a Node executable, and the shell must start, watch and stop it.
 - ADR-0380 still holds for the separate app beside Electron; where it says the engine is Rust, ADR-0382 and this record replace that.
-- The parked crates cost nothing in the build once the shell stops depending on them; deleting them is a separate decision.
+- The desktop-native CI (including `vectors-check`) stays until the parked crates are deleted; deleting them is a separate decision.
