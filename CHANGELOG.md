@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-27] - No version updates
+
+### Bug Fixes
+
+- (runtime-node,db-memory) map the data packages that moved under libs/data in jest
+
 ## [2026-11-27] - root@0.176.0, @chatic/web@0.103.0
 
 ### Features

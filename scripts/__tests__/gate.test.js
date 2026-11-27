@@ -1,4 +1,13 @@
-const { parseArgs, decideScope, typecheckExclusions, buildSteps } = require('../gate');
+const fs = require('fs');
+const path = require('path');
+const {
+    parseArgs,
+    decideScope,
+    typecheckExclusions,
+    buildSteps,
+    settleLowered,
+    LOWERED_BASELINES,
+} = require('../gate');
 
 describe('gate scope', () => {
     it('checks every project when there is no base to compare with', () => {
@@ -55,6 +64,13 @@ describe('gate steps', () => {
         ).toBe(false);
     });
 
+    it('lets the per-file ratchets lower their baselines and no other', () => {
+        const steps = buildSteps({ scope: ['run-many'], base: 'abc', only: ['ratchets'] });
+        const lowering = steps.filter(step => step.cmd.includes('--lower')).map(step => step.cmd[4]);
+        expect(lowering).toEqual(['source', 'testTypecheck']);
+        LOWERED_BASELINES.forEach(file => expect(fs.existsSync(path.resolve(__dirname, '../..', file))).toBe(true));
+    });
+
     it('passes the scope to every nx step', () => {
         const steps = buildSteps({
             scope: ['affected', '--base=abc'],
@@ -80,5 +96,56 @@ describe('gate steps', () => {
         expect(() => parseArgs(['--only', 'deploy'])).toThrow('unknown step deploy');
         expect(() => parseArgs(['--base'])).toThrow('--base needs a value');
         expect(() => parseArgs(['--only', '--all'])).toThrow('--only needs a value');
+    });
+});
+
+describe('gate staging of lowered baselines', () => {
+    const FILE = 'scripts/ratchet/source-ratchet-baseline.json';
+    const settle = ({ now, cleanBefore = [FILE], hasUnstaged = () => false, stage = () => undefined }) => {
+        const said = [];
+        const { staged, left } = settleLowered({
+            before: { [FILE]: JSON.stringify({ 'a.ts': { comments: 2 }, 'b.ts': { comments: 1 } }) },
+            cleanBefore,
+            read: () => JSON.stringify(now),
+            hasUnstaged,
+            stage,
+            say: line => said.push(line),
+        });
+        return { staged, left, said: said.join('\n') };
+    };
+
+    it('stages a lowered baseline whose changed entries are all staged', () => {
+        const result = settle({ now: { 'a.ts': { comments: 1 }, 'b.ts': { comments: 1 } } });
+        expect(result.staged).toEqual([FILE]);
+        expect(result.said).toContain('staged it');
+    });
+
+    it('leaves an unchanged baseline alone', () => {
+        expect(settle({ now: { 'a.ts': { comments: 2 }, 'b.ts': { comments: 1 } } }).staged).toEqual([]);
+    });
+
+    it('does not stage a baseline that had edits before the run', () => {
+        const result = settle({ now: { 'b.ts': { comments: 1 } }, cleanBefore: [] });
+        expect(result.staged).toEqual([]);
+        expect(result.said).toContain('already had unstaged edits');
+        expect(result.left).toEqual([FILE]);
+    });
+
+    it('does not stage when a file behind a changed entry has unstaged changes', () => {
+        const result = settle({ now: { 'b.ts': { comments: 1 } }, hasUnstaged: key => key === 'a.ts' });
+        expect(result.staged).toEqual([]);
+        expect(result.said).toContain('a.ts has unstaged changes');
+        expect(result.left).toEqual([FILE]);
+    });
+
+    it('reports a failed git add instead of throwing', () => {
+        const result = settle({
+            now: { 'b.ts': { comments: 1 } },
+            stage: () => {
+                throw new Error('index.lock exists');
+            },
+        });
+        expect(result.said).toContain('could not stage it (index.lock exists)');
+        expect(result.left).toEqual([FILE]);
     });
 });
