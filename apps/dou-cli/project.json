@@ -5,6 +5,14 @@
     "projectType": "application",
     "tags": ["layer:app", "platform:node", "formfactor:any"],
     "targets": {
+        "build-sidecar": {
+            "executor": "nx:run-commands",
+            "dependsOn": ["build"],
+            "cache": false,
+            "options": {
+                "command": "node apps/dou-cli/scripts/build-sidecar.mjs"
+            }
+        },
         "build": {
             "executor": "nx:run-commands",
             "outputs": ["{workspaceRoot}/dist/apps/dou-cli"],

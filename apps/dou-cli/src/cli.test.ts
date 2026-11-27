@@ -108,6 +108,11 @@ describe('dou-cli commands', () => {
         );
     });
 
+    it('accepts --parent-pipe in front of a command', async () => {
+        const h = harness();
+        await expect(runCli(['--parent-pipe', 'whoami'], h)).resolves.toBe(0);
+    });
+
     it('an unknown command prints usage and exits 2', async () => {
         const h = harness();
         await expect(runCli(['nope'], h)).resolves.toBe(2);

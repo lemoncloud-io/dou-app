@@ -16,6 +16,10 @@ node dist/apps/dou-cli/main.mjs --profile <dir> <command>
 | `clouds` | prints `{active, clouds:[{cloudId, name}]}` for the clouds the pairing entered                                                                                                                 |
 | `serve`  | keeps the session and sockets, serves MCP on `<dir>/mcp.sock` ([docs/mcp](./docs/mcp/README.md)), re-checks paired clouds every `PAIRED_CLOUD_CHECK_INTERVAL_MS`, exits 0 on SIGINT or SIGTERM |
 
+## Sidecar
+
+`--parent-pipe` makes dou-cli exit when its standard input closes: a parent that starts it with a pipe on stdin and keeps the write end open (the desktop shell does) ends it by dying, so no orphan keeps `mcp.sock`. `yarn nx run dou-cli:build-sidecar` turns the bundle into a Node single executable named `dou-cli-<target triple>` in `apps/desktop-tauri/src-tauri/binaries` (override with a folder argument). It needs a Node build with single-executable support (the official builds; Homebrew's lacks it), `rustc` for the triple, and fetches `postject` through `npx` on first use. On macOS it re-signs ad hoc.
+
 ## Profile
 
 `--profile <dir>` is one instance; without it `~/.dou/default`. The Node session files live in `<dir>/node` ([`storageFile`](../../libs/storage/file/README.md)); nothing else is written outside it. The stage and endpoints come from `VITE_*` variables: `--env-file <file>` loads them from a dotenv file (for dev, the team's `apps/web/.env.dev`), over the process environment. `VITE_ENV` is `dev` when unset.

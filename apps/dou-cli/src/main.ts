@@ -1,12 +1,14 @@
 import { bootNode } from './boot';
 import { runCli } from './cli';
 import { startMcp } from './mcp/serveMcp';
+import { PARENT_PIPE_FLAG, watchParentPipe } from './parentPipe';
 
 const VERSION = '0.0.1';
 
 const controller = new AbortController();
 process.once('SIGINT', () => controller.abort());
 process.once('SIGTERM', () => controller.abort());
+if (process.argv.includes(PARENT_PIPE_FLAG)) watchParentPipe(process.stdin, () => controller.abort());
 
 const code = await runCli(process.argv.slice(2), {
     boot: bootNode,
