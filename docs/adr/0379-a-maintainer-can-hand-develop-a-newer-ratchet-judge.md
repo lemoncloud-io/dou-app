@@ -4,6 +4,8 @@
 > · Amends: [ADR-0368](./0368-new-code-comments-are-banned-and-existing-ones-only-shrink.md) decision 5 (the
 > judge always comes from the compare base) · Scope: `.github/workflows/verify.yml`
 > · The behaviour is documented in [tools/eslint-rules](../../tools/eslint-rules/README.md#who-judges-a-change)
+> · Amended by: [ADR-0385](./0385-a-develop-push-is-judged-by-the-develop-tip-before-it.md) — a push takes its judge
+> from the develop tip before it, and baselines are checked per first-parent step
 
 ## Context
 

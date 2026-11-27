@@ -1,13 +1,13 @@
 # remote/socket — the socket axis
 
-> Status: Live · Last updated: 2026-11-24 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/socket.ts](../../src/remote/gateways/socket.ts) · [socket-data-sources/](../../src/remote/socket-data-sources/)
+> Status: Live · Last updated: 2026-11-24 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/socket.ts](../../api/src/gateways/socket.ts) · [socket-data-sources/](../../api/src/socket-data-sources/)
 
 The remote axis that uses socket transport. It has 14 domains. For the HTTP axis see [http.md](./http.md).
 
 ## Layout
 
 ```text
-remote/
+api/src/
   gateways/socket.ts       SocketGatewayBundle + per-domain Pick<>
   socket-data-sources/     14 SocketDataSources + createSocketDataSources
 ```
@@ -49,7 +49,7 @@ Design points:
 - **Auth**'s `linkAccount` is the unified account-proof packet: phone/email/social × link/login × send/resend/verify/confirm in one. Three things are left out of it, all deliberately → [where absence is the contract](#where-absence-is-the-contract).
 - **Connection**'s bundle key is `connection` while its wire module is `sockets` (action `sockets/find-connection`).
 - **Upload** exposes `start` / `complete` only → [upload](#upload).
-- **Chat's `send` takes `-lib`'s `ChatSendInput`.** `@lemoncloud/chatic-sockets-api` and `-lib` both export a type of that name, and only `-lib`'s carries `uploadIds`. Importing the `-api` one still compiles — it just drops attachments from every caller's type — so `domain/mention.ts` imports it from `-lib` on purpose and wraps it in `ChatSendPayload`, which adds the `mention` the chats service takes on `chat.send` and the SDK type does not declare yet. `ChatSocketDataSource` and `ChatRepository` take that wrapper, and the payload goes to the socket as it is.
+- **Chat's `send` takes `-lib`'s `ChatSendInput`.** `@lemoncloud/chatic-sockets-api` and `-lib` both export a type of that name, and only `-lib`'s carries `uploadIds`. Importing the `-api` one still compiles — it just drops attachments from every caller's type — so `model/src/mention.ts` imports it from `-lib` on purpose and wraps it in `ChatSendPayload`, which adds the `mention` the chats service takes on `chat.send` and the SDK type does not declare yet. `ChatSocketDataSource` and `ChatRepository` take that wrapper, and the payload goes to the socket as it is.
 - **Webhook** is the channel owner's management of the channel's webhooks → [webhook](#webhook).
 - **Mini app** is the open cloud's list of mini apps → [mini app](#mini-app).
 
@@ -67,7 +67,7 @@ Two things differ from every other data source here:
   `completeUploads` pass it straight through.
 - **It checks the answer's shape.** The answers are typed by the upload contract the SDK re-exports,
   but the gateway returns them unchecked, so `UploadSocketDataSource` runs each answer through the
-  guard in `uploads/types.ts`. An answer that breaks the contract rejects the operation — see
+  guard in `model/src/uploads.ts`. An answer that breaks the contract rejects the operation — see
   [the answer guard](../uploads/README.md#the-answer-guard).
 
 ### Webhook

@@ -1,6 +1,6 @@
 # repositories — the data facade
 
-> Status: Live · Last updated: 2026-09-23 · Overview in the [lib README](../../README.md) · Canonical code: [repositories/index.ts](../../src/repositories/index.ts) · [repositories/types.ts](../../src/repositories/types.ts)
+> Status: Live · Last updated: 2026-09-23 · Overview in the [lib README](../../README.md) · Canonical code: [repositories/index.ts](../../repositories/src/index.ts) · [repositories/types.ts](../../repositories/src/types.ts)
 
 A repository bundles a remote data source and a local data source and exposes them to the app as a
 **data facade**. It is also the layer that interprets server-side changes into a local read-model.
@@ -11,7 +11,7 @@ There is one core goal.
 - Remote is a side-effect command
 - Hooks see only streams
 
-`BaseRepository` and `DataContext` both live in `types.ts`; there is no `BaseRepository.ts`.
+`BaseRepository` lives in `repositories/src/types.ts`, which also re-exports `DataContext` from `model/src/context.ts`; there is no `BaseRepository.ts`.
 
 ## Three contracts
 
@@ -287,7 +287,7 @@ response.** Leaving does not remove that room's message rows (the chat sync plan
 history is kept for lazy-load and offline), so two mechanisms are needed together. The reasoning is in
 ADR-0067.
 
-**① The display gate — `isInJoinWindow(chat, joinedNo)`** (`src/domain/joinWindow.ts`)
+**① The display gate — `isInJoinWindow(chat, joinedNo)`** (`model/src/joinWindow.ts`)
 
 It applies the server's own rule (`chatNo > joinedNo`) at the place the cache is read. Two exceptions
 carry meaning:

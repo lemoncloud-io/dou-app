@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/db-memory",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/db/memory/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:any", "formfactor:any"],
+    "targets": {}
+}

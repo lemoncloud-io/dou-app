@@ -67,7 +67,7 @@ new message type, an older host rejects it with `NOT_FOUND`, so the failure is e
 ### 3. The preview semantics utilities move to `@chatic/data`
 
 Move `compareByChatNo`/`isPreviewableChat`/`pickPreviewChat` (and their building blocks) to a
-[`libs/data` domain utility](../../libs/data/src/domain/chatPreview.ts), and have `apps/web/utils/chat.ts`
+[`libs/data` domain utility](../../libs/data/model/src/chatPreview.ts), and have `apps/web/utils/chat.ts`
 re-export them. This lets the fallback path (data source) and web rendering share the same predicate. The
 copy in `apps/desktop-web` is referenced only, not touched.
 

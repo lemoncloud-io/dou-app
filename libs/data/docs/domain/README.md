@@ -1,8 +1,8 @@
 # domain — models, mappers and the rules both apps share
 
-> Canonical code: [src/domain/](../../src/domain/) · The facade that uses these is in [repositories](../repositories/README.md) · The cache that stores them is in [local](../local/README.md)
+> Canonical code: [model/src/](../../model/src/) · The facade that uses these is in [repositories](../repositories/README.md) · The cache that stores them is in [local](../local/README.md)
 
-`domain/` holds the shapes the apps read (`Domain*` models), the one-way view-to-domain mappers, and
+`@chatic/data-model` (`model/src/`) holds the shapes the apps read (`Domain*` models), the one-way view-to-domain mappers, and
 small pure predicates that web and desktop must answer identically. They live here, not in an app,
 because the local data source, the repositories and both apps ask the same questions of the same row.
 
