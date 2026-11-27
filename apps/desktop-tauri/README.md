@@ -42,3 +42,11 @@ For a production bundle that sits beside the dev one, add `--config '{"identifie
 ## Updater, local run
 
 `scripts/update-check` serves a page and a feed. Build version 0.0.2 and copy its `.app.tar.gz` and `.sig` into a feed directory with a `latest.json` (`version`, `platforms.darwin-aarch64.signature` and `.url`), build 0.0.1 and copy it to a real path (not under a symlink such as `/tmp`; the updater refuses those), then run `node scripts/update-check/server.mjs 4174 <feed dir> 0.0.2` and start the 0.0.1 app. Both builds use `TAURI_SIGNING_PRIVATE_KEY=<key file>`, `DOU_WEB_URL=http://localhost:4174`, `DOU_UPDATE_FEED=http://localhost:4174/latest.json` and `cargo tauri build --bundles app --config '{"version":"<v>","plugins":{"updater":{"dangerousInsecureTransportProtocol":true}},"bundle":{"createUpdaterArtifacts":true}}'`. The server exits 0 when the page loads again as 0.0.2.
+
+## Install an unsigned build
+
+CI (`.github/workflows/build-desktop-tauri.yml`) builds a macOS `.dmg` and a Windows NSIS `.exe`, each carrying the `dou-cli` and `dou-mcp` sidecars, and uploads them as run artifacts (`dou-tauri-dmg`, `dou-tauri-nsis`). Neither is signed by a certificate authority, so the system warns once.
+
+- **macOS:** open the `.dmg` and drag the app to Applications. Right-click the app, choose **Open**, then **Open** again in the dialog. If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/"DoU Tauri.app"` once.
+- **Windows:** run the `.exe`. At the SmartScreen "Windows protected your PC" screen click **More info**, then **Run anyway**. The installer is per user and needs no administrator rights.
+- **Use:** start the app, open the Agent window, sign in and pair, then register the connector with Claude Code. Check it with `claude -p "list my dou rooms"`.
