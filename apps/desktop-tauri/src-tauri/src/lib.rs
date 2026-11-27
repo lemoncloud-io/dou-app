@@ -145,7 +145,7 @@ pub fn run() {
             let config_path = paths.app_json();
             let mut config = AppConfig::load(&config_path);
             if let Some(wanted) = &cli.app {
-                let source = AppSource::parse(wanted).map_err(|e| e.to_string())?;
+                let source = AppSource::parse_main(wanted).map_err(|e| e.to_string())?;
                 config.app = Some(match &source {
                     AppSource::Folder(folder) => folder.display().to_string(),
                     _ => wanted.clone(),

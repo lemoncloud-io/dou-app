@@ -60,6 +60,14 @@ impl AppSource {
         Ok(Self::Folder(folder))
     }
 
+    pub fn parse_main(text: &str) -> Result<Self, String> {
+        let source = Self::parse(text)?;
+        if cfg!(debug_assertions) {
+            return Ok(source);
+        }
+        release_main(source, &crate::window::web_url())
+    }
+
     pub fn describe(&self) -> Option<String> {
         match self {
             Self::Default => None,
@@ -72,8 +80,30 @@ impl AppSource {
         config
             .app
             .as_deref()
-            .and_then(|text| Self::parse(text).ok())
+            .and_then(|text| Self::parse_main(text).ok())
             .unwrap_or(Self::Default)
+    }
+}
+
+fn release_main(source: AppSource, baked_url: &str) -> Result<AppSource, String> {
+    let allowed = [
+        crate::window::DEV_WEB_URL,
+        crate::window::PROD_WEB_URL,
+        baked_url,
+    ]
+    .map(origin_of);
+    match &source {
+        AppSource::Default => Ok(source),
+        AppSource::Url(url) if origin_of(url).is_some_and(|o| allowed.contains(&Some(o))) => {
+            Ok(source)
+        }
+        AppSource::Url(url) => Err(format!(
+            "a release build loads only the DoU web as the main window: {url}"
+        )),
+        AppSource::Folder(folder) => Err(format!(
+            "a release build does not serve a local folder as the main window: {}",
+            folder.display()
+        )),
     }
 }
 
@@ -270,6 +300,33 @@ mod tests {
         assert!(AppSource::parse("https://dou-dev.chatic.io").is_ok());
         assert!(AppSource::parse("http://localhost:4200").is_ok());
         assert!(AppSource::parse("http://example.test").is_err());
+    }
+
+    #[test]
+    fn a_release_build_keeps_the_main_window_on_the_dou_web() {
+        let baked = "http://localhost:4174";
+        for url in [
+            "https://dou.chatic.io/",
+            "https://dou-dev.chatic.io/rooms/1",
+            "http://localhost:4174/",
+        ] {
+            let source = AppSource::parse(url).expect("parses");
+            assert_eq!(release_main(source.clone(), baked), Ok(source), "{url}");
+        }
+        for url in [
+            "https://evil.example/",
+            "https://dou.chatic.io.evil.example/",
+            "http://localhost:4200/",
+        ] {
+            let source = AppSource::parse(url).expect("parses");
+            assert!(release_main(source, baked).is_err(), "{url}");
+        }
+        let (_dir, root) = site();
+        assert!(release_main(AppSource::Folder(root), baked).is_err());
+        assert_eq!(
+            release_main(AppSource::Default, baked),
+            Ok(AppSource::Default)
+        );
     }
 
     #[test]

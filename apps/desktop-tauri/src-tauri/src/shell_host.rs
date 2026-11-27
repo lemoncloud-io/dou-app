@@ -94,7 +94,7 @@ impl Host for ShellHost {
         let (source, saved) = if wanted.is_empty() || wanted == "default" {
             (AppSource::Default, None)
         } else {
-            (AppSource::parse(wanted)?, Some(wanted.to_string()))
+            (AppSource::parse_main(wanted)?, Some(wanted.to_string()))
         };
         let path = running.paths.app_json();
         let mut config = AppConfig::load(&path);

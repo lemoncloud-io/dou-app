@@ -56,6 +56,8 @@ Storage is isolated per profile when `--profile` is given: on macOS 14 and later
 - A URL must be `https`, or `http` on `localhost`.
 - A folder must hold an `index.html`. The shell serves it from `http://localhost:<port>/` (GET and HEAD only, no directory escape, symlinks out of the folder refused, unknown paths without an extension fall back to `index.html`). The port is saved and reused so the origin, and its localStorage, stay stable; if it is taken a new one is saved.
 
+A release build accepts only the DoU web here (the production and dev hosts, or the address baked with `DOU_WEB_URL`) and refuses a folder, so neither `app.json`, `--app` nor `shell.sock` can hand the bridge, and with it the vault, to another origin. A debug build accepts any of the above.
+
 Changing the source restarts the shell: origin, capability and init script are fixed at start.
 
 ## Mini-app under development

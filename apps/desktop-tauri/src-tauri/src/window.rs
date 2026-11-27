@@ -24,8 +24,8 @@ fn isolate_storage<'a, R: tauri::Runtime, M: Manager<R>>(
     builder.data_directory(paths.webview_dir())
 }
 
-const DEV_WEB_URL: &str = "https://dou-dev.chatic.io";
-const PROD_WEB_URL: &str = "https://dou.chatic.io";
+pub const DEV_WEB_URL: &str = "https://dou-dev.chatic.io";
+pub const PROD_WEB_URL: &str = "https://dou.chatic.io";
 
 pub fn web_url() -> String {
     if let Some(url) = option_env!("DOU_WEB_URL") {
