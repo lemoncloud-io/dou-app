@@ -5,6 +5,7 @@ module.exports = {
         '^@chatic/config/(.*)$': '<rootDir>/../config/src/$1/index.ts',
         '^@chatic/runtime/(.*)$': '<rootDir>/../runtime/src/$1',
         '^@chatic/data-(model|api|local|repositories)$': '<rootDir>/../data/$1/src/index.ts',
+        '^@chatic/host-web-browser$': '<rootDir>/../host/web/browser/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
     },
     transform: {

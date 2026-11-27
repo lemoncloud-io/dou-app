@@ -65,4 +65,4 @@ export const cacheWebStorage: WebAdapter<'cache'> = {
     },
 };
 
-export { pageLinks } from './pageLinks';
+export { pageLinks } from '@chatic/host-web-browser';

@@ -1,12 +1,11 @@
 import { logger, webClient } from '@chatic/bridges';
+import { browserFiles } from '@chatic/host-web-browser';
+import { mobileShellFiles } from '@chatic/host-web-mobile-shell';
 import { filesAdapters } from '@chatic/runtime-hybrid-web';
-import type { FilesPort, ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
+import type { ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
-import { appBridge } from '../../app/bridge/appBridge';
 import { createNativeTransfers, syncFileTransfers, type NativeTransfers } from '../../app/runtime/upload';
 import { pageUploadPut } from '../upload';
-
-export const SHELL_USE_TIMEOUT_MS = 10 * 60_000;
 
 let nativeTransfers: NativeTransfers | null = null;
 
@@ -25,28 +24,12 @@ export const resetNativeTransfersForTest = (): void => {
 };
 
 export const webFiles: ShellOrBrowserImplementations<'files'> = {
-    shell: (base): FilesPort => ({
-        ...base,
-        put: (target, file, label, onProgress, signal) =>
-            getNativeTransfers().put(target, file, label, onProgress, signal),
-        transfers: {
-            putShellFile: (target, file, label, onProgress) =>
-                getNativeTransfers().putShellFile(target, file, label, onProgress),
-            syncUploads: () => syncFileTransfers(webClient, getNativeTransfers()),
-            openFile: async uri => {
-                await webClient.request({ type: 'OpenFile', data: { uri } }, { timeoutMs: SHELL_USE_TIMEOUT_MS });
-            },
-            saveFile: async (uri, name) =>
-                (
-                    await webClient.request(
-                        { type: 'SaveFile', data: { uri, name } },
-                        { timeoutMs: SHELL_USE_TIMEOUT_MS }
-                    )
-                )?.data,
-            readVideoFrame: async request => (await appBridge.readVideoFrame(request)).data,
-        },
+    shell: mobileShellFiles({
+        bridge: webClient,
+        sender: getNativeTransfers,
+        syncUploads: () => syncFileTransfers(webClient, getNativeTransfers()),
     }),
-    browser: (base): FilesPort => ({ ...base, put: pageUploadPut, transfers: null }),
+    browser: browserFiles(pageUploadPut),
 };
 
 export const { host: filesHost, shell: filesShell, browser: filesBrowser } = filesAdapters(webFiles);

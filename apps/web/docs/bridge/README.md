@@ -32,10 +32,11 @@ transfer senders in `app/runtime/`:
 mirrors, and more). Code calls `appBridge.openURL(url)`, never `webClient.post({ type:
 'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file. Where
 the work belongs to a host port (media, files, links, the app's frame, sign-in, diagnostics, push), a
-feature calls the port (`runtime.links.openUrl(url)`) and the web's shell implementation of it, in
-`src/config/adapters/`, calls `appBridge` ([host ports](./host-ports.md)). A request with a long
-timeout of its own — the picker's, the video conversion's, share intake's, a file open or save — is
-made there with `webClient`; `attachmentPicker.ts` and `shareIntake.ts` call the port's members. The
+feature calls the port (`runtime.links.openUrl(url)`) and the shell implementation of it,
+`@chatic/host-web-mobile-shell`, sends the same messages with the `webClient` that
+`src/config/adapters/` hands it ([host ports](./host-ports.md)). A request with a long timeout of its
+own — the picker's, the video conversion's, share intake's, a file open or save — carries it there;
+`attachmentPicker.ts` and `shareIntake.ts` call the port's members. The
 exception is a module that owns a whole exchange with its own fallbacks and timeouts — `audioRecorder` —
 which calls `webClient` itself.
 

@@ -1,12 +1,44 @@
-export * from './compress';
-export * from './decode';
-export * from './package';
-export * from './profiles';
-export * from './types';
-
-export * from './videoPoster';
-
-export * from './strategies';
-
-export * from './policies';
-export * from './prepareImage';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- the image code moved to host-web-browser; shared keeps its old names until its callers import the family directly
+export {
+    AVATAR_IMAGE,
+    AVATAR_PROFILE,
+    CHAT_ATTACHMENT,
+    INLINE_PROFILE,
+    OUTPUT_STRATEGIES,
+    REPORT_PHOTO,
+    REPORT_PROFILE,
+    THUMBNAIL_PROFILE,
+    VIDEO_POSTER,
+    compressToBlob,
+    compressToDataUrl,
+    dataUrlStrategy,
+    decodeImage,
+    drawToCanvas,
+    drawVideoFrame,
+    encodeTypeFor,
+    fileStrategy,
+    isBlankFrame,
+    isUploadableType,
+    makeVideoPoster,
+    prepareChatAttachment,
+    prepareImage,
+    renameForType,
+    sameSizeProfile,
+    toUploadFile,
+} from '@chatic/host-web-browser';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- the image code moved to host-web-browser; shared keeps its old names until its callers import the family directly
+export type {
+    CompressProfile,
+    CompressedBlob,
+    DecodedImage,
+    ImageFit,
+    ImageOutputOf,
+    ImageOutputSpec,
+    ImageRequest,
+    ImageResult,
+    OutputStrategy,
+    PreparedFile,
+    UploadableType,
+    VideoFrame,
+    VideoFrameOptions,
+} from '@chatic/host-web-browser';
