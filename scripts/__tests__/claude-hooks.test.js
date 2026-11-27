@@ -9,6 +9,8 @@ const { lint, configDirFor } = require('../../.claude/hooks/lint-edited-file.cjs
 const ROOT = path.resolve(__dirname, '../..');
 
 process.env.DOU_HOOK_LOG_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'hook-log-'));
+process.env.DOU_HOOK_MODES = path.join(process.env.DOU_HOOK_LOG_DIR, 'modes.json');
+fs.writeFileSync(process.env.DOU_HOOK_MODES, '{}');
 const lib = require('../../.claude/hooks/lib.cjs');
 const { checkKey, handle } = require('../../.claude/hooks/check-escalation.cjs');
 
@@ -39,7 +41,37 @@ describe('gate-before-commit hook', () => {
         'echo "git commits"',
         'git commit-tree abc',
         'gh pr create --title "run git commit hooks"',
+        `node -e 'console.log("cd /tmp && git commit -m x")'`,
+        'cat <<\\EOF\nx; git commit -m z\nEOF',
+        'python3 - <<EOF\nimport os\nos.system("x")\ncd y; git commit -m z\nEOF',
     ])('leaves %s alone', command => expect(isCommit(command)).toBe(false));
+
+    it.each([
+        "# don't\ngit commit -m y",
+        "echo it\\'s; git commit -m x",
+        'cat <<< "x"\ngit commit -m y',
+        'echo $((1<<2))\ngit commit -m y',
+        "echo 'unclosed\ngit commit -m y",
+        'echo $((a<<b))\ngit commit -m y',
+    ])('still sees the commit in %s', command => expect(isCommit(command)).toBe(true));
+
+    it('cannot resolve a cd to a variable and ignores a closed subshell', () => {
+        expect(commitDir('cd "$WT" && git commit -m x', ROOT)).toBeNull();
+        expect(commitDir('git -C "$WT" commit -m x', ROOT)).toBeNull();
+        expect(commitDir(`(cd ${os.tmpdir()} && ls); git commit -m x`, ROOT)).toBe(ROOT);
+        expect(commitDir('cd apps && cd .. && git commit -m x', ROOT)).toBe(ROOT);
+        expect(commitDir(`cd ${ROOT} && cd apps && git commit -m x`, os.tmpdir())).toBe(ROOT);
+    });
+
+    it('still sees a commit whose message is a quoted heredoc', () => {
+        expect(isCommit(`git commit -m "$(cat <<'EOF'\nfix(x): say "hi"; git commit\nEOF\n)"`)).toBe(true);
+        expect(isCommit('git add -A && git commit -F - <<EOF\nfix: y\nEOF')).toBe(true);
+    });
+
+    it('gates the tree a leading cd moves to', () => {
+        expect(commitDir(`cd ${ROOT}/apps && git commit -m x`, os.tmpdir())).toBe(ROOT);
+        expect(commitDir(`cd "${ROOT}" && git -C apps commit -m x`, os.tmpdir())).toBe(ROOT);
+    });
 
     it('gates the tree named by -C, resolved from the hook cwd', () => {
         const resolved = commitDir('git -C web commit -m x', path.join(ROOT, 'apps'));
@@ -81,22 +113,23 @@ describe('gate-before-commit hook', () => {
         expect(outcome.exit).toBe(0);
     });
 
-    it('names the reason when the gate could not run at all', () => {
+    it('names the reason when the gate could not run at all, without blocking', () => {
         const root = repoWith({ gate: 'x' });
         const outcome = decide({ session_id: session(), tool_input: { command: MSG } }, root, {
             mode: 'enforce',
             resolveDir: () => root,
             runGate: () => ({ status: null, error: new Error('spawn yarn ENOENT') }),
         });
-        expect(outcome.exit).toBe(2);
-        expect(outcome.stderr).toContain('spawn yarn ENOENT');
+        expect(outcome.exit).toBe(0);
+        expect(outcome.stdout).toContain('spawn yarn ENOENT');
     });
 });
 
 describe('gate modes, trailer and escape hatch', () => {
-    const run = (sessionId, command, mode, status = 1) =>
+    const run = (sessionId, command, mode, status = 1, trailerMode = mode) =>
         decide({ session_id: sessionId, tool_input: { command } }, ROOT, {
             mode,
+            trailerMode,
             resolveDir: () => repoWith({ gate: 'x' }),
             runGate: () => ({ status, stdout: 'typecheck failed\n' }),
         });
@@ -112,6 +145,7 @@ describe('gate modes, trailer and escape hatch', () => {
         fs.writeFileSync(path.join(root, 'msg.txt'), 'fix(web): x\n\nVerified-by: gate, web-e2e\n');
         const outcome = decide({ session_id: session(), tool_input: { command: 'git commit -F msg.txt' } }, root, {
             mode: 'enforce',
+            trailerMode: 'enforce',
             resolveDir: () => root,
             runGate: () => ({ status: 0 }),
         });
@@ -157,6 +191,135 @@ describe('gate modes, trailer and escape hatch', () => {
 
     it('does not accept a reason before the gate has blocked twice', () => {
         expect(run(session(), `DOU_HOOK_REASON="skip" ${MSG}`, 'enforce').exit).toBe(2);
+    });
+
+    it('enforces the gate while the trailer check only observes', () => {
+        const missing = run(session(), 'git commit -m "fix(web): x"', 'enforce', 0, 'observe');
+        expect(missing.exit).toBe(0);
+        expect(JSON.parse(missing.stdout).hookSpecificOutput.additionalContext).toContain('verified-by-trailer');
+        const failing = run(session(), 'git commit -m "fix(web): x"', 'enforce', 1, 'observe');
+        expect(failing.exit).toBe(2);
+        expect(failing.stderr).toContain('typecheck failed');
+        expect(failing.stderr).not.toContain('Verified-by');
+    });
+
+    it('logs the names of the failed gate steps', () => {
+        const id = session();
+        decide({ session_id: id, tool_input: { command: MSG } }, ROOT, {
+            mode: 'observe',
+            trailerMode: 'observe',
+            resolveDir: () => repoWith({ gate: 'x' }),
+            runGate: () => ({
+                status: 1,
+                stdout: '… lint\r✓ lint (2.0s)\n… unused code (knip)\r✗ unused code (knip) (3.1s)\n… test\r✗ test (9.0s)\n',
+            }),
+        });
+        const line = fs
+            .readFileSync(path.join(process.env.DOU_HOOK_LOG_DIR, 'gate-before-commit.jsonl'), 'utf8')
+            .split('\n')
+            .find(entry => entry.includes(id));
+        expect(JSON.parse(line).detail.steps).toEqual(['unused code (knip)', 'test']);
+    });
+
+    const enforceWith = (runGate, command = MSG, root = repoWith({ gate: 'x' })) =>
+        decide({ session_id: session(), tool_input: { command } }, root, {
+            mode: 'enforce',
+            trailerMode: 'observe',
+            resolveDir: () => root,
+            runGate,
+        });
+
+    it.each([
+        ['a spawn error', { status: null, error: new Error('spawnSync yarn ETIMEDOUT') }, 'ETIMEDOUT'],
+        ['a signal', { status: null, signal: 'SIGKILL' }, 'SIGKILL'],
+        ['a usage error', { status: 2, stdout: 'cannot resolve a merge base with origin/develop' }, 'merge base'],
+    ])('notes instead of blocking when the gate could not run: %s', (_, result, text) => {
+        const outcome = enforceWith(() => result);
+        expect(outcome.exit).toBe(0);
+        expect(JSON.parse(outcome.stdout).hookSpecificOutput.additionalContext).toContain(text);
+    });
+
+    it('notes instead of blocking when the install does not match yarn.lock', () => {
+        const root = repoWith({ gate: 'x' });
+        const outcome = decide({ session_id: session(), tool_input: { command: MSG } }, root, {
+            mode: 'enforce',
+            trailerMode: 'observe',
+            resolveDir: () => root,
+            runGate: () => ({ status: 1, stdout: 'TS2305' }),
+            isInstallCurrent: () => false,
+        });
+        expect(outcome.exit).toBe(0);
+        expect(JSON.parse(outcome.stdout).hookSpecificOutput.additionalContext).toContain('yarn install');
+    });
+
+    it('notes instead of blocking when typecheck fails on stale build output', () => {
+        const outcome = enforceWith(() => ({
+            status: 1,
+            stdout: "x.ts(1,1): error TS6305: Output file 'dist/out-tsc/a.d.ts' has not been built from source file 'a.ts'.\n",
+        }));
+        expect(outcome.exit).toBe(0);
+        expect(JSON.parse(outcome.stdout).hookSpecificOutput.additionalContext).toContain('rm -rf dist/out-tsc');
+    });
+
+    it('blocks on exit 2 that is not a missing merge base', () => {
+        expect(enforceWith(() => ({ status: 2, stdout: 'no `-t typecheck --exclude=` found' })).exit).toBe(2);
+    });
+
+    it('notes, without running the gate, when the commit directory cannot be resolved', () => {
+        const outcome = decide({ session_id: session(), tool_input: { command: MSG } }, ROOT, {
+            mode: 'enforce',
+            trailerMode: 'observe',
+            resolveDir: () => null,
+            runGate: () => {
+                throw new Error('must not run');
+            },
+        });
+        expect(outcome.exit).toBe(0);
+        expect(JSON.parse(outcome.stdout).hookSpecificOutput.additionalContext).toContain('was not run');
+    });
+
+    it('passes on what the gate says it lowered and staged', () => {
+        const outcome = enforceWith(() => ({
+            status: 0,
+            stdout: 'gate: lowered scripts/ratchet/source-ratchet-baseline.json and staged it — commit it with the change\n',
+        }));
+        expect(outcome.exit).toBe(0);
+        expect(JSON.parse(outcome.stdout).hookSpecificOutput.additionalContext).toContain(
+            'source-ratchet-baseline.json'
+        );
+    });
+
+    it('lets a wip commit through a failing gate', () => {
+        expect(enforceWith(() => ({ status: 1 }), 'git commit -q --no-verify -m "wip: m3.2"').exit).toBe(0);
+        expect(enforceWith(() => ({ status: 1 }), 'git commit -m "fix: wipe the cache"').exit).toBe(2);
+        expect(enforceWith(() => ({ status: 1 }), 'git stash push -m "wip"; git commit -m "feat: x"').exit).toBe(2);
+        expect(enforceWith(() => ({ status: 1 }), 'grep -m 1 x f && git commit -m "wip: y"').exit).toBe(0);
+    });
+
+    it('does not rerun the gate for an override after two blocks', () => {
+        const id = session();
+        let runs = 0;
+        const go = command =>
+            decide({ session_id: id, tool_input: { command } }, ROOT, {
+                mode: 'enforce',
+                trailerMode: 'observe',
+                resolveDir: () => repoWith({ gate: 'x' }),
+                runGate: () => {
+                    runs += 1;
+                    return { status: 1 };
+                },
+            });
+        go(MSG);
+        go(MSG);
+        expect(go(`DOU_HOOK_REASON="flake noted in the PR" ${MSG}`).exit).toBe(0);
+        expect(runs).toBe(2);
+    });
+
+    it('ships with the gate enforced and the trailer observed', () => {
+        const modes = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude/hooks/modes.json'), 'utf8'));
+        expect(Object.keys(modes)).toContain('verified-by-trailer');
+        expect(lib.modeOf('gate-before-commit', modes)).toBe('enforce');
+        expect(lib.modeOf('verified-by-trailer', modes)).toBe('observe');
     });
 
     it('reads the mode from modes.json and defaults to observe', () => {
