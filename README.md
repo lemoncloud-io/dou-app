@@ -533,6 +533,7 @@ yarn ratchet:check         # Fail on more comments, escape hatches, useEffect, u
 yarn ratchet:update        # Lower the ratchet baselines to today's counts (never raises); see tools/eslint-rules/README.md
 yarn gate                   # What CI's verify job runs, for the projects changed since origin/develop: checks, ratchets, lint, tsc -b, test; lowers and stages source/test-typecheck baselines that went down
 yarn worktree:setup         # In a fresh git worktree: link/copy env and Firebase files like the main checkout, sync node_modules, nx sync
+yarn hooks:install          # Once per clone, and after .claude/settings.json changes: copy the agent hooks to the main checkout's settings.local.json (see .claude/hooks/README.md)
 
 # Format
 yarn prettier               # Format all files
