@@ -12,7 +12,12 @@ import tailwind from 'tailwindcss';
 const here = dirname(fileURLToPath(import.meta.url));
 
 const config: StorybookConfig = {
-    stories: ['../src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
+    stories: [
+        '../src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))',
+        '../../design-system/components/mobile/src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))',
+        '../../design-system/patterns/mobile/src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))',
+        '../../design-system/chat/mobile/src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))',
+    ],
     addons: [],
     framework: {
         name: getAbsolutePath('@storybook/react-vite'),

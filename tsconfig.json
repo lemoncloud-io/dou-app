@@ -167,6 +167,15 @@
         },
         {
             "path": "./libs/design-system/assets"
+        },
+        {
+            "path": "./libs/design-system/components/mobile"
+        },
+        {
+            "path": "./libs/design-system/patterns/mobile"
+        },
+        {
+            "path": "./libs/design-system/chat/mobile"
         }
     ]
 }

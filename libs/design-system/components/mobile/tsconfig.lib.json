@@ -1,0 +1,32 @@
+{
+    "extends": "../../../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        "types": ["node", "@nx/react/typings/cssmodule.d.ts", "@nx/react/typings/image.d.ts"],
+        "rootDir": "src",
+        "jsx": "react-jsx",
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+    },
+    "exclude": [
+        "out-tsc",
+        "dist",
+        "src/**/*.spec.ts",
+        "src/**/*.test.ts",
+        "src/**/*.spec.tsx",
+        "src/**/*.test.tsx",
+        "src/**/*.stories.ts",
+        "src/**/*.stories.tsx",
+        "src/__mocks__/**",
+        "src/test-setup.ts",
+        "eslint.config.mjs"
+    ],
+    "include": ["src/**/*.ts", "src/**/*.tsx"],
+    "references": [
+        {
+            "path": "../../assets/tsconfig.lib.json"
+        },
+        {
+            "path": "../../../ui-kit/tsconfig.lib.json"
+        }
+    ]
+}

@@ -95,7 +95,7 @@ into `@chatic/ui-kit`'s shadcn Textarea gets resolved.
 
 ### 7. Fix the bottom nav design
 
-Change [FloatingTabBar](../../libs/web-ui-kit/src/composites/navigation/FloatingTabBar.tsx)'s active
+Change [FloatingTabBar](../../libs/design-system/patterns/mobile/src/navigation/FloatingTabBar.tsx)'s active
 background from `#222325` to `rgba(3,13,35,0.7)`, give inactive tabs 54% opacity, and set label tracking to
 `-0.1px`.
 
