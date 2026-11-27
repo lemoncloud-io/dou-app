@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/storage-vault-bridge",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/storage/vault-bridge/src",
+    "projectType": "library",
+    "tags": ["layer:foundation", "platform:any", "formfactor:any"],
+    "targets": {}
+}

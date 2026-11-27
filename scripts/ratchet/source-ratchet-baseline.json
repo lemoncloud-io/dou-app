@@ -650,7 +650,7 @@
     "libs/shared/src/hooks/useVersionCheck.ts": {"useEffect":2},
     "libs/shared/src/hooks/websocket-worker-queue.test.ts": {"eslintDisableNoReason":1},
     "libs/shared/src/phone/useOtpExpiryCountdown.ts": {"useEffect":1},
-    "libs/storage/src/stores/tolerantStore.ts": {"comments":3},
+    "libs/storage/compose/src/tolerantStore.ts": {"comments":3},
     "libs/sync/src/index.ts": {"comments":1},
     "libs/theme/src/provider/ThemeProvider.tsx": {"useEffect":3},
     "libs/transport/src/http/HttpManager.ts": {"comments":1},

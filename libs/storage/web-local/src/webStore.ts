@@ -1,7 +1,7 @@
-import { globalStorage } from './globalStorage.util';
-import { MemoryStore } from './memoryStore';
+import { MemoryStore } from '@chatic/storage-memory';
+import type { KeyValueStore } from '@chatic/storage-compose';
 
-import type { KeyValueStore } from './types';
+import { globalStorage } from './globalStorage.util';
 
 export class WebStore implements KeyValueStore {
     static local(): KeyValueStore {
@@ -43,3 +43,5 @@ export class WebStore implements KeyValueStore {
         return keys;
     }
 }
+
+export const webLocalStore = (): KeyValueStore => WebStore.local();

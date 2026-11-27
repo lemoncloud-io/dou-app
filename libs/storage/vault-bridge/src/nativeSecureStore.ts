@@ -1,7 +1,7 @@
-import { MemoryStore } from '../memoryStore';
+import { MemoryStore } from '@chatic/storage-memory';
 import { withTimeout } from './withTimeout.util';
 
-import type { KeyValueStore } from '../types';
+import type { KeyValueStore } from '@chatic/storage-compose';
 import type { NativeStore, NativeReadResult, NativeSecureStoreOptions, NativeStorageChannel } from './types';
 
 const UNANSWERED: NativeReadResult = { status: 'unavailable', reason: 'error', values: {} };

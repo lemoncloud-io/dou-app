@@ -65,4 +65,9 @@ describe('fileStore', () => {
         expect(again.plain.get('k')).toBeNull();
         expect(again.device.get('k')).toBe('device');
     });
+
+    it('keeps the tab role in memory, so it ends with the process', () => {
+        fileStoragePorts(directory).tab.set('k', 'tab');
+        expect(fileStoragePorts(directory).tab.get('k')).toBeNull();
+    });
 });

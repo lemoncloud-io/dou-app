@@ -152,6 +152,16 @@ describe('nativeStoragePorts', () => {
         expect(storage.secret.get('chatic-relay-token')).toBe('t');
     });
 
+    it('keeps the tab store in memory, on neither file', () => {
+        const files = { plain: fakeFile(), device: fakeFile() };
+        const storage = nativeStoragePorts({ vault: fakeVault({ status: 'available', values: {} }), files });
+
+        storage.tab.set('k', 'v');
+
+        expect(storage.tab.get('k')).toBe('v');
+        expect(files.plain.entries.size + files.device.entries.size).toBe(0);
+    });
+
     it('leaves the secret store unloaded, for the boot to load', () => {
         const vault = fakeVault({ status: 'available', values: {} });
 
