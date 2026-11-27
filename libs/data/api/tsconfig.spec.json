@@ -1,0 +1,19 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../../dist/out-tsc",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/__mocks__/**/*.ts"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "../model/tsconfig.lib.json"
+        },
+        {
+            "path": "../../http/tsconfig.lib.json"
+        }
+    ]
+}

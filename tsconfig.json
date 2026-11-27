@@ -37,6 +37,18 @@
             "path": "./libs/data"
         },
         {
+            "path": "./libs/data/model"
+        },
+        {
+            "path": "./libs/data/api"
+        },
+        {
+            "path": "./libs/data/local"
+        },
+        {
+            "path": "./libs/data/repositories"
+        },
+        {
             "path": "./libs/bridges"
         },
         {

@@ -90,7 +90,7 @@ on screen and the sort order look at two different values.**
 #### `lastChat$` is a dead field
 
 The fallback path's `lastActivityAt` is derived in the mapper
-([`mappers.ts:90`](../../libs/data/src/domain/mappers.ts)):
+([`mappers.ts:90`](../../libs/data/model/src/mappers.ts)):
 
 ```ts
 lastActivityAt: Math.max(lastChatAtMs, updatedAtMs); // lastChatAtMs = toEpochMs(api.lastChat$?.createdAt)

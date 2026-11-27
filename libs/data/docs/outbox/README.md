@@ -1,6 +1,6 @@
 # outbox — state writes that reach the server when the socket can carry them
 
-> Status: Live (`join.read`, `join.notify`, `join.nick`) · Last updated: 2026-10-14 · Overview in the [lib README](../../README.md) · Canonical code: [outbox/](../../src/outbox/) · The runtime half in [libs/runtime data](../../../runtime/docs/engine/data.md#the-state-outbox-transport)
+> Status: Live (`join.read`, `join.notify`, `join.nick`) · Last updated: 2026-10-14 · Overview in the [lib README](../../README.md) · Canonical code: [the machine](../../local/src/outbox/) · [the join states](../../repositories/src/outbox/) · The runtime half in [libs/runtime data](../../../runtime/docs/engine/data.md#the-state-outbox-transport)
 
 A **state write** sets one piece of state to a value: my read cursor in a room, my notification
 setting for it, the name I gave it. Sending the same value twice is harmless and only the latest value
@@ -34,7 +34,14 @@ runtime's chat outbox, `createChatOutbox`).
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ports.ts`       | `StateWrite` (the queued data), `WriteReceipt` (what a repository returns), `OutboxPort` (what repositories depend on), `OutboxTransport` (what the host supplies), `StateSpec` (how one state behaves), `OutboxObserver` / `OutboxDelivery` (what a measurement is told) |
 | `stateOutbox.ts` | The machine, and `createImmediateTransport` for hosts with no socket runtime                                                                                                                                                                                              |
-| `joinStates.ts`  | The three join states and `STATE_SPECS`                                                                                                                                                                                                                                   |
+| `joinStates.ts`  | The three join states and `STATE_SPECS` — in `@chatic/data-repositories` (`repositories/src/outbox/`)                                                                                                                                                                     |
+
+`ports.ts` and `stateOutbox.ts` are in `@chatic/data-local` (`local/src/outbox/`). The machine is generic
+over the repository graph it delivers through (`OutboxTransport<R>`, `StateSpec<V, R>`,
+`StateSpecs<R>`): the join states call the join repository and the repositories build the outbox, so
+naming `DataRepositories` in `local` would make the two packages import each other. `@chatic/data`
+names the three types with `R` bound to `DataRepositories`, so its consumers see the same types as
+before.
 
 The split follows the lib's scope. **What** is sent and how values combine is this lib's: the specs
 call repository methods and know each state's rules. **When** — whether a cloud's socket is up, the
@@ -70,9 +77,9 @@ requests, and neither answer overwrites the other's field in the cache.
 
 ## Adding a state
 
-1. Add the op and its value type to `OutboxValues` (`ports.ts`).
+1. Add the op and its value type to `OutboxValues` (`local/src/outbox/ports.ts`).
 2. Give the repository the local write (in the public method), a socket-only delivery method and, when a refusal must undo something, a local-only restore method. The public method writes locally, then calls `outbox.set` — never the socket.
-3. Write the spec (`merge`, `isCovered`, `deliver`, `accept`, `restore`) and add it to `STATE_SPECS`.
+3. Write the spec (`merge`, `isCovered`, `deliver`, `accept`, `restore`) and add it to `STATE_SPECS` (`repositories/src/outbox/joinStates.ts`).
 4. Test the spec's rules and the repository's two halves; the machine's own tests cover the rest.
 
 ## What not to do

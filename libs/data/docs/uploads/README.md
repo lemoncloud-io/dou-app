@@ -1,6 +1,6 @@
 # uploads — sending images as one chat message
 
-> Status: Live (both apps send through `useSendImages` in `@chatic/runtime`) · Last updated: 2026-10-12 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
+> Status: Live (both apps send through `useSendImages` in `@chatic/runtime`) · Last updated: 2026-10-12 · Overview in the [lib README](../../README.md) · Canonical code: [uploads/](../../repositories/src/uploads/) · The socket half in [remote/socket.md](../remote/socket.md#upload)
 
 `sendImageMessage` turns picked images into one chat message. It knows the order of the socket
 operations, what to retry, and what a failure means. It does **not** know how bytes reach storage
@@ -96,8 +96,8 @@ native sender would first copy it to the shell as base64 in one bridge message, 
 survive that for a 300MB file. Hand `xhrPut` the picked `File` as it is: a picked file is streamed
 from disk, while the same bytes copied into a JS `Blob` are held in memory whole.
 
-The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the twenty-four formats
-of `domain/chatAttachments.ts` (less the ones an app or a picker does not send, through the optional
+The judgement before a send is `judgeChatAttachments` (in `model/src/chatImages.ts`): the twenty-four formats
+of `model/src/chatAttachments.ts` (less the ones an app or a picker does not send, through the optional
 filter argument — the photos entry's image-only form, `judgeChatImages`, is one, and the phone app's
 `PHONE_SENDS` leaves out HTML, which only desktop sends; the four audio formats are judged as `file`).
 The server takes every format listed, HTML included; the phone leaves HTML out because it has no viewer for a page. The rest of the judgement is
@@ -210,5 +210,7 @@ quote the request it failed on.
 ## How to verify
 
 ```bash
-npx jest --config libs/data/jest.config.js libs/data/src/uploads libs/data/src/remote/socket-data-sources/UploadSocketDataSource libs/data/src/repositories/ChatRepository
+npx jest --config libs/data/repositories/jest.config.js uploads/ ChatRepository
+npx jest --config libs/data/model/jest.config.js uploads
+npx jest --config libs/data/api/jest.config.js UploadSocketDataSource
 ```
