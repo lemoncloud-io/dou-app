@@ -19,14 +19,11 @@ export const refundAvailability = (
     membership: Pick<MembershipView, 'userId' | 'status'>,
     endpoint: string | undefined
 ): RefundAvailability => {
-    if (!endpoint?.trim()) {
+    if (!relayStageOf(endpoint)) {
         return {
             enabled: false,
-            reason: "No relay to refund on — the stage's relay endpoint must be set and end in /dou-d1.",
+            reason: "No relay to refund on — the stage's relay endpoint must be set and end in /dou-d1 or /dou-v1.",
         };
-    }
-    if (relayStageOf(endpoint) !== 'd1') {
-        return { enabled: false, reason: 'Production refunds are not open yet — switch the stage to Development.' };
     }
     if (!membership.userId) {
         return { enabled: false, reason: 'This record has no userId to refund.' };
@@ -44,6 +41,9 @@ export const refundAvailability = (
 };
 
 export const isRefundReasonValid = (reason: string): boolean => reason.trim().length > 0;
+
+export const isRefundConfirmationValid = (stage: RelayStage, userId: string, typed: string): boolean =>
+    stage !== 'v1' || (!!userId && typed.trim() === userId);
 
 export const describeRefundFailure = (error: unknown): string => {
     const raw = readServerMessage(error);

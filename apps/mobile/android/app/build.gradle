@@ -94,6 +94,12 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 99
         versionName "0.32.5"
+        if (project.hasProperty('versionCode')) {
+            versionCode project.property('versionCode').toString().toInteger()
+        }
+        if (project.hasProperty('versionName')) {
+            versionName project.property('versionName').toString()
+        }
         resValue "string", "build_config_package", "io.chatic.dou"
     }
 

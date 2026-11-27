@@ -1,9 +1,10 @@
 # Store-upload lanes for the Chatic mobile apps.
 #
-# Run these through the repo-root wrapper (`yarn mobile:deploy:...`), which
-# collects the release notes and exports RELEASE_NOTES before invoking
-# fastlane. Credentials live in fastlane/.env (gitignored) — copy
-# .env.example and fill it in.
+# `yarn mobile:release dev` and the mobile-release workflow run these with
+# VERSION_NAME / BUILD_NUMBER computed from the mobile-v tags, through the
+# repo-root wrapper (`yarn mobile:deploy:...`), which exports RELEASE_NOTES
+# before invoking fastlane. Credentials live in fastlane/.env (gitignored),
+# or come from environment secrets on a runner — see .env.example.
 #
 # dev and prod are separate store apps (4 apps total):
 #   iOS  dev:  io.chatic.dou.dev  (scheme "Chatic Dev") -> TestFlight
@@ -51,6 +52,19 @@ def release_notes
   notes = ENV['RELEASE_NOTES'].to_s.strip
   UI.user_error!('RELEASE_NOTES is empty — deploy via `yarn mobile:deploy:...` which prompts for it') if notes.empty?
   notes
+end
+
+# The version and build number come from the release command (mobile-v tags),
+# not from a commit. Both unset keeps the values in build.gradle / pbxproj, which
+# is what a local emergency deploy after `yarn mobile:version` relies on.
+def injected_version
+  name = ENV['VERSION_NAME'].to_s.strip
+  build = ENV['BUILD_NUMBER'].to_s.strip
+  return nil if name.empty? && build.empty?
+  UI.user_error!('Set both VERSION_NAME and BUILD_NUMBER, or neither') if name.empty? || build.empty?
+  UI.user_error!("VERSION_NAME must be X.Y.Z (got #{name})") unless name.match?(/\A\d+\.\d+\.\d+\z/)
+  UI.user_error!("BUILD_NUMBER must be a number (got #{build})") unless build.match?(/\A\d+\z/)
+  { name: name, build: build }
 end
 
 # supply reads release notes from the metadata directory on disk, so write
@@ -123,18 +137,34 @@ platform :ios do
       key_filepath: key_path
     )
 
-    build_app(
-      workspace: 'ios/Chatic.xcworkspace',
-      scheme: IOS_SCHEMES[env],
-      export_method: 'app-store',
-      output_directory: 'build/fastlane',
-      # The project uses Automatic signing; let xcodebuild refresh signing
-      # assets itself, authenticated with the same ASC API key.
-      xcargs: '-allowProvisioningUpdates ' \
-              "-authenticationKeyPath #{key_path} " \
-              "-authenticationKeyID #{cred('ASC_KEY_ID', env)} " \
-              "-authenticationKeyIssuerID #{cred('ASC_ISSUER_ID', env)}"
-    )
+    version = injected_version
+    pbxproj = File.expand_path('../ios/Chatic.xcodeproj/project.pbxproj', __dir__)
+    original_pbxproj = File.read(pbxproj)
+    begin
+      if version
+        # Only the four app targets move; the notification extensions keep
+        # their own 1.0 (1), exactly as `yarn mobile:version` leaves them.
+        sh('node', File.expand_path('../../../scripts/mobile-release/ios-version.js', __dir__),
+           '--version', version[:name], '--build', version[:build])
+      end
+
+      build_app(
+        workspace: 'ios/Chatic.xcworkspace',
+        scheme: IOS_SCHEMES[env],
+        export_method: 'app-store',
+        output_directory: 'build/fastlane',
+        # The project uses Automatic signing; let xcodebuild refresh signing
+        # assets itself, authenticated with the same ASC API key.
+        xcargs: '-allowProvisioningUpdates ' \
+                "-authenticationKeyPath #{key_path} " \
+                "-authenticationKeyID #{cred('ASC_KEY_ID', env)} " \
+                "-authenticationKeyIssuerID #{cred('ASC_ISSUER_ID', env)}"
+      )
+    ensure
+      # The injected numbers must never reach a commit: put the file back as
+      # soon as the archive exists, before the long TestFlight wait.
+      File.write(pbxproj, original_pbxproj)
+    end
 
     upload_to_testflight(
       api_key: api_key,
@@ -215,11 +245,14 @@ platform :android do
     app_root = File.expand_path('..', __dir__)
     android_dir = File.join(app_root, 'android')
 
+    version = injected_version
     gradle(
       task: 'bundle',
       flavor: env == 'dev' ? 'Dev' : 'Prod',
       build_type: 'Release',
-      project_dir: android_dir
+      project_dir: android_dir,
+      # build.gradle reads these over its own versionCode / versionName.
+      properties: version ? { 'versionCode' => version[:build], 'versionName' => version[:name] } : {}
     )
 
     # Upload the AAB this lane just built. Do NOT rely on GRADLE_AAB_OUTPUT_PATH:
