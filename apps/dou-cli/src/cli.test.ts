@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -78,6 +78,34 @@ describe('dou-cli commands', () => {
         pairNode.mockResolvedValueOnce({ phase: 'denied' });
         await expect(runCli(['pair'], h)).resolves.toBe(1);
         expect(h.err).toEqual(['pairing denied']);
+    });
+
+    it('pair exits 130 when the stop signal ends the wait', async () => {
+        const h = harness();
+        const controller = new AbortController();
+        pairNode.mockImplementationOnce(() => {
+            controller.abort();
+            return Promise.reject(new Error('pairing aborted'));
+        });
+        await expect(runCli(['pair'], { ...h, signal: controller.signal })).resolves.toBe(130);
+        expect(h.err).toEqual(['pairing aborted']);
+    });
+
+    it('--env-file hands the file values to the boot over the process environment', async () => {
+        const h = harness();
+        const directory = mkdtempSync(join(tmpdir(), 'dou-cli-env-'));
+        const path = join(directory, '.env');
+        writeFileSync(path, 'VITE_ENV=staging\nVITE_OAUTH_ENDPOINT=https://oauth.example.com\n');
+        try {
+            await runCli(['--env-file', path, 'whoami'], h);
+        } finally {
+            rmSync(directory, { recursive: true, force: true });
+        }
+        expect(h.boot).toHaveBeenCalledWith(
+            expect.objectContaining({
+                env: expect.objectContaining({ VITE_ENV: 'staging', VITE_OAUTH_ENDPOINT: 'https://oauth.example.com' }),
+            })
+        );
     });
 
     it('an unknown command prints usage and exits 2', async () => {

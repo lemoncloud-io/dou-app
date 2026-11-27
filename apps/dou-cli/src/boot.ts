@@ -1,4 +1,5 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
+import { parseEnv } from 'node:util';
 
 import { createWebEnvAdapter } from '@chatic/config';
 import {
@@ -29,6 +30,8 @@ export interface BootOptions {
 }
 
 export type Boot = (options: BootOptions) => Promise<Booted>;
+
+export const readEnvFile = (path: string): Record<string, string | undefined> => parseEnv(readFileSync(path, 'utf8'));
 
 export const bootNode: Boot = async ({ profile, writeLine, env = process.env }) => {
     const directory = nodeDataDirectory(profile);

@@ -18,7 +18,7 @@ node dist/apps/dou-cli/main.mjs --profile <dir> <command>
 
 ## Profile
 
-`--profile <dir>` is one instance; without it `~/.dou/default`. The Node session files live in `<dir>/node` ([`storageFile`](../../libs/storage/file/README.md)); nothing else is written outside it. The stage comes from `VITE_ENV` and is `dev` when unset.
+`--profile <dir>` is one instance; without it `~/.dou/default`. The Node session files live in `<dir>/node` ([`storageFile`](../../libs/storage/file/README.md)); nothing else is written outside it. The stage and endpoints come from `VITE_*` variables: `--env-file <file>` loads them from a dotenv file (for dev, the team's `apps/web/.env.dev`), over the process environment. `VITE_ENV` is `dev` when unset.
 
 ## Code layout
 

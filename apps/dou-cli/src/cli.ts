@@ -1,5 +1,6 @@
 import { parseArgs } from 'node:util';
 
+import { readEnvFile } from './boot';
 import type { Boot, Booted } from './boot';
 import { cloudsCommand } from './commands/clouds';
 import { pairCommand } from './commands/pair';
@@ -29,7 +30,7 @@ const COMMANDS = {
 
 type CommandName = keyof typeof COMMANDS;
 
-const USAGE = 'usage: dou-cli [--profile <dir>] <pair|whoami|clouds|serve>';
+const USAGE = 'usage: dou-cli [--profile <dir>] [--env-file <file>] <pair|whoami|clouds|serve>';
 
 const isCommand = (name: string | undefined): name is CommandName => name !== undefined && name in COMMANDS;
 
@@ -53,7 +54,12 @@ export const runCli = async (argv: string[], { boot, io, signal, hooks = {} }: R
         io.err(USAGE);
         return parsed.values.help ? 0 : 2;
     }
-    const booted = await boot({ profile: resolveProfile(parsed.values.profile), writeLine: io.out });
+    const envFile = parsed.values['env-file'];
+    const booted = await boot({
+        profile: resolveProfile(parsed.values.profile),
+        writeLine: io.out,
+        ...(envFile ? { env: { ...process.env, ...readEnvFile(envFile) } } : {}),
+    });
     try {
         return await COMMANDS[name]({ io, signal: signal ?? new AbortController().signal, booted, hooks });
     } finally {
@@ -65,5 +71,5 @@ const parse = (argv: string[]) =>
     parseArgs({
         args: argv,
         allowPositionals: true,
-        options: { profile: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
+        options: { profile: { type: 'string' }, 'env-file': { type: 'string' }, help: { type: 'boolean', short: 'h' } },
     });
