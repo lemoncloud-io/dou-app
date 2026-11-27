@@ -31,7 +31,7 @@ const COMMANDS = {
 
 type CommandName = keyof typeof COMMANDS;
 
-const USAGE = 'usage: dou-cli [--profile <dir>] [--env-file <file>] <pair|whoami|clouds|serve>';
+const USAGE = 'usage: dou-cli [--profile <dir>] [--env-file <file>] [--parent-pipe] <pair|whoami|clouds|serve>';
 
 const isCommand = (name: string | undefined): name is CommandName => name !== undefined && name in COMMANDS;
 
@@ -60,6 +60,7 @@ export const runCli = async (argv: string[], { boot, io, signal, hooks = {} }: R
     const booted = await boot({
         profile,
         writeLine: io.out,
+        sockets: name === 'serve',
         ...(envFile ? { env: { ...process.env, ...readEnvFile(envFile) } } : {}),
     });
     try {
@@ -73,5 +74,10 @@ const parse = (argv: string[]) =>
     parseArgs({
         args: argv,
         allowPositionals: true,
-        options: { profile: { type: 'string' }, 'env-file': { type: 'string' }, help: { type: 'boolean', short: 'h' } },
+        options: {
+            profile: { type: 'string' },
+            'env-file': { type: 'string' },
+            'parent-pipe': { type: 'boolean' },
+            help: { type: 'boolean', short: 'h' },
+        },
     });

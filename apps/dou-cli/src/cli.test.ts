@@ -65,6 +65,19 @@ describe('dou-cli commands', () => {
         });
     });
 
+    it('asks for sockets only when it serves', async () => {
+        const served = harness();
+        const stopServing = new AbortController();
+        stopServing.abort();
+        await runCli(['serve'], { ...served, signal: stopServing.signal });
+        expect(served.boot).toHaveBeenCalledWith(expect.objectContaining({ sockets: true }));
+        for (const command of ['whoami', 'clouds']) {
+            const h = harness();
+            await runCli([command], h);
+            expect(h.boot).toHaveBeenCalledWith(expect.objectContaining({ sockets: false }));
+        }
+    });
+
     it('boots with the profile given', async () => {
         const h = harness();
         await runCli(['--profile', '/tmp/dou-x', 'whoami'], h);
@@ -106,6 +119,11 @@ describe('dou-cli commands', () => {
                 env: expect.objectContaining({ VITE_ENV: 'staging', VITE_OAUTH_ENDPOINT: 'https://oauth.example.com' }),
             })
         );
+    });
+
+    it('accepts --parent-pipe in front of a command', async () => {
+        const h = harness();
+        await expect(runCli(['--parent-pipe', 'whoami'], h)).resolves.toBe(0);
     });
 
     it('an unknown command prints usage and exits 2', async () => {
