@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/data-local",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/data/local/src",
+    "projectType": "library",
+    "tags": ["layer:core-lib", "platform:any", "formfactor:any"],
+    "targets": {}
+}

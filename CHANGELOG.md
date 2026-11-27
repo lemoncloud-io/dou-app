@@ -2,6 +2,30 @@
 
 ## [2026-11-27] - No version updates
 
+### Bug Fixes
+
+- (runtime-node,db-memory) map the data packages that moved under libs/data in jest
+
+## [2026-11-27] - root@0.176.0, @chatic/web@0.103.0
+
+### Features
+
+- (web) print a thread reply on the home row and open its thread
+
+## [2026-11-27] - No version updates
+
+### Refactor
+
+- (data) split @chatic/data into model, api, local and repositories packages
+
+## [2026-11-27] - No version updates
+
+### Features
+
+- (runtime-node) boot the headless runtime in node on new adapter libs
+
+## [2026-11-27] - No version updates
+
 ### Refactor
 
 - (push-desktop,desktop) move the electron fcm client into libs/push/desktop

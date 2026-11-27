@@ -1,6 +1,6 @@
 # remote/http — the HTTP axis
 
-> Status: Live · Last updated: 2026-11-24 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/http.ts](../../src/remote/gateways/http.ts) · [http-data-sources/](../../src/remote/http-data-sources/)
+> Status: Live · Last updated: 2026-11-24 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/http.ts](../../api/src/gateways/http.ts) · [http-data-sources/](../../api/src/http-data-sources/)
 
 The remote axis that uses HTTP transport. It has 6 domains. For the socket axis see
 [socket.md](./socket.md).
@@ -12,7 +12,7 @@ same constructor injection, the same single view→domain boundary. It takes **t
 ## Layout
 
 ```text
-remote/
+api/src/
   gateways/http.ts         HttpGatewayBundle + per-domain Pick<>
   http-data-sources/       6 HttpDataSources + createHttpDataSources
     httpUserMapping.ts     the bridge from the HTTP axis UserView to DomainUser
@@ -134,7 +134,7 @@ membership, refund and cloud admin calls, the admin console's user screen passes
 
 ## The two `UserView` types are not assignable to each other
 
-The HTTP axis has one trap in its user mapping. `toDomainUser` (`domain/mappers.ts`) is typed against the
+The HTTP axis has one trap in its user mapping. `toDomainUser` (`model/src/mappers.ts`) is typed against the
 socket axis's `UserView` (`@lemoncloud/chatic-socials-api`), while the same-named type on the HTTP/OAuth
 axis (`@lemoncloud/chatic-backend-api`) has a wider `stereo` union (`'#alias'`, `'session'`, `'#code'` —
 OAuth-internal markers the socket domain never sees). The identity fields are the same, but the two are

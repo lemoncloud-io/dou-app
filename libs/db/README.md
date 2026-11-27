@@ -9,6 +9,9 @@ call instrumentation.
 Every interface in that list is declared by `@chatic/data`, not here. This lib is the half that knows
 how bytes actually land.
 
+`memory/` beside `src/` is its own project, the first of the `db/*` family:
+[`@chatic/db-memory`](./memory/README.md). This project's Jest config skips it.
+
 ## Purpose
 
 `@chatic/data` says what a cache is; this lib says where it lives. It implements five ports that

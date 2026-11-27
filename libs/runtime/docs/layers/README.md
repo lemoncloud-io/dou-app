@@ -51,7 +51,7 @@ flowchart TD
 | `platform:web`       | anything not tagged `platform:any` or `platform:web`; React Native                                                                                                                               |
 | `platform:mobile`    | anything not tagged `platform:any` or `platform:mobile`, and a `platform:web` package through one that is                                                                                        |
 | `platform:desktop`   | anything not tagged `platform:any` or `platform:desktop`                                                                                                                                         |
-| `platform:node`      | anything not tagged `platform:any` or `platform:node`                                                                                                                                            |
+| `platform:node`      | anything not tagged `platform:any` or `platform:node`; React or React Native                                                                                                                     |
 | `formfactor:any`     | a `formfactor:mobile` or `formfactor:desktop` package, directly or through another package                                                                                                       |
 | `formfactor:mobile`  | a `formfactor:desktop` package, directly or through another package                                                                                                                              |
 | `formfactor:desktop` | a `formfactor:mobile` package, directly or through another package                                                                                                                               |
