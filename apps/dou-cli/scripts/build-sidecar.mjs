@@ -10,6 +10,13 @@ const outDir = resolve(process.argv[2] ?? join(root, 'apps/desktop-tauri/src-tau
 const POSTJECT = 'postject@1.0.0-alpha.6';
 const FUSE = 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2';
 
+const npxCommand = () => {
+    if (!windows) return ['npx', []];
+    const cli = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js');
+    if (!existsSync(cli)) throw new Error(`${cli} is missing: install Node with npm`);
+    return [process.execPath, [cli]];
+};
+
 const hostTriple = () => {
     const info = execFileSync('rustc', ['-vV'], { encoding: 'utf8' });
     const host = /^host: (.+)$/m.exec(info)?.[1];
@@ -36,6 +43,7 @@ copyFileSync(process.execPath, target);
 if (macos) execFileSync('codesign', ['--remove-signature', target], { stdio: 'inherit' });
 const inject = ['--yes', POSTJECT, target, 'NODE_SEA_BLOB', blob, '--sentinel-fuse', FUSE];
 if (macos) inject.push('--macho-segment-name', 'NODE_SEA');
-execFileSync(windows ? 'npx.cmd' : 'npx', inject, { stdio: 'inherit' });
+const [npx, npxArgs] = npxCommand();
+execFileSync(npx, [...npxArgs, ...inject], { stdio: 'inherit' });
 if (macos) execFileSync('codesign', ['--sign', '-', target], { stdio: 'inherit' });
 process.stdout.write(`${target}\n`);
