@@ -2,6 +2,12 @@
 
 ## [2026-11-27] - No version updates
 
+### Chores
+
+- (tsconfig) commit the nx sync result for project references
+
+## [2026-11-27] - No version updates
+
 ### Features
 
 - (host-node,dou-cli) sign a Node process in by device pairing
