@@ -139,13 +139,19 @@ pub async fn bridge_request(
     message: String,
 ) -> Result<(), String> {
     let url = webview.url().map_err(|e| e.to_string())?;
-    if url.origin().ascii_serialization() != bridge.origin {
-        return Err("the caller is not the web".to_string());
-    }
+    caller_is_web(&url, &bridge.origin)?;
     #[cfg(debug_assertions)]
     eprintln!("bridge <- {}", request_type_of(&message));
     bridge.host.handle_message(&message).await;
     Ok(())
+}
+
+fn caller_is_web(url: &Url, origin: &str) -> Result<(), String> {
+    if url.origin().ascii_serialization() == origin {
+        Ok(())
+    } else {
+        Err("the caller is not the web".to_string())
+    }
 }
 
 #[cfg(debug_assertions)]
@@ -170,6 +176,32 @@ mod tests {
             origin_of("https://example.test:8443/").as_deref(),
             Some("https://example.test:8443")
         );
+    }
+
+    fn caller(url: &str) -> Result<(), String> {
+        caller_is_web(&Url::parse(url).expect("url"), "https://dou.chatic.io")
+    }
+
+    #[test]
+    fn the_web_origin_may_call_the_bridge() {
+        assert!(caller("https://dou.chatic.io/room/1?x=1").is_ok());
+    }
+
+    #[test]
+    fn any_other_origin_is_refused() {
+        for url in [
+            "https://evil.test/",
+            "https://dou.chatic.io.evil.test/",
+            "https://dou.chatic.io@evil.test/",
+            "http://dou.chatic.io/",
+            "https://dou.chatic.io:8443/",
+            "http://localhost:5004/",
+            "tauri://localhost/",
+            "http://tauri.localhost/index.html",
+            "about:blank",
+        ] {
+            assert_eq!(caller(url), Err("the caller is not the web".to_string()), "{url}");
+        }
     }
 
     #[test]

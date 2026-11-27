@@ -1,8 +1,19 @@
 mod agent;
 mod bridge;
+#[cfg(test)]
+mod command_drift_tests;
 mod globals;
 pub mod handlers;
 mod window;
+
+fn updater_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry, tauri_plugin_updater::Config> {
+    let builder = tauri_plugin_updater::Builder::new();
+    match handlers::update_pubkey() {
+        Some(key) => builder.pubkey(key),
+        None => builder,
+    }
+    .build()
+}
 
 pub fn run() {
     tauri::Builder::default()
@@ -16,7 +27,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(updater_plugin())
         .invoke_handler(tauri::generate_handler![
             bridge::bridge_request,
             agent::commands::agent_state,

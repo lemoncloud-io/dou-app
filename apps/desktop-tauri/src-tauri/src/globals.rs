@@ -8,6 +8,13 @@ pub struct ShellInfo {
     pub model: String,
 }
 
+pub fn build_number(raw: Option<&str>) -> String {
+    raw.map(str::trim)
+        .filter(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit()))
+        .unwrap_or("1")
+        .to_string()
+}
+
 pub fn info_value(info: &ShellInfo) -> Value {
     json!({
         "CHATIC_APP_PLATFORM": "desktop",
@@ -16,7 +23,7 @@ pub fn info_value(info: &ShellInfo) -> Value {
         "CHATIC_APP_DEVICE_ID": info.device_id,
         "CHATIC_APP_DEVICE_MODEL": info.model,
         "CHATIC_APP_CURRENT_VERSION": info.version,
-        "CHATIC_APP_BUILD_NUMBER": "1",
+        "CHATIC_APP_BUILD_NUMBER": build_number(option_env!("DOU_BUILD_NUMBER")),
         "CHATIC_APP_CURRENT_LANGUAGE": info.language,
         "CHATIC_APP_INSTALLATION_ID": info.device_id,
         "CHATIC_APP_LATEST_VERSION": info.version,
@@ -76,6 +83,19 @@ mod tests {
         assert_eq!(value["CHATIC_APP_CAPABILITIES"]["checkout"], json!([]));
         assert_eq!(value["CHATIC_APP_CAPABILITIES"]["version"], 1);
         assert_eq!(value["CHATIC_APP_STORAGE_MEDIA"], json!(["nativeSecure"]));
+    }
+
+    #[test]
+    fn the_build_number_is_digits_from_the_build_or_one() {
+        assert_eq!(build_number(Some(" 42 ")), "42");
+        assert_eq!(build_number(Some("4.2")), "1");
+        assert_eq!(build_number(Some("")), "1");
+        assert_eq!(build_number(None), "1");
+    }
+
+    #[test]
+    fn an_update_is_never_forced_at_launch() {
+        assert_eq!(info_value(&info())["CHATIC_APP_SHOULD_UPDATE"], "false");
     }
 
     #[test]
