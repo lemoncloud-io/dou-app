@@ -32,7 +32,12 @@ function applyReplacers(text, replacers) {
     }, text);
 }
 
-function teamNotes(prs, directCommits, replacers = []) {
+const EMPTY = {
+    en: 'No change reached the mobile binary.',
+    ko: '모바일 바이너리에 들어간 변경이 없습니다.',
+};
+
+function teamNotes(prs, directCommits, replacers = [], language = 'en') {
     const sections = CATEGORIES.map(category => {
         const lines = [
             ...prs
@@ -43,9 +48,10 @@ function teamNotes(prs, directCommits, replacers = []) {
                 .filter(commit => commit.category === category.key)
                 .map(commit => `- ${commit.subject} (${commit.sha.slice(0, 7)})`),
         ];
-        return lines.length > 0 ? `### ${category.title}\n\n${lines.join('\n')}` : null;
+        const title = language === 'ko' ? category.cardTitle : category.title;
+        return lines.length > 0 ? `### ${title}\n\n${lines.join('\n')}` : null;
     }).filter(Boolean);
-    if (sections.length === 0) return '모바일 바이너리에 들어간 변경이 없습니다.';
+    if (sections.length === 0) return EMPTY[language];
     return applyReplacers(sections.join('\n\n'), replacers);
 }
 

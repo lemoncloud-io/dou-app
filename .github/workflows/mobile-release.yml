@@ -19,7 +19,7 @@ on:
                 options: [all, ios, android]
                 default: all
             tag:
-                description: 'prod only: the mobile-v tag of a build that went to the dev app first'
+                description: 'prod: the dev build to promote; dev: a tag whose missing platforms to upload again'
                 type: string
                 required: false
             ref:
@@ -30,8 +30,12 @@ on:
                 description: 'X.Y.Z, empty to use the proposal (must be higher than the last prod version)'
                 type: string
                 required: false
+            build:
+                description: 'Build number, empty to use the next free one (must not be lower)'
+                type: string
+                required: false
             bump:
-                description: 'Bump unit; auto takes the proposal from commit types and never ships major'
+                description: 'Bump unit; auto takes the proposal (minor only on native changes) and never ships major'
                 type: choice
                 options: [auto, patch, minor, major]
                 default: auto
@@ -40,7 +44,7 @@ on:
                 type: string
                 required: false
             team_notes:
-                description: Korean team notes for the release and the channel card; empty to generate them
+                description: English team notes for the release and the channel card; empty to generate them
                 type: string
                 required: false
             submit:
@@ -83,6 +87,7 @@ jobs:
                   REF: ${{ inputs.ref }}
                   TAG: ${{ inputs.tag }}
                   VERSION: ${{ inputs.version }}
+                  BUILD: ${{ inputs.build }}
                   ROLLOUT: ${{ inputs.rollout }}
                   STORE_NOTES: ${{ inputs.store_notes }}
               run: |
@@ -90,36 +95,41 @@ jobs:
                   fail() { echo "::error::$1"; exit 1; }
                   [ "$ACTION" = "upload" ] || fail "action=$ACTION is not available yet: release, rollout and halt arrive with store submission."
                   [ "$TARGET_ENV" = "dev" ] || fail "env=$TARGET_ENV is not available yet: prod uploads arrive with release branches."
-                  [ -z "$TAG" ] || fail "tag is for prod uploads; leave it empty for dev."
                   [ -z "$ROLLOUT" ] || fail "rollout is for action=rollout."
                   [ "$REF" = "develop" ] || fail "dev builds come from develop; release/mobile-* hotfix builds arrive with release branches."
                   if [ -n "$VERSION" ] && ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then fail "version must be X.Y.Z (got $VERSION)."; fi
+                  if [ -n "$BUILD" ] && ! [[ "$BUILD" =~ ^[0-9]+$ ]]; then fail "build must be a whole number (got $BUILD)."; fi
+                  if [ -n "$TAG" ]; then
+                    [[ "$TAG" =~ ^mobile-v[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] || fail "tag must be mobile-v<version>-<build> (got $TAG)."
+                    [ -z "$VERSION$BUILD" ] || fail "a retry keeps the tag's version and build; leave version and build empty."
+                    [ -n "$STORE_NOTES" ] || exit 0
+                  fi
                   printf '%s' "$STORE_NOTES" > "$RUNNER_TEMP/store-notes.txt"
                   node scripts/mobile-release/index.js check-notes "$RUNNER_TEMP/store-notes.txt" || fail "store_notes must be 1-500 characters."
 
     build:
-        name: Upload (${{ inputs.env }}, ${{ inputs.platform }})
+        name: Upload (${{ inputs.env }}, ${{ inputs.platform }}${{ inputs.tag && ', retry' || '' }})
         needs: preflight
         runs-on: macos-latest
         timeout-minutes: 150
         environment: mobile-${{ inputs.env }}
         outputs:
-            version: ${{ steps.plan.outputs.version }}
-            build: ${{ steps.plan.outputs.build }}
-            tag: ${{ steps.plan.outputs.tag }}
-            sha: ${{ steps.plan.outputs.sha }}
-            uploaded: ${{ steps.uploaded.outputs.platforms }}
+            version: ${{ steps.release.outputs.version }}
+            build: ${{ steps.release.outputs.build }}
+            tag: ${{ steps.release.outputs.tag }}
+            sha: ${{ steps.release.outputs.sha }}
+            retry: ${{ steps.target.outputs.retry }}
+            results: ${{ steps.results.outputs.results }}
+            uploaded: ${{ steps.results.outputs.uploaded }}
         env:
             TARGET_ENV: ${{ inputs.env }}
-            WITH_IOS: ${{ inputs.platform != 'android' }}
-            WITH_ANDROID: ${{ inputs.platform != 'ios' }}
         steps:
             - name: Work directory
               run: echo "WORK=$RUNNER_TEMP/mobile-release" >> "$GITHUB_ENV"
 
             - uses: actions/checkout@v4
               with:
-                  ref: ${{ inputs.ref }}
+                  ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || inputs.ref }}
                   fetch-depth: 0
                   fetch-tags: true
                   persist-credentials: false
@@ -127,12 +137,6 @@ jobs:
             - uses: actions/setup-node@v4
               with:
                   node-version-file: '.nvmrc'
-
-            - uses: actions/setup-java@v4
-              if: ${{ env.WITH_ANDROID == 'true' }}
-              with:
-                  distribution: temurin
-                  java-version: '17'
 
             - name: Install dependencies
               run: |
@@ -143,35 +147,49 @@ jobs:
                   done
                   exit 1
 
-            - name: Plan version and notes
-              id: plan
+            - name: Decide the platforms
+              id: target
               env:
-                  GH_TOKEN: ${{ github.token }}
-                  BUMP: ${{ inputs.bump }}
-                  VERSION: ${{ inputs.version }}
+                  TAG: ${{ inputs.tag }}
+                  PLATFORM: ${{ inputs.platform }}
                   STORE_NOTES: ${{ inputs.store_notes }}
               run: |
                   set -euo pipefail
                   mkdir -p "$WORK"
-                  node scripts/mobile-release/plan.js --json --bump "$BUMP" --version "$VERSION" --out "$WORK/plan.json"
-                  printf '%s' "$STORE_NOTES" > "$WORK/store-notes.txt"
-                  node -e '
-                    const p = require(process.argv[1]);
-                    const out = [`version=${p.release.version}`, `build=${p.release.build}`, `tag=${p.release.tag}`, `sha=${p.to.sha}`];
-                    require("fs").appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
-                    console.log(`${p.release.tag}: ${p.release.unit} (proposed ${p.proposal.unit}), ${p.prs.length} PR(s)`);
-                  ' "$WORK/plan.json"
-                  if git rev-parse -q --verify "refs/tags/$(node -p 'require(process.argv[1]).release.tag' "$WORK/plan.json")" >/dev/null; then
-                    echo "::error::The computed tag already exists; fetch the tags and check the plan."
-                    exit 1
+                  if [ -n "$TAG" ]; then
+                    ARGS=("$TAG")
+                    [ "$PLATFORM" = "all" ] || ARGS+=(--platform "$PLATFORM")
+                    node scripts/mobile-release/index.js retry-info "${ARGS[@]}" > "$WORK/retry.json"
+                    node -e '
+                      const fs = require("fs");
+                      const r = require(process.argv[1]);
+                      if (r.missing.length === 0) {
+                        console.log(`::error::${r.tag} already records ${r.results}; nothing to retry`);
+                        process.exit(1);
+                      }
+                      fs.writeFileSync(process.argv[2], process.env.STORE_NOTES || r.storeNotes);
+                      const out = ["retry=true", `previous=${r.results}`, `version=${r.version}`, `build=${r.build}`,
+                        `tag=${r.tag}`, `sha=${r.sha}`];
+                      fs.appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
+                      console.log(`${r.tag}: uploading ${r.missing.join(", ")} again (recorded ${r.results})`);
+                    ' "$WORK/retry.json" "$WORK/store-notes.txt"
+                    PLATFORMS=$(node -p 'require(process.argv[1]).missing.join(",")' "$WORK/retry.json")
+                  else
+                    PLATFORMS=$([ "$PLATFORM" = "all" ] && echo ios,android || echo "$PLATFORM")
+                    printf '%s' "$STORE_NOTES" > "$WORK/store-notes.txt"
+                    { echo "retry=false"; echo "previous="; } >> "$GITHUB_OUTPUT"
                   fi
+                  WITH_IOS=false
+                  WITH_ANDROID=false
+                  [[ ",$PLATFORMS," == *",ios,"* ]] && WITH_IOS=true
+                  [[ ",$PLATFORMS," == *",android,"* ]] && WITH_ANDROID=true
+                  { echo "PLATFORMS=$PLATFORMS"; echo "WITH_IOS=$WITH_IOS"; echo "WITH_ANDROID=$WITH_ANDROID"; } >> "$GITHUB_ENV"
 
-            - name: Keep the plan
-              uses: actions/upload-artifact@v4
+            - uses: actions/setup-java@v4
+              if: ${{ env.WITH_ANDROID == 'true' }}
               with:
-                  name: mobile-release-plan
-                  path: ${{ runner.temp }}/mobile-release
-                  if-no-files-found: error
+                  distribution: temurin
+                  java-version: '17'
 
             - name: Restore app env files
               env:
@@ -214,6 +232,67 @@ jobs:
             - name: Install fastlane
               run: command -v fastlane >/dev/null || brew install fastlane
 
+            - name: Read the store build numbers
+              id: store
+              if: ${{ steps.target.outputs.retry == 'false' }}
+              env:
+                  ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+                  ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+              run: |
+                  set -euo pipefail
+                  MAX=$(node scripts/mobile-release/index.js store-build --env "$TARGET_ENV" --platforms "$PLATFORMS")
+                  echo "max=$MAX" >> "$GITHUB_OUTPUT"
+
+            - name: Plan version and notes
+              id: plan
+              if: ${{ steps.target.outputs.retry == 'false' }}
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  BUMP: ${{ inputs.bump }}
+                  VERSION: ${{ inputs.version }}
+                  BUILD: ${{ inputs.build }}
+                  STORE_BUILD: ${{ steps.store.outputs.max }}
+              run: |
+                  set -euo pipefail
+                  node scripts/mobile-release/plan.js --json --bump "$BUMP" --version "$VERSION" --build "$BUILD" \
+                    --store-build "$STORE_BUILD" --out "$WORK/plan.json"
+                  node -e '
+                    const p = require(process.argv[1]);
+                    const out = [`version=${p.release.version}`, `build=${p.release.build}`, `tag=${p.release.tag}`, `sha=${p.to.sha}`];
+                    require("fs").appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
+                    console.log(`${p.release.tag}: ${p.release.unit} (proposed ${p.proposal.unit}), ${p.prs.length} PR(s)`);
+                  ' "$WORK/plan.json"
+                  if git rev-parse -q --verify "refs/tags/$(node -p 'require(process.argv[1]).release.tag' "$WORK/plan.json")" >/dev/null; then
+                    echo "::error::The computed tag already exists; fetch the tags and check the plan."
+                    exit 1
+                  fi
+
+            - name: Release target
+              id: release
+              env:
+                  RETRY: ${{ steps.target.outputs.retry }}
+                  T_VERSION: ${{ steps.target.outputs.version }}
+                  T_BUILD: ${{ steps.target.outputs.build }}
+                  T_TAG: ${{ steps.target.outputs.tag }}
+                  T_SHA: ${{ steps.target.outputs.sha }}
+                  P_VERSION: ${{ steps.plan.outputs.version }}
+                  P_BUILD: ${{ steps.plan.outputs.build }}
+                  P_TAG: ${{ steps.plan.outputs.tag }}
+                  P_SHA: ${{ steps.plan.outputs.sha }}
+              run: |
+                  if [ "$RETRY" = "true" ]; then
+                    { echo "version=$T_VERSION"; echo "build=$T_BUILD"; echo "tag=$T_TAG"; echo "sha=$T_SHA"; } >> "$GITHUB_OUTPUT"
+                  else
+                    { echo "version=$P_VERSION"; echo "build=$P_BUILD"; echo "tag=$P_TAG"; echo "sha=$P_SHA"; } >> "$GITHUB_OUTPUT"
+                  fi
+
+            - name: Keep the plan
+              uses: actions/upload-artifact@v4
+              with:
+                  name: mobile-release-plan
+                  path: ${{ runner.temp }}/mobile-release
+                  if-no-files-found: error
+
             - name: Set up iOS signing
               if: ${{ env.WITH_IOS == 'true' }}
               run: |
@@ -230,8 +309,8 @@ jobs:
               env:
                   ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
                   ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-                  VERSION_NAME: ${{ steps.plan.outputs.version }}
-                  BUILD_NUMBER: ${{ steps.plan.outputs.build }}
+                  VERSION_NAME: ${{ steps.release.outputs.version }}
+                  BUILD_NUMBER: ${{ steps.release.outputs.build }}
               run: |
                   export RELEASE_NOTES="$(cat "$WORK/store-notes.txt")"
                   fastlane ios "$TARGET_ENV"
@@ -244,29 +323,46 @@ jobs:
                   ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
                   ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
                   ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-                  VERSION_NAME: ${{ steps.plan.outputs.version }}
-                  BUILD_NUMBER: ${{ steps.plan.outputs.build }}
+                  VERSION_NAME: ${{ steps.release.outputs.version }}
+                  BUILD_NUMBER: ${{ steps.release.outputs.build }}
               run: |
                   export RELEASE_NOTES="$(cat "$WORK/store-notes.txt")"
                   fastlane android "$TARGET_ENV"
 
-            - name: Record uploaded platforms
-              id: uploaded
-              if: ${{ always() }}
+            - name: Record the result per platform
+              id: results
+              if: ${{ always() && steps.release.outputs.build != '' }}
               env:
+                  ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+                  ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
                   IOS: ${{ steps.ios.outcome }}
                   ANDROID: ${{ steps.android.outcome }}
+                  BUILD: ${{ steps.release.outputs.build }}
+                  PREVIOUS: ${{ steps.target.outputs.previous }}
               run: |
-                  P=()
-                  [ "$IOS" = "success" ] && P+=(ios)
-                  [ "$ANDROID" = "success" ] && P+=(android)
-                  echo "platforms=$(IFS=,; echo "${P[*]}")" >> "$GITHUB_OUTPUT"
+                  set -euo pipefail
+                  OUTCOMES="ios=${IOS:-skipped},android=${ANDROID:-skipped}"
+                  NOW=$(node scripts/mobile-release/index.js results --env "$TARGET_ENV" --build "$BUILD" \
+                    --requested "$PLATFORMS" --outcomes "$OUTCOMES")
+                  ALL=$NOW
+                  if [ -n "$PREVIOUS" ]; then
+                    ALL=$(node -e '
+                      const s = require("./scripts/mobile-release/store");
+                      console.log(s.formatResults(s.mergeResults(s.parseResults(process.argv[1]), s.parseResults(process.argv[2]))));
+                    ' "$PREVIOUS" "$NOW")
+                  fi
+                  UPLOADED=$(node -e '
+                    const s = require("./scripts/mobile-release/store");
+                    console.log(s.uploadedPlatforms(s.parseResults(process.argv[1])).join(","));
+                  ' "$NOW")
+                  echo "results: $ALL"
+                  { echo "results=$ALL"; echo "uploaded=$UPLOADED"; } >> "$GITHUB_OUTPUT"
 
             - name: Keep Hermes sourcemaps
               if: ${{ always() }}
               uses: actions/upload-artifact@v4
               with:
-                  name: sourcemaps-mobile-${{ inputs.env }}-${{ steps.plan.outputs.sha }}
+                  name: sourcemaps-mobile-${{ inputs.env }}-${{ steps.release.outputs.sha }}
                   path: .sourcemaps/
                   include-hidden-files: true
                   if-no-files-found: warn
@@ -279,7 +375,7 @@ jobs:
     tag:
         name: Push the tag
         needs: build
-        if: ${{ always() && needs.build.outputs.uploaded != '' }}
+        if: ${{ always() && needs.build.outputs.retry == 'false' && needs.build.outputs.uploaded != '' }}
         runs-on: ubuntu-latest
         timeout-minutes: 5
         permissions:
@@ -303,8 +399,7 @@ jobs:
               env:
                   WORK: ${{ runner.temp }}/mobile-release
                   TARGET_ENV: ${{ inputs.env }}
-                  PLATFORMS: ${{ needs.build.outputs.uploaded }}
-                  REQUESTED: ${{ inputs.platform }}
+                  RESULTS: ${{ needs.build.outputs.results }}
                   TAG: ${{ needs.build.outputs.tag }}
                   SHA: ${{ needs.build.outputs.sha }}
               run: |
@@ -315,11 +410,11 @@ jobs:
                   node -e '
                     const fs = require("fs");
                     const { tagMessage } = require("./scripts/mobile-release/finish");
+                    const { parseResults } = require("./scripts/mobile-release/store");
                     const p = require(process.argv[1]);
-                    const requested = process.env.REQUESTED === "all" ? ["ios", "android"] : [process.env.REQUESTED];
                     fs.writeFileSync(process.argv[2], tagMessage({
                       version: p.release.version, build: p.release.build, env: process.env.TARGET_ENV,
-                      platforms: process.env.PLATFORMS.split(","), requested, sha: p.to.sha,
+                      results: parseResults(process.env.RESULTS), sha: p.to.sha,
                       storeNotes: fs.readFileSync(process.argv[3], "utf8"),
                     }));
                   ' "$WORK/plan.json" "$WORK/tag-message.txt" "$WORK/store-notes.txt"
@@ -329,7 +424,9 @@ jobs:
     finish:
         name: Finish
         needs: [build, tag]
-        if: ${{ always() && needs.tag.result == 'success' }}
+        if: >-
+            ${{ always() && (needs.tag.result == 'success' ||
+            (needs.build.outputs.retry == 'true' && needs.build.outputs.uploaded != '')) }}
         permissions:
             contents: write
             pull-requests: write
@@ -338,7 +435,7 @@ jobs:
         with:
             tag: ${{ needs.build.outputs.tag }}
             env: ${{ inputs.env }}
-            platform: ${{ needs.build.outputs.uploaded }}
+            platform: ${{ needs.build.outputs.results }}
             store_notes: ${{ inputs.store_notes }}
             team_notes: ${{ inputs.team_notes }}
         secrets: inherit
@@ -346,7 +443,9 @@ jobs:
     notify-failure:
         name: Notify DoU of a failed upload or tag
         needs: [preflight, build, tag]
-        if: ${{ always() && needs.preflight.result == 'success' && needs.tag.result != 'success' }}
+        if: >-
+            ${{ always() && needs.preflight.result == 'success' && (needs.build.outputs.uploaded == '' ||
+            (needs.build.outputs.retry == 'false' && needs.tag.result != 'success')) }}
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:
@@ -359,6 +458,6 @@ jobs:
                   status: failure
                   title: DoU 모바일 ${{ inputs.env }} ${{ needs.build.outputs.tag || '' }} ${{ needs.build.outputs.uploaded == '' && '업로드 실패' || '태그 실패' }} (원격)
                   text: |
-                      • 요청: ${{ inputs.platform }}, 업로드됨: ${{ needs.build.outputs.uploaded || '없음' }}
-                      • ${{ needs.build.outputs.uploaded == '' && '태그 없음. 다시 돌려도 같은 번호를 씁니다' || '스토어에는 올라갔지만 태그가 없습니다. 이 번호를 다시 쓰지 않게 태그를 손으로 다세요' }}
+                      • 요청: ${{ inputs.platform }}, 결과: ${{ needs.build.outputs.results || '없음' }}
+                      • ${{ needs.build.outputs.uploaded == '' && '스토어에 올라간 것이 없습니다. 다시 돌리면 스토어 번호를 읽어 새 번호를 잡습니다' || '스토어에는 올라갔지만 태그가 없습니다. 이 번호를 다시 쓰지 않게 태그를 손으로 다세요' }}
                       • 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

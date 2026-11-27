@@ -5,15 +5,8 @@ const path = require('path');
 const io = require('./io');
 const { readGradleVersion, CONFIG } = require('../version-mobile');
 const { parseConventional, categoryOf, highestCategory, isLegacyVersionBump, proposeUnit } = require('./commits');
-const {
-    MOBILE_PACKAGE_JSON,
-    mobileDependencyRoots,
-    allProjectRoots,
-    binaryRoots,
-    reachesBinary,
-    isNativeFile,
-    addedDependencies,
-} = require('./paths');
+const { mobileDependencyRoots, allProjectRoots, binaryRoots, reachesBinary } = require('./paths');
+const { nativeSignals } = require('./signals');
 const {
     parseTag,
     latestTag,
@@ -50,22 +43,15 @@ function readCommits(deps, range) {
         });
 }
 
-function classify(deps, raw, roots, otherRoots = []) {
+function classify(raw, roots, otherRoots = []) {
     const binaryFiles = raw.files.filter(file => reachesBinary(file, roots, otherRoots));
     const { type, breaking } = parseConventional(raw.subject, raw.body);
-    let native = binaryFiles.some(isNativeFile);
-    if (!native && raw.files.includes(MOBILE_PACKAGE_JSON)) {
-        const before = deps.tryGit(['show', `${raw.sha}^:${MOBILE_PACKAGE_JSON}`]);
-        const after = deps.tryGit(['show', `${raw.sha}:${MOBILE_PACKAGE_JSON}`]);
-        native = addedDependencies(before, after).length > 0;
-    }
     return {
         sha: raw.sha,
         author: raw.author,
         subject: raw.subject,
         type,
         breaking,
-        native,
         category: categoryOf({ type, breaking }),
         binaryFiles,
         inBinary: binaryFiles.length > 0 && !isLegacyVersionBump(raw.subject),
@@ -168,7 +154,7 @@ async function buildPlan(options, deps) {
         root => !roots.includes(`${root.replace(/\/+$/, '')}/`)
     );
     const unitCommits = readCommits(deps, `${unitFrom}..${toSha}`)
-        .map(raw => classify(deps, raw, roots, otherRoots))
+        .map(raw => classify(raw, roots, otherRoots))
         .filter(c => c.inBinary);
     const notesShas = new Set(
         notesFrom === unitFrom
@@ -177,18 +163,23 @@ async function buildPlan(options, deps) {
     );
     const notesCommits = unitCommits.filter(commit => notesShas.has(commit.sha));
 
+    const signals = unitCommits.length > 0 ? nativeSignals(deps, unitFrom, toSha) : [];
     if (options.prs !== false) await lookupPrs(deps, unitCommits, options.baseRef || 'develop');
+    const prBySha = new Map(unitCommits.filter(c => c.pr).map(c => [c.sha, c.pr.number]));
+    for (const signal of signals) signal.pr = prBySha.get(signal.sha) || null;
 
     const prs = groupPrs(notesCommits);
     const directCommits = notesCommits.filter(commit => !commit.pr);
     const replacers = parseReplacers(deps.readFile(RELEASE_DRAFTER));
-    const proposed = proposeUnit(unitCommits);
+    const proposed = proposeUnit(unitCommits, signals);
     const devTags = reachableTags.filter(name => compareVersions(parseTag(name).version, base.version) > 0);
     const unit = built ? unitBetween(base.version, built.version) : resolveUnit(proposed.unit, options.bump);
     const version = built
         ? built.version
         : resolveVersion({ base: base.version, unit, devTags, requested: options.version });
-    const build = built ? built.build : nextBuildNumber(allTags, gradle.versionCode);
+    const store = options.storeBuild === undefined || options.storeBuild === null ? null : Number(options.storeBuild);
+    const computed = nextBuildNumber(allTags, Math.max(gradle.versionCode, store || 0));
+    const build = built ? built.build : resolveBuild(computed, options.build);
 
     return {
         repo: options.prs === false ? null : deps.repoSlug(),
@@ -198,12 +189,63 @@ async function buildPlan(options, deps) {
         ranges: { unit: `${unitFrom}..${toSha}`, notes: `${notesFrom}..${toSha}` },
         binaryRoots: roots,
         otherRoots,
-        proposal: { unit: proposed.unit, autoUnit: resolveUnit(proposed.unit, 'auto'), reasons: proposed.reasons },
-        release: { unit, version, build, tag: tagName(version, build) },
+        proposal: {
+            unit: proposed.unit,
+            autoUnit: resolveUnit(proposed.unit, 'auto'),
+            reasons: proposed.reasons,
+            featCommits: proposed.featCommits || 0,
+        },
+        signals,
+        release: {
+            unit,
+            version,
+            build,
+            tag: tagName(version, build),
+            buildBasis: { tags: latestBuild(allTags), store, gradle: gradle.versionCode, computed },
+        },
         commits: notesCommits.map(({ binaryFiles, inBinary: _inBinary, ...rest }) => ({ ...rest, files: binaryFiles })),
         prs,
         teamNotes: teamNotes(prs, directCommits, replacers),
+        cardNotes: teamNotes(prs, directCommits, replacers, 'ko'),
     };
+}
+
+function latestBuild(tags) {
+    const last = latestTag(tags);
+    return last ? last.build : null;
+}
+
+function resolveBuild(computed, requested) {
+    if (requested === undefined || requested === null || requested === '') return computed;
+    if (!/^\d+$/.test(String(requested))) throw new Error(`build must be a whole number (got ${requested})`);
+    const value = Number(requested);
+    if (value < computed) {
+        throw new Error(`build ${value} is below ${computed}, the next free number from the tags and the store`);
+    }
+    return value;
+}
+
+function proposalReason(proposal) {
+    const reasons = proposal.reasons;
+    const prs = list => {
+        const numbers = [...new Set(list.map(item => item.pr).filter(Boolean))];
+        return numbers.length ? `, PR ${numbers.map(n => `#${n}`).join(' ')}` : '';
+    };
+    if (proposal.unit === null) return 'no commit reached the binary';
+    if (proposal.unit === 'patch') {
+        return `no native signal (${proposal.featCommits} feat commit(s) count as patch)`;
+    }
+    if (proposal.unit === 'major') return `${reasons.length} breaking commit(s)${prs(reasons)}`;
+    return `${reasons.map(item => `${item.detail} (${item.file})`).join('; ')}${prs(reasons)}`;
+}
+
+function buildLine(release) {
+    const basis = release.buildBasis;
+    if (!basis) return `${release.build}`;
+    const parts = [`tags ${basis.tags === null ? 'none' : basis.tags}`, `gradle ${basis.gradle}`];
+    parts.push(basis.store === null ? 'store not read' : `store ${basis.store}`);
+    const manual = release.build !== basis.computed ? `, set by hand (next free ${basis.computed})` : '';
+    return `${release.build} (highest of ${parts.join(', ')}, plus one${manual})`;
 }
 
 function unitBetween(from, to) {
@@ -214,20 +256,15 @@ function unitBetween(from, to) {
 }
 
 function summarize(plan) {
-    const reasons = plan.proposal.reasons;
-    const prNumbers = [...new Set(reasons.map(item => item.pr).filter(Boolean))];
-    const why =
-        reasons.length === 0
-            ? 'no commits reached the binary'
-            : `${reasons.length} ${reasons[0].why} commit(s)${prNumbers.length ? `, PR ${prNumbers.map(n => `#${n}`).join(' ')}` : ''}`;
     const rows = [
         ['Base', `${plan.base.version} (${plan.base.source} ${plan.base.ref})`],
         ['Last tag', plan.lastTag || 'none'],
         [
             'Proposal',
-            `${plan.proposal.unit || 'none'}${plan.proposal.unit === 'major' ? ' (auto ships minor)' : ''} — ${why}`,
+            `${plan.proposal.unit || 'none'}${plan.proposal.unit === 'major' ? ' (auto ships minor)' : ''} — ${proposalReason(plan.proposal)}`,
         ],
-        ['Release', `${plan.release.version} (${plan.release.build}) ${plan.release.unit} → ${plan.release.tag}`],
+        ['Release', `${plan.release.version} ${plan.release.unit} → ${plan.release.tag}`],
+        ['Build', buildLine(plan.release)],
         ['Notes range', plan.ranges.notes],
         ['PRs', `${plan.prs.length} PR(s), ${plan.commits.filter(c => !c.pr).length} commit(s) without a PR`],
     ];
@@ -251,6 +288,8 @@ function parseArgs(argv) {
         else if (arg === '--for-tag') options.forTag = value();
         else if (arg === '--bump') options.bump = value();
         else if (arg === '--version') options.version = value() || undefined;
+        else if (arg === '--build') options.build = value() || undefined;
+        else if (arg === '--store-build') options.storeBuild = Number(value());
         else if (arg === '--base-ref') options.baseRef = value();
         else if (arg === '--out') options.out = value();
         else throw new Error(`Unknown argument: ${arg}`);
@@ -281,6 +320,8 @@ io.runMain(module, main);
 
 module.exports = {
     unitBetween,
+    resolveBuild,
+    proposalReason,
     readCommits,
     classify,
     pickPr,
