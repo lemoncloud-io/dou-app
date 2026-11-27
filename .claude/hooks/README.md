@@ -27,7 +27,9 @@ code through, and exits 0 when the checkout has no such hook. The commands are g
 `scripts/install-claude-hooks.js`; a test fails when `settings.json` drifts from it.
 
 `yarn hooks:install` copies the same `hooks` block into the main checkout's `.claude/settings.local.json`,
-which no branch tracks, so the hooks stay on whichever branch the main checkout is on. Run it once per clone
+which no branch tracks, so the hooks stay on whichever branch the main checkout is on. It also holds each
+developer's own permissions with home-directory paths, so `check:internal-paths` fails if it, `.claude/launch.json`
+or a `.DS_Store` is ever tracked. Run it once per clone
 and again after the hook list in `settings.json` changes. When the main checkout's branch also has
 `settings.json`, Claude Code sees identical commands and runs each once.
 
