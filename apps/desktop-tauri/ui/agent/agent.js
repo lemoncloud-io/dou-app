@@ -67,7 +67,7 @@
             el(
                 'p',
                 {},
-                'The engine is the Rust client that serves Claude. It signs in as its own device, approved from the account you are signed in with in the DoU window.'
+                'The engine is dou-cli, a Node process the shell runs. It signs in as its own device, approved from the account you are signed in with in the DoU window.'
             )
         );
         card.append(

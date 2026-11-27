@@ -17,10 +17,12 @@ The default address is baked at build time: `DOU_WEB_URL` if set, else the dev w
 | `app.json`                              | the app source and the localhost port of a served folder               |
 | `settings.json`                         | the Agent window settings                                              |
 | `webview/`                              | WebView storage on Windows; macOS keys its store by the folder instead |
-| `node/`                                 | reserved for the Node sidecar                                          |
+| `node/`                                 | dou-cli session files (`storage.file`)                                 |
 | `logs/`                                 | `shell.log`, `webview.log`, rotated                                    |
 | `shell.lock`                            | the single-instance lock                                               |
 | `shell.sock`                            | the control socket (Windows: `shell.pipe` names the pipe)              |
+| `mcp.sock`                              | the dou-cli MCP server (Windows: `mcp.pipe` names the pipe)            |
+| `dou.env`                               | optional `VITE_*` file passed to dou-cli as `--env-file`               |
 | `device-id`, `vault.key`, `secrets.bin` | identity and the vault, per profile                                    |
 
 The folder is created with mode 0700; a folder that already holds a profile (or is empty) is tightened to 0700, any other existing folder is left as it is. The lock is an OS file lock on `shell.lock`, so a crash releases it and two profiles run side by side. A second start on a locked profile hands its deep-link arguments (`chatic://` and `chatic-dev://` only) to the running instance over `shell.sock` as `second_instance`, focuses it and exits. That is how the sign-in return reaches the running app on Windows.
@@ -56,3 +58,13 @@ A Unix socket (mode 0600, in the 0700 profile folder) or, on Windows, a named pi
 The screenshot is taken by the webview (`takeSnapshot` on WKWebView, `CapturePreview` on WebView2) in `crates/capture`, so it needs no screen recording permission and has no window chrome.
 
 `dou-shellctl --profile <dir> <reload|focus|app-source [value]|screenshot <out.png>|logs [name] [lines]>` is a small client for it.
+
+## Node sidecar
+
+The shell starts `dou-cli --profile <dir> --parent-pipe serve` and keeps its stdin pipe open: when the shell dies the pipe closes and dou-cli exits, so no orphan keeps `mcp.sock`. It stops dou-cli on exit. Output goes to `logs/node.log` (rotated like the others, readable with `logs_tail` and `dou-shellctl logs node`).
+
+- **Where dou-cli comes from:** `DOU_CLI_NODE_SCRIPT` (a built `main.mjs`, run with `node` or `DOU_CLI_NODE`), else `DOU_CLI_BIN`, else `dou-cli` beside the app executable (the bundled single executable). If none exists the shell logs it and runs without MCP.
+- **Crashes:** a stopped dou-cli restarts after 1, 2, 4 … 30 seconds. A run of a minute or more resets the count; after eight quick failures the shell stops trying and the Agent window shows the failure.
+- **Pairing:** the shell pauses the sidecar, runs `dou-cli pair`, then resumes it (one process per profile may own the session files).
+- **`dou-mcp --profile <dir>`:** a byte pipe from stdin and stdout to `mcp.sock`. It waits up to 15 seconds for the socket, then exits 1 with one line. Claude Code registers this command from the Connectors tab.
+- **Bundling:** `tauri.sidecar.conf.json` adds `dou-cli` and `dou-mcp` as external binaries; `yarn nx run dou-cli:build-sidecar` and `node apps/desktop-tauri/scripts/stage-dou-mcp.mjs` put them in `src-tauri/binaries` named by target triple, then `cargo tauri build --config src-tauri/tauri.sidecar.conf.json`. The default build does not need them. Release workflow steps are not part of this folder.

@@ -44,5 +44,9 @@ name = "dou-tauri"
 path = "src/main.rs"
 
 [[bin]]
+name = "dou-mcp"
+path = "src/bin/dou-mcp.rs"
+
+[[bin]]
 name = "dou-shellctl"
 path = "src/bin/dou-shellctl.rs"

@@ -1,10 +1,21 @@
 # agent
 
-The native "DoU Agent" window. The Rust engine and the local MCP server of `apps/desktop-native` no longer run inside this app: DoU logic runs in TypeScript on `@chatic/runtime` through `libs/runtime-node`, and the Rust engine crates are parked. This shell links none of them (`dou-app`, `dou-auth`, `dou-control`, `dou-http`, `dou-socket`, `dou-core`, `dou-mcp`).
+The native "DoU Agent" window. The Rust engine and the local MCP server of `apps/desktop-native` no longer run inside this app: DoU logic runs in TypeScript on `@chatic/runtime` through `libs/runtime-node`, and the Rust engine crates are parked. This shell links none of them (`dou-app`, `dou-auth`, `dou-control`, `dou-http`, `dou-socket`, `dou-core`); its own `dou-mcp` binary is only a byte pipe.
 
-## State today
+## The engine is dou-cli
 
-The window is in place and disconnected. `agent_state` reports signed out, engine stopped, pairing idle; `agent_pair_start`, `agent_clouds` and `agent_choose_cloud` answer that the engine is not connected; `agent_rooms` is empty. Settings and Connectors keep working. The shell no longer ships or registers a `dou-mcp` launcher binary; a later step re-adds the pipe to the Node side and rewires this window.
+The shell starts one `dou-cli --profile <dir> serve` per profile (see [shell](../shell/README.md#node-sidecar)). dou-cli runs the DoU runtime and serves MCP on `<dir>/mcp.sock`; this window only displays and edits.
+
+| Tab or command                          | Source                                                                                                                                                |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Engine sign-in: signed in, engine state | `dou/status` on `mcp.sock` (`agent_state`)                                                                                                            |
+| Pairing code                            | the shell pauses the sidecar, runs `dou-cli pair`, shows `pairing code: …` from its output and starts `serve` again when it ends (`agent_pair_start`) |
+| Cloud list                              | `dou/clouds` (`agent_clouds`). `agent_choose_cloud` answers that choosing is not supported: dou-cli enters the cloud its pairing was approved for     |
+| Rooms in Permissions                    | the `rooms_list` tool through `mcp.sock` (`agent_rooms`); it needs tier read or higher                                                                |
+| Permissions                             | `settings.json` through `crates/agent-settings`; dou-cli re-reads it on every call                                                                    |
+| Connectors                              | registers `dou-mcp --profile <dir>`, the byte pipe from a client's stdio to `mcp.sock`                                                                |
+
+Without a `dou-cli` beside the app (or `DOU_CLI_BIN` / `DOU_CLI_NODE_SCRIPT`) the engine shows as stopped and pairing says the sidecar was not found.
 
 ## Permissions
 
@@ -12,7 +23,7 @@ The Permissions tab edits `settings.json` in the profile folder through `crates/
 
 ## Connectors
 
-`crates/connectors` registers a launcher with Claude Desktop (merging `mcpServers.dou` into `claude_desktop_config.json`, keeping every other key, with a one-time `.dou-backup` copy and an atomic write) and Claude Code (`claude mcp add --scope user dou -- <launcher> --profile <dir>` as a fixed argument vector, no shell). Status is read from the config files, not from a live connection. While no launcher ships, Connect reports it missing and registers nothing.
+`crates/connectors` registers a launcher with Claude Desktop (merging `mcpServers.dou` into `claude_desktop_config.json`, keeping every other key, with a one-time `.dou-backup` copy and an atomic write) and Claude Code (`claude mcp add --scope user dou -- <launcher> --profile <dir>` as a fixed argument vector, no shell). Status is read from the config files, not from a live connection. The launcher is the `dou-mcp` binary beside the app; while it is missing, Connect reports that and registers nothing.
 
 ## The window
 

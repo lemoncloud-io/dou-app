@@ -13,7 +13,7 @@ The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the dep
 | `crates/connectors`     | registering the launcher with Claude Desktop and Claude Code                                                                             |
 | `crates/vault`          | the encrypted `nativeSecure` store                                                                                                       |
 | `crates/capture`        | PNG of the main webview, taken by the webview itself (the only crate allowed `unsafe`)                                                   |
-| `scripts/`              | `check-bridge-contract.mjs`; `smoke/` (a fixture page and a server for the CI smoke run)                                                 |
+| `scripts/`              | `check-bridge-contract.mjs`; `stage-dou-mcp.mjs`; `smoke/` (a fixture page and a server for the CI smoke run)                            |
 | `docs/`                 | [agent](./docs/agent/README.md), [bridge](./docs/bridge/README.md), [storage](./docs/storage/README.md), [shell](./docs/shell/README.md) |
 
 ## Commands

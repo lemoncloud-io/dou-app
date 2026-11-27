@@ -4,10 +4,12 @@ mod bridge;
 mod globals;
 pub mod handlers;
 mod logs;
+pub mod mcp_pipe;
 pub mod profile;
 pub mod shell_client;
 mod shell_host;
 mod shell_sock;
+pub mod sidecar;
 mod snapshot;
 mod window;
 
@@ -139,7 +141,30 @@ pub fn run() {
                 &paths,
                 &vault_account(custom_profile, &paths),
             )?;
-            app.manage(Arc::new(agent::Agent::new(paths.root().to_path_buf())));
+            let exe_dir = std::env::current_exe()
+                .ok()
+                .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf));
+            let env = |name: &str| std::env::var(name).ok();
+            let locate = |command: &str| {
+                exe_dir
+                    .as_deref()
+                    .and_then(|dir| sidecar::locate(&paths, dir, &env, command))
+            };
+            let node_sink = Arc::new(logs::Sink::new(
+                paths.logs_dir().join("node.log"),
+                logs::MAX_BYTES,
+                logs::KEEP,
+            ));
+            let node =
+                locate("serve").map(|spec| Arc::new(sidecar::Sidecar::start(spec, node_sink)));
+            if node.is_none() {
+                logs::shell("dou-cli sidecar not found; MCP and the engine are off");
+            }
+            app.manage(Arc::new(agent::Agent::new(
+                paths.clone(),
+                node,
+                locate("pair"),
+            )));
             handlers::listen_for_sign_in(app.handle());
             window::open_main(
                 app.handle(),
@@ -171,6 +196,13 @@ pub fn run() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("the Tauri application failed to run");
+        .build(tauri::generate_context!())
+        .expect("the Tauri application failed to build")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit)
+                && let Some(agent) = app.try_state::<Arc<agent::Agent>>()
+            {
+                agent.shutdown();
+            }
+        });
 }

@@ -109,6 +109,19 @@ impl Paths {
         self.root.join("shell.pipe")
     }
 
+    pub fn mcp_sock(&self) -> PathBuf {
+        self.root.join("mcp.sock")
+    }
+
+    #[cfg(windows)]
+    pub fn mcp_pipe(&self) -> PathBuf {
+        self.root.join("mcp.pipe")
+    }
+
+    pub fn dou_env(&self) -> PathBuf {
+        self.root.join("dou.env")
+    }
+
     pub fn lock_file(&self) -> PathBuf {
         self.root.join("shell.lock")
     }
@@ -245,7 +258,7 @@ mod tests {
         assert!(matches!(Lock::acquire(&one), Err(LockError::Held)));
         let other = Lock::acquire(&two).expect("a different profile is free");
         drop(first);
-        assert!(Lock::acquire(&one).is_ok());
+        assert!(Lock::acquire_within(&one, std::time::Duration::from_secs(2)).is_ok());
         drop(other);
     }
 
