@@ -1,7 +1,6 @@
 (() => {
     const target = new URL(location.href).searchParams.get('to');
     const status = document.getElementById('status');
-    const detail = document.getElementById('detail');
     const retry = document.getElementById('retry');
     const delays = [1000, 2000, 4000, 8000, 15000];
     let attempt = 0;
@@ -18,16 +17,16 @@
             location.replace(target);
         } catch {
             status.textContent = 'No connection';
-            detail.hidden = false;
-            retry.hidden = false;
             timer = setTimeout(go, delays[Math.min(attempt++, delays.length - 1)]);
         }
     };
 
     retry.addEventListener('click', go);
+    window.addEventListener('online', go);
     if (!target || !/^(https:\/\/|http:\/\/localhost[:/])/.test(target)) {
         status.textContent = 'No address to open';
+        retry.hidden = true;
     } else {
-        go();
+        timer = setTimeout(go, 1500);
     }
 })();

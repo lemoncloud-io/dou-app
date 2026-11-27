@@ -37,7 +37,7 @@ dou-core = { path = "../../desktop-native/crates/dou-core" }
 agent-settings = { path = "../crates/agent-settings" }
 connectors = { path = "../crates/connectors" }
 dou-mcp = { path = "../../desktop-native/crates/dou-mcp" }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "time", "net"] }
 serde.workspace = true
 serde_json.workspace = true
 url = "2"
