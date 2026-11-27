@@ -48,7 +48,7 @@ export const nodeHostPorts = ({ writeLine = writeToStdout, put = fetchPut }: Nod
         os: null,
         sessionScope: 'device',
         approvesPairing: false,
-        requestsPairing: false,
+        requestsPairing: true,
         providerSignIn: null,
         relayOAuth: null,
     },

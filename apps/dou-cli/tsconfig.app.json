@@ -1,0 +1,19 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "../../dist/out-tsc/dou-cli",
+        "tsBuildInfoFile": "../../dist/out-tsc/dou-cli/tsconfig.app.tsbuildinfo",
+        "lib": ["es2022"],
+        "types": ["node"],
+        "rootDir": "../.."
+    },
+    "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.test.ts"],
+    "include": ["src/**/*.ts"],
+    "references": [
+        { "path": "../../libs/runtime-node/tsconfig.lib.json" },
+        { "path": "../../libs/host/node/tsconfig.lib.json" },
+        { "path": "../../libs/runtime/tsconfig.lib.json" },
+        { "path": "../../libs/config/tsconfig.lib.json" },
+        { "path": "../../libs/agent-tools/tsconfig.lib.json" }
+    ]
+}

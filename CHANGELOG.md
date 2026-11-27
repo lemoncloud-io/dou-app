@@ -2,6 +2,38 @@
 
 ## [2026-11-27] - No version updates
 
+### Features
+
+- (agent-tools) MCP tool registry and permission gate in TypeScript
+- (agent-tools) add MCP tool registry and permission gate (WIP)
+- (agent-tools) add runtime backend adapter and module docs
+
+### Bug Fixes
+
+- (agent-tools) gate events by room and meter every read
+- (agent-tools) harden subscribe and event waits
+
+## [2026-11-27] - No version updates
+
+### Chores
+
+- (tsconfig) commit the nx sync result for project references
+
+## [2026-11-27] - No version updates
+
+### Features
+
+- (host-node,dou-cli) sign a Node process in by device pairing
+- (dou-cli) add Node CLI with pair, whoami, clouds and serve commands
+- (host-node) request device pairing from Node and document sign-in
+- (dou-cli) load stage endpoints from --env-file and end pair on stop signal
+
+### Chores
+
+- (host-node) add pairNode for Node device pairing (WIP)
+
+## [2026-11-27] - No version updates
+
 ### Refactor
 
 - (db) split @chatic/db into the db family and name the db port
