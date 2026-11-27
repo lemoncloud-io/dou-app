@@ -9,7 +9,7 @@ on:
                 options: [upload, release, rollout, halt]
                 default: upload
             env:
-                description: 'Store app to upload to (prod arrives in a later change)'
+                description: 'Store app to upload to; prod ships the dev build named by tag'
                 type: choice
                 options: [dev, prod]
                 required: true
@@ -23,7 +23,7 @@ on:
                 type: string
                 required: false
             ref:
-                description: 'dev only: branch to build'
+                description: 'dev only: develop, or release/mobile-<major>.<minor> for a hotfix (always patch)'
                 type: string
                 default: develop
             version:
@@ -48,9 +48,9 @@ on:
                 type: string
                 required: false
             submit:
-                description: 'prod only: submit for review after the upload'
+                description: 'prod only: submit for review after the upload (not available until store submission)'
                 type: boolean
-                default: true
+                default: false
             rollout:
                 description: 'rollout only: percentage (1-100) or complete'
                 type: string
@@ -88,15 +88,23 @@ jobs:
                   TAG: ${{ inputs.tag }}
                   VERSION: ${{ inputs.version }}
                   BUILD: ${{ inputs.build }}
+                  BUMP: ${{ inputs.bump }}
+                  SUBMIT: ${{ inputs.submit }}
                   ROLLOUT: ${{ inputs.rollout }}
                   STORE_NOTES: ${{ inputs.store_notes }}
               run: |
                   set -euo pipefail
                   fail() { echo "::error::$1"; exit 1; }
                   [ "$ACTION" = "upload" ] || fail "action=$ACTION is not available yet: release, rollout and halt arrive with store submission."
-                  [ "$TARGET_ENV" = "dev" ] || fail "env=$TARGET_ENV is not available yet: prod uploads arrive with release branches."
                   [ -z "$ROLLOUT" ] || fail "rollout is for action=rollout."
-                  [ "$REF" = "develop" ] || fail "dev builds come from develop; release/mobile-* hotfix builds arrive with release branches."
+                  [ "$SUBMIT" = "false" ] || fail "submit=true waits for store submission (after the store settings change); run with submit=false."
+                  if [ "$TARGET_ENV" = "prod" ]; then
+                    [ -n "$TAG" ] || fail "env=prod needs tag: the dev build to ship."
+                    [ -z "$VERSION$BUILD" ] || fail "prod ships the tag's version and build; leave version and build empty."
+                    [ "$BUMP" = "auto" ] || fail "prod ships the tag's version; leave bump at auto."
+                  elif ! [[ "$REF" = "develop" || "$REF" =~ ^release/mobile-[0-9]+\.[0-9]+$ ]]; then
+                    fail "dev builds come from develop, or release/mobile-<major>.<minor> for a hotfix (got $REF)."
+                  fi
                   if [ -n "$VERSION" ] && ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then fail "version must be X.Y.Z (got $VERSION)."; fi
                   if [ -n "$BUILD" ] && ! [[ "$BUILD" =~ ^[0-9]+$ ]]; then fail "build must be a whole number (got $BUILD)."; fi
                   if [ -n "$TAG" ]; then
@@ -108,7 +116,7 @@ jobs:
                   node scripts/mobile-release/index.js check-notes "$RUNNER_TEMP/store-notes.txt" || fail "store_notes must be 1-500 characters."
 
     build:
-        name: Upload (${{ inputs.env }}, ${{ inputs.platform }}${{ inputs.tag && ', retry' || '' }})
+        name: Upload (${{ inputs.env }}, ${{ inputs.platform }}${{ inputs.tag && format(', {0}', inputs.tag) || '' }})
         needs: preflight
         runs-on: macos-latest
         timeout-minutes: 150
@@ -118,7 +126,9 @@ jobs:
             build: ${{ steps.release.outputs.build }}
             tag: ${{ steps.release.outputs.tag }}
             sha: ${{ steps.release.outputs.sha }}
-            retry: ${{ steps.target.outputs.retry }}
+            mode: ${{ steps.target.outputs.mode }}
+            branch: ${{ steps.target.outputs.branch }}
+            branch_exists: ${{ steps.target.outputs.branch_exists }}
             results: ${{ steps.results.outputs.results }}
             uploaded: ${{ steps.results.outputs.uploaded }}
         env:
@@ -150,13 +160,29 @@ jobs:
             - name: Decide the platforms
               id: target
               env:
+                  GH_TOKEN: ${{ github.token }}
                   TAG: ${{ inputs.tag }}
+                  REF: ${{ inputs.ref }}
                   PLATFORM: ${{ inputs.platform }}
                   STORE_NOTES: ${{ inputs.store_notes }}
               run: |
                   set -euo pipefail
                   mkdir -p "$WORK"
-                  if [ -n "$TAG" ]; then
+                  if [ "$TARGET_ENV" = "prod" ]; then
+                    ARGS=("$TAG")
+                    [ "$PLATFORM" = "all" ] || ARGS+=(--platform "$PLATFORM")
+                    node scripts/mobile-release/index.js prod-info "${ARGS[@]}" > "$WORK/prod.json"
+                    node -e '
+                      const fs = require("fs");
+                      const r = require(process.argv[1]);
+                      fs.writeFileSync(process.argv[2], process.env.STORE_NOTES || r.storeNotes);
+                      const out = ["mode=prod", `previous=${r.previous}`, `version=${r.version}`, `build=${r.build}`, `tag=${r.tag}`,
+                        `sha=${r.sha}`, `branch=${r.branch}`, `branch_exists=${r.branchExists}`];
+                      fs.appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
+                      console.log(`${r.tag}: prod ${r.platforms.join(", ")}; ${r.branch} ${r.branchExists ? "contains it" : "is created after the upload"}`);
+                    ' "$WORK/prod.json" "$WORK/store-notes.txt"
+                    PLATFORMS=$(node -p 'require(process.argv[1]).platforms.join(",")' "$WORK/prod.json")
+                  elif [ -n "$TAG" ]; then
                     ARGS=("$TAG")
                     [ "$PLATFORM" = "all" ] || ARGS+=(--platform "$PLATFORM")
                     node scripts/mobile-release/index.js retry-info "${ARGS[@]}" > "$WORK/retry.json"
@@ -168,7 +194,7 @@ jobs:
                         process.exit(1);
                       }
                       fs.writeFileSync(process.argv[2], process.env.STORE_NOTES || r.storeNotes);
-                      const out = ["retry=true", `previous=${r.results}`, `version=${r.version}`, `build=${r.build}`,
+                      const out = ["mode=retry", `previous=${r.results}`, `version=${r.version}`, `build=${r.build}`,
                         `tag=${r.tag}`, `sha=${r.sha}`];
                       fs.appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
                       console.log(`${r.tag}: uploading ${r.missing.join(", ")} again (recorded ${r.results})`);
@@ -177,7 +203,7 @@ jobs:
                   else
                     PLATFORMS=$([ "$PLATFORM" = "all" ] && echo ios,android || echo "$PLATFORM")
                     printf '%s' "$STORE_NOTES" > "$WORK/store-notes.txt"
-                    { echo "retry=false"; echo "previous="; } >> "$GITHUB_OUTPUT"
+                    { echo "mode=new"; echo "previous="; echo "branch=$REF"; } >> "$GITHUB_OUTPUT"
                   fi
                   WITH_IOS=false
                   WITH_ANDROID=false
@@ -234,28 +260,35 @@ jobs:
 
             - name: Read the store build numbers
               id: store
-              if: ${{ steps.target.outputs.retry == 'false' }}
+              if: ${{ steps.target.outputs.mode != 'retry' }}
               env:
                   ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
                   ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+                  MODE: ${{ steps.target.outputs.mode }}
+                  TAG_BUILD: ${{ steps.target.outputs.build }}
               run: |
                   set -euo pipefail
                   MAX=$(node scripts/mobile-release/index.js store-build --env "$TARGET_ENV" --platforms "$PLATFORMS")
                   echo "max=$MAX" >> "$GITHUB_OUTPUT"
+                  if [ "$MODE" = "prod" ] && [ "$MAX" -ge "$TAG_BUILD" ]; then
+                    echo "::error::The prod store already has build $MAX, not below $TAG_BUILD; ship a newer dev build instead."
+                    exit 1
+                  fi
 
             - name: Plan version and notes
               id: plan
-              if: ${{ steps.target.outputs.retry == 'false' }}
+              if: ${{ steps.target.outputs.mode == 'new' }}
               env:
                   GH_TOKEN: ${{ github.token }}
                   BUMP: ${{ inputs.bump }}
                   VERSION: ${{ inputs.version }}
                   BUILD: ${{ inputs.build }}
+                  REF: ${{ inputs.ref }}
                   STORE_BUILD: ${{ steps.store.outputs.max }}
               run: |
                   set -euo pipefail
                   node scripts/mobile-release/plan.js --json --bump "$BUMP" --version "$VERSION" --build "$BUILD" \
-                    --store-build "$STORE_BUILD" --out "$WORK/plan.json"
+                    --store-build "$STORE_BUILD" --branch "$REF" --out "$WORK/plan.json"
                   node -e '
                     const p = require(process.argv[1]);
                     const out = [`version=${p.release.version}`, `build=${p.release.build}`, `tag=${p.release.tag}`, `sha=${p.to.sha}`];
@@ -270,7 +303,7 @@ jobs:
             - name: Release target
               id: release
               env:
-                  RETRY: ${{ steps.target.outputs.retry }}
+                  MODE: ${{ steps.target.outputs.mode }}
                   T_VERSION: ${{ steps.target.outputs.version }}
                   T_BUILD: ${{ steps.target.outputs.build }}
                   T_TAG: ${{ steps.target.outputs.tag }}
@@ -280,7 +313,7 @@ jobs:
                   P_TAG: ${{ steps.plan.outputs.tag }}
                   P_SHA: ${{ steps.plan.outputs.sha }}
               run: |
-                  if [ "$RETRY" = "true" ]; then
+                  if [ "$MODE" != "new" ]; then
                     { echo "version=$T_VERSION"; echo "build=$T_BUILD"; echo "tag=$T_TAG"; echo "sha=$T_SHA"; } >> "$GITHUB_OUTPUT"
                   else
                     { echo "version=$P_VERSION"; echo "build=$P_BUILD"; echo "tag=$P_TAG"; echo "sha=$P_SHA"; } >> "$GITHUB_OUTPUT"
@@ -375,7 +408,7 @@ jobs:
     tag:
         name: Push the tag
         needs: build
-        if: ${{ always() && needs.build.outputs.retry == 'false' && needs.build.outputs.uploaded != '' }}
+        if: ${{ always() && needs.build.outputs.mode == 'new' && needs.build.outputs.uploaded != '' }}
         runs-on: ubuntu-latest
         timeout-minutes: 5
         permissions:
@@ -400,6 +433,7 @@ jobs:
                   WORK: ${{ runner.temp }}/mobile-release
                   TARGET_ENV: ${{ inputs.env }}
                   RESULTS: ${{ needs.build.outputs.results }}
+                  BRANCH: ${{ needs.build.outputs.branch }}
                   TAG: ${{ needs.build.outputs.tag }}
                   SHA: ${{ needs.build.outputs.sha }}
               run: |
@@ -414,19 +448,44 @@ jobs:
                     const p = require(process.argv[1]);
                     fs.writeFileSync(process.argv[2], tagMessage({
                       version: p.release.version, build: p.release.build, env: process.env.TARGET_ENV,
-                      results: parseResults(process.env.RESULTS), sha: p.to.sha,
+                      results: parseResults(process.env.RESULTS), sha: p.to.sha, branch: process.env.BRANCH,
                       storeNotes: fs.readFileSync(process.argv[3], "utf8"),
                     }));
                   ' "$WORK/plan.json" "$WORK/tag-message.txt" "$WORK/store-notes.txt"
                   git tag -a --cleanup=verbatim "$TAG" "$SHA" -F "$WORK/tag-message.txt"
                   git push origin "refs/tags/$TAG"
 
+    release-branch:
+        name: Cut the release branch
+        needs: build
+        if: >-
+            ${{ always() && needs.build.outputs.mode == 'prod' && needs.build.outputs.uploaded != '' &&
+            needs.build.outputs.branch_exists == 'false' }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ needs.build.outputs.sha }}
+                  sparse-checkout: scripts
+
+            - name: Push the branch at the tag's commit
+              env:
+                  BRANCH: ${{ needs.build.outputs.branch }}
+                  SHA: ${{ needs.build.outputs.sha }}
+              run: |
+                  set -euo pipefail
+                  [[ "$BRANCH" =~ ^release/mobile-[0-9]+\.[0-9]+$ ]] || { echo "::error::unexpected branch $BRANCH"; exit 1; }
+                  git push origin "$SHA:refs/heads/$BRANCH"
+
     finish:
         name: Finish
-        needs: [build, tag]
+        needs: [build, tag, release-branch]
         if: >-
-            ${{ always() && (needs.tag.result == 'success' ||
-            (needs.build.outputs.retry == 'true' && needs.build.outputs.uploaded != '')) }}
+            ${{ always() && needs.release-branch.result != 'failure' && (needs.tag.result == 'success' ||
+            (needs.build.outputs.mode != 'new' && needs.build.outputs.uploaded != '')) }}
         permissions:
             contents: write
             pull-requests: write
@@ -442,10 +501,11 @@ jobs:
 
     notify-failure:
         name: Notify DoU of a failed upload or tag
-        needs: [preflight, build, tag]
+        needs: [preflight, build, tag, release-branch]
         if: >-
             ${{ always() && needs.preflight.result == 'success' && (needs.build.outputs.uploaded == '' ||
-            (needs.build.outputs.retry == 'false' && needs.tag.result != 'success')) }}
+            needs.release-branch.result == 'failure' ||
+            (needs.build.outputs.mode == 'new' && needs.tag.result != 'success')) }}
         runs-on: ubuntu-latest
         timeout-minutes: 5
         steps:
@@ -456,8 +516,8 @@ jobs:
                   token: ${{ secrets.DOU_WEBHOOK_TOKEN }}
                   channel-id: ${{ secrets.DOU_CHANNEL_ID }}
                   status: failure
-                  title: DoU 모바일 ${{ inputs.env }} ${{ needs.build.outputs.tag || '' }} ${{ needs.build.outputs.uploaded == '' && '업로드 실패' || '태그 실패' }} (원격)
+                  title: DoU 모바일 ${{ inputs.env }} ${{ needs.build.outputs.tag || '' }} ${{ needs.build.outputs.uploaded == '' && '업로드 실패' || (needs.release-branch.result == 'failure' && '릴리스 브랜치 생성 실패' || '태그 실패') }} (원격)
                   text: |
                       • 요청: ${{ inputs.platform }}, 결과: ${{ needs.build.outputs.results || '없음' }}
-                      • ${{ needs.build.outputs.uploaded == '' && '스토어에 올라간 것이 없습니다. 다시 돌리면 스토어 번호를 읽어 새 번호를 잡습니다' || '스토어에는 올라갔지만 태그가 없습니다. 이 번호를 다시 쓰지 않게 태그를 손으로 다세요' }}
+                      • ${{ needs.build.outputs.uploaded == '' && '스토어에 올라간 것이 없습니다. 다시 돌리면 스토어 번호를 읽어 새 번호를 잡습니다' || (needs.release-branch.result == 'failure' && format('prod에는 올라갔지만 {0}를 만들지 못했습니다. 태그 커밋에서 손으로 만들고 finish를 env=prod로 다시 돌리세요', needs.build.outputs.branch) || '스토어에는 올라갔지만 태그가 없습니다. 이 번호를 다시 쓰지 않게 태그를 손으로 다세요') }}
                       • 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
