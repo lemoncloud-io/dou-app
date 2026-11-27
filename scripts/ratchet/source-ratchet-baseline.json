@@ -174,7 +174,6 @@
     "apps/desktop-web/vite.config.mts": {"comments":1},
     "apps/desktop/src/main/bridgeHandlers.contract.test.ts": {"asAny":2},
     "apps/desktop/src/main/customUiState.ts": {"comments":1},
-    "apps/desktop/src/main/fcm.ts": {"comments":1},
     "apps/desktop/src/main/updater.test.ts": {"asAny":2},
     "apps/desktop/src/main/updaterLog.ts": {"comments":2},
     "apps/landing/src/app/features/deeplink/hooks/useAppLauncher.ts": {"useEffect":1},

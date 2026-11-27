@@ -30,7 +30,6 @@ package is a file move:
 | `customUiIpc.ts` · `loginItemIpc.ts` · `downloadsIpc.ts` | The desktop-only IPC channels; `downloadsIpc.ts` also handles `will-download` |
 | `sessionPermissions.ts`                                  | Permission requests                                                           |
 | `osNotifications.ts`                                     | OS notifications, badge, the macOS first-launch registration                  |
-| `push.ts`                                                | FCM start and the token the bridge waits for                                  |
 | `deviceVault.ts`                                         | The device vault on electron `safeStorage`                                    |
 | `deviceId.ts`                                            | The installation's device id                                                  |
 | `shellState.ts`                                          | The quitting flag and the main window's bridge host                           |
@@ -273,19 +272,10 @@ A downloaded ZIP replaces the remote web, so every step assumes the archive is h
 
 ### Push and notifications
 
-- **Cross-cloud push** rides an in-process mtalk socket (an Android-style FCM registration through
-  `push-receiver`), not an OS push daemon. A `prevent-app-suspension` assertion keeps it alive through macOS App
-  Nap; it is started only when FCM is configured, so unconfigured builds do not pay the battery cost.
-- **Staying connected.** The library has no heartbeat and a half-open socket fires no `close`, with TCP
-  keepalive taking about two hours. The shell therefore reconnects on a watchdog timer, on system resume and on
-  window focus (throttled). Queued pushes replay on login and persistent ids dedupe them; the saved id list is
-  capped at 100, since only unacknowledged pushes can replay and the list is re-sent on every connect.
-- **Token freshness.** Google expires tokens minted through the unofficial endpoint, and the broker's endpoint
-  bound to a dead token is disabled on its first rejected delivery. The token is re-minted every launch and on a
-  12 hour cadence, reusing the saved GCM identity (a full register churns the Android id and the socket) and
-  pushing the new token to the web to re-register. With no usable credentials the socket still comes up from the
-  cached ones. The push is flattened from the backend's nested `data.payload` and loc args; the renderer decides
-  presentation, as it does for same-cloud banners.
+- **Cross-cloud push** is [`@chatic/push-desktop`](../../libs/push/desktop/README.md): an in-process FCM
+  registration that `mainWindow.ts` starts with the FCM config from `appChannel.ts`. A new token goes to the web
+  to re-register, and a push goes to the renderer, which decides presentation as it does for same-cloud banners.
+  `FetchFcmToken` answers with `awaitFcmToken()`.
 - **No coalescing of OS notifications.** Closing the previous toast for a channel raced the new `show()` on macOS
   and dropped bursts, so each call shows its own banner; the renderer already emits one per cache snapshot.
 - **macOS first launch** posts one silent notification (once per install) so the bundle appears in Notification

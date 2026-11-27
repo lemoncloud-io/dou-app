@@ -112,6 +112,9 @@
             "path": "./libs/checkout/store"
         },
         {
+            "path": "./libs/push/desktop"
+        },
+        {
             "path": "./libs/push/mobile"
         },
         {
