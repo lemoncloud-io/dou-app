@@ -16,6 +16,20 @@ const { spawnSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 const PATTERN = '\\.claude/[0-9]{8}|DEBUG-[0-9]{2}-[0-9]{2}-[0-9]{2}';
 const SCOPE = ['apps', 'libs', 'scripts', 'docs'];
+const MACHINE_LOCAL = ['.claude/settings.local.json', '.claude/launch.json', '**/.DS_Store'];
+
+const tracked = spawnSync('git', ['ls-files', '--', ...MACHINE_LOCAL.map(p => `:(glob)${p}`)], {
+    cwd: ROOT,
+    encoding: 'utf8',
+});
+if (tracked.status !== 0 || tracked.stdout.trim()) {
+    console.error(
+        tracked.status === 0
+            ? `${tracked.stdout}\nMachine-local file(s) above are tracked. Run \`git rm --cached\` on them; they stay on disk.`
+            : `git ls-files did not run cleanly (exit ${tracked.status}).`
+    );
+    process.exit(1);
+}
 
 const { status, stdout } = spawnSync('git', ['grep', '-nE', PATTERN, '--', ...SCOPE], { cwd: ROOT, encoding: 'utf8' });
 
