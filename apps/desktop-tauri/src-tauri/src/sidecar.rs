@@ -359,6 +359,7 @@ mod tests {
         (dir, paths)
     }
 
+    #[cfg(unix)]
     fn sink(paths: &Paths) -> Arc<Sink> {
         Arc::new(Sink::new(
             paths.root().join("node.log"),
