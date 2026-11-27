@@ -41,7 +41,7 @@ const saveCreds = (creds: SavedCreds): void => {
     try {
         writeFileSync(credsFile(), JSON.stringify(creds));
     } catch {
-        // best-effort persistence; a fresh register on next launch is acceptable.
+        return;
     }
 };
 
