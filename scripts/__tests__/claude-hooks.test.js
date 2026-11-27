@@ -443,3 +443,80 @@ describe('lint-edited-file hook', () => {
         expect(configDirFor(path.join(ROOT, 'apps/web/src/main.tsx'), ROOT)).toBe(ROOT);
     });
 });
+
+describe('hook commands in settings.json', () => {
+    const { spawnSync } = require('child_process');
+    const { hooksConfig, install } = require('../install-claude-hooks.js');
+    const settings = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude/settings.json'), 'utf8'));
+    const commandsFor = name =>
+        Object.values(settings.hooks)
+            .flat()
+            .flatMap(group => group.hooks.map(hook => hook.command))
+            .filter(command => command.endsWith(` ${name}`));
+
+    const runCommand = (command, input, env = {}) => {
+        const elsewhere = fs.mkdtempSync(path.join(os.tmpdir(), 'config-root-'));
+        return spawnSync('sh', ['-c', command], {
+            cwd: elsewhere,
+            input: JSON.stringify(input),
+            encoding: 'utf8',
+            env: { ...process.env, CLAUDE_PROJECT_DIR: elsewhere, ...env },
+        });
+    };
+
+    it('is generated from install-claude-hooks.js', () => {
+        expect(settings.hooks).toEqual(hooksConfig());
+    });
+
+    it("runs the session checkout's hook when the project directory is another checkout", () => {
+        const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hook-log-'));
+        const id = session();
+        const input = {
+            cwd: path.join(ROOT, 'apps'),
+            session_id: id,
+            hook_event_name: 'PostToolUseFailure',
+            tool_input: { command: 'yarn gate' },
+        };
+        const [command] = commandsFor('check-escalation');
+        const result = runCommand(command, input, { DOU_HOOK_LOG_DIR: logDir });
+        expect(result.status).toBe(0);
+        expect(JSON.parse(fs.readFileSync(path.join(logDir, `state-${id}.json`), 'utf8')).failures).toEqual({
+            'yarn gate': 1,
+        });
+    });
+
+    it('passes a blocking exit code and stderr through', () => {
+        const logDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hook-log-'));
+        const modes = path.join(logDir, 'modes.json');
+        fs.writeFileSync(modes, JSON.stringify({ 'check-escalation': 'enforce' }));
+        const input = { cwd: ROOT, session_id: session(), hook_event_name: 'PostToolUseFailure' };
+        const [command] = commandsFor('check-escalation');
+        let result;
+        for (let i = 0; i < 3; i += 1) {
+            result = runCommand(
+                command,
+                { ...input, tool_input: { command: 'yarn gate' } },
+                { DOU_HOOK_LOG_DIR: logDir, DOU_HOOK_MODES: modes }
+            );
+        }
+        expect(result.status).toBe(2);
+        expect(result.stderr).toContain('Hand it to the user');
+    });
+
+    it('does nothing outside a checkout that has the hook', () => {
+        const [command] = commandsFor('verify-before-stop');
+        const result = runCommand(command, { cwd: os.tmpdir(), session_id: session() });
+        expect(result.status).toBe(0);
+        expect(result.stdout + result.stderr).toBe('');
+    });
+
+    it('installs into a local settings file, keeping what is there, once', () => {
+        const target = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'local-settings-')), 'settings.local.json');
+        fs.writeFileSync(target, JSON.stringify({ permissions: { allow: ['Bash(ls)'] } }));
+        expect(install(target)).toBe('installed');
+        expect(install(target)).toBe('unchanged');
+        const written = JSON.parse(fs.readFileSync(target, 'utf8'));
+        expect(written.permissions).toEqual({ allow: ['Bash(ls)'] });
+        expect(written.hooks).toEqual(settings.hooks);
+    });
+});
