@@ -1,9 +1,28 @@
 use std::future::Future;
 
+use std::net::SocketAddr;
+use std::sync::Arc;
+
+use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use reqwest::{Client, header, redirect};
 use url::Url;
 
-use crate::{MAX_BYTES, TIMEOUT};
+use crate::{MAX_BYTES, TIMEOUT, public_only};
+
+struct PublicOnly;
+
+impl Resolve for PublicOnly {
+    fn resolve(&self, name: Name) -> Resolving {
+        Box::pin(async move {
+            let found = tokio::net::lookup_host((name.as_str(), 0)).await?;
+            let public: Vec<SocketAddr> = public_only(found);
+            if public.is_empty() {
+                return Err("the host resolves only to private addresses".into());
+            }
+            Ok(Box::new(public.into_iter()) as Addrs)
+        })
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Reply {
@@ -25,6 +44,7 @@ impl Web {
     pub fn new() -> Option<Self> {
         let client = Client::builder()
             .redirect(redirect::Policy::none())
+            .dns_resolver(Arc::new(PublicOnly))
             .timeout(TIMEOUT)
             .build()
             .ok()?;

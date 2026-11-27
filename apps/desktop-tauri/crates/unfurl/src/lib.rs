@@ -7,7 +7,7 @@ use std::time::Duration;
 use url::Url;
 
 pub use fetch::{Fetch, Reply, Web};
-pub use guard::{is_fetchable, is_private_host};
+pub use guard::{is_fetchable, is_private_host, is_private_ip, public_only};
 pub use html::{Metadata, parse};
 
 pub const TIMEOUT: Duration = Duration::from_secs(3);

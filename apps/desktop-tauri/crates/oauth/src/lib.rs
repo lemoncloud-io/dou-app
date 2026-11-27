@@ -138,8 +138,12 @@ impl Pending {
     }
 
     pub fn accept(&self, link: &Deeplink, now_ms: u64) -> Result<Accepted, Rejection> {
-        let start = self.slot().take();
-        judge(start.as_ref(), link, now_ms)?;
+        let mut slot = self.slot();
+        let verdict = judge(slot.as_ref(), link, now_ms);
+        if matches!(verdict, Ok(()) | Err(Rejection::Expired)) {
+            slot.take();
+        }
+        verdict?;
         Ok(Accepted {
             provider: link.provider,
             code: link.code.clone(),
@@ -297,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn a_refused_link_spends_the_start() {
+    fn a_link_that_does_not_match_leaves_the_start_for_the_real_one() {
         let pending = Pending::default();
         pending.begin(start());
         assert_eq!(
@@ -305,9 +309,26 @@ mod tests {
             Err(Rejection::NonceMismatch)
         );
         assert_eq!(
-            pending.accept(&link(Provider::Google, Some("abc123")), 2_000),
-            Err(Rejection::NoStart)
+            pending.accept(&link(Provider::Apple, Some("abc123")), 2_000),
+            Err(Rejection::ProviderMismatch)
         );
+        assert!(
+            pending
+                .accept(&link(Provider::Google, Some("abc123")), 2_000)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn an_expired_start_is_dropped() {
+        let pending = Pending::default();
+        pending.begin(start());
+        let ok = link(Provider::Google, Some("abc123"));
+        assert_eq!(
+            pending.accept(&ok, 1_000 + START_TTL_MS),
+            Err(Rejection::Expired)
+        );
+        assert_eq!(pending.accept(&ok, 2_000), Err(Rejection::NoStart));
     }
 
     #[test]

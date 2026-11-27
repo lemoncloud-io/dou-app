@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use url::{Host, Url};
 
@@ -19,8 +19,11 @@ fn private_v6(ip: Ipv6Addr) -> bool {
     if let Some(mapped) = ip.to_ipv4_mapped() {
         return private_v4(mapped);
     }
-    let first = ip.segments()[0];
+    let segments = ip.segments();
+    let first = segments[0];
     (first & 0xfe00) == 0xfc00
+        || first == 0x2002
+        || (first == 0x64 && segments[1] == 0xff9b && segments[2..6].iter().all(|s| *s == 0))
         || (first & 0xffc0) == 0xfe80
         || ip.segments()[..6].iter().all(|segment| *segment == 0)
 }
@@ -39,6 +42,20 @@ pub fn is_private_host(host: &Host<&str>) -> bool {
         Host::Ipv6(ip) => private_v6(*ip),
         Host::Domain(name) => private_name(name),
     }
+}
+
+pub fn is_private_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => private_v4(ip),
+        IpAddr::V6(ip) => private_v6(ip),
+    }
+}
+
+pub fn public_only(addrs: impl IntoIterator<Item = SocketAddr>) -> Vec<SocketAddr> {
+    addrs
+        .into_iter()
+        .filter(|addr| !is_private_ip(addr.ip()))
+        .collect()
 }
 
 pub fn is_fetchable(url: &Url) -> bool {
@@ -97,6 +114,8 @@ mod tests {
             "http://[::ffff:127.0.0.1]/",
             "http://[::ffff:10.0.0.1]/",
             "http://[::7f00:1]/",
+            "http://[64:ff9b::7f00:1]/",
+            "http://[2002:7f00:1::]/",
         ] {
             assert!(!fetchable(url), "{url}");
         }
@@ -112,5 +131,18 @@ mod tests {
         ] {
             assert!(!fetchable(url), "{url}");
         }
+    }
+
+    #[test]
+    fn a_resolved_address_list_keeps_only_public_ones() {
+        let addrs = [
+            "127.0.0.1:443",
+            "93.184.216.34:443",
+            "[::1]:443",
+            "10.0.0.1:443",
+        ]
+        .map(|text| text.parse::<SocketAddr>().unwrap());
+        assert_eq!(public_only(addrs), ["93.184.216.34:443".parse().unwrap()]);
+        assert!(public_only(["169.254.169.254:80".parse::<SocketAddr>().unwrap()]).is_empty());
     }
 }
