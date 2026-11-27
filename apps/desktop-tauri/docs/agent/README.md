@@ -4,7 +4,7 @@ The Rust engine and the local MCP server of `apps/desktop-native`, run inside th
 
 ## The engine in the app
 
-`src-tauri/src/agent/host.rs` is the glue (the same steps as `dou serve`, through `dou_app::start`): it opens the profile directory `<app data>/agent`, renews the relay credential, links to one cloud, runs the control service and listens on two sockets — one for the owner (this app) and one for MCP clients. At start-up the engine starts by itself when the profile is signed in and a cloud is chosen.
+`src-tauri/src/agent/host.rs` is the glue (the same steps as `dou serve`, through `dou_app::start`): it opens the profile directory `<app data>/agent`, renews the relay credential, links to one cloud, runs the control service and listens on two sockets — one for the `dou` command line and one for MCP clients (both gated the same way; the app's own screens use the in-process `Client::App` handle). At start-up the engine starts by itself when the profile is signed in and a cloud is chosen.
 
 Endpoints are constants per stage (dev and production relay and socket addresses, none secret), overridable at build time with `DOU_RELAY_ENDPOINT` and `DOU_WS_ENDPOINT`.
 

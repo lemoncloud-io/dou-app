@@ -38,18 +38,17 @@ The same checks run on macOS and Windows in `.github/workflows/desktop-native.ym
 ```sh
 dou --profile DIR --env-file FILE pair              # prints a code; approve it from a signed-in device
 dou --profile DIR --env-file FILE serve --cloud ID  # keeps the engine and the control IPC running
-dou --profile DIR perm tier write                   # permissions are edited here, never through MCP
-dou --profile DIR perm allow ROOM_ID
+dou --profile DIR perm show                         # read only; permissions change in the app's Agent window
 dou --profile DIR rooms | read ROOM | send ROOM TEXT | wait --timeout 30000
 dou --profile DIR mcp                               # stdio MCP for an agent
 ```
 
-Every text sent by an MCP write tool starts with `[AI] `; the engine adds it and no tool argument turns it off.
+Every text sent by an MCP tool or by `dou send|reply|mention` starts with `[AI] `; the engine adds it and no argument turns it off. The command line is an agent client: it is refused while the permission tier is off and follows the allow-list and the rate limit (see [mcp](./docs/mcp/README.md)).
 
 ## Embedding it (the Tauri shell)
 
 Path dependencies, no binary needed:
 
-- `dou_app::start(api, &profile, cloud_id, user_agent) -> Running` connects, renews the relay credential in the background and builds the control service. `Running { me, cloud, control_name, mcp_name, service }`; `running.serve().await` serves both control endpoints (the CLI uses `control_name`, `dou mcp` uses `mcp_name`), and `running.service` is the in-process handle: `service.handle(Client::Cli, method, params)` for the app's own screens.
-- Permissions for an app screen: `dou_control::Settings::load(&dou_app::settings_path(dir))`, change `tier`, `allow_rooms`, `rate_limit`, then `settings.save(&path)`. The service rereads the file on each call. This is not exposed through MCP or the control IPC.
+- `dou_app::start(api, &profile, cloud_id, user_agent) -> Running` connects, renews the relay credential in the background and builds the control service. `Running { me, cloud, control_name, mcp_name, service }`; `running.serve().await` serves both control endpoints (the CLI uses `control_name`, `dou mcp` uses `mcp_name`), and `running.service` is the in-process handle: `service.handle(Client::App, method, params)` for the app's own screens (reads only).
+- Permissions for an app screen: `service.current_settings()` and `service.set_settings(settings)`, which persists the file and swaps the in-memory copy. The service never rereads the file. This is not exposed through MCP or the control IPC.
 - Sign-in: `dou_auth::{Profile, RelayApi, PairingRequest}` (see `dou-cli/src/commands.rs` `pair`).

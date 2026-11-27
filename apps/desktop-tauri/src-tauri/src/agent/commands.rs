@@ -111,9 +111,11 @@ fn settings_file(agent: &Agent) -> std::path::PathBuf {
 #[tauri::command]
 pub fn agent_settings_get(webview: Webview, agent: Shared<'_>) -> Result<Value, String> {
     from_agent_window(&webview)?;
-    Ok(agent_settings::to_value(&agent_settings::load(
-        &settings_file(&agent),
-    )))
+    let settings = match agent.service() {
+        Some(service) => service.current_settings(),
+        None => agent_settings::load(&settings_file(&agent)),
+    };
+    Ok(agent_settings::to_value(&settings))
 }
 
 #[tauri::command]
@@ -124,6 +126,9 @@ pub fn agent_settings_set(
 ) -> Result<Value, String> {
     from_agent_window(&webview)?;
     let saved = agent_settings::save(&settings_file(&agent), &settings)?;
+    if let Some(service) = agent.service() {
+        service.set_settings(saved.clone()).map_err(|e| e.to_string())?;
+    }
     Ok(agent_settings::to_value(&saved))
 }
 

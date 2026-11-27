@@ -67,7 +67,7 @@ impl Client {
     }
 }
 
-async fn start() -> (Client, Recorder, std::path::PathBuf) {
+async fn start(settings: Option<Settings>) -> (Client, Recorder, std::path::PathBuf) {
     let root = if cfg!(windows) {
         std::env::temp_dir()
     } else {
@@ -75,6 +75,9 @@ async fn start() -> (Client, Recorder, std::path::PathBuf) {
     };
     let dir = root.join(format!("dm-{}", &uuid::Uuid::new_v4().to_string()[..8]));
     std::fs::create_dir_all(&dir).unwrap();
+    if let Some(settings) = settings {
+        settings.save(&dir.join("settings.json")).unwrap();
+    }
     let recorder = Recorder::default();
     let engine = Engine::new(
         recorder.clone(),
@@ -101,7 +104,7 @@ async fn start() -> (Client, Recorder, std::path::PathBuf) {
 
 #[tokio::test]
 async fn it_speaks_the_protocol_and_lists_the_eleven_tools() {
-    let (mut client, _, _) = start().await;
+    let (mut client, _, _) = start(None).await;
     let init = client
         .ask("initialize", json!({ "protocolVersion": "2024-11-05" }))
         .await;
@@ -135,7 +138,7 @@ async fn it_speaks_the_protocol_and_lists_the_eleven_tools() {
 
 #[tokio::test]
 async fn at_default_settings_every_tool_is_denied_and_the_app_is_never_asked() {
-    let (mut client, recorder, _) = start().await;
+    let (mut client, recorder, _) = start(None).await;
     for tool in ["rooms_list", "messages_read", "message_send", "events_list"] {
         let (is_error, body) = client
             .tool(tool, json!({ "channelId": "r1", "text": "x" }))
@@ -148,14 +151,12 @@ async fn at_default_settings_every_tool_is_denied_and_the_app_is_never_asked() {
 
 #[tokio::test]
 async fn read_text_is_wrapped_as_untrusted_and_a_permitted_write_carries_the_ai_prefix() {
-    let (mut client, recorder, dir) = start().await;
-    Settings {
+    let (mut client, recorder, _) = start(Some(Settings {
         tier: Tier::Write,
         allow_rooms: vec!["r1".into()],
         rate_limit: RateLimit::default(),
-    }
-    .save(&dir.join("settings.json"))
-    .unwrap();
+    }))
+    .await;
 
     let (is_error, read) = client
         .tool("messages_read", json!({ "channelId": "r1" }))

@@ -7,6 +7,7 @@ use crate::settings::{Settings, Tier};
 pub enum Client {
     Mcp,
     Cli,
+    App,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,8 +36,11 @@ pub fn authorize(
     limiter: &mut Limiter,
     now: Instant,
 ) -> Result<(), Denial> {
-    if client == Client::Cli {
-        return Ok(());
+    if client == Client::App {
+        return match action {
+            Action::Read => Ok(()),
+            Action::Write { .. } => deny("app_cannot_write", "The app handle only reads."),
+        };
     }
     match (settings.tier, action) {
         (Tier::Off, _) => deny(
@@ -199,17 +203,31 @@ mod tests {
     }
 
     #[test]
-    fn the_local_command_line_is_the_owner_and_is_not_gated() {
-        let s = settings(Tier::Off, &[]);
+    fn the_app_handle_reads_even_when_off_and_never_writes() {
+        let s = settings(Tier::Off, &["r"]);
         let mut l = Limiter::default();
+        assert_eq!(check(Client::App, &s, &Action::Read, &mut l), Ok(()));
         assert_eq!(
-            check(
-                Client::Cli,
-                &s,
-                &Action::Write { channel_id: "any" },
-                &mut l
-            ),
-            Ok(())
+            check(Client::App, &s, &Action::Write { channel_id: "r" }, &mut l),
+            Err("app_cannot_write")
+        );
+    }
+
+    #[test]
+    fn the_command_line_is_held_to_the_same_gate_as_mcp() {
+        let mut l = Limiter::default();
+        let write = Action::Write { channel_id: "r" };
+        assert_eq!(
+            check(Client::Cli, &settings(Tier::Off, &["r"]), &write, &mut l),
+            Err("tier_off")
+        );
+        assert_eq!(
+            check(Client::Cli, &settings(Tier::Read, &["r"]), &write, &mut l),
+            Err("tier_read_only")
+        );
+        assert_eq!(
+            check(Client::Cli, &settings(Tier::Write, &[]), &write, &mut l),
+            Err("room_not_allowed")
         );
     }
 }

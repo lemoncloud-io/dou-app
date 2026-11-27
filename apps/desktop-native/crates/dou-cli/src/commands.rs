@@ -1,14 +1,15 @@
-use std::path::Path;
 use std::time::Duration;
 
 use dou_auth::{
     Endpoints, PairingPhase, PairingRequest, Profile, RelayApi, TokenView, refresh_relay,
 };
-use dou_control::{Client, Settings, Tier, control_name};
+use dou_control::{Client, Settings, control_name};
 use dou_http::HttpClient;
 use serde_json::{Value, json};
 
 use crate::args::{Invocation, USAGE};
+
+const PERM_IN_APP: &str = "permissions change only in the DoU app (Agent window); the command line is an agent client and cannot raise its own access";
 
 const USER_AGENT: &str = concat!("DoU-Desktop-Native/", env!("CARGO_PKG_VERSION"));
 
@@ -231,28 +232,40 @@ async fn local(invocation: &Invocation, profile: &Profile) -> Result<(), String>
 }
 
 fn perm(invocation: &Invocation, profile: &Profile) -> Result<(), String> {
-    let path = settings_path(profile);
-    let mut settings = Settings::load(&path);
     let rest: Vec<&str> = invocation.rest.iter().map(String::as_str).collect();
     match rest.as_slice() {
-        ["show"] | [] => {}
-        ["tier", value] => {
-            settings.tier = Tier::parse(value).ok_or("tier is off, read, write or full")?
+        ["show"] | [] => {
+            let settings = Settings::load(&settings_path(profile));
+            print(&serde_json::to_value(&settings).map_err(fail)?)
         }
-        ["allow", room] => {
-            if !settings.allows_room(room) {
-                settings.allow_rooms.push((*room).to_string());
-            }
-        }
-        ["deny", room] => settings.allow_rooms.retain(|existing| existing != room),
-        ["rate", per_minute, per_hour] => {
-            settings.rate_limit.per_minute = per_minute.parse().map_err(fail)?;
-            settings.rate_limit.per_hour = per_hour.parse().map_err(fail)?;
-        }
-        _ => return Err(USAGE.to_string()),
+        ["tier", _] | ["allow", _] | ["deny", _] | ["rate", _, _] => Err(PERM_IN_APP.to_string()),
+        _ => Err(USAGE.to_string()),
     }
-    if rest.first().is_some_and(|word| *word != "show") {
-        settings.save(Path::new(&path)).map_err(fail)?;
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn invocation(words: &[&str]) -> Invocation {
+        let raw: Vec<String> = words.iter().map(ToString::to_string).collect();
+        Invocation::parse(&raw).expect("parse")
     }
-    print(&serde_json::to_value(&settings).map_err(fail)?)
+
+    #[test]
+    fn perm_cannot_change_anything_from_the_command_line() {
+        let dir = std::env::temp_dir().join(format!("dou-cli-perm-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let profile = Profile::open(&dir).unwrap();
+        for words in [
+            ["perm", "tier", "full"].as_slice(),
+            &["perm", "allow", "r1"],
+            &["perm", "deny", "r1"],
+            &["perm", "rate", "1", "2"],
+        ] {
+            let error = perm(&invocation(words), &profile).unwrap_err();
+            assert!(error.contains("only in the DoU app"), "{words:?}: {error}");
+        }
+        assert!(!settings_path(&profile).exists());
+        assert!(perm(&invocation(&["perm", "show"]), &profile).is_ok());
+    }
 }

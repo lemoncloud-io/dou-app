@@ -18,12 +18,12 @@ account:
 app (keeps the engine and the control server running):
   serve --cloud ID             connect to a cloud and serve local clients
   mcp                          stdio MCP launcher; talks to a running 'dou serve'
-local commands against a running 'dou serve' (the owner, not gated):
+local commands against a running 'dou serve' (an agent client: same tier, allow-list, rate limit and [AI] prefix as MCP):
   rooms | read ROOM [--limit N] | send ROOM TEXT | reply ROOM PARENT_ID TEXT
   react ROOM CHAT_ID EMOJI [--off] | mention ROOM USER_IDS TEXT
   events [--since N] | wait [--since N] [--timeout MS]
-permissions (edit the settings file; MCP cannot reach these):
-  perm show | perm tier off|read|write|full | perm allow ROOM | perm deny ROOM | perm rate PER_MIN PER_HOUR";
+permissions (read only here; change them in the DoU app, Agent window):
+  perm show";
 
 impl Invocation {
     pub fn parse(raw: &[String]) -> Result<Self, String> {

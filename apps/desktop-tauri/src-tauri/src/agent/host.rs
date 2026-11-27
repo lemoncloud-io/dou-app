@@ -233,7 +233,7 @@ impl Agent {
     pub async fn owner_call(&self, method: &str, params: Value) -> Result<Value, String> {
         let service = self.service().ok_or("the engine is not running")?;
         service
-            .handle(Client::Cli, method, params)
+            .handle(Client::App, method, params)
             .await
             .map_err(|e| e["message"].as_str().unwrap_or("engine error").to_string())
     }

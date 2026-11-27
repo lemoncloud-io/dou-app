@@ -1,12 +1,14 @@
 use std::future::Future;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use dou_core::{Error, Result};
 use interprocess::local_socket::tokio::{Stream, prelude::*};
 use interprocess::local_socket::{ListenerOptions, Name};
 use serde_json::{Value, json};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::sync::Semaphore;
 
 use crate::guard::Client;
 
@@ -27,6 +29,7 @@ fn label(client: Client) -> &'static str {
     match client {
         Client::Cli => "cli",
         Client::Mcp => "mcp",
+        Client::App => "app",
     }
 }
 
@@ -117,7 +120,80 @@ impl<R: dou_engine::Remote + 'static> Handler for crate::service::Service<R> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Limits {
+    pub max_connections: usize,
+    pub max_line: usize,
+    pub request_timeout: Duration,
+    pub idle_timeout: Duration,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            max_connections: 32,
+            max_line: 1024 * 1024,
+            request_timeout: Duration::from_secs(75),
+            idle_timeout: Duration::from_secs(300),
+        }
+    }
+}
+
+enum Line {
+    Text(String),
+    TooLong,
+    End,
+}
+
+async fn next_line<R: AsyncBufReadExt + Unpin>(
+    reader: &mut R,
+    max: usize,
+) -> std::io::Result<Line> {
+    let mut buffer = Vec::new();
+    let read = reader
+        .take(max as u64 + 1)
+        .read_until(b'\n', &mut buffer)
+        .await?;
+    if read == 0 {
+        return Ok(Line::End);
+    }
+    if buffer.last() == Some(&b'\n') {
+        buffer.pop();
+    } else if buffer.len() > max {
+        return Ok(Line::TooLong);
+    }
+    if buffer.len() > max {
+        return Ok(Line::TooLong);
+    }
+    Ok(Line::Text(String::from_utf8_lossy(&buffer).into_owned()))
+}
+
+async fn discard_line<R: AsyncBufReadExt + Unpin>(reader: &mut R) {
+    let mut sink = Vec::new();
+    loop {
+        sink.clear();
+        match reader.take(64 * 1024).read_until(b'\n', &mut sink).await {
+            Ok(0) | Err(_) => return,
+            Ok(_) if sink.last() == Some(&b'\n') => return,
+            Ok(_) => {}
+        }
+    }
+}
+
+fn failure(code: &str, message: &str) -> Value {
+    json!({ "ok": false, "error": { "code": code, "message": message } })
+}
+
 pub async fn serve<H: Handler>(name: &str, handler: Arc<H>, client: Client) -> Result<()> {
+    serve_with(name, handler, client, Limits::default()).await
+}
+
+pub async fn serve_with<H: Handler>(
+    name: &str,
+    handler: Arc<H>,
+    client: Client,
+    limits: Limits,
+) -> Result<()> {
     #[cfg(unix)]
     secure_parent(name, true)?;
     let listener = ListenerOptions::new()
@@ -130,14 +206,55 @@ pub async fn serve<H: Handler>(name: &str, handler: Arc<H>, client: Client) -> R
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(name, std::fs::Permissions::from_mode(0o600)).map_err(io)?;
     }
+    let slots = Arc::new(Semaphore::new(limits.max_connections));
     loop {
-        let connection = listener.accept().await.map_err(io)?;
+        let connection = match listener.accept().await {
+            Ok(connection) => connection,
+            Err(error) => {
+                eprintln!("control: accept failed ({error}); still serving");
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                continue;
+            }
+        };
+        let Ok(permit) = Arc::clone(&slots).try_acquire_owned() else {
+            eprintln!(
+                "control: connection refused, {} already open",
+                limits.max_connections
+            );
+            continue;
+        };
         let handler = Arc::clone(&handler);
         tokio::spawn(async move {
+            let _permit = permit;
             let mut writer = &connection;
-            let mut lines = BufReader::new(&connection).lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                let reply = answer(&*handler, client, &line).await;
+            let mut reader = BufReader::new(&connection);
+            loop {
+                let line = match tokio::time::timeout(
+                    limits.idle_timeout,
+                    next_line(&mut reader, limits.max_line),
+                )
+                .await
+                {
+                    Ok(Ok(Line::Text(line))) => line,
+                    Ok(Ok(Line::TooLong)) => {
+                        let reply = failure("bad_request", "request line is too long");
+                        let _ = writer.write_all(format!("{reply}\n").as_bytes()).await;
+                        let _ =
+                            tokio::time::timeout(Duration::from_secs(1), discard_line(&mut reader))
+                                .await;
+                        break;
+                    }
+                    _ => break,
+                };
+                let reply = match tokio::time::timeout(
+                    limits.request_timeout,
+                    answer(&*handler, client, &line),
+                )
+                .await
+                {
+                    Ok(reply) => reply,
+                    Err(_) => failure("timeout", "the request took too long"),
+                };
                 if writer
                     .write_all(format!("{reply}\n").as_bytes())
                     .await
@@ -152,7 +269,7 @@ pub async fn serve<H: Handler>(name: &str, handler: Arc<H>, client: Client) -> R
 
 async fn answer<H: Handler>(handler: &H, client: Client, line: &str) -> Value {
     let Ok(request) = serde_json::from_str::<Value>(line) else {
-        return json!({ "ok": false, "error": { "code": "bad_request", "message": "not JSON" } });
+        return failure("bad_request", "not JSON");
     };
     let method = request
         .get("method")

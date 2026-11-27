@@ -1,6 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use dou_control::{Client, RateLimit, Service, Settings, Tier, arc, call, control_name, serve};
+use dou_control::{
+    Client, Limits, RateLimit, Service, Settings, Tier, arc, call, control_name, serve, serve_with,
+};
 use dou_core::Result;
 use dou_engine::{Engine, Remote};
 use dou_store::Store;
@@ -301,6 +303,208 @@ async fn the_ipc_carries_a_request_and_its_denial_to_another_connection() {
             .unwrap_err()["code"],
         "tier_off"
     );
-    let cli = call(&owner, "clouds", Value::Null).await.unwrap().unwrap();
-    assert_eq!(cli["list"][0]["id"], "c1");
+    let cli = call(&owner, "clouds", Value::Null)
+        .await
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(cli["code"], "tier_off");
+}
+
+async fn write_as_cli(
+    service: &Service<Recorder>,
+    method: &str,
+    params: Value,
+) -> std::result::Result<Value, Value> {
+    service.handle(Client::Cli, method, params).await
+}
+
+#[tokio::test]
+async fn the_command_line_is_refused_when_the_tier_is_off_for_every_write() {
+    let (service, recorder, _) = setup(None);
+    let writes = [
+        ("send", json!({ "channelId": "r1", "text": "x" })),
+        (
+            "reply",
+            json!({ "channelId": "r1", "parentId": "r1:3", "text": "x" }),
+        ),
+        (
+            "mention",
+            json!({ "channelId": "r1", "text": "x", "userIds": ["u"] }),
+        ),
+        (
+            "react",
+            json!({ "channelId": "r1", "chatId": "r1:3", "emoji": "x" }),
+        ),
+    ];
+    for (method, params) in writes {
+        let denied = write_as_cli(&service, method, params).await.unwrap_err();
+        assert_eq!(denied["code"], "tier_off", "{method}");
+    }
+    assert!(recorder.calls.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn the_command_line_is_gated_by_room_and_rate_and_carries_the_ai_prefix() {
+    let (service, recorder, _) = setup(Some(allowed(Tier::Write)));
+    let elsewhere = write_as_cli(&service, "send", json!({ "channelId": "x", "text": "hi" }))
+        .await
+        .unwrap_err();
+    assert_eq!(elsewhere["code"], "room_not_allowed");
+    let params = json!({ "channelId": "r1", "text": "hi", "origin": "person", "prefix": false });
+    assert!(write_as_cli(&service, "send", params.clone()).await.is_ok());
+    assert!(write_as_cli(&service, "send", params.clone()).await.is_ok());
+    assert_eq!(
+        write_as_cli(&service, "send", params).await.unwrap_err()["code"],
+        "rate_limited"
+    );
+    let calls = recorder.calls.lock().unwrap();
+    let first = calls.iter().find(|(ty, _)| ty == "chat.send").unwrap();
+    assert_eq!(first.1["content"], "[AI] hi");
+}
+
+#[tokio::test]
+async fn rewriting_settings_json_while_the_app_runs_changes_nothing() {
+    let (service, recorder, dir) = setup(None);
+    allowed(Tier::Full)
+        .save(&dir.join("settings.json"))
+        .unwrap();
+    for client in [Client::Cli, Client::Mcp] {
+        let denied = service
+            .handle(client, "send", json!({ "channelId": "r1", "text": "x" }))
+            .await
+            .unwrap_err();
+        assert_eq!(denied["code"], "tier_off");
+    }
+    assert!(recorder.calls.lock().unwrap().is_empty());
+    service.set_settings(allowed(Tier::Write)).unwrap();
+    assert!(
+        write_as_cli(&service, "send", json!({ "channelId": "r1", "text": "x" }))
+            .await
+            .is_ok()
+    );
+    assert_eq!(
+        Settings::load(&dir.join("settings.json")),
+        allowed(Tier::Write)
+    );
+}
+
+#[tokio::test]
+async fn a_reaction_needs_a_chat_id_of_the_form_channel_colon_number() {
+    let (service, recorder, _) = setup(Some(allowed(Tier::Write)));
+    for chat in ["5", "r1:", "r1:5x", "r1:5:6"] {
+        let denied = service
+            .handle(
+                Client::Mcp,
+                "react",
+                json!({ "channelId": "r1", "chatId": chat, "emoji": "x" }),
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(denied["code"], "bad_params", "{chat}");
+    }
+    assert!(
+        service
+            .handle(
+                Client::Mcp,
+                "react",
+                json!({ "channelId": "r1", "chatId": "r1:5", "emoji": "x" })
+            )
+            .await
+            .is_ok()
+    );
+    assert!(
+        recorder
+            .calls
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|(ty, _)| ty != "chat.send")
+    );
+}
+async fn served(limits: Limits, settings: Option<Settings>) -> (String, std::path::PathBuf) {
+    let (service, _, dir) = setup(settings);
+    let service = arc(service);
+    let name = control_name(&dir, Client::Mcp);
+    let served = name.clone();
+    tokio::spawn(async move { serve_with(&served, service, Client::Mcp, limits).await });
+    for _ in 0..100 {
+        if call(&name, "status", Value::Null).await.is_ok() {
+            return (name, dir);
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    panic!("server did not start");
+}
+
+async fn raw_connect(name: &str) -> interprocess::local_socket::tokio::Stream {
+    use interprocess::local_socket::tokio::prelude::*;
+    use interprocess::local_socket::{GenericFilePath, ToFsName};
+    interprocess::local_socket::tokio::Stream::connect(
+        name.to_fs_name::<GenericFilePath>().unwrap(),
+    )
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+async fn a_line_over_the_cap_is_answered_and_closed_and_the_server_keeps_serving() {
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    let limits = Limits {
+        max_line: 4096,
+        ..Limits::default()
+    };
+    let (name, _) = served(limits, None).await;
+    let stream = raw_connect(&name).await;
+    let mut writer = &stream;
+    let huge = "x".repeat(10_000);
+    writer
+        .write_all(format!("{huge}\n").as_bytes())
+        .await
+        .unwrap();
+    let mut lines = BufReader::new(&stream).lines();
+    let reply: Value = serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+    assert_eq!(reply["error"]["code"], "bad_request");
+    assert!(matches!(lines.next_line().await, Ok(None) | Err(_)));
+    assert!(call(&name, "status", Value::Null).await.is_ok());
+}
+
+#[tokio::test]
+async fn connections_past_the_cap_are_dropped_and_a_freed_slot_is_reusable() {
+    use tokio::io::AsyncReadExt;
+    let limits = Limits {
+        max_connections: 2,
+        ..Limits::default()
+    };
+    let (name, _) = served(limits, None).await;
+    let first = raw_connect(&name).await;
+    let second = raw_connect(&name).await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    let mut third = raw_connect(&name).await;
+    let mut byte = [0u8; 1];
+    let read = tokio::time::timeout(std::time::Duration::from_secs(2), third.read(&mut byte))
+        .await
+        .expect("the refused connection is closed");
+    assert!(matches!(read, Ok(0) | Err(_)));
+    drop(first);
+    drop(second);
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    assert!(call(&name, "status", Value::Null).await.is_ok());
+}
+
+#[tokio::test]
+async fn a_request_that_takes_too_long_gets_a_timeout_answer() {
+    let limits = Limits {
+        request_timeout: std::time::Duration::from_millis(100),
+        ..Limits::default()
+    };
+    let (name, _) = served(limits, Some(allowed(Tier::Read))).await;
+    let reply = call(
+        &name,
+        "events_wait",
+        json!({ "since": 0, "timeoutMs": 5000 }),
+    )
+    .await
+    .unwrap()
+    .unwrap_err();
+    assert_eq!(reply["code"], "timeout");
 }

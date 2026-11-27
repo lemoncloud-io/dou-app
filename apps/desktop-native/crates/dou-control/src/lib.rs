@@ -5,7 +5,7 @@ mod service;
 mod settings;
 
 pub use guard::{Action, Client, Denial, authorize};
-pub use ipc::{Handler, call, control_name, serve};
+pub use ipc::{Handler, Limits, call, control_name, serve, serve_with};
 pub use limiter::Limiter;
 pub use service::{Service, arc};
 pub use settings::{RateLimit, Settings, Tier};

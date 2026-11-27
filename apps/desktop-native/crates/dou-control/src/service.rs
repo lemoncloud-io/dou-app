@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use dou_core::Error;
@@ -14,6 +14,7 @@ use crate::settings::Settings;
 pub struct Service<R> {
     engine: Engine<R>,
     settings_path: PathBuf,
+    settings: RwLock<Settings>,
     limiter: Mutex<Limiter>,
     arrived: Notify,
 }
@@ -58,16 +59,34 @@ fn message_json(message: &Message) -> Value {
 
 impl<R: Remote> Service<R> {
     pub fn new(engine: Engine<R>, settings_path: PathBuf) -> Self {
+        let settings = RwLock::new(Settings::load(&settings_path));
         Self {
             engine,
             settings_path,
+            settings,
             limiter: Mutex::new(Limiter::default()),
             arrived: Notify::new(),
         }
     }
 
     fn settings(&self) -> Settings {
-        Settings::load(&self.settings_path)
+        self.settings
+            .read()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
+    }
+
+    pub fn current_settings(&self) -> Settings {
+        self.settings()
+    }
+
+    pub fn set_settings(&self, next: Settings) -> dou_core::Result<()> {
+        next.save(&self.settings_path)?;
+        *self
+            .settings
+            .write()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = next;
+        Ok(())
     }
 
     fn gate(&self, client: Client, action: &Action<'_>) -> Result<Settings, Value> {
@@ -212,14 +231,9 @@ impl<R: Remote> Service<R> {
                         channel_id: channel,
                     },
                 )?;
-                let origin = if client == Client::Mcp {
-                    Origin::Ai
-                } else {
-                    Origin::Person
-                };
                 let sent = self
                     .engine
-                    .send(channel, body, &options, origin)
+                    .send(channel, body, &options, Origin::Ai)
                     .await
                     .map_err(from_engine)?;
                 Ok(message_json(&sent))
@@ -228,7 +242,7 @@ impl<R: Remote> Service<R> {
                 let channel = text(&params, "channelId")?;
                 let chat = text(&params, "chatId")?;
                 let emoji = text(&params, "emoji")?;
-                in_channel(channel, chat, "chatId")?;
+                chat_of(channel, chat)?;
                 self.gate(
                     client,
                     &Action::Write {
@@ -300,6 +314,19 @@ impl<R: Remote> Service<R> {
     }
 }
 
+fn chat_of(channel: &str, id: &str) -> Result<(), Value> {
+    let digits = id
+        .strip_prefix(channel)
+        .and_then(|rest| rest.strip_prefix(':'));
+    if digits.is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())) {
+        return Ok(());
+    }
+    Err(rpc(
+        "bad_params",
+        format!("chatId must look like {channel}:<number>"),
+    ))
+}
+
 fn in_channel(channel: &str, id: &str, field: &str) -> Result<(), Value> {
     if id.contains(':') && !id.starts_with(&format!("{channel}:")) {
         return Err(rpc(
@@ -315,12 +342,20 @@ pub fn arc<R: Remote>(service: Service<R>) -> Arc<Service<R>> {
 }
 #[cfg(test)]
 mod channel_tests {
-    use super::in_channel;
+    use super::{chat_of, in_channel};
 
     #[test]
     fn an_id_from_another_room_is_refused_and_a_bare_number_passes() {
         assert!(in_channel("A", "A:5", "chatId").is_ok());
         assert!(in_channel("A", "5", "parentId").is_ok());
         assert!(in_channel("A", "B:5", "chatId").is_err());
+    }
+
+    #[test]
+    fn a_chat_id_must_be_channel_colon_digits() {
+        assert!(chat_of("A", "A:5").is_ok());
+        for bad in ["5", "A:", "A:5x", "B:5", "A:5:6", "", "AA:5", ":5"] {
+            assert!(chat_of("A", bad).is_err(), "{bad}");
+        }
     }
 }
