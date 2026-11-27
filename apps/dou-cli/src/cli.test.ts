@@ -171,7 +171,10 @@ describe('bootNode', () => {
     it('keeps the Node session files inside <profile>/node and starts signed out', async () => {
         const booted = await bootNode({ profile: directory, writeLine: () => undefined, env: {} });
         const out: string[] = [];
-        await runCli(['whoami'], { boot: async () => booted, io: { out: l => out.push(l), err: () => undefined } });
+        await runCli(['whoami'], {
+            boot: async () => booted,
+            io: { out: (l: string) => out.push(l), err: () => undefined },
+        });
         expect(JSON.parse(out[0]).signedIn).toBe(false);
         expect(readdirSync(directory)).toEqual(['node']);
     });

@@ -10,7 +10,7 @@ export interface ServeHooks {
 export const serveCommand = async ({ io, signal, booted, hooks, profile }: CommandContext): Promise<number> => {
     const check = createPairedCloudCheck(cloudId => io.err(`paired cloud ended: ${cloudId}`));
     const timer = setInterval(() => void check().catch(error => io.err(String(error))), PAIRED_CLOUD_CHECK_INTERVAL_MS);
-    let dispose: void | (() => Promise<void>);
+    let dispose: void | (() => Promise<void>) = undefined;
     try {
         dispose = await hooks.onReady?.(booted, profile);
         io.out(JSON.stringify({ serving: true }));
