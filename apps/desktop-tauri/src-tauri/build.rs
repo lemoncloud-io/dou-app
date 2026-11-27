@@ -2,6 +2,8 @@ fn main() {
     let manifest = tauri_build::AppManifest::new().commands(&[
         "bridge_request",
         "log_event",
+        "sub_bridge_request",
+        "sub_close_request",
         "agent_state",
         "agent_pair_start",
         "agent_clouds",

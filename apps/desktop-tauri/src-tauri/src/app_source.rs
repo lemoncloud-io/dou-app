@@ -16,6 +16,8 @@ pub struct AppConfig {
     pub port: Option<u16>,
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "miniApp")]
     pub mini_app: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "miniPort")]
+    pub mini_port: Option<u16>,
 }
 
 impl AppConfig {
@@ -351,7 +353,8 @@ mod tests {
         let config = AppConfig {
             app: Some("https://x.test".into()),
             port: Some(5000),
-            mini_app: None,
+            mini_app: Some("./dist".into()),
+            mini_port: Some(5001),
         };
         config.save(&path).expect("save");
         assert_eq!(AppConfig::load(&path), config);

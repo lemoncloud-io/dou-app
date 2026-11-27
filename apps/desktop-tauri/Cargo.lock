@@ -1053,6 +1053,7 @@ dependencies = [
  "capture",
  "connectors",
  "oauth",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "subview",

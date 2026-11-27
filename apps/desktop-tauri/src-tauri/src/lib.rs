@@ -72,6 +72,19 @@ pub fn run() {
     let restarting = std::env::var_os(RESTART_ENV).is_some();
 
     tauri::Builder::default()
+        .on_page_load(|webview, payload| {
+            if webview.label() != "main" {
+                return;
+            }
+            match payload.event() {
+                tauri::webview::PageLoadEvent::Started => {
+                    handlers::reset_for_new_host(webview.app_handle());
+                }
+                tauri::webview::PageLoadEvent::Finished => {
+                    handlers::open_pending_mini(webview.app_handle(), payload.url());
+                }
+            }
+        })
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
@@ -79,6 +92,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             bridge::bridge_request,
             bridge::log_event,
+            handlers::subview::sub_bridge_request,
+            handlers::subview::sub_close_request,
             agent::commands::agent_state,
             agent::commands::agent_pair_start,
             agent::commands::agent_clouds,
@@ -130,10 +145,27 @@ pub fn run() {
             if resolved.port.is_some() && resolved.port != config.port {
                 config.port = resolved.port;
             }
-            if cli.app.is_some() || config.port.is_some() {
+            if let Some(wanted) = &cli.mini_app {
+                if wanted == "none" {
+                    config.mini_app = None;
+                    config.mini_port = None;
+                } else {
+                    let source = AppSource::parse(wanted).map_err(|e| e.to_string())?;
+                    config.mini_app = Some(match &source {
+                        AppSource::Folder(folder) => folder.display().to_string(),
+                        _ => wanted.clone(),
+                    });
+                }
+            }
+            if cli.app.is_some() || cli.mini_app.is_some() || config.port.is_some() {
                 let _ = config.save(&config_path);
             }
             logs::shell(&format!("web {}", resolved.web_url));
+            app.manage(handlers::PendingMini::new(
+                config.mini_app.clone(),
+                config.mini_port,
+                config_path.clone(),
+            ));
 
             let installed = bridge::install(
                 app,

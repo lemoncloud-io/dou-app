@@ -9,6 +9,9 @@ const USAGE: &str = "usage: dou-shellctl --profile <dir> <command>
   reload
   focus
   app-source [<folder|url|default>]
+  mini-app open <folder|url>
+  mini-app list
+  mini-app close [<viewId>]
   screenshot <out.png>
   logs [shell|webview|node] [lines]";
 
@@ -58,6 +61,24 @@ fn run(args: &[String]) -> Result<String, String> {
             };
             show(call(&paths, "app_source", params)?)
         }
+        "mini-app" => match rest.get(1).map(String::as_str) {
+            Some("open") => {
+                let source = rest.get(2).ok_or("mini-app open needs a folder or a URL")?;
+                show(call(
+                    &paths,
+                    "mini_app_open",
+                    json!({ "source": absolute(source) }),
+                )?)
+            }
+            Some("list") => show(call(&paths, "mini_app_list", json!({}))?),
+            Some("close") => {
+                let params = rest
+                    .get(2)
+                    .map_or_else(|| json!({}), |id| json!({ "viewId": id }));
+                show(call(&paths, "mini_app_close", params)?)
+            }
+            _ => Err("mini-app takes open, list or close".to_string()),
+        },
         "screenshot" => {
             let out = rest.get(1).ok_or("screenshot needs an output file")?;
             let reply = call(&paths, "screenshot", json!({}))?;

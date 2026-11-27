@@ -8,6 +8,7 @@ pub const SCHEMES: [&str; 2] = ["chatic", "chatic-dev"];
 pub struct Cli {
     pub profile: Option<PathBuf>,
     pub app: Option<String>,
+    pub mini_app: Option<String>,
     pub deep_links: Vec<String>,
 }
 
@@ -38,6 +39,9 @@ pub fn parse_args(args: &[String]) -> Result<Cli, String> {
         if args[at] == "--app" && at + 1 >= args.len() {
             return Err("--app needs a folder or a URL".to_string());
         }
+        if args[at] == "--mini-app" && at + 1 >= args.len() {
+            return Err("--mini-app needs a folder, a URL or none".to_string());
+        }
         if let Some((value, used)) = flag_value(args, at, "--profile") {
             if value.is_empty() {
                 return Err("--profile needs a folder".to_string());
@@ -49,6 +53,12 @@ pub fn parse_args(args: &[String]) -> Result<Cli, String> {
                 return Err("--app needs a folder or a URL".to_string());
             }
             cli.app = Some(value);
+            at += used;
+        } else if let Some((value, used)) = flag_value(args, at, "--mini-app") {
+            if value.is_empty() {
+                return Err("--mini-app needs a folder, a URL or none".to_string());
+            }
+            cli.mini_app = Some(value);
             at += used;
         } else {
             if is_deep_link(&args[at]) {
@@ -260,6 +270,17 @@ mod tests {
         drop(first);
         assert!(Lock::acquire_within(&one, std::time::Duration::from_secs(2)).is_ok());
         drop(other);
+    }
+
+    #[test]
+    fn a_mini_app_flag_is_read_in_both_forms() {
+        let args = |items: &[&str]| items.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let cli = parse_args(&args(&["--mini-app", "./dist", "--profile=/p"])).expect("parse");
+        assert_eq!(cli.mini_app.as_deref(), Some("./dist"));
+        let cli = parse_args(&args(&["--mini-app=none"])).expect("parse");
+        assert_eq!(cli.mini_app.as_deref(), Some("none"));
+        assert!(parse_args(&args(&["--mini-app"])).is_err());
+        assert!(parse_args(&args(&["--mini-app="])).is_err());
     }
 
     #[test]

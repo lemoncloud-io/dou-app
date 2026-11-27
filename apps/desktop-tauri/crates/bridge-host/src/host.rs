@@ -38,10 +38,14 @@ impl HandlerError {
 pub type HandlerFuture = Pin<Box<dyn Future<Output = Result<Option<Value>, HandlerError>> + Send>>;
 pub type Handler = Arc<dyn Fn(Value) -> HandlerFuture + Send + Sync>;
 
+pub type ContextFn = Arc<dyn Fn() -> Value + Send + Sync>;
+
 pub struct Config {
     pub version: String,
     pub send_to_web: Arc<dyn Fn(String) + Send + Sync>,
     pub sub_webview_open_scope: Option<String>,
+    pub sub_webview_context: Option<ContextFn>,
+    pub max_message_length: Option<usize>,
 }
 
 struct Ready {
@@ -53,6 +57,8 @@ pub struct BridgeHost {
     version: String,
     send_to_web: Arc<dyn Fn(String) + Send + Sync>,
     sub_webview_open_scope: Option<String>,
+    sub_webview_context: Option<ContextFn>,
+    max_message_length: Option<usize>,
     handlers: HashMap<String, Handler>,
     order: Vec<String>,
     ready: Mutex<Ready>,
@@ -70,6 +76,8 @@ impl BridgeHost {
             version: config.version,
             send_to_web: config.send_to_web,
             sub_webview_open_scope: config.sub_webview_open_scope,
+            sub_webview_context: config.sub_webview_context,
+            max_message_length: config.max_message_length,
             handlers: HashMap::new(),
             order: Vec::new(),
             ready: Mutex::new(Ready {
@@ -123,6 +131,21 @@ impl BridgeHost {
         let request_type = request_type.to_string();
         if !NON_READINESS_MESSAGE_TYPES.contains(&request_type.as_str()) {
             self.mark_ready();
+        }
+        if self.max_message_length.is_some_and(|max| raw.len() > max) {
+            self.send_error(
+                &request,
+                &request_type,
+                "TOO_LARGE",
+                &format!(
+                    "The message is over {} characters.",
+                    self.max_message_length.unwrap_or_default()
+                ),
+                "The message exceeds the host message size limit.",
+                false,
+                None,
+            );
+            return;
         }
         self.process(&request_type, request).await;
     }
@@ -208,6 +231,9 @@ impl BridgeHost {
         if let (Some(scope), Some(map)) = (&self.sub_webview_open_scope, data.as_object_mut()) {
             map.insert("subWebViewOpenScope".into(), Value::String(scope.clone()));
         }
+        if let (Some(context), Some(map)) = (&self.sub_webview_context, data.as_object_mut()) {
+            map.insert("subWebView".into(), context());
+        }
         json!({ "type": "OnWebAppReady", "success": true, "data": data })
     }
 
@@ -284,6 +310,8 @@ mod tests {
                 }
             }),
             sub_webview_open_scope: Some("anyHttps".into()),
+            sub_webview_context: None,
+            max_message_length: None,
         });
         (host, log)
     }

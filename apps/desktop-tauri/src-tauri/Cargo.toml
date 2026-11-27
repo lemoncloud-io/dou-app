@@ -31,6 +31,7 @@ agent-settings = { path = "../crates/agent-settings" }
 connectors = { path = "../crates/connectors" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "time"] }
 tiny_http = "0.12"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde.workspace = true
 serde_json.workspace = true
 url = "2"

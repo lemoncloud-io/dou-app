@@ -16,6 +16,9 @@ pub trait Host: Send + Sync + 'static {
     fn screenshot(&self) -> Result<Vec<u8>, String>;
     fn logs_tail(&self, file: &str, lines: usize) -> Result<Vec<String>, String>;
     fn focus(&self);
+    fn mini_app_open(&self, source: &str) -> Result<Value, String>;
+    fn mini_app_list(&self) -> Value;
+    fn mini_app_close(&self, view_id: Option<&str>) -> Result<Value, String>;
     fn second_instance(&self, argv: Vec<String>);
 }
 
@@ -62,6 +65,18 @@ pub fn dispatch(host: &dyn Host, line: &str) -> Value {
                 .map(|lines| json!({ "file": file, "lines": lines }))
                 .map_err(|e| (-32000, e))
         }
+        "mini_app_open" => match params["source"].as_str() {
+            Some(source) if !source.trim().is_empty() => {
+                host.mini_app_open(source.trim()).map_err(|e| (-32000, e))
+            }
+            _ => Err((-32602, "source must be a folder or a URL".to_string())),
+        },
+        "mini_app_list" => Ok(host.mini_app_list()),
+        "mini_app_close" => match params.get("viewId") {
+            None | Some(Value::Null) => host.mini_app_close(None).map_err(|e| (-32000, e)),
+            Some(Value::String(id)) => host.mini_app_close(Some(id)).map_err(|e| (-32000, e)),
+            Some(_) => Err((-32602, "viewId must be a string".to_string())),
+        },
         "focus" => {
             host.focus();
             Ok(json!({ "focused": true }))
@@ -190,6 +205,27 @@ mod tests {
         fn focus(&self) {
             self.calls.lock().expect("lock").push("focus".into());
         }
+        fn mini_app_open(&self, source: &str) -> Result<Value, String> {
+            if source == "bad" {
+                Err("refused".into())
+            } else {
+                self.calls
+                    .lock()
+                    .expect("lock")
+                    .push(format!("open:{source}"));
+                Ok(json!({ "viewId": "sub-1" }))
+            }
+        }
+        fn mini_app_list(&self) -> Value {
+            json!({ "views": [{ "viewId": "sub-1" }] })
+        }
+        fn mini_app_close(&self, view_id: Option<&str>) -> Result<Value, String> {
+            self.calls
+                .lock()
+                .expect("lock")
+                .push(format!("close:{}", view_id.unwrap_or("-")));
+            Ok(json!({ "closed": true }))
+        }
         fn second_instance(&self, argv: Vec<String>) {
             self.calls
                 .lock()
@@ -251,6 +287,45 @@ mod tests {
             json!({ "id": 1, "method": "app_source", "params": { "set": "bad" } }),
         );
         assert_eq!(refused["error"]["message"], "refused");
+    }
+
+    #[test]
+    fn the_mini_app_methods_open_list_and_close() {
+        let host = Fake::default();
+        let opened = ask(
+            &host,
+            json!({ "id": 1, "method": "mini_app_open", "params": { "source": " ./dist " } }),
+        );
+        assert_eq!(opened["result"]["viewId"], "sub-1");
+        let listed = ask(&host, json!({ "id": 2, "method": "mini_app_list" }));
+        assert_eq!(listed["result"]["views"][0]["viewId"], "sub-1");
+        let closed = ask(
+            &host,
+            json!({ "id": 3, "method": "mini_app_close", "params": { "viewId": "sub-1" } }),
+        );
+        assert_eq!(closed["result"]["closed"], true);
+        ask(&host, json!({ "id": 4, "method": "mini_app_close" }));
+        assert_eq!(
+            host.calls.lock().expect("lock").as_slice(),
+            ["open:./dist", "close:sub-1", "close:-"]
+        );
+        let refused = ask(
+            &host,
+            json!({ "id": 5, "method": "mini_app_open", "params": { "source": "bad" } }),
+        );
+        assert_eq!(refused["error"]["message"], "refused");
+        for params in [json!({}), json!({ "source": 5 }), json!({ "source": "  " })] {
+            let reply = ask(
+                &host,
+                json!({ "id": 6, "method": "mini_app_open", "params": params }),
+            );
+            assert_eq!(reply["error"]["code"], -32602);
+        }
+        let bad = ask(
+            &host,
+            json!({ "id": 7, "method": "mini_app_close", "params": { "viewId": 1 } }),
+        );
+        assert_eq!(bad["error"]["code"], -32602);
     }
 
     #[test]
