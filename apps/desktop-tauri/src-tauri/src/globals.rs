@@ -26,6 +26,11 @@ pub fn info_value(info: &ShellInfo) -> Value {
     })
 }
 
+const LOG_HOOKS: &str = "const send = (level, parts) => { try { const message = parts.map(p => { try { return typeof p === 'string' ? p : (p instanceof Error ? (p.stack || String(p)) : JSON.stringify(p)); } catch { return String(p); } }).join(' '); invoke('log_event', { level, message }).catch(() => {}); } catch {} };\\n\\
+for (const level of ['log', 'info', 'warn', 'error', 'debug']) { const original = console[level].bind(console); console[level] = (...parts) => { original(...parts); send(level, parts); }; }\\n\\
+window.addEventListener('error', e => send('uncaught', [e.message + ' at ' + e.filename + ':' + e.lineno + ':' + e.colno]));\\n\\
+window.addEventListener('unhandledrejection', e => send('uncaught', ['unhandled rejection: ', e.reason]));";
+
 pub fn init_script(info: &ShellInfo, origin: &str) -> String {
     let info = info_value(info);
     let origin = Value::String(origin.to_string());
@@ -41,6 +46,7 @@ pub fn init_script(info: &ShellInfo, origin: &str) -> String {
          }},\n\
          }});\n\
          Object.defineProperty(window, 'ChaticMessageHandler', {{ value: handler }});\n\
+         {LOG_HOOKS}\n\
          }})();"
     )
 }
@@ -84,6 +90,8 @@ mod tests {
         assert!(script.contains("location.origin !== \"https://dou-dev.chatic.io\""));
         assert!(script.contains("ChaticMessageHandler"));
         assert!(script.contains("bridge_request"));
+        assert!(script.contains("log_event"));
+        assert!(script.contains("unhandledrejection"));
     }
 
     #[test]

@@ -6,7 +6,7 @@ use serde_json::{Value, json};
 use tauri::{AppHandle, Manager, State, Webview};
 
 use super::commands::from_agent_window;
-use super::host::Agent;
+use super::Agent;
 
 fn launcher_for(agent: &Agent) -> Result<Launcher, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;

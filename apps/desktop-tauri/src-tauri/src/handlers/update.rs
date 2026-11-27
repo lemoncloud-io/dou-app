@@ -96,7 +96,7 @@ async fn check(app: &AppHandle, feed: &str, state: &Mutex<State>) {
             }
         }
         Ok(None) => {}
-        Err(error) => eprintln!("update check failed: {error}"),
+        Err(error) => crate::logs::shell(&format!("update check failed: {error}")),
     }
 }
 

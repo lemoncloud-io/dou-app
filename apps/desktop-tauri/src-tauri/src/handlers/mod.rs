@@ -54,6 +54,7 @@ pub fn register_all(host: &mut BridgeHost, context: &Context) {
 }
 
 pub use oauth::listen as listen_for_sign_in;
+pub use oauth::take_links as deliver_links;
 
 #[cfg(test)]
 mod tests {

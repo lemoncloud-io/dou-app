@@ -3,9 +3,11 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager, State, Webview};
 
-use super::host::{Agent, Engine, Pairing};
+use super::Agent;
 
 type Shared<'a> = State<'a, Arc<Agent>>;
+
+const NOT_CONNECTED: &str = "The engine is not connected in this build; dou-cli provides it.";
 
 pub(super) fn from_agent_window(webview: &Webview) -> Result<(), String> {
     if webview.label() == "agent" {
@@ -15,77 +17,44 @@ pub(super) fn from_agent_window(webview: &Webview) -> Result<(), String> {
     }
 }
 
-pub fn state_value(agent: &Agent, web_url: &str) -> Value {
-    let engine = match agent.engine() {
-        Engine::Stopped => json!({ "kind": "stopped" }),
-        Engine::Starting { cloud } => json!({ "kind": "starting", "cloud": cloud }),
-        Engine::Running { cloud, me } => json!({ "kind": "running", "cloud": cloud, "me": me }),
-        Engine::Failed { message } => json!({ "kind": "failed", "message": message }),
-    };
-    let pairing = match agent.pairing() {
-        Pairing::Idle => json!({ "kind": "idle" }),
-        Pairing::Starting => json!({ "kind": "starting" }),
-        Pairing::Waiting { code } => json!({ "kind": "waiting", "code": code }),
-        Pairing::Applying => json!({ "kind": "applying" }),
-        Pairing::Failed { message } => json!({ "kind": "failed", "message": message }),
-    };
+pub fn state_value(web_url: &str) -> Value {
     json!({
-        "signedIn": agent.signed_in(),
-        "cloud": agent.chosen_cloud(),
-        "engine": engine,
-        "pairing": pairing,
+        "signedIn": false,
+        "cloud": null,
+        "engine": { "kind": "stopped" },
+        "pairing": { "kind": "idle" },
         "webUrl": web_url,
+        "connected": false,
     })
 }
 
 #[tauri::command]
-pub fn agent_state(webview: Webview, agent: Shared<'_>) -> Result<Value, String> {
+pub fn agent_state(webview: Webview, app: AppHandle) -> Result<Value, String> {
     from_agent_window(&webview)?;
-    Ok(state_value(&agent, &crate::window::web_url()))
+    let web_url = app
+        .try_state::<crate::bridge::Bridge>()
+        .map(|b| b.origin.clone())
+        .unwrap_or_default();
+    Ok(state_value(&web_url))
 }
 
 #[tauri::command]
-pub fn agent_pair_start(webview: Webview, agent: Shared<'_>) -> Result<(), String> {
+pub fn agent_pair_start(webview: Webview) -> Result<(), String> {
     from_agent_window(&webview)?;
-    agent.inner().start_pairing()
+    Err(NOT_CONNECTED.to_string())
 }
 
 #[tauri::command]
-pub async fn agent_clouds(webview: Webview, agent: Shared<'_>) -> Result<Value, String> {
+pub async fn agent_clouds(webview: Webview) -> Result<Value, String> {
     from_agent_window(&webview)?;
-    agent.clouds().await
+    Err(NOT_CONNECTED.to_string())
 }
 
 #[tauri::command]
-pub fn agent_choose_cloud(
-    webview: Webview,
-    app: AppHandle,
-    agent: Shared<'_>,
-    cloud: String,
-) -> Result<bool, String> {
+pub fn agent_choose_cloud(webview: Webview, cloud: String) -> Result<bool, String> {
     from_agent_window(&webview)?;
-    if !is_cloud_id(&cloud) {
-        return Err("That is not a cloud id.".to_string());
-    }
-    let switching = needs_restart(&agent.engine(), &cloud);
-    agent.choose_cloud(&cloud)?;
-    if switching {
-        let handle = app.clone();
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(400));
-            handle.restart();
-        });
-        return Ok(true);
-    }
-    agent.inner().autostart_engine();
-    Ok(false)
-}
-
-fn needs_restart(engine: &Engine, cloud: &str) -> bool {
-    matches!(
-        engine,
-        Engine::Running { cloud: current, .. } | Engine::Starting { cloud: current } if current != cloud
-    )
+    let _ = cloud;
+    Err(NOT_CONNECTED.to_string())
 }
 
 #[tauri::command]
@@ -105,7 +74,7 @@ pub fn agent_open_approve_page(webview: Webview, app: AppHandle) -> Result<(), S
 }
 
 fn settings_file(agent: &Agent) -> std::path::PathBuf {
-    dou_app::settings_path(agent.profile_dir())
+    agent.profile_dir().join("settings.json")
 }
 
 #[tauri::command]
@@ -128,27 +97,9 @@ pub fn agent_settings_set(
 }
 
 #[tauri::command]
-pub async fn agent_rooms(webview: Webview, agent: Shared<'_>) -> Result<Value, String> {
+pub async fn agent_rooms(webview: Webview) -> Result<Value, String> {
     from_agent_window(&webview)?;
-    let rooms = agent.owner_call("rooms", json!({})).await?;
-    let list: Vec<Value> = rooms["list"]
-        .as_array()
-        .map(|items| {
-            items
-                .iter()
-                .map(|room| json!({ "id": room["id"], "title": room["title"] }))
-                .collect()
-        })
-        .unwrap_or_default();
-    Ok(json!(list))
-}
-
-fn is_cloud_id(cloud: &str) -> bool {
-    !cloud.is_empty()
-        && cloud.len() <= 64
-        && cloud
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    Ok(json!([]))
 }
 
 #[cfg(test)]
@@ -156,41 +107,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn only_a_different_running_cloud_needs_a_restart() {
-        let running = Engine::Running {
-            cloud: "1".into(),
-            me: "m".into(),
-        };
-        assert!(needs_restart(&running, "2"));
-        assert!(!needs_restart(&running, "1"));
-        assert!(needs_restart(&Engine::Starting { cloud: "1".into() }, "2"));
-        assert!(!needs_restart(&Engine::Stopped, "2"));
-        assert!(!needs_restart(
-            &Engine::Failed {
-                message: "x".into()
-            },
-            "2"
-        ));
-    }
-
-    #[test]
-    fn a_cloud_id_is_a_short_word_of_letters_digits_dash_and_underscore() {
-        assert!(is_cloud_id("1000004"));
-        assert!(is_cloud_id("cloud-9_a"));
-        assert!(!is_cloud_id(""));
-        assert!(!is_cloud_id("../x"));
-        assert!(!is_cloud_id(&"a".repeat(65)));
-        assert!(is_cloud_id(&"a".repeat(64)));
-    }
-
-    #[test]
-    fn the_state_of_a_new_agent_says_signed_out_and_stopped() {
-        let dir = tempfile::tempdir().expect("temp dir");
-        let agent = Agent::new(dir.path().join("agent"), "dev");
-        let value = state_value(&agent, "https://dou-dev.chatic.io");
+    fn the_state_says_signed_out_stopped_and_not_connected() {
+        let value = state_value("https://dou-dev.chatic.io");
         assert_eq!(value["signedIn"], false);
         assert_eq!(value["engine"]["kind"], "stopped");
         assert_eq!(value["pairing"]["kind"], "idle");
+        assert_eq!(value["connected"], false);
         assert_eq!(value["webUrl"], "https://dou-dev.chatic.io");
+    }
+
+    #[test]
+    fn the_settings_file_is_the_profile_settings_json() {
+        let agent = Agent::new("/p".into());
+        assert_eq!(settings_file(&agent), std::path::Path::new("/p/settings.json"));
     }
 }

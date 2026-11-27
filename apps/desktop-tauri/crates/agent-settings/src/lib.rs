@@ -1,6 +1,8 @@
 use std::path::Path;
 
-use dou_control::{RateLimit, Settings, Tier};
+mod model;
+
+pub use model::{RateLimit, Settings, Tier};
 use serde_json::{Value, json};
 
 const MAX_ROOMS: usize = 500;

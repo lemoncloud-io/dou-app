@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use bridge_host::{BRIDGE_VERSION, BridgeHost, Config};
@@ -6,6 +7,7 @@ use tauri::{App, AppHandle, Manager, State, Webview};
 use url::Url;
 
 use crate::globals::{ShellInfo, init_script, language_subtag};
+use crate::profile::Paths;
 
 pub struct Bridge {
     host: Arc<BridgeHost>,
@@ -20,27 +22,18 @@ pub fn origin_of(address: &str) -> Option<String> {
     Some(parsed.origin().ascii_serialization())
 }
 
-fn device_id(app: &App) -> String {
-    let path = app
-        .path()
-        .app_data_dir()
-        .ok()
-        .map(|dir| dir.join("device-id"));
-    if let Some(path) = &path
-        && let Ok(text) = std::fs::read_to_string(path)
-    {
+fn device_id(path: &Path) -> String {
+    if let Ok(text) = std::fs::read_to_string(path) {
         let text = text.trim();
         if !text.is_empty() {
             return text.to_string();
         }
     }
     let id = uuid::Uuid::new_v4().to_string();
-    if let Some(path) = &path {
-        if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
-        }
-        let _ = std::fs::write(path, &id);
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
     }
+    let _ = std::fs::write(path, &id);
     id
 }
 
@@ -67,7 +60,12 @@ pub struct Installed {
     pub stage: String,
 }
 
-pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
+pub fn install(
+    app: &mut App,
+    web_url: &str,
+    paths: &Paths,
+    key_account: &str,
+) -> Result<Installed, String> {
     let origin =
         origin_of(web_url).ok_or_else(|| format!("not a usable web address: {web_url}"))?;
     let stage = option_env!("DOU_STAGE")
@@ -78,7 +76,7 @@ pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
         })
         .to_string();
     let info = ShellInfo {
-        device_id: device_id(app),
+        device_id: device_id(&paths.device_id()),
         stage: stage.clone(),
         version: app.package_info().version.to_string(),
         language: language_subtag(sys_locale::get_locale().as_deref()),
@@ -94,17 +92,16 @@ pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
         sub_webview_open_scope: Some("anyHttps".to_string()),
     });
 
-    let app_data = app.path().app_data_dir().map_err(|e| e.to_string())?;
     let keys: Box<dyn vault::KeySource> =
         if cfg!(debug_assertions) && std::env::var_os("DOU_VAULT_KEY_FILE").is_some() {
-            Box::new(vault::FileKeys::new(app_data.join("vault.key")))
+            Box::new(vault::FileKeys::new(paths.vault_key()))
         } else {
             Box::new(vault::KeyringKeys::new(
                 &app.config().identifier,
-                "vault-key",
+                key_account,
             ))
         };
-    let vault = Arc::new(vault::Vault::open(app_data.join("secrets.bin"), keys));
+    let vault = Arc::new(vault::Vault::open(paths.secrets(), keys));
     crate::handlers::register_all(
         &mut host,
         &crate::handlers::Context {
@@ -118,7 +115,8 @@ pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
         CapabilityBuilder::new("web-bridge")
             .remote(format!("{origin}/*"))
             .window("main")
-            .permission("allow-bridge-request"),
+            .permission("allow-bridge-request")
+            .permission("allow-log-event"),
     )
     .map_err(|e| e.to_string())?;
 
@@ -143,8 +141,24 @@ pub async fn bridge_request(
         return Err("the caller is not the web".to_string());
     }
     #[cfg(debug_assertions)]
-    eprintln!("bridge <- {}", request_type_of(&message));
+    crate::logs::shell(&format!("bridge <- {}", request_type_of(&message)));
     bridge.host.handle_message(&message).await;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn log_event(
+    webview: Webview,
+    bridge: State<'_, Bridge>,
+    logs: State<'_, Arc<crate::logs::Logs>>,
+    level: String,
+    message: String,
+) -> Result<(), String> {
+    let url = webview.url().map_err(|e| e.to_string())?;
+    if url.origin().ascii_serialization() != bridge.origin {
+        return Err("the caller is not the web".to_string());
+    }
+    logs.webview_event(&level, &message);
     Ok(())
 }
 

@@ -96,13 +96,13 @@ pub fn receive(pending: &Pending, raw: &str, os: &str, now_ms: u64) -> Option<Va
     match pending.accept(&link, now_ms) {
         Ok(accepted) => Some(login_event(&accepted, os)),
         Err(reason) => {
-            eprintln!("sign-in link refused: {reason:?}");
+            crate::logs::shell(&format!("sign-in link refused: {reason:?}"));
             None
         }
     }
 }
 
-fn take_links(app: &AppHandle, urls: impl IntoIterator<Item = url::Url>) {
+pub fn take_links(app: &AppHandle, urls: impl IntoIterator<Item = url::Url>) {
     let Some(pending) = app.try_state::<Pending>() else {
         return;
     };

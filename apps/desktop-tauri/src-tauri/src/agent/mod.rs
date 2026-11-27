@@ -1,6 +1,18 @@
 pub mod commands;
-mod config;
 pub mod connect;
-mod host;
 
-pub use host::autostart;
+use std::path::{Path, PathBuf};
+
+pub struct Agent {
+    profile_dir: PathBuf,
+}
+
+impl Agent {
+    pub fn new(profile_dir: PathBuf) -> Self {
+        Self { profile_dir }
+    }
+
+    pub fn profile_dir(&self) -> &Path {
+        &self.profile_dir
+    }
+}
