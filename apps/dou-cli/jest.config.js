@@ -18,7 +18,8 @@ module.exports = {
         '^@chatic/db-memory$': '<rootDir>/../../libs/db/memory/src/index.ts',
         '^@chatic/host-node$': '<rootDir>/../../libs/host/node/src/index.ts',
         '^@chatic/data-(model|api|local|repositories)$': '<rootDir>/../../libs/data/$1/src/index.ts',
-        '^@chatic/storage-(compose|memory|web-local|web-session|vault-bridge)$': '<rootDir>/../../libs/storage/$1/src/index.ts',
+        '^@chatic/storage-(compose|memory|web-local|web-session|vault-bridge)$':
+            '<rootDir>/../../libs/storage/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
     },
     transform: {
