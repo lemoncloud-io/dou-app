@@ -100,7 +100,7 @@ pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
             Box::new(vault::FileKeys::new(app_data.join("vault.key")))
         } else {
             Box::new(vault::KeyringKeys::new(
-                "io.chatic.desktop.tauri",
+                &app.config().identifier,
                 "vault-key",
             ))
         };

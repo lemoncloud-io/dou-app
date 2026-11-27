@@ -59,22 +59,33 @@ pub async fn agent_clouds(webview: Webview, agent: Shared<'_>) -> Result<Value, 
 #[tauri::command]
 pub fn agent_choose_cloud(
     webview: Webview,
+    app: AppHandle,
     agent: Shared<'_>,
     cloud: String,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     from_agent_window(&webview)?;
     if !is_cloud_id(&cloud) {
         return Err("That is not a cloud id.".to_string());
     }
-    if let Engine::Running { cloud: current, .. } | Engine::Starting { cloud: current } =
-        agent.engine()
-        && current != cloud
-    {
-        return Err("The engine is running another cloud. Restart the app to switch.".to_string());
-    }
+    let switching = needs_restart(&agent.engine(), &cloud);
     agent.choose_cloud(&cloud)?;
+    if switching {
+        let handle = app.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            handle.restart();
+        });
+        return Ok(true);
+    }
     agent.inner().autostart_engine();
-    Ok(())
+    Ok(false)
+}
+
+fn needs_restart(engine: &Engine, cloud: &str) -> bool {
+    matches!(
+        engine,
+        Engine::Running { cloud: current, .. } | Engine::Starting { cloud: current } if current != cloud
+    )
 }
 
 #[tauri::command]
@@ -143,6 +154,24 @@ fn is_cloud_id(cloud: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_different_running_cloud_needs_a_restart() {
+        let running = Engine::Running {
+            cloud: "1".into(),
+            me: "m".into(),
+        };
+        assert!(needs_restart(&running, "2"));
+        assert!(!needs_restart(&running, "1"));
+        assert!(needs_restart(&Engine::Starting { cloud: "1".into() }, "2"));
+        assert!(!needs_restart(&Engine::Stopped, "2"));
+        assert!(!needs_restart(
+            &Engine::Failed {
+                message: "x".into()
+            },
+            "2"
+        ));
+    }
 
     #[test]
     fn a_cloud_id_is_a_short_word_of_letters_digits_dash_and_underscore() {

@@ -41,6 +41,7 @@
     for (const tab of tabs) $('tab-' + tab).addEventListener('click', () => show(tab));
 
     let cloudsCache = null;
+    let pickedCloud = null;
 
     const engineText = engine => {
         switch (engine.kind) {
@@ -117,7 +118,7 @@
             if (cloudsCache) {
                 for (const cloud of cloudsCache) {
                     const option = el('option', { value: cloud.id }, cloud.name || cloud.id);
-                    if (cloud.id === state.cloud) option.selected = true;
+                    if (cloud.id === (pickedCloud ?? state.cloud)) option.selected = true;
                     select.append(option);
                 }
             } else {
@@ -129,17 +130,26 @@
                     })
                     .catch(fail);
             }
+            select.addEventListener('change', () => {
+                pickedCloud = select.value;
+                render();
+            });
+            const running = state.engine.cloud;
+            const switching = Boolean(running) && Boolean(select.value) && select.value !== running;
             cloudCard.append(
                 el(
                     'div',
                     { class: 'row' },
                     select,
                     button(
-                        'Use this cloud',
+                        switching ? 'Switch cloud and restart' : 'Use this cloud',
                         () => {
                             if (!select.value) return;
                             invoke('agent_choose_cloud', { cloud: select.value })
-                                .then(() => notice('Cloud chosen.'))
+                                .then(restarting => {
+                                    pickedCloud = null;
+                                    notice(restarting ? 'Restarting the app to switch cloud…' : 'Cloud chosen.');
+                                })
                                 .catch(fail)
                                 .then(render);
                         },
