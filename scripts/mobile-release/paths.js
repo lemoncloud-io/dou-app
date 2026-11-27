@@ -1,12 +1,16 @@
 const MOBILE_ROOT = 'apps/mobile';
-const NATIVE_DIRS = ['apps/mobile/ios/', 'apps/mobile/android/'];
 const MOBILE_PACKAGE_JSON = 'apps/mobile/package.json';
+const PODFILE_LOCK = 'apps/mobile/ios/Podfile.lock';
+const ANDROID_MANIFEST = /^apps\/mobile\/android\/app\/src\/main\/AndroidManifest\.xml$/;
+const INFO_PLIST = /^apps\/mobile\/ios\/[^/]+\/Info\.plist$/;
+const NATIVE_SOURCE = [/^apps\/mobile\/ios\/.+\.(m|mm|swift)$/, /^apps\/mobile\/android\/.+Package\.kt$/];
 
 const NOT_IN_BINARY = [
     /\.md$/i,
     /(^|\/)docs\//,
     /(^|\/)__tests__\//,
     /(^|\/)__mocks__\//,
+    /(^|\/)src\/test\//,
     /\.(test|spec)\.[cm]?[jt]sx?$/,
     /\.stories\.[jt]sx?$/,
     /^apps\/mobile\/e2e\//,
@@ -58,11 +62,33 @@ function reachesBinary(file, roots, otherRoots = []) {
         (a, b) => b.root.length - a.root.length || Number(b.owned) - Number(a.owned)
     )[0];
     if (!owner || !owner.owned) return false;
+    return isInBinaryFile(file);
+}
+
+function isInBinaryFile(file) {
     return !NOT_IN_BINARY.some(pattern => pattern.test(file));
 }
 
-function isNativeFile(file) {
-    return NATIVE_DIRS.some(dir => file.startsWith(dir));
+function isNativeSource(file) {
+    return NATIVE_SOURCE.some(pattern => pattern.test(file)) && isInBinaryFile(file);
+}
+
+function isPermissionFile(file) {
+    return ANDROID_MANIFEST.test(file) || INFO_PLIST.test(file);
+}
+
+function permissions(text) {
+    const found = new Set();
+    for (const match of (text || '').matchAll(/<uses-permission(?:-sdk-\d+)?\b[^>]*android:name="([^"]+)"/g)) {
+        found.add(match[1]);
+    }
+    for (const match of (text || '').matchAll(/<key>([A-Za-z0-9]+UsageDescription)<\/key>/g)) found.add(match[1]);
+    return found;
+}
+
+function addedPermissions(before, after) {
+    const old = permissions(before);
+    return [...permissions(after)].filter(name => !old.has(name));
 }
 
 function addedDependencies(beforeJson, afterJson) {
@@ -80,10 +106,13 @@ function addedDependencies(beforeJson, afterJson) {
 module.exports = {
     MOBILE_ROOT,
     MOBILE_PACKAGE_JSON,
+    PODFILE_LOCK,
     mobileDependencyRoots,
     allProjectRoots,
     binaryRoots,
     reachesBinary,
-    isNativeFile,
+    isNativeSource,
+    isPermissionFile,
+    addedPermissions,
     addedDependencies,
 };

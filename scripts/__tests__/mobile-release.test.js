@@ -15,7 +15,9 @@ const {
     allProjectRoots,
     binaryRoots,
     reachesBinary,
-    isNativeFile,
+    isNativeSource,
+    isPermissionFile,
+    addedPermissions,
     addedDependencies,
 } = require('../mobile-release/paths');
 const {
@@ -28,10 +30,11 @@ const {
     resolveVersion,
 } = require('../mobile-release/version');
 const { parseReplacers, applyReplacers, teamNotes, checkStoreNotes } = require('../mobile-release/notes');
-const { buildPlan, pickPr, summarize, parseArgs, unitBetween } = require('../mobile-release/plan');
+const { buildPlan, pickPr, summarize, parseArgs, unitBetween, resolveBuild } = require('../mobile-release/plan');
 const { releaseBody, prComment, finish, marker, tagMessage, parseTagMessage } = require('../mobile-release/finish');
 const release = require('../mobile-release/release');
 const { injectIosVersion } = require('../mobile-release/ios-version');
+const store = require('../mobile-release/store');
 
 const ROOTS = binaryRoots(['libs/runtime', 'libs/data']);
 
@@ -71,29 +74,31 @@ describe('mobile-release commits', () => {
             subject: `${type}: x`,
             type,
             breaking: false,
-            native: false,
             ...extra,
         });
+        const signal = {
+            kind: 'native-source',
+            file: 'apps/mobile/android/a/XPackage.kt',
+            detail: 'new',
+            sha: 's',
+            pr: 7,
+        };
 
-        it('feat가 있으면 minor를 제안한다', () => {
-            expect(proposeUnit([commit('fix'), commit('feat')]).unit).toBe('minor');
+        it('feat 커밋만 있으면 patch를 제안한다', () => {
+            const result = proposeUnit([commit('fix'), commit('feat'), commit('feat')]);
+            expect(result).toEqual({ unit: 'patch', reasons: [], featCommits: 2 });
         });
 
-        it('fix만 있으면 patch를 제안한다', () => {
-            const result = proposeUnit([commit('fix'), commit('chore'), commit(null)]);
-            expect(result.unit).toBe('patch');
-            expect(result.reasons).toHaveLength(3);
+        it('네이티브 신호가 있으면 fix만 있어도 minor를 제안하고 신호 파일을 근거로 든다', () => {
+            const result = proposeUnit([commit('fix')], [signal]);
+            expect(result.unit).toBe('minor');
+            expect(result.reasons).toEqual([{ sha: 's', file: signal.file, detail: 'new', pr: 7, why: 'native' }]);
         });
 
-        it('! 가 있으면 major를 제안하고 근거로 그 커밋만 든다', () => {
-            const result = proposeUnit([commit('feat'), commit('feat', { breaking: true, sha: 'b' })]);
+        it('! 가 있으면 신호가 있어도 major를 제안하고 근거로 그 커밋만 든다', () => {
+            const result = proposeUnit([commit('feat'), commit('feat', { breaking: true, sha: 'b' })], [signal]);
             expect(result.unit).toBe('major');
             expect(result.reasons.map(item => item.sha)).toEqual(['b']);
-        });
-
-        it('네이티브 변경은 fix여도 minor다', () => {
-            const result = proposeUnit([commit('fix', { native: true })]);
-            expect(result).toEqual({ unit: 'minor', reasons: [expect.objectContaining({ why: 'native' })] });
         });
 
         it('커밋이 없으면 단위를 제안하지 않는다', () => {
@@ -164,15 +169,40 @@ describe('mobile-release paths', () => {
             'libs/runtime/src/__tests__/a.ts',
             'apps/mobile/e2e/flows/a.yaml',
             'apps/mobile/fastlane/Fastfile',
+            'apps/mobile/android/app/src/test/java/AppTest.kt',
         ]) {
             expect(reachesBinary(file, ROOTS)).toBe(false);
         }
     });
 
-    it('ios·android 아래 파일을 네이티브 변경으로 본다', () => {
-        expect(isNativeFile('apps/mobile/ios/Chatic/Info.plist')).toBe(true);
-        expect(isNativeFile('apps/mobile/android/app/build.gradle')).toBe(true);
-        expect(isNativeFile('apps/mobile/src/ios.ts')).toBe(false);
+    it('새 네이티브 소스는 ios의 .m·.mm·.swift와 android의 *Package.kt만 센다', () => {
+        expect(isNativeSource('apps/mobile/ios/Chatic/Haptic.swift')).toBe(true);
+        expect(isNativeSource('apps/mobile/ios/Chatic/Haptic.m')).toBe(true);
+        expect(isNativeSource('apps/mobile/ios/Chatic/Haptic.mm')).toBe(true);
+        expect(isNativeSource('apps/mobile/android/app/src/main/java/io/HapticPackage.kt')).toBe(true);
+        expect(isNativeSource('apps/mobile/android/app/src/main/java/io/HapticModule.kt')).toBe(false);
+        expect(isNativeSource('apps/mobile/android/app/build.gradle')).toBe(false);
+        expect(isNativeSource('apps/mobile/ios/Chatic.xcodeproj/project.pbxproj')).toBe(false);
+        expect(isNativeSource('apps/mobile/src/haptic.swift')).toBe(false);
+    });
+
+    it('AndroidManifest와 앱 Info.plist에서 새 권한만 돌려준다', () => {
+        expect(isPermissionFile('apps/mobile/android/app/src/main/AndroidManifest.xml')).toBe(true);
+        expect(isPermissionFile('apps/mobile/ios/Chatic/Info.plist')).toBe(true);
+        expect(isPermissionFile('apps/mobile/ios/Chatic/Sub/Info.plist')).toBe(false);
+        const manifest = names =>
+            `<manifest>${names.map(name => `<uses-permission android:name="${name}" />`).join('')}<application/></manifest>`;
+        expect(addedPermissions(manifest(['a.CAMERA']), manifest(['a.CAMERA', 'a.RECORD_AUDIO']))).toEqual([
+            'a.RECORD_AUDIO',
+        ]);
+        expect(addedPermissions(manifest(['a.CAMERA', 'a.X']), manifest(['a.X', 'a.CAMERA']))).toEqual([]);
+        const plist = keys => `<dict>${keys.map(key => `<key>${key}</key><string>why</string>`).join('')}</dict>`;
+        expect(
+            addedPermissions(
+                plist(['NSCameraUsageDescription']),
+                plist(['NSCameraUsageDescription', 'NSMicrophoneUsageDescription', 'UIStatusBarStyle'])
+            )
+        ).toEqual(['NSMicrophoneUsageDescription']);
     });
 
     it('새로 더한 dependencies 이름만 돌려준다', () => {
@@ -204,6 +234,15 @@ describe('mobile-release version', () => {
         expect(nextBuildNumber([], 99)).toBe(100);
         expect(nextBuildNumber(['mobile-v0.33.0-120', 'mobile-v0.32.6-118', 'desktop-prod', 'v9.9.9'], 99)).toBe(121);
         expect(nextBuildNumber(['mobile-v0.1.0-5'], 99)).toBe(100);
+    });
+
+    it('직접 준 빌드 번호는 다음 빈 번호보다 작으면 멈춘다', () => {
+        expect(resolveBuild(121)).toBe(121);
+        expect(resolveBuild(121, '')).toBe(121);
+        expect(resolveBuild(121, '130')).toBe(130);
+        expect(resolveBuild(121, 121)).toBe(121);
+        expect(() => resolveBuild(121, '120')).toThrow('below 121');
+        expect(() => resolveBuild(121, '1e3')).toThrow('whole number');
     });
 
     it('가장 큰 빌드 번호의 태그를 고른다', () => {
@@ -259,7 +298,7 @@ describe('mobile-release notes', () => {
         expect(parseReplacers('name-template: x')).toEqual([]);
     });
 
-    it('팀용 노트를 커밋 타입으로 묶고 PR 없는 커밋은 sha로 적는다', () => {
+    it('팀용 노트를 커밋 타입으로 묶어 영어 머리말로 적고 PR 없는 커밋은 sha로 적는다', () => {
         const prs = [
             { number: 3, title: 'fix it', author: 'a', category: 'fix' },
             { number: 1, title: 'add it', author: 'b', category: 'feat' },
@@ -268,27 +307,33 @@ describe('mobile-release notes', () => {
         const direct = [{ sha: 'abcdef1234', subject: 'chore: tidy', category: 'other' }];
         expect(teamNotes(prs, direct)).toBe(
             [
-                '### 호환성 변경',
+                '### Breaking',
                 '',
                 '- drop v1 @a (#2)',
                 '',
-                '### 새 기능',
+                '### Features',
                 '',
                 '- add it @b (#1)',
                 '',
-                '### 수정',
+                '### Fixes',
                 '',
                 '- fix it @a (#3)',
                 '',
-                '### 기타',
+                '### Other',
                 '',
                 '- chore: tidy (abcdef1)',
             ].join('\n')
         );
+        expect(
+            teamNotes(prs, direct, [], 'ko')
+                .split('\n')
+                .filter(line => line.startsWith('###'))
+        ).toEqual(['### 호환성 변경', '### 새 기능', '### 수정', '### 기타']);
     });
 
     it('대상이 없으면 그렇다고 적는다', () => {
-        expect(teamNotes([], [])).toBe('모바일 바이너리에 들어간 변경이 없습니다.');
+        expect(teamNotes([], [])).toBe('No change reached the mobile binary.');
+        expect(teamNotes([], [], [], 'ko')).toBe('모바일 바이너리에 들어간 변경이 없습니다.');
     });
 
     it('스토어용 노트는 비었거나 500자를 넘으면 실패한다', () => {
@@ -403,9 +448,16 @@ describe('mobile-release plan', () => {
             expect.objectContaining({ version: '0.32.5', source: 'build.gradle', commit: shas.bump })
         );
         expect(plan.proposal.unit).toBe('patch');
-        expect(plan.release).toEqual({ unit: 'patch', version: '0.32.6', build: 100, tag: 'mobile-v0.32.6-100' });
+        expect(plan.release).toEqual(
+            expect.objectContaining({ unit: 'patch', version: '0.32.6', build: 100, tag: 'mobile-v0.32.6-100' })
+        );
+        expect(plan.release.buildBasis).toEqual({ tags: null, store: null, gradle: 99, computed: 100 });
         expect(plan.teamNotes).toContain('- App fix @테스터 (#8)');
-        expect(summarize(plan)).toContain('0.32.6 (100) patch');
+        expect(plan.teamNotes).toContain('### Fixes');
+        expect(plan.cardNotes).toContain('### 수정');
+        expect(summarize(plan)).toContain('0.32.6 patch → mobile-v0.32.6-100');
+        expect(summarize(plan)).toContain('100 (highest of tags none, gradle 99, store not read, plus one)');
+        expect(summarize(plan)).toContain('patch — no native signal (0 feat commit(s) count as patch)');
     });
 
     it('직전 mobile-v 태그 이후만 노트에 넣고, 빌드 번호는 태그에서 잇는다', async () => {
@@ -414,7 +466,7 @@ describe('mobile-release plan', () => {
             const plan = await buildPlan({ prodTags: [] }, deps());
             expect(plan.lastTag).toBe('mobile-v0.32.6-100');
             expect(plan.prs.map(pr => pr.number)).toEqual([8]);
-            expect(plan.proposal.reasons).toHaveLength(2);
+            expect(plan.proposal.unit).toBe('patch');
             expect(plan.release.build).toBe(101);
             expect(plan.release.version).toBe('0.32.6');
         } finally {
@@ -422,16 +474,79 @@ describe('mobile-release plan', () => {
         }
     });
 
-    it('feat·네이티브는 minor, !는 major 제안이지만 auto는 minor로 낸다', async () => {
+    const proposalAfter = async files => {
         const head = run(['rev-parse', 'HEAD']);
         try {
-            commit('fix(mobile): permission', { 'apps/mobile/ios/Chatic/Info.plist': '<plist/>' });
-            let plan = await buildPlan({ prodTags: [], prs: false }, deps());
-            expect(plan.proposal.unit).toBe('minor');
-            expect(plan.release.version).toBe('0.33.0');
+            for (const [subject, changes] of files) commit(subject, changes);
+            return await buildPlan({ prodTags: [], prs: false }, deps());
+        } finally {
+            run(['reset', '-q', '--hard', head]);
+        }
+    };
 
+    it('feat 커밋과 빌드 설정 변경만 있으면 patch다', async () => {
+        const plan = await proposalAfter([
+            ['feat(mobile): new screen', { 'apps/mobile/src/b.ts': '1' }],
+            ['build(mobile): gradle', { 'apps/mobile/android/app/build.gradle': `${gradle('0.32.5', 99)}// x\n` }],
+            ['build(mobile): pbxproj', { 'apps/mobile/ios/Chatic.xcodeproj/project.pbxproj': 'x' }],
+            ['feat(mobile): new kotlin module', { 'apps/mobile/android/app/src/main/java/io/HapticModule.kt': 'x' }],
+        ]);
+        expect(plan.proposal).toEqual(expect.objectContaining({ unit: 'patch', featCommits: 2 }));
+        expect(plan.signals).toEqual([]);
+        expect(plan.release.version).toBe('0.32.6');
+    });
+
+    it('새 네이티브 소스·Podfile.lock·새 권한은 minor 신호다', async () => {
+        const source = await proposalAfter([
+            ['fix(mobile): haptics', { 'apps/mobile/android/app/src/main/java/io/HapticPackage.kt': 'x' }],
+        ]);
+        expect(source.proposal.unit).toBe('minor');
+        expect(source.signals).toEqual([
+            expect.objectContaining({
+                kind: 'native-source',
+                file: 'apps/mobile/android/app/src/main/java/io/HapticPackage.kt',
+            }),
+        ]);
+        expect(source.release.version).toBe('0.33.0');
+        expect(summarize(source)).toContain(
+            'minor — new native source file (apps/mobile/android/app/src/main/java/io/HapticPackage.kt)'
+        );
+
+        const pods = await proposalAfter([['chore(mobile): pods', { 'apps/mobile/ios/Podfile.lock': 'PODS: []' }]]);
+        expect(pods.signals.map(item => item.kind)).toEqual(['podfile-lock']);
+
+        const plist = keys => `<dict>${keys.map(key => `<key>${key}</key><string>x</string>`).join('')}</dict>`;
+        const head = run(['rev-parse', 'HEAD']);
+        try {
+            commit('chore(mobile): plist', {
+                'apps/mobile/ios/Chatic/Info.plist': plist(['NSCameraUsageDescription']),
+            });
+            const base = run(['rev-parse', 'HEAD']);
+            commit('fix(mobile): reword', {
+                'apps/mobile/ios/Chatic/Info.plist': plist(['NSCameraUsageDescription', 'UIX']),
+            });
+            const reword = await buildPlan({ prodTags: [], prs: false, from: base }, deps());
+            expect(reword.proposal.unit).toBe('patch');
+            commit('feat(mobile): mic', {
+                'apps/mobile/ios/Chatic/Info.plist': plist([
+                    'NSCameraUsageDescription',
+                    'NSMicrophoneUsageDescription',
+                ]),
+            });
+            const mic = await buildPlan({ prodTags: [], prs: false, from: base }, deps());
+            expect(mic.signals).toEqual([
+                expect.objectContaining({ kind: 'permission', detail: 'new permission NSMicrophoneUsageDescription' }),
+            ]);
+        } finally {
+            run(['reset', '-q', '--hard', head]);
+        }
+    });
+
+    it('!는 major 제안이지만 auto는 minor로 낸다', async () => {
+        const head = run(['rev-parse', 'HEAD']);
+        try {
             commit('feat(runtime)!: drop the v1 bridge', { 'libs/runtime/src/b.ts': '1' });
-            plan = await buildPlan({ prodTags: [], prs: false }, deps());
+            const plan = await buildPlan({ prodTags: [], prs: false }, deps());
             expect(plan.proposal).toEqual(expect.objectContaining({ unit: 'major', autoUnit: 'minor' }));
             expect(plan.release.version).toBe('0.33.0');
             expect((await buildPlan({ prodTags: [], prs: false, bump: 'major' }, deps())).release.version).toBe(
@@ -442,16 +557,43 @@ describe('mobile-release plan', () => {
         }
     });
 
-    it('새 네이티브 의존성은 minor다', async () => {
+    it('새 의존성은 minor 신호이고 신호를 만든 커밋의 PR을 근거로 든다', async () => {
         const head = run(['rev-parse', 'HEAD']);
         try {
-            commit('chore(mobile): add b', { 'apps/mobile/package.json': '{"dependencies":{"a":"1","b":"1"}}' });
-            const plan = await buildPlan({ prodTags: [], prs: false }, deps());
-            expect(plan.commits[0].native).toBe(true);
-            expect(plan.proposal.unit).toBe('minor');
+            const sha = commit('chore(mobile): add b', {
+                'apps/mobile/package.json': '{"dependencies":{"a":"1","b":"1"}}',
+            });
+            pulls[sha] = [
+                {
+                    number: 11,
+                    title: 'Add b',
+                    user: { login: 'x' },
+                    html_url: 'u',
+                    merged_at: '2026-11-27',
+                    base: { ref: 'develop' },
+                },
+            ];
+            const plan = await buildPlan({ prodTags: [] }, deps());
+            expect(plan.signals).toEqual([
+                expect.objectContaining({ kind: 'dependency', detail: 'new dependency b', sha, pr: 11 }),
+            ]);
+            expect(plan.proposal.reasons[0]).toEqual(expect.objectContaining({ pr: 11, why: 'native' }));
         } finally {
             run(['reset', '-q', '--hard', head]);
         }
+    });
+
+    it('스토어 최신 번호가 태그보다 크면 그 다음 번호를 쓰고, 직접 준 번호는 그보다 작을 수 없다', async () => {
+        const plan = await buildPlan({ prodTags: [], prs: false, storeBuild: 130 }, deps());
+        expect(plan.release.build).toBe(131);
+        expect(plan.release.buildBasis).toEqual({ tags: null, store: 130, gradle: 99, computed: 131 });
+        expect(summarize(plan)).toContain('131 (highest of tags none, gradle 99, store 130, plus one)');
+        const manual = await buildPlan({ prodTags: [], prs: false, storeBuild: 50, build: '140' }, deps());
+        expect(manual.release.build).toBe(140);
+        expect(summarize(manual)).toContain('set by hand (next free 100)');
+        await expect(buildPlan({ prodTags: [], prs: false, storeBuild: 130, build: '120' }, deps())).rejects.toThrow(
+            'below 131'
+        );
     });
 
     it('prod 릴리스가 있으면 그 태그가 기준 버전이다', async () => {
@@ -493,7 +635,9 @@ describe('mobile-release plan', () => {
         run(['tag', '-a', 'mobile-v0.32.6-101', shas.app, '-m', 'dev']);
         try {
             const plan = await buildPlan({ prodTags: [], forTag: 'mobile-v0.32.6-101' }, deps());
-            expect(plan.release).toEqual({ unit: 'patch', version: '0.32.6', build: 101, tag: 'mobile-v0.32.6-101' });
+            expect(plan.release).toEqual(
+                expect.objectContaining({ unit: 'patch', version: '0.32.6', build: 101, tag: 'mobile-v0.32.6-101' })
+            );
             expect(plan.lastTag).toBe('mobile-v0.32.6-100');
             expect(plan.prs.map(pr => pr.number)).toEqual([8]);
         } finally {
@@ -507,6 +651,9 @@ describe('mobile-release plan', () => {
         expect(parseArgs(['--json', '--from', 'a', '--bump', 'minor', '--version', ''])).toEqual(
             expect.objectContaining({ json: true, from: 'a', bump: 'minor', version: undefined })
         );
+        expect(parseArgs(['--build', '140', '--store-build', '130'])).toEqual(
+            expect.objectContaining({ build: '140', storeBuild: 130 })
+        );
         expect(() => parseArgs(['--nope'])).toThrow('Unknown argument');
         expect(() => parseArgs(['--from'])).toThrow('needs a value');
     });
@@ -518,52 +665,75 @@ describe('mobile-release finish', () => {
         to: { sha: 'c0ffee' },
         base: { version: '0.32.5', source: 'build.gradle', ref: 'abc', commit: 'abcdef' },
         lastTag: null,
-        proposal: { unit: 'minor', autoUnit: 'minor', reasons: [{ sha: 's', pr: 5, why: 'feat' }] },
+        proposal: {
+            unit: 'minor',
+            autoUnit: 'minor',
+            reasons: [
+                {
+                    sha: 's',
+                    file: 'apps/mobile/ios/Podfile.lock',
+                    detail: 'Podfile.lock changed',
+                    pr: 5,
+                    why: 'native',
+                },
+            ],
+        },
         release: { unit: 'minor', version: '0.33.0', build: 100, tag: 'mobile-v0.33.0-100' },
         prs: [{ number: 5 }, { number: 6 }],
-        teamNotes: '### 새 기능\n\n- x (#5)',
+        teamNotes: '### Features\n\n- x (#5)',
+        cardNotes: '### 새 기능\n\n- x (#5)',
     };
     const message = tagMessage({
         version: '0.33.0',
         build: 100,
         env: 'dev',
-        platforms: ['android'],
+        results: { ios: 'failed', android: 'uploaded' },
         sha: 'c0ffee',
         storeNotes: 'Fixes.\nMore fixes.',
     });
 
-    it('태그 메시지에 환경·플랫폼·스토어용 노트를 담고 다시 읽는다', () => {
+    it('태그 메시지에 환경·플랫폼별 결과·스토어용 노트를 담고 다시 읽는다', () => {
         expect(message.split('\n')[0]).toBe('DoU Mobile 0.33.0 (100)');
+        expect(message).toContain('results: ios=failed, android=uploaded');
         expect(parseTagMessage(message)).toEqual({
             env: 'dev',
             platforms: ['android'],
-            requested: ['android'],
+            requested: ['ios', 'android'],
+            results: { ios: 'failed', android: 'uploaded' },
             storeNotes: 'Fixes.\nMore fixes.',
         });
-        expect(parseTagMessage('')).toEqual({ env: null, platforms: [], requested: [], storeNotes: '' });
+        expect(parseTagMessage('')).toEqual({ env: null, platforms: [], requested: [], results: {}, storeNotes: '' });
     });
 
-    it('릴리스 본문에 환경 표·두 노트·버전 근거·비교 링크를 넣는다', () => {
+    it('results 줄이 없는 태그는 platforms · requested에서 결과를 만든다', () => {
+        const old = 'x\n\nenv: dev\nplatforms: ios\nrequested: ios, android\ncommit: c\n\nStore notes:\nN';
+        expect(parseTagMessage(old).results).toEqual({ ios: 'uploaded', android: 'failed' });
+    });
+
+    it('릴리스 본문은 영어로, 플랫폼별 결과·두 노트·버전 근거·비교 링크를 넣는다', () => {
         const body = releaseBody({
             plan,
             env: 'dev',
-            platforms: ['android'],
+            results: { ios: 'incomplete', android: 'uploaded' },
             actor: '@me',
             runUrl: 'R',
             uploadedAt: 'T',
             storeNotes: 'Fixes.',
             teamNotes: '',
         });
-        expect(body).toContain('| dev | T | android | @me | [run](R) |');
-        expect(body).toContain('### 새 기능');
+        expect(body).toContain('| Env | Uploaded | iOS | Android | By | Run |');
+        expect(body).toContain(
+            '| dev | T | uploaded, lane failed after the upload (check the store notes) | uploaded | @me | [run](R) |'
+        );
+        expect(body).toContain('### Features');
         expect(body).toContain('## Store notes\n\nFixes.');
-        expect(body).toContain('minor (as proposed) — 1 feat commit(s) in #5');
+        expect(body).toContain('minor (as proposed) — Podfile.lock changed (apps/mobile/ios/Podfile.lock), PR #5');
         expect(body).toContain('https://github.com/o/r/compare/abcdef...mobile-v0.33.0-100');
     });
 
-    it('PR 댓글에 중복을 막는 표시를 넣는다', () => {
+    it('PR 댓글은 영어이고 중복을 막는 표시를 넣는다', () => {
         expect(prComment({ plan, env: 'dev', releaseUrl: 'U' })).toBe(
-            `${marker(plan.release.tag, 'dev')}\nIncluded in dev 0.33.0 (100): U`
+            `${marker(plan.release.tag, 'dev')}\nShipped in dev 0.33.0 (100) · U`
         );
     });
 
@@ -598,6 +768,8 @@ describe('mobile-release finish', () => {
         const { calls, deps } = fakeDeps({ comments: { 6: `${marker(plan.release.tag, 'dev')}\nold` } });
         const result = await finish(options, deps);
         expect(result.body).toContain('## Store notes\n\nFixes.\nMore fixes.');
+        expect(result.results).toEqual({ ios: 'failed', android: 'uploaded' });
+        expect(result.cardNotes).toBe(plan.cardNotes);
         const create = calls.find(call => call[0] === 'release' && call[1] === 'create');
         expect(create).toEqual(expect.arrayContaining(['--prerelease', '--latest=false', '--verify-tag']));
         const posts = calls.filter(call => call.includes('POST'));
@@ -606,19 +778,96 @@ describe('mobile-release finish', () => {
         expect(result).toEqual(expect.objectContaining({ url: 'https://rel', commented: [5] }));
     });
 
-    it('다시 돌리면 릴리스를 만들지 않고 고친다', async () => {
+    it('다시 돌리면 릴리스를 만들지 않고 고치고, 받은 플랫폼별 결과를 쓴다', async () => {
         const { calls, deps } = fakeDeps({ existingRelease: true });
-        await finish({ ...options, storeNotes: 'Other.', teamNotes: '직접 쓴 노트' }, deps);
+        const result = await finish(
+            {
+                ...options,
+                storeNotes: 'Other.',
+                teamNotes: 'Hand-written notes',
+                platforms: 'ios=uploaded,android=uploaded',
+            },
+            deps
+        );
         expect(calls.some(call => call[1] === 'create')).toBe(false);
         expect(calls.find(call => call[1] === 'edit')).toEqual(
             expect.arrayContaining(['--latest=false', '--prerelease'])
         );
+        expect(result.results).toEqual({ ios: 'uploaded', android: 'uploaded' });
+        expect(result.cardNotes).toBe('Hand-written notes');
     });
 
-    it('태그가 없거나 이름이 틀리거나 prod면 실패한다', async () => {
+    it('태그가 없거나 이름이 틀리거나 prod거나 올라간 플랫폼이 없으면 실패한다', async () => {
         await expect(finish(options, fakeDeps({ tagSha: null }).deps)).rejects.toThrow('does not exist');
         await expect(finish({ ...options, tag: 'v1.0.0' }, fakeDeps().deps)).rejects.toThrow('not a mobile-v');
         await expect(finish({ ...options, env: 'prod' }, fakeDeps().deps)).rejects.toThrow('env=dev only');
+        await expect(finish({ ...options, platforms: 'ios=failed' }, fakeDeps().deps)).rejects.toThrow(
+            'no uploaded platform'
+        );
+    });
+});
+
+describe('mobile-release store', () => {
+    const storeDeps = ({ status = 0, value = '120', calls = [] } = {}) => ({
+        root: '/repo',
+        tmpdir: () => '/tmp',
+        read: () => value,
+        remove: () => undefined,
+        run: (command, args, env, cwd) => {
+            calls.push([command, ...args, cwd]);
+            return status;
+        },
+        warn: () => undefined,
+    });
+
+    it('fastlane latest_build 레인으로 스토어 최신 번호를 읽는다', () => {
+        const calls = [];
+        expect(store.readStoreBuild('android', 'dev', storeDeps({ calls }))).toBe(120);
+        expect(calls[0].slice(0, 4)).toEqual(['fastlane', 'android', 'latest_build', 'env:dev']);
+        expect(calls[0][calls[0].length - 1]).toBe('/repo/apps/mobile');
+        expect(store.storeFloor(['ios', 'android'], 'dev', storeDeps())).toEqual({
+            byPlatform: { ios: 120, android: 120 },
+            max: 120,
+        });
+    });
+
+    it('스토어 번호를 읽지 못하면 멈춘다', () => {
+        expect(() => store.readStoreBuild('ios', 'dev', storeDeps({ status: 1 }))).toThrow('stopping');
+        expect(() => store.readStoreBuild('ios', 'dev', storeDeps({ value: 'nope' }))).toThrow('stopping');
+    });
+
+    it('레인이 실패해도 스토어에 그 번호가 있으면 올라간 것으로 본다', () => {
+        const results = store.resolveResults(
+            { requested: ['ios', 'android'], outcomes: { ios: 'failure' }, env: 'dev', build: 120 },
+            storeDeps({ value: '120' })
+        );
+        expect(results).toEqual({ ios: 'incomplete', android: 'skipped' });
+        expect(
+            store.resolveResults(
+                { requested: ['ios'], outcomes: { ios: 'failure' }, env: 'dev', build: 121 },
+                storeDeps({ value: '120' })
+            )
+        ).toEqual({ ios: 'failed' });
+        expect(
+            store.resolveResults(
+                { requested: ['ios'], outcomes: { ios: 'failure' }, env: 'dev', build: 121 },
+                storeDeps({ status: 1 })
+            )
+        ).toEqual({ ios: 'failed' });
+    });
+
+    it('결과를 읽고 쓰고, 다시 올린 결과를 합친다', () => {
+        expect(store.parseResults('ios,android')).toEqual({ ios: 'uploaded', android: 'uploaded' });
+        expect(store.parseResults('ios=incomplete; android=failed')).toEqual({ ios: 'incomplete', android: 'failed' });
+        expect(() => store.parseResults('ios=done')).toThrow('Unknown upload result');
+        expect(store.formatResults({ ios: 'uploaded', android: 'failed' })).toBe('ios=uploaded, android=failed');
+        expect(store.uploadedPlatforms({ ios: 'incomplete', android: 'failed', web: 'uploaded' })).toEqual([
+            'ios',
+            'web',
+        ]);
+        expect(
+            store.mergeResults({ ios: 'uploaded', android: 'failed' }, { android: 'uploaded', ios: 'failed' })
+        ).toEqual({ ios: 'uploaded', android: 'uploaded' });
     });
 });
 
@@ -629,19 +878,31 @@ describe('mobile-release local release', () => {
     });
     afterAll(() => fs.rmSync(root, { recursive: true, force: true }));
 
-    it('배포 키 다섯 개가 없으면 무엇이 없는지 알려 준다', () => {
-        expect(release.missingKeys(root)).toHaveLength(5);
+    it('이번 실행에 필요한 배포 키만 본다', () => {
+        expect(release.missingKeys(root, 'dev', ['ios'])).toEqual([
+            'apps/mobile/fastlane/.env',
+            'apps/mobile/fastlane/AuthKey_*.p8',
+        ]);
+        expect(release.missingKeys(root, 'dev', ['android'])).toEqual([
+            'apps/mobile/fastlane/.env',
+            'apps/mobile/fastlane/play-service-account-dev.json',
+            'apps/mobile/android/app/chatic-dou.keystore',
+        ]);
+        expect(release.missingKeys(root, 'prod', ['android'])).toContain(
+            'apps/mobile/fastlane/play-service-account-prod.json'
+        );
         for (const file of [
             'apps/mobile/fastlane/.env',
-            'apps/mobile/fastlane/AuthKey_ABC123.p8',
             'apps/mobile/fastlane/play-service-account-dev.json',
-            'apps/mobile/fastlane/play-service-account-prod.json',
             'apps/mobile/android/app/chatic-dou.keystore',
         ]) {
             fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
             fs.writeFileSync(path.join(root, file), 'placeholder');
         }
-        expect(release.missingKeys(root)).toEqual([]);
+        expect(release.missingKeys(root, 'dev', ['android'])).toEqual([]);
+        expect(release.missingKeys(root, 'dev', ['ios', 'android'])).toEqual(['apps/mobile/fastlane/AuthKey_*.p8']);
+        fs.writeFileSync(path.join(root, 'apps/mobile/fastlane/AuthKey_ABC123.p8'), 'placeholder');
+        expect(release.missingKeys(root, 'dev', ['ios', 'android'])).toEqual([]);
     });
 
     it('플랫폼은 iOS 먼저다', () => {
@@ -652,10 +913,17 @@ describe('mobile-release local release', () => {
     });
 
     it('인자를 읽는다', () => {
-        expect(release.parseArgs(['dev', 'android', '--notes', 'x', '--dry-run'])).toEqual(
-            expect.objectContaining({ command: 'dev', platform: 'android', storeNotes: 'x', dryRun: true })
+        expect(release.parseArgs(['dev', 'android', '--notes', 'x', '--dry-run', '--build', '140'])).toEqual(
+            expect.objectContaining({
+                command: 'dev',
+                platform: 'android',
+                storeNotes: 'x',
+                dryRun: true,
+                build: '140',
+            })
         );
         expect(release.parseArgs(['finish', 'mobile-v0.33.0-100']).tag).toBe('mobile-v0.33.0-100');
+        expect(release.parseArgs(['dev', '--tag', 'mobile-v0.33.0-100']).tag).toBe('mobile-v0.33.0-100');
         expect(() => release.parseArgs(['dev', '--nope'])).toThrow('Unknown argument');
     });
 
@@ -667,24 +935,35 @@ describe('mobile-release local release', () => {
         activeRuns = [],
         tagExists = false,
         tagsAfter = [],
+        storeBuild = '99',
+        storeStatus = 0,
+        head = 'c0ffee00',
+        existingTag = null,
     } = {}) => {
         const calls = [];
+        const plans = [];
         const statuses = [...runStatus];
         return {
             calls,
+            plans,
             deps: {
                 root,
                 git: args => {
                     calls.push(['git', ...args]);
                     if (args[0] === 'rev-parse' && args[1] === '--abbrev-ref') return branch;
                     if (args[0] === 'status') return dirty;
+                    if (args[0] === 'rev-parse' && args[1] === 'HEAD') return head;
                     if (args[0] === 'rev-parse') return 'c0ffee00';
+                    if (args[0] === 'tag' && args[2] === '--format=%(contents)') return existingTag.message;
                     if (args[0] === 'tag' && args[1] === '-l') {
                         return calls.some(call => call[0] === 'run') ? tagsAfter.join('\n') : '';
                     }
                     return '';
                 },
-                tryGit: () => (tagExists ? 'x' : null),
+                tryGit: args => {
+                    if (args[0] === 'rev-list') return existingTag ? existingTag.sha : null;
+                    return tagExists ? 'x' : null;
+                },
                 gh: async args => {
                     calls.push(['gh', ...args]);
                     if (args[0] === 'run') return JSON.stringify(activeRuns);
@@ -696,27 +975,44 @@ describe('mobile-release local release', () => {
                     calls.push(['run', command, ...args, env]);
                     return statuses.shift();
                 },
-                plan: async () => fakePlan,
+                plan: async options => {
+                    plans.push(options);
+                    return fakePlan;
+                },
                 summarize: () => 'summary',
                 log: () => undefined,
+                store: {
+                    root: '/repo',
+                    tmpdir: () => '/tmp',
+                    read: () => storeBuild,
+                    remove: () => undefined,
+                    run: (command, args) => {
+                        calls.push(['store', ...args]);
+                        return storeStatus;
+                    },
+                    warn: () => undefined,
+                },
             },
         };
     };
 
-    it('--dry-run은 업로드·태그 없이 할 일만 보여 준다', async () => {
+    it('--dry-run은 스토어를 읽지 않고 업로드·태그 없이 할 일만 보여 준다', async () => {
         const { calls, deps } = localDeps();
+        const logs = [];
+        deps.log = line => logs.push(line);
         const result = await release.releaseDev({ platform: 'android', storeNotes: 'Fixes.', dryRun: true }, deps);
         expect(result.dryRun).toBe(true);
-        expect(calls.some(call => call[0] === 'run')).toBe(false);
+        expect(calls.some(call => call[0] === 'run' || call[0] === 'store')).toBe(false);
         expect(calls.some(call => call[1] === 'tag' || call[1] === 'push')).toBe(false);
+        expect(logs.join('\n')).toContain('(cd apps/mobile && fastlane android latest_build env:dev out:<file>)');
     });
 
-    it('사전 점검이 실패하면 업로드 전에 멈춘다', async () => {
+    it('사전 점검이 실패하면 스토어를 읽거나 올리기 전에 멈춘다', async () => {
         for (const [setup, name] of [
             [{ branch: 'feat/x' }, 'branch'],
             [{ dirty: ' M a' }, 'clean tree'],
             [{ activeRuns: [{ status: 'in_progress', url: 'u' }] }, 'no remote run'],
-            [{ tagExists: true }, 'tag'],
+            [{ tagExists: true }, 'already exists'],
         ]) {
             const { calls, deps } = localDeps(setup);
             await expect(release.releaseDev({ platform: 'android', storeNotes: 'Fixes.' }, deps)).rejects.toThrow(name);
@@ -728,9 +1024,19 @@ describe('mobile-release local release', () => {
         );
     });
 
-    it('올린 뒤 태그를 push하고 마무리 워크플로를 부른다', async () => {
-        const { calls, deps } = localDeps();
-        await release.releaseDev({ platform: 'all', storeNotes: 'Fixes.' }, deps);
+    it('스토어 번호를 읽지 못하면 올리지 않는다', async () => {
+        const { calls, deps } = localDeps({ storeStatus: 1 });
+        await expect(release.releaseDev({ platform: 'android', storeNotes: 'Fixes.' }, deps)).rejects.toThrow(
+            'Could not read the latest android dev build number'
+        );
+        expect(calls.some(call => call[0] === 'run')).toBe(false);
+    });
+
+    it('스토어 번호를 바닥값으로 넘기고, 올린 뒤 태그를 push하고 마무리 워크플로를 부른다', async () => {
+        const { calls, plans, deps } = localDeps({ storeBuild: '120' });
+        await release.releaseDev({ platform: 'all', storeNotes: 'Fixes.', build: '130' }, deps);
+        expect(plans[0]).toEqual(expect.objectContaining({ storeBuild: 120, build: '130' }));
+        expect(calls.filter(call => call[0] === 'store').map(call => call[1])).toEqual(['ios', 'android']);
         const runs = calls.filter(call => call[0] === 'run');
         expect(runs.map(call => call[2])).toEqual(['ios', 'android']);
         expect(runs[0][runs[0].length - 1]).toEqual({ VERSION_NAME: '0.33.0', BUILD_NUMBER: '100' });
@@ -740,6 +1046,7 @@ describe('mobile-release local release', () => {
             env: 'dev',
             platforms: ['ios', 'android'],
             requested: ['ios', 'android'],
+            results: { ios: 'uploaded', android: 'uploaded' },
             storeNotes: 'Fixes.',
         });
         expect(calls).toContainEqual(['git', 'push', 'origin', 'refs/tags/mobile-v0.33.0-100']);
@@ -755,7 +1062,7 @@ describe('mobile-release local release', () => {
         ]);
     });
 
-    it('첫 플랫폼이 실패하면 다음을 올리지 않고 태그도 없다', async () => {
+    it('첫 플랫폼이 실패하고 스토어에도 없으면 다음을 올리지 않고 태그도 없다', async () => {
         const { calls, deps } = localDeps({ runStatus: [1] });
         await expect(release.releaseDev({ platform: 'all', storeNotes: 'Fixes.' }, deps)).rejects.toThrow(
             'no tag was made'
@@ -764,14 +1071,24 @@ describe('mobile-release local release', () => {
         expect(calls.some(call => call[1] === 'tag' && call[2] === '-a')).toBe(false);
     });
 
+    it('레인이 실패했어도 바이너리가 스토어에 있으면 태그를 달고 incomplete로 적는다', async () => {
+        const { calls, deps } = localDeps({ runStatus: [1], storeBuild: '99' });
+        deps.store.read = () => (calls.some(call => call[0] === 'run') ? '100' : '99');
+        await expect(release.releaseDev({ platform: 'all', storeNotes: 'Fixes.' }, deps)).rejects.toThrow(
+            'ios reached the store but its lane failed'
+        );
+        const tag = calls.find(call => call[1] === 'tag' && call[2] === '-a');
+        expect(parseTagMessage(tag[7]).results).toEqual({ ios: 'incomplete', android: 'skipped' });
+    });
+
     it('둘째 플랫폼이 실패해도 올라간 플랫폼으로 태그를 남겨 빌드 번호를 다시 쓰지 않는다', async () => {
         const { calls, deps } = localDeps({ runStatus: [0, 1] });
         await expect(release.releaseDev({ platform: 'all', storeNotes: 'Fixes.' }, deps)).rejects.toThrow(
-            'records only those'
+            'android upload failed'
         );
         const tag = calls.find(call => call[1] === 'tag' && call[2] === '-a');
         expect(parseTagMessage(tag[7])).toEqual(
-            expect.objectContaining({ platforms: ['ios'], requested: ['ios', 'android'] })
+            expect.objectContaining({ platforms: ['ios'], results: { ios: 'uploaded', android: 'failed' } })
         );
     });
 
@@ -782,6 +1099,51 @@ describe('mobile-release local release', () => {
         );
         expect(calls.filter(call => call[0] === 'run')).toHaveLength(1);
         expect(calls.some(call => call[1] === 'tag' && call[2] === '-a')).toBe(false);
+    });
+
+    const taggedPartial = {
+        sha: 'feed0000',
+        message: tagMessage({
+            version: '0.33.0',
+            build: 100,
+            env: 'dev',
+            results: { ios: 'uploaded', android: 'failed' },
+            sha: 'feed0000',
+            storeNotes: 'Tagged notes.',
+        }),
+    };
+
+    it('dev --tag는 그 태그 커밋에서 빠진 플랫폼만 같은 번호로 올리고 태그는 옮기지 않는다', async () => {
+        const { calls, plans, deps } = localDeps({ existingTag: taggedPartial, head: 'feed0000' });
+        const result = await release.releaseDev({ tag: 'mobile-v0.33.0-100' }, deps);
+        expect(plans).toHaveLength(0);
+        expect(calls.some(call => call[0] === 'store')).toBe(false);
+        const runs = calls.filter(call => call[0] === 'run');
+        expect(runs.map(call => call[2])).toEqual(['android']);
+        expect(runs[0]).toContain('Tagged notes.');
+        expect(runs[0][runs[0].length - 1]).toEqual({ VERSION_NAME: '0.33.0', BUILD_NUMBER: '100' });
+        expect(calls.some(call => call[1] === 'tag' && call[2] === '-a')).toBe(false);
+        expect(calls.some(call => call[1] === 'push')).toBe(false);
+        expect(calls.find(call => call[1] === 'workflow')).toEqual(
+            expect.arrayContaining(['tag=mobile-v0.33.0-100', 'platform=ios=uploaded, android=uploaded'])
+        );
+        expect(result.results).toEqual({ android: 'uploaded' });
+    });
+
+    it('dev --tag는 태그 커밋에 있지 않거나 빠진 플랫폼이 없으면 멈춘다', async () => {
+        const away = localDeps({ existingTag: taggedPartial, head: 'c0ffee00' });
+        await expect(release.releaseDev({ tag: 'mobile-v0.33.0-100' }, away.deps)).rejects.toThrow('at the tag');
+        const done = localDeps({
+            existingTag: {
+                ...taggedPartial,
+                message: taggedPartial.message.replace('android=failed', 'android=incomplete'),
+            },
+            head: 'feed0000',
+        });
+        await expect(release.releaseDev({ tag: 'mobile-v0.33.0-100' }, done.deps)).rejects.toThrow('nothing to retry');
+        const dry = localDeps({ existingTag: taggedPartial, head: 'feed0000' });
+        expect((await release.releaseDev({ tag: 'mobile-v0.33.0-100', dryRun: true }, dry.deps)).dryRun).toBe(true);
+        expect(dry.calls.some(call => call[0] === 'run')).toBe(false);
     });
 
     it('prod는 아직 거부한다', async () => {

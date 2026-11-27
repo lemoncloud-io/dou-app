@@ -3,11 +3,11 @@ const BREAKING_BODY = /^BREAKING[ -]CHANGE:/m;
 const LEGACY_VERSION_BUMP = /^chore\(mobile\): bump (app versions|build number)\b/;
 
 const CATEGORIES = [
-    { key: 'breaking', title: '호환성 변경', rank: 5 },
-    { key: 'feat', title: '새 기능', rank: 4 },
-    { key: 'fix', title: '수정', rank: 3 },
-    { key: 'improve', title: '개선', rank: 2 },
-    { key: 'other', title: '기타', rank: 1 },
+    { key: 'breaking', title: 'Breaking', cardTitle: '호환성 변경', rank: 5 },
+    { key: 'feat', title: 'Features', cardTitle: '새 기능', rank: 4 },
+    { key: 'fix', title: 'Fixes', cardTitle: '수정', rank: 3 },
+    { key: 'improve', title: 'Improvements', cardTitle: '개선', rank: 2 },
+    { key: 'other', title: 'Other', cardTitle: '기타', rank: 1 },
 ];
 
 const RANK = Object.fromEntries(CATEGORIES.map(category => [category.key, category.rank]));
@@ -35,18 +35,24 @@ function isLegacyVersionBump(subject) {
     return LEGACY_VERSION_BUMP.test(subject || '');
 }
 
-function proposeUnit(commits) {
+function proposeUnit(commits, signals = []) {
     if (commits.length === 0) return { unit: null, reasons: [] };
     const breaking = commits.filter(commit => commit.breaking);
     if (breaking.length > 0) return { unit: 'major', reasons: breaking.map(commit => reason(commit, 'breaking')) };
-    const minor = commits.filter(commit => commit.type === 'feat' || commit.native);
-    if (minor.length > 0) {
+    if (signals.length > 0) {
         return {
             unit: 'minor',
-            reasons: minor.map(commit => reason(commit, commit.type === 'feat' ? 'feat' : 'native')),
+            reasons: signals.map(signal => ({
+                sha: signal.sha,
+                file: signal.file,
+                detail: signal.detail,
+                pr: signal.pr || null,
+                why: 'native',
+            })),
         };
     }
-    return { unit: 'patch', reasons: commits.map(commit => reason(commit, commit.type || 'untyped')) };
+    const feats = commits.filter(commit => commit.type === 'feat');
+    return { unit: 'patch', reasons: [], featCommits: feats.length };
 }
 
 function reason(commit, why) {
