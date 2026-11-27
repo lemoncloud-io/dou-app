@@ -25,7 +25,7 @@ concurrency:
 
 env:
     SKIP_MOBILE_POD: '1'
-    DOU_CLI_REF: 913a2c094242f264d0ee8fdd4264389741eda439
+    DOU_CLI_REF: f301036923fac1ed1030df605b703b167ca602d0
     BUILD_STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || 'dev' }}
 
 jobs:
