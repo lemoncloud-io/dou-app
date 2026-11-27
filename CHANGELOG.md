@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (db) split @chatic/db into the db family and name the db port
+
+## [2026-11-27] - No version updates
+
+### Refactor
+
 - (storage) split @chatic/storage into the storage family packages
 
 ### Other
