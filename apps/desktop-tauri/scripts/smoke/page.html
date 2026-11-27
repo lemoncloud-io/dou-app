@@ -10,7 +10,7 @@
     let viewId = '';
     const say = (type, data) => handler.postMessage(JSON.stringify({ type, refId: type, version: '2.35.0', data }));
     const finish = (ok, why) => fetch('/done?ok=' + (ok ? 1 : 0) + '&why=' + encodeURIComponent(why || ''));
-    const open = () => say('OpenSubWebView', { url: 'https://example.com/' });
+    const open = url => say('OpenSubWebView', { url: url || 'https://apps-dev.chatic.io/' });
     const steps = {
         ready: reply => {
             if (reply.type !== 'OnWebAppReady') return false;
@@ -26,6 +26,12 @@
             if (reply.type !== 'OnStorageGet') return false;
             if (!(reply.data && reply.data.values && reply.data.values.a === '1'))
                 return finish(false, 'the saved value did not come back');
+            step = 'external';
+            open('https://example.com/');
+        },
+        external: reply => {
+            if (reply.type !== 'OnOpenSubWebView' || reply.success || reply.error.code !== 'NOT_ALLOWED')
+                return finish(false, 'an open outside the reviewed hosts was not refused');
             step = 'opened';
             open();
         },
