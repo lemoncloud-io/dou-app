@@ -35,8 +35,9 @@ There is a boot-time injection, `CHATIC_APP_SHOULD_UPDATE`, and this feature del
 it. On a cold start the store lookup resolves _after_ the WebView is created, so the injected value
 is always `false`; the follow-up `OnUpdateDeviceInfo` push that would correct it is dropped whenever
 it lands before `GlobalBridgeListener` has populated the device-info store on mount. Only the
-round trip — `runtime.appShell.storeUpdate.check()`, which the web's `appShell` port implements over
-`appBridge.checkAppUpdate()` (`src/config/adapters/appShell.ts`) — is correct at the moment it is asked.
+round trip — `runtime.appShell.storeUpdate.check()`, which the web's `appShell` port implements with a
+`CheckAppUpdate` request (`mobileShellAppShell` in `@chatic/host-web-mobile-shell`) — is correct at the
+moment it is asked.
 
 `useAppUpdateStatus` runs that call on mount and on every foreground return, and publishes the
 result into a module-level zustand store. Sharing the store is what keeps the dialog and the my-page

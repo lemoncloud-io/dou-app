@@ -139,6 +139,12 @@
             "path": "./libs/host/node"
         },
         {
+            "path": "./libs/host/web/browser"
+        },
+        {
+            "path": "./libs/host/web/mobile-shell"
+        },
+        {
             "path": "./libs/storage/memory"
         },
         {
@@ -179,6 +185,15 @@
         },
         {
             "path": "./libs/design-system/assets"
+        },
+        {
+            "path": "./libs/design-system/components/mobile"
+        },
+        {
+            "path": "./libs/design-system/patterns/mobile"
+        },
+        {
+            "path": "./libs/design-system/chat/mobile"
         }
     ]
 }

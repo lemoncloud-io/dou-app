@@ -20,10 +20,16 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../ui-kit/tsconfig.lib.json"
+            "path": "../design-system/assets/tsconfig.lib.json"
         },
         {
-            "path": "../design-system/assets/tsconfig.lib.json"
+            "path": "../design-system/components/mobile/tsconfig.lib.json"
+        },
+        {
+            "path": "../design-system/chat/mobile/tsconfig.lib.json"
+        },
+        {
+            "path": "../design-system/patterns/mobile/tsconfig.lib.json"
         }
     ]
 }

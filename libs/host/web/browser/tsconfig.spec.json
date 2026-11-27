@@ -1,0 +1,20 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../../../dist/out-tsc/host-web-browser-spec",
+        "lib": ["es2022", "dom"],
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "../../../contracts/ports/tsconfig.lib.json"
+        },
+        {
+            "path": "../../../data/tsconfig.lib.json"
+        }
+    ]
+}

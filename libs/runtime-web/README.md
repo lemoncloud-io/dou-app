@@ -64,7 +64,8 @@ blocked each opening is a fresh memory store, so a second one would split the se
 tab rows.
 
 `xhrPut` and `createXhrPut()` are `@chatic/data`'s `PutPort`, handed to `useSendImages`: the page's own
-`XMLHttpRequest` PUT. `pageLinks` is the page's `openUrl` and `copyText`, for an app's `links` port.
+`XMLHttpRequest` PUT. `pageLinks` is the page's `openUrl` and `copyText`, for an app's `links` port; it lives in
+[`@chatic/host-web-browser`](../host/web/browser/README.md) and is re-exported here.
 
 What else still has a browser answer inside a package moves here as its wiring becomes a port:
 

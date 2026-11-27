@@ -1,0 +1,25 @@
+import type { Meta, StoryObj } from '@storybook/react';
+
+import { ProfileAvatar } from './index';
+
+const AVATAR =
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="86" height="86"><rect width="86" height="86" fill="%2390c304"/></svg>'
+    );
+
+const meta: Meta<typeof ProfileAvatar> = {
+    title: 'web-ui-kit/foundations/ProfileAvatar',
+    component: ProfileAvatar,
+    args: { onSelect: () => undefined },
+};
+export default meta;
+
+type Story = StoryObj<typeof ProfileAvatar>;
+
+export const Placeholder: Story = {};
+export const GroupPlaceholder: Story = { args: { glyph: 'group' } };
+export const PlacePlaceholder: Story = { args: { glyph: 'place' } };
+export const HomePlaceholder: Story = { args: { glyph: 'home', onSelect: undefined } };
+export const WithImage: Story = { args: { src: AVATAR } };
+export const ReadOnly: Story = { args: { src: AVATAR, onSelect: undefined } };

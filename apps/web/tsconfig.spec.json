@@ -14,6 +14,12 @@
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
     "references": [
         {
+            "path": "../../libs/host/web/browser/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/host/web/mobile-shell/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/config/tsconfig.lib.json"
         },
         {

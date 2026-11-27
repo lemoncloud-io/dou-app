@@ -52,7 +52,7 @@ Facts confirmed during the investigation drove the decision.
    stream as a centred pill (`SystemNotice`), and because of the `isOwnSystemChat` filter, **only the
    peer's join message** is visible.
 3. **A component is already waiting for somewhere to be used.**
-   [`SystemMessage.tsx`](../../libs/web-ui-kit/src/composites/chat/SystemMessage.tsx) is defined and
+   [`SystemMessage.tsx`](../../libs/design-system/chat/mobile/src/SystemMessage.tsx) is defined and
    exported in the kit but has no consumer, and its doc comment is exactly this case
    (`"<친구>님이 채팅방에 입장했습니다."` + `"1:1 대화를 시작해 보세요."`).
 4. **The forced profile is one line.** `if (!latest.current.nick) return setPhase('profiling')` in

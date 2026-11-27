@@ -1,9 +1,10 @@
 # Store-upload lanes for the Chatic mobile apps.
 #
-# Run these through the repo-root wrapper (`yarn mobile:deploy:...`), which
-# collects the release notes and exports RELEASE_NOTES before invoking
-# fastlane. Credentials live in fastlane/.env (gitignored) — copy
-# .env.example and fill it in.
+# `yarn mobile:release dev` and the mobile-release workflow run these with
+# VERSION_NAME / BUILD_NUMBER computed from the mobile-v tags, through the
+# repo-root wrapper (`yarn mobile:deploy:...`), which exports RELEASE_NOTES
+# before invoking fastlane. Credentials live in fastlane/.env (gitignored),
+# or come from environment secrets on a runner — see .env.example.
 #
 # dev and prod are separate store apps (4 apps total):
 #   iOS  dev:  io.chatic.dou.dev  (scheme "Chatic Dev") -> TestFlight
@@ -51,6 +52,34 @@ def release_notes
   notes = ENV['RELEASE_NOTES'].to_s.strip
   UI.user_error!('RELEASE_NOTES is empty — deploy via `yarn mobile:deploy:...` which prompts for it') if notes.empty?
   notes
+end
+
+# The version and build number come from the release command (mobile-v tags),
+# not from a commit. Both unset keeps the values in build.gradle / pbxproj, which
+# is what a local emergency deploy after `yarn mobile:version` relies on.
+def injected_version
+  name = ENV['VERSION_NAME'].to_s.strip
+  build = ENV['BUILD_NUMBER'].to_s.strip
+  return nil if name.empty? && build.empty?
+  UI.user_error!('Set both VERSION_NAME and BUILD_NUMBER, or neither') if name.empty? || build.empty?
+  UI.user_error!("VERSION_NAME must be X.Y.Z (got #{name})") unless name.match?(/\A\d+\.\d+\.\d+\z/)
+  UI.user_error!("BUILD_NUMBER must be a number (got #{build})") unless build.match?(/\A\d+\z/)
+  { name: name, build: build }
+end
+
+# `yarn mobile:release` reads the store's latest build number before it picks
+# the next one (a binary can reach the store from a run that then failed before
+# tagging). The lanes write the number to the file given as out:.
+def write_store_build(out, number)
+  UI.user_error!('Pass out:<file> for the build number') if out.to_s.empty?
+  File.write(out, number.to_i.to_s)
+  UI.success("Latest store build number: #{number}")
+end
+
+def store_env(options)
+  env = options[:env].to_s
+  UI.user_error!("env must be dev or prod (got #{env})") unless APP_IDS.key?(env)
+  env
 end
 
 # supply reads release notes from the metadata directory on disk, so write
@@ -113,6 +142,18 @@ platform :ios do
     ios_build_and_upload(env: 'prod')
   end
 
+  desc 'Write the latest TestFlight build number of the env app to out:'
+  lane :latest_build do |options|
+    env = store_env(options)
+    api_key = app_store_connect_api_key(
+      key_id: cred('ASC_KEY_ID', env),
+      issuer_id: cred('ASC_ISSUER_ID', env),
+      key_filepath: cred_path('ASC_KEY_PATH', env)
+    )
+    number = latest_testflight_build_number(api_key: api_key, app_identifier: APP_IDS[env], initial_build_number: 0)
+    write_store_build(options[:out], number)
+  end
+
   private_lane :ios_build_and_upload do |options|
     env = options[:env]
     key_path = cred_path('ASC_KEY_PATH', env)
@@ -123,18 +164,34 @@ platform :ios do
       key_filepath: key_path
     )
 
-    build_app(
-      workspace: 'ios/Chatic.xcworkspace',
-      scheme: IOS_SCHEMES[env],
-      export_method: 'app-store',
-      output_directory: 'build/fastlane',
-      # The project uses Automatic signing; let xcodebuild refresh signing
-      # assets itself, authenticated with the same ASC API key.
-      xcargs: '-allowProvisioningUpdates ' \
-              "-authenticationKeyPath #{key_path} " \
-              "-authenticationKeyID #{cred('ASC_KEY_ID', env)} " \
-              "-authenticationKeyIssuerID #{cred('ASC_ISSUER_ID', env)}"
-    )
+    version = injected_version
+    pbxproj = File.expand_path('../ios/Chatic.xcodeproj/project.pbxproj', __dir__)
+    original_pbxproj = File.read(pbxproj)
+    begin
+      if version
+        # Only the four app targets move; the notification extensions keep
+        # their own 1.0 (1), exactly as `yarn mobile:version` leaves them.
+        sh('node', File.expand_path('../../../scripts/mobile-release/ios-version.js', __dir__),
+           '--version', version[:name], '--build', version[:build])
+      end
+
+      build_app(
+        workspace: 'ios/Chatic.xcworkspace',
+        scheme: IOS_SCHEMES[env],
+        export_method: 'app-store',
+        output_directory: 'build/fastlane',
+        # The project uses Automatic signing; let xcodebuild refresh signing
+        # assets itself, authenticated with the same ASC API key.
+        xcargs: '-allowProvisioningUpdates ' \
+                "-authenticationKeyPath #{key_path} " \
+                "-authenticationKeyID #{cred('ASC_KEY_ID', env)} " \
+                "-authenticationKeyIssuerID #{cred('ASC_ISSUER_ID', env)}"
+      )
+    ensure
+      # The injected numbers must never reach a commit: put the file back as
+      # soon as the archive exists, before the long TestFlight wait.
+      File.write(pbxproj, original_pbxproj)
+    end
 
     upload_to_testflight(
       api_key: api_key,
@@ -198,6 +255,24 @@ platform :android do
     android_build_and_upload(env: 'prod')
   end
 
+  desc 'Write the highest version code on any Play track of the env app to out:'
+  lane :latest_build do |options|
+    env = store_env(options)
+    json_key = cred_path('PLAY_JSON_KEY_PATH', env)
+    UI.user_error!("Play JSON key not found at #{json_key}") unless File.exist?(json_key)
+    tracks = (%w[internal alpha beta production] + [ENV['PLAY_TRACK_DEV'], ENV['PLAY_TRACK_PROD']]).compact.uniq
+    errors = []
+    codes = tracks.flat_map do |track|
+      google_play_track_version_codes(package_name: APP_IDS[env], track: track, json_key: json_key)
+    rescue StandardError => e
+      errors << "#{track}: #{e.message}"
+      []
+    end
+    UI.user_error!("Could not read any Play track: #{errors.join('; ')}") if errors.length == tracks.length
+    errors.each { |error| UI.important("Skipped track #{error}") }
+    write_store_build(options[:out], codes.map(&:to_i).max || 0)
+  end
+
   private_lane :android_build_and_upload do |options|
     env = options[:env]
     track = env == 'dev' ? ENV.fetch('PLAY_TRACK_DEV', 'alpha') : ENV.fetch('PLAY_TRACK_PROD', 'internal')
@@ -215,11 +290,14 @@ platform :android do
     app_root = File.expand_path('..', __dir__)
     android_dir = File.join(app_root, 'android')
 
+    version = injected_version
     gradle(
       task: 'bundle',
       flavor: env == 'dev' ? 'Dev' : 'Prod',
       build_type: 'Release',
-      project_dir: android_dir
+      project_dir: android_dir,
+      # build.gradle reads these over its own versionCode / versionName.
+      properties: version ? { 'versionCode' => version[:build], 'versionName' => version[:name] } : {}
     )
 
     # Upload the AAB this lane just built. Do NOT rely on GRADLE_AAB_OUTPUT_PATH:

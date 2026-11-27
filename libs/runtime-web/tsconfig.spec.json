@@ -10,6 +10,9 @@
     // The same sibling projects tsconfig.lib.json references.
     "references": [
         {
+            "path": "../host/web/browser/tsconfig.lib.json"
+        },
+        {
             "path": "../storage/tsconfig.lib.json"
         },
         {

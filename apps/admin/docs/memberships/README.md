@@ -4,7 +4,7 @@
 Before this screen existed, the only way to do any of this was to call the backend directly. It does
 three things in one place: **view** a membership, **override** its period/status/tier separately
 from the store receipt (grant, block, clear), and **confirm** how that override landed on the user's
-clouds. For a web subscription it also **refunds** — Development only, see
+clouds. For a web subscription it also **refunds** — on both stages, see
 [Web subscription refund](#web-subscription-refund). The server contract this screen consumes is
 canonical in the backend repo's own spec; this document only covers how the console uses it. Feature code:
 `apps/admin/src/app/features/memberships/`.
@@ -46,10 +46,10 @@ user's cloud list; an override form for grant/block/clear; four safeguards (reas
 confirmation dialog, `auto` off by default, a badge naming the target server); and a matching change
 to `apps/web`'s own subscription-status derivation so the app agrees with what the console did.
 
-**In, for web subscriptions:** a full refund of the last paid charge, on Development only — see
-[Web subscription refund](#web-subscription-refund).
+**In, for web subscriptions:** a full refund of the last paid charge, on Development and
+Production — see [Web subscription refund](#web-subscription-refund).
 
-**Out:** cancelling a subscription (no backend endpoint yet); partial refunds, refunds on Production,
+**Out:** cancelling a subscription (no backend endpoint yet); partial refunds,
 store-subscription refunds and refund history; showing a user's name or email (not in
 the membership response — `userId` is the only identifier available); stage resolution logic (the
 gateway resolves one relay endpoint; the console only displays the result); override history beyond
@@ -92,17 +92,20 @@ refunds the last paid charge, and the subscription expires on the spot with auto
 no partial refund, nothing to undo, and the user has to subscribe again to come back. Store
 subscriptions (`apple`, `google`) get no refund section; the store refunds those.
 
-**Development only.** The button works only when the relay the call will hit is `dou-d1`. On
-Production it stays disabled with a line saying so: no refund policy exists yet, and the console
-always signs in to Production, so Production is one switch away in every build. The refund
-resolves its relay once, explicitly: `VITE_DOU_ENDPOINT` when the selected stage is the session's
-own, else that stage's `VITE_<STAGE>_RELAY_ENDPOINT` (see
+**Both stages, with a harder confirmation on Production.** The button works when the relay the
+call will hit is `dou-d1` or `dou-v1`. Production was closed at first while no refund policy
+existed; operators now refund real web charges from here, so it is open. The console always signs
+in to Production, so Production is one switch away in every build, a local one included. That is
+why the Production dialog also asks for the row's `userId` to be typed, and the Refund button stays
+disabled until it matches. The relay has no stage guard of its own, so this console check is the
+only one. The refund resolves its relay once, explicitly: `VITE_DOU_ENDPOINT` when the selected
+stage is the session's own, else that stage's `VITE_<STAGE>_RELAY_ENDPOINT` (see
 [Stage endpoints](../../README.md#stage-endpoints)). That one value is what the gate checks, what
 the confirmation dialog names and what the call is sent to, so the server shown is the server
 written to. **An endpoint whose own `dou-XX` segment does not name the selected stage produces no
 refund endpoint at all** — an unset key, a host with no stage segment, or a key that contradicts its
 stage — and the button says there is no relay to refund on. The mutation hook refuses any endpoint
-that is not `dou-d1` as well, because the gateway would otherwise fall back to the client's own relay
+that names no stage as well, because the gateway would otherwise fall back to the client's own relay
 on an empty one.
 
 **Switching stage closes the open row.** A row belongs to the relay it was read from; its `userId`
@@ -120,7 +123,8 @@ same treatment.
 
 **Confirmation.** The dialog names the user, the product, the current term's end date, the target
 server badge, and the warning that this is a full, immediate and irreversible refund. A reason is
-required, and the relay also refuses an empty one with `400`. A cancelled reason is cleared, and
+required, and the relay also refuses an empty one with `400`. On Production the row's `userId`
+must also be typed. A cancelled dialog clears both, and so does a successful refund, and
 while the refund is in flight neither Escape nor Cancel closes the dialog or the drawer under it.
 A `403` also trips the console's session-refused banner, because the transport reads every `403`
 as an auth failure; the refund section's own line says what it most likely means here.
@@ -206,8 +210,9 @@ npx tsc -b libs/{http,data,shared}/tsconfig.lib.json
 Typecheck needs the **build** invocation (`tsc -b`), not `--noEmit` — a referenced lib without a
 built `dist/*.d.ts` throws a wall of TS6305 that is a missing build, not a real error.
 
-What the suite actually has to cover, beyond the obvious CRUD path: the refund is enabled only for a
-`dou-d1` relay and never for an endpoint naming no stage or another stage, it is blocked on
+What the suite actually has to cover, beyond the obvious CRUD path: the refund is enabled for a
+`dou-d1` or `dou-v1` relay and never for an endpoint naming no stage or another stage, Production
+needs the typed `userId`, it is blocked on
 `pending`/`expired` but left to the relay for a trial, and a 409 reads as "no paid charge to refund" with the relay's text
 kept; a caller-supplied `view`/`valid` never overrides the pinned gateway values; the three override-form modes reject a missing reason, a
 past `adminUntil`, and a tier on a block; the confirmation copy states that billing continues on a
