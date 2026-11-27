@@ -2,6 +2,12 @@
 
 ## [2026-11-27] - No version updates
 
+### Refactor
+
+- (runtime-web) split shell delegation into runtime-hybrid-web
+
+## [2026-11-27] - No version updates
+
 ### Bug Fixes
 
 - (runtime-node,db-memory) map the data packages that moved under libs/data in jest
