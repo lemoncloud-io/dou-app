@@ -147,8 +147,8 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  *   the runtime and the adapters — may not depend on one; a UI library is the apps'
  *   and the React surface's to render, `@chatic/shared` and `@chatic/assets` included.
  * - `platform:*` — where a package runs: `any`, `web`, `mobile`, `desktop`, `node`. One depends on
- *   `platform:any` and its own platform only; `web` may not pull React Native in, and `mobile` may not
- *   reach a `web` package through a lib in between either. `formfactor:mobile` and `formfactor:desktop`
+ *   `platform:any` and its own platform only; `web` may not pull React Native in, `node` neither React nor React
+ *   Native, and `mobile` may not reach a `web` package through a lib in between either. `formfactor:mobile` and `formfactor:desktop`
  *   never depend on each other. `layer:app` and `layer:feature` are free. A project under apps/ or
  *   libs/ with no tag on one of the three axes fails lint (`@nx/workspace-project-tags`).
  *
@@ -236,6 +236,7 @@ const runtimeLayerConstraints = [
     {
         sourceTag: 'platform:node',
         onlyDependOnLibsWithTags: ['platform:any', 'platform:node'],
+        bannedExternalImports: UI_FRAMEWORK_IMPORTS,
     },
     {
         sourceTag: 'formfactor:any',
