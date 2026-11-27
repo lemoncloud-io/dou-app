@@ -272,6 +272,26 @@ mod tests {
         assert_eq!(bad["error"]["code"], -32602);
     }
 
+    #[test]
+    fn an_oversized_line_without_a_newline_closes_the_connection() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .expect("runtime");
+        runtime.block_on(async {
+            let (mut client, server) = tokio::io::duplex(4 * 1024 * 1024);
+            let handle = tokio::spawn(serve_stream(Arc::new(Fake::default()), server));
+            client
+                .write_all(&vec![b'x'; MAX_REQUEST as usize])
+                .await
+                .expect("write");
+            tokio::time::timeout(std::time::Duration::from_secs(5), handle)
+                .await
+                .expect("the connection closes")
+                .expect("task");
+        });
+    }
+
     #[cfg(unix)]
     #[test]
     fn the_socket_is_private_and_answers_a_client() {

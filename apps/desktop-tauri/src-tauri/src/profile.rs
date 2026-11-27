@@ -142,10 +142,17 @@ fn create_private_dir(dir: &Path) -> io::Result<()> {
         .recursive(true)
         .mode(0o700)
         .create(dir)?;
-    if existed {
+    if existed && !is_ours(dir) {
         return Ok(());
     }
     std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
+}
+
+#[cfg(unix)]
+fn is_ours(dir: &Path) -> bool {
+    dir.join("shell.lock").exists()
+        || dir.join("app.json").exists()
+        || std::fs::read_dir(dir).is_ok_and(|mut entries| entries.next().is_none())
 }
 
 #[cfg(not(unix))]
@@ -247,6 +254,26 @@ mod tests {
         let a = Paths::new("/a");
         assert_eq!(a.store_identifier(), Paths::new("/a").store_identifier());
         assert_ne!(a.store_identifier(), Paths::new("/b").store_identifier());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_old_profile_is_tightened_and_a_foreign_folder_is_left_alone() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::tempdir().expect("temp dir");
+        let mode = |p: &Path| std::fs::metadata(p).expect("meta").permissions().mode() & 0o777;
+        let old = dir.path().join("old");
+        std::fs::create_dir(&old).expect("old");
+        std::fs::write(old.join("shell.lock"), "").expect("lock");
+        std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        Paths::prepare(&old).expect("prepare old");
+        assert_eq!(mode(&old), 0o700);
+        let foreign = dir.path().join("docs");
+        std::fs::create_dir(&foreign).expect("foreign");
+        std::fs::write(foreign.join("notes.txt"), "x").expect("file");
+        std::fs::set_permissions(&foreign, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        Paths::prepare(&foreign).expect("prepare foreign");
+        assert_eq!(mode(&foreign), 0o755);
     }
 
     #[cfg(unix)]

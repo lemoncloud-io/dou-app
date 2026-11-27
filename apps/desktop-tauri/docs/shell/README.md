@@ -23,7 +23,7 @@ The default address is baked at build time: `DOU_WEB_URL` if set, else the dev w
 | `shell.sock`                            | the control socket (Windows: `shell.pipe` names the pipe)              |
 | `device-id`, `vault.key`, `secrets.bin` | identity and the vault, per profile                                    |
 
-The folder is created with mode 0700. The lock is an OS file lock on `shell.lock`, so a crash releases it and two profiles run side by side. A second start on a locked profile hands its deep-link arguments (`chatic://` and `chatic-dev://` only) to the running instance over `shell.sock` as `second_instance`, focuses it and exits. That is how the sign-in return reaches the running app on Windows.
+The folder is created with mode 0700; a folder that already holds a profile (or is empty) is tightened to 0700, any other existing folder is left as it is. The lock is an OS file lock on `shell.lock`, so a crash releases it and two profiles run side by side. A second start on a locked profile hands its deep-link arguments (`chatic://` and `chatic-dev://` only) to the running instance over `shell.sock` as `second_instance`, focuses it and exits. That is how the sign-in return reaches the running app on Windows.
 
 Storage is isolated per profile when `--profile` is given: on macOS 14 and later through a WKWebView data store identified by a UUID derived from the profile path, on Windows through a WebView2 user data folder inside the profile. Earlier macOS versions share one store. The keychain entry of the vault key is per profile as well.
 
