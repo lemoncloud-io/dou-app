@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-agent-open-approve-page"
+description = "Enables the agent_open_approve_page command without any pre-configured scope."
+commands.allow = ["agent_open_approve_page"]
+
+[[permission]]
+identifier = "deny-agent-open-approve-page"
+description = "Denies the agent_open_approve_page command without any pre-configured scope."
+commands.deny = ["agent_open_approve_page"]

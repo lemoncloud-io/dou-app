@@ -1,0 +1,19 @@
+{
+    "$schema": "../gen/schemas/desktop-schema.json",
+    "identifier": "agent",
+    "description": "The local DoU Agent window",
+    "windows": ["agent"],
+    "permissions": [
+        "allow-agent-state",
+        "allow-agent-pair-start",
+        "allow-agent-clouds",
+        "allow-agent-choose-cloud",
+        "allow-agent-open-approve-page",
+        "allow-agent-settings-get",
+        "allow-agent-settings-set",
+        "allow-agent-rooms",
+        "allow-agent-connectors",
+        "allow-agent-connect",
+        "allow-agent-disconnect"
+    ]
+}

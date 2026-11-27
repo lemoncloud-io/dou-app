@@ -1,0 +1,52 @@
+[package]
+name = "dou-tauri"
+description = "DoU desktop shell (Tauri) showing apps/web"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+default-run = "dou-tauri"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["image-png"] }
+subview = { path = "../crates/subview" }
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-updater = "2"
+tauri-plugin-deep-link = "2"
+oauth = { path = "../crates/oauth" }
+unfurl = { path = "../crates/unfurl" }
+base64 = "0.22"
+vault = { path = "../crates/vault" }
+agent-settings = { path = "../crates/agent-settings" }
+connectors = { path = "../crates/connectors" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "time"] }
+tiny_http = "0.12"
+serde.workspace = true
+serde_json.workspace = true
+url = "2"
+uuid = { version = "1", features = ["v4", "v5"] }
+sys-locale = "0.3"
+bridge-host = { path = "../crates/bridge-host" }
+capture = { path = "../crates/capture" }
+
+[[bin]]
+name = "dou-tauri"
+path = "src/main.rs"
+
+[[bin]]
+name = "dou-mcp"
+path = "src/bin/dou-mcp.rs"
+
+[[bin]]
+name = "dou-shellctl"
+path = "src/bin/dou-shellctl.rs"

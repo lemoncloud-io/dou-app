@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>smoke</title>
+<body>
+    smoke
+</body>
+<script>
+    const handler = window.ChaticMessageHandler;
+    let step = 'ready';
+    let viewId = '';
+    const say = (type, data) => handler.postMessage(JSON.stringify({ type, refId: type, version: '2.35.0', data }));
+    const finish = (ok, why) => fetch('/done?ok=' + (ok ? 1 : 0) + '&why=' + encodeURIComponent(why || ''));
+    const open = () => say('OpenSubWebView', { url: 'https://example.com/' });
+    const steps = {
+        ready: reply => {
+            if (reply.type !== 'OnWebAppReady') return false;
+            step = 'saved';
+            say('StorageSave', { medium: 'nativeSecure', set: { a: '1' }, remove: [] });
+        },
+        saved: reply => {
+            if (reply.type !== 'OnStorageSave') return false;
+            step = 'read';
+            say('StorageGet', { medium: 'nativeSecure' });
+        },
+        read: reply => {
+            if (reply.type !== 'OnStorageGet') return false;
+            if (!(reply.data && reply.data.values && reply.data.values.a === '1'))
+                return finish(false, 'the saved value did not come back');
+            step = 'opened';
+            open();
+        },
+        opened: reply => {
+            if (reply.type !== 'OnOpenSubWebView' || !reply.success) return finish(false, 'the first open failed');
+            viewId = reply.data.viewId;
+            step = 'again';
+            open();
+        },
+        again: reply => {
+            if (reply.type !== 'OnOpenSubWebView' || reply.success || reply.error.code !== 'ALREADY_OPEN')
+                return finish(false, 'a second open was not refused');
+            step = 'closing';
+            say('CloseSubWebView', { viewId });
+        },
+        closing: reply => {
+            if (reply.type === 'OnCloseSubWebView') return reply.success || finish(false, 'the close failed');
+            if (reply.type !== 'OnSubWebViewClosed') return false;
+            finish(
+                reply.data.viewId === viewId && reply.data.reason === 'host',
+                'closed event ' + JSON.stringify(reply.data)
+            );
+        },
+    };
+    window.addEventListener('message', event => {
+        const reply = JSON.parse(event.data);
+        if (reply.type === 'ERROR') return finish(false, 'bridge error ' + JSON.stringify(reply.error));
+        steps[step](reply);
+    });
+    if (!handler) finish(false, 'no ChaticMessageHandler');
+    else say('WebAppReady', {});
+</script>

@@ -1,0 +1,19 @@
+[package]
+name = "unfurl"
+description = "Link preview fetch with the same SSRF guard as the Electron shell"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+tokio = { version = "1", features = ["time", "net"] }
+url = "2"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["time", "macros", "rt", "test-util", "net"] }

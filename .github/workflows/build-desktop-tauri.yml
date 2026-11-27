@@ -1,0 +1,111 @@
+name: build-desktop-tauri
+
+on:
+    workflow_dispatch:
+        inputs:
+            stage:
+                description: Stage the installers talk to
+                type: choice
+                options:
+                    - dev
+                    - prod
+                default: dev
+    pull_request:
+        paths:
+            - apps/desktop-tauri/**
+            - apps/dou-cli/**
+            - .github/workflows/build-desktop-tauri.yml
+
+permissions:
+    contents: read
+
+concurrency:
+    group: build-desktop-tauri-${{ github.ref }}
+    cancel-in-progress: true
+
+env:
+    SKIP_MOBILE_POD: '1'
+    DOU_CLI_REF: f301036923fac1ed1030df605b703b167ca602d0
+    BUILD_STAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.stage || 'dev' }}
+
+jobs:
+    installer:
+        name: installer (${{ matrix.os }})
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: macos-latest
+                      bundles: dmg
+                      artifact: apps/desktop-tauri/target/release/bundle/dmg/*.dmg
+                    - os: windows-latest
+                      bundles: nsis
+                      artifact: apps/desktop-tauri/target/release/bundle/nsis/*.exe
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  path: shell
+
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ env.DOU_CLI_REF }}
+                  path: cli
+
+            - name: pick the web address and stage
+              if: env.BUILD_STAGE == 'dev'
+              shell: bash
+              run: |
+                  echo 'DOU_WEB_URL=https://dou-dev.chatic.io' >> "$GITHUB_ENV"
+                  echo 'DOU_STAGE=dev' >> "$GITHUB_ENV"
+
+            - uses: dtolnay/rust-toolchain@stable
+
+            - uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: shell/apps/desktop-tauri
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: cli/.nvmrc
+                  cache: yarn
+                  cache-dependency-path: cli/yarn.lock
+
+            - run: yarn install --frozen-lockfile --ignore-scripts
+              working-directory: cli
+
+            - name: build the dou-cli sidecar
+              shell: bash
+              working-directory: cli
+              run: |
+                  yarn nx build dou-cli
+                  node apps/dou-cli/scripts/build-sidecar.mjs "$GITHUB_WORKSPACE/shell/apps/desktop-tauri/src-tauri/binaries"
+
+            - name: run the sidecar once
+              shell: bash
+              working-directory: shell/apps/desktop-tauri/src-tauri/binaries
+              run: |
+                  ls
+                  ./dou-cli-* --help
+
+            - name: stage dou-mcp
+              working-directory: shell/apps/desktop-tauri
+              run: node scripts/stage-dou-mcp.mjs
+
+            - run: cargo install tauri-cli --locked --version '^2'
+
+            - name: build the installer
+              shell: bash
+              working-directory: shell/apps/desktop-tauri/src-tauri
+              run: cargo tauri build --bundles ${{ matrix.bundles }} --config tauri.sidecar.conf.json -- --locked
+
+            - name: list the installer contents
+              shell: bash
+              working-directory: shell
+              run: ls -l ${{ matrix.artifact }}
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: dou-tauri-${{ matrix.bundles }}
+                  path: shell/${{ matrix.artifact }}
+                  if-no-files-found: error

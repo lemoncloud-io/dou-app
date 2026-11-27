@@ -26,6 +26,7 @@ apps/web/public/licenses.json
 
 # compiled output
 dist
+apps/desktop-native/target
 tmp
 out-tsc
 *.tsbuildinfo
@@ -171,3 +172,7 @@ storybook-static
 
 # Local skill copies the agent skill installer writes — a personal dev setup, not shared
 .agents/
+
+# desktop-tauri Rust build output
+/apps/desktop-tauri/target
+/apps/desktop-tauri/src-tauri/gen

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>DoU Agent</title>
+        <link rel="stylesheet" href="agent.css" />
+    </head>
+    <body>
+        <header>
+            <h1>DoU Agent</h1>
+            <nav role="tablist">
+                <button role="tab" id="tab-account" aria-controls="panel-account" aria-selected="true">Account</button>
+                <button role="tab" id="tab-permissions" aria-controls="panel-permissions" aria-selected="false">
+                    Permissions
+                </button>
+                <button role="tab" id="tab-connectors" aria-controls="panel-connectors" aria-selected="false">
+                    Connectors
+                </button>
+            </nav>
+        </header>
+        <main>
+            <section id="panel-account" role="tabpanel" aria-labelledby="tab-account"></section>
+            <section id="panel-permissions" role="tabpanel" aria-labelledby="tab-permissions" hidden></section>
+            <section id="panel-connectors" role="tabpanel" aria-labelledby="tab-connectors" hidden></section>
+        </main>
+        <p id="notice" role="status" aria-live="polite"></p>
+        <script src="agent.js"></script>
+    </body>
+</html>
