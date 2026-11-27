@@ -8,12 +8,12 @@ A document belongs here if it is about the build or its environment, not about w
 once it is running. The env-to-`Env` conversion is described here because the environment is a
 release concern; the runtime that consumes it is in [../webview/README.md](../webview/README.md).
 
-| Document                               | Owns                                                                                            |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| [deploy.md](./deploy.md)               | The local-Mac build-and-upload pipeline for four store apps, and what stays a human decision    |
-| [app-update.md](./app-update.md)       | `VersionService` — the live-version lookup, the boot alert, and the web update dialog           |
-| [local-run.md](./local-run.md)         | Running the shell against `apps/web`'s dev server, and the `.env` contract behind it            |
-| [device-verify.md](./device-verify.md) | `yarn mobile:verify` — a feature's scenario on the simulator or emulator in one command, opt-in |
+| Document                               | Owns                                                                                                        |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [deploy.md](./deploy.md)               | `yarn mobile:release` on a Mac and the remote workflow for four store apps: versions from tags, notes, keys |
+| [app-update.md](./app-update.md)       | `VersionService` — the live-version lookup, the boot alert, and the web update dialog                       |
+| [local-run.md](./local-run.md)         | Running the shell against `apps/web`'s dev server, and the `.env` contract behind it                        |
+| [device-verify.md](./device-verify.md) | `yarn mobile:verify` — a feature's scenario on the simulator or emulator in one command, opt-in             |
 
 `app-update.md` is the shell half of the update story. The web half — what the web client does when
 the shell reports an update — is `apps/web/docs/feature/appUpdate/`.
