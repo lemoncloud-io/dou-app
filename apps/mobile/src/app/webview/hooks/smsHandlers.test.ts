@@ -1,5 +1,6 @@
 import type { ILogService } from '../../services/log';
-import type { ISmsService } from '../../services/sms';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- host-mobile still reads its link and store-URL helpers from web-only shared until they move to a platform-free package
+import type { ISmsService } from '@chatic/host-mobile';
 import { createSmsHandlers } from './smsHandlers';
 
 const createLoggerMock = (): ILogService =>

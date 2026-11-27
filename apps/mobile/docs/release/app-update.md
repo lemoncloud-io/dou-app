@@ -79,7 +79,7 @@ sequenceDiagram
 
 | Layer  | File                                                                     | Role                                                              |
 | ------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| mobile | `src/app/services/version/VersionService.ts`                             | `getLatestVersion`, `checkForUpdate` (with cache), `openStore`    |
+| mobile | `libs/host/mobile/src/version/VersionService.ts`                         | `getLatestVersion`, `checkForUpdate` (with cache), `openStore`    |
 | mobile | `src/app/hooks/useAppVersionCheck.ts`                                    | Boot-time check → native `Alert`, module singleton for consumers  |
 | mobile | `src/app/webview/hooks/useVersionCheckHandler.ts`                        | Pushes the boot-time result to web as `OnUpdateDeviceInfo`        |
 | mobile | `src/app/webview/hooks/useAppUpdateHandler.ts`                           | Answers `CheckAppUpdate` / `OpenStore` bridge messages            |
@@ -103,7 +103,7 @@ npx jest --config apps/mobile/jest.config.js -t Version
 npx jest --config apps/web/jest.config.js -t "app update|useAppUpdate"
 ```
 
-- mobile: `services/version/VersionService.test.ts`, `hooks/useAppVersionCheck.test.ts`,
+- mobile: `libs/host/mobile/src/version/VersionService.test.ts`, `hooks/useAppVersionCheck.test.ts`,
   `webview/hooks/useAppUpdateHandler.test.ts`.
 - web: `features/appUpdate/hooks/useAppUpdateStatus.test.ts`,
   `features/appUpdate/hooks/useAppUpdatePrompt.test.ts`,

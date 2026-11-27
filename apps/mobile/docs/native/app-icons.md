@@ -107,7 +107,7 @@ the generator does not touch them; the store listing is uploaded by hand.
    `@mipmap/ic_launcher_<key>` and `…_round` as its icons and an `io.chatic.dou.notification_accent`
    meta-data pointing at `@color/notification_accent_<key>`. Without it the icon's banners fall back
    to the lime accent.
-4. Add `{ id, label }` to `AVAILABLE_ICONS` in `src/app/services/dynamicAppIcon/types.ts`. The web
+4. Add `{ id, label }` to `AVAILABLE_ICONS` in `libs/host/mobile/src/dynamicAppIcon/types.ts`. The web
    picker lists whatever the app reports, so an app build without the icon never offers it.
 5. Add `mypage.appIcon.<Id>` to both `apps/web/public/locales/*/translation.json`.
 6. Add the id to `APP_ICON_IDS` in `apps/web/src/app/runtime/telemetry/appIcon.ts`. The usage

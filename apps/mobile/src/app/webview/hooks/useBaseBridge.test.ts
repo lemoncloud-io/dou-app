@@ -23,7 +23,7 @@ jest.mock('../../stores', () => ({
     useDebugSettingsStore: (select: (state: { getResolvedWebviewBaseUrl: () => string }) => unknown) =>
         select({ getResolvedWebviewBaseUrl: () => 'http://localhost:5003' }),
 }));
-jest.mock('../../services/deeplinks/deeplinkUtils', () => ({
+jest.mock('@chatic/host-mobile/links', () => ({
     DEEP_LINK_DOMAINS: ['app.chatic.io'],
     CUSTOM_SCHEMES: ['chatic', 'chatic-dev'],
 }));

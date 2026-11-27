@@ -2,7 +2,8 @@
 
 How the shell keeps what happened on a device, and what it does about what it cannot report itself.
 The log API and its tags live in `libs/logger`; this describes the shell's side: the services under
-`src/app/services/log`, `firebase`, `report` and `perf`, all built in `provider.ts`.
+`src/app/services/log`, `firebase` and `perf`, and the error reports in
+[`@chatic/host-mobile`](../../../../libs/host/mobile/README.md) (`report/`), all built in `provider.ts`.
 
 ## One hub, three listeners
 

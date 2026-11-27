@@ -1,5 +1,6 @@
 import { toEnvStage } from '../../utils/stage';
-import type { AppRestart } from '../appRestart/appRestart';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- host-mobile still reads its link and store-URL helpers from web-only shared until they move to a platform-free package
+import type { AppRestart } from '@chatic/host-mobile';
 import { readSessionOwner, writeSessionOwner } from './sessionOwner';
 import type { SessionOwner, SessionOwnerFile } from './sessionOwner';
 

@@ -1,6 +1,8 @@
 # Device services — permissions, sign-in, SMS, link previews, purchases
 
-Rules the small services under `src/app/services` follow, where the reason is not visible in the code.
+Rules the small device services follow, where the reason is not visible in the code. Permissions, SMS
+and link previews live in [`@chatic/host-mobile`](../../../../libs/host/mobile/README.md) (paths below are
+under its `src/`); the app builds them in `src/app/services/provider.ts`.
 The bridge messages that reach them are in [../webview/README.md](../webview/README.md); the contacts
 read is in [the WebView document](../webview/README.md#device-contacts).
 

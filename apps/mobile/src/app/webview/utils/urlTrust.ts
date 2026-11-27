@@ -1,4 +1,5 @@
-import { CUSTOM_SCHEMES, DEEP_LINK_DOMAINS } from '../../services/deeplinks/deeplinkUtils';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- host-mobile still reads its link and store-URL helpers from web-only shared until they move to a platform-free package
+import { CUSTOM_SCHEMES, DEEP_LINK_DOMAINS } from '@chatic/host-mobile/links';
 import { originOf } from '../../utils/url';
 
 export const isTrustedBridgeUrl = (pageUrl: string | undefined, baseUrl: string): boolean => {
