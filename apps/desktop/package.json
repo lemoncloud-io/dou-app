@@ -48,6 +48,7 @@
         ]
     },
     "nx": {
+        "projectType": "application",
         "tags": [
             "layer:app",
             "platform:desktop",

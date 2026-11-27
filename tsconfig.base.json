@@ -44,6 +44,7 @@
             "@chatic/policy-content": ["libs/policy-content/src/index.ts"],
             "@chatic/checkout-store": ["libs/checkout/store/src/index.ts"],
             "@chatic/ports": ["libs/contracts/ports/src/index.ts"],
+            "@chatic/push-desktop": ["libs/push/desktop/src/index.ts"],
             "@chatic/push-mobile": ["libs/push/mobile/src/index.ts"],
             "@chatic/runtime": ["libs/runtime/src/index.ts"],
             "@chatic/runtime/api": ["libs/runtime/src/api/index.ts"],
