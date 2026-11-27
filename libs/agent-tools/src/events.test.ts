@@ -81,4 +81,30 @@ describe('events', () => {
         const { call } = setup({ ...config, tier: 'off' });
         await expect(call('events_list')).rejects.toMatchObject({ code: 'tier_off' });
     });
+
+    it('events_wait refuses when the tier drops to off while it waits', async () => {
+        const live: Settings = { ...config };
+        const { backend, call } = setup(live);
+        const waiting = call('events_wait', { since: 0, timeoutMs: 2000 }) as Promise<Page>;
+        live.tier = 'off';
+        backend.emit(incoming('r1:1'));
+        await expect(waiting).rejects.toMatchObject({ code: 'tier_off' });
+    });
+
+    it('events_wait keeps waiting when only a hidden room pushed', async () => {
+        const { backend, call } = setup();
+        const waiting = call('events_wait', { since: 0, timeoutMs: 50 }) as Promise<Page>;
+        backend.emit(incoming('r9:1', 'r9', { mention: { userIds: ['u1'], all: false } }));
+        backend.emit(incoming('r1:2'));
+        expect((await waiting).events.map(event => event.message.id)).toEqual(['r1:2']);
+    });
+
+    it('tail returns the last visible events', async () => {
+        const { backend, call } = setup();
+        backend.emit(incoming('r1:1'));
+        backend.emit(incoming('r9:2', 'r9', { isDirect: true } as never));
+        backend.emit(incoming('r1:3'));
+        const page = (await call('events_list', { tail: true, limit: 2 })) as Page;
+        expect(page.events.map(event => event.message.id)).toEqual(['r1:1', 'r1:3']);
+    });
 });

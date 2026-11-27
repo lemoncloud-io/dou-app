@@ -193,7 +193,11 @@ export const runtimeBackend = (runtime: RuntimeSurface): AgentBackend => {
             const deliver = async (entry: RuntimeLastChat, direct: Set<string>, me: string): Promise<void> => {
                 const chat = entry.chat;
                 if (!chat) return;
-                const parent = chat.parentId ? await repositories().chat.cacheRead(chat.parentId) : null;
+                const parent = chat.parentId
+                    ? await repositories()
+                          .chat.cacheRead(chat.parentId)
+                          .catch(() => null)
+                    : null;
                 if (stopped) return;
                 listener({
                     message: toMessage(chat),
@@ -201,29 +205,30 @@ export const runtimeBackend = (runtime: RuntimeSurface): AgentBackend => {
                     repliesToMe: parent?.ownerId === me,
                 });
             };
-            const start = (): void => {
-                rooms().then(
-                    list => {
-                        if (stopped) return;
-                        const me = cloud().me;
-                        const direct = new Set(list.filter(room => room.stereo === 'dm').map(room => room.id));
-                        stop = repositories().chat.observeLastList(
-                            list.map(room => room.id),
-                            results => {
-                                for (const entry of results) {
-                                    const previous = seen.get(entry.channelId);
-                                    seen.set(entry.channelId, entry.lastNo);
-                                    if (previous === undefined || entry.lastNo <= previous) continue;
-                                    if (entry.chat?.ownerId === me) continue;
-                                    void deliver(entry, direct, me).catch(() => undefined);
-                                }
-                            }
-                        );
-                    },
-                    () => {
-                        if (!stopped) retry = setTimeout(start, SUBSCRIBE_RETRY_MS);
+            const observe = (list: AgentRoom[]): void => {
+                const me = cloud().me;
+                const direct = new Set(list.filter(room => room.stereo === 'dm').map(room => room.id));
+                stop = repositories().chat.observeLastList(
+                    list.map(room => room.id),
+                    results => {
+                        for (const entry of results) {
+                            const previous = seen.get(entry.channelId);
+                            seen.set(entry.channelId, entry.lastNo);
+                            if (previous === undefined || entry.lastNo <= previous) continue;
+                            if (entry.chat?.ownerId === me) continue;
+                            void deliver(entry, direct, me).catch(() => undefined);
+                        }
                     }
                 );
+            };
+            const start = (): void => {
+                rooms()
+                    .then(list => {
+                        if (!stopped) observe(list);
+                    })
+                    .catch(() => {
+                        if (!stopped) retry = setTimeout(start, SUBSCRIBE_RETRY_MS);
+                    });
             };
             start();
             return () => {

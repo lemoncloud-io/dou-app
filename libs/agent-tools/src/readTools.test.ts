@@ -164,4 +164,31 @@ describe('read tools', () => {
         }
         expect(toolErrorBody(refused)).toMatchObject({ code: 'rate_limited' });
     });
+
+    it.each([
+        ['rooms_list', {}],
+        ['messages_read', { channelId: 'r1' }],
+        ['thread_read', { channelId: 'r1', parentId: 'r1:1' }],
+    ])('%s spends the read budget', async (name, params) => {
+        const { call } = setup();
+        let refused: unknown;
+        for (let i = 0; i < 31; i += 1) {
+            try {
+                await call(name, params);
+            } catch (error) {
+                refused = error;
+            }
+        }
+        expect(toolErrorBody(refused)).toMatchObject({ code: 'rate_limited' });
+    });
+
+    it('messages_search reports a local-only search without failing on an empty result', async () => {
+        const { call, backend } = setup();
+        backend.search = async () => ({ hits: [], localOnly: true });
+        expect(await call('messages_search', { query: 'x', channelId: 'r1' })).toMatchObject({
+            list: [],
+            relayError: null,
+            localOnly: true,
+        });
+    });
 });

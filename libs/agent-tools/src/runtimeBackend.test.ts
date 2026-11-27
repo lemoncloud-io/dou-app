@@ -33,9 +33,11 @@ const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[] } =
     };
     let observer: ((result: RuntimeLastChat[]) => void) | undefined;
     let unobserved = 0;
+    let cacheRead = async (id: string): Promise<RuntimeChat | null> =>
+        (options.chats ?? []).find(item => item.id === id) ?? null;
     const repositories = {
         chat: {
-            cacheRead: async (id: string) => (options.chats ?? []).find(item => item.id === id) ?? null,
+            cacheRead: (id: string) => cacheRead(id),
             cacheReadList: async () => ({
                 list: options.chats ?? [chat(), chat({ id: 'r1:4', chatNo: 4, content: 'other' })],
             }),
@@ -84,6 +86,9 @@ const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[] } =
         calls,
         emit: (r: RuntimeLastChat[]) => observer?.(r),
         unobserved: () => unobserved,
+        setCacheRead: (next: typeof cacheRead) => {
+            cacheRead = next;
+        },
     };
 };
 
@@ -172,9 +177,21 @@ describe('runtimeBackend', () => {
         expect(replies).toEqual([true]);
     });
 
-    it('does not reject when the room list cannot be loaded', async () => {
+    it('delivers a reply even when its parent cannot be read', async () => {
+        const { backend, emit, setCacheRead } = build();
+        setCacheRead(() => Promise.reject(new Error('cache down')));
+        const seen: Array<[string, boolean]> = [];
+        backend.subscribe(incoming => seen.push([incoming.message.id, incoming.repliesToMe]));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        emit([{ channelId: 'r1', lastNo: 5, chat: chat() }]);
+        emit([{ channelId: 'r1', lastNo: 6, chat: chat({ id: 'r1:6', chatNo: 6, parentId: 'r1:3' }) }]);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(seen).toEqual([['r1:6', false]]);
+    });
+
+    it('retries the room list after a failure and stops retrying on unsubscribe', async () => {
         jest.useFakeTimers();
-        const { backend } = build();
+        let fetches = 0;
         const failing = runtimeBackend({
             session: {
                 getActiveServerContext: () => ({ kind: 'relay', siteId: null }),
@@ -182,8 +199,13 @@ describe('runtimeBackend', () => {
             },
             data: {
                 getCloudRepositories: () => ({
-                    chat: {} as never,
-                    channel: { fetchList: () => Promise.reject(new Error('offline')) },
+                    chat: { observeLastList: () => () => undefined } as never,
+                    channel: {
+                        fetchList: () => {
+                            fetches += 1;
+                            return fetches === 1 ? Promise.reject(new Error('offline')) : Promise.resolve({ list: [] });
+                        },
+                    },
                     user: {} as never,
                 }),
                 sendChatInCloud: () => Promise.reject(new Error('unused')),
@@ -191,8 +213,12 @@ describe('runtimeBackend', () => {
         });
         const stop = failing.subscribe(() => undefined);
         await jest.advanceTimersByTimeAsync(0);
+        expect(fetches).toBe(1);
+        await jest.advanceTimersByTimeAsync(5000);
+        expect(fetches).toBe(2);
         stop();
+        await jest.advanceTimersByTimeAsync(20000);
+        expect(fetches).toBe(2);
         jest.useRealTimers();
-        expect(backend.cloud().id).toBe('c1');
     });
 });
