@@ -28,6 +28,10 @@ const { tools, dispose } = createAgentTools({
 - Search is local only: the runtime does not expose relay search, so `messages_search` scans the cached messages of the
   room and reports that in `relayError`.
 - The event buffer is in memory; a restart loses the cursor.
+- `room_members` reports every member as `member` and not left; the runtime gives no role.
+- Search results carry `localOnly: true` instead of a relay error.
+- Events of every kind are shown only for rooms on `allowRooms`, and the gate is checked again after `events_wait` returns.
+- A reply counts as a reply to me when its parent is in the local cache and I wrote it.
 - Incoming events come from `chat.observeLastList`, so only the newest message per room is seen between two updates.
 
 ## Docs

@@ -48,6 +48,7 @@ export interface AgentSearchHit {
 export interface AgentSearchResult {
     hits: AgentSearchHit[];
     relayError?: string;
+    localOnly?: boolean;
 }
 
 export interface AgentSendOptions {

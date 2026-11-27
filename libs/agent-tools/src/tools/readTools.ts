@@ -41,6 +41,7 @@ export const readTools = (context: ToolContext): ToolDef[] => {
             inputSchema: objectSchema({}),
             async handler() {
                 const settings = context.authorize({ kind: 'read' });
+                context.meter();
                 const rooms = await backend.rooms();
                 return {
                     list: rooms.map(room => ({
@@ -71,6 +72,7 @@ export const readTools = (context: ToolContext): ToolDef[] => {
                 const params = asParams(input);
                 const channelId = requireText(params, 'channelId');
                 context.authorize({ kind: 'readRoom', channelId });
+                context.meter();
                 const page = await backend.messages(channelId, {
                     limit: clampedInt(params, 'limit', 20, 1, 100),
                     before: optionalInt(params, 'before'),
@@ -90,6 +92,7 @@ export const readTools = (context: ToolContext): ToolDef[] => {
                 const channelId = requireText(params, 'channelId');
                 context.authorize({ kind: 'readRoom', channelId });
                 const parentId = requireText(params, 'parentId');
+                context.meter();
                 const page = await backend.messages(channelId, { limit: 100 });
                 return {
                     list: page
@@ -127,6 +130,7 @@ export const readTools = (context: ToolContext): ToolDef[] => {
                 context.meter();
                 const hits: AgentSearchHit[] = [];
                 let relayError: string | undefined;
+                let localOnly = false;
                 for (const room of rooms) {
                     try {
                         const found = await backend.search({
@@ -137,6 +141,7 @@ export const readTools = (context: ToolContext): ToolDef[] => {
                             limit,
                         });
                         relayError = relayError ?? found.relayError;
+                        localOnly = localOnly || found.localOnly === true;
                         hits.push(...found.hits);
                     } catch (error) {
                         relayError = error instanceof Error ? error.message : String(error);
@@ -147,6 +152,7 @@ export const readTools = (context: ToolContext): ToolDef[] => {
                 return {
                     list: hits.slice(0, limit).map(hit => ({ ...messageJson(hit.message), source: hit.source })),
                     relayError: relayError ?? null,
+                    localOnly,
                 };
             },
         },

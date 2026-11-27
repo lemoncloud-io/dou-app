@@ -47,6 +47,7 @@ export interface RuntimeLastChat {
 
 export interface RuntimeRepositories {
     chat: {
+        cacheRead(id: string): Promise<RuntimeChat | null>;
         cacheReadList(query: {
             channelId: string;
             limit?: number;
@@ -88,6 +89,7 @@ export interface RuntimeSurface {
 
 const RELAY_CLOUD = 'relay';
 const SEARCH_WINDOW = 500;
+const SUBSCRIBE_RETRY_MS = 5000;
 
 const toMessage = (chat: RuntimeChat): AgentMessage => ({
     id: chat.id,
@@ -168,7 +170,7 @@ export const runtimeBackend = (runtime: RuntimeSurface): AgentBackend => {
                 )
                 .slice(0, query.limit)
                 .map(message => ({ message, source: 'local' as const }));
-            return { hits, relayError: 'relay search is not exposed by the runtime; results are local cache only' };
+            return { hits, localOnly: true };
         },
         async members(channelId): Promise<AgentMember[]> {
             const server = runtime.session.getActiveServerContext();
@@ -186,29 +188,47 @@ export const runtimeBackend = (runtime: RuntimeSurface): AgentBackend => {
         subscribe(listener: (incoming: AgentIncoming) => void) {
             let stopped = false;
             let stop: (() => void) | undefined;
+            let retry: ReturnType<typeof setTimeout> | undefined;
             const seen = new Map<string, number>();
-            void rooms().then(list => {
+            const deliver = async (entry: RuntimeLastChat, direct: Set<string>, me: string): Promise<void> => {
+                const chat = entry.chat;
+                if (!chat) return;
+                const parent = chat.parentId ? await repositories().chat.cacheRead(chat.parentId) : null;
                 if (stopped) return;
-                const me = cloud().me;
-                const ids = list.map(room => room.id);
-                const direct = new Set(list.filter(room => room.stereo === 'dm').map(room => room.id));
-                stop = repositories().chat.observeLastList(ids, results => {
-                    for (const entry of results) {
-                        const previous = seen.get(entry.channelId);
-                        seen.set(entry.channelId, entry.lastNo);
-                        if (previous === undefined || entry.lastNo <= previous || !entry.chat) continue;
-                        if (entry.chat.ownerId === me) continue;
-                        const message = toMessage(entry.chat);
-                        listener({
-                            message,
-                            isDirect: direct.has(entry.channelId),
-                            repliesToMe: false,
-                        });
-                    }
+                listener({
+                    message: toMessage(chat),
+                    isDirect: direct.has(entry.channelId),
+                    repliesToMe: parent?.ownerId === me,
                 });
-            });
+            };
+            const start = (): void => {
+                rooms().then(
+                    list => {
+                        if (stopped) return;
+                        const me = cloud().me;
+                        const direct = new Set(list.filter(room => room.stereo === 'dm').map(room => room.id));
+                        stop = repositories().chat.observeLastList(
+                            list.map(room => room.id),
+                            results => {
+                                for (const entry of results) {
+                                    const previous = seen.get(entry.channelId);
+                                    seen.set(entry.channelId, entry.lastNo);
+                                    if (previous === undefined || entry.lastNo <= previous) continue;
+                                    if (entry.chat?.ownerId === me) continue;
+                                    void deliver(entry, direct, me).catch(() => undefined);
+                                }
+                            }
+                        );
+                    },
+                    () => {
+                        if (!stopped) retry = setTimeout(start, SUBSCRIBE_RETRY_MS);
+                    }
+                );
+            };
+            start();
             return () => {
                 stopped = true;
+                if (retry) clearTimeout(retry);
                 stop?.();
             };
         },

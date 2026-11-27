@@ -38,17 +38,24 @@ describe('events', () => {
 
     it('classifies mentions, direct messages and replies, and drops own and unrelated messages', async () => {
         const { backend, call } = setup();
-        backend.emit(incoming('r9:1', 'r9', { mention: { userIds: ['u1'], all: false } }));
-        backend.emit({ ...incoming('r9:2', 'r9'), isDirect: true });
-        backend.emit({ ...incoming('r9:3', 'r9'), repliesToMe: true });
+        backend.emit(incoming('r1:1', 'r1', { mention: { userIds: ['u1'], all: false } }));
+        backend.emit({ ...incoming('r1:2', 'r1'), isDirect: true });
+        backend.emit({ ...incoming('r1:3', 'r1'), repliesToMe: true });
         backend.emit(incoming('r9:4', 'r9'));
         backend.emit(incoming('r1:5', 'r1', { ownerId: 'u1' }));
         const page = (await call('events_list')) as Page;
         expect(page.events.map(event => [event.message.id, event.kind])).toEqual([
-            ['r9:1', 'mention'],
-            ['r9:2', 'dm'],
-            ['r9:3', 'thread_reply'],
+            ['r1:1', 'mention'],
+            ['r1:2', 'dm'],
+            ['r1:3', 'thread_reply'],
         ]);
+    });
+
+    it('hides mentions and direct messages of rooms outside the allow-list', async () => {
+        const { backend, call } = setup();
+        backend.emit(incoming('r9:1', 'r9', { mention: { userIds: ['u1'], all: false } }));
+        backend.emit({ ...incoming('r9:2', 'r9'), isDirect: true });
+        expect(((await call('events_list')) as Page).events).toEqual([]);
     });
 
     it('events_wait returns at once when events exist, wakes on a new one, and times out empty', async () => {

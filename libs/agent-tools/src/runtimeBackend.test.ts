@@ -35,6 +35,7 @@ const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[] } =
     let unobserved = 0;
     const repositories = {
         chat: {
+            cacheRead: async (id: string) => (options.chats ?? []).find(item => item.id === id) ?? null,
             cacheReadList: async () => ({
                 list: options.chats ?? [chat(), chat({ id: 'r1:4', chatNo: 4, content: 'other' })],
             }),
@@ -133,7 +134,8 @@ describe('runtimeBackend', () => {
         const result = await backend.search({ channelId: 'r1', keyword: 'hi', limit: 5 });
         expect(result.hits.map(hit => hit.message.id)).toEqual(['r1:5']);
         expect(result.hits[0].source).toBe('local');
-        expect(result.relayError).toMatch(/local cache only/);
+        expect(result.localOnly).toBe(true);
+        expect(result.relayError).toBeUndefined();
     });
 
     it('names members from the place member list', async () => {
@@ -152,8 +154,45 @@ describe('runtimeBackend', () => {
         emit([{ channelId: 'r1', lastNo: 5, chat: chat() }]);
         emit([{ channelId: 'r1', lastNo: 6, chat: chat({ id: 'r1:6', chatNo: 6 }) }]);
         emit([{ channelId: 'r1', lastNo: 7, chat: chat({ id: 'r1:7', chatNo: 7, ownerId: 'u1' }) }]);
+        await new Promise(resolve => setTimeout(resolve, 0));
         expect(seen).toEqual(['r1:6']);
         stop();
         expect(unobserved()).toBe(1);
+    });
+
+    it('marks a reply to my message', async () => {
+        const mine = chat({ id: 'r1:3', chatNo: 3, ownerId: 'u1' });
+        const { backend, emit } = build({ chats: [mine] });
+        const replies: boolean[] = [];
+        backend.subscribe(incoming => replies.push(incoming.repliesToMe));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        emit([{ channelId: 'r1', lastNo: 5, chat: chat() }]);
+        emit([{ channelId: 'r1', lastNo: 6, chat: chat({ id: 'r1:6', chatNo: 6, parentId: 'r1:3' }) }]);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(replies).toEqual([true]);
+    });
+
+    it('does not reject when the room list cannot be loaded', async () => {
+        jest.useFakeTimers();
+        const { backend } = build();
+        const failing = runtimeBackend({
+            session: {
+                getActiveServerContext: () => ({ kind: 'relay', siteId: null }),
+                getIdentityContext: () => ({ userId: 'u1' }),
+            },
+            data: {
+                getCloudRepositories: () => ({
+                    chat: {} as never,
+                    channel: { fetchList: () => Promise.reject(new Error('offline')) },
+                    user: {} as never,
+                }),
+                sendChatInCloud: () => Promise.reject(new Error('unused')),
+            },
+        });
+        const stop = failing.subscribe(() => undefined);
+        await jest.advanceTimersByTimeAsync(0);
+        stop();
+        jest.useRealTimers();
+        expect(backend.cloud().id).toBe('c1');
     });
 });

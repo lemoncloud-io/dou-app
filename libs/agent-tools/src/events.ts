@@ -47,12 +47,13 @@ const kindsOf = (incoming: AgentIncoming, options: EventLogOptions): EventKind[]
 export const createEventLog = (options: EventLogOptions): EventLog => {
     const capacity = options.capacity ?? DEFAULT_CAPACITY;
     const entries: AgentEvent[] = [];
+    const visible = (entry: AgentEvent): boolean => options.isRoomAllowed(entry.message.channelId);
     const waiters = new Set<() => void>();
     let seq = 0;
 
     const read = ({ since, limit, tail }: EventQuery): EventPage => {
         const from = tail ? Math.max(seq - limit, 0) : since;
-        const events = entries.filter(entry => entry.seq > from).slice(0, limit);
+        const events = entries.filter(entry => entry.seq > from && visible(entry)).slice(0, limit);
         return { events, cursor: events.length > 0 ? events[events.length - 1].seq : from };
     };
 

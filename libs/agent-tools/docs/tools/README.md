@@ -12,7 +12,7 @@ Names, schemas and outputs follow the parked Rust `dou-mcp` crate, so existing M
 | `unread_digest` | read | Unread messages of allowed rooms. |
 | `room_members` | read, allowed room | Members of a room. |
 | `settings_get` | read | The settings the gate is using. |
-| `events_list` | read | Mentions, direct messages, replies to me and new messages of allowed rooms after a cursor. |
+| `events_list` | read | Mentions, direct messages, replies to me and new messages after a cursor; allowed rooms only. |
 | `events_wait` | read | Waits for an event after a cursor; returns empty on timeout. |
 | `message_send` | write, allowed room | Sends text. |
 | `thread_reply` | write, allowed room | Replies to a message of the same room. |
