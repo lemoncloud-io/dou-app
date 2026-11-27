@@ -2,6 +2,12 @@
 
 ## [2026-11-27] - No version updates
 
+### Refactor
+
+- (data) split @chatic/data into model, api, local and repositories packages
+
+## [2026-11-27] - No version updates
+
 ### Features
 
 - (runtime-node) boot the headless runtime in node on new adapter libs
