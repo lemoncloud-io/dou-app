@@ -515,7 +515,10 @@ this is the only path that ships `desktop-web` (see the note in
 it, nothing in CI ran a type check or a test. Its lint, typecheck and test steps cover only the
 projects the change affects (`nx affected` against the PR's base, or on a push against the commit the
 last successful `develop` run checked), and fall back to every project when the change touches a file outside `apps/` and `libs/`
-that is not markdown — a root config Nx cannot map to a project. Its second job, `e2e`, runs the web app in a real browser
+that is not markdown — a root config Nx cannot map to a project. The gate runs as parallel jobs — `checks`
+(doc checks, script tests, ratchets), `lint`, `typecheck` and `test` in four shards — and the `verify` job, under the
+gate's old name, is green only when all of them are. Shards are dealt by `scripts/test-seconds.json`; refresh it from a
+run of every project with `node scripts/test-shards.js --record <log>`. The `e2e` jobs run the web app in a real browser
 inside a fake native shell ([apps/web-e2e](./apps/web-e2e/README.md)) when `web-e2e` is affected.
 
 ## Code Quality

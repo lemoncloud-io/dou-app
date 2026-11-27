@@ -1,0 +1,45 @@
+name: setup workspace
+description: >
+    Node from .nvmrc and node_modules from the yarn cache, installing on a miss. Saves the cache only when
+    `save` is true, so pull requests restore develop's cache instead of each adding their own.
+inputs:
+    save:
+        description: Save the cache after an install on a miss
+        required: false
+        default: 'false'
+runs:
+    using: composite
+    steps:
+        - uses: actions/setup-node@v4
+          with:
+              node-version-file: '.nvmrc'
+
+        - name: Get Yarn cache path
+          id: yarn-cache-dir-path
+          shell: bash
+          run: echo "dir=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
+
+        - name: Restore dependencies
+          id: cache
+          uses: actions/cache/restore@v4
+          with:
+              path: |
+                  ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  node_modules
+              key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+              restore-keys: |
+                  ${{ runner.os }}-yarn-
+
+        - name: Install dependencies
+          if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+          shell: bash
+          run: yarn install --frozen-lockfile
+
+        - name: Save dependencies
+          if: ${{ steps.cache.outputs.cache-hit != 'true' && inputs.save == 'true' }}
+          uses: actions/cache/save@v4
+          with:
+              path: |
+                  ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  node_modules
+              key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
