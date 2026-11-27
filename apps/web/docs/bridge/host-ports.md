@@ -3,6 +3,8 @@
 > Scope: the `host` slot of `apps/web/src/config/`'s two declarations, `config/adapters/checkout/`, and
 > `config/adapters/{media,files,links,appShell,signIn,diagnostics,push}.ts`.
 > The port types and the adapters are [`@chatic/runtime-hybrid-web`](../../../../libs/runtime-hybrid-web/README.md#the-host-port-adapters);
+> the implementations are [`@chatic/host-web-mobile-shell`](../../../../libs/host/web/mobile-shell/README.md) and
+> [`@chatic/host-web-browser`](../../../../libs/host/web/browser/README.md);
 > the host profile they read is [`@chatic/bridges`](../../../../libs/bridges/README.md#the-host-profile).
 
 What the host does for a feature — sell a subscription, pick and move files, open links, run the app's
@@ -26,11 +28,12 @@ its default alone — the page already does everything itself.
 A port carries what the host does, not only who does it. Each but checkout still has `kind`
 (`appShell` and `signIn` add `os`), published from the declaration's keys or, before them, the legacy
 rule, and only the declaration part and the log pipeline (below) read it: a feature calls the port's
-members and never branches on `kind`. The contracts are runtime-client's (`host/<port>.ts`). This app's
-two implementations of each are in `src/config/adapters/<port>.ts`: the shell side through `appBridge`
-(and `webClient` for the messages it does not wrap), the page side with what any browser offers.
-runtime-hybrid-web's `<port>Adapters` turn them into the `<port>.host`, `.shell` and `.browser` adapters the
-declarations name.
+members and never branches on `kind`. The contracts are `@chatic/ports`' (`host/<port>.ts`). The two
+implementations of each are libraries: the shell side is `@chatic/host-web-mobile-shell`'s
+`mobileShell<Port>`, handed `webClient`, and the page side `@chatic/host-web-browser`'s `browser<Port>`,
+with what any browser offers. `src/config/adapters/<port>.ts` only picks them, hands in what is this app's
+(the upload transfer module, the handshake's sub web view scope), and runtime-hybrid-web's
+`<port>Adapters` turn them into the `<port>.host`, `.shell` and `.browser` adapters the declarations name.
 
 **What every host does is a method; what only some hosts have is a member that is `null` where the
 host lacks it.** A feature asks for the member (`runtime.links.contacts`), not for the side, so a toggle
@@ -41,6 +44,8 @@ that moves one port to the page, or a host that does the work a third way, chang
   into one the server takes, with its poster) and `cameraPermission` (asked before the page opens a
   capturing input: Android's WebView never asks for itself, so without it a refusal never reaches the
   page). All four are `null` in a browser, where the attach panel opens the page's own input.
+  `images` (`prepareImage`, `videoPoster`) is the page's canvas on both sides; screens still call the
+  same functions through `@chatic/shared`, so nothing reads the member yet.
 - **files** — `put` everywhere: the phone app's transfer module, which hands the page's own PUT
   whatever it does not move itself, or the page's PUT in a browser. The phone app's `transfers` is its
   transfer module — `putShellFile`, `syncUploads`, `openFile`, `saveFile`, `readVideoFrame` — and
@@ -120,12 +125,12 @@ ports: they are read from `@chatic/bridges` (`hostProfile().globals`, or `liveSh
 
 ## checkout
 
-| What the host sells through | Implementation                          | What it does                                                                                |
-| --------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `apple`, `google`           | `adapters/checkout/storeCheckout.ts`    | The store's catalog, purchase, finish, held purchases and management, over `appBridge`      |
-| `web`                       | `adapters/checkout/webCheckout.ts`      | Leaves for a page of the website (`leaveForWeb`); the purchase completes there              |
-| `web`, in the virtual shell | `adapters/checkout/shellWebCheckout.ts` | As `web`, carrying the shell's sandbox, and sending it to a local website when one answered |
-| nothing                     | `{ kind: 'none' }` from `checkout.host` | Nothing to sell                                                                             |
+| What the host sells through | Implementation                          | What it does                                                                                                |
+| --------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `apple`, `google`           | `adapters/checkout/storeCheckout.ts`    | `mobileShellStoreCheckout(webClient)`: the store's catalog, purchase, finish, held purchases and management |
+| `web`                       | `adapters/checkout/webCheckout.ts`      | Leaves for a page of the website (`leaveForWeb`); the purchase completes there                              |
+| `web`, in the virtual shell | `adapters/checkout/shellWebCheckout.ts` | As `web`, carrying the shell's sandbox, and sending it to a local website when one answered                 |
+| nothing                     | `{ kind: 'none' }` from `checkout.host` | Nothing to sell                                                                                             |
 
 The phone app declares its store and the desktop app declares that it sells nothing, from the first
 builds made after they began to declare; the e2e fake shell declares as the phone does. A shell that

@@ -67,7 +67,7 @@ that reloads mid-send leaves no hold behind.
    image. A video or document (`chatAttachmentFormat` in `@chatic/data`) is not redrawn: it goes up
    as its original with no dimensions, under the server's content type and a name that ends in its
    format's extension. A document has no thumbnail. A page video gets the poster the browser draws
-   (`makeVideoPoster` in `@chatic/shared`: 0.5 s in, 400 px on the long side, at most 200,000 bytes —
+   (`makeVideoPoster`, `@chatic/host-web-browser`'s, imported through `@chatic/shared`: 0.5 s in, 400 px on the long side, at most 200,000 bytes —
    the shells' own rule, so the server keeps it) as its thumbnail. It goes without one when the
    browser cannot draw it (HEVC in most Chromium builds, no frame within ten seconds); a poster never
    holds a send back. This is what gives a video sent from the desktop or a phone's browser a frame on

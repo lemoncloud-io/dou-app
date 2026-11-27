@@ -1,61 +1,70 @@
 import { logger } from '@chatic/bridges';
 
-import { appBridge } from '../../../app/bridge/appBridge';
-import { PURCHASE_TIMEOUT_MS, storeCheckout } from './storeCheckout';
+import type { ShellBridge } from './bridge';
+import { FETCH_PRODUCTS_TIMEOUT_MS, mobileShellStoreCheckout, PURCHASE_TIMEOUT_MS } from './checkout';
 
-const mockEvents: Record<string, (message: unknown) => void> = {};
 jest.mock('@chatic/bridges', () => ({
+    ...jest.requireActual('@chatic/bridges'),
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-    webClient: {
-        onEvent: (type: string, handler: (message: unknown) => void) => {
-            mockEvents[type] = handler;
-            return () => undefined;
-        },
-    },
-}));
-jest.mock('../../../app/bridge/appBridge', () => ({
-    appBridge: {
-        purchase: jest.fn(),
-        finishPurchaseTransaction: jest.fn().mockResolvedValue({ data: {} }),
-        fetchCurrentPurchases: jest.fn().mockResolvedValue({ data: { purchases: [{ productId: 'p' }] } }),
-        fetchProducts: jest.fn().mockResolvedValue({ data: { products: [{ id: 'dou_pro_subscription' }] } }),
-        openSubscriptionManagement: jest.fn(),
-    },
 }));
 
-const succeed = (purchase: unknown) => mockEvents['OnPurchaseSuccess']?.({ data: { purchase } });
-const fail = (error: unknown) => mockEvents['OnPurchaseError']?.({ data: { error } });
+const events: Record<string, (message: unknown) => void> = {};
+const responses: Record<string, unknown> = {
+    FinishPurchaseTransaction: { data: {} },
+    FetchCurrentPurchases: { data: { purchases: [{ productId: 'p' }] } },
+    FetchProducts: { data: { products: [{ id: 'dou_pro_subscription' }] } },
+};
+const bridge = {
+    post: jest.fn(),
+    request: jest.fn(async (message: { type: string }) => responses[message.type]),
+    onEvent: jest.fn((type: string, handler: (message: unknown) => void) => {
+        events[type] = handler;
+        return () => undefined;
+    }),
+};
+
+const storeCheckout = mobileShellStoreCheckout(bridge as unknown as ShellBridge);
+
+const succeed = (purchase: unknown) => events['OnPurchaseSuccess']?.({ data: { purchase } });
+const fail = (error: unknown) => events['OnPurchaseError']?.({ data: { error } });
 
 beforeEach(() => jest.clearAllMocks());
 
-describe('storeCheckout — what is sent to the store', () => {
+describe('mobileShellStoreCheckout — what is sent to the store', () => {
     const tierChange = { id: 'dou_pro_subscription', newPlanId: 'pro-tier-02', offerToken: 'base-02' };
 
     it('carries the old plan to Google on a tier change, which it books as a replacement only with it', () => {
         void storeCheckout('google').purchase({ ...tierChange, oldPlanId: 'pro-tier-01' });
 
-        expect(appBridge.purchase).toHaveBeenCalledWith({
-            id: 'dou_pro_subscription',
-            offerToken: 'base-02',
-            newPlanId: 'pro-tier-02',
-            oldPlanId: 'pro-tier-01',
+        expect(bridge.post).toHaveBeenCalledWith({
+            type: 'Purchase',
+            data: {
+                id: 'dou_pro_subscription',
+                offerToken: 'base-02',
+                newPlanId: 'pro-tier-02',
+                oldPlanId: 'pro-tier-01',
+            },
         });
     });
 
     it('sends no oldPlanId key at all on a new Google subscription', () => {
         void storeCheckout('google').purchase(tierChange);
 
-        expect(appBridge.purchase).toHaveBeenCalledWith(expect.not.objectContaining({ oldPlanId: expect.anything() }));
+        expect(bridge.post).toHaveBeenCalledWith({
+            type: 'Purchase',
+            data: { id: 'dou_pro_subscription', offerToken: 'base-02', newPlanId: 'pro-tier-02' },
+        });
+        expect(bridge.post.mock.calls[0][0].data).not.toHaveProperty('oldPlanId');
     });
 
     it('sends Apple the product id and none of the Google-only fields', () => {
         void storeCheckout('apple').purchase({ ...tierChange, oldPlanId: 'pro_tier_01' });
 
-        expect(appBridge.purchase).toHaveBeenCalledWith({ id: 'dou_pro_subscription' });
+        expect(bridge.post).toHaveBeenCalledWith({ type: 'Purchase', data: { id: 'dou_pro_subscription' } });
     });
 });
 
-describe('storeCheckout — how a purchase settles', () => {
+describe('mobileShellStoreCheckout — how a purchase settles', () => {
     it('resolves with the purchase the shell reports', async () => {
         const pending = storeCheckout('google').purchase({ id: 'p' });
         succeed({ productId: 'p', purchaseToken: 't' });
@@ -125,7 +134,7 @@ describe('storeCheckout — how a purchase settles', () => {
     });
 });
 
-describe('storeCheckout — the rest of the store', () => {
+describe('mobileShellStoreCheckout — the rest of the store', () => {
     it('reads the catalog and the held purchases, finishes a purchase and opens management through the bridge', async () => {
         const checkout = storeCheckout('apple');
 
@@ -134,7 +143,12 @@ describe('storeCheckout — the rest of the store', () => {
         await expect(checkout.finish({ productId: 'p' } as never)).resolves.toBeUndefined();
         checkout.openManagement();
 
-        expect(appBridge.finishPurchaseTransaction).toHaveBeenCalledWith({ productId: 'p' });
-        expect(appBridge.openSubscriptionManagement).toHaveBeenCalled();
+        expect(bridge.request.mock.calls).toEqual([
+            [{ type: 'FetchProducts', data: {} }, { timeoutMs: FETCH_PRODUCTS_TIMEOUT_MS }],
+            [{ type: 'FetchCurrentPurchases', data: {} }],
+            [{ type: 'FinishPurchaseTransaction', data: { purchase: { productId: 'p' } } }],
+        ]);
+        expect(FETCH_PRODUCTS_TIMEOUT_MS).toBe(10_000);
+        expect(bridge.post).toHaveBeenCalledWith({ type: 'OpenSubscriptionManagement', data: {} });
     });
 });

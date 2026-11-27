@@ -139,12 +139,61 @@ export type PhotoSelection = {
 
 export type KeptLibraryVideo = PickedShellAttachment;
 
+export interface MediaFile {
+    readonly name: string;
+    readonly type: string;
+    readonly size: number;
+}
+
+export type ImageFit = 'contain' | 'cover';
+
+export type UploadableImageType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+
+export interface CompressProfile {
+    fit: ImageFit;
+    maxEdge: number;
+    quality: number;
+    type: UploadableImageType;
+}
+
+export type ImageOutputSpec =
+    | {
+          as: 'file';
+          profile?: CompressProfile;
+          suffix?: string;
+      }
+    | { as: 'dataUrl'; profile: CompressProfile };
+
+export type ImageRequest = Record<string, ImageOutputSpec>;
+
+export interface PreparedImageFile<F extends MediaFile = MediaFile> {
+    file: F;
+    width: number;
+    height: number;
+}
+
+export type ImageOutputOf<S extends ImageOutputSpec, F extends MediaFile = MediaFile> = S extends { as: 'dataUrl' }
+    ? string | null
+    : S extends { as: 'file'; profile: CompressProfile }
+      ? PreparedImageFile<F> | null
+      : PreparedImageFile<F>;
+
+export type ImageResult<R extends ImageRequest, F extends MediaFile = MediaFile> = {
+    [K in keyof R]: ImageOutputOf<R[K], F>;
+};
+
+export interface MediaImages<F extends MediaFile = MediaFile> {
+    prepareImage<R extends ImageRequest>(file: F, request: R): Promise<ImageResult<R, F>>;
+    videoPoster(file: F): Promise<PreparedImageFile<F> | null>;
+}
+
 export interface MediaPort {
     readonly kind: MediaMethod;
     readonly picker: AppAttachmentPicker | null;
     readonly photoLibrary: DevicePhotoLibrary | null;
     readonly videoConverter: VideoConverter | null;
     readonly cameraPermission: CameraPermission | null;
+    readonly images?: MediaImages | null;
 }
 
 export type MediaMethod = ShellOrBrowser;

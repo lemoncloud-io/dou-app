@@ -1,11 +1,8 @@
-import type { ImageFit, UploadableType } from './types';
+import type { CompressProfile } from '@chatic/ports';
 
-export interface CompressProfile {
-    fit: ImageFit;
-    maxEdge: number;
-    quality: number;
-    type: UploadableType;
-}
+import type { UploadableType } from './types';
+
+export type { CompressProfile };
 
 export const AVATAR_PROFILE: CompressProfile = { fit: 'cover', maxEdge: 150, quality: 0.8, type: 'image/jpeg' };
 

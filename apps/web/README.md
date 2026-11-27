@@ -361,8 +361,10 @@ Two adapters are this app's own (`config/adapters/`), because the library's do n
   declarations.
 
 `engine.mirror` takes the app's own settle (`config/adapters/engine.ts`), which records who holds the
-session for the log context the moment it is settled, so the boot's own lines carry it. Checkout's two
-implementations — the store over `appBridge`, the website hand-off — live in `config/adapters/checkout/`.
+session for the log context the moment it is settled, so the boot's own lines carry it. Checkout's store
+purchase is `@chatic/host-web-mobile-shell`'s `mobileShellStoreCheckout`, handed `webClient`; the website
+hand-off stays in `config/adapters/checkout/`. The other host ports are declared the same way, from
+`@chatic/host-web-mobile-shell` and `@chatic/host-web-browser` ([host ports](./docs/bridge/host-ports.md)).
 
 What stays in `main.tsx`, as app policy around the start: the unsettled screen and the session-owner
 default sent to the shell, the page's own signed-out keys on a launch the shell owns, the late-vault
