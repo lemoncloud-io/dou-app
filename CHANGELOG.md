@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-27] - No version updates
+
+### Refactor
+
+- (push-desktop,desktop) move the electron fcm client into libs/push/desktop
+
 ## [2026-11-26] - No version updates
 
 ### Refactor
