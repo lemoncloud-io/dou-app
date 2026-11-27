@@ -40,7 +40,10 @@ export const startMcp = async (profile: string, version: string): Promise<() => 
         version,
         methods: statusMethods(),
     });
-    const listener = await listenMcp(profile, handler);
+    const listener = await listenMcp(profile, handler).catch(error => {
+        agent.dispose();
+        throw error;
+    });
     return async () => {
         await listener.close();
         agent.dispose();

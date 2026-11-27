@@ -16,5 +16,8 @@ const code = await runCli(process.argv.slice(2), {
     },
     signal: controller.signal,
     hooks: { onReady: (_booted, profile) => startMcp(profile, VERSION) },
+}).catch(error => {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    return 1;
 });
 process.exit(code);

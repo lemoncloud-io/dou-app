@@ -127,6 +127,35 @@ describe('dou-cli commands', () => {
         await expect(done).resolves.toBe(0);
         expect(h.stop).toHaveBeenCalledTimes(1);
     });
+
+    it('serve stops what onReady returned before it stops the runtime, and stops the runtime when onReady fails', async () => {
+        const order: string[] = [];
+        const h = harness();
+        h.stop.mockImplementation(async () => void order.push('runtime'));
+        const controller = new AbortController();
+        const done = runCli(['serve'], {
+            ...h,
+            signal: controller.signal,
+            hooks: { onReady: async () => async () => void order.push('hook') },
+        });
+        await new Promise(resolve => setImmediate(resolve));
+        controller.abort();
+        await expect(done).resolves.toBe(0);
+        expect(order).toEqual(['hook', 'runtime']);
+
+        const failing = harness();
+        await expect(
+            runCli(['serve'], {
+                ...failing,
+                hooks: {
+                    onReady: async () => {
+                        throw new Error('already serving');
+                    },
+                },
+            })
+        ).rejects.toThrow('already serving');
+        expect(failing.stop).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('bootNode', () => {

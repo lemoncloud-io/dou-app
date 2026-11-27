@@ -10,14 +10,21 @@ export interface ServeHooks {
 export const serveCommand = async ({ io, signal, booted, hooks, profile }: CommandContext): Promise<number> => {
     const check = createPairedCloudCheck(cloudId => io.err(`paired cloud ended: ${cloudId}`));
     const timer = setInterval(() => void check().catch(error => io.err(String(error))), PAIRED_CLOUD_CHECK_INTERVAL_MS);
-    const dispose = await hooks.onReady?.(booted, profile);
-    io.out(JSON.stringify({ serving: true }));
-    await new Promise<void>(resolve => {
-        if (signal.aborted) return resolve();
-        signal.addEventListener('abort', () => resolve(), { once: true });
-    });
-    clearInterval(timer);
-    await dispose?.();
-    await booted.stop();
+    let dispose: void | (() => Promise<void>);
+    try {
+        dispose = await hooks.onReady?.(booted, profile);
+        io.out(JSON.stringify({ serving: true }));
+        await new Promise<void>(resolve => {
+            if (signal.aborted) return resolve();
+            signal.addEventListener('abort', () => resolve(), { once: true });
+        });
+    } finally {
+        clearInterval(timer);
+        try {
+            await dispose?.();
+        } finally {
+            await booted.stop();
+        }
+    }
     return 0;
 };
