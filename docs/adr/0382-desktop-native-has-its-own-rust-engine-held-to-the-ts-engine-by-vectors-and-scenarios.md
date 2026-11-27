@@ -1,6 +1,6 @@
 # ADR-0382: Desktop native has its own Rust engine, held to the TS engine by vectors and scenarios
 
-> Status: Accepted · Decided: 2026-11-26 · Implemented: `feat/desktop-native-engine` (the headless engine and local MCP)
+> Status: Superseded by ADR-0387 · Decided: 2026-11-26 · Implemented: `feat/desktop-native-engine` (the headless engine and local MCP)
 > · Scope: `apps/desktop-native/`
 
 ## Context

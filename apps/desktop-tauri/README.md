@@ -2,6 +2,8 @@
 
 The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the deployed web and answers the bridge from Rust is in [ADR-0384](../../docs/adr/0384-the-tauri-shell-loads-the-deployed-web-and-answers-the-bridge-from-rust.md). The Electron desktop (`apps/desktop`, `apps/desktop-web`) and the Rust engine (`apps/desktop-native`) are separate and untouched.
 
+Desktop v2 logic runs in TypeScript on `@chatic/runtime` in a Node process the shell starts per profile; this app is the shell and dev harness, and the Rust engine crates in `apps/desktop-native` are parked. The decision and its alternatives are in [ADR-0387](../../docs/adr/0387-desktop-v2-runs-the-ts-runtime-in-node-and-rust-is-the-shell.md).
+
 ## Layout
 
 | Path                    | What it is                                                                                                                               |
