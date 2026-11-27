@@ -45,7 +45,7 @@ For a production bundle that sits beside the dev one, add `--config '{"identifie
 
 ## Install an unsigned build
 
-CI (`.github/workflows/build-desktop-tauri.yml`) builds a macOS `.dmg` and a Windows NSIS `.exe`, each carrying the `dou-cli` and `dou-mcp` sidecars, and uploads them as run artifacts (`dou-tauri-dmg`, `dou-tauri-nsis`). Neither is signed by a certificate authority, so the system warns once.
+CI (`.github/workflows/build-desktop-tauri.yml`) builds a macOS `.dmg` and a Windows NSIS `.exe`, each carrying the `dou-cli` and `dou-mcp` sidecars, and uploads them as run artifacts (the `stage` input picks `dev`, the default, or `prod`) (`dou-tauri-dmg`, `dou-tauri-nsis`). Neither is signed by a certificate authority, so the system warns once.
 
 - **macOS:** open the `.dmg` and drag the app to Applications. Right-click the app, choose **Open**, then **Open** again in the dialog. If macOS still refuses, run `xattr -dr com.apple.quarantine /Applications/"DoU Tauri.app"` once.
 - **Windows:** run the `.exe`. At the SmartScreen "Windows protected your PC" screen click **More info**, then **Run anyway**. The installer is per user and needs no administrator rights.
