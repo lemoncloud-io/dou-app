@@ -54,11 +54,62 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('RefundPanel', () => {
-    it('is disabled on Production and says why', () => {
+    it('is enabled on Production', () => {
         renderPanel('v1');
 
-        expect((refundButton() as HTMLButtonElement).disabled).toBe(true);
-        expect(screen.getByText(/Production refunds are not open yet/)).toBeTruthy();
+        expect((refundButton() as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('on Production fires only after the userId is typed, and to the Production relay', async () => {
+        refundSubscriptionByAdmin.mockResolvedValue({ status: 'expired' });
+        renderPanel('v1');
+
+        fireEvent.click(refundButton());
+        expect(screen.getByText('Production')).toBeTruthy();
+        expect(screen.getByText(PROD)).toBeTruthy();
+
+        const confirm = screen.getByRole('button', { name: 'Refund' });
+        fireEvent.change(screen.getByLabelText('Reason (required)'), { target: { value: 'customer request' } });
+        expect((confirm as HTMLButtonElement).disabled).toBe(true);
+
+        const typed = screen.getByLabelText('Type the userId to refund on Production');
+        fireEvent.change(typed, { target: { value: '100090' } });
+        expect((confirm as HTMLButtonElement).disabled).toBe(true);
+
+        fireEvent.change(typed, { target: { value: '1000904' } });
+        expect((confirm as HTMLButtonElement).disabled).toBe(false);
+        fireEvent.click(confirm);
+
+        await waitFor(() => expect(screen.getByText(/subscription status is now expired/)).toBeTruthy());
+        expect(refundSubscriptionByAdmin).toHaveBeenCalledWith(
+            '1000904',
+            { reason: 'customer request' },
+            { endpoint: PROD }
+        );
+    });
+
+    it('forgets the typed userId when the Production dialog is cancelled', () => {
+        renderPanel('v1');
+
+        fireEvent.click(refundButton());
+        fireEvent.change(screen.getByLabelText('Reason (required)'), { target: { value: 'r' } });
+        fireEvent.change(screen.getByLabelText('Type the userId to refund on Production'), {
+            target: { value: '1000904' },
+        });
+        expect((screen.getByRole('button', { name: 'Refund' }) as HTMLButtonElement).disabled).toBe(false);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        fireEvent.click(refundButton());
+
+        expect((screen.getByLabelText('Type the userId to refund on Production') as HTMLInputElement).value).toBe('');
+        expect((screen.getByRole('button', { name: 'Refund' }) as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('asks for no typed userId on Development', () => {
+        renderPanel('d1');
+
+        fireEvent.click(refundButton());
+        expect(screen.queryByLabelText('Type the userId to refund on Production')).toBeNull();
     });
 
     it('is enabled on Development', () => {

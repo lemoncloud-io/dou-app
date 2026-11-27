@@ -4,6 +4,7 @@ import { logger } from '@chatic/bridges';
 import { formatDate } from '@chatic/shared';
 import { Badge } from '@chatic/ui-kit/components/ui/badge';
 import { Button } from '@chatic/ui-kit/components/ui/button';
+import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
 import {
@@ -18,7 +19,13 @@ import {
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
 import { useRefundSubscriptionByAdmin } from '../api/membershipsQuery';
-import { describeRefundFailure, isRefundReasonValid, refundAvailability, refundEndpointFor } from '../lib/refund';
+import {
+    describeRefundFailure,
+    isRefundConfirmationValid,
+    isRefundReasonValid,
+    refundAvailability,
+    refundEndpointFor,
+} from '../lib/refund';
 import { describeTargetServer, targetEndpointFor, type RelayStage } from '../lib/targetServer';
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
@@ -37,6 +44,7 @@ interface RefundPanelProps {
 export const RefundPanel = ({ membership, stage }: RefundPanelProps): JSX.Element => {
     const [confirming, setConfirming] = useState(false);
     const [reason, setReason] = useState('');
+    const [typedUserId, setTypedUserId] = useState('');
     const [failure, setFailure] = useState<string | null>(null);
     const [refunded, setRefunded] = useState<RefundOutcome | null>(null);
     const { mutateAsync, isPending } = useRefundSubscriptionByAdmin();
@@ -45,16 +53,22 @@ export const RefundPanel = ({ membership, stage }: RefundPanelProps): JSX.Elemen
     const endpoint = refundEndpointFor(targetEndpointFor(stage), stage);
     const target = describeTargetServer(endpoint);
     const availability = refundAvailability(membership, endpoint);
-    const canSubmit = availability.enabled && isRefundReasonValid(reason) && !isPending;
+    const confirmed = isRefundConfirmationValid(stage, userId, typedUserId);
+    const canSubmit = availability.enabled && isRefundReasonValid(reason) && confirmed && !isPending;
+
+    const resetForm = () => {
+        setReason('');
+        setTypedUserId('');
+    };
 
     const submit = async () => {
-        if (!refundAvailability(membership, endpoint).enabled || !isRefundReasonValid(reason)) return;
+        if (!refundAvailability(membership, endpoint).enabled || !isRefundReasonValid(reason) || !confirmed) return;
         setFailure(null);
         try {
             const result = await mutateAsync({ userId, reason, endpoint });
             setRefunded(result ?? {});
             setConfirming(false);
-            setReason('');
+            resetForm();
         } catch (error) {
             logger.error('GLOBAL', '[RefundPanel] admin refund failed', { error, userId });
             setFailure(describeRefundFailure(error));
@@ -64,7 +78,7 @@ export const RefundPanel = ({ membership, stage }: RefundPanelProps): JSX.Elemen
     return (
         <div className="space-y-2">
             <p className="text-muted-foreground text-xs">
-                Refunds the last paid charge in full and expires the subscription immediately. Development only.
+                Refunds the last paid charge in full and expires the subscription immediately.
             </p>
 
             {refunded ? (
@@ -96,7 +110,7 @@ export const RefundPanel = ({ membership, stage }: RefundPanelProps): JSX.Elemen
                 onOpenChange={open => {
                     if (isPending) return;
                     setConfirming(open);
-                    if (!open) setReason('');
+                    if (!open) resetForm();
                 }}
             >
                 <AlertDialogContent onEscapeKeyDown={event => isPending && event.preventDefault()}>
@@ -137,6 +151,19 @@ export const RefundPanel = ({ membership, stage }: RefundPanelProps): JSX.Elemen
                             placeholder="Why this subscription is being refunded"
                         />
                     </div>
+
+                    {stage === 'v1' && (
+                        <div className="space-y-1.5">
+                            <Label htmlFor="refund-confirm-user">Type the userId to refund on Production</Label>
+                            <Input
+                                id="refund-confirm-user"
+                                value={typedUserId}
+                                onChange={event => setTypedUserId(event.target.value)}
+                                placeholder="userId"
+                                autoComplete="off"
+                            />
+                        </div>
+                    )}
 
                     {failure && <p className="text-destructive text-xs">The refund failed — {failure}</p>}
 

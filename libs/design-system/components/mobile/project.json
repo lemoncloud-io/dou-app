@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/design-system-components-mobile",
+    "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/design-system/components/mobile/src",
+    "projectType": "library",
+    "tags": ["layer:ui", "platform:web", "formfactor:mobile"],
+    "targets": {}
+}

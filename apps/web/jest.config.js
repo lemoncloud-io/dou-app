@@ -13,6 +13,8 @@ module.exports = {
         '^@chatic/runtime-react$': '<rootDir>/../../libs/runtime/react/src/index.ts',
         '^@chatic/design-system-assets$': '<rootDir>/../../libs/design-system/assets/src/index.ts',
         '^@chatic/design-system-assets/(.*)$': '<rootDir>/../../libs/design-system/assets/src/$1/index.ts',
+        '^@chatic/design-system-(components|patterns|chat)-mobile$':
+            '<rootDir>/../../libs/design-system/$1/mobile/src/index.ts',
         '^@chatic/data-(model|api|local|repositories)$': '<rootDir>/../../libs/data/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/../../libs/web-ui-kit/src/__mocks__/styleMock.js',
