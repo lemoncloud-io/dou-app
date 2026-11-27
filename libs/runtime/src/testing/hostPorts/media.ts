@@ -1,4 +1,4 @@
-import type { MediaPort } from '@chatic/runtime-client';
+import type { MediaPort } from '../../api';
 
 export const browserMedia = (): MediaPort => ({
     kind: 'browser',

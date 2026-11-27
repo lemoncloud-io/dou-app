@@ -5,7 +5,7 @@ import axios from 'axios';
 
 import { LemonHmacSigner } from '../../../libs/auth/src/signing';
 import { signRequest } from '../../../libs/http/src/signing/sigV4';
-import { createChatOutbox } from '../../../libs/runtime-core/src/data/outbox';
+import { createChatOutbox } from '../../../libs/runtime/src/engine/data/outbox';
 import { createRequestTransport } from '../../../libs/http/src/transport/requestTransport';
 
 type Vector = { name: string } & Record<string, unknown>;
@@ -262,7 +262,7 @@ type OutboxCase = {
 const enq = (id: string, cid = 'c1', channelId = 'ch1'): OutboxOp => ({ op: 'enqueue', id, cid, channelId });
 const ready = (cid: string, on = true): OutboxOp => ({ op: 'ready', cid, ready: on });
 const START: OutboxOp = { op: 'start' };
-const TEST = 'libs/runtime-core/src/data/outbox.test.ts';
+const TEST = 'libs/runtime/src/engine/data/outbox.test.ts';
 
 const outboxCases: OutboxCase[] = [
     { name: 'inert-until-start', derivedFrom: `${TEST} is inert until start()`, ops: [ready('c1'), enq('a'), START] },
@@ -386,7 +386,7 @@ const outboxFile = async (): Promise<VectorFile> => {
             steps,
         });
     }
-    return { source: 'libs/runtime-core/src/data/outbox.ts', vectors };
+    return { source: 'libs/runtime/src/engine/data/outbox.ts', vectors };
 };
 
 const FILES: Record<string, () => VectorFile | Promise<VectorFile>> = {

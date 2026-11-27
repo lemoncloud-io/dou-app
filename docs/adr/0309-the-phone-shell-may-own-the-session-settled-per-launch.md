@@ -35,7 +35,7 @@
 > not sent on a launch the shell does not run the runtime); `libs/runtime-core/src/bridge/` (`RUNTIME_CONTRACT_VERSION`, the handshake, errors across
 > the bridge); `libs/runtime-mobile` (`@chatic/runtime-mobile`) and the two native modules it needs in
 > `apps/mobile/package.json` (`@react-native-community/netinfo`, `react-native-get-random-values`)
-> · The behaviour is documented in [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md)
+> · The behaviour is documented in [libs/runtime-core docs/bridge](../../libs/runtime/docs/remote/README.md)
 > · Amends: [ADR-0308](./0308-the-react-surface-starts-its-work-from-an-engine.md) — its first Alternative:
 > the session's state joins the engine one reader group at a time, the core engine first
 > **Amended by [ADR-0314](./0314-a-native-session-ends-by-restarting-the-apps-js-context.md) (2026-11-15):**

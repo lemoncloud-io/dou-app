@@ -17,7 +17,7 @@ dependency direction rather than subject: `socket/` holds the wiring and the pol
 18 tests), `session/` holds the material it reads and writes ([docs/session/](../session/README.md)),
 and the two guards that _trigger_ renewal are runtime-core classes in its `session/`, which an app
 starts through @chatic/runtime-react's hooks
-([runtime-core's session doc](../../../runtime-core/docs/session/README.md#the-credential-guards)). The renewers live
+([runtime-core's session doc](../../../runtime/docs/engine/session.md#the-credential-guards)). The renewers live
 in `socket/` because `socket → session` is an existing edge and the reverse is not; putting them under
 `session/` would close a cycle.
 

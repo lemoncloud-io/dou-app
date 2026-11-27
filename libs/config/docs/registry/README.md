@@ -202,7 +202,7 @@ means "use the default the app declared for this port".
 
 This lib stores and resolves the choice and nothing more. Which adapters exist, which one is a port's
 default, and whether the host can run the one chosen are the app's declaration; the code that builds
-the port — `startRuntime` in [`@chatic/runtime-client`](../../../runtime-client/README.md#resolution) —
+the port — `startRuntime` in [`@chatic/runtime-client`](../../../runtime/docs/api/README.md#resolution) —
 checks the resolved id against it and falls back to the declared default. This lib is what almost every
 package depends on and imports nothing, so it must not learn a port's meaning, an adapter or a host. The `pattern` only
 rejects an id that cannot be anybody's — a wrong shape, or another port's id — so it is demoted to the

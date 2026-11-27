@@ -1,0 +1,23 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../../dist/out-tsc/db-memory-spec",
+        "lib": ["es2022"],
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "../../../libs/contracts/ports/tsconfig.lib.json"
+        },
+        {
+            "path": "../../../libs/data/tsconfig.lib.json"
+        },
+        {
+            "path": "../../../libs/bridge-messages/tsconfig.lib.json"
+        }
+    ]
+}

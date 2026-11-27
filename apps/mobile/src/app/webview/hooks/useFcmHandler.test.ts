@@ -39,6 +39,8 @@ jest.mock('../../services', () => ({
     },
 }));
 
+jest.mock('@chatic/push-mobile', () => ({ acquirePushToken: jest.fn() }));
+
 const mockDrain = jest.fn();
 jest.mock('../../bridge', () => ({ PushMarksBridge: { drain: () => mockDrain() } }));
 

@@ -22,12 +22,6 @@
     // dependencies through references, or their sources come in as unlisted files (TS6307).
     "references": [
         {
-            "path": "../runtime-client/tsconfig.lib.json"
-        },
-        {
-            "path": "../runtime-core/tsconfig.lib.json"
-        },
-        {
             "path": "../db/tsconfig.lib.json"
         },
         {
@@ -68,6 +62,9 @@
         },
         {
             "path": "../perf/tsconfig.lib.json"
+        },
+        {
+            "path": "../contracts/ports/tsconfig.lib.json"
         }
     ]
 }

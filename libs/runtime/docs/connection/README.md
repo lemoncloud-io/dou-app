@@ -1,13 +1,13 @@
 # connection — the host and the connection-state hooks
 
 `connection/` is the React layer over the runtime's connections. It holds the host an app mounts
-once, which starts and stops runtime-core's connection controller, hooks that read the sockets' state,
+once, which starts and stops the engine's connection controller, hooks that read the sockets' state,
 and re-exports the functions that drive the sockets outside React. Both go through the engine
-(`runtimeEngine().connection`, in runtime-client's `connection/connectionCommands.ts`), never the socket
+(`runtimeEngine().connection`, in `src/api/connection/connectionCommands.ts`), never the socket
 manager: on the phone the
 sockets may live in another process. What keeps the sockets in line with the session — the slot derivation, the two
-binders, background slots and write holds — is not here: it is runtime-core's, with no React in it,
-so that the native process can run it too ([runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md)).
+binders, background slots and write holds — is not here: it is the engine's, with no React in it,
+so that the native process can run it too ([docs/engine/connection](../engine/connection.md)).
 
 ## Layout
 
@@ -27,12 +27,12 @@ connection/
 <runtime.connection.RuntimeConnectionHost>{children}</runtime.connection.RuntimeConnectionHost>
 ```
 
-`RuntimeHostProps` is `{ children? }` — an app passes nothing else. The host makes runtime-core's
+`RuntimeHostProps` is `{ children? }` — an app passes nothing else. The host makes the engine's
 two controllers once (`useHostControllers`) — the session controller and the connection controller —
 and starts them, in this order:
 
 - **The session's init, on mount.** `session.initialize()` brings the relay session up once, and the
-  host renders `null` until `session.isReady()` ([runtime-core docs/session/](../../../runtime-core/docs/session/README.md)).
+  host renders `null` until `session.isReady()` ([docs/engine/session](../engine/session.md)).
 - **The guest keep-alive, on mount** — `RuntimeConnectionHost` only, see below.
 - **The connections' background half, on mount**, before the session is ready: it keeps the background
   clouds' tokens ready and their receive loops running, and before a relay session there is nothing
@@ -64,7 +64,7 @@ runtime what only the app can see: which clouds the account belongs to, and whic
 cached as invited. They pass them to the engine (`setBackgroundClouds`, `setOwnedClouds`); when to
 re-issue an owned cloud held as an invitee — on a list change, and on each cloud token commit — is
 the engine's. The background slots built from them are described in
-[runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md#background-slots).
+[docs/engine/connection](../engine/connection.md#background-slots).
 
 `useBackgroundClouds(null)` hands nothing over: the app does not know the membership yet, and the
 runtime keeps the list it has. An empty list is an answer and withdraws every background cloud. The
@@ -113,7 +113,7 @@ runtime runs in the page's own process (desktop-web's frame log). The relay acco
 an app used to read and write on the relay slot directly, is the session commands
 `runtime.session.fetchAccountProfile` and `updateAccountProfile`.
 
-`useConnectivity` is a display verdict, not an auth verdict — its truth table is runtime-client's
+`useConnectivity` is a display verdict, not an auth verdict — its truth table is the app API's
 `deriveConnectivity`, and the hook only feeds it the engine's online signal and the socket hooks — which is why it was never folded into
 `deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime
 do". It reads the platform's online signal off the engine's connection snapshot (`online` — the
@@ -126,10 +126,10 @@ has been attempted yet. When the link counts as down is the transport's rule:
 
 ### What not to do
 
-- **Do not keep connections in line with the session from a hook.** That is the controller's job, in runtime-core; a hook here reads state or hands the runtime what only the app knows.
+- **Do not keep connections in line with the session from a hook.** That is the controller's job, in the engine; a hook here reads state or hands the runtime what only the app knows.
 - **Do not reach for the socket manager.** It is not on the surface; on the phone it is not in the page's process at all. What a screen needs from the sockets is above.
 
 ## Further reading
 
-- [runtime-core docs/connection/](../../../runtime-core/docs/connection/README.md) — the controller this host starts, how the slots are derived, background slots and write holds, the two binders
+- [docs/engine/connection](../engine/connection.md) — the controller this host starts, how the slots are derived, background slots and write holds, the two binders
 - [`@chatic/transport` socket doc](../../../transport/docs/socket/README.md) — the manager, slot keys, the active pointer, state and failure reporting

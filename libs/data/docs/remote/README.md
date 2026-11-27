@@ -1,6 +1,6 @@
 # remote — outbound server calls
 
-> Status: Live · Last updated: 2026-09-28 · Overview in the [lib README](../../README.md) · Canonical code: [gateways/](../../src/remote/gateways/) · Per-axis detail in [socket.md](./socket.md) · [http.md](./http.md)
+> Status: Live · Last updated: 2026-09-28 · Overview in the [lib README](../../README.md) · Canonical code: [gateways/](../../api/src/gateways/) · Per-axis detail in [socket.md](./socket.md) · [http.md](./http.md)
 
 The remote layer handles **outbound server calls** and nothing else. It is a thin gateway wrapper; it
 knows nothing about the socket connection's lifecycle, reconnection, or sync timing.
@@ -13,7 +13,7 @@ in the axis documents.
 `remote` is the **axis** (the opposite side of local), and the names under it say the **transport**.
 
 ```text
-remote/
+api/src/
   gateways/
     socket.ts              SocketGatewayBundle + per-domain Pick<>
     http.ts                HttpGatewayBundle + per-domain Pick<>

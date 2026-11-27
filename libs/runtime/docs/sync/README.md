@@ -40,7 +40,7 @@ A registration that is not one screen's target — a list of rooms, a set of joi
 `runtime.sync.registerSyncTarget(target, { cid })`, which returns its drop. `updateSyncSnapshot` tells
 the sync engine the baseline the cache already holds, and `listSyncTargets()` (async) lists the targets
 for a debug screen. All three, and the hooks, go through the engine (`runtimeEngine().sync`, in
-runtime-client's `sync/syncCommands.ts`), never the sync manager, which is not on the surface. So do the group's other
+`src/api/sync/syncCommands.ts`), never the sync manager, which is not on the surface. So do the group's other
 functions — `refreshBackgroundClouds`, `subscribeBackgroundDeltas`, the refused-channel reads
 (`isChannelRefused` is synchronous: on the phone the refusals are part of what the page mirrors) and the
 room feed (`fetchRoomFeed`, `prefetchRoomFeed`).

@@ -1,0 +1,8 @@
+.dark {
+    --primary: 76 87% 49%; /* #B0EA10 */
+    --warning: 43 90% 55%; /* lifted for the dark ground */
+    --bubble-mine-foreground: 0 0% 100%;
+    --badge-unread-foreground: 0 0% 100%;
+    --overlay: 0 0% 0%;
+    --code-inline: 32 80% 54%; /* #E8902C - inline code text; 7.5:1 on the dark well chip */
+}

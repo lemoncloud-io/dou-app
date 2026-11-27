@@ -1,0 +1,25 @@
+{
+    "name": "@chatic/design-system-assets",
+    "version": "0.0.1",
+    "private": true,
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": {
+            "types": "./src/index.ts",
+            "import": "./src/index.ts",
+            "default": "./src/index.ts"
+        },
+        "./icons": {
+            "types": "./src/icons/index.ts",
+            "import": "./src/icons/index.ts",
+            "default": "./src/icons/index.ts"
+        },
+        "./images": {
+            "types": "./src/images/index.ts",
+            "import": "./src/images/index.ts",
+            "default": "./src/images/index.ts"
+        },
+        "./package.json": "./package.json"
+    }
+}

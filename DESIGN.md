@@ -10,14 +10,14 @@ desktop theme and is covered where it differs.
 
 ## Sources of truth
 
-| Source                                                                        | What it settles                                                                                                                                                                    |
-| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Figma "DoU PC" (`RZY1z3I2t9hUTIgiXpI8nL`)                                     | Desktop shell, colors, chat layout. Reference nodes: `187-3` (main chat, image upload), `247-10714` (light theme), `254-541` / `259-566` (dark theme), `75-53` (Block Kit Builder) |
-| Figma mobile design system                                                    | `apps/web` screens, cited per component inside `libs/web-ui-kit` (node ids in the source comments)                                                                                 |
-| `apps/desktop-web/src/styles.css`                                             | Desktop token values, light and dark, hex of the Figma source beside each                                                                                                          |
-| `apps/web/src/styles.css` + `libs/web-ui-kit/src/resources/styles/tokens.css` | Mobile web token values. The two files must agree, the kit renders inside the app and inside Storybook                                                                             |
-| `apps/block-kit-builder/src/styles.css`                                       | Same token names as desktop-web, sage-tinted values, plus `syntax.css` for the payload editor                                                                                      |
-| `apps/*/tailwind.config.js`                                                   | Token to utility mapping, type scale, radius, shadows, motion                                                                                                                      |
+| Source                                           | What it settles                                                                                                                                                                    |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Figma "DoU PC" (`RZY1z3I2t9hUTIgiXpI8nL`)        | Desktop shell, colors, chat layout. Reference nodes: `187-3` (main chat, image upload), `247-10714` (light theme), `254-541` / `259-566` (dark theme), `75-53` (Block Kit Builder) |
+| Figma mobile design system                       | `apps/web` screens, cited per component inside `libs/web-ui-kit` (node ids in the source comments)                                                                                 |
+| `libs/design-system/tokens` (common, `desktop/`) | Desktop token values, light and dark, hex of the Figma source beside each. Imported by `apps/desktop-web/src/styles.css`                                                           |
+| `libs/design-system/tokens` (common, `mobile/`)  | Mobile web token values, read by `apps/web` and by the `libs/web-ui-kit` Storybook (which keeps four values of its own on top)                                                     |
+| `apps/block-kit-builder/src/styles.css`          | Same token names as desktop-web, sage-tinted values, plus `syntax.css` for the payload editor                                                                                      |
+| `apps/*/tailwind.config.js`                      | Token to utility mapping, type scale, radius, shadows, motion                                                                                                                      |
 
 Figma variables read from node `187-3` (the desktop palette):
 
@@ -46,8 +46,8 @@ Three clients, one engine (`libs/runtime`). Presentation is rebuilt per platform
 
 | App                      | Shape                                                                              | Theme file                                     | Kit                                                                                                       |
 | ------------------------ | ---------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `apps/desktop-web`       | Slack-style desktop, Electron shell in `apps/desktop`                              | desktop `styles.css`                           | `libs/ui-kit` (shadcn/Radix) + `libs/block-kit`                                                           |
-| `apps/web`               | Phone-class mobile web inside a React Native WebView, fills a phone, caps at 600px | web `styles.css`                               | `libs/web-ui-kit` (Figma mobile system) + `libs/ui-kit` primitives underneath overlays + `libs/block-kit` |
+| `apps/desktop-web`       | Slack-style desktop, Electron shell in `apps/desktop`                              | desktop tokens via `styles.css`                | `libs/ui-kit` (shadcn/Radix) + `libs/block-kit`                                                           |
+| `apps/web`               | Phone-class mobile web inside a React Native WebView, fills a phone, caps at 600px | mobile tokens via `styles.css`                 | `libs/web-ui-kit` (Figma mobile system) + `libs/ui-kit` primitives underneath overlays + `libs/block-kit` |
 | `apps/block-kit-builder` | Three-pane authoring tool for Block Kit messages                                   | desktop token set, sage-tinted, + `syntax.css` | `libs/ui-kit` + `libs/block-kit`                                                                          |
 
 `libs/block-kit` is the one message renderer. It asks for semantic classes (`text-body`,
@@ -144,7 +144,7 @@ Warm near-neutral grays, same lime.
 Cool neutrals (hue 220), radius 0.75rem, and two extra signals the desktop lacks:
 `--point-blue` `#2A7EF4` for inline text links and `--verified` `#007AFF` for the
 verified check. My bubble is `--bubble-mine` `#102346` navy, peer bubble `#F6F6F6`.
-Dark theme is pure neutral (`0 0% 7%` ground). Full table in the web `styles.css`.
+Dark theme is pure neutral (`0 0% 7%` ground). Full table in `libs/design-system/tokens/src/` (common) and `mobile/src/`.
 
 ### Builder palette
 
@@ -352,7 +352,8 @@ the 4.5:1 guarantee.
 
 `lucide-react` everywhere, 16px in rows and chips, 18px in header buttons, 24px in
 mobile navigation. `libs/web-ui-kit` components do not import lucide directly; they use
-the `Icon*` aliases in `resources/icons`, which also hold the custom duotone glyphs
+the `Icon*` aliases in `@chatic/design-system-assets` (re-exported from the kit's `resources/icons`),
+which also hold the custom duotone glyphs
 (thread, pin, gallery-add, tier icons) and the DoU brand mark. Figma draws the rail
 icons from a bold "Solar" style set; in code they are the lucide equivalents.
 
@@ -418,8 +419,9 @@ project CLAUDE.md). Optimistic writes render at once; nothing flashes a stale va
 - Reach for the semantic token first (`text-muted-foreground`, `bg-well`,
   `border-hairline`); reach for the fixed-size utility only where the Figma spec fixes
   a pixel value, and cite the node in a comment.
-- Put a new colour in `styles.css` (both themes) and `tailwind.config.js` in the same
-  commit, and in `web-ui-kit/tokens.css` too if `apps/web` will read it.
+- Put a new colour in `libs/design-system/tokens` (both themes, in the form factor that uses it, or
+  the common files when mobile and desktop share the value) and in that layer's colour map in the
+  same commit.
 - Give a new control `focus-ring tactile` and a 36px target.
 - Render message bodies through `libs/block-kit`; extend `messageClasses.ts` rather than
   restyling in the app.
@@ -439,10 +441,10 @@ project CLAUDE.md). Optimistic writes render at once; nothing flashes a stale va
 | Concern                             | Path                                                                                                                                                                                              |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Brand, principles, a11y commitments | `PRODUCT.md`                                                                                                                                                                                      |
-| Desktop tokens                      | `apps/desktop-web/src/styles.css`, `apps/desktop-web/tailwind.config.js`                                                                                                                          |
+| Desktop tokens                      | `libs/design-system/tokens/{src,desktop/src}/`, imported by `apps/desktop-web/src/styles.css` and `apps/desktop-web/tailwind.config.js`                                                           |
 | Desktop shell                       | `apps/desktop-web/src/app/features/chat/components/DesktopLayout.tsx`, `CloudRail.tsx`, `PlaceRail.tsx`, `SidebarHeader.tsx`, `ChannelList.tsx`, `ChatPane.tsx`, `MessageRow.tsx`, `Composer.tsx` |
 | Desktop shared styles               | `apps/desktop-web/src/app/features/chat/components/{sidebarStyles,headerStyles}.ts`, `apps/desktop-web/src/app/shared/components/`                                                                |
-| Mobile tokens                       | `apps/web/src/styles.css`, `apps/web/tailwind.config.js`, `libs/web-ui-kit/src/resources/styles/tokens.css`                                                                                       |
+| Mobile tokens                       | `libs/design-system/tokens/{src,mobile/src}/`, imported by `apps/web/src/styles.css`, `apps/web/tailwind.config.js`, `libs/web-ui-kit/src/resources/styles/tokens.css`                            |
 | Mobile shell                        | `apps/web/src/app/ui/layouts/UnifiedLayout.tsx`, `apps/web/src/app/ui/components/{PageHeader,BottomNavigation}.tsx`                                                                               |
 | Mobile kit                          | `libs/web-ui-kit/README.md`                                                                                                                                                                       |
 | Builder                             | `apps/block-kit-builder/src/{styles,syntax}.css`, `apps/block-kit-builder/src/app/layout/BuilderLayout.tsx`                                                                                       |

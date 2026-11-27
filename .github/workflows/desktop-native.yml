@@ -9,6 +9,8 @@ on:
             - libs/data/**
             - libs/sync/**
             - libs/runtime-core/**
+            - libs/runtime/**
+            - libs/http/**
             - apps/web/public/locales/**
             - apps/web/src/i18n/**
             - .github/workflows/desktop-native.yml

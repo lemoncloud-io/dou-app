@@ -1,6 +1,7 @@
 # tooling
 
-How the page is built (`vite.config.mts`, `tailwind.config.js`, `src/styles.css`), and which parts
+How the page is built (`vite.config.mts`, `tailwind.config.js`, `src/styles.css`, which imports the
+desktop tokens from `libs/design-system/tokens/desktop`), and which parts
 exist only in a development build. The reasons below are the ones a change to the config would trip
 over.
 
@@ -40,7 +41,8 @@ undefined`) and leaves a white screen in the production build only. Rollup chunk
 
 ## Fonts
 
-Pretendard is declared in `styles.css`, not pulled in by an `@import` of the upstream stylesheet: an
+Pretendard is declared in `styles.css`, not pulled in by an `@import` of the upstream stylesheet (the
+local token `@import` is inlined at build time and costs nothing): an
 `@import` holds the first paint until that request returns, and on a slow network that left the first
 window blank. Each face paints with the fallback while its file is on the way (`font-display: swap`)
 and downloads only when text needs it. Only the weights the UI uses are declared, and they point at the

@@ -1,4 +1,4 @@
-import { handedInPlatform, resetPlatformForTests } from '@chatic/runtime/platform';
+import { handedInPlatform, resetPlatformForTests } from '@chatic/runtime/api/platform';
 
 import { startRuntime } from './startRuntime';
 import { webPlatform } from './webPlatform';

@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/design-system-tokens",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/design-system/tokens/src",
+    "projectType": "library",
+    "tags": ["layer:ui", "platform:web", "formfactor:any"],
+    "targets": {}
+}

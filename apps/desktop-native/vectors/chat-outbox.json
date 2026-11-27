@@ -1,9 +1,9 @@
 {
-  "source": "libs/runtime-core/src/data/outbox.ts",
+  "source": "libs/runtime/src/engine/data/outbox.ts",
   "vectors": [
     {
       "name": "inert-until-start",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts is inert until start()",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts is inert until start()",
       "ops": [
         {
           "op": "ready",
@@ -47,7 +47,7 @@
     },
     {
       "name": "order-within-a-channel",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts preserves send order within a channel",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts preserves send order within a channel",
       "ops": [
         {
           "op": "start"
@@ -118,7 +118,7 @@
     },
     {
       "name": "waits-for-a-verified-socket",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts does not drain while the transport is not ready",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts does not drain while the transport is not ready",
       "ops": [
         {
           "op": "start"
@@ -177,7 +177,7 @@
     },
     {
       "name": "duplicate-enqueue-is-ignored",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts ignores a duplicate enqueue",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts ignores a duplicate enqueue",
       "ops": [
         {
           "op": "start"
@@ -222,7 +222,7 @@
     },
     {
       "name": "remove-drops-a-queued-entry",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts drops a queued entry on remove()",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts drops a queued entry on remove()",
       "ops": [
         {
           "op": "start"
@@ -291,7 +291,7 @@
     },
     {
       "name": "stop-halts-draining",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts stops draining after stop()",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts stops draining after stop()",
       "ops": [
         {
           "op": "start"
@@ -358,7 +358,7 @@
     },
     {
       "name": "channels-drain-independently",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts drains channels independently",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts drains channels independently",
       "ops": [
         {
           "op": "start"
@@ -431,7 +431,7 @@
     },
     {
       "name": "a-failed-send-is-retired-without-a-second-attempt",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts a failed send retires the entry",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts a failed send retires the entry",
       "ops": [
         {
           "op": "start"
@@ -475,7 +475,7 @@
     },
     {
       "name": "a-failed-send-does-not-block-the-entries-behind-it",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts does not block the entries behind it",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts does not block the entries behind it",
       "ops": [
         {
           "op": "start"
@@ -552,7 +552,7 @@
     },
     {
       "name": "an-entry-that-landed-is-not-sent-again",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts does not re-send an entry the catch-up already pulled in",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts does not re-send an entry the catch-up already pulled in",
       "ops": [
         {
           "op": "start"
@@ -614,7 +614,7 @@
     },
     {
       "name": "a-failed-landing-probe-resends",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts resends when the landing probe itself fails",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts resends when the landing probe itself fails",
       "ops": [
         {
           "op": "start"
@@ -660,7 +660,7 @@
     },
     {
       "name": "only-ready-clouds-drain",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts drains only the clouds whose socket is ready",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts drains only the clouds whose socket is ready",
       "ops": [
         {
           "op": "start"
@@ -733,7 +733,7 @@
     },
     {
       "name": "the-same-channel-id-in-two-clouds-is-two-queues",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts keeps the same channel id in two clouds as two queues",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts keeps the same channel id in two clouds as two queues",
       "ops": [
         {
           "op": "start"
@@ -806,7 +806,7 @@
     },
     {
       "name": "a-cloud-going-unready-mid-queue-holds-its-entries",
-      "derivedFrom": "libs/runtime-core/src/data/outbox.test.ts stops a cloud that goes unready mid-queue",
+      "derivedFrom": "libs/runtime/src/engine/data/outbox.test.ts stops a cloud that goes unready mid-queue",
       "ops": [
         {
           "op": "start"

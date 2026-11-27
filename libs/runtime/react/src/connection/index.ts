@@ -1,4 +1,4 @@
-export * from '@chatic/runtime/connection';
+export * from '@chatic/runtime/api/connection';
 export { RuntimeConnectionHost, RuntimeAuthHost } from './RuntimeConnectionHost';
 export { useConnectivity } from './hooks/useConnectivity';
 export type { ConnectivityStatus } from './hooks/useConnectivity';

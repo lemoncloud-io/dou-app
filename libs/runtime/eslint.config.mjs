@@ -40,9 +40,16 @@ export default [
                             message: 'Import @chatic/auth through its barrel. Deep paths are for test mocks only.',
                         },
                         {
-                            group: ['@chatic/runtime-core/*'],
+                            group: [
+                                '@chatic/runtime',
+                                '@chatic/runtime/*',
+                                '@chatic/runtime-core',
+                                '@chatic/runtime-core/*',
+                                '@chatic/runtime-client',
+                                '@chatic/runtime-client/*',
+                            ],
                             message:
-                                'Import @chatic/runtime-core through its barrel. Deep paths are for test mocks only.',
+                                'Inside @chatic/runtime, import another folder relatively. @chatic/runtime-core and @chatic/runtime-client only re-export this package — see libs/runtime/README.md.',
                         },
                     ],
                 },

@@ -1,0 +1,35 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        "lib": ["es2022"],
+        "types": ["node"],
+        "rootDir": "src",
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+    },
+    "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.test.ts", "eslint.config.mjs"],
+    "include": ["src/**/*.ts"],
+    "references": [
+        {
+            "path": "../config/tsconfig.lib.json"
+        },
+        {
+            "path": "../storage/memory/tsconfig.lib.json"
+        },
+        {
+            "path": "../storage/file/tsconfig.lib.json"
+        },
+        {
+            "path": "../contracts/ports/tsconfig.lib.json"
+        },
+        {
+            "path": "../host/node/tsconfig.lib.json"
+        },
+        {
+            "path": "../db/memory/tsconfig.lib.json"
+        },
+        {
+            "path": "../runtime/tsconfig.lib.json"
+        }
+    ]
+}

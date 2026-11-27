@@ -1,5 +1,41 @@
 # Changelog
 
+## [2026-11-27] - No version updates
+
+### Features
+
+- (runtime-node) boot the headless runtime in node on new adapter libs
+
+## [2026-11-27] - No version updates
+
+### Refactor
+
+- (push-desktop,desktop) move the electron fcm client into libs/push/desktop
+
+## [2026-11-26] - No version updates
+
+### Refactor
+
+- (runtime) start a runtime from the modules it names
+
+## [2026-11-26] - No version updates
+
+### Refactor
+
+- (checkout-store,push-mobile,sign-in-mobile,mobile) move the native sdk services into libs
+
+## [2026-11-26] - No version updates
+
+### Refactor
+
+- (design-system,web,desktop-web,web-ui-kit) fold the token sets into design-system packages
+
+## [2026-11-26] - No version updates
+
+### Refactor
+
+- (runtime,runtime-core,runtime-client) fold the engine and the client into @chatic/runtime
+
 ## [2026-11-25] - root@0.175.2, @chatic/desktop-web@0.61.2
 
 ### Bug Fixes

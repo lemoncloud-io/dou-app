@@ -131,7 +131,7 @@ this account has there. Not the selected cloud's graph: a frame from a slot is d
 cloud whatever the screen is showing. The graph is assembled in @chatic/runtime's `data/`, a package above
 this one, so `createRuntime()` hands it down through [`dataGraph.ts`](./src/dataGraph.ts) rather than
 sync importing `data/runtime` ([Layers](../runtime/README.md#layers)). See
-[runtime-core docs/data/](../runtime-core/docs/data/README.md#scoped-repository-graphs) for what a scoped
+[runtime-core docs/data/](../runtime/docs/engine/data.md#scoped-repository-graphs) for what a scoped
 graph is.
 
 **A failed cache write is logged, not retried here.** The sync library advances its own snapshot
@@ -455,7 +455,7 @@ that finished before it began; it sends its own.
 - [docs/plans/](./docs/plans/README.md) — what the SDK scheduler underneath does, and the behaviours only its source shows
 - [@chatic/runtime docs/sync/](../runtime/docs/sync/README.md) — the registration hooks and chat prime a screen mounts
 - [transport docs/socket/](../transport/docs/socket/README.md) — `subscribeSlotClients` and slot keys
-- [runtime-core docs/data/](../runtime-core/docs/data/README.md) — the scoped repository graph every plan writes through
+- [runtime-core docs/data/](../runtime/docs/engine/data.md) — the scoped repository graph every plan writes through
 - [`libs/data`](../data/README.md) — the repositories every plan callback writes through
 
 ## Testing

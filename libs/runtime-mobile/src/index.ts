@@ -35,6 +35,18 @@ export { NATIVE_RELAY_GUARD_POLICY, runNativeRuntime } from './run';
 export type { NativeRuntimeRunOptions } from './run';
 
 export { conflicts, defineAdapter, defineRuntime, requires, startRuntime } from '@chatic/runtime-client';
+export {
+    allModules,
+    cacheModule,
+    headlessModules,
+    httpModule,
+    minimalModules,
+    pushModule,
+    sessionModule,
+    socketsModule,
+    syncModule,
+} from '@chatic/runtime/modules';
+export type { ModuleName, RuntimeModule, RuntimeModules, RuntimeOf } from '@chatic/runtime/modules';
 export type {
     Adapter,
     ChoiceLane,

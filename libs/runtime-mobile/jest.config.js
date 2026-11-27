@@ -3,6 +3,8 @@ module.exports = {
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud|uuid)/)'],
     moduleNameMapper: {
         '^@chatic/config/(.*)$': '<rootDir>/../config/src/$1/index.ts',
+        '^@chatic/runtime/(.*)$': '<rootDir>/../runtime/src/$1',
+        '^@chatic/data-(model|api|local|repositories)$': '<rootDir>/../data/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
     },
     transform: {

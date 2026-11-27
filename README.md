@@ -111,9 +111,8 @@ graph TB
     end
 
     subgraph Runtime["Runtime Libraries"]
-        RUNTIME["runtime<br/>Facade & React Surface"]
-        RCLIENT["runtime-client<br/>Declaration, Engine Holder & Host Ports"]
-        RCORE["runtime-core<br/>Runtime Assembly & Ports"]
+        RUNTIME["runtime<br/>Engine · Remote · App API · Declaration"]
+        RREACT["runtime-react<br/>Hooks & React Host"]
         RWEB["runtime-web<br/>Web Adapter"]
         RMOBILE["runtime-mobile<br/>Native Adapter"]
         LAYERS["session · transport · sync · auth<br/>Core Runtime Layers"]
@@ -131,17 +130,16 @@ graph TB
     WEB --> UIKIT & WEBUIKIT & SHARED
     WEBUIKIT --> UIKIT
     WEB & DESKWEB & BKB --> BLOCKKIT
-    WEB --> RUNTIME & BRIDGES
-    DESKWEB --> UIKIT & SHARED & THEME & RUNTIME
-    ADMIN --> UIKIT & SHARED & RUNTIME
+    WEB --> RREACT & BRIDGES
+    DESKWEB --> UIKIT & SHARED & THEME & RREACT
+    ADMIN --> UIKIT & SHARED & RREACT
     LANDING & BKB --> THEME
-    RUNTIME --> RCLIENT
-    RCLIENT --> RCORE & CONFIG
-    RCORE --> LAYERS
+    RREACT --> RUNTIME
+    RUNTIME --> LAYERS & CONFIG
     LAYERS --> DATA & HTTP
     WEB & DESKWEB & ADMIN & LANDING --> RWEB
     MOBILE --> RMOBILE
-    RWEB & RMOBILE --> RCLIENT
+    RWEB & RMOBILE --> RUNTIME
     DATA --> HTTP
     RWEB & RMOBILE --> DB
     DB --> DATA
@@ -176,11 +174,11 @@ dou-app/
 │   ├── transport/           # Socket slots and the HTTP manager
 │   ├── sync/                # Keeps the cache current
 │   ├── auth/                # Login, cloud entry, renewal, pairing, logout; the HMAC signer
-│   ├── runtime-core/        # The runtime's assembly and the ports a platform fills
+│   ├── runtime-core/        # Re-exports @chatic/runtime's engine and remote, until its consumers move
 │   ├── runtime-web/         # Web adapter for the runtime
 │   ├── runtime-mobile/      # Native adapter for the runtime (React Native)
-│   ├── runtime-client/      # The declaration API, the engine holder and the host port contracts
-│   ├── runtime/             # The facade an app's call part imports: domain names, settings, hooks
+│   ├── runtime-client/      # Re-exports @chatic/runtime's app API and declaration, until its consumers move
+│   ├── runtime/             # The headless runtime: engine, remote, app API, declaration; react/ is runtime-react
 │   ├── bridges/             # WebView transport between web and native shell; the host profile
 │   ├── bridge-messages/     # Bridge message vocabulary (web <-> native)
 │   ├── chatic-apps-sdk/     # The library sub WebView pages talk to the app with (published)
@@ -229,7 +227,7 @@ one adapter per port from `@chatic/runtime-web` or `@chatic/runtime-mobile` and 
 the web apps everything else imports only `@chatic/runtime-react`: the domain names, `runtime.settings` for
 config, `runtime.<port>` for what the host can do, and the hooks; lint keeps `@chatic/config`,
 `@chatic/data`, `@chatic/db` and the adapter packages out of it. See
-[`libs/runtime-client`](libs/runtime-client/README.md#the-runtime-declaration).
+[the runtime declaration](./libs/runtime/docs/declare/README.md#the-runtime-declaration).
 
 Before editing a lib, read its own `README.md` — each one documents what it owns and, where a
 decision's reasoning matters, links back to the ADR that made it (see [`docs/adr/`](docs/adr/)).
