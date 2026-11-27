@@ -8,6 +8,18 @@ use vault::{Snapshot, Vault};
 use super::Context;
 
 const MEDIUM: &str = "nativeSecure";
+const KEY_MAX: usize = 256;
+const VALUE_MAX: usize = 64 * 1024;
+const TOTAL_MAX: usize = 256 * 1024;
+
+fn within_caps(set: &BTreeMap<String, String>, remove: &[String]) -> bool {
+    let total: usize = set.iter().map(|(k, v)| k.len() + v.len()).sum();
+    total <= TOTAL_MAX
+        && set
+            .iter()
+            .all(|(k, v)| k.len() <= KEY_MAX && v.len() <= VALUE_MAX)
+        && remove.iter().all(|k| k.len() <= KEY_MAX)
+}
 
 fn invalid(response_type: &str, message: &str) -> Value {
     json!({
@@ -68,6 +80,12 @@ pub fn save(vault: &Vault, message: &Value) -> Value {
             "set must map keys to strings and remove must list keys",
         );
     };
+    if !within_caps(&set, &remove) {
+        return invalid(
+            "OnStorageSave",
+            "A key or value is larger than the shell stores",
+        );
+    }
     json!({ "type": "OnStorageSave", "success": true, "data": { "ok": vault.save(&set, &remove) } })
 }
 
@@ -156,6 +174,30 @@ mod tests {
             json!({ "medium": "nativeSecure" }),
         ] {
             let reply = save(&vault, &msg(data));
+            assert_eq!(reply["error"]["code"], "INVALID");
+        }
+        let got = get(&vault, &msg(json!({ "medium": "nativeSecure" })));
+        assert_eq!(got["data"]["values"], json!({}));
+    }
+
+    #[test]
+    fn an_oversize_key_value_or_total_is_invalid_and_stores_nothing() {
+        let (_dir, vault) = vault();
+        let big = "v".repeat(VALUE_MAX + 1);
+        let long_key = "k".repeat(KEY_MAX + 1);
+        let chunk = "c".repeat(VALUE_MAX);
+        let many: serde_json::Map<String, Value> = (0..5)
+            .map(|i| (format!("k{i}"), Value::String(chunk.clone())))
+            .collect();
+        for set in [
+            json!({ "a": big }),
+            json!({ long_key: "1" }),
+            Value::Object(many),
+        ] {
+            let reply = save(
+                &vault,
+                &msg(json!({ "medium": "nativeSecure", "set": set, "remove": [] })),
+            );
             assert_eq!(reply["error"]["code"], "INVALID");
         }
         let got = get(&vault, &msg(json!({ "medium": "nativeSecure" })));

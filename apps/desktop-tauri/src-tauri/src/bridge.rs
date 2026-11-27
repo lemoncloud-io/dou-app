@@ -12,6 +12,7 @@ use crate::profile::Paths;
 pub struct Bridge {
     host: Arc<BridgeHost>,
     pub(crate) origin: String,
+    limits: crate::handlers::limits::Limits,
 }
 
 pub fn origin_of(address: &str) -> Option<String> {
@@ -88,7 +89,7 @@ pub fn install(
     let mut host = BridgeHost::new(Config {
         version: BRIDGE_VERSION.to_string(),
         send_to_web: Arc::new(move |message| push_to_web(&handle, &reply_origin, &message)),
-        sub_webview_open_scope: Some("anyHttps".to_string()),
+        sub_webview_open_scope: Some("reviewed".to_string()),
         sub_webview_context: None,
         max_message_length: None,
     });
@@ -124,6 +125,7 @@ pub fn install(
     app.manage(Bridge {
         host: Arc::new(host),
         origin,
+        limits: crate::handlers::limits::Limits::default(),
     });
     Ok(Installed {
         init_script: script,
@@ -138,6 +140,18 @@ pub async fn bridge_request(
 ) -> Result<(), String> {
     let url = webview.url().map_err(|e| e.to_string())?;
     caller_is_web(&url, &bridge.origin)?;
+    let request = (message.len() <= crate::handlers::limits::MESSAGE_MAX)
+        .then(|| serde_json::from_str::<serde_json::Value>(&message).ok())
+        .flatten();
+    let kind = request
+        .as_ref()
+        .and_then(|request| request["type"].as_str())
+        .unwrap_or_default();
+    if let Err(refusal) = bridge.limits.admit(kind, message.len()) {
+        let reply = crate::handlers::limits::refusal_reply(refusal, request.as_ref());
+        push_to_web(webview.app_handle(), &bridge.origin, &reply);
+        return Ok(());
+    }
     #[cfg(debug_assertions)]
     crate::logs::shell(&format!("bridge <- {}", request_type_of(&message)));
     bridge.host.handle_message(&message).await;
@@ -218,6 +232,38 @@ mod tests {
                 "{url}"
             );
         }
+    }
+
+    fn connect_sources(key: &str) -> Vec<String> {
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("tauri.conf.json");
+        let csp = conf["app"]["security"][key].as_str().expect(key);
+        let directive = csp
+            .split(';')
+            .map(str::trim)
+            .find(|part| part.starts_with("connect-src"))
+            .expect("connect-src");
+        directive
+            .split_whitespace()
+            .skip(1)
+            .map(str::to_string)
+            .collect()
+    }
+
+    #[test]
+    fn the_csp_connects_only_to_the_ipc_and_the_two_web_origins() {
+        let release = connect_sources("csp");
+        for source in &release {
+            assert_ne!(source, "https:");
+            assert!(!source.contains("localhost:*"), "{source}");
+            assert_ne!(source, "*");
+        }
+        for web in ["https://dou.chatic.io", "https://dou-dev.chatic.io"] {
+            assert!(release.iter().any(|s| s == web), "{web}");
+        }
+        let dev = connect_sources("devCsp");
+        assert!(dev.iter().any(|s| s == "http://localhost:*"));
+        assert!(!dev.iter().any(|s| s == "https:"));
     }
 
     #[test]
