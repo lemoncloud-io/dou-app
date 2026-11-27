@@ -132,7 +132,6 @@ measure() {
         pkill -P "$pid" 2>/dev/null || true
         kill "$pid" 2>/dev/null || true
         sleep 2
-        for p in $web; do kill "$p" 2>/dev/null || true; done
     done
     if [ "$DRY" = 0 ] && [ -f "$dir/start_ms.txt" ]; then echo "start_ms_median $(median <"$dir/start_ms.txt") (runs: $(wc -l <"$dir/start_ms.txt" | tr -d ' '))"; fi
 }

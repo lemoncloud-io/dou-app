@@ -21,6 +21,7 @@ How the Tauri shell is measured against the Electron shell, and where the result
 - The Tauri copy gets a one-character-different bundle identifier and an ad-hoc signature, because the single-instance socket is a fixed path per identifier and the apps already open would swallow the launch.
 - Cold start ends at the first window. Tauri shows its loader window before the web page; Electron shows its window after the first paint. The Tauri figure is therefore earlier than a "page visible" figure would be.
 - WebKit XPC services are attributed by "new after launch", so another app starting WebKit during the run adds noise.
+- The script leaves the WebKit services it started to exit with their app and never kills a process it did not launch.
 - Launching an Electron copy registers its URL scheme with macOS. The script prints a warning when a default handler changed.
 
 ## Results

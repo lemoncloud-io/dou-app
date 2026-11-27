@@ -12,8 +12,8 @@ The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the dep
 | `crates/agent-settings` | validation of the MCP permission settings                                                                                                |
 | `crates/connectors`     | registering the launcher with Claude Desktop and Claude Code                                                                             |
 | `crates/vault`          | the encrypted `nativeSecure` store                                                                                                       |
-| `scripts/`              | `check-bridge-contract.mjs`; `smoke/` (a fixture page and a server for the CI smoke run)                                                 |
-| `docs/`                 | [agent](./docs/agent/README.md), [bridge](./docs/bridge/README.md), [storage](./docs/storage/README.md), [shell](./docs/shell/README.md) |
+| `scripts/`              | `check-bridge-contract.mjs`; `smoke/` (a fixture page and a server for the CI smoke run); `bench-desktop.sh`, `bench-proxy.mjs`, `bench-window.swift` (the Tauri vs Electron measurement)                                                 |
+| `docs/`                 | [agent](./docs/agent/README.md), [bridge](./docs/bridge/README.md), [storage](./docs/storage/README.md), [shell](./docs/shell/README.md), [perf](./docs/perf/README.md) |
 
 ## Commands
 
