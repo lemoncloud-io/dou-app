@@ -9,12 +9,12 @@ yarn nx build dou-cli
 node dist/apps/dou-cli/main.mjs --profile <dir> <command>
 ```
 
-| Command  | Does                                                                                                                                                                                      |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pair`   | requests a device pairing, prints `pairing code: <code>`, waits for an approval on another device, then prints `{"paired":true,"target":…}`. Exits 1 when denied, expired, lost or failed |
-| `whoami` | prints `{signedIn, userId, delegatorId, activeServer}` as one JSON line                                                                                                                   |
-| `clouds` | prints `{active, clouds:[{cloudId, name}]}` for the clouds the pairing entered                                                                                                            |
-| `serve`  | keeps the session and sockets, re-checks paired clouds every `PAIRED_CLOUD_CHECK_INTERVAL_MS`, exits 0 on SIGINT or SIGTERM                                                               |
+| Command  | Does                                                                                                                                                                                           |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pair`   | requests a device pairing, prints `pairing code: <code>`, waits for an approval on another device, then prints `{"paired":true,"target":…}`. Exits 1 when denied, expired, lost or failed      |
+| `whoami` | prints `{signedIn, userId, delegatorId, activeServer}` as one JSON line                                                                                                                        |
+| `clouds` | prints `{active, clouds:[{cloudId, name}]}` for the clouds the pairing entered                                                                                                                 |
+| `serve`  | keeps the session and sockets, serves MCP on `<dir>/mcp.sock` ([docs/mcp](./docs/mcp/README.md)), re-checks paired clouds every `PAIRED_CLOUD_CHECK_INTERVAL_MS`, exits 0 on SIGINT or SIGTERM |
 
 ## Profile
 
@@ -24,8 +24,9 @@ node dist/apps/dou-cli/main.mjs --profile <dir> <command>
 
 - `src/cli.ts` parses arguments and runs a command against a booted runtime (`runCli`, with `boot` injected so tests use a fake).
 - `src/boot.ts` declares the runtime (`headlessModules`, file storage, memory cache).
+- `src/mcp/` is MCP only: `server.ts` (protocol), `socket.ts` (`mcp.sock`), `shellLink.ts` + `harnessTools.ts` (`shell.sock`), `settingsFile.ts`, `serveMcp.ts` (wiring). Nothing outside `src/mcp/` imports it except `main.ts`.
 - `src/commands/` holds one file per command. Code that MCP and the human CLI will share (boot, sign-in, tool execution) stays outside any MCP-only file.
-- `ServeHooks.onReady(booted)` in `src/commands/serve.ts` is where the MCP server starts, in a later step.
+- `ServeHooks.onReady(booted, profile)` in `src/commands/serve.ts` is where `main.ts` starts the MCP server; it may return a function that `serve` calls on shutdown.
 
 ## Limits
 
