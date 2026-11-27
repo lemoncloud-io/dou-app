@@ -88,7 +88,7 @@ The screenshot is taken by the webview (`takeSnapshot` on WKWebView, `CapturePre
 
 ## Node sidecar
 
-The sidecar depends on `--parent-pipe` and the `build-sidecar` target of dou-cli, which land in their own pull request (`apps/dou-cli` is not part of this folder). The control sockets are Unix sockets; on Windows the MCP request from the Agent window has no read timeout yet.
+The sidecar uses `--parent-pipe` and the `build-sidecar` target of `apps/dou-cli`. The control sockets are Unix sockets; on Windows the MCP request from the Agent window has no read timeout yet.
 
 The shell starts `dou-cli --profile <dir> --parent-pipe serve` and keeps its stdin pipe open: when the shell dies the pipe closes and dou-cli exits, so no orphan keeps `mcp.sock`. It stops dou-cli on exit. Output goes to `logs/node.log` (rotated like the others, readable with `logs_tail` and `dou-shellctl logs node`).
 

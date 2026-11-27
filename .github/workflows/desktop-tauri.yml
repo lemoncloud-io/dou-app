@@ -4,7 +4,7 @@ on:
     pull_request:
         paths: &paths
             - apps/desktop-tauri/**
-            - apps/desktop-native/**
+            - apps/dou-cli/**
             - apps/desktop/src/main/**
             - libs/bridge-messages/**
             - .github/workflows/desktop-tauri.yml

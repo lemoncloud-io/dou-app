@@ -1,8 +1,8 @@
 # desktop-tauri
 
-The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the deployed web and answers the bridge from Rust is in [ADR-0384](../../docs/adr/0384-the-tauri-shell-loads-the-deployed-web-and-answers-the-bridge-from-rust.md). The Electron desktop (`apps/desktop`, `apps/desktop-web`) and the parked Rust engine (`apps/desktop-native`) are separate and untouched; this shell does not depend on the engine.
+The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the deployed web and answers the bridge from Rust is in [ADR-0384](../../docs/adr/0384-the-tauri-shell-loads-the-deployed-web-and-answers-the-bridge-from-rust.md). The Electron desktop (`apps/desktop`, `apps/desktop-web`) is separate and untouched.
 
-Desktop v2 logic runs in TypeScript on `@chatic/runtime` in a Node process the shell starts per profile; this app is the shell and dev harness, and the Rust engine crates in `apps/desktop-native` are parked. The decision and its alternatives are in [ADR-0387](../../docs/adr/0387-desktop-v2-runs-the-ts-runtime-in-node-and-rust-is-the-shell.md).
+Desktop v2 logic runs in TypeScript on `@chatic/runtime` in a Node process the shell starts per profile; this app is the shell and dev harness. The Rust engine that once ran inside it was removed. The decision and its alternatives are in [ADR-0387](../../docs/adr/0387-desktop-v2-runs-the-ts-runtime-in-node-and-rust-is-the-shell.md).
 
 ## Layout
 

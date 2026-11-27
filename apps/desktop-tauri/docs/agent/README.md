@@ -1,6 +1,6 @@
 # agent
 
-The native "DoU Agent" window. The Rust engine and the local MCP server of `apps/desktop-native` no longer run inside this app: DoU logic runs in TypeScript on `@chatic/runtime` through `libs/runtime-node`, and the Rust engine crates are parked. This shell links none of them (`dou-app`, `dou-auth`, `dou-control`, `dou-http`, `dou-socket`, `dou-core`); its own `dou-mcp` binary is only a byte pipe.
+The native "DoU Agent" window. No DoU engine runs inside this app: DoU logic runs in TypeScript on `@chatic/runtime` through `libs/runtime-node`, in the dou-cli sidecar. The shell links no engine crate; its own `dou-mcp` binary is only a byte pipe.
 
 ## The engine is dou-cli
 
