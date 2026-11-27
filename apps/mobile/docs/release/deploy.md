@@ -58,6 +58,10 @@ yarn mobile:release plan --json      # the same, as a script reads it
 yarn mobile:release dev android --notes "Fixes the chat image upload on Android." --dry-run
 yarn mobile:release dev all --notes-file store-notes.txt
 
+# Upload the platforms a tag is missing, at that tag's version and build number
+git switch --detach mobile-v0.33.0-100
+yarn mobile:release dev --tag mobile-v0.33.0-100
+
 # Re-run only the finish step (release, card, PR comments) for a tag already pushed
 yarn mobile:release finish mobile-v0.33.0-100
 
@@ -67,38 +71,59 @@ yarn mobile:release status
 
 `dev` runs these steps and stops at the first failure:
 
-1. **Preflight.** On `develop`, a clean tree, `HEAD` equal to `origin/develop`, the five deploy keys
-   present ([Keys](#keys)), fastlane installed, no remote run in progress, store notes 1–500
-   characters, and the computed tag not taken. `--dry-run` prints every check, the plan and the
-   commands below, then stops before any upload.
-2. **Plan.** Version, build number and team notes ([Version and build number](#version-and-build-number)).
-   `--bump` and `--version` override the proposal; `--team-notes-file` replaces the generated notes.
-3. **Upload.** `scripts/deploy-mobile.sh <platform> dev -m <store notes>` for iOS, then Android, with
+1. **Preflight.** On `develop`, a clean tree, `HEAD` equal to `origin/develop`, the deploy keys this run
+   needs ([Keys](#keys)), fastlane installed, no remote run in progress and store notes of 1–500
+   characters. `--dry-run` prints every check, the plan and the commands below, then stops before it
+   reads the stores or uploads anything.
+2. **Store build numbers.** `fastlane <platform> latest_build env:dev` reads the latest build number of
+   each platform's dev app. A store that cannot be read stops the run.
+3. **Plan.** Version, build number and team notes ([Version and build number](#version-and-build-number)).
+   `--bump` and `--version` override the proposal, `--build` the build number, and `--team-notes-file`
+   the generated notes. A computed tag that already exists stops the run.
+4. **Upload.** `scripts/deploy-mobile.sh <platform> dev -m <store notes>` for iOS, then Android, with
    `VERSION_NAME` and `BUILD_NUMBER` set. A failed platform stops the next one.
-4. **Tag.** An annotated `mobile-v<version>-<build>` tag on the built commit, pushed to `origin`. Its
-   message records the environment, the platforms that uploaded and the store notes.
-5. **Finish.** `gh workflow run mobile-release-finish.yml -f tag=<tag>` ([GitHub release](#github-release)).
+5. **Tag.** When at least one platform reached the store, an annotated `mobile-v<version>-<build>` tag
+   on the built commit, pushed to `origin`. Its message records the environment, the result of each
+   platform and the store notes.
+6. **Finish.** `gh workflow run mobile-release-finish.yml -f tag=<tag>` ([GitHub release](#github-release)).
    The channel's webhook secrets live only in GitHub, so the card is posted from there.
 
 `prod` is refused until prod uploads arrive with release branches; prod still goes through
 `yarn mobile:deploy:prod` ([Without the release command](#without-the-release-command)).
 
+Each platform ends with one of these results, recorded in the tag message and the release:
+
+| Result       | Meaning                                                                                       |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| `uploaded`   | the lane exited 0                                                                             |
+| `incomplete` | the lane failed, but the store's latest build is this build: the binary is there, check notes |
+| `failed`     | the lane failed and the build is not in the store                                             |
+| `skipped`    | an earlier platform failed, so this one was not tried                                         |
+
+`uploaded` and `incomplete` both hold the build number, so either gets the build tagged. The iOS lane
+waits for TestFlight processing before it sets the notes; a failure in that wait is `incomplete`, and
+"What to Test" may need setting by hand. To upload a `failed` or `skipped` platform later, check out the
+tag and run `dev --tag <tag>`: it builds that commit at the tag's version and build number, uploads only
+the platforms the tag lacks, and runs the finish step with the merged results. The tag is never moved;
+the release table is what changes.
+
 Two runs, one on a Mac and one remote, could take the same build number; the store rejects the later
 upload, and running it again takes the next number. The preflight's remote-run check is there to avoid
 it, and `dev` fetches the `mobile-v*` tags again before each upload and before tagging. If a tag at or
 above its build number appeared, it stops without tagging and says which platforms it uploaded. The
-number is not reused — the other run's tag holds it — but that upload has no release of its own; add a
-line about it to the other tag's GitHub release.
-
-A platform counts as uploaded only when its fastlane lane exits 0. The iOS lane waits for TestFlight to
-finish processing before it sets the notes, so a failure or a cancel in that wait leaves a build in
-TestFlight that no tag records, and the next run takes the same number and is rejected. Check
-TestFlight before running again after an iOS failure late in the lane.
+number is not reused — the other run's tag holds it, and the next run reads the store — but that upload
+has no release of its own; add a line about it to the other tag's GitHub release.
 
 ### Keys
 
-The local path reads five files at these paths in the working tree. They are gitignored; get them from
-the team secrets repository, which keeps them at the same paths.
+The local path reads these files in the working tree. They are gitignored; get them from the team
+secrets repository, which keeps them at the same paths. A run checks only the files it needs:
+
+| Run                     | Files                                                           |
+| ----------------------- | --------------------------------------------------------------- |
+| iOS upload, dev or prod | `.env`, `AuthKey_*.p8`                                          |
+| Android upload, dev     | `.env`, `play-service-account-dev.json`, `chatic-dou.keystore`  |
+| Android upload, prod    | `.env`, `play-service-account-prod.json`, `chatic-dou.keystore` |
 
 | Path                                                  | What                                                                    |
 | ----------------------------------------------------- | ----------------------------------------------------------------------- |
@@ -154,11 +179,15 @@ gh workflow run mobile-release.yml -f env=dev -f platform=android -f bump=auto \
 | `ref`         | branch to build, `develop`                                                                     |
 | `bump`        | `auto` takes the proposal; `patch`, `minor` or `major` overrides it                            |
 | `version`     | `X.Y.Z` to set the version by hand; it must be higher than the last prod version               |
+| `build`       | build number by hand; it must not be lower than the next free one                              |
+| `tag`         | with `env=dev`, upload the platforms that tag lacks, like `dev --tag`                          |
 | `store_notes` | TestFlight "What to Test" and the Play release notes. Empty or over 500 characters fails first |
-| `team_notes`  | Korean notes for the release and the card. Empty regenerates them the way `plan` does          |
+| `team_notes`  | English notes for the release and the card. Empty regenerates them the way `plan` does         |
 
-`action` (`release`, `rollout`, `halt`), `tag`, `submit` and `rollout` are declared for store
-submission and prod; the preflight job refuses them for now. One remote run at a time: a second run
+The runner reads the store build numbers after restoring the keys and before planning, as a local run
+does, and records each platform's result the same way. `action` (`release`, `rollout`, `halt`),
+`submit` and `rollout` are declared for store submission and prod; the preflight job refuses them for
+now. One remote run at a time: a second run
 waits in the `mobile-release` concurrency group. The workflow only has a `workflow_dispatch` trigger —
 the repository is public, and a fork's pull request must never reach these secrets. Until the iOS
 signing method for a runner is decided, run `platform=android` here and upload iOS from a Mac.
@@ -168,18 +197,25 @@ signing method for a runner is decided, run `platform=android` here and upload i
 - **Tag**: `mobile-v<version>-<build>`, for example `mobile-v0.33.0-100`, annotated, on the built
   commit, made only after an upload succeeded, and never moved. The `mobile-` prefix keeps these apart
   from the desktop releases' tags; everything here reads `mobile-v*` tags only.
-- **Build number**: the highest build of all `mobile-v*` tags plus one; before the first tag, the
-  `versionCode` in `build.gradle` plus one. iOS and Android share it.
+- **Build number**: one more than the highest of the `mobile-v*` tags' builds, the latest build in the
+  store apps this run uploads to, and the `versionCode` in `build.gradle`. iOS and Android share it.
+  The store is read because a run can put a binary in the store and fail before it tags. `--build`
+  (or the `build` input) sets the number by hand; it must not be lower than the computed one.
 - **Base version**: the last prod release's version; before the first prod tag, the `versionName` in
   `build.gradle`.
-- **Bump**, proposed from the conventional commit types of the commits that reach the binary since
-  the base (labels are not used):
+- **Bump**, proposed from what reached the binary since the base (labels are not used):
 
-    | Proposed | When any commit has                                                                 |
-    | -------- | ----------------------------------------------------------------------------------- |
-    | major    | `!` after the type, or `BREAKING CHANGE:` in the body. `auto` still ships minor     |
-    | minor    | type `feat`, or a native change: `ios/**`, `android/**`, a new `dependencies` entry |
-    | patch    | anything else                                                                       |
+    | Proposed | When                                                                                    |
+    | -------- | --------------------------------------------------------------------------------------- |
+    | major    | a commit has `!` after the type, or `BREAKING CHANGE:` in the body. `auto` ships minor  |
+    | minor    | a new `*.m`, `*.mm` or `*.swift` file under `ios/`, or `*Package.kt` under `android/`   |
+    | minor    | a new `dependencies` entry in `apps/mobile/package.json`, or a changed `Podfile.lock`   |
+    | minor    | a new `uses-permission` in `AndroidManifest.xml` or `*UsageDescription` in `Info.plist` |
+    | patch    | anything else, including `feat` commits with no native signal                           |
+
+    Build configuration — `build.gradle`, `gradle.properties`, `settings.gradle`, ProGuard rules,
+    `project.pbxproj`, `*.xcconfig`, the Fastfile — is not a signal. Over the sixty days before this rule,
+    it matched the bump people chose in 21 of 23 releases; a `feat`-based rule matched 8.
 
 - **Proposed version**: the base bumped by that unit, never lower than a dev tag already on the
   branch.
@@ -194,13 +230,15 @@ signing method for a runner is decided, run `platform=android` here and upload i
 
 A commit counts when it changes a file that reaches the binary: `apps/mobile/**` or the source of a
 library `mobile` depends on in the Nx project graph (`npx nx graph --file=…`, walked from the project
-whose root is `apps/mobile`). Markdown, `docs/`, tests, stories, `apps/mobile/e2e/` and
-`apps/mobile/fastlane/` do not count, and neither do the old `bump app versions` commits. A web-only
-`feat` therefore never makes a minor.
+whose root is `apps/mobile`, nested libraries included). Markdown, `docs/`, tests (`__tests__/`,
+`*.test.*`, `*.spec.*`, `src/test/`), stories, `apps/mobile/e2e/`, `apps/mobile/fastlane/`, Nx, Jest and
+ESLint configuration and `.gitignore` do not count, and neither do the old `bump app versions`
+commits. A library nested inside a dependency's folder counts only when `mobile` depends on it too.
 
 Team notes cover the commits since the last `mobile-v*` tag on the branch. Each commit's pull request
 comes from `GET /repos/{owner}/{repo}/commits/{sha}/pulls`; a pull request takes the highest type
-among its counted commits and is listed once, under `호환성 변경`, `새 기능`, `수정`, `개선` or `기타`.
+among its counted commits and is listed once, under `Breaking`, `Features`, `Fixes`, `Improvements` or
+`Other`. The DoU channel card carries the same list under Korean headings.
 Author names go through the `replacers` of `.github/release-drafter.yml`.
 
 ## GitHub release
@@ -208,18 +246,20 @@ Author names go through the `replacers` of `.github/release-drafter.yml`.
 Titled `DoU Mobile <version> (<build>)`, a pre-release while the build has only reached the dev app,
 always created and edited with `--latest=false`: the repository's Latest release is the desktop prod
 build, and a mobile release taking it would change where desktop downloads point. The body holds the
-upload table (environment, time, platforms, who ran it, the run), the team notes, the store notes, the
+upload table (environment, time, the result for iOS and for Android, who ran it, the run), the team notes, the store notes, the
 bump and its reason, the commit and a link to the changes since the previous tag.
 
 `.github/workflows/mobile-release-finish.yml` writes it on a Linux runner, for a tag that is already
 on `origin`: it rebuilds the plan for that tag (the commits since the tag before it), creates or edits
-the release, comments once on each included pull request and posts the DoU card. Its inputs (`tag`,
-`env`, `platform`, `store_notes`, `team_notes`) default to what the tag message records, so
-`yarn mobile:release finish <tag>` needs only the tag.
+the release, comments once on each included pull request ("Shipped in dev 0.33.0 (100)") and posts the
+DoU card. It runs by `workflow_dispatch` from a local run and by `workflow_call` from the remote one,
+with the same inputs (`tag`, `env`, `platform` — the result per platform, such as
+`ios=uploaded,android=failed` — `store_notes`, `team_notes`); each defaults to what the tag message
+records, so `yarn mobile:release finish <tag>` needs only the tag.
 
-If the upload succeeded but the finish step failed, run only the finish step again. Never upload
-again: the store already holds that build number. A run whose first platform uploaded and whose second
-failed still tags the build with the platform that made it, so the number is not reused.
+If the upload succeeded but the finish step failed, run only the finish step again. Never upload a
+platform again that the tag records as `uploaded` or `incomplete`: the store already holds that build
+number. A platform recorded as `failed` or `skipped` goes up with `dev --tag <tag>`.
 
 ## Remote secrets
 
@@ -348,7 +388,7 @@ shrinker gets wrong.
 | `scripts/mobile-release/`                     | `yarn mobile:release`: `plan`, `dev`, `finish`, `status` on a Mac; `finish.js` inside the finish workflow; `ios-version` for the Fastfile. Test: `scripts/__tests__/mobile-release.test.js` |
 | `.github/workflows/mobile-release.yml`        | the remote path: preflight, upload on macOS, tag, then the finish workflow                                                                                                                  |
 | `.github/workflows/mobile-release-finish.yml` | GitHub release, PR comments and DoU card for a pushed tag (Linux)                                                                                                                           |
-| `apps/mobile/fastlane/Fastfile`               | four lanes (`ios dev\|prod`, `android dev\|prod`), each building and uploading                                                                                                              |
+| `apps/mobile/fastlane/Fastfile`               | four upload lanes (`ios dev\|prod`, `android dev\|prod`) and `latest_build` per platform, which reads the store's latest build number                                                       |
 | `apps/mobile/fastlane/.env`                   | credentials (gitignored); template at `.env.example`                                                                                                                                        |
 
 ## Troubleshooting
