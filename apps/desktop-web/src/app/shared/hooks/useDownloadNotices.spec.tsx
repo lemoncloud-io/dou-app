@@ -5,7 +5,7 @@ import { TOAST_DURATION_MS, Toaster } from '@chatic/ui-kit';
 
 import '../../../i18n';
 
-import type { DownloadDone } from '../utils/electronApi';
+import type { DownloadDone } from '@chatic/host-web-desktop-shell';
 import { useDownloadNotices } from './useDownloadNotices';
 
 let emit: (done: DownloadDone) => void;

@@ -55,5 +55,5 @@ export const {
 - **A purchase settles from the shell's events.** `Purchase` is posted; `OnPurchaseSuccess` or
   `OnPurchaseError` arrives later, heard for as long as the port lives, and a purchase nobody answered gives
   up as `timeout` after `PURCHASE_TIMEOUT_MS` (60 s). A second purchase supersedes the first.
-- **Desktop is not here.** The page inside the desktop app is `host/web/desktop-shell`, a later step; until
-  then desktop-web keeps its implementations in its `src/config/adapters/`.
+- **Desktop is not here.** The page inside the desktop app is
+  [`@chatic/host-web-desktop-shell`](../desktop-shell/README.md).

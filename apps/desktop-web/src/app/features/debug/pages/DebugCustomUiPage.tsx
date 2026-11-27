@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { Button } from '@chatic/ui-kit';
 
-import { getCustomUiApi, type CustomUiStatus } from '../../../shared';
+import { getCustomUiApi, type CustomUiStatus } from '@chatic/host-web-desktop-shell';
 
 const SAMPLE_ZIP_URL = 'https://lemon-ade-storage.s3.ap-northeast-2.amazonaws.com/custom-web-poc-desktopweb.zip';
 

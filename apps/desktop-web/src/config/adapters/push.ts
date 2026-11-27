@@ -1,35 +1,12 @@
 import { webClient } from '@chatic/bridges';
+import { browserPush } from '@chatic/host-web-browser';
+import { desktopShellPush } from '@chatic/host-web-desktop-shell';
 import { pushAdapters } from '@chatic/runtime-hybrid-web';
-import type { PushPort, ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
-
-import { onDesktopNotification } from './notificationFeed';
+import type { ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 export const desktopPush: ShellOrBrowserImplementations<'push'> = {
-    shell: (base): PushPort => ({
-        ...base,
-        notifications: { onReceive: listener => onDesktopNotification(listener) },
-        deviceToken: {
-            fetch: async () => (await webClient.request({ type: 'FetchFcmToken', data: {} })).data?.token ?? null,
-        },
-        tokenRenewal: {
-            onRenew: listener =>
-                webClient.onEvent('OnFetchFcmToken', () => {
-                    listener();
-                }),
-        },
-        localBanner: {
-            present: banner => {
-                void webClient.request({ type: 'ShowNotification', data: banner }).catch(() => undefined);
-            },
-        },
-    }),
-    browser: (base): PushPort => ({
-        ...base,
-        notifications: null,
-        deviceToken: null,
-        tokenRenewal: null,
-        localBanner: null,
-    }),
+    shell: desktopShellPush(webClient),
+    browser: browserPush,
 };
 
 export const { host: pushHost, shell: pushShell, browser: pushBrowser } = pushAdapters(desktopPush);

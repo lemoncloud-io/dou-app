@@ -48,6 +48,7 @@
             "@chatic/host-mobile/links": ["libs/host/mobile/src/links.ts"],
             "@chatic/host-node": ["libs/host/node/src/index.ts"],
             "@chatic/host-web-browser": ["libs/host/web/browser/src/index.ts"],
+            "@chatic/host-web-desktop-shell": ["libs/host/web/desktop-shell/src/index.ts"],
             "@chatic/host-web-mobile-shell": ["libs/host/web/mobile-shell/src/index.ts"],
             "@chatic/push-desktop": ["libs/push/desktop/src/index.ts"],
             "@chatic/push-mobile": ["libs/push/mobile/src/index.ts"],
