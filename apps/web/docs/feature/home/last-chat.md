@@ -25,10 +25,10 @@ grep -rn "lastChat\$" --include='*.ts' libs/data/src
 
 `apps/web/src/app/hooks/useLastChats.ts` takes the rendered channels and returns a
 `Map<channelId, DomainChat>`. A room has two last messages and the file exports one hook for each:
-`useLastChats` is the last message the room itself shows, which the row prints, and
-`useLastActivities` is the newest message anywhere in the room, a thread reply included, which gives
-the row its time and its order. Both read the same `observeLastList` key, so they share one
-observation; `DomainLastChat.chat` and `.activity` carry the two.
+`useLastChats` is the last message the room itself shows, and `useLastActivities` is the newest
+message anywhere in the room, a thread reply included. The home row reads `useLastActivities` alone
+for its line, its time and its order (ADR-0379); place channel management prints `useLastChats`.
+Both read the same `observeLastList` key, so they share one observation; `DomainLastChat.chat` and `.activity` carry the two.
 
 1. It builds a **sorted, comma-joined key** of the channel ids. Re-ordering the list (a pin, a sort
    change) produces the same key, so the subscription is not torn down when only the order moved.
@@ -133,15 +133,18 @@ place's channel-management row print. In this order: a deleted message prints
 and quote markers dropped), whatever it
 has attached; and a message with attachments and no text prints what it carries.
 
-### Thread replies stay off the row, and who wrote the message
+### A thread reply on the row, and who wrote the message
 
-The line is the room's last top-level message. `isPreviewableChat` in `libs/data` leaves out thread
-replies, reaction events, system rows and failed sends, so the row prints only what the room's own feed
-shows — tapping it lands on a feed that contains the line. The time and the order are the room's
-latest activity (`isActivityChat`: the same rule without the reply exclusion), so a reply in a thread
-moves the room up the list and refreshes its time while the line stays on the last message the room
-shows. The line and the time can therefore belong to different messages. The `chat.preview.thread` mark
-in `lastChatPreview` stays as a guard for a reply that ever reaches a row.
+The line is the room's latest activity (`isActivityChat` in `libs/data`: every message but reaction
+events, system rows and failed sends), so a reply in a thread on an older message prints on the row,
+behind the `chat.preview.thread` mark of `lastChatPreview` (`[스레드] 답글`). The line, the time, the
+order and the unread badge therefore move together.
+
+The room's feed leaves replies to the thread page, so tapping a row whose line is a reply opens that
+thread on the reply — `ROUTES.channels.thread(id, threadRootNo(parentId))` with `?chatNo=` of the reply,
+the address a notification tap uses. Any other row opens the room. A row that prints its draft opens
+the room even over a reply, since the draft belongs to the room's composer. Under ADR-0285 the row
+printed the last top-level message instead; ADR-0379 says why that changed.
 
 A group room's line names its writer, `chat.preview.sender` — `보낸 사람 : 내용`. A 1:1 and a self chat print the message alone. The name comes
 from `useLastChatSenders`, one list-level `useChannelProfiles` subscription for every group row's
@@ -209,8 +212,8 @@ registration nor this observation. See [unread-dot](./unread-dot.md).
 
 ## Where it is consumed
 
-Home's `ChannelList` prints the preview and takes its time and order from the activity; place channel
-management reads the same two maps at page level; and search deliberately reads it without registering a row-level sync —
+Home's `ChannelList` prints the activity and takes its time and order from it; place channel
+management reads the same two maps at page level, printing the last top-level message; and search deliberately reads it without registering a row-level sync —
 `useSearchContext` says why.
 
 ## Notes for implementers and tests

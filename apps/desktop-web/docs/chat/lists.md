@@ -15,9 +15,9 @@ the two senders; my notes-to-self room never prefixes, every message there being
 `messagePreview`, the line an OS banner uses, so an attachment-only message reads as what it carries.
 The `sender` is named as the feed names them, by `senderNameIn` ([notifications.md § Who the sender
 is](./notifications.md#who-the-sender-is)).
-The preview is the room's latest message, a thread reply included. Web and mobile print the last
-top-level message and take only the time and order from the latest activity, but the desktop lists keep
-printing the reply: they read the shared `activity` (`useLastChats`), not `chat`. The room's feed leaves
+The preview is the room's latest message, a thread reply included. The web home list does the same
+(ADR-0379); place channel management and search still print the last top-level message. The desktop
+lists read the shared `activity` (`useLastChats`), not `chat`. The room's feed leaves
 replies to the thread panel, so a reply leads with a `[Thread]` mark (`markThreadReply`) and opening
 the row opens the thread, below.
 
