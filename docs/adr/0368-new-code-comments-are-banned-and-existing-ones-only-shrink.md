@@ -7,6 +7,8 @@
 > · The behaviour is documented in [tools/eslint-rules/README.md](../../tools/eslint-rules/README.md) (ratchet)
 > · Amended by: [ADR-0379](./0379-a-maintainer-can-hand-develop-a-newer-ratchet-judge.md) — decision 5: a manual
 > `develop` run can take its judge from a newer `develop` commit
+> · Amended by: [ADR-0385](./0385-a-develop-push-is-judged-by-the-develop-tip-before-it.md) — decision 5: a push takes
+> its judge from the develop tip before it
 
 ## Context
 

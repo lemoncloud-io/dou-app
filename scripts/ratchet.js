@@ -31,15 +31,16 @@ const readModes = (text = fs.readFileSync(MODES_FILE, 'utf8')) => {
 const USAGE = `Usage:
   node scripts/ratchet.js check [--only source,knip,jscpd,testTypecheck] [--reference <ref>]
   node scripts/ratchet.js update [--only ...] [--base <ref>]   # follows renames since the merge base with origin/develop
-  node scripts/ratchet.js verify-baseline --base <ref>
+  node scripts/ratchet.js verify-baseline --base <ref> [--head <ref>]   # --head reads the baselines from that commit, not the tree
   node scripts/ratchet.js init [--only ...] [--force]`;
 
 const parseArgs = argv => {
     const [command, ...rest] = argv;
-    const options = { command, only: Object.keys(KINDS), base: null, reference: null, force: false };
+    const options = { command, only: Object.keys(KINDS), base: null, head: null, reference: null, force: false };
     for (let i = 0; i < rest.length; i++) {
         if (rest[i] === '--only') options.only = rest[++i].split(',').filter(Boolean);
         else if (rest[i] === '--base') options.base = rest[++i];
+        else if (rest[i] === '--head') options.head = rest[++i];
         else if (rest[i] === '--reference') options.reference = rest[++i];
         else if (rest[i] === '--force') options.force = true;
         else throw new Error(`unknown argument ${rest[i]}\n${USAGE}`);
@@ -167,12 +168,14 @@ const init = options => {
 
 const verifyBaseline = options => {
     if (!options.base) throw new Error(`verify-baseline needs --base <ref>\n${USAGE}`);
-    const renames = renamesSince(options.base);
+    const renames = renamesSince(options.base, options.head);
+    const range = options.head ? `${options.base}..${options.head}` : options.base;
     let failed = false;
     for (const kind of Object.keys(KINDS)) {
         const file = KINDS[kind]().BASELINE_FILE;
         const before = showAt(options.base, relative(file));
-        const after = baseline.read(file);
+        const headText = options.head ? showAt(options.head, relative(file)) : null;
+        const after = options.head ? (headText === null ? null : JSON.parse(headText)) : baseline.read(file);
         if (before === null || after === null) {
             console.log(`- ${relative(file)}: not on both sides, nothing to compare`);
             continue;
@@ -183,7 +186,7 @@ const verifyBaseline = options => {
             continue;
         }
         failed = true;
-        console.error(`✗ ${relative(file)} was raised against ${options.base}; a baseline may only go down:`);
+        console.error(`✗ ${relative(file)} was raised in ${range}; a baseline may only go down:`);
         console.error(problems.map(describe).join('\n'));
     }
     return failed ? 1 : 0;
