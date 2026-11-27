@@ -113,20 +113,21 @@ default; `shell` (`<port>.shell`) and `browser` (`<port>.browser`) force one sid
 work. `.browser` runs everywhere because the readers already hold that every host can do what a browser
 does; it is what lets a toggle move one port onto the page while the rest stay on the shell.
 
-Every port but checkout carries its work, not only the choice (the contracts are runtime-client's),
-and the work is the app's: the shell side talks to the app's own bridge wrapper — apps/web's
-`appBridge`, desktop-web's `webClient` requests — and the page side can need the app's own data. So
-each `<port>Adapters` (`mediaAdapters`, `filesAdapters`, `linksAdapters`, `appShellAdapters`,
+Every port but checkout carries its work, not only the choice (the contracts are `@chatic/ports`'),
+and the work comes from the app's declaration: apps/web hands in the `host/web` family's
+implementations — [`@chatic/host-web-mobile-shell`](../host/web/mobile-shell/README.md), given
+`webClient`, and [`@chatic/host-web-browser`](../host/web/browser/README.md) — and desktop-web still
+its own `webClient` requests. So each `<port>Adapters` (`mediaAdapters`, `filesAdapters`, `linksAdapters`, `appShellAdapters`,
 `signInAdapters`, `diagnosticsAdapters`, `pushAdapters`) takes the app's
 `ShellOrBrowserImplementations<P>` — `shell(base, facts)` and `browser(base, facts)`, each handed the
 choice (`base`, `ShellOrBrowserBase<P>`: `kind`, and `os` for `appShell` and `signIn`) and returning the
 whole port — and builds the three adapters from them, calling only the side that was chosen. Each app
-defines its own `linksHost`/`linksShell`/`linksBrowser` (and so on) in its `src/config/adapters/`; a
+declares its own `linksHost`/`linksShell`/`linksBrowser` (and so on) in its `src/config/adapters/`; a
 side the host has no use for still exists, because every port names all three (desktop-web's `media`
 and `files` give both sides the page's own work).
 
-Checkout's implementations — a store purchase over the app's bridge wrapper, a hand-off to the
-website — are app code, so the checkout adapters are built from what the app hands in and create it
+Checkout's implementations — a store purchase over the bridge (`mobileShellStoreCheckout`), a hand-off
+to the website — are handed in by the app, so the checkout adapters are built from what the app hands in and create it
 only when chosen; a store's rules can forbid sending a buyer to the website, so `checkout.web` needs the
 host to offer it (`offeredCheckoutMethods`).
 
@@ -140,8 +141,8 @@ export const {
     shell: linksShell,
     browser: linksBrowser,
 } = linksAdapters({
-    shell: base => ({ ...base, openUrl: url => appBridge.openURL(url) /* , … every member */ }),
-    browser: base => ({ ...base, openUrl: url => window.open(url, '_blank', 'noopener,noreferrer') /* , … */ }),
+    shell: mobileShellLinks({ bridge: webClient, subWebViewOpenScope }),
+    browser: browserLinks,
 });
 
 export const web = defineRuntime({

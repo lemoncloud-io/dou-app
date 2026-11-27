@@ -1,4 +1,4 @@
-import type { LinksPort } from '@chatic/runtime-client';
+import type { LinksPort } from '@chatic/ports';
 
 export const pageLinks: Pick<LinksPort, 'openUrl' | 'copyText'> = {
     openUrl: url => {

@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/host-web-mobile-shell",
+    "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/host/web/mobile-shell/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:web", "formfactor:any"],
+    "targets": {}
+}
