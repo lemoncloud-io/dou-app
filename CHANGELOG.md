@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (design-system,web-ui-kit) move the mobile components into design-system packages
+
+## [2026-11-27] - No version updates
+
+### Refactor
+
 - (runtime-web) split shell delegation into runtime-hybrid-web
 
 ## [2026-11-27] - No version updates
