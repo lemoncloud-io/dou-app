@@ -7,7 +7,7 @@ let port;
 
 beforeEach(done => {
     ({ server, log } = createUploadTestServer());
-    server.listen(0, () => {
+    server.listen(0, '127.0.0.1', () => {
         port = server.address().port;
         done();
     });
@@ -242,7 +242,7 @@ describe('upload-test-server presign', () => {
         ({ server } = createUploadTestServer({
             presign: { accessKey: 'AKID', secretKey: 'SECRET', bucket: 'b', region: 'us-east-1', port: 9000 },
         }));
-        await new Promise(resolve => server.listen(0, resolve));
+        await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
         port = server.address().port;
 
         const res = await new Promise((resolve, reject) => {
