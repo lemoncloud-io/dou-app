@@ -127,7 +127,9 @@ pub fn agent_settings_set(
     from_agent_window(&webview)?;
     let saved = agent_settings::save(&settings_file(&agent), &settings)?;
     if let Some(service) = agent.service() {
-        service.set_settings(saved.clone()).map_err(|e| e.to_string())?;
+        service
+            .set_settings(saved.clone())
+            .map_err(|e| e.to_string())?;
     }
     Ok(agent_settings::to_value(&saved))
 }

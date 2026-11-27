@@ -10,7 +10,8 @@
         "withGlobalTauri": false,
         "windows": [],
         "security": {
-            "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost http://localhost:* https:"
+            "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://dou.chatic.io https://dou-dev.chatic.io",
+            "devCsp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost http://localhost:* https://dou.chatic.io https://dou-dev.chatic.io"
         }
     },
     "plugins": {

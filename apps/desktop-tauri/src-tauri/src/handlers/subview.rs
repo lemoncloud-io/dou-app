@@ -28,11 +28,21 @@ fn closed_event(app: &AppHandle, view_id: &str, reason: &str) {
     );
 }
 
+fn within_scope(request: &subview::OpenRequest) -> Result<(), Refusal> {
+    match request.trust {
+        subview::Trust::External => Err(Refusal::NotAllowed),
+        subview::Trust::FirstParty | subview::Trust::Reviewed => Ok(()),
+    }
+}
+
 fn open(app: &AppHandle, views: &Arc<Views>, message: &Value) -> Value {
     let request = match parse_open(&message["data"]) {
         Ok(request) => request,
         Err(refusal) => return refused("OnOpenSubWebView", refusal),
     };
+    if let Err(refusal) = within_scope(&request) {
+        return refused("OnOpenSubWebView", refusal);
+    }
     let Ok(url) = request.url.parse() else {
         return refused("OnOpenSubWebView", Refusal::NotAllowed);
     };
@@ -105,4 +115,25 @@ pub fn register(host: &mut BridgeHost, context: &Context) {
         "CloseSubWebView",
         sync(move |message| close(&app, &views, &message)),
     );
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn trust_of(url: &str) -> Result<(), Refusal> {
+        let request = parse_open(&json!({ "url": url })).expect("parses");
+        within_scope(&request)
+    }
+
+    #[test]
+    fn only_hub_hosts_open_and_any_other_https_page_is_refused() {
+        assert_eq!(trust_of("https://apps.chatic.io/x"), Ok(()));
+        assert_eq!(trust_of("https://apps-dev.chatic.io/x"), Ok(()));
+        assert_eq!(trust_of("https://mini.apps.chatic.io/x"), Ok(()));
+        assert_eq!(trust_of("https://evil.example/x"), Err(Refusal::NotAllowed));
+        assert_eq!(
+            trust_of("https://apps.chatic.io.evil.example/x"),
+            Err(Refusal::NotAllowed)
+        );
+    }
 }

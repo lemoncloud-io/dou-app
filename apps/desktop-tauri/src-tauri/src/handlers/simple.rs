@@ -20,8 +20,13 @@ pub fn fcm_token() -> Value {
     json!({ "type": "OnFetchFcmToken", "success": true, "data": { "token": "" } })
 }
 
+const URL_MAX: usize = 2048;
+
 pub fn web_url_of(message: &Value) -> Option<Url> {
-    let url = Url::parse(message["data"]["url"].as_str()?).ok()?;
+    let text = message["data"]["url"]
+        .as_str()
+        .filter(|text| text.len() <= URL_MAX)?;
+    let url = Url::parse(text).ok()?;
     matches!(url.scheme(), "http" | "https").then_some(url)
 }
 
@@ -117,6 +122,10 @@ mod tests {
         assert!(!ok("javascript:alert(1)"));
         assert!(!ok("chatic://oauth?code=1"));
         assert!(!ok("not a url"));
+        assert!(!ok(&format!(
+            "https://example.test/{}",
+            "a".repeat(URL_MAX)
+        )));
         assert!(web_url_of(&json!({ "data": {} })).is_none());
     }
 

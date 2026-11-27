@@ -34,6 +34,23 @@ The list is `HANDLED` in `src-tauri/src/handlers/mod.rs`. `scripts/check-bridge-
 npx nx run desktop-tauri:check-bridge-contract
 ```
 
+## Guards: Tauri and Electron
+
+The web page behind the bridge is remote content, so a script injected into it can send any bridge message. The shell limits what that can do. `handlers/limits.rs` holds the numbers and `bridge_request` applies them before a message reaches a handler; a refused message is answered with an `ERROR` carrying the request's `refId`.
+
+| Guard | Tauri shell | Electron (`apps/desktop/src/main`) |
+| --- | --- | --- |
+| Caller | the `main` window at the web origin only | the main window's web contents |
+| Message size | 256 KiB, else `INVALID` | none |
+| Rate per minute | all messages 300; `ShowNotification` and `OpenURL` 10; `OpenSubWebView` 6; `OAuthLogin` 5; `StorageSave` and `FetchUrlMetadata` 30; else `RATE_LIMITED` | none (sub-webview hand-offs to the OS browser stop after 3 in a row) |
+| Sub-webview scope | `reviewed`: hub hosts and their subdomains only (`apps.chatic.io`, `apps-dev.chatic.io`); any other https host is `NOT_ALLOWED` | `anyHttps` |
+| `OpenURL` | http or https, at most 2048 characters | not handled |
+| `StorageSave` | key 256, value 64 KiB, one save 256 KiB; else `INVALID` | none |
+| `ShowNotification` | title 200, body 1000 characters | none |
+| Local UI CSP | `connect-src` is the IPC and the two web origins; `http://localhost:*` only in `devCsp` | not applicable |
+
+Tauri is stricter on purpose. A build that points `DOU_WEB_URL` at another host must add that origin to `connect-src` in `tauri.conf.json`, or the loader page cannot reach it.
+
 ## Social sign-in
 
 `apps/web` offers Google (Apple too) when the shell answers `OAuthLogin`; it posts the request and listens for the `OnOAuthLogin` event. The flow is the one desktop-web uses on Electron (ADR-0009, ADR-0178), and `crates/oauth` holds its rules:
