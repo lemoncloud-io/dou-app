@@ -36,6 +36,10 @@ Storage is isolated per profile when `--profile` is given: on macOS 14 and later
 
 Changing the source restarts the shell: origin, capability and init script are fixed at start.
 
+## Mini-app under development
+
+`--mini-app <folder|URL>` opens a mini-app in the mini-app window ([bridge](../bridge/README.md#mini-apps)) once the main web has loaded, and is saved in `app.json` as `miniApp`, so the next start opens it again; `--mini-app none` forgets it. A folder is served like `--app` (index page fallback, no escape from the folder) from `http://localhost:<port>`; the port is saved as `miniPort` and reused so the origin, and its storage, stay the same. A URL is `https`, or `http` on `localhost`. The page is trusted as a reviewed mini-app, so `/.well-known/chatic-app.json` in the folder sets its title and display. The main window loading a new page closes it, so it opens after the first full web load only.
+
 ## Logs
 
 The init script hooks `console.*`, `error` and `unhandledrejection` on the web origin and sends each to the `log_event` command, which the web capability allows. `log_event` checks the caller's origin, cuts a line at 4 KiB and drops more than 200 events a second. Messages are written as they are, so a page that prints a secret to the console leaves it in `webview.log`. `shell.log` and `webview.log` rotate at 1 MiB and keep three older files.
@@ -44,15 +48,18 @@ The init script hooks `console.*`, `error` and `unhandledrejection` on the web o
 
 A Unix socket (mode 0600, in the 0700 profile folder) or, on Windows, a named pipe with a random name that rejects remote clients. Newline-delimited JSON-RPC 2.0, one request per line.
 
-| Method            | Params              | Result                                            |
-| ----------------- | ------------------- | ------------------------------------------------- |
-| `reload`          | none                | `{ reloaded }`                                    |
-| `app_source`      | `{ set? }`          | the current source, or `{ restarting, source }`   |
-| `screenshot`      | none                | `{ format: "png", base64 }` of the main webview   |
-| `logs_tail`       | `{ file?, lines? }` | `{ file, lines }` (`shell`, `webview`; 100 lines) |
-| `focus`           | none                | `{ focused }`                                     |
-| `second_instance` | `{ argv }`          | `{ accepted }`                                    |
+| Method            | Params              | Result                                                                                   |
+| ----------------- | ------------------- | ---------------------------------------------------------------------------------------- |
+| `reload`          | none                | `{ reloaded }`                                                                           |
+| `app_source`      | `{ set? }`          | the current source, or `{ restarting, source }`                                          |
+| `screenshot`      | none                | `{ format: "png", base64 }` of the main webview                                          |
+| `logs_tail`       | `{ file?, lines? }` | `{ file, lines }` (`shell`, `webview`; 100 lines)                                        |
+| `mini_app_open`   | `{ source }`        | the opened view: `{ viewId, url, origin, trust, title, dev }` (folder or URL, not saved) |
+| `mini_app_list`   | none                | `{ views }`, none or one                                                                 |
+| `mini_app_close`  | `{ viewId? }`       | `{ closed, viewId }`; without `viewId` the open one closes                               |
+| `focus`           | none                | `{ focused }`                                                                            |
+| `second_instance` | `{ argv }`          | `{ accepted }`                                                                           |
 
 The screenshot is taken by the webview (`takeSnapshot` on WKWebView, `CapturePreview` on WebView2) in `crates/capture`, so it needs no screen recording permission and has no window chrome.
 
-`dou-shellctl --profile <dir> <reload|focus|app-source [value]|screenshot <out.png>|logs [name] [lines]>` is a small client for it.
+`dou-shellctl --profile <dir> <reload|focus|app-source [value]|mini-app <open <folder|url>|list|close [viewId]>|screenshot <out.png>|logs [name] [lines]>` is a small client for it.

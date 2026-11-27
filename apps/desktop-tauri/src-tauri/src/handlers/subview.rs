@@ -154,22 +154,26 @@ fn refresh_title(app: &AppHandle, view_id: &str, title: &str) {
     }
 }
 
+fn context_of(app: &AppHandle, entry: &Entry) -> Value {
+    let dark = app
+        .get_webview_window("main")
+        .and_then(|window| window.theme().ok())
+        == Some(tauri::Theme::Dark);
+    page::context(
+        entry,
+        &app.package_info().version.to_string(),
+        &language_subtag(sys_locale::get_locale().as_deref()),
+        dark,
+    )
+}
+
 fn new_host(app: &AppHandle, entry: &Entry) -> Arc<BridgeHost> {
-    let label = label_of(&entry.view_id);
     let origin = entry.origin.clone();
     let sender = app.clone();
-    let send_label = label.clone();
-    let version = app.package_info().version.to_string();
+    let send_label = label_of(&entry.view_id);
     let context_app = app.clone();
     let context_entry = entry.clone();
-    let context: ContextFn = Arc::new(move || {
-        let dark = context_app
-            .get_webview_window(&label)
-            .and_then(|w| w.theme().ok())
-            == Some(tauri::Theme::Dark);
-        let locale = language_subtag(sys_locale::get_locale().as_deref());
-        page::context(&context_entry, &version, &locale, dark)
-    });
+    let context: ContextFn = Arc::new(move || context_of(&context_app, &context_entry));
     let mut host = BridgeHost::new(Config {
         version: BRIDGE_VERSION.to_string(),
         send_to_web: Arc::new(move |message| {
@@ -340,7 +344,7 @@ fn build_window(
         .url
         .parse()
         .map_err(|e: url::ParseError| e.to_string())?;
-    let context = page::context(entry, "", "", false);
+    let context = context_of(app, entry);
     let script = page::page_script(&entry.origin, &context);
     app.add_capability(
         CapabilityBuilder::new(format!("sub-view-{}", entry.view_id))
