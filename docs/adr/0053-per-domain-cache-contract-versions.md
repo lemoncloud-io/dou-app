@@ -9,8 +9,8 @@
 ## Context
 
 ADR-0051 gathered "where does this cache type get stored" into one place,
-[routing.ts](../../libs/runtime-web/src/localCache/routing.ts), and
-[nativeCacheSupport.ts](../../libs/runtime-web/src/localCache/nativeCacheSupport.ts) owns the deploy-skew
+[routing.ts](../../libs/runtime-hybrid-web/src/localCache/routing.ts), and
+[nativeCacheSupport.ts](../../libs/runtime-hybrid-web/src/localCache/nativeCacheSupport.ts) owns the deploy-skew
 gate, one axis of that judgment. The gate today is **a combination of three different mechanisms**:
 
 - **`LEGACY_NATIVE_CACHE_TYPES`** — a frozen set of 8 types that every already-shipped app can store.
@@ -271,7 +271,7 @@ rewritten `isNativeCacheTypeUsable` (keeping the floor's meaning), introducing
 `LOCAL_AUTHORITY_CACHE_TYPES` and a test pinning that its domains are never gated, removing
 `MIN_SCHEMA_VERSION_BY_TYPE`, removing the web→native migration bridge (Decision 5's list), updating
 the routing table tests, updating
-[runtime-web docs/cache](../../libs/runtime-web/docs/cache/README.md) and
+[runtime-hybrid-web docs/cache](../../libs/runtime-hybrid-web/docs/cache/README.md) and
 `libs/runtime/docs/data/invite-cloud-durability.md`.
 
 **Out** — removing the `supportedCacheTypes`/`cacheSchemaVersion` fields (after the backward-compat

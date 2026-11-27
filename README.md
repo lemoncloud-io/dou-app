@@ -515,7 +515,10 @@ this is the only path that ships `desktop-web` (see the note in
 it, nothing in CI ran a type check or a test. Its lint, typecheck and test steps cover only the
 projects the change affects (`nx affected` against the PR's base, or on a push against the commit the
 last successful `develop` run checked), and fall back to every project when the change touches a file outside `apps/` and `libs/`
-that is not markdown — a root config Nx cannot map to a project. Its second job, `e2e`, runs the web app in a real browser
+that is not markdown — a root config Nx cannot map to a project. The gate runs as parallel jobs — `checks`
+(doc checks, script tests, ratchets), `lint`, `typecheck` and `test` in four shards — and the `verify` job, under the
+gate's old name, is green only when all of them are. Shards are dealt by `scripts/test-seconds.json`; refresh it from a
+run of every project with `node scripts/test-shards.js --record <log>`. The `e2e` jobs run the web app in a real browser
 inside a fake native shell ([apps/web-e2e](./apps/web-e2e/README.md)) when `web-e2e` is affected.
 
 ## Code Quality
@@ -531,8 +534,9 @@ yarn check:code-korean      # Fail on untranslated Korean prose in a source code
 yarn check:env              # Fail when apps' local env files disagree on a backend (values never printed)
 yarn ratchet:check         # Fail on more comments, escape hatches, useEffect, unused code or copy-paste than a file's baseline
 yarn ratchet:update        # Lower the ratchet baselines to today's counts (never raises); see tools/eslint-rules/README.md
-yarn gate                   # What CI's verify job runs, for the projects changed since origin/develop: checks, ratchets, lint, tsc -b, test
+yarn gate                   # What CI's verify job runs, for the projects changed since origin/develop: checks, ratchets, lint, tsc -b, test; lowers and stages source/test-typecheck baselines that went down
 yarn worktree:setup         # In a fresh git worktree: link/copy env and Firebase files like the main checkout, sync node_modules, nx sync
+yarn hooks:install          # Once per clone, and after .claude/settings.json changes: copy the agent hooks to the main checkout's settings.local.json (see .claude/hooks/README.md)
 
 # Format
 yarn prettier               # Format all files

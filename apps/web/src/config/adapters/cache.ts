@@ -1,5 +1,5 @@
-import { defineAdapter, webLocalCachePorts } from '@chatic/runtime-web';
-import type { StorageStores, WebHostFacts } from '@chatic/runtime-web';
+import { defineAdapter, webLocalCachePorts } from '@chatic/runtime-hybrid-web';
+import type { StorageStores, WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { recordCacheRoutes } from '../../app/runtime/activeStorage';
 

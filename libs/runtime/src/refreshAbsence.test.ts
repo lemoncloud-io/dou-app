@@ -8,6 +8,7 @@ const ROOTS = [
     'runtime-client',
     'runtime-core',
     'runtime-web',
+    'runtime-hybrid-web',
     'session',
     'transport',
     'sync',

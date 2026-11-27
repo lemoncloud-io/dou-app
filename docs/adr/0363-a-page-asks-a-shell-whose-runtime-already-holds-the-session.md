@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-11-20 · Implemented: `feat/runtime-offer-held`
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeOffer.held`, bridge 2.35.0);
 > `libs/runtime-core/src/bridge/contract.ts` (`offerHoldsSession`) and `host.ts` (the contract refusal);
-> `libs/runtime-web/src/settleSessionOwner.ts`; `apps/mobile/src/app/services/runtime/`
+> `libs/runtime-hybrid-web/src/settleSessionOwner.ts`; `apps/mobile/src/app/services/runtime/`
 > (`nativeRuntimeHost.ts` `holdsSession`, `runtimeHold.ts`, `runtimeOffer.ts`) and
 > `apps/mobile/src/app/webview/AppWebView.tsx`
 > · The behaviour is documented in [apps/mobile docs/runtime](../../apps/mobile/docs/runtime/README.md#the-pages-side-of-the-bridge),

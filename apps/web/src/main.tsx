@@ -14,8 +14,8 @@ import {
     resolveStorageStores,
     setNativeCacheSupport,
     startRuntime,
-} from '@chatic/runtime-web';
-import type { SessionOwnerChoice } from '@chatic/runtime-web';
+} from '@chatic/runtime-hybrid-web';
+import type { SessionOwnerChoice } from '@chatic/runtime-hybrid-web';
 
 import { checkoutOptionsOf } from './config/checkoutOptions';
 import { declareWebRuntime } from './config/webRuntime';

@@ -1,11 +1,11 @@
-import { pageStorageAreas, startRuntime, tabStorageStores, webLocalCachePorts } from '@chatic/runtime-web';
-import type { HostPorts, StartRuntimeOptions } from '@chatic/runtime-web';
+import { pageStorageAreas, startRuntime, tabStorageStores, webLocalCachePorts } from '@chatic/runtime-hybrid-web';
+import type { HostPorts, StartRuntimeOptions } from '@chatic/runtime-hybrid-web';
 
 import { webBrowser } from './webBrowser';
 
 jest.mock('./viteEnv', () => ({ readBuildValue: () => undefined, sessionMirrorDisabled: () => false }));
-jest.mock('@chatic/runtime-web', () => {
-    const actual = jest.requireActual('@chatic/runtime-web');
+jest.mock('@chatic/runtime-hybrid-web', () => {
+    const actual = jest.requireActual('@chatic/runtime-hybrid-web');
     return { ...actual, webLocalCachePorts: jest.fn(actual.webLocalCachePorts) };
 });
 

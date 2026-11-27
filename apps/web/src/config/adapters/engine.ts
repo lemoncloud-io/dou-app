@@ -1,5 +1,5 @@
-import { engineMirror, settleSessionOwner } from '@chatic/runtime-web';
-import type { SessionOwnerChoice, SessionOwnerOptions } from '@chatic/runtime-web';
+import { engineCandidates, engineLocal, engineShell, settleSessionOwner } from '@chatic/runtime-hybrid-web';
+import type { SessionOwnerChoice, SessionOwnerOptions } from '@chatic/runtime-hybrid-web';
 
 import { setLaunchSessionOwner } from '../../app/runtime/launchSessionOwner';
 
@@ -9,4 +9,5 @@ export const settleAndRecordOwner = async (options: SessionOwnerOptions): Promis
     return choice;
 };
 
-export const engineMirrorRecorded = (disabled: boolean) => engineMirror({ disabled, settle: settleAndRecordOwner });
+export const engineMirrorRecorded = (disabled: boolean) =>
+    engineCandidates('engine.mirror', [engineShell({ disabled, settle: settleAndRecordOwner }), engineLocal]);

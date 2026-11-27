@@ -5,14 +5,14 @@ import {
     tabStorageStores,
     vaultStorageStores,
     webLocalCachePorts,
-} from '@chatic/runtime-web';
+} from '@chatic/runtime-hybrid-web';
 import type {
     HostPorts,
     SessionOwnerChoice,
     StartRuntimeOptions,
     StorageStores,
     WebHostFacts,
-} from '@chatic/runtime-web';
+} from '@chatic/runtime-hybrid-web';
 
 import { setLaunchSessionOwner } from '../app/runtime/launchSessionOwner';
 import { storeCheckout } from './adapters/checkout/storeCheckout';
@@ -24,8 +24,8 @@ jest.mock('../app/runtime/launchSessionOwner', () => ({ setLaunchSessionOwner: j
 jest.mock('./adapters/checkout/storeCheckout', () => ({
     storeCheckout: jest.fn((store: string) => ({ kind: 'store', store })),
 }));
-jest.mock('@chatic/runtime-web', () => {
-    const actual = jest.requireActual('@chatic/runtime-web');
+jest.mock('@chatic/runtime-hybrid-web', () => {
+    const actual = jest.requireActual('@chatic/runtime-hybrid-web');
     return {
         ...actual,
         settleSessionOwner: jest.fn(async () => ({ sessionOwner: 'web' })),
@@ -33,8 +33,8 @@ jest.mock('@chatic/runtime-web', () => {
     };
 });
 const mockMirrorEngine = { mirror: true };
-jest.mock('../../../../libs/runtime-web/src/createBridgedRuntime', () => ({
-    ...jest.requireActual('../../../../libs/runtime-web/src/createBridgedRuntime'),
+jest.mock('../../../../libs/runtime-hybrid-web/src/createBridgedRuntime', () => ({
+    ...jest.requireActual('../../../../libs/runtime-hybrid-web/src/createBridgedRuntime'),
     createBridgedRuntime: jest.fn(() => mockMirrorEngine),
 }));
 const mockPrepare = jest.fn(async () => 'vault');

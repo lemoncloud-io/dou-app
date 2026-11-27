@@ -1,7 +1,7 @@
 import { BridgeStorageChannel, webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/runtime-react';
-import { defineAdapter } from '@chatic/runtime-web';
-import type { StorageStores, WebHostFacts } from '@chatic/runtime-web';
+import { defineAdapter } from '@chatic/runtime-hybrid-web';
+import type { StorageStores, WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 type Vault = NonNullable<StorageStores['vault']>;
 

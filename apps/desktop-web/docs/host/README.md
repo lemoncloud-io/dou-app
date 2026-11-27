@@ -13,7 +13,7 @@ Every port carries its work as members; this app implements both sides of each i
 `checkout.none` (the desktop app sells nothing), and `media` and `files` to their browser side: the
 desktop app has no picker, photo library or transfer module of its own, so both sides of each are the
 page's own inputs and requests. How the ports themselves are built is in
-[`libs/runtime-web`](../../../../libs/runtime-web/README.md); the phone's side of the same ports is in
+[`libs/runtime-hybrid-web`](../../../../libs/runtime-hybrid-web/README.md); the phone's side of the same ports is in
 [apps/web `docs/bridge/host-ports.md`](../../../web/docs/bridge/host-ports.md).
 
 ## What the desktop app does, and the tab does not

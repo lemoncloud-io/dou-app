@@ -1,4 +1,4 @@
-import { checkoutFromHost } from '@chatic/runtime-web';
+import { checkoutFromHost } from '@chatic/runtime-hybrid-web';
 
 import { hybridWebCheckout } from './shellWebCheckout';
 import { storeCheckout } from './storeCheckout';

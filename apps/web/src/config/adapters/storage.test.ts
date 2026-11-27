@@ -1,5 +1,5 @@
-import { pageStorageAreas, tabStorageStores, vaultStorageStores } from '@chatic/runtime-web';
-import type { StorageStores, WebHostFacts } from '@chatic/runtime-web';
+import { pageStorageAreas, tabStorageStores, vaultStorageStores } from '@chatic/runtime-hybrid-web';
+import type { StorageStores, WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { storageResolved } from './storage';
 

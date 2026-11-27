@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { startRuntime } from '@chatic/runtime-web';
-import type { StartRuntimeOptions } from '@chatic/runtime-web';
+import { startRuntime } from '@chatic/runtime-hybrid-web';
+import type { StartRuntimeOptions } from '@chatic/runtime-hybrid-web';
 
 import { desktopStores } from './adapters';
 import { desktopWeb } from './desktop-web';

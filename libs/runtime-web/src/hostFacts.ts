@@ -1,5 +1,4 @@
-import { hostProfile } from '@chatic/bridges';
-import type { BridgeChannel, CapabilityDeclaration, HostProfile } from '@chatic/bridges';
+import type { BridgeChannel, CapabilityDeclaration } from '@chatic/bridges';
 
 export interface WebHostFacts {
     readonly bridge: BridgeChannel | null;
@@ -9,15 +8,10 @@ export interface WebHostFacts {
     readonly capabilities: CapabilityDeclaration;
 }
 
-export interface WebHostFactsSources {
-    profile?: HostProfile;
-}
-
-export const readWebHostFacts = ({ profile = hostProfile() }: WebHostFactsSources = {}): WebHostFacts =>
-    Object.freeze({
-        bridge: profile.bridge,
-        platform: profile.globals.CHATIC_APP_PLATFORM,
-        storageMedia: profile.storageMedia,
-        runtimeOffer: profile.runtimeOffer,
-        capabilities: profile.capabilities,
-    });
+export const BROWSER_HOST_FACTS: WebHostFacts = Object.freeze({
+    bridge: null,
+    platform: undefined,
+    storageMedia: Object.freeze([]),
+    runtimeOffer: undefined,
+    capabilities: Object.freeze({ kind: 'absent' }),
+});

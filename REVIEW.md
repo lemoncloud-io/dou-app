@@ -55,7 +55,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## A renamed capability or message value still reads the old spelling
 
-- paths: `libs/runtime-web/src/hostCapabilities/**`, `libs/bridge-messages/src/**`
+- paths: `libs/runtime-hybrid-web/src/hostCapabilities/**`, `libs/bridge-messages/src/**`
 - check: Feed the values the previous release declares; the reader accepts them (with a warning) until no
   supported shell sends them.
 - from: 7c156d8d7, 3b9b63eea, ADR-0324

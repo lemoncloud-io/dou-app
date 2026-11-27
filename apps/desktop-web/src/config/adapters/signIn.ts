@@ -1,5 +1,5 @@
-import { signInAdapters } from '@chatic/runtime-web';
-import type { ShellOrBrowserImplementations, SignInPort } from '@chatic/runtime-web';
+import { signInAdapters } from '@chatic/runtime-hybrid-web';
+import type { ShellOrBrowserImplementations, SignInPort } from '@chatic/runtime-hybrid-web';
 
 import { onDesktopNotification } from './notificationFeed';
 

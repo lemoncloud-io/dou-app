@@ -6,7 +6,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint-edited-file.cjs\"",
+                        "command": "node -e \"const{spawnSync:s}=require('child_process'),f=require('fs'),p=require('path');const i=f.readFileSync(0);let c;try{c=JSON.parse(i).cwd}catch{}const t=(s('git',['-C',c||'.','rev-parse','--show-toplevel'],{encoding:'utf8'}).stdout||'').trim();const h=p.join(t,'.claude','hooks',process.argv[1]+'.cjs');if(!t||!f.existsSync(h))process.exit(0);const r=s(process.execPath,[h],{input:i,stdio:['pipe','inherit','inherit'],cwd:t,env:{...process.env,CLAUDE_PROJECT_DIR:t}});process.exit(r.status===null?1:r.status)\" lint-edited-file",
                         "timeout": 90
                     }
                 ]
@@ -16,7 +16,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-escalation.cjs\"",
+                        "command": "node -e \"const{spawnSync:s}=require('child_process'),f=require('fs'),p=require('path');const i=f.readFileSync(0);let c;try{c=JSON.parse(i).cwd}catch{}const t=(s('git',['-C',c||'.','rev-parse','--show-toplevel'],{encoding:'utf8'}).stdout||'').trim();const h=p.join(t,'.claude','hooks',process.argv[1]+'.cjs');if(!t||!f.existsSync(h))process.exit(0);const r=s(process.execPath,[h],{input:i,stdio:['pipe','inherit','inherit'],cwd:t,env:{...process.env,CLAUDE_PROJECT_DIR:t}});process.exit(r.status===null?1:r.status)\" check-escalation",
                         "timeout": 10
                     }
                 ]
@@ -28,12 +28,12 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-escalation.cjs\"",
+                        "command": "node -e \"const{spawnSync:s}=require('child_process'),f=require('fs'),p=require('path');const i=f.readFileSync(0);let c;try{c=JSON.parse(i).cwd}catch{}const t=(s('git',['-C',c||'.','rev-parse','--show-toplevel'],{encoding:'utf8'}).stdout||'').trim();const h=p.join(t,'.claude','hooks',process.argv[1]+'.cjs');if(!t||!f.existsSync(h))process.exit(0);const r=s(process.execPath,[h],{input:i,stdio:['pipe','inherit','inherit'],cwd:t,env:{...process.env,CLAUDE_PROJECT_DIR:t}});process.exit(r.status===null?1:r.status)\" check-escalation",
                         "timeout": 10
                     },
                     {
                         "type": "command",
-                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/gate-before-commit.cjs\"",
+                        "command": "node -e \"const{spawnSync:s}=require('child_process'),f=require('fs'),p=require('path');const i=f.readFileSync(0);let c;try{c=JSON.parse(i).cwd}catch{}const t=(s('git',['-C',c||'.','rev-parse','--show-toplevel'],{encoding:'utf8'}).stdout||'').trim();const h=p.join(t,'.claude','hooks',process.argv[1]+'.cjs');if(!t||!f.existsSync(h))process.exit(0);const r=s(process.execPath,[h],{input:i,stdio:['pipe','inherit','inherit'],cwd:t,env:{...process.env,CLAUDE_PROJECT_DIR:t}});process.exit(r.status===null?1:r.status)\" gate-before-commit",
                         "timeout": 1800
                     }
                 ]
@@ -44,7 +44,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-before-stop.cjs\"",
+                        "command": "node -e \"const{spawnSync:s}=require('child_process'),f=require('fs'),p=require('path');const i=f.readFileSync(0);let c;try{c=JSON.parse(i).cwd}catch{}const t=(s('git',['-C',c||'.','rev-parse','--show-toplevel'],{encoding:'utf8'}).stdout||'').trim();const h=p.join(t,'.claude','hooks',process.argv[1]+'.cjs');if(!t||!f.existsSync(h))process.exit(0);const r=s(process.execPath,[h],{input:i,stdio:['pipe','inherit','inherit'],cwd:t,env:{...process.env,CLAUDE_PROJECT_DIR:t}});process.exit(r.status===null?1:r.status)\" verify-before-stop",
                         "timeout": 30
                     }
                 ]
@@ -56,7 +56,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-escalation.cjs\"",
+                        "command": "node -e \"const{spawnSync:s}=require('child_process'),f=require('fs'),p=require('path');const i=f.readFileSync(0);let c;try{c=JSON.parse(i).cwd}catch{}const t=(s('git',['-C',c||'.','rev-parse','--show-toplevel'],{encoding:'utf8'}).stdout||'').trim();const h=p.join(t,'.claude','hooks',process.argv[1]+'.cjs');if(!t||!f.existsSync(h))process.exit(0);const r=s(process.execPath,[h],{input:i,stdio:['pipe','inherit','inherit'],cwd:t,env:{...process.env,CLAUDE_PROJECT_DIR:t}});process.exit(r.status===null?1:r.status)\" check-escalation",
                         "timeout": 10
                     }
                 ]
@@ -67,7 +67,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/check-escalation.cjs\"",
+                        "command": "node -e \"const{spawnSync:s}=require('child_process'),f=require('fs'),p=require('path');const i=f.readFileSync(0);let c;try{c=JSON.parse(i).cwd}catch{}const t=(s('git',['-C',c||'.','rev-parse','--show-toplevel'],{encoding:'utf8'}).stdout||'').trim();const h=p.join(t,'.claude','hooks',process.argv[1]+'.cjs');if(!t||!f.existsSync(h))process.exit(0);const r=s(process.execPath,[h],{input:i,stdio:['pipe','inherit','inherit'],cwd:t,env:{...process.env,CLAUDE_PROJECT_DIR:t}});process.exit(r.status===null?1:r.status)\" check-escalation",
                         "timeout": 10
                     }
                 ]

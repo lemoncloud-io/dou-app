@@ -1,5 +1,5 @@
-import { mediaAdapters } from '@chatic/runtime-web';
-import type { MediaPort, ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { mediaAdapters } from '@chatic/runtime-hybrid-web';
+import type { MediaPort, ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 const noAppMedia = { picker: null, photoLibrary: null, videoConverter: null, cameraPermission: null } as const;
 

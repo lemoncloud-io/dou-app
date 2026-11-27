@@ -7,8 +7,8 @@ import {
     foregroundVisibility,
     transportBrowser,
     webHostFacts,
-} from '@chatic/runtime-web';
-import type { SessionOwnerChoice, StorageStores, WebHostFacts } from '@chatic/runtime-web';
+} from '@chatic/runtime-hybrid-web';
+import type { SessionOwnerChoice, StorageStores, WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { cacheWebLocal } from './adapters/cache';
 import { appShellBrowser, appShellHost, appShellShell } from './adapters/appShell';

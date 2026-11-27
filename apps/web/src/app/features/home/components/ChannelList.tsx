@@ -38,7 +38,7 @@ import { useLastChatSenders } from '../hooks/useLastChatSenders';
 import { isSomeoneElsesSelfChat } from '../../channels/utils/membership';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
-import { useLastActivities, useLastChats } from '../../../hooks/useLastChats';
+import { useLastActivities } from '../../../hooks/useLastChats';
 import { readSelectedCloudId } from '../../../hooks/useCloudScope';
 import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../hooks';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
@@ -61,7 +61,7 @@ import { InviteChannelRow } from '../../invite/components/InviteChannelRow';
 import { ChannelEmptyState } from './ChannelEmptyState';
 import { ChannelCreateMenu } from './ChannelCreateMenu';
 import { useNotificationStore } from '../../../stores/useNotificationStore';
-import { channelBadges, type ChannelBadges } from '../../../utils/notifications';
+import { channelBadges, threadRootNo, type ChannelBadges } from '../../../utils/notifications';
 import { useChannelRowActions } from '../hooks/useChannelRowActions';
 import { useComposerDraftStore } from '../../channels/stores/useComposerDraftStore';
 
@@ -88,7 +88,6 @@ const ChannelItem = ({
     mentionOnly,
     myMemberId,
     lastChat,
-    lastActivity,
     lastChatSender,
     inboxActivity,
 }: {
@@ -104,7 +103,6 @@ const ChannelItem = ({
     mentionOnly?: boolean;
     myMemberId?: string;
     lastChat?: DomainChat;
-    lastActivity?: DomainChat;
     lastChatSender?: string;
     inboxActivity?: ChannelBadges;
 }) => {
@@ -136,8 +134,7 @@ const ChannelItem = ({
     });
 
     const preview = lastChatPreview(lastChat, t, lastChatSender);
-    const activity = lastActivity ?? lastChat;
-    const time = activity?.createdAt ? formatTime(activity.createdAt) : '';
+    const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     const mentionsMe =
         unread > 0 &&
@@ -252,6 +249,11 @@ const ChannelItem = ({
                 </div>
             }
             onClick={() => {
+                if (!draftPreview && lastChat?.parentId) {
+                    const thread = ROUTES.channels.thread(channel.id, threadRootNo(lastChat.parentId));
+                    navigate(lastChat.chatNo ? `${thread}?chatNo=${lastChat.chatNo}` : thread);
+                    return;
+                }
                 roomOpenTrace.begin(channel.id, 'list');
                 if (!isForeignSelfChat) void runtime.sync.prefetchRoomFeed(readSelectedCloudId(), channel.id);
                 navigate(ROUTES.channels.room(channel.id), { state: { channel } });
@@ -341,9 +343,8 @@ export const ChannelList = ({
     }, [channels, joinByChannel, unreadByChannel]);
 
     const dmPeers = useDmPeers(sid, channels, uid);
-    const lastChats = useLastChats(channels, joinByChannel);
     const lastActivities = useLastActivities(channels, joinByChannel);
-    const lastChatSenders = useLastChatSenders(sid, channels, lastChats);
+    const lastChatSenders = useLastChatSenders(sid, channels, lastActivities);
 
     const notificationItems = useNotificationStore(state => state.items);
     const activityByChannel = useMemo(() => {
@@ -487,8 +488,7 @@ export const ChannelList = ({
                                 muted={muted}
                                 mentionOnly={notifyLevel === 'mention'}
                                 myMemberId={join?.userId}
-                                lastChat={lastChats.get(channel.id)}
-                                lastActivity={lastActivities.get(channel.id)}
+                                lastChat={lastActivities.get(channel.id)}
                                 lastChatSender={lastChatSenders.get(channel.id)}
                                 inboxActivity={activityByChannel.get(channel.id)}
                             />

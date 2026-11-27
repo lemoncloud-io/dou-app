@@ -32,7 +32,7 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
-    # The commit both jobs below compare against, resolved once so they cannot disagree.
+    # The commit every job below compares against, resolved once so they cannot disagree.
     #
     # A pull request is compared with its base branch. A push to develop is compared with the
     # commit the last successful push or manual run on develop checked, not with the commit just before it:
@@ -41,14 +41,20 @@ jobs:
     # while the broken one is still broken.
     #
     # Empty when there is nothing trustworthy to compare with — no successful run yet, a failed
-    # lookup, a base that is not an ancestor of HEAD after a rewritten history — and both jobs then
+    # lookup, a base that is not an ancestor of HEAD after a rewritten history — and the jobs then
     # check everything rather than guess.
     #
-    # `judge` is the commit the ratchet steps take their judge and baselines from: the compare base,
-    # except in a manual run, where it is the `judge` input. That must be a commit on develop's
-    # first-parent line (a merge or a direct push, never a commit inside a merged branch), no older
-    # than the compare base, and carry the ratchet. Lint, typecheck and test still cover everything
-    # since the compare base.
+    # `judge` is the commit the ratchet steps take their judge and baselines from. A pull request
+    # takes its base; a push takes the develop tip before the push (`github.event.before`), never a
+    # commit of the push itself — not the last green run, whose old scripts and long rename range
+    # misjudge every merge since. A manual run takes its `judge` input, which must be a
+    # commit on develop's first-parent line (a merge or a direct push, never a commit inside a merged
+    # branch), no older than the compare base, and carry the ratchet. Lint, typecheck and test still
+    # cover everything since the compare base.
+    #
+    # `walk_from` is where the step-by-step baseline check starts: the compare base, or in a manual
+    # run the `judge` input, so a maintainer can step past a raise that would otherwise keep every
+    # later run red.
     base:
         name: resolve the compare base
         runs-on: ubuntu-latest
@@ -58,6 +64,8 @@ jobs:
         outputs:
             sha: ${{ steps.base.outputs.sha }}
             judge: ${{ steps.base.outputs.judge }}
+            walk_from: ${{ steps.base.outputs.walk_from }}
+            nx: ${{ steps.scope.outputs.nx }}
         steps:
             - uses: actions/checkout@v4
               with:
@@ -69,6 +77,7 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
                   PR_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
                   JUDGE_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.judge || '' }}
+                  BEFORE: ${{ github.event_name == 'push' && github.event.before || '' }}
               run: |
                   if [ -n "$PR_BASE" ]; then
                       base=$(git rev-parse --verify --quiet "$PR_BASE^{commit}") || base=''
@@ -83,6 +92,12 @@ jobs:
                       fi
                   fi
                   judge=$base
+                  walk_from=$base
+                  if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "$BEFORE" ] &&
+                      git cat-file -e "$BEFORE^{commit}" 2>/dev/null &&
+                      git merge-base --is-ancestor "$BEFORE" HEAD && [ "$BEFORE" != "$(git rev-parse HEAD)" ]; then
+                      judge=$BEFORE
+                  fi
                   if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
                       if [ "$GITHUB_REF" != refs/heads/develop ]; then
                           echo "::error title=ratchet::a manual run judges develop only, not $GITHUB_REF"
@@ -103,50 +118,21 @@ jobs:
                           exit 1
                       fi
                       echo "::notice title=ratchet::compare base ${base:-none}; ratchet judge $judge, chosen by $GITHUB_ACTOR"
+                      walk_from=$judge
                   fi
                   echo "sha=$base" >> "$GITHUB_OUTPUT"
                   echo "judge=$judge" >> "$GITHUB_OUTPUT"
-
-    verify:
-        needs: base
-        name: doc links · doc language · code comment language · ratchets · lint · typecheck · test
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                  # `nx affected` compares against the base commit, so it needs history.
-                  fetch-depth: 0
+                  echo "walk_from=$walk_from" >> "$GITHUB_OUTPUT"
 
             - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
                   node-version-file: '.nvmrc'
 
-            - name: Get Yarn cache path
-              id: yarn-cache-dir-path
-              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
-            - name: Cache dependencies
-              id: cache-dependencies
-              uses: actions/cache@v4
-              with:
-                  path: |
-                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
-                      node_modules
-                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-yarn-
-
-            - name: Install dependencies
-              if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
-              run: yarn install --frozen-lockfile
-
-            # Lint, typecheck and test below run for the projects this change reaches, not for all
+            # Lint, typecheck and test run for the projects this change reaches, not for all
             # of them. The gate runs twice per change — on the pull request and again on the push
             # its merge makes to develop — and before this both runs checked every project, so a
             # one-file change paid for the whole workspace twice, test the largest share of it.
-            #
-            # The base comes from the `base` job above; it says what is compared with and why.
             #
             # `nx affected` follows project files and their dependents, plus the root files Nx
             # itself understands (nx.json, package.json, the lockfile, tsconfig.base.json). A root
@@ -157,12 +143,13 @@ jobs:
             # under `apps/` still shows its old path here.
             #
             # The rule lives in `scripts/gate.js scope`, which `yarn gate` uses too, so a local run
-            # and CI pick the same projects. `scope=` on a line of its own, so a failing script fails
-            # this step instead of reading as "nothing changed".
+            # and CI pick the same projects, and every job below reads this one output. `scope=` on a
+            # line of its own, so a failing script fails this step instead of reading as "nothing
+            # changed".
             - name: Which projects to check
               id: scope
               env:
-                  BASE: ${{ needs.base.outputs.sha }}
+                  BASE: ${{ steps.base.outputs.sha }}
               run: |
                   if [ -z "$BASE" ]; then
                       echo "nx=run-many" >> "$GITHUB_OUTPUT"
@@ -171,82 +158,69 @@ jobs:
                   scope=$(node scripts/gate.js scope --base "$BASE")
                   echo "nx=$scope" >> "$GITHUB_OUTPUT"
 
+    # The gate, split into jobs that run side by side (checks and ratchets, lint, typecheck, and
+    # test in four shards) so a pull request waits for the slowest of them rather than their sum.
+    # Each restores `node_modules` from the yarn cache; only `checks` on a push or manual run saves it,
+    # so pull requests do not each add a multi-gigabyte entry (a lockfile change installs in every
+    # job of that pull request instead).
+    checks:
+        needs: base
+        name: checks · ratchets
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # `nx affected` compares against the base commit, so it needs history.
+                  fetch-depth: 0
+
+            - uses: ./.github/actions/setup-workspace
+              id: setup
+              with:
+                  save: ${{ github.event_name != 'pull_request' }}
+
             # Every check below runs even when an earlier one failed (`!cancelled()`), so one red step
-            # never hides the others' results; each waits only for the scope.
+            # never hides the others' results.
             #
             # Documents are the one artifact no other step reads. Cheap, needs no build, and green
             # across every tracked markdown file, so it runs first and fails fast.
             - name: Doc links
-              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
               run: yarn check:doc-links
 
             # AGENTS.md's English policy, for the one surface nothing else in this file can see.
             - name: Doc language
-              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
               run: yarn check:doc-korean
 
             # Same policy, for code comments — the repo-wide translation sweep that unblocked this
             # gate is done, so it now runs alongside the doc-language check above.
             - name: Code comment language
-              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
               run: yarn check:code-korean
 
             # AGENTS.md's public-surface rule, for internal document paths left in comments and docs.
             - name: Internal paths
-              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
               run: yarn check:internal-paths
 
             # The repository scripts' own tests (scripts/__tests__), which no Nx project runs.
             - name: Script tests
-              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
               run: npx jest --config scripts/jest.config.js
 
-            # Green across every project, so no exclusions here.
-            - name: Lint
-              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
-              env:
-                  NX_SCOPE: ${{ steps.scope.outputs.nx }}
-              # Unquoted on purpose, so the scope splits into words.
-              run: npx nx $NX_SCOPE -t lint
-
-            # `--exclude` and not an allowlist: a project's dependencies are typechecked whether or
-            # not they are selected, so excluding the red ones only works while nothing green
-            # depends on them. That is why a project can be clean on its own and still have to sit
-            # on this list until whatever it pulls goes green — which is how `web` came off it.
-            - name: Typecheck
-              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
-              env:
-                  NX_SCOPE: ${{ steps.scope.outputs.nx }}
-              run: >
-                  npx nx $NX_SCOPE -t typecheck
-                  --exclude=block-kit-builder,@chatic/mobile,chatic-deferred-link-cleanup
-
-            # `libs/db` and the runtime package (then `libs/app-runtime`, now `libs/runtime`) ran
-            # through a separate step until the root
-            # `workspaces` array was fixed to `libs/*` — it still named `libs/bridge` and
-            # `libs/socket`, neither of which exists, so nx inferred no `test` target for them and
-            # `run-many` skipped them silently. They are covered by the line below now, and so is
-            # `@chatic/bridges`, whose `yarn test` could not resolve jest for the same reason.
-            - name: Test
-              if: ${{ !cancelled() && steps.scope.outcome == 'success' }}
-              env:
-                  NX_SCOPE: ${{ steps.scope.outputs.nx }}
-              run: npx nx $NX_SCOPE -t test
-
             # Per-file ratchets: comment lines, escape hatches and useEffect calls, unused code
-            # (knip) and copy-paste (jscpd) — tools/eslint-rules/README.md § Ratchet. They run after
-            # the steps above, and even when one of those failed, so a forgotten `yarn ratchet:update`
-            # never hides a lint or test result.
+            # (knip) and copy-paste (jscpd) — tools/eslint-rules/README.md § Ratchet. A job apart from
+            # lint, typecheck and test, so a forgotten `yarn ratchet:update` never hides their results.
             #
             # A change must not be judged by rules it can edit. The judge — the scripts, the counting
             # module, the modes in scripts/ratchet/modes.json — is checked out from the compare base,
             # and the counts this tree may not exceed are the base's baselines (followed through
             # renames), so a change that loosens a check or raises a baseline is still judged by the
-            # old one. Until the base carries the ratchet, this tree judges itself. A manual run takes
-            # the judge from its `judge` input instead (the `base` job).
+            # old one. Until the base carries the ratchet, this tree judges itself. A push takes the
+            # judge from the develop tip before it and a manual run from its `judge` input (the `base` job).
             - name: Ratchet judge from the compare base
               id: judge
-              if: ${{ !cancelled() }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
               env:
                   BASE: ${{ needs.base.outputs.judge }}
               run: |
@@ -258,16 +232,45 @@ jobs:
                       echo "dir=$GITHUB_WORKSPACE" >> "$GITHUB_OUTPUT"
                   fi
 
+            # One first-parent step at a time, from `walk_from` to HEAD: each step's baselines against
+            # its parent, judged by the parent's ratchet scripts when the parent is in the judge's
+            # history, by the judge otherwise, so no step judges itself. Over one
+            # long range `git diff -M` can pair a moved file with the wrong half of a split and read
+            # an unchanged entry as raised. A parent without `--head` is judged by the run's judge, and
+            # a judge without `--head` compares once, with the judge commit.
             - name: Ratchet baselines only go down
-              if: ${{ !cancelled() && steps.judge.outcome == 'success' && needs.base.outputs.judge != '' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.judge.outcome == 'success' && needs.base.outputs.judge != '' }}
               env:
                   BASE: ${{ needs.base.outputs.judge }}
+                  WALK_FROM: ${{ needs.base.outputs.walk_from }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
                   RATCHET_ROOT: ${{ github.workspace }}
-              run: node "$JUDGE/scripts/ratchet.js" verify-baseline --base "$BASE"
+              run: |
+                  if ! grep -q "'--head'" "$JUDGE/scripts/ratchet.js"; then
+                      node "$JUDGE/scripts/ratchet.js" verify-baseline --base "$BASE"
+                      exit
+                  fi
+                  steps=$(git rev-list --first-parent --reverse "${WALK_FROM:-HEAD^1}..HEAD")
+                  failed=0
+                  for step in $steps; do
+                      judge=$JUDGE
+                      dir="$RUNNER_TEMP/ratchet-step"
+                      rm -rf "$dir" && mkdir -p "$dir"
+                      if git merge-base --is-ancestor "$step^1" "$BASE" &&
+                          git cat-file -e "$step^1:scripts/ratchet.js" 2>/dev/null &&
+                          git show "$step^1:scripts/ratchet.js" | grep "'--head'" >/dev/null; then
+                          if git archive "$step^1" scripts/ratchet.js scripts/ratchet tools/eslint-rules | tar -x -C "$dir"; then
+                              judge=$dir
+                          else
+                              echo "::notice title=ratchet::could not extract the judge of ${step:0:9}^1; the run's judge checks this step"
+                          fi
+                      fi
+                      node "$judge/scripts/ratchet.js" verify-baseline --base "$step^1" --head "$step" || failed=1
+                  done
+                  exit $failed
 
             - name: Ratchet · comments, escape hatches, useEffect
-              if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.judge.outcome == 'success' }}
               env:
                   BASE: ${{ needs.base.outputs.judge }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
@@ -275,7 +278,7 @@ jobs:
               run: node "$JUDGE/scripts/ratchet.js" check --only source ${BASE:+--reference "$BASE"}
 
             - name: Ratchet · unused code (knip)
-              if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.judge.outcome == 'success' }}
               env:
                   BASE: ${{ needs.base.outputs.judge }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
@@ -283,7 +286,7 @@ jobs:
               run: node "$JUDGE/scripts/ratchet.js" check --only knip ${BASE:+--reference "$BASE"}
 
             - name: Ratchet · copy-paste (jscpd)
-              if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.judge.outcome == 'success' }}
               env:
                   BASE: ${{ needs.base.outputs.judge }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
@@ -294,7 +297,7 @@ jobs:
             # shares the app's build info is skipped as "up to date"). A judge from before this
             # check existed does not know it, so this tree judges itself until the base carries it.
             - name: Ratchet · test files outside every typecheck
-              if: ${{ !cancelled() && steps.judge.outcome == 'success' }}
+              if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.judge.outcome == 'success' }}
               env:
                   BASE: ${{ needs.base.outputs.judge }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
@@ -305,6 +308,48 @@ jobs:
                       JUDGE="$GITHUB_WORKSPACE"
                   fi
                   node "$JUDGE/scripts/ratchet.js" check --only testTypecheck ${BASE:+--reference "$BASE"}
+
+    lint:
+        needs: base
+        name: lint
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # `nx affected` compares against the base commit, so it needs history.
+                  fetch-depth: 0
+
+            - uses: ./.github/actions/setup-workspace
+
+            # Green across every project, so no exclusions here.
+            - name: Lint
+              env:
+                  NX_SCOPE: ${{ needs.base.outputs.nx }}
+              # Unquoted on purpose, so the scope splits into words.
+              run: npx nx $NX_SCOPE -t lint
+
+    typecheck:
+        needs: base
+        name: typecheck
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # `nx affected` compares against the base commit, so it needs history.
+                  fetch-depth: 0
+
+            - uses: ./.github/actions/setup-workspace
+
+            # `--exclude` and not an allowlist: a project's dependencies are typechecked whether or
+            # not they are selected, so excluding the red ones only works while nothing green
+            # depends on them. That is why a project can be clean on its own and still have to sit
+            # on this list until whatever it pulls goes green — which is how `web` came off it.
+            - name: Typecheck
+              env:
+                  NX_SCOPE: ${{ needs.base.outputs.nx }}
+              run: >
+                  npx nx $NX_SCOPE -t typecheck
+                  --exclude=block-kit-builder,@chatic/mobile,chatic-deferred-link-cleanup
 
             # Left out of the gate, with the reason. Measured 2026-09-14 (dated per row where a row was re-measured).
             #
@@ -337,6 +382,61 @@ jobs:
             #   (`web` was only ever excluded because its target pulls web-ui-kit.)
             #
             #   test        (none)
+
+    # Test, the longest step, in four shards. `scripts/test-shards.js` lists the test projects in
+    # the same scope and deals them out longest first by `scripts/test-seconds.json`, the time each
+    # took in a run of every project; a project missing from it counts as the median. Output is
+    # streamed, because Nx's replayed output of a large task was cut off and hid which test failed.
+    # Refresh the seconds from a run of every project when the shards drift apart.
+    #
+    # `libs/db` and the runtime package (then `libs/app-runtime`, now `libs/runtime`) ran
+    # through a separate step until the root
+    # `workspaces` array was fixed to `libs/*` — it still named `libs/bridge` and
+    # `libs/socket`, neither of which exists, so nx inferred no `test` target for them and
+    # `run-many` skipped them silently. They are covered by the test jobs below now, and so is
+    # `@chatic/bridges`, whose `yarn test` could not resolve jest for the same reason.
+    test:
+        needs: base
+        name: test · ${{ matrix.shard }}/4
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                shard: [1, 2, 3, 4]
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # `nx affected` compares against the base commit, so it needs history.
+                  fetch-depth: 0
+
+            - uses: ./.github/actions/setup-workspace
+
+            - name: Test
+              env:
+                  NX_SCOPE: ${{ needs.base.outputs.nx }}
+                  SHARD: ${{ matrix.shard }}
+              run: |
+                  projects=$(node scripts/test-shards.js --scope "$NX_SCOPE" --index "$SHARD" --total 4)
+                  if [ -z "$projects" ]; then
+                      echo "no test projects in this shard"
+                      exit 0
+                  fi
+                  echo "projects: $projects"
+                  npx nx run-many -t test --projects="$projects" --output-style=stream
+
+    # One name to watch for the whole gate: green only when every job above is.
+    verify:
+        needs: [base, checks, lint, typecheck, test]
+        if: ${{ always() }}
+        name: doc links · doc language · code comment language · ratchets · lint · typecheck · test
+        runs-on: ubuntu-latest
+        steps:
+            - name: Every gate job passed
+              env:
+                  RESULTS: ${{ toJSON(needs) }}
+              run: |
+                  echo "$RESULTS" | jq -r 'to_entries[] | "\(.key) \(.value.result)"' | tee results.txt
+                  ! grep -v ' success$' results.txt
 
     # `apps/web` in its native (WebView) mode, driven in Chromium and WebKit against a fake native
     # shell and a fake relay (`apps/web-e2e`). A job of its own so it runs beside the gate above

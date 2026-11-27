@@ -54,8 +54,20 @@ describe('useRefundSubscriptionByAdmin', () => {
         expect(invalidate).toHaveBeenCalledWith({ queryKey: adminCloudsKeys.all });
     });
 
-    it.each(['https://api.example.com/dou-v1', '', 'https://relay.example.com'])(
-        'refuses before calling the relay when the endpoint is not Development (%s)',
+    it('sends a Production refund to the Production relay', async () => {
+        refundSubscriptionByAdmin.mockResolvedValue({ status: 'expired' });
+        const { result } = setup();
+        const prod = 'https://api.example.com/dou-v1';
+
+        await act(async () => {
+            await result.current.mutateAsync({ userId: '1000904', reason: 'r', endpoint: prod });
+        });
+
+        expect(refundSubscriptionByAdmin).toHaveBeenCalledWith('1000904', { reason: 'r' }, { endpoint: prod });
+    });
+
+    it.each(['', 'https://relay.example.com', 'https://api.example.com/v1'])(
+        'refuses before calling the relay when the endpoint names no stage (%s)',
         async endpoint => {
             const { result, invalidate } = setup();
 
@@ -67,7 +79,7 @@ describe('useRefundSubscriptionByAdmin', () => {
                 );
             });
 
-            expect((failure as Error | null)?.message).toMatch(/Development only/);
+            expect((failure as Error | null)?.message).toMatch(/naming its stage/);
             expect(refundSubscriptionByAdmin).not.toHaveBeenCalled();
             expect(invalidate).not.toHaveBeenCalled();
         }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { WebHostFacts } from '@chatic/runtime-web';
+import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { pageUploadPut } from '../upload';
 import { desktopFiles } from './files';

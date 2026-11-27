@@ -3,7 +3,7 @@ import type * as DiagnosticsKindModule from './diagnosticsKind';
 let mockPublished: 'shell' | 'browser' | null = null;
 const mockResolve = jest.fn<'shell' | 'browser', []>();
 
-jest.mock('@chatic/runtime-web', () => ({
+jest.mock('@chatic/runtime-hybrid-web', () => ({
     host: {
         get isPublished() {
             return mockPublished !== null;
