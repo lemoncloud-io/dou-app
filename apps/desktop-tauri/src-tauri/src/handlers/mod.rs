@@ -1,7 +1,9 @@
 mod notify;
+mod oauth;
 mod simple;
 mod storage;
 mod subview;
+mod unfurl;
 mod update;
 
 use std::future::ready;
@@ -27,11 +29,14 @@ pub const HANDLED: &[&str] = &[
     "StorageGet",
     "StorageSave",
     "StorageClear",
+    "OAuthLogin",
+    "FetchUrlMetadata",
 ];
 
 pub struct Context {
     pub app: AppHandle,
     pub vault: Arc<Vault>,
+    pub stage: String,
 }
 
 pub fn sync(f: impl Fn(Value) -> Value + Send + Sync + 'static) -> Handler {
@@ -44,7 +49,11 @@ pub fn register_all(host: &mut BridgeHost, context: &Context) {
     subview::register(host, context);
     update::register(host, context);
     storage::register(host, context);
+    oauth::register(host, context);
+    unfurl::register(host, context);
 }
+
+pub use oauth::listen as listen_for_sign_in;
 
 #[cfg(test)]
 mod tests {

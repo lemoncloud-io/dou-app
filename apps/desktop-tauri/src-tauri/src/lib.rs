@@ -13,6 +13,7 @@ pub fn run() {
                 let _ = window.set_focus();
             }
         }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -34,6 +35,7 @@ pub fn run() {
             let web = window::web_url();
             let installed = bridge::install(app, &web)?;
             agent::autostart(app, &installed.stage)?;
+            handlers::listen_for_sign_in(app.handle());
             window::open_main(app.handle(), &web, &installed.init_script)?;
             window::install_menu(app.handle())?;
             if std::env::var_os("DOU_OPEN_AGENT").is_some() {
