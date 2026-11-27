@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Measure Tauri vs Electron desktop shells: bundle size, cold start, idle memory, idle CPU.
-# Usage: bench-desktop.sh [--dry-run] [--runs N] [--idle SECS] [--settle SECS] [--only tauri|electron]
-#        [--tauri-app PATH] [--electron-app PATH] [--out DIR]
-# Each run uses a copy of the bundle, an empty HOME and an empty TMPDIR, so it never touches a running
-# app, a signed-in profile or the single-instance socket of the apps already open. Nothing is signed in.
 set -euo pipefail
 
 RUNS=5
