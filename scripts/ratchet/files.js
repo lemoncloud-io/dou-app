@@ -20,9 +20,9 @@ const listFiles = patterns =>
         .filter(file => fs.existsSync(path.join(ROOT, file)))
         .sort();
 
-const renamesSince = base => {
+const renamesSince = (base, head) => {
     const renames = new Map();
-    const out = git(['diff', '--name-status', '-M', base, '--']);
+    const out = git(['diff', '--name-status', '-M', base, ...(head ? [head] : []), '--']);
     for (const line of out.split('\n')) {
         const [status, from, to] = line.split('\t');
         if (status && status.startsWith('R') && from && to) renames.set(from, to);

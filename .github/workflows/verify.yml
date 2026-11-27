@@ -44,11 +44,17 @@ jobs:
     # lookup, a base that is not an ancestor of HEAD after a rewritten history — and both jobs then
     # check everything rather than guess.
     #
-    # `judge` is the commit the ratchet steps take their judge and baselines from: the compare base,
-    # except in a manual run, where it is the `judge` input. That must be a commit on develop's
-    # first-parent line (a merge or a direct push, never a commit inside a merged branch), no older
-    # than the compare base, and carry the ratchet. Lint, typecheck and test still cover everything
-    # since the compare base.
+    # `judge` is the commit the ratchet steps take their judge and baselines from. A pull request
+    # takes its base; a push takes the develop tip before the push (`github.event.before`), never a
+    # commit of the push itself — not the last green run, whose old scripts and long rename range
+    # misjudge every merge since. A manual run takes its `judge` input, which must be a
+    # commit on develop's first-parent line (a merge or a direct push, never a commit inside a merged
+    # branch), no older than the compare base, and carry the ratchet. Lint, typecheck and test still
+    # cover everything since the compare base.
+    #
+    # `walk_from` is where the step-by-step baseline check starts: the compare base, or in a manual
+    # run the `judge` input, so a maintainer can step past a raise that would otherwise keep every
+    # later run red.
     base:
         name: resolve the compare base
         runs-on: ubuntu-latest
@@ -58,6 +64,7 @@ jobs:
         outputs:
             sha: ${{ steps.base.outputs.sha }}
             judge: ${{ steps.base.outputs.judge }}
+            walk_from: ${{ steps.base.outputs.walk_from }}
         steps:
             - uses: actions/checkout@v4
               with:
@@ -69,6 +76,7 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
                   PR_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
                   JUDGE_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.judge || '' }}
+                  BEFORE: ${{ github.event_name == 'push' && github.event.before || '' }}
               run: |
                   if [ -n "$PR_BASE" ]; then
                       base=$(git rev-parse --verify --quiet "$PR_BASE^{commit}") || base=''
@@ -83,6 +91,12 @@ jobs:
                       fi
                   fi
                   judge=$base
+                  walk_from=$base
+                  if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "$BEFORE" ] &&
+                      git cat-file -e "$BEFORE^{commit}" 2>/dev/null &&
+                      git merge-base --is-ancestor "$BEFORE" HEAD && [ "$BEFORE" != "$(git rev-parse HEAD)" ]; then
+                      judge=$BEFORE
+                  fi
                   if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
                       if [ "$GITHUB_REF" != refs/heads/develop ]; then
                           echo "::error title=ratchet::a manual run judges develop only, not $GITHUB_REF"
@@ -103,9 +117,11 @@ jobs:
                           exit 1
                       fi
                       echo "::notice title=ratchet::compare base ${base:-none}; ratchet judge $judge, chosen by $GITHUB_ACTOR"
+                      walk_from=$judge
                   fi
                   echo "sha=$base" >> "$GITHUB_OUTPUT"
                   echo "judge=$judge" >> "$GITHUB_OUTPUT"
+                  echo "walk_from=$walk_from" >> "$GITHUB_OUTPUT"
 
     verify:
         needs: base
@@ -242,8 +258,8 @@ jobs:
             # module, the modes in scripts/ratchet/modes.json — is checked out from the compare base,
             # and the counts this tree may not exceed are the base's baselines (followed through
             # renames), so a change that loosens a check or raises a baseline is still judged by the
-            # old one. Until the base carries the ratchet, this tree judges itself. A manual run takes
-            # the judge from its `judge` input instead (the `base` job).
+            # old one. Until the base carries the ratchet, this tree judges itself. A push takes the
+            # judge from the develop tip before it and a manual run from its `judge` input (the `base` job).
             - name: Ratchet judge from the compare base
               id: judge
               if: ${{ !cancelled() }}
@@ -258,13 +274,42 @@ jobs:
                       echo "dir=$GITHUB_WORKSPACE" >> "$GITHUB_OUTPUT"
                   fi
 
+            # One first-parent step at a time, from `walk_from` to HEAD: each step's baselines against
+            # its parent, judged by the parent's ratchet scripts when the parent is in the judge's
+            # history, by the judge otherwise, so no step judges itself. Over one
+            # long range `git diff -M` can pair a moved file with the wrong half of a split and read
+            # an unchanged entry as raised. A parent without `--head` is judged by the run's judge, and
+            # a judge without `--head` compares once, with the judge commit.
             - name: Ratchet baselines only go down
               if: ${{ !cancelled() && steps.judge.outcome == 'success' && needs.base.outputs.judge != '' }}
               env:
                   BASE: ${{ needs.base.outputs.judge }}
+                  WALK_FROM: ${{ needs.base.outputs.walk_from }}
                   JUDGE: ${{ steps.judge.outputs.dir }}
                   RATCHET_ROOT: ${{ github.workspace }}
-              run: node "$JUDGE/scripts/ratchet.js" verify-baseline --base "$BASE"
+              run: |
+                  if ! grep -q "'--head'" "$JUDGE/scripts/ratchet.js"; then
+                      node "$JUDGE/scripts/ratchet.js" verify-baseline --base "$BASE"
+                      exit
+                  fi
+                  steps=$(git rev-list --first-parent --reverse "${WALK_FROM:-HEAD^1}..HEAD")
+                  failed=0
+                  for step in $steps; do
+                      judge=$JUDGE
+                      dir="$RUNNER_TEMP/ratchet-step"
+                      rm -rf "$dir" && mkdir -p "$dir"
+                      if git merge-base --is-ancestor "$step^1" "$BASE" &&
+                          git cat-file -e "$step^1:scripts/ratchet.js" 2>/dev/null &&
+                          git show "$step^1:scripts/ratchet.js" | grep "'--head'" >/dev/null; then
+                          if git archive "$step^1" scripts/ratchet.js scripts/ratchet tools/eslint-rules | tar -x -C "$dir"; then
+                              judge=$dir
+                          else
+                              echo "::notice title=ratchet::could not extract the judge of ${step:0:9}^1; the run's judge checks this step"
+                          fi
+                      fi
+                      node "$judge/scripts/ratchet.js" verify-baseline --base "$step^1" --head "$step" || failed=1
+                  done
+                  exit $failed
 
             - name: Ratchet · comments, escape hatches, useEffect
               if: ${{ !cancelled() && steps.judge.outcome == 'success' }}

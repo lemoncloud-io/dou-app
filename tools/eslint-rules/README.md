@@ -112,34 +112,32 @@ it judges the changes after it. `yarn gate` runs this tree's judge, so a change 
 merged automatically. The ESLint rule reads this tree's files, so it gives the early warning while editing;
 the CI step is the one that decides.
 
-A push to `develop` is compared with the commit of the last green `develop` run, so the judge there is
-that commit's. A fix to the judge itself starts judging `develop` once a `develop` run that carries it
-goes green. When that never happens — the fix's own push run was cancelled by the next merge, and every
-later push is judged by the old judge and stays red while each pull request passes — a maintainer runs
-`verify` by hand on `develop` with `judge` set to the fix's merge commit, or a later `develop` commit:
+A push to `develop` is judged by the `develop` tip before the push (`github.event.before`), never by a
+commit of the push itself, and "baselines only go down" is checked one first-parent step at a time, from
+the last green `develop` run to `HEAD`: each step against its parent (`verify-baseline --base <step>^1 --head
+<step>`), judged by the parent's ratchet scripts when the parent is in the judge's history. Lint, typecheck
+and test still compare with the last green run. Before this the judge was the last green run's commit, and
+while `develop` stayed red its old scripts and its long rename range failed every merge that its pull
+request had passed (ADR-0385). One case is left: a merge let in red whose own push run was cancelled has
+its counts judged by its own ratchet in the next push; only its baseline step is still judged by its parent.
+
+A maintainer can still run `verify` by hand on `develop` with a `judge` commit (ADR-0379):
 
 ```sh
 gh workflow run verify.yml --ref develop -f judge=<develop commit>
 ```
 
-The run takes the ratchet scripts, modes and baselines from that commit and still runs lint, typecheck
-and test against the last green run. `judge` must be a commit on `develop`'s first-parent line — a merge
+The run takes the ratchet scripts, modes and baselines from that commit, walks the baseline steps from
+`judge` on — stepping past a raise that would otherwise keep every later run red — and still runs lint,
+typecheck and test against the last green run. `judge` must be a commit on `develop`'s first-parent line — a merge
 or a direct push, never a commit inside a merged branch — no older than the compare base, and carry the
-ratchet; the run fails otherwise. The counts are then held to `judge`'s baselines, and the baselines are
-only compared from `judge` on: whatever happened to them between the last green run and `judge` was
-judged by each pull request against the `develop` tip of its day, not again here. Choosing the `develop`
-tip itself makes that comparison empty, so pick the oldest commit that carries the fix and that the rename
-pairing described below does not trip over (`node scripts/ratchet.js verify-baseline --base <judge>` on the
-tip says so). A manual run has a
-concurrency group of its own, so a merge during it does not cancel it, and a green manual run counts as a
-base like a green push run (ADR-0379). Pull requests are untouched: they are judged by the `develop` tip,
-so a change that loosens a check is still judged by the old judge.
+ratchet; the run fails otherwise. A manual run has a concurrency group of its own, so a merge during it does
+not cancel it, and a green manual run counts as a base like a green push run. Pull requests are untouched:
+they are judged by the `develop` tip, so a change that loosens a check is still judged by the old judge.
 
-The further the base falls behind, the less a baseline comparison over that range can be trusted on its
-own: `git diff -M` pairs each deleted file with one added file, so a file split into two in one pull
-request and moved in another can be paired with the wrong half, and its baseline entry then reads as
-raised although each pull request kept it. A manual run with a recent `judge` compares over a short range
-again.
+Baselines are compared step by step because `git diff -M` pairs each deleted file with one added file:
+over a long range, a file split into two in one pull request and moved in another can be paired with the
+wrong half, and its baseline entry then reads as raised although each pull request kept it.
 
 All baseline files are JSON objects whose leaves are non-negative integers, one file per line, keys sorted,
 zero entries dropped. They are in `.prettierignore` so that shape survives formatting.
