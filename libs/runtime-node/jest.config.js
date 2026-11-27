@@ -17,6 +17,7 @@ module.exports = {
         '^@chatic/storage-file$': '<rootDir>/../storage/file/src/index.ts',
         '^@chatic/db-memory$': '<rootDir>/../db/memory/src/index.ts',
         '^@chatic/host-node$': '<rootDir>/../host/node/src/index.ts',
+        '^@chatic/data-(model|api|local|repositories)$': '<rootDir>/../data/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
     },
     transform: {
