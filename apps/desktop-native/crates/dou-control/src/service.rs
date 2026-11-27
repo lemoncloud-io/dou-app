@@ -8,13 +8,14 @@ use serde_json::{Value, json};
 use tokio::sync::{Notify, broadcast};
 
 use crate::guard::{Action, Client, authorize};
-use crate::limiter::Limiter;
-use crate::settings::Settings;
+use crate::limiter::{Limiter, READ_LIMIT};
+use crate::settings::{Settings, Tier};
 
 pub struct Service<R> {
     engine: Engine<R>,
     settings_path: PathBuf,
     limiter: Mutex<Limiter>,
+    reads: Mutex<Limiter>,
     arrived: Notify,
 }
 
@@ -62,6 +63,7 @@ impl<R: Remote> Service<R> {
             engine,
             settings_path,
             limiter: Mutex::new(Limiter::default()),
+            reads: Mutex::new(Limiter::default()),
             arrived: Notify::new(),
         }
     }
@@ -79,6 +81,24 @@ impl<R: Remote> Service<R> {
         authorize(client, &settings, action, &mut limiter, Instant::now())
             .map_err(|denial| rpc(denial.code, denial.message))?;
         Ok(settings)
+    }
+
+    fn meter(&self, client: Client) -> Result<(), Value> {
+        if client == Client::Cli {
+            return Ok(());
+        }
+        let mut reads = self
+            .reads
+            .lock()
+            .map_err(|_| rpc("internal", "limiter poisoned"))?;
+        if reads.try_acquire(READ_LIMIT, Instant::now()) {
+            Ok(())
+        } else {
+            Err(rpc(
+                "rate_limited",
+                "Too many reads. Wait before asking again.",
+            ))
+        }
     }
 
     pub async fn pump(&self, mut events: broadcast::Receiver<(String, Value)>) {
@@ -146,15 +166,23 @@ impl<R: Remote> Service<R> {
                             "memberIds": room.member_ids,
                             "chatNo": room.chat_no,
                             "unread": room.unread,
-                            "allowed": settings.allows_room(&room.id),
+                            "readable": client == Client::Cli || settings.allows_room(&room.id),
+                            "writable": client == Client::Cli
+                                || (settings.allows_room(&room.id)
+                                    && matches!(settings.tier, Tier::Write | Tier::Full)),
                         })
                     })
                     .collect();
                 Ok(json!({ "list": list }))
             }
             "messages" => {
-                self.gate(client, &Action::Read)?;
                 let channel = text(&params, "channelId")?;
+                self.gate(
+                    client,
+                    &Action::ReadRoom {
+                        channel_id: channel,
+                    },
+                )?;
                 let limit =
                     usize::try_from(number(&params, "limit", 20).clamp(1, 100)).unwrap_or(20);
                 let before = params.get("before").and_then(Value::as_i64);
@@ -166,8 +194,13 @@ impl<R: Remote> Service<R> {
                 Ok(json!({ "list": page.iter().map(message_json).collect::<Vec<_>>() }))
             }
             "thread" => {
-                self.gate(client, &Action::Read)?;
                 let channel = text(&params, "channelId")?;
+                self.gate(
+                    client,
+                    &Action::ReadRoom {
+                        channel_id: channel,
+                    },
+                )?;
                 let parent = text(&params, "parentId")?;
                 let page = self
                     .engine

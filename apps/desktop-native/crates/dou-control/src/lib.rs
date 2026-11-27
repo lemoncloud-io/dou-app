@@ -6,6 +6,6 @@ mod settings;
 
 pub use guard::{Action, Client, Denial, authorize};
 pub use ipc::{Handler, call, control_name, serve};
-pub use limiter::Limiter;
+pub use limiter::{Limiter, READ_LIMIT};
 pub use service::{Service, arc};
 pub use settings::{RateLimit, Settings, Tier};

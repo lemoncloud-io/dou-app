@@ -3,6 +3,11 @@ use std::time::{Duration, Instant};
 
 use crate::settings::RateLimit;
 
+pub const READ_LIMIT: RateLimit = RateLimit {
+    per_minute: 30,
+    per_hour: 300,
+};
+
 #[derive(Debug, Default)]
 pub struct Limiter {
     minute: VecDeque<Instant>,
@@ -62,6 +67,24 @@ mod tests {
         }
         assert!(!limiter.try_acquire(LIMIT, start + Duration::from_secs(400)));
         assert!(limiter.try_acquire(LIMIT, start + Duration::from_secs(3601)));
+    }
+
+    #[test]
+    fn the_read_budget_is_thirty_a_minute_and_three_hundred_an_hour() {
+        let mut limiter = Limiter::default();
+        let start = Instant::now();
+        for _ in 0..30 {
+            assert!(limiter.try_acquire(READ_LIMIT, start));
+        }
+        assert!(!limiter.try_acquire(READ_LIMIT, start));
+        assert!(limiter.try_acquire(READ_LIMIT, start + Duration::from_secs(61)));
+        let mut hourly = Limiter::default();
+        for minute in 0..10u64 {
+            for _ in 0..30 {
+                assert!(hourly.try_acquire(READ_LIMIT, start + Duration::from_secs(minute * 61)));
+            }
+        }
+        assert!(!hourly.try_acquire(READ_LIMIT, start + Duration::from_secs(10 * 61)));
     }
 
     #[test]

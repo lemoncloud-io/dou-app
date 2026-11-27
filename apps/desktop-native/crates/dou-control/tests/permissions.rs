@@ -124,6 +124,62 @@ async fn write_tier_refuses_a_room_off_the_allow_list_and_sends_nothing() {
 }
 
 #[tokio::test]
+async fn reading_a_room_off_the_allow_list_is_denied_and_the_relay_is_not_asked() {
+    let (service, recorder, _) = setup(Some(allowed(Tier::Read)));
+    for method in ["messages", "thread"] {
+        let denied = service
+            .handle(
+                Client::Mcp,
+                method,
+                json!({ "channelId": "elsewhere", "parentId": "elsewhere:1" }),
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(denied["code"], "room_not_allowed", "{method}");
+    }
+    assert!(recorder.calls.lock().unwrap().is_empty());
+    assert!(
+        service
+            .handle(Client::Mcp, "messages", json!({ "channelId": "r1" }))
+            .await
+            .is_ok()
+    );
+    assert!(
+        service
+            .handle(Client::Cli, "messages", json!({ "channelId": "elsewhere" }))
+            .await
+            .is_ok()
+    );
+}
+
+#[tokio::test]
+async fn rooms_lists_every_room_with_readable_and_writable_flags() {
+    let (service, _, _) = setup(Some(Settings {
+        allow_rooms: vec![],
+        ..allowed(Tier::Write)
+    }));
+    let none = service
+        .handle(Client::Mcp, "rooms", Value::Null)
+        .await
+        .unwrap();
+    assert_eq!(none["list"][0]["readable"], false);
+    assert_eq!(none["list"][0]["writable"], false);
+    let (service, _, _) = setup(Some(allowed(Tier::Read)));
+    let read = service
+        .handle(Client::Mcp, "rooms", Value::Null)
+        .await
+        .unwrap();
+    assert_eq!(read["list"][0]["readable"], true);
+    assert_eq!(read["list"][0]["writable"], false);
+    let (service, _, _) = setup(Some(allowed(Tier::Write)));
+    let write = service
+        .handle(Client::Mcp, "rooms", Value::Null)
+        .await
+        .unwrap();
+    assert_eq!(write["list"][0]["writable"], true);
+}
+
+#[tokio::test]
 async fn a_reaction_or_reply_aimed_at_another_room_is_refused_and_sends_nothing() {
     let (service, recorder, _) = setup(Some(allowed(Tier::Write)));
     let react = service

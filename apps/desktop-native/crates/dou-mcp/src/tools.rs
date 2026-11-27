@@ -23,7 +23,7 @@ pub const TOOLS: &[Tool] = &[
     Tool {
         name: "rooms_list",
         method: "rooms",
-        description: "List rooms with unread counts. 'allowed' says whether writes are allowed there.",
+        description: "List rooms with unread counts. 'readable' and 'writable' say whether messages can be read and sent there; only rooms the owner selected are readable.",
         schema: || object(json!({}), &[]),
     },
     Tool {

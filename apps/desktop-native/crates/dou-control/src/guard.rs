@@ -12,6 +12,7 @@ pub enum Client {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action<'a> {
     Read,
+    ReadRoom { channel_id: &'a str },
     Write { channel_id: &'a str },
 }
 
@@ -44,6 +45,16 @@ pub fn authorize(
             "MCP access is off. The owner turns it on from the app, never through MCP.",
         ),
         (_, Action::Read) => Ok(()),
+        (_, Action::ReadRoom { channel_id }) => {
+            if settings.allows_room(channel_id) {
+                Ok(())
+            } else {
+                deny(
+                    "room_not_allowed",
+                    format!("Room {channel_id} is not on the allow-list, so it was not read."),
+                )
+            }
+        }
         (Tier::Read, Action::Write { .. }) => deny(
             "tier_read_only",
             "The permission tier is read only, so writes are refused.",
@@ -186,6 +197,54 @@ mod tests {
             )
             .is_err()
         );
+        assert!(
+            authorize(
+                Client::Mcp,
+                &s,
+                &Action::Write { channel_id: "r" },
+                &mut l,
+                now
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn reading_a_room_needs_a_tier_above_off_and_the_room_on_the_allow_list() {
+        let mut l = Limiter::default();
+        let room = Action::ReadRoom { channel_id: "r" };
+        let other = Action::ReadRoom { channel_id: "x" };
+        assert_eq!(
+            check(Client::Mcp, &settings(Tier::Off, &["r"]), &room, &mut l),
+            Err("tier_off")
+        );
+        for tier in [Tier::Read, Tier::Write, Tier::Full] {
+            let s = settings(tier, &["r"]);
+            assert_eq!(check(Client::Mcp, &s, &room, &mut l), Ok(()));
+            assert_eq!(
+                check(Client::Mcp, &s, &other, &mut l),
+                Err("room_not_allowed")
+            );
+        }
+    }
+
+    #[test]
+    fn a_room_read_never_spends_the_write_budget() {
+        let s = settings(Tier::Write, &["r"]);
+        let mut l = Limiter::default();
+        let now = Instant::now();
+        for _ in 0..5 {
+            assert!(
+                authorize(
+                    Client::Mcp,
+                    &s,
+                    &Action::ReadRoom { channel_id: "r" },
+                    &mut l,
+                    now
+                )
+                .is_ok()
+            );
+        }
         assert!(
             authorize(
                 Client::Mcp,
