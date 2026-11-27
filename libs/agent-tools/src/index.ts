@@ -14,6 +14,8 @@ export { AgentToolError, toolErrorBody } from './errors';
 export type { AgentEvent, EventKind } from './events';
 export { authorize } from './gate';
 export type { Action, Denial } from './gate';
+export { runtimeBackend } from './runtimeBackend';
+export type { RuntimeSurface } from './runtimeBackend';
 export { createLimiter } from './limiter';
 export type { Limiter } from './limiter';
 export { createAgentTools } from './registry';

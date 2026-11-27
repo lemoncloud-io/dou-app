@@ -1,13 +1,13 @@
 import { createAgentTools } from './registry';
 import type { Settings } from './settings';
-import { fakeBackend, fakeMessage } from './testing';
+import { fakeBackend, fakeMessage, findTool } from './testing';
 
 const config: Settings = { tier: 'read', allowRooms: ['r1'], rateLimit: { perMinute: 10, perHour: 100 } };
 
 const setup = (settings: Settings = config) => {
     const backend = fakeBackend();
     const { tools, dispose } = createAgentTools({ backend, getSettings: () => settings });
-    const call = (name: string, params: unknown = {}) => tools.find(tool => tool.name === name)!.handler(params);
+    const call = (name: string, params: unknown = {}) => findTool(tools, name).handler(params);
     return { backend, call, dispose };
 };
 

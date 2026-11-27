@@ -1,6 +1,6 @@
 import { createAgentTools } from './registry';
 import type { Settings } from './settings';
-import { fakeBackend } from './testing';
+import { fakeBackend, findTool } from './testing';
 
 const settings = (overrides: Partial<Settings> = {}): Settings => ({
     tier: 'write',
@@ -13,7 +13,7 @@ const setup = (config: Settings = settings()) => {
     const backend = fakeBackend();
     let clock = 0;
     const { tools } = createAgentTools({ backend, getSettings: () => config, now: () => clock });
-    const call = (name: string, params: unknown) => tools.find(tool => tool.name === name)!.handler(params);
+    const call = (name: string, params: unknown) => findTool(tools, name).handler(params);
     return { backend, call, advance: (ms: number) => (clock += ms) };
 };
 

@@ -58,8 +58,9 @@ describe('the gate', () => {
 
     it('a room read never spends the write budget', () => {
         const limiter = createLimiter();
-        for (let i = 0; i < 5; i += 1)
+        for (let i = 0; i < 5; i += 1) {
             expect(codeOf(settings('write'), { kind: 'readRoom', channelId: 'r' }, limiter)).toBeNull();
+        }
         expect(codeOf(settings('write'), write('r'), limiter)).toBeNull();
     });
 });
