@@ -7,16 +7,13 @@ SRC = Path(os.environ.get('EVAL_SRC_REPO', Path(__file__).resolve().parents[2]))
 if not os.environ.get('EVAL_ROOT'):
     sys.exit('Set EVAL_ROOT to a directory outside the repository.')
 ROOT = Path(os.environ['EVAL_ROOT']).resolve()
+if ROOT == SRC or SRC in ROOT.parents:
+    sys.exit(f'EVAL_ROOT must be outside {SRC}.')
 HISTORY_DEPTH = 50
 HARNESS_REF = os.environ.get('EVAL_HARNESS_REF', 'origin/develop')
 HARNESS_PATHS = ['REVIEW.md', 'AGENTS.md', 'CLAUDE.md', '.claude/agents', '.claude/skills', 'docs/config/skills']
 DROP_PATHS = ['.claude/settings.json']
 MANIFEST = json.loads((Path(__file__).resolve().parent / 'cases.json').read_text())
-MODULES = Path(subprocess.run(['git', 'rev-parse', '--path-format=absolute', '--git-common-dir'], cwd=SRC,
-                              capture_output=True, text=True).stdout.strip()).parent.joinpath('node_modules').resolve()
-for repo_root in (SRC, MODULES.parent):
-    if ROOT == repo_root or repo_root in ROOT.parents:
-        sys.exit(f'EVAL_ROOT must be outside {repo_root}.')
 CASES = {c['id']: dict(c, kind='defect', group='design') for c in MANIFEST['defects']}
 CASES.update({c['id']: dict(c, kind='defect', group='holdout') for c in MANIFEST.get('holdout', [])})
 CASES.update({c['id']: dict(c, kind='control') for c in MANIFEST['controls']})
@@ -38,7 +35,7 @@ def branch_of(sha):
             return hit.group(1) if hit else 'change/' + sha[:9]
     return 'change/' + sha[:9]
 
-def build(cid, tag, review_file, node_modules=False):
+def build(cid, tag, review_file):
     c = CASES[cid]
     d = ROOT / 'cases' / tag / cid
     if d.exists():
@@ -96,14 +93,9 @@ def build(cid, tag, review_file, node_modules=False):
     g('branch', '-D', 'review', check=False)
     g('update-ref', '-d', 'FETCH_HEAD', check=False)
     (d / 'idx').unlink(missing_ok=True)
-    if node_modules:
-        if not MODULES.is_dir():
-            raise RuntimeError(f'--node-modules: {MODULES} does not exist')
-        (repo / 'node_modules').symlink_to(MODULES)
     checklist = g('show', f'{hcommit}:REVIEW.md', check=False)
     (d / 'meta.json').write_text(json.dumps({'id': cid, 'commit': head, 'base': base, 'harness': hcommit,
-                                             'review': pcommit, 'msg': msg, 'checklist': checklist,
-                                             'node_modules': node_modules}, indent=1))
+                                             'review': pcommit, 'msg': msg, 'checklist': checklist}, indent=1))
     return cid
 
 STAGES = """Structure your answer in exactly these three sections, with these headings:
@@ -113,7 +105,7 @@ Every problem you suspect after reading the diff, the touched modules' docs and 
 check any of them further. One line each with file:line.
 
 ## 2. Verification
-For each first-pass item: what you checked (code read, grep, git history, test, probe) and the verdict — confirmed, refuted
+For each first-pass item: what you checked (code read, grep, git history, test) and the verdict — confirmed, refuted
 or unverified. Add any problem you found only while verifying, marked "new".
 
 ## 3. Findings
@@ -121,11 +113,10 @@ Your final list, ordered by severity (blocker, major, minor, nit). Each: file:li
 causes, the fix. Say plainly when you found nothing."""
 
 def review_prompt(meta):
-    env = ("node_modules is linked into this checkout, so tests and probes can run." if meta.get('node_modules') else
-           "node_modules is not installed in this checkout, so read code rather than running tests or typecheck.")
     return (f"Review the change on this branch against origin/develop (`git diff origin/develop...HEAD`; nothing is "
             f"staged or untracked). There is no separate plan; the author's description of the change is its commit "
-            f"message:\n\n<<<\n{meta['msg'].strip()}\n>>>\n\n{env}\n\n{STAGES}")
+            f"message:\n\n<<<\n{meta['msg'].strip()}\n>>>\n\nnode_modules is not installed in this checkout, so read "
+            f"code rather than running tests or typecheck.\n\n{STAGES}")
 
 def review(cid, tag):
     d = ROOT / 'cases' / tag / cid
@@ -139,8 +130,7 @@ def review(cid, tag):
            '--setting-sources', 'project', '--allowedTools', 'Read', 'Grep', 'Glob', 'Bash',
            '--output-format', 'stream-json', '--verbose', review_prompt(meta)]
     with open(out / 'stream.jsonl', 'w') as f:
-        r = subprocess.run(cmd, cwd=d / 'repo', stdout=f, stderr=subprocess.PIPE, text=True, timeout=3600,
-                           env=dict(os.environ, DOU_PROBE_ROOT=str(d / 'probes')))
+        r = subprocess.run(cmd, cwd=d / 'repo', stdout=f, stderr=subprocess.PIPE, text=True, timeout=3600)
     text, usage = None, {}
     for line in (out / 'stream.jsonl').read_text().splitlines():
         try:
@@ -236,11 +226,8 @@ def escaped(cid, tag):
             continue
         for block in event.get('message', {}).get('content', []) if event.get('type') == 'assistant' else []:
             text = json.dumps(block.get('input', {})) if block.get('type') == 'tool_use' else ''
-            for path in map(os.path.realpath, re.findall(r'/[\w./-]+', text)):
-                if path == str(MODULES) or path.startswith(str(MODULES) + os.sep):
-                    continue
-                inside = lambda root: path == str(root) or path.startswith(str(root) + os.sep)
-                if (inside(ROOT / 'cases') and not inside(own)) or inside(SRC) or inside(MODULES.parent):
+            for path in re.findall(r'/[\w./-]+', text):
+                if (path.startswith(str(ROOT / 'cases')) and not path.startswith(own)) or path.startswith(str(SRC)):
                     return True
     return False
 
@@ -280,13 +267,12 @@ def main():
     ap.add_argument('ids', nargs='*')
     ap.add_argument('--tag', default='before')
     ap.add_argument('--review')
-    ap.add_argument('--node-modules', action='store_true')
     ap.add_argument('-j', type=int, default=4)
     a = ap.parse_args()
     ids = a.ids or list(CASES)
     if a.cmd == 'score':
         return score(a.tag)
-    fn = {'build': lambda i: build(i, a.tag, a.review, a.node_modules), 'review': lambda i: review(i, a.tag),
+    fn = {'build': lambda i: build(i, a.tag, a.review), 'review': lambda i: review(i, a.tag),
           'judge': lambda i: judge(i, a.tag)}[a.cmd]
     with ThreadPoolExecutor(a.j if a.cmd != 'build' else 1) as ex:
         def safe(i):

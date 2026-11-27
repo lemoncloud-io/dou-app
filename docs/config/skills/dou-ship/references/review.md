@@ -36,31 +36,6 @@ Diff-triggered questions: `node docs/config/skills/dou-ship/references/review-it
 items the diff fires, read from `origin/develop` so a PR cannot edit its own checklist. Each fired item is answered
 with evidence or marked not applicable with the reason.
 
-## Probes
-
-The reviewer settles a behaviour suspicion by running it in a throwaway worktree. `probe-tree.mjs` snapshots the
-reviewed tree (committed, staged, unstaged and untracked changes) into a commit outside every branch, checks it out
-under the temp directory and links `node_modules` in. Files in the person's tree are never written; git records the
-worktree until `--remove`, and a failed run removes it itself and prints nothing. Shell variables do not survive
-between tool calls: run the block as one call, or paste the printed path into each later one.
-
-```bash
-tree=$(node docs/config/skills/dou-ship/references/probe-tree.mjs) && [ -d "$tree" ] || exit 1
-cat > "${tree:?}/libs/data/src/repositories/startDm.probe.test.ts" <<'EOF'
-...
-EOF
-(cd "${tree:?}" && node_modules/.bin/jest -c libs/data/jest.config.js --no-watchman startDm.probe)
-node docs/config/skills/dou-ship/references/probe-tree.mjs --remove "${tree:?}"
-```
-
-- One probe per suspicion, at most three per review, each the smallest test that fails if the suspicion is right.
-  Name it `*.probe.test.ts` beside the code so the project's jest config picks it up.
-- Feed the input a real producer can send; a probe that mocks away the path it questions proves nothing.
-- Also run the existing tests of the touched files once in the tree. They passed CI, so a failure there points
-  at the environment first.
-- The script refuses when more than 2,000 untracked files (or 50 MB) are not ignored; ignore or move them.
-- Remove the tree when done, including after a failed test.
-
 Rounds: one reviewer. Each new round gets the previous round's findings, what was applied, and any gate or test
 failures since, so it checks the fixes instead of starting over.
 
