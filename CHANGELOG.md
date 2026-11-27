@@ -2,6 +2,12 @@
 
 ## [2026-11-27] - No version updates
 
+### Features
+
+- (runtime-node) boot the headless runtime in node on new adapter libs
+
+## [2026-11-27] - No version updates
+
 ### Refactor
 
 - (push-desktop,desktop) move the electron fcm client into libs/push/desktop
