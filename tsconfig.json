@@ -136,6 +136,9 @@
             "path": "./libs/runtime-node"
         },
         {
+            "path": "./libs/agent-tools"
+        },
+        {
             "path": "./libs/host/node"
         },
         {

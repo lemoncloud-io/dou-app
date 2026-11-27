@@ -72,6 +72,8 @@
             "@chatic/runtime-core/*": ["libs/runtime/src/engine/*"],
             "@chatic/runtime-mobile": ["libs/runtime-mobile/src/index.ts"],
             "@chatic/runtime-mobile/polyfills": ["libs/runtime-mobile/src/polyfills.ts"],
+            "@chatic/agent-tools": ["libs/agent-tools/src/index.ts"],
+            "@chatic/agent-tools/testing": ["libs/agent-tools/src/testing/index.ts"],
             "@chatic/runtime-node": ["libs/runtime-node/src/index.ts"],
             "@chatic/runtime-react": ["libs/runtime/react/src/index.ts"],
             "@chatic/runtime-react/testing": ["libs/runtime/react/src/testing/index.ts"],

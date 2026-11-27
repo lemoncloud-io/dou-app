@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/agent-tools",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/agent-tools/src",
+    "projectType": "library",
+    "tags": ["layer:feature", "platform:any", "formfactor:any"],
+    "targets": {}
+}
