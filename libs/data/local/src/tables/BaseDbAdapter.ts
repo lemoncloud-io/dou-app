@@ -1,9 +1,12 @@
-import { logger } from '@chatic/bridges';
 import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/bridge-messages';
-import type { AdapterScope, CacheStorage, DataContextProvider } from '@chatic/data';
-import { resolveScopedContext } from '@chatic/data';
+import type { DataContextProvider } from '@chatic/data-model';
+import { logger } from '@chatic/logger';
 
-export abstract class BaseDbAdapter<TType extends CacheType> implements CacheStorage<TType> {
+import type { DbTable } from '../ports/cacheStorage';
+import { resolveScopedContext } from '../ports/policy';
+import type { AdapterScope } from '../ports/policy';
+
+export abstract class BaseDbAdapter<TType extends CacheType> implements DbTable<TType> {
     constructor(
         protected readonly type: TType,
         protected readonly contextProvider: DataContextProvider

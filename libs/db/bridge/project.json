@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/db-bridge",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/db/bridge/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:any", "formfactor:any"],
+    "targets": {}
+}

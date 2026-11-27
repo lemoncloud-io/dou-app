@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import type { IIndexedDB } from '@chatic/data';
+import type { IndexedDbConnection } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import { ChatQueryExecutor } from './ChatQueryExecutor';
 import { IndexedDBDatabase } from './IndexedDBDatabase';
@@ -35,7 +35,7 @@ const committedChats = (count: number, channelId = 'channel-main', idPrefix = 'c
 
 const idsOf = (items: Array<{ id: string }>) => items.map(item => item.id).sort();
 
-const createStubDb = (overrides: Partial<Record<keyof IIndexedDB, jest.Mock>> = {}): IIndexedDB =>
+const createStubDb = (overrides: Partial<Record<keyof IndexedDbConnection, jest.Mock>> = {}): IndexedDbConnection =>
     ({
         save: jest.fn().mockResolvedValue(undefined),
         saveAll: jest.fn().mockResolvedValue(undefined),
@@ -48,7 +48,7 @@ const createStubDb = (overrides: Partial<Record<keyof IIndexedDB, jest.Mock>> = 
         clearByRange: jest.fn().mockResolvedValue(0),
         findNewestKeyBeyond: jest.fn().mockResolvedValue(null),
         ...overrides,
-    }) as unknown as IIndexedDB;
+    }) as unknown as IndexedDbConnection;
 
 describe('IndexedDBAdapter', () => {
     let db: IndexedDBDatabase;

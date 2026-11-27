@@ -1,6 +1,6 @@
 import type { CacheType } from '@chatic/bridge-messages';
+import { KeyValueTable } from '@chatic/data';
 import type { CacheStorage, DataContextProvider } from '@chatic/data';
-import { WebStorageAdapter } from '@chatic/db';
 import { getRecordedCloudIds, identityStore } from '@chatic/session';
 import { asDomStorage } from '@chatic/storage';
 import type { KeyValueStore } from '@chatic/storage';
@@ -22,13 +22,12 @@ export const webStorageCache = ({
     getRecordedCloudIds: recordedCloudIds = getRecordedCloudIds,
 }: WebStorageCacheOptions): WebCacheStore => ({
     storage: <TType extends CacheType>(type: TType, contextProvider: DataContextProvider): CacheStorage<TType> => {
-        const tab = asDomStorage(tabStore);
-        const store = new WebStorageAdapter(tab, type, contextProvider);
+        const store = new KeyValueTable(tabStore, type, contextProvider);
         if (type !== 'invitecloud') return store;
         return new InvitedCloudImportStorage(
             store as unknown as CacheStorage<'invitecloud'>,
             () => importFrom.storage('invitecloud', contextProvider),
-            { marker: tab, getDelegatorId, getRecordedCloudIds: recordedCloudIds }
+            { marker: asDomStorage(tabStore), getDelegatorId, getRecordedCloudIds: recordedCloudIds }
         ) as unknown as CacheStorage<TType>;
     },
 });

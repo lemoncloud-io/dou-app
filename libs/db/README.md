@@ -167,30 +167,52 @@ sequenceDiagram
     N-->>DS: items (order and length NOT matching ids)
 ```
 
-### Directories
+### Directories — the `db/*` family
+
+`src/` is now the old entry: `src/index.ts` re-exports, under the names it always had, what the family
+packages beside it hold ([ADR-0375](../../docs/adr/0375-platform-implementations-live-in-libs-as-families-of-one-port.md)).
+Importers do not change; a new implementation imports the family package it needs.
 
 ```text
-libs/db/src/
-├── index.ts          public barrel — 16 values, 4 types
-├── base/             BaseDbAdapter: scope resolution + the defaults every adapter inherits
-├── indexeddb/        the web store — IndexedDBDatabase, IndexedDBAdapter, ChatQueryExecutor
-├── native/           the bridge store — NativeDBAdapter, CacheBridgeClient, nativeCacheMetrics
-├── webstorage/       the tab store — WebStorageAdapter, one JSON value per partition
-└── search/           IGlobalCacheSearchSource × 2, plus the contract test that pins them together
+libs/db/
+├── src/          @chatic/db — the old entry: re-exports, WebStorageAdapter over a DOM Storage,
+│                 and the contract test that pins the two search sources together
+├── indexeddb/    @chatic/db-indexeddb — IndexedDBDatabase, IndexedDBAdapter, ChatQueryExecutor,
+│                 IndexedDbGlobalSearchSource
+├── bridge/       @chatic/db-bridge — NativeDBAdapter, CacheBridgeClient, nativeCacheMetrics,
+│                 NativeGlobalSearchSource
+└── memory/       @chatic/db-memory — the volatile db port, for Node and tests
 ```
 
-Eleven production files, nine spec files. Several names are not where the filename suggests:
+| Package                                         | Layer   | Platform |
+| ----------------------------------------------- | ------- | -------- |
+| [`@chatic/db-indexeddb`](./indexeddb/README.md) | adapter | any      |
+| [`@chatic/db-bridge`](./bridge/README.md)       | adapter | any      |
+| [`@chatic/db-memory`](./memory/README.md)       | adapter | any      |
+
+`indexeddb` stays `platform:any` for now, as `@chatic/db` always was: the phone runtime and app import
+`@chatic/db`, and a `platform:mobile` project may not reach a `web` one. It narrows to `web` once they
+import `@chatic/db-bridge` directly.
+
+**Two pieces left this package for `@chatic/data` (`data/local`, `tables/`).** `BaseDbAdapter` — scope
+resolution and the defaults every table inherits — is domain policy over the `DbTable` contract, and
+`KeyValueTable` is the former `WebStorageAdapter`'s body, now written over a `KeyValueStore` from
+`@chatic/storage` instead of a DOM `Storage`: a small cache domain kept in the storage port's `tab` store,
+one JSON value per partition, under the same key (`chatic-cache:<type>:<cid>:<uid>`). `WebStorageAdapter`
+stays here as a thin class that wraps a DOM `Storage` in a store and hands it to `KeyValueTable`.
+
+The five interfaces these engines implement now carry db names in `@chatic/data`, with the old names kept
+as aliases: `DbTable` (`CacheStorage`), `IndexedDbConnection` (`IIndexedDB`), `DbQueryExecutor`
+(`IndexedDbQueryExecutor`), `DbSearchSource` (`IGlobalCacheSearchSource`) and `DbMetricsSource`
+(`ICacheMetricsSource`); the runtime's port is `DbPort` (`LocalCachePorts`, `@chatic/ports`' `CachePort`).
+
+Several names are not where the filename suggests:
 
 - `isQuotaExceededError` sits in `IndexedDBAdapter.ts`, its only consumer — a `DOMException` predicate
   kept out of `@chatic/data` so that lib does not take a DOM dependency.
 - `TYPE_CID_UID_INDEX`, `CHAT_PAGINATION_INDEX` and `UNSENT_CHAT_NO` are in `IndexedDBDatabase.ts`.
-- `NativeCacheMetricsSource`, the `ICacheMetricsSource` implementation, is in `nativeCacheMetrics.ts`.
-- **There is no `types.ts`.** Every type this lib implements against comes from `@chatic/data`.
-
-The barrel is wider than its use: of its 20 exports, the web cache ports import 8 — `ChatQueryExecutor`,
-`IndexedDBAdapter`, `IndexedDBDatabase`, `IndexedDbGlobalSearchSource`, `NativeCacheMetricsSource`,
-`NativeDBAdapter`, `NativeGlobalSearchSource`, `WebStorageAdapter`; the native ones import three of
-those and the `CacheBridgeClient` type. The other 11 have no consumer outside this lib.
+- `NativeCacheMetricsSource`, the `DbMetricsSource` implementation, is in `nativeCacheMetrics.ts`.
+- **There is no `types.ts`.** Every type this family implements against comes from `@chatic/data`.
 
 ## The web store
 
@@ -474,7 +496,7 @@ written. If one message appears twice in a batch, the last copy wins, for its en
 
 ```bash
 npx tsc -b libs/db/tsconfig.json --force      # the lib and the tests, via project references
-npx jest --config libs/db/jest.config.js      # every spec in the lib
+npx nx run-many -t test --projects='@chatic/db*'   # the old entry and every family package
 ```
 
 - Type checking must be `tsc -b`. Inside `libs/db`, `tsc --noEmit` checks zero files and succeeds, so

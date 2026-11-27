@@ -42,7 +42,7 @@ export interface CursorQueryOptions<TType extends CacheType> {
     filter: (item: IndexedDbRow<TType>) => boolean;
 }
 
-export interface IIndexedDB {
+export interface IndexedDbConnection {
     save<TType extends CacheType>(item: IndexedDbRow<TType>): Promise<void>;
 
     saveAll<TType extends CacheType>(items: IndexedDbRow<TType>[]): Promise<void>;
@@ -77,10 +77,14 @@ export interface IIndexedDB {
     applyChatMediaFill(fills: IndexedDbChatMediaFill[], version: number): Promise<number>;
 }
 
-export interface IndexedDbQueryExecutor<TType extends CacheType> {
+export interface DbQueryExecutor<TType extends CacheType> {
     execute(
         db: IIndexedDB,
         scope: { type: TType; cid: string; uid: string },
         options?: CacheQueryOf<TType>
     ): Promise<IndexedDbRow<TType>[]>;
 }
+
+export type IIndexedDB = IndexedDbConnection;
+
+export type IndexedDbQueryExecutor<TType extends CacheType> = DbQueryExecutor<TType>;

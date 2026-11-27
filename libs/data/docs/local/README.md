@@ -14,12 +14,17 @@ the result of a sync and sends it out on a stream".
 local/
   data-sources/  9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
   ports/            ports that receive external implementations — cacheStorage · indexeddb · metrics · policy · search
+  tables/           BaseDbAdapter (scope + defaults every table inherits) · KeyValueTable (a table over a KeyValueStore)
   stableHash.ts     scope key hash
 ```
 
-**The storage engine is not in this lib.** The `CacheStorage` implementations (`IndexedDBAdapter`,
-`NativeDBAdapter`, `BaseDbAdapter`) and the compound queries (`ChatQueryExecutor`, `IndexedDBDatabase`)
-all live in `@chatic/db`. `ports/` declares only the interfaces those implementations satisfy.
+**The storage engines are not in this lib.** The `DbTable` (formerly `CacheStorage`) engines
+(`IndexedDBAdapter` in `@chatic/db-indexeddb`, `NativeDBAdapter` in `@chatic/db-bridge`) and the compound
+queries (`ChatQueryExecutor`, `IndexedDBDatabase`) live in the `db/*` family. `ports/` declares the
+interfaces they satisfy, under db names with the old ones kept as aliases (`DbTable`, `IndexedDbConnection`,
+`DbQueryExecutor`, `DbSearchSource`, `DbMetricsSource`, and the runtime's `DbPort`). `tables/` holds what
+is domain policy rather than a medium: `BaseDbAdapter`, and `KeyValueTable`, which keeps a small domain in
+a `KeyValueStore` from `@chatic/storage` — the storage port's `tab` store, in a page.
 
 **And on native, `@chatic/db` is not the end of the line either.** `NativeDBAdapter` holds no rows —
 it turns every call into a bridge message. The SQLite that actually stores them belongs to the app
@@ -29,14 +34,14 @@ shell, which is a separate deploy. A cache read therefore crosses three packages
 libs/data     LocalDataSource → the CacheStorage port
 libs/db       IndexedDBAdapter   web    · rows live here, in the browser's IndexedDB
               NativeDBAdapter    native · a bridge client holding no rows
-              WebStorageAdapter  session · rows live here, in the tab's sessionStorage (invitecloud in a plain tab only)
+libs/data     KeyValueTable      session · rows live here, in the tab store (invitecloud in a plain tab only)
                                             ↓ SaveCacheData · FetchCacheData · …
 apps/mobile   CacheCrudService → SqliteDatabase   native · rows live here
               database/sqlite/schema.ts · tables.ts · services/cache/cacheDomainVersions.ts
 ```
 
 Which of them a domain gets is decided by none of them — `resolveCacheBackendFor` in
-`@chatic/runtime-hybrid-web` owns that, as the page's answer to `LocalCachePorts.route()`.
+`@chatic/runtime-hybrid-web` owns that, as the page's answer to `DbPort.route()`.
 
 **Choosing which adapter a domain gets is not this lib's job either.** `resolveCacheBackendFor` in
 `@chatic/runtime-hybrid-web` decides environment, type pins and native capability in one place — see
@@ -173,8 +178,8 @@ Three domain→slot mappings need care (the slot is reused because the entity is
 | `syncMeta` | `meta`        |
 
 The policy that decides the storage scope (`cid`/`uid`) per type is **owned by this lib** —
-`resolveScopedContext` in `ports/policy.ts`. `BaseDbAdapter` in `@chatic/db` imports it from
-`@chatic/data` and uses it. That is, the engine knows only how to store; it does not know the scope
+`resolveScopedContext` in `ports/policy.ts`. `BaseDbAdapter` (`tables/`) uses it, and every engine
+in the `db/*` family extends `BaseDbAdapter`. That is, the engine knows only how to store; it does not know the scope
 rules.
 
 ## Chat cursors and local

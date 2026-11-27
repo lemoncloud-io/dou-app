@@ -1,11 +1,11 @@
 import type { CacheType } from '@chatic/bridge-messages';
-import type { CacheStorage, DataContextProvider, LocalCachePorts } from '@chatic/data';
+import type { CacheStorage, DataContextProvider, DbPort } from '@chatic/data';
 import { NativeCacheMetricsSource, NativeDBAdapter, NativeGlobalSearchSource } from '@chatic/db';
 import type { CacheBridgeClient } from '@chatic/db';
 
 export const NATIVE_CACHE_ROUTE = 'native';
 
-export const nativeLocalCachePorts = (client: CacheBridgeClient): LocalCachePorts => ({
+export const nativeLocalCachePorts = (client: CacheBridgeClient): DbPort => ({
     route: () => NATIVE_CACHE_ROUTE,
     storage: <TType extends CacheType>(
         type: TType,

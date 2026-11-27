@@ -25,6 +25,15 @@
         },
         {
             "path": "../data/tsconfig.lib.json"
+        },
+        {
+            "path": "../storage/tsconfig.lib.json"
+        },
+        {
+            "path": "./indexeddb/tsconfig.lib.json"
+        },
+        {
+            "path": "./bridge/tsconfig.lib.json"
         }
     ]
 }

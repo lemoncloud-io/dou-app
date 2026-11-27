@@ -13,14 +13,14 @@ import type {
     AdapterScope,
     ChatMediaQuery,
     DataContextProvider,
-    IIndexedDB,
+    IndexedDbConnection,
     IndexedDbChatMediaRow,
-    IndexedDbQueryExecutor,
+    DbQueryExecutor,
     IndexedDbRow,
 } from '@chatic/data';
 import { createTtlMeta, withCacheMeta } from '@chatic/data';
 import { logger } from '@chatic/bridges';
-import { BaseDbAdapter } from '../base/BaseDbAdapter';
+import { BaseDbAdapter } from '@chatic/data';
 import { CHAT_MEDIA_INDEX, CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX, UNSENT_CHAT_NO } from './IndexedDBDatabase';
 
 const CHAT_MEDIA_TYPE = 'chatmedia';
@@ -42,13 +42,13 @@ export const isQuotaExceededError = (error: unknown): boolean =>
 const EVICTABLE_CHAT_NO_FLOOR = UNSENT_CHAT_NO + 1;
 
 export interface IndexedDBAdapterOptions<TType extends CacheType> {
-    executor?: IndexedDbQueryExecutor<TType>;
+    executor?: DbQueryExecutor<TType>;
     maxChatsPerChannel?: number;
 }
 
 export class IndexedDBAdapter<TType extends CacheType> extends BaseDbAdapter<TType> {
     constructor(
-        private readonly db: IIndexedDB,
+        private readonly db: IndexedDbConnection,
         type: TType,
         contextProvider: DataContextProvider,
         private readonly options: IndexedDBAdapterOptions<TType> = {}

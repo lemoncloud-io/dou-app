@@ -1,5 +1,5 @@
 import { hostProfile, webClient } from '@chatic/bridges';
-import type { LocalCachePorts } from '@chatic/data';
+import type { DbPort } from '@chatic/data';
 import { indexedDbCache, webStorageCache } from '@chatic/runtime-web';
 import type { KeyValueStore } from '@chatic/storage';
 
@@ -16,7 +16,7 @@ export type { RoutedCachePortsOptions } from './routedCachePorts';
 export { CACHE_DOMAIN_CANDIDATES, chooseCacheBackendFor } from './routing';
 export type { CacheBackend, CacheBackendCandidate, CacheDomainContext } from './routing';
 
-export const webLocalCachePorts = (tab: KeyValueStore): LocalCachePorts => {
+export const webLocalCachePorts = (tab: KeyValueStore): DbPort => {
     const indexedDb = indexedDbCache();
     return routedCachePorts({
         bridge: hostProfile().bridge,

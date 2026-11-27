@@ -6,7 +6,7 @@ import type {
     CacheStorage,
     DataContextProvider,
     ICacheMetricsSource,
-    LocalCachePorts,
+    DbPort,
 } from '@chatic/data';
 import { NativeCacheMetricsSource } from '@chatic/db';
 import { logger } from '@chatic/logger';
@@ -81,7 +81,7 @@ export const routedCachePorts = ({
     shellSqlite,
     webStorage,
     metrics = () => new NativeCacheMetricsSource(),
-}: RoutedCachePortsOptions): LocalCachePorts => ({
+}: RoutedCachePortsOptions): DbPort => ({
     route: type => {
         const backend = resolveCacheBackendFor(type, { bridge, support: support() });
         if (backend === 'native' && !shellSqlite) return 'web';

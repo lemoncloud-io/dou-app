@@ -1,4 +1,4 @@
-import type { LocalCachePorts } from '@chatic/data';
+import type { DbPort } from '@chatic/data';
 import type { KeyValueStore } from '@chatic/storage';
 
 import { browserCachePorts } from './browserCachePorts';
@@ -13,7 +13,7 @@ export type { WebStorageCacheOptions } from './webStorageCache';
 export { browserCachePorts, browserCacheRouteFor } from './browserCachePorts';
 export type { BrowserCachePortsOptions, BrowserCacheRoute } from './browserCachePorts';
 
-export const webLocalCachePorts = (tab: KeyValueStore): LocalCachePorts => {
+export const webLocalCachePorts = (tab: KeyValueStore): DbPort => {
     const indexedDb = indexedDbCache();
     return browserCachePorts({ indexedDb, webStorage: webStorageCache({ tab, importFrom: indexedDb }) });
 };

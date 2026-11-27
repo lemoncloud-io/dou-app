@@ -4,7 +4,7 @@ import type {
     CacheStorage,
     DataContextProvider,
     ICacheMetricsSource,
-    LocalCachePorts,
+    DbPort,
 } from '@chatic/data';
 import { NativeCacheMetricsSource } from '@chatic/db';
 
@@ -25,7 +25,7 @@ export const browserCachePorts = ({
     indexedDb,
     webStorage,
     metrics = () => new NativeCacheMetricsSource(),
-}: BrowserCachePortsOptions): LocalCachePorts => ({
+}: BrowserCachePortsOptions): DbPort => ({
     route: type => browserCacheRouteFor(type, webStorage !== undefined),
     storage: <TType extends CacheType>(
         type: TType,

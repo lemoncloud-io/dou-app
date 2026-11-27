@@ -1,10 +1,10 @@
-import type { IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from '@chatic/data';
+import type { IndexedDbConnection, DbQueryExecutor, IndexedDbRow } from '@chatic/data';
 import type { ChatQueryOptions } from '@chatic/bridge-messages';
 import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX, UNSENT_CHAT_NO } from './IndexedDBDatabase';
 
-export class ChatQueryExecutor implements IndexedDbQueryExecutor<'chat'> {
+export class ChatQueryExecutor implements DbQueryExecutor<'chat'> {
     private async loadUnsent(
-        db: IIndexedDB,
+        db: IndexedDbConnection,
         prefix: Array<string | number>,
         limit: number
     ): Promise<IndexedDbRow<'chat'>[]> {
@@ -18,7 +18,7 @@ export class ChatQueryExecutor implements IndexedDbQueryExecutor<'chat'> {
     }
 
     async execute(
-        db: IIndexedDB,
+        db: IndexedDbConnection,
         scope: { type: 'chat'; cid: string; uid: string },
         options?: ChatQueryOptions
     ): Promise<IndexedDbRow<'chat'>[]> {

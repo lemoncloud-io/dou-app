@@ -169,6 +169,12 @@
             "path": "./libs/db/memory"
         },
         {
+            "path": "./libs/db/indexeddb"
+        },
+        {
+            "path": "./libs/db/bridge"
+        },
+        {
             "path": "./libs/runtime-hybrid-web"
         },
         {
