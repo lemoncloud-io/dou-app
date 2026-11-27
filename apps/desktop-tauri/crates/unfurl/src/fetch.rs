@@ -11,15 +11,21 @@ use crate::{MAX_BYTES, TIMEOUT, public_only};
 
 struct PublicOnly;
 
+pub(crate) fn only_public(
+    found: std::io::Result<impl Iterator<Item = SocketAddr>>,
+) -> Result<Vec<SocketAddr>, Box<dyn std::error::Error + Send + Sync>> {
+    let public = public_only(found?);
+    if public.is_empty() {
+        return Err("the host resolves only to private addresses".into());
+    }
+    Ok(public)
+}
+
 impl Resolve for PublicOnly {
     fn resolve(&self, name: Name) -> Resolving {
         Box::pin(async move {
-            let found = tokio::net::lookup_host((name.as_str(), 0)).await?;
-            let public: Vec<SocketAddr> = public_only(found);
-            if public.is_empty() {
-                return Err("the host resolves only to private addresses".into());
-            }
-            Ok(Box::new(public.into_iter()) as Addrs)
+            let found = tokio::net::lookup_host((name.as_str(), 0)).await;
+            Ok(Box::new(only_public(found)?.into_iter()) as Addrs)
         })
     }
 }
@@ -87,5 +93,58 @@ impl Fetch for Web {
             content_type,
             body,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::net::TcpListener;
+
+    use super::*;
+
+    fn addrs(list: &[&str]) -> std::io::Result<std::vec::IntoIter<SocketAddr>> {
+        Ok(list
+            .iter()
+            .map(|text| text.parse().unwrap())
+            .collect::<Vec<SocketAddr>>()
+            .into_iter())
+    }
+
+    #[test]
+    fn a_name_that_resolves_only_to_private_addresses_fails() {
+        for list in [
+            &["127.0.0.1:0"][..],
+            &["10.0.0.1:0", "[fd00::1]:0"],
+            &["169.254.169.254:0"],
+            &["[::ffff:127.0.0.1]:0"],
+            &[],
+        ] {
+            assert!(only_public(addrs(list)).is_err(), "{list:?}");
+        }
+    }
+
+    #[test]
+    fn a_mixed_answer_keeps_only_the_public_addresses() {
+        let kept = only_public(addrs(&["127.0.0.1:0", "93.184.216.34:0"])).unwrap();
+        assert_eq!(kept, ["93.184.216.34:0".parse::<SocketAddr>().unwrap()]);
+    }
+
+    #[test]
+    fn a_lookup_error_is_passed_on() {
+        let failed: std::io::Result<std::vec::IntoIter<SocketAddr>> =
+            Err(std::io::Error::other("no such host"));
+        assert!(only_public(failed).is_err());
+    }
+
+    #[tokio::test]
+    async fn the_web_client_never_connects_to_a_name_that_resolves_to_loopback() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let accepted = tokio::spawn(async move { listener.accept().await.is_ok() });
+        let web = Web::new().unwrap();
+        let url = Url::parse(&format!("http://localhost:{port}/")).unwrap();
+        assert!(web.get(&url).await.is_none());
+        accepted.abort();
+        assert!(accepted.await.is_err());
     }
 }
