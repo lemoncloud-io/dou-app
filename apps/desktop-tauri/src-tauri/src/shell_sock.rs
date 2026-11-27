@@ -66,10 +66,11 @@ pub fn dispatch(host: &dyn Host, line: &str) -> Value {
             host.focus();
             Ok(json!({ "focused": true }))
         }
-        "second_instance" => match params["argv"]
-            .as_array()
-            .map(|a| a.iter().map(|v| v.as_str().map(str::to_string)).collect::<Option<Vec<_>>>())
-        {
+        "second_instance" => match params["argv"].as_array().map(|a| {
+            a.iter()
+                .map(|v| v.as_str().map(str::to_string))
+                .collect::<Option<Vec<_>>>()
+        }) {
             Some(Some(argv)) => {
                 host.second_instance(argv);
                 Ok(json!({ "accepted": true }))
@@ -141,7 +142,10 @@ pub fn start(paths: &Paths, host: Arc<dyn Host>) -> io::Result<()> {
                 return;
             }
             let connected = next;
-            next = match ServerOptions::new().reject_remote_clients(true).create(&name) {
+            next = match ServerOptions::new()
+                .reject_remote_clients(true)
+                .create(&name)
+            {
                 Ok(server) => server,
                 Err(_) => return,
             };
@@ -186,7 +190,10 @@ mod tests {
             self.calls.lock().expect("lock").push("focus".into());
         }
         fn second_instance(&self, argv: Vec<String>) {
-            self.calls.lock().expect("lock").push(format!("second:{}", argv.join(",")));
+            self.calls
+                .lock()
+                .expect("lock")
+                .push(format!("second:{}", argv.join(",")));
         }
     }
 
@@ -197,17 +204,26 @@ mod tests {
     #[test]
     fn every_method_answers_json_rpc() {
         let host = Fake::default();
-        let reply = ask(&host, json!({ "jsonrpc": "2.0", "id": 7, "method": "reload" }));
+        let reply = ask(
+            &host,
+            json!({ "jsonrpc": "2.0", "id": 7, "method": "reload" }),
+        );
         assert_eq!(reply["id"], 7);
         assert_eq!(reply["result"]["reloaded"], true);
         let get = ask(&host, json!({ "id": 1, "method": "app_source" }));
         assert_eq!(get["result"]["url"], "https://x.test");
-        let set = ask(&host, json!({ "id": 1, "method": "app_source", "params": { "set": "./dist" } }));
+        let set = ask(
+            &host,
+            json!({ "id": 1, "method": "app_source", "params": { "set": "./dist" } }),
+        );
         assert_eq!(set["result"]["restarting"], true);
         let shot = ask(&host, json!({ "id": 1, "method": "screenshot" }));
         assert_eq!(shot["result"]["format"], "png");
         assert_eq!(shot["result"]["base64"], "iVBORw==");
-        let tail = ask(&host, json!({ "id": 1, "method": "logs_tail", "params": { "file": "webview", "lines": 5 } }));
+        let tail = ask(
+            &host,
+            json!({ "id": 1, "method": "logs_tail", "params": { "file": "webview", "lines": 5 } }),
+        );
         assert_eq!(tail["result"]["lines"][0], "webview:5");
         let default_tail = ask(&host, json!({ "id": 1, "method": "logs_tail" }));
         assert_eq!(default_tail["result"]["lines"][0], "shell:100");
@@ -218,22 +234,40 @@ mod tests {
         let host = Fake::default();
         assert_eq!(dispatch(&host, "{ nope")["error"]["code"], -32700);
         assert_eq!(ask(&host, json!({ "id": 1 }))["error"]["code"], -32600);
-        assert_eq!(ask(&host, json!({ "id": 1, "method": "nope" }))["error"]["code"], -32601);
         assert_eq!(
-            ask(&host, json!({ "id": 1, "method": "app_source", "params": { "set": 5 } }))["error"]["code"],
+            ask(&host, json!({ "id": 1, "method": "nope" }))["error"]["code"],
+            -32601
+        );
+        assert_eq!(
+            ask(
+                &host,
+                json!({ "id": 1, "method": "app_source", "params": { "set": 5 } })
+            )["error"]["code"],
             -32602
         );
-        let refused = ask(&host, json!({ "id": 1, "method": "app_source", "params": { "set": "bad" } }));
+        let refused = ask(
+            &host,
+            json!({ "id": 1, "method": "app_source", "params": { "set": "bad" } }),
+        );
         assert_eq!(refused["error"]["message"], "refused");
     }
 
     #[test]
     fn a_second_instance_hands_over_its_arguments() {
         let host = Fake::default();
-        let reply = ask(&host, json!({ "id": 1, "method": "second_instance", "params": { "argv": ["a", "chatic://x"] } }));
+        let reply = ask(
+            &host,
+            json!({ "id": 1, "method": "second_instance", "params": { "argv": ["a", "chatic://x"] } }),
+        );
         assert_eq!(reply["result"]["accepted"], true);
-        assert_eq!(host.calls.lock().expect("lock").as_slice(), ["second:a,chatic://x"]);
-        let bad = ask(&host, json!({ "id": 1, "method": "second_instance", "params": { "argv": [1] } }));
+        assert_eq!(
+            host.calls.lock().expect("lock").as_slice(),
+            ["second:a,chatic://x"]
+        );
+        let bad = ask(
+            &host,
+            json!({ "id": 1, "method": "second_instance", "params": { "argv": [1] } }),
+        );
         assert_eq!(bad["error"]["code"], -32602);
     }
 
@@ -244,7 +278,10 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         let paths = Paths::prepare(&dir.path().join("p")).expect("prepare");
         start(&paths, Arc::new(Fake::default())).expect("start");
-        let mode = std::fs::metadata(paths.shell_sock()).expect("meta").permissions().mode();
+        let mode = std::fs::metadata(paths.shell_sock())
+            .expect("meta")
+            .permissions()
+            .mode();
         assert_eq!(mode & 0o777, 0o600);
         let reply = crate::shell_client::call(&paths, "focus", json!({})).expect("call");
         assert_eq!(reply["focused"], true);

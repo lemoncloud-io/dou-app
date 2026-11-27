@@ -90,7 +90,12 @@ impl Sink {
         line.push('\n');
         let mut slot = guard(&self.file);
         if slot.is_none() {
-            *slot = Some(OpenOptions::new().create(true).append(true).open(&self.path)?);
+            *slot = Some(
+                OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&self.path)?,
+            );
         }
         let size = slot
             .as_ref()
@@ -99,7 +104,12 @@ impl Sink {
         if size + line.len() as u64 > self.max_bytes {
             *slot = None;
             self.rotate()?;
-            *slot = Some(OpenOptions::new().create(true).append(true).open(&self.path)?);
+            *slot = Some(
+                OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&self.path)?,
+            );
         }
         match slot.as_mut() {
             Some(file) => file.write_all(line.as_bytes()),
@@ -139,8 +149,6 @@ impl Limiter {
 }
 
 pub struct Logs {
-    pub dir: PathBuf,
-    pub shell: Sink,
     pub webview: Sink,
     pub limiter: Limiter,
 }
@@ -151,8 +159,6 @@ static SHELL_SINK: OnceLock<Sink> = OnceLock::new();
 impl Logs {
     pub fn open(dir: &Path) -> Self {
         Self {
-            dir: dir.to_path_buf(),
-            shell: Sink::new(dir.join("shell.log"), MAX_BYTES, KEEP),
             webview: Sink::new(dir.join("webview.log"), MAX_BYTES, KEEP),
             limiter: Limiter::new(MAX_PER_SECOND),
         }
@@ -195,7 +201,8 @@ pub fn tail(dir: &Path, name: &str, lines: usize) -> Result<Vec<String>, String>
     };
     let len = file.metadata().map_err(|e| e.to_string())?.len();
     let window = len.min(512 * 1024);
-    file.seek(SeekFrom::Start(len - window)).map_err(|e| e.to_string())?;
+    file.seek(SeekFrom::Start(len - window))
+        .map_err(|e| e.to_string())?;
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes).map_err(|e| e.to_string())?;
     let text = String::from_utf8_lossy(&bytes);
@@ -221,7 +228,8 @@ mod tests {
         let dir = tempfile::tempdir().expect("temp dir");
         let sink = Sink::new(dir.path().join("x.log"), 40, 2);
         for n in 0..12 {
-            sink.write_line(&format!("line number {n:02}")).expect("write");
+            sink.write_line(&format!("line number {n:02}"))
+                .expect("write");
         }
         let names: Vec<String> = std::fs::read_dir(dir.path())
             .expect("dir")
@@ -239,7 +247,8 @@ mod tests {
     fn a_long_line_is_cut_and_newlines_cannot_forge_entries() {
         let dir = tempfile::tempdir().expect("temp dir");
         let sink = Sink::new(dir.path().join("x.log"), MAX_BYTES, KEEP);
-        sink.write_line(&format!("a\nb{}", "z".repeat(10_000))).expect("write");
+        sink.write_line(&format!("a\nb{}", "z".repeat(10_000)))
+            .expect("write");
         let text = std::fs::read_to_string(dir.path().join("x.log")).expect("read");
         assert_eq!(text.lines().count(), 1);
         assert!(text.len() < MAX_LINE + 8);

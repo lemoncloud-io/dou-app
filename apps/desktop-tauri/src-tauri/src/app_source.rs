@@ -273,7 +273,10 @@ mod tests {
     #[test]
     fn a_folder_needs_an_index_page() {
         let (dir, root) = site();
-        assert_eq!(AppSource::parse(root.to_str().expect("utf8")), Ok(AppSource::Folder(root)));
+        assert_eq!(
+            AppSource::parse(root.to_str().expect("utf8")),
+            Ok(AppSource::Folder(root))
+        );
         assert!(AppSource::parse(dir.path().to_str().expect("utf8")).is_err());
         assert!(AppSource::parse("/no/such/folder").is_err());
     }
@@ -281,7 +284,10 @@ mod tests {
     #[test]
     fn requests_resolve_inside_the_root_and_unknown_pages_fall_back_to_the_index() {
         let (_dir, root) = site();
-        assert_eq!(resolve(&root, "/assets/app.js?v=1"), Some(root.join("assets/app.js")));
+        assert_eq!(
+            resolve(&root, "/assets/app.js?v=1"),
+            Some(root.join("assets/app.js"))
+        );
         assert_eq!(resolve(&root, "/"), Some(root.join("index.html")));
         assert_eq!(resolve(&root, "/rooms/42"), Some(root.join("index.html")));
         assert_eq!(resolve(&root, "/missing.js"), None);
@@ -303,7 +309,11 @@ mod tests {
                 found.as_ref().is_none_or(|f| f.starts_with(&root)),
                 "{path} escaped to {found:?}"
             );
-            assert_ne!(found.and_then(|f| f.file_name().map(|n| n.to_owned())), Some("secret.txt".into()), "{path}");
+            assert_ne!(
+                found.and_then(|f| f.file_name().map(|n| n.to_owned())),
+                Some("secret.txt".into()),
+                "{path}"
+            );
         }
     }
 
@@ -311,7 +321,8 @@ mod tests {
     #[test]
     fn a_symlink_out_of_the_root_is_refused() {
         let (dir, root) = site();
-        std::os::unix::fs::symlink(dir.path().join("secret.txt"), root.join("leak.txt")).expect("link");
+        std::os::unix::fs::symlink(dir.path().join("secret.txt"), root.join("leak.txt"))
+            .expect("link");
         assert_eq!(resolve(&root, "/leak.txt"), None);
     }
 

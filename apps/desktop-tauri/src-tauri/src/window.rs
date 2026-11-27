@@ -2,6 +2,24 @@ use tauri::menu::{Menu, MenuItem, Submenu};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use url::Url;
 
+use crate::profile::Paths;
+
+#[cfg(target_os = "macos")]
+fn isolate_storage<'a, R: tauri::Runtime, M: Manager<R>>(
+    builder: WebviewWindowBuilder<'a, R, M>,
+    paths: &Paths,
+) -> WebviewWindowBuilder<'a, R, M> {
+    builder.data_store_identifier(paths.store_identifier())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn isolate_storage<'a, R: tauri::Runtime, M: Manager<R>>(
+    builder: WebviewWindowBuilder<'a, R, M>,
+    paths: &Paths,
+) -> WebviewWindowBuilder<'a, R, M> {
+    builder.data_directory(paths.webview_dir())
+}
+
 const DEV_WEB_URL: &str = "https://dou-dev.chatic.io";
 const PROD_WEB_URL: &str = "https://dou.chatic.io";
 
@@ -24,14 +42,22 @@ pub fn loader_path(web: &str) -> String {
     format!("index.html?{query}")
 }
 
-pub fn open_main(app: &AppHandle, web: &str, init_script: &str) -> tauri::Result<()> {
+pub fn open_main(
+    app: &AppHandle,
+    web: &str,
+    init_script: &str,
+    profile: Option<&Paths>,
+) -> tauri::Result<()> {
     let path = loader_path(web);
-    WebviewWindowBuilder::new(app, "main", WebviewUrl::App(path.into()))
+    let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App(path.into()))
         .title("DoU")
         .initialization_script(init_script)
         .inner_size(1100.0, 760.0)
-        .min_inner_size(420.0, 560.0)
-        .build()?;
+        .min_inner_size(420.0, 560.0);
+    if let Some(paths) = profile {
+        builder = isolate_storage(builder, paths);
+    }
+    builder.build()?;
     Ok(())
 }
 

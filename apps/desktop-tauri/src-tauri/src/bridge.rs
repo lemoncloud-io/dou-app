@@ -57,7 +57,6 @@ fn push_to_web(app: &AppHandle, origin: &str, message: &str) {
 
 pub struct Installed {
     pub init_script: String,
-    pub stage: String,
 }
 
 pub fn install(
@@ -126,7 +125,6 @@ pub fn install(
     });
     Ok(Installed {
         init_script: script,
-        stage,
     })
 }
 

@@ -22,15 +22,22 @@ fn flag_value(args: &[String], at: usize, name: &str) -> Option<(String, usize)>
 }
 
 pub fn is_deep_link(arg: &str) -> bool {
-    SCHEMES
-        .iter()
-        .any(|scheme| arg.strip_prefix(scheme).is_some_and(|r| r.starts_with("://")))
+    SCHEMES.iter().any(|scheme| {
+        arg.strip_prefix(scheme)
+            .is_some_and(|r| r.starts_with("://"))
+    })
 }
 
 pub fn parse_args(args: &[String]) -> Result<Cli, String> {
     let mut cli = Cli::default();
     let mut at = 0;
     while at < args.len() {
+        if args[at] == "--profile" && at + 1 >= args.len() {
+            return Err("--profile needs a folder".to_string());
+        }
+        if args[at] == "--app" && at + 1 >= args.len() {
+            return Err("--app needs a folder or a URL".to_string());
+        }
         if let Some((value, used)) = flag_value(args, at, "--profile") {
             if value.is_empty() {
                 return Err("--profile needs a folder".to_string());
@@ -81,10 +88,6 @@ impl Paths {
         self.root.join("app.json")
     }
 
-    pub fn settings_json(&self) -> PathBuf {
-        self.root.join("settings.json")
-    }
-
     pub fn webview_dir(&self) -> PathBuf {
         self.root.join("webview")
     }
@@ -101,6 +104,7 @@ impl Paths {
         self.root.join("shell.sock")
     }
 
+    #[cfg(windows)]
     pub fn shell_pipe(&self) -> PathBuf {
         self.root.join("shell.pipe")
     }
@@ -122,8 +126,11 @@ impl Paths {
     }
 
     pub fn store_identifier(&self) -> [u8; 16] {
-        *uuid::Uuid::new_v5(&uuid::Uuid::NAMESPACE_URL, self.root.to_string_lossy().as_bytes())
-            .as_bytes()
+        *uuid::Uuid::new_v5(
+            &uuid::Uuid::NAMESPACE_URL,
+            self.root.to_string_lossy().as_bytes(),
+        )
+        .as_bytes()
     }
 }
 
@@ -204,8 +211,13 @@ mod tests {
 
     #[test]
     fn deep_links_are_collected_and_other_arguments_are_ignored() {
-        let cli = parse_args(&args(&["dou", "chatic://login?code=1", "https://x", "--other"]))
-            .expect("parse");
+        let cli = parse_args(&args(&[
+            "dou",
+            "chatic://login?code=1",
+            "https://x",
+            "--other",
+        ]))
+        .expect("parse");
         assert_eq!(cli.deep_links, ["chatic://login?code=1"]);
         assert!(is_deep_link("chatic-dev://a"));
         assert!(!is_deep_link("chaticx://a"));
@@ -239,7 +251,10 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         let dir = tempfile::tempdir().expect("temp dir");
         let paths = Paths::prepare(&dir.path().join("p")).expect("prepare");
-        let mode = std::fs::metadata(paths.root()).expect("meta").permissions().mode();
+        let mode = std::fs::metadata(paths.root())
+            .expect("meta")
+            .permissions()
+            .mode();
         assert_eq!(mode & 0o777, 0o700);
     }
 }

@@ -22,25 +22,26 @@ subview = { path = "../crates/subview" }
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-updater = "2"
-tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 tauri-plugin-deep-link = "2"
 oauth = { path = "../crates/oauth" }
 unfurl = { path = "../crates/unfurl" }
 base64 = "0.22"
 vault = { path = "../crates/vault" }
-dou-app = { path = "../../desktop-native/crates/dou-app" }
-dou-auth = { path = "../../desktop-native/crates/dou-auth" }
-dou-control = { path = "../../desktop-native/crates/dou-control" }
-dou-http = { path = "../../desktop-native/crates/dou-http" }
-dou-socket = { path = "../../desktop-native/crates/dou-socket" }
-dou-core = { path = "../../desktop-native/crates/dou-core" }
 agent-settings = { path = "../crates/agent-settings" }
 connectors = { path = "../crates/connectors" }
-dou-mcp = { path = "../../desktop-native/crates/dou-mcp" }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "time"] }
+tiny_http = "0.12"
 serde.workspace = true
 serde_json.workspace = true
 url = "2"
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = ["v4", "v5"] }
 sys-locale = "0.3"
 bridge-host = { path = "../crates/bridge-host" }
+
+[[bin]]
+name = "dou-tauri"
+path = "src/main.rs"
+
+[[bin]]
+name = "dou-shellctl"
+path = "src/bin/dou-shellctl.rs"

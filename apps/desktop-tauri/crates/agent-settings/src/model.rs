@@ -74,7 +74,10 @@ mod tests {
     #[test]
     fn a_missing_or_broken_file_means_off() {
         let dir = tempfile::tempdir().expect("temp dir");
-        assert_eq!(Settings::load(&dir.path().join("none.json")).tier, Tier::Off);
+        assert_eq!(
+            Settings::load(&dir.path().join("none.json")).tier,
+            Tier::Off
+        );
         let broken = dir.path().join("broken.json");
         std::fs::write(&broken, "{ not json").expect("write");
         assert_eq!(Settings::load(&broken), Settings::default());

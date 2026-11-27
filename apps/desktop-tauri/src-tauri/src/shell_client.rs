@@ -30,7 +30,9 @@ pub fn call(paths: &Paths, method: &str, params: Value) -> Result<Value, String>
     let request = json!({ "jsonrpc": "2.0", "id": 1, "method": method, "params": params });
     let mut line = request.to_string();
     line.push('\n');
-    stream.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
+    stream
+        .write_all(line.as_bytes())
+        .map_err(|e| e.to_string())?;
     stream.flush().map_err(|e| e.to_string())?;
     let mut reply = String::new();
     BufReader::new(stream)
@@ -38,7 +40,10 @@ pub fn call(paths: &Paths, method: &str, params: Value) -> Result<Value, String>
         .map_err(|e| e.to_string())?;
     let value: Value = serde_json::from_str(reply.trim()).map_err(|e| format!("bad reply: {e}"))?;
     if let Some(error) = value.get("error") {
-        return Err(error["message"].as_str().unwrap_or("shell error").to_string());
+        return Err(error["message"]
+            .as_str()
+            .unwrap_or("shell error")
+            .to_string());
     }
     Ok(value["result"].clone())
 }

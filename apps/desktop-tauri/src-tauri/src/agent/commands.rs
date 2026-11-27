@@ -119,6 +119,9 @@ mod tests {
     #[test]
     fn the_settings_file_is_the_profile_settings_json() {
         let agent = Agent::new("/p".into());
-        assert_eq!(settings_file(&agent), std::path::Path::new("/p/settings.json"));
+        assert_eq!(
+            settings_file(&agent),
+            std::path::Path::new("/p/settings.json")
+        );
     }
 }

@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
 
 use crate::app_source::{AppConfig, AppSource};
-use crate::logs::{self, Logs};
+use crate::logs;
 use crate::profile::{Paths, is_deep_link};
 use crate::shell_sock::Host;
 
@@ -135,10 +135,6 @@ impl Host for ShellHost {
     }
 }
 
-pub fn log_state(app: &AppHandle) -> Option<Arc<Logs>> {
-    app.try_state::<Arc<Logs>>().map(|s| Arc::clone(&s))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -149,8 +145,14 @@ mod tests {
 
     #[test]
     fn a_relaunch_swaps_the_app_flag_and_keeps_the_rest() {
-        let args = relaunch_args(&list(&["--profile", "/p", "--app", "/old", "chatic://x"]), Some("/new"));
-        assert_eq!(args, list(&["--profile", "/p", "chatic://x", "--app", "/new"]));
+        let args = relaunch_args(
+            &list(&["--profile", "/p", "--app", "/old", "chatic://x"]),
+            Some("/new"),
+        );
+        assert_eq!(
+            args,
+            list(&["--profile", "/p", "chatic://x", "--app", "/new"])
+        );
         let none = relaunch_args(&list(&["--app=/old", "--profile", "/p"]), None);
         assert_eq!(none, list(&["--profile", "/p"]));
     }
