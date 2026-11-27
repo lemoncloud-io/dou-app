@@ -12,7 +12,7 @@ rather than a manual env edit and a native rebuild.
 | `apps/mobile/.env`, `.env.dev`, `.env.prod`                                                                                  | local / dev-build / prod-build env files                   |
 | `apps/mobile/.env.example`                                                                                                   | template for `.env`                                        |
 | [`src/app/utils/stage.ts`](../../src/app/utils/stage.ts)                                                                     | `Config.VITE_ENV` → `Env` conversion                       |
-| [`src/app/services/deeplinks/deeplinkUtils.ts`](../../src/app/services/deeplinks/deeplinkUtils.ts)                           | `getAppScheme()`                                           |
+| [`libs/host/mobile/src/deeplinks/deeplinkUtils.ts`](../../../../libs/host/mobile/src/deeplinks/deeplinkUtils.ts)             | `getAppScheme()`                                           |
 | [`android/app/src/main/res/xml/network_security_config.xml`](../../android/app/src/main/res/xml/network_security_config.xml) | Android cleartext allowlist                                |
 | [`ios/Podfile`](../../ios/Podfile)                                                                                           | copies `ENVFILE` onto the `react-native-config` Pod target |
 | root `package.json`                                                                                                          | every `mobile:*` script                                    |
@@ -134,7 +134,7 @@ missing `.env`.
 The OS-registered scheme comes from the build configuration too: `APP_URL_SCHEME` on iOS, the
 per-flavor `appScheme` manifest placeholder on Android. When runtime code needs to rebuild a scheme
 URL — React Navigation hands a warm-start deep link back as a path with no scheme —
-[`getAppScheme()`](../../src/app/services/deeplinks/deeplinkUtils.ts) recomputes it:
+[`getAppScheme()`](../../../../libs/host/mobile/src/deeplinks/deeplinkUtils.ts) recomputes it:
 
 ```ts
 export const getAppScheme = (): (typeof CUSTOM_SCHEMES)[number] =>
@@ -144,7 +144,7 @@ export const getAppScheme = (): (typeof CUSTOM_SCHEMES)[number] =>
 The test is `=== 'PROD'`, not `=== 'DEV'`: every non-prod configuration, including `LOCAL`,
 registers `chatic-dev`. [`isCustomZipAllowed`](../../src/app/customZip/customZipGate.ts) uses the same
 `!== 'PROD'` polarity. Both call sites — `reconstructDeepLinkUrl` in the same file, and
-[`DeeplinkService`](../../src/app/services/deeplinks/DeeplinkService.ts)'s constructor — go through
+[`DeeplinkService`](../../../../libs/host/mobile/src/deeplinks/DeeplinkService.ts)'s constructor — go through
 `getAppScheme()` rather than recomputing it.
 
 ### The stage vocabulary the WebView is told about

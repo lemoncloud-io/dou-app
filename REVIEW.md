@@ -84,7 +84,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## Invite and deep links parse in every shape they arrive in
 
-- paths: `libs/shared/src/utils/inviteLink*`, `apps/mobile/src/app/services/deeplinks/**`, `apps/web/src/app/routes/EncodedLinkRedirect*`,
+- paths: `libs/shared/src/utils/inviteLink*`, `libs/host/mobile/src/deeplinks/**`, `apps/web/src/app/routes/EncodedLinkRedirect*`,
   `apps/mobile/android/app/src/main/AndroidManifest.xml`, `apps/landing/src/app/features/deeplink/**`,
   `apps/desktop-web/src/app/features/auth/utils/parseInviteInput*`
 - check: Encoded links, `/s?code=`, `/i`, text glued after the token, cold and warm start on Android and iOS; run

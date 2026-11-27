@@ -567,7 +567,7 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticSubWebView`, for the opened origin only                   |
 | `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data, 64 KiB message and 100-character title limits          |
 | `src/app/services/subWebView/subWebViewManifest.ts`    | Reads, checks and caches a page's manifest                              |
-| `src/app/services/deeplinks/deeplinkUtils.ts`          | Checks a page's app link and hands it to the web as `/apps/<appId>?…`   |
+| `libs/host/mobile/src/deeplinks/deeplinkUtils.ts`      | Checks a page's app link and hands it to the web as `/apps/<appId>?…`   |
 | `libs/shared/src/utils/subWebViewLink.ts`              | Reads a page link and builds `appLink` — shared with web and landing    |
 | `src/app/subWebView/subWebViewNavigation.ts`           | Load, hand to the OS, or drop                                           |
 | `src/app/features/subWebView/SubWebViewScreen.tsx`     | The manifest, then the bar or the floating close control, orientation   |

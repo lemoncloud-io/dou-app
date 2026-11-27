@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { deeplinkService, logger, notificationService, subWebViewService } from '../../services';
-import { isChannelRoomPath } from '../../services/deeplinks/isChannelRoomPath';
-import type { NativeRouteState, PushNavigationData } from '../../services/deeplinks/deeplinkUtils';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- host-mobile still reads its link and store-URL helpers from web-only shared until they move to a platform-free package
+import { isChannelRoomPath } from '@chatic/host-mobile/links';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- host-mobile still reads its link and store-URL helpers from web-only shared until they move to a platform-free package
+import type { NativeRouteState, PushNavigationData } from '@chatic/host-mobile/links';
 import { navigationRef } from '../../features/core/navigation/navigationRef';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import type { HandedOverPerfTrace } from '@chatic/bridge-messages';

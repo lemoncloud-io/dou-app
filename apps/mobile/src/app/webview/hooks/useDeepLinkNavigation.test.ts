@@ -13,6 +13,7 @@ let mockGetInitialUrl: string | null = null;
 let mockSubView: { viewId: string } | null = null;
 const mockCloseSubWebView = jest.fn();
 
+jest.mock('react-native-config', () => ({ default: { VITE_ENV: 'DEV' } }));
 jest.mock('../../features/core/navigation/navigationRef', () => ({
     navigationRef: { isReady: jest.fn(() => true), reset: jest.fn() },
 }));

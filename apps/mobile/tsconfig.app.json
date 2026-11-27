@@ -49,6 +49,9 @@
             "path": "../../libs/sign-in/mobile/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/host/mobile/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/perf/tsconfig.lib.json"
         },
         {

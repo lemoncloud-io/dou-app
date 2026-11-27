@@ -7,7 +7,7 @@ import type { Plugin, UserConfig } from 'vite';
 const ROOT = path.resolve(import.meta.dirname, '../..');
 
 export const MOBILE_ALIASES = {
-    'shell-adapter/mobile-deeplink': path.join(ROOT, 'apps/mobile/src/app/services/deeplinks/deeplinkUtils.ts'),
+    'shell-adapter/mobile-deeplink': path.join(ROOT, 'libs/host/mobile/src/deeplinks/deeplinkUtils.ts'),
     'shell-adapter/mobile-url-trust': path.join(ROOT, 'apps/mobile/src/app/webview/utils/urlTrust.ts'),
     'react-native-config': path.join(import.meta.dirname, 'src/stubs/reactNativeConfig.ts'),
 };
