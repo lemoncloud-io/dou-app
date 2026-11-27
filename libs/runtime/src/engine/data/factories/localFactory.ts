@@ -4,7 +4,7 @@ import type {
     DataContextProvider,
     ICacheMetricsSource,
     IGlobalCacheSearchSource,
-    LocalCachePorts,
+    DbPort,
 } from '@chatic/data';
 import {
     type CacheStorageFactory,
@@ -34,7 +34,7 @@ export const createLocalDataSources = ({
     const routed: CacheRoute[] = [];
     const platform = cacheStorageFactory ? undefined : localCachePlatform.ports();
     const fromPlatform =
-        (ports: LocalCachePorts): CacheStorageFactory =>
+        (ports: DbPort): CacheStorageFactory =>
         (type, provider) => {
             let route = routes.get(type);
             if (route === undefined) {
@@ -44,7 +44,7 @@ export const createLocalDataSources = ({
             }
             return ports.storage(type, route, provider, cache);
         };
-    const factory = cacheStorageFactory ?? fromPlatform(platform as LocalCachePorts);
+    const factory = cacheStorageFactory ?? fromPlatform(platform as DbPort);
     const storages = createCacheStorages(contextProvider, factory);
     const routingFingerprint =
         routed.length > 0

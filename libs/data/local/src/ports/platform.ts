@@ -1,8 +1,8 @@
 import type { CacheType } from '@chatic/bridge-messages';
 import type { DataContextProvider } from '@chatic/data-model';
-import type { CacheStorage } from './cacheStorage';
-import type { ICacheMetricsSource } from './metrics';
-import type { IGlobalCacheSearchSource } from './search';
+import type { DbTable } from './cacheStorage';
+import type { DbMetricsSource } from './metrics';
+import type { DbSearchSource } from './search';
 
 export interface CacheAssemblyOptions {
     maxChatsPerChannel?: number;
@@ -13,15 +13,17 @@ export interface CacheRoute {
     route: string;
 }
 
-export interface LocalCachePorts {
+export interface DbPort {
     route(type: CacheType): string;
     storage<TType extends CacheType>(
         type: TType,
         route: string,
         contextProvider: DataContextProvider,
         options: CacheAssemblyOptions | undefined
-    ): CacheStorage<TType>;
+    ): DbTable<TType>;
     routed(routes: readonly CacheRoute[]): void;
-    globalSearch(): IGlobalCacheSearchSource;
-    metrics(): ICacheMetricsSource;
+    globalSearch(): DbSearchSource;
+    metrics(): DbMetricsSource;
 }
+
+export type LocalCachePorts = DbPort;

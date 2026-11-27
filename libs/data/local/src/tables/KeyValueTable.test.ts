@@ -1,7 +1,9 @@
-import { logger } from '@chatic/bridges';
-import { WebStorageAdapter } from './WebStorageAdapter';
+import { logger } from '@chatic/logger';
+import { WebStore } from '@chatic/storage';
 
-jest.mock('@chatic/bridges', () => ({
+import { KeyValueTable } from './KeyValueTable';
+
+jest.mock('@chatic/logger', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
@@ -12,7 +14,7 @@ const cloud = (id: string, overrides: Record<string, unknown> = {}) =>
 
 const idsOf = (items: Array<{ id: string }>) => items.map(item => item.id).sort();
 
-describe('WebStorageAdapter', () => {
+describe('KeyValueTable', () => {
     beforeEach(() => {
         sessionStorage.clear();
         localStorage.clear();
@@ -20,7 +22,7 @@ describe('WebStorageAdapter', () => {
     });
 
     it('saves, loads and lists rows within one partition', async () => {
-        const adapter = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('any', 'any'));
+        const adapter = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('any', 'any'));
 
         await adapter.save('a', cloud('a'));
         await adapter.saveAll([cloud('b'), cloud('c')]);
@@ -31,7 +33,7 @@ describe('WebStorageAdapter', () => {
     });
 
     it('stamps the TTL metadata the other adapters stamp', async () => {
-        const adapter = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('any', 'any'));
+        const adapter = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('any', 'any'));
 
         await adapter.save('a', cloud('a'));
 
@@ -39,7 +41,7 @@ describe('WebStorageAdapter', () => {
     });
 
     it('overwrites a row saved again under the same id', async () => {
-        const adapter = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('any', 'any'));
+        const adapter = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('any', 'any'));
 
         await adapter.save('a', cloud('a', { name: 'old' }));
         await adapter.save('a', cloud('a', { name: 'new' }));
@@ -49,7 +51,7 @@ describe('WebStorageAdapter', () => {
     });
 
     it('deletes rows by id and clears the partition', async () => {
-        const adapter = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('any', 'any'));
+        const adapter = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('any', 'any'));
         await adapter.saveAll([cloud('a'), cloud('b'), cloud('c')]);
 
         await adapter.delete('a');
@@ -62,7 +64,7 @@ describe('WebStorageAdapter', () => {
     });
 
     it('writes only to the storage area it was given', async () => {
-        const adapter = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('any', 'any'));
+        const adapter = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('any', 'any'));
 
         await adapter.save('a', cloud('a'));
 
@@ -71,8 +73,8 @@ describe('WebStorageAdapter', () => {
     });
 
     it('follows the domain scope policy rather than the raw context', async () => {
-        const first = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('c1', 'u1'));
-        const second = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('c2', 'u2'));
+        const first = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('c1', 'u1'));
+        const second = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('c2', 'u2'));
 
         await first.save('a', cloud('a'));
 
@@ -80,8 +82,8 @@ describe('WebStorageAdapter', () => {
     });
 
     it('keeps partitions apart for a domain scoped by session', async () => {
-        const one = new WebStorageAdapter(sessionStorage, 'site', scopeOf('c1', 'u1'));
-        const other = new WebStorageAdapter(sessionStorage, 'site', scopeOf('c1', 'u2'));
+        const one = new KeyValueTable(WebStore.over(sessionStorage), 'site', scopeOf('c1', 'u1'));
+        const other = new KeyValueTable(WebStore.over(sessionStorage), 'site', scopeOf('c1', 'u2'));
 
         await one.save('s1', { id: 's1' } as any);
 
@@ -89,7 +91,7 @@ describe('WebStorageAdapter', () => {
     });
 
     it('skips every operation when the domain has no session scope', async () => {
-        const adapter = new WebStorageAdapter(sessionStorage, 'site', scopeOf('c1', ''));
+        const adapter = new KeyValueTable(WebStore.over(sessionStorage), 'site', scopeOf('c1', ''));
 
         await adapter.save('s1', { id: 's1' } as any);
 
@@ -98,7 +100,7 @@ describe('WebStorageAdapter', () => {
     });
 
     it('drops an item with no id from saveAll and says so', async () => {
-        const adapter = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('any', 'any'));
+        const adapter = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('any', 'any'));
 
         await adapter.saveAll([cloud('a'), { name: 'no id' } as any]);
 
@@ -107,7 +109,7 @@ describe('WebStorageAdapter', () => {
     });
 
     it('reads an unparseable partition as empty and recovers on the next write', async () => {
-        const adapter = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('any', 'any'));
+        const adapter = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('any', 'any'));
         await adapter.save('a', cloud('a'));
         const key = sessionStorage.key(0)!;
         sessionStorage.setItem(key, '{not json');
@@ -120,7 +122,7 @@ describe('WebStorageAdapter', () => {
     });
 
     it('reads a partition holding a non-object value as empty', async () => {
-        const adapter = new WebStorageAdapter(sessionStorage, 'invitecloud', scopeOf('any', 'any'));
+        const adapter = new KeyValueTable(WebStore.over(sessionStorage), 'invitecloud', scopeOf('any', 'any'));
         await adapter.save('a', cloud('a'));
         sessionStorage.setItem(sessionStorage.key(0)!, '[1,2]');
 

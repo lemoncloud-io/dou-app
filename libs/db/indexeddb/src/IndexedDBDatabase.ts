@@ -2,7 +2,7 @@ import type { CacheType } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
 import type {
     CursorQueryOptions,
-    IIndexedDB,
+    IndexedDbConnection,
     IndexedDbChatMediaFill,
     IndexedDbRow,
     IndexedDbWriteBatch,
@@ -17,7 +17,7 @@ export const CHAT_MEDIA_INDEX = 'chat_media_index';
 
 export const UNSENT_CHAT_NO = 0;
 
-export class IndexedDBDatabase implements IIndexedDB {
+export class IndexedDBDatabase implements IndexedDbConnection {
     private dbPromise: Promise<IDBDatabase>;
 
     constructor() {

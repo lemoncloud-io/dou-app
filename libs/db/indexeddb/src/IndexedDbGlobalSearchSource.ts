@@ -5,12 +5,12 @@ import type {
     GlobalCacheRef,
     GlobalCacheSearchQuery,
     GlobalCacheSearchResult,
-    IGlobalCacheSearchSource,
-    IIndexedDB,
+    DbSearchSource,
+    IndexedDbConnection,
     IndexedDbRow,
 } from '@chatic/data';
 import { globalCacheRefKey } from '@chatic/data';
-import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from '../indexeddb/IndexedDBDatabase';
+import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX } from './IndexedDBDatabase';
 
 type SearchableType = 'channel' | 'site' | 'chat';
 
@@ -26,8 +26,8 @@ const dedupeRefs = (refs: GlobalCacheRef[]): GlobalCacheRef[] => {
     return [...seen.values()];
 };
 
-export class IndexedDbGlobalSearchSource implements IGlobalCacheSearchSource {
-    constructor(private readonly db: IIndexedDB) {}
+export class IndexedDbGlobalSearchSource implements DbSearchSource {
+    constructor(private readonly db: IndexedDbConnection) {}
 
     async search(keyword: string, query: GlobalCacheSearchQuery): Promise<GlobalCacheSearchResult> {
         const trimmed = keyword.trim().toLowerCase();

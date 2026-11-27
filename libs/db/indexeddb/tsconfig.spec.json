@@ -1,0 +1,22 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../../dist/out-tsc/db-indexeddb-spec",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "../../bridge-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../../data/tsconfig.lib.json"
+        }
+    ]
+}

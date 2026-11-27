@@ -1,27 +1,31 @@
-export { BaseDbAdapter } from './base/BaseDbAdapter';
+export { BaseDbAdapter } from '@chatic/data';
 
 export {
     IndexedDBDatabase,
     TYPE_CID_UID_INDEX,
     CHAT_PAGINATION_INDEX,
     UNSENT_CHAT_NO,
-} from './indexeddb/IndexedDBDatabase';
-export { ChatQueryExecutor } from './indexeddb/ChatQueryExecutor';
-export { IndexedDBAdapter, isQuotaExceededError } from './indexeddb/IndexedDBAdapter';
-export type { IndexedDBAdapterOptions } from './indexeddb/IndexedDBAdapter';
+    ChatQueryExecutor,
+    IndexedDBAdapter,
+    isQuotaExceededError,
+    IndexedDbGlobalSearchSource,
+} from '@chatic/db-indexeddb';
+export type { IndexedDBAdapterOptions } from '@chatic/db-indexeddb';
 
-export { WebStorageAdapter } from './webstorage/WebStorageAdapter';
+export { WebStorageAdapter } from './webStorageAdapter';
 
-export { NativeDBAdapter } from './native/NativeDBAdapter';
-export type { NativeDBAdapterOptions, OptionalNativeCacheMessage } from './native/NativeDBAdapter';
-export type { CacheBridgeClient } from './native/cacheBridge';
 export {
+    NativeDBAdapter,
     getNativeCacheMetrics,
     recordNativeCacheOperation,
     resetNativeCacheMetrics,
     NativeCacheMetricsSource,
-} from './native/nativeCacheMetrics';
-export type { NativeCacheOperation, NativeCacheOperationStat } from './native/nativeCacheMetrics';
-
-export { IndexedDbGlobalSearchSource } from './search/IndexedDbGlobalSearchSource';
-export { NativeGlobalSearchSource } from './search/NativeGlobalSearchSource';
+    NativeGlobalSearchSource,
+} from '@chatic/db-bridge';
+export type {
+    NativeDBAdapterOptions,
+    OptionalNativeCacheMessage,
+    CacheBridgeClient,
+    NativeCacheOperation,
+    NativeCacheOperationStat,
+} from '@chatic/db-bridge';

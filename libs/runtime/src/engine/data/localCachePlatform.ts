@@ -1,18 +1,18 @@
-import type { LocalCachePorts } from '@chatic/data';
+import type { DbPort } from '@chatic/data';
 
 export interface ILocalCachePlatform {
-    configure(ports: LocalCachePorts): void;
-    ports(): LocalCachePorts;
+    configure(ports: DbPort): void;
+    ports(): DbPort;
 }
 
 class LocalCachePlatform implements ILocalCachePlatform {
-    private configured: LocalCachePorts | null = null;
+    private configured: DbPort | null = null;
 
-    configure(ports: LocalCachePorts): void {
+    configure(ports: DbPort): void {
         this.configured = ports;
     }
 
-    ports(): LocalCachePorts {
+    ports(): DbPort {
         if (!this.configured) {
             throw new Error(
                 '[data] the local cache ports were used before any were configured — the entry point has to pass ' +

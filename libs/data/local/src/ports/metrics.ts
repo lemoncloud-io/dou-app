@@ -9,7 +9,9 @@ export interface CacheMetricsSnapshot {
     operations: Record<string, CacheMetricsOperationStat>;
 }
 
-export interface ICacheMetricsSource {
+export interface DbMetricsSource {
     read(): CacheMetricsSnapshot;
     reset(): void;
 }
+
+export type ICacheMetricsSource = DbMetricsSource;

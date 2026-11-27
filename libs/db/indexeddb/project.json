@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/db-indexeddb",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/db/indexeddb/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:any", "formfactor:any"],
+    "targets": {}
+}

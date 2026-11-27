@@ -29,7 +29,7 @@ import type {
 } from '@chatic/bridge-messages';
 import type { ChatMediaQuery, DataContextProvider } from '@chatic/data';
 import { stableHash, withCacheMeta } from '@chatic/data';
-import { BaseDbAdapter } from '../base/BaseDbAdapter';
+import { BaseDbAdapter } from '@chatic/data';
 import type { CacheBridgeClient } from './cacheBridge';
 import { type NativeCacheOperation, recordNativeCacheOperation } from './nativeCacheMetrics';
 

@@ -35,9 +35,15 @@ libs/contracts/ports/src/
 
 Each runtime port has a short name beside the one its owning package gave it: `StoragePort`
 (`SessionStoragePorts` and the runtime's `device` store), `TransportPort` (`TransportPlatformPorts`),
-`AuthPort` (`AuthPlatformPorts`), `CachePort` (`LocalCachePorts`) and `ForegroundPort`. The older names
+`AuthPort` (`AuthPlatformPorts`), `DbPort` (`LocalCachePorts`; `CachePort` stays as an alias) and `ForegroundPort`. The older names
 stay as aliases (`ForegroundSignal`, `RuntimeStorePorts`, and the core packages' own), so nothing that
 already names a port changes.
+
+**The db port keeps the member name `cache` for now.** Its type is `DbPort`: the outbox and other rows that
+must not expire live there too, so the port is the medium, not the policy (ADR-0375 decision 5). The member
+itself is still `RuntimePorts.cache`, because the apps' declarations (`ports: { cache: … }`), their adapters
+(`port: 'cache'`) and the saved port choice `port.cache` read that name; renaming it is a step that changes
+those together.
 
 `@chatic/runtime` re-exports these types from the modules that used to define them (`src/engine/ports.ts`,
 `src/api/host/`), under the same names, and so do `@chatic/runtime-core` and `@chatic/runtime-client`, which
@@ -75,7 +81,7 @@ than a platform-neutral model:
   the envelope's optional `refId`, `version` and `nonce` — because a screen's handler takes that message
   as it is.
 - `StoreProduct` and `StorePurchase` are `react-native-iap`'s types (above).
-- `CachePort` is `@chatic/data`'s `LocalCachePorts`, keyed by the bridge's `CacheType`, and `FilesPort`'s
+- `DbPort` (`CachePort`) is `@chatic/data`'s `DbPort` (`LocalCachePorts`), keyed by the bridge's `CacheType`, and `FilesPort`'s
   `put` and `putShellFile` come from `@chatic/data`'s upload types, which import bridge-messages: the
   wire vocabulary still reaches a contract reader through `@chatic/data`.
 - `SmsResult`, `UrlMetadata` and `ContactsReadout` carry a `success` flag or a `permission` field the

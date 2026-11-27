@@ -1,10 +1,8 @@
 import 'fake-indexeddb/auto';
 import type { IWebBridgeClient } from '@chatic/bridges';
-import type { GlobalCacheContextQuery, GlobalCacheSearchQuery, IGlobalCacheSearchSource } from '@chatic/data';
-import { IndexedDBDatabase } from '../indexeddb/IndexedDBDatabase';
-import { IndexedDBAdapter } from '../indexeddb/IndexedDBAdapter';
-import { IndexedDbGlobalSearchSource } from './IndexedDbGlobalSearchSource';
-import { NativeGlobalSearchSource } from './NativeGlobalSearchSource';
+import type { GlobalCacheContextQuery, GlobalCacheSearchQuery, DbSearchSource } from '@chatic/data';
+import { NativeGlobalSearchSource } from '@chatic/db-bridge';
+import { IndexedDBAdapter, IndexedDBDatabase, IndexedDbGlobalSearchSource } from '@chatic/db-indexeddb';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 if (typeof globalThis.structuredClone !== 'function') {
@@ -225,9 +223,9 @@ const CONTEXT_EXPECTATIONS: ContextExpectation[] = [
 
 const sorted = (ids: string[]) => [...ids].sort();
 
-const runContractSuite = (label: string, buildSource: () => Promise<IGlobalCacheSearchSource>) => {
+const runContractSuite = (label: string, buildSource: () => Promise<DbSearchSource>) => {
     describe(`global cache search contract — ${label}`, () => {
-        let source: IGlobalCacheSearchSource;
+        let source: DbSearchSource;
 
         beforeEach(async () => {
             source = await buildSource();

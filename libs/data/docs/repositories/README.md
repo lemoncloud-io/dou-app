@@ -156,12 +156,12 @@ classDiagram
     }
     class IndexedDBAdapter
     class NativeDBAdapter
-    class WebStorageAdapter
+    class KeyValueTable
 
     CacheStorage <|.. BaseDbAdapter
     BaseDbAdapter <|-- IndexedDBAdapter
     BaseDbAdapter <|-- NativeDBAdapter
-    BaseDbAdapter <|-- WebStorageAdapter
+    BaseDbAdapter <|-- KeyValueTable
 ```
 
 `CacheStorage` and `ScopedCacheStorage` belong to this lib — interfaces `ports/` declares, plus the

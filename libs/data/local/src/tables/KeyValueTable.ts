@@ -1,14 +1,17 @@
 import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/bridge-messages';
-import type { AdapterScope, DataContextProvider } from '@chatic/data';
-import { withCacheMeta } from '@chatic/data';
-import { logger } from '@chatic/bridges';
-import { BaseDbAdapter } from '../base/BaseDbAdapter';
+import type { DataContextProvider } from '@chatic/data-model';
+import { logger } from '@chatic/logger';
+import type { KeyValueStore } from '@chatic/storage';
+
+import { withCacheMeta } from '../ports/policy';
+import type { AdapterScope } from '../ports/policy';
+import { BaseDbAdapter } from './BaseDbAdapter';
 
 type Rows<TType extends CacheType> = Record<string, CacheModelOf<TType>>;
 
-export class WebStorageAdapter<TType extends CacheType> extends BaseDbAdapter<TType> {
+export class KeyValueTable<TType extends CacheType> extends BaseDbAdapter<TType> {
     constructor(
-        private readonly storage: Storage,
+        private readonly store: KeyValueStore,
         type: TType,
         contextProvider: DataContextProvider
     ) {
@@ -21,12 +24,12 @@ export class WebStorageAdapter<TType extends CacheType> extends BaseDbAdapter<TT
 
     private read(scope: AdapterScope): Rows<TType> {
         try {
-            const raw = this.storage.getItem(this.keyFor(scope));
+            const raw = this.store.get(this.keyFor(scope));
             if (!raw) return {};
             const parsed: unknown = JSON.parse(raw);
             return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Rows<TType>) : {};
         } catch (error) {
-            logger.warn('CACHE', '[WebStorageAdapter] unreadable partition — read as empty', {
+            logger.warn('CACHE', '[KeyValueTable] unreadable partition — read as empty', {
                 data: { type: this.type, error: error instanceof Error ? error.message : String(error) },
             });
             return {};
@@ -34,7 +37,7 @@ export class WebStorageAdapter<TType extends CacheType> extends BaseDbAdapter<TT
     }
 
     private write(scope: AdapterScope, rows: Rows<TType>): void {
-        this.storage.setItem(this.keyFor(scope), JSON.stringify(rows));
+        this.store.set(this.keyFor(scope), JSON.stringify(rows));
     }
 
     async save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>> {
@@ -97,6 +100,6 @@ export class WebStorageAdapter<TType extends CacheType> extends BaseDbAdapter<TT
     async clearAll(): Promise<void> {
         const scope = this.getScope();
         if (!scope) return;
-        this.storage.removeItem(this.keyFor(scope));
+        this.store.remove(this.keyFor(scope));
     }
 }

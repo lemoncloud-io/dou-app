@@ -12,7 +12,7 @@ import type { DataContext, DataContextProvider } from '@chatic/data-model';
 import { stableHash } from '../stableHash';
 import { resolveScopedContext } from './policy';
 
-export interface CacheStorage<TType extends CacheType> {
+export interface DbTable<TType extends CacheType> {
     save(id: string, item: CacheModelOf<TType>): Promise<CacheModelOf<TType>>;
     saveAll(items: CacheModelOf<TType>[]): Promise<CacheModelOf<TType>[]>;
     load(id: string): Promise<CacheModelOf<TType> | null>;
@@ -114,3 +114,5 @@ export const createCacheStorages = (
         invite: slot('invite'),
     };
 };
+
+export type CacheStorage<TType extends CacheType> = DbTable<TType>;

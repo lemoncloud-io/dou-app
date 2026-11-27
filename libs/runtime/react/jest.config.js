@@ -15,6 +15,7 @@ module.exports = {
         '^@chatic/runtime$': '<rootDir>/../src/index.ts',
         '^@chatic/ports$': '<rootDir>/../../contracts/ports/src/index.ts',
         '^@chatic/data-(model|api|local|repositories)$': '<rootDir>/../../data/$1/src/index.ts',
+        '^@chatic/db-(indexeddb|bridge|memory)$': '<rootDir>/../../db/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/../../web-ui-kit/src/__mocks__/styleMock.js',
         '\\.(png|jpe?g|gif|svg|webp)$': '<rootDir>/../../web-ui-kit/src/__mocks__/fileMock.js',

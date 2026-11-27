@@ -31,7 +31,9 @@ export interface GlobalCacheContext {
 
 export const globalCacheRefKey = (cid: string, id: string): string => `${cid}:${id}`;
 
-export interface IGlobalCacheSearchSource {
+export interface DbSearchSource {
     search(keyword: string, query: GlobalCacheSearchQuery): Promise<GlobalCacheSearchResult>;
     resolveContext(query: GlobalCacheContextQuery): Promise<GlobalCacheContext>;
 }
+
+export type IGlobalCacheSearchSource = DbSearchSource;

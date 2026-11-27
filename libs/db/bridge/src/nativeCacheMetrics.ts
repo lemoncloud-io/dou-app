@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 import type { CacheType } from '@chatic/bridge-messages';
-import type { CacheMetricsSnapshot, ICacheMetricsSource } from '@chatic/data';
+import type { CacheMetricsSnapshot, DbMetricsSource } from '@chatic/data';
 
 export type NativeCacheOperation =
     | 'save'
@@ -83,7 +83,7 @@ export const resetNativeCacheMetrics = (): void => {
     totalOps = 0;
 };
 
-export class NativeCacheMetricsSource implements ICacheMetricsSource {
+export class NativeCacheMetricsSource implements DbMetricsSource {
     read(): CacheMetricsSnapshot {
         return getNativeCacheMetrics();
     }

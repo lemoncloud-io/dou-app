@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
-import { IndexedDBDatabase } from '../indexeddb/IndexedDBDatabase';
-import { IndexedDBAdapter } from '../indexeddb/IndexedDBAdapter';
+import { IndexedDBDatabase } from './IndexedDBDatabase';
+import { IndexedDBAdapter } from './IndexedDBAdapter';
 import { IndexedDbGlobalSearchSource } from './IndexedDbGlobalSearchSource';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;

@@ -2,6 +2,7 @@ export type {
     AllRequired,
     AuthPort,
     CachePort,
+    DbPort,
     DeviceStorePort,
     ForegroundPort,
     ForegroundSignal,

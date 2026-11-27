@@ -31,7 +31,7 @@ describe('webStorageCache', () => {
         const storage = cache.storage('site', context);
         await storage.save('s1', { id: 's1' } as never);
 
-        expect(nameOf(storage)).toBe('WebStorageAdapter');
+        expect(nameOf(storage)).toBe('KeyValueTable');
         expect(tab.keys().length).toBeGreaterThan(0);
     });
 

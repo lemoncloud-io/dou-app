@@ -106,7 +106,7 @@ lifetime by construction. Inside a desktop shell the session is in `localStorage
 invited clouds stay in IndexedDB; inside the mobile shell they stay native. A reload keeps the tab's
 `sessionStorage`, so it keeps both the guest and its clouds; "duplicate tab" copies both together.
 
-`WebStorageAdapter` keeps the partition as one JSON value and does not interpret query options, which
+`KeyValueTable` (`@chatic/data`, over the `tab` store) keeps the partition as one JSON value and does not interpret query options, which
 is right for this domain — a handful of rows, no paging — and wrong for most others.
 
 **The import.** A tab open across the deploy that made this move has its guest in `sessionStorage`

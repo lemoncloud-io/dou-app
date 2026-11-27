@@ -1,5 +1,5 @@
 import type { AuthPlatformPorts } from '@chatic/auth';
-import type { LocalCachePorts } from '@chatic/data';
+import type { DbPort } from '@chatic/data';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { KeyValueStore } from '@chatic/storage';
 import type { TransportPlatformPorts } from '@chatic/transport';
@@ -16,13 +16,14 @@ export interface DeviceStorePort {
 export type StoragePort = SessionStoragePorts & DeviceStorePort;
 export type TransportPort = TransportPlatformPorts;
 export type AuthPort = AuthPlatformPorts;
-export type CachePort = LocalCachePorts;
+export type { DbPort };
+export type CachePort = DbPort;
 
 export interface RuntimePorts {
     storage: StoragePort;
     transport: TransportPort;
     auth: AuthPort;
-    cache: CachePort;
+    cache: DbPort;
     foreground: ForegroundPort;
 }
 

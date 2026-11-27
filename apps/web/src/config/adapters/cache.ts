@@ -3,9 +3,9 @@ import type { StorageStores, WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { recordCacheRoutes } from '../../app/runtime/activeStorage';
 
-type LocalCachePorts = ReturnType<typeof webLocalCachePorts>;
+type DbPort = ReturnType<typeof webLocalCachePorts>;
 
-export const recordingRoutes = (ports: LocalCachePorts): LocalCachePorts => ({
+export const recordingRoutes = (ports: DbPort): DbPort => ({
     ...ports,
     routed: routes => {
         recordCacheRoutes(routes);

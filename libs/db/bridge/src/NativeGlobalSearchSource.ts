@@ -12,11 +12,11 @@ import type {
     GlobalCacheRef,
     GlobalCacheSearchQuery,
     GlobalCacheSearchResult,
-    IGlobalCacheSearchSource,
+    DbSearchSource,
 } from '@chatic/data';
 import { globalCacheRefKey } from '@chatic/data';
 
-import type { CacheBridgeClient } from '../native/cacheBridge';
+import type { CacheBridgeClient } from './cacheBridge';
 
 type TaggedSearchItem =
     | (CacheChannelView & { _domain: 'channel' })
@@ -32,7 +32,7 @@ const dedupeRefs = (refs: GlobalCacheRef[]): GlobalCacheRef[] => {
     return [...seen.values()];
 };
 
-export class NativeGlobalSearchSource implements IGlobalCacheSearchSource {
+export class NativeGlobalSearchSource implements DbSearchSource {
     constructor(private readonly bridge: CacheBridgeClient) {}
 
     async search(keyword: string, query: GlobalCacheSearchQuery): Promise<GlobalCacheSearchResult> {
