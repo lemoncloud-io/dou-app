@@ -4,6 +4,17 @@
 
 ### Refactor
 
+- (storage) split @chatic/storage into the storage family packages
+
+### Other
+
+- test: (storage) map the storage family names in the host-mobile jest config
+- test: (storage) map the storage family names in the host and shared jest configs
+
+## [2026-11-27] - No version updates
+
+### Refactor
+
 - (mobile,host-mobile) move the shell's device capabilities into @chatic/host-mobile
 
 ## [2026-11-27] - No version updates
