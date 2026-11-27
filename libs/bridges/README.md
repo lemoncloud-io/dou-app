@@ -281,7 +281,7 @@ ignored. Every capability has a legacy rule, and where nothing the page did befo
 existed can be reproduced its legacy rule answers "unavailable", so a new key never needs a guess
 written for it. The keys and their versions — `checkout` 1, `media` 2, `files` 3, and `links`,
 `appShell`, `signIn`, `diagnostics`, `push` 4 — are read into the host ports by
-[`@chatic/runtime-web`](../runtime-web/README.md#the-host-ports-a-page-publishes).
+[`@chatic/runtime-hybrid-web`](../runtime-hybrid-web/README.md#the-host-ports-a-page-publishes).
 
 ### Directories
 
@@ -456,7 +456,7 @@ the web as legacy. The sub WebView's host passes the other two options: `subWebV
 the handshake reports as `subWebView`, read when the reply is built, and `maxMessageLength`, past
 which a message is answered `TOO_LARGE` (as an `ERROR`, with its `refId`) without reaching a handler.
 It still counts as the page's first message and releases held pushes. The main hosts set no limit. The negotiation those fields feed is
-[`runtime-web`'s](../runtime-web/docs/cache/README.md).
+[`runtime-hybrid-web`'s](../runtime-hybrid-web/docs/cache/README.md).
 
 ## Scenarios
 

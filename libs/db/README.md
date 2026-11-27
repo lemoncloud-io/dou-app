@@ -29,7 +29,7 @@ answer to `@chatic/data`'s `LocalCachePorts` — and the native ones in `libs/ru
 sources see a `CacheStorage` and never learn which engine answered.
 
 This lib **does not decide which engine a domain gets.** In a page that is `resolveCacheBackendFor` in
-`libs/runtime-web/src/localCache/routing.ts` — a page's policy about the installed shell, not a
+`libs/runtime-hybrid-web/src/localCache/routing.ts` — a page's policy about the installed shell, not a
 storage concern; inside the phone app it is `nativeLocalCachePorts` in `libs/runtime-mobile`, which
 routes every domain to the app's database (`NATIVE_CACHE_ROUTE`). An engine that knew the conditions of its own selection would be the wrong shape.
 
@@ -95,7 +95,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     DS["LocalDataSource × 9<br/>@chatic/data"]:::ext
-    LF["webLocalCachePorts (via an app's cache adapter)<br/>@chatic/runtime-web"]:::ext
+    LF["webLocalCachePorts (via an app's cache adapter)<br/>@chatic/runtime-hybrid-web"]:::ext
     LN["nativeLocalCachePorts<br/>@chatic/runtime-mobile"]:::ext
     Ports["ports/<br/><i>CacheStorage · IIndexedDB · search · metrics · policy</i><br/>@chatic/data"]:::ext
 
@@ -346,7 +346,7 @@ implementations. A semantic change made to one and not the other fails there.
 the classes here are constructor arguments for one set of ports, not an API.
 
 ```ts
-// libs/runtime-web/src/localCache/index.ts — the only importer in the repo, outside tests
+// libs/runtime-hybrid-web/src/localCache/index.ts — the only importer in the repo, outside tests
 import { ChatQueryExecutor, IndexedDBAdapter, IndexedDBDatabase, NativeDBAdapter, WebStorageAdapter } from '@chatic/db';
 
 export const webLocalCachePorts = (tab: KeyValueStore): LocalCachePorts => ({
@@ -377,7 +377,7 @@ the partition an operation touches is the one it was captured for, not whichever
 DataManager                                  @chatic/runtime
   └─ createLocalDataSources()                data/factories/localFactory.ts — over localCachePlatform.ports()
        ├─ route(type)                        once per domain per session — the routing decision, made by the platform
-       ├─ storage(type, route, provider)     webLocalCachePorts (an app's cache adapter), @chatic/runtime-web:
+       ├─ storage(type, route, provider)     webLocalCachePorts (an app's cache adapter), @chatic/runtime-hybrid-web:
        │                                     new IndexedDBAdapter(sharedDb, …) | new NativeDBAdapter(webClient, …)
        │                                     | new WebStorageAdapter(tab, …) (invited clouds in a plain tab)
        │    └─ getSharedDatabase()           one IndexedDBDatabase, shared by every web-backed adapter

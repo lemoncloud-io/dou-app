@@ -1,5 +1,5 @@
 import { webClient } from '@chatic/bridges';
-import type { WebHostFacts } from '@chatic/runtime-web';
+import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { appBridge } from '../../app/bridge/appBridge';
 import { PICK_TIMEOUT_MS, PREPARE_VIDEO_TIMEOUT_MS, READ_ATTACHMENT_TIMEOUT_MS, webMedia } from './media';

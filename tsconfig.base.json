@@ -68,6 +68,7 @@
             "@chatic/runtime-mobile/polyfills": ["libs/runtime-mobile/src/polyfills.ts"],
             "@chatic/runtime-react": ["libs/runtime/react/src/index.ts"],
             "@chatic/runtime-react/testing": ["libs/runtime/react/src/testing/index.ts"],
+            "@chatic/runtime-hybrid-web": ["libs/runtime-hybrid-web/src/index.ts"],
             "@chatic/runtime-web": ["libs/runtime-web/src/index.ts"],
             "@chatic/web-checkout": ["libs/web-checkout/src/index.ts"],
             "@chatic/web-checkout/windows": ["libs/web-checkout/src/windows.ts"],

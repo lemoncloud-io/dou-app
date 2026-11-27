@@ -68,7 +68,7 @@ await startRuntime(consoleRuntime);
   session — and the core engine over them, once however often it is called; an engine that mirrors a
   runtime elsewhere never calls it, so none of the page's ports is built. `engine: null` is a launch that
   must boot no runtime at all. Left out, the slot is `engine.core` (`engineCore`): `core()` and nothing
-  else, which is every runtime before this slot existed. Web pages add `engine.mirror` (runtime-web).
+  else, which is every runtime before this slot existed. Web pages that run in a shell add `engine.mirror` (runtime-hybrid-web), a candidate list of `engine.shell` and `engine.local`.
 - **`signedOutKeyPrefixes`, `data`** ride along to `createRuntime`. **`config`** (optional) is the
   ports `@chatic/config` is initialised with when the entry leaves that to the start.
 

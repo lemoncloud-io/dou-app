@@ -14,7 +14,7 @@ release (see [The page's default](#the-pages-default)). The owner switch still m
 way, answered in production only while the app's debug mode is on (see [The switch](#the-switch)). On a
 launch whose owner is `native`, the app offers the session to the page
 and answers the runtime handshake; the web page says hello and, on the `native` answer, mirrors the
-runtime (`settleSessionOwner` and `createBridgedRuntime` in `@chatic/runtime-web`). It then opens no
+runtime (`settleSessionOwner` and `createBridgedRuntime` in `@chatic/runtime-hybrid-web`). It then opens no
 vault and runs no session of its own, so while the page asks, only one side holds the session's tokens
 (one that does not ask is under [What is not done yet](#what-is-not-done-yet)): the runtime says it
 holds the session only once `start()` has answered an engine and never tells a later page `web`, and the

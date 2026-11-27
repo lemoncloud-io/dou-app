@@ -1,4 +1,4 @@
-import { host, resolveDiagnosticsMethod, type ShellOrBrowser } from '@chatic/runtime-web';
+import { host, resolveDiagnosticsMethod, type ShellOrBrowser } from '@chatic/runtime-hybrid-web';
 
 let beforePublish: ShellOrBrowser | undefined;
 let resolving = false;

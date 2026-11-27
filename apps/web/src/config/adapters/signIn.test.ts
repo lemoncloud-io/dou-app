@@ -1,4 +1,4 @@
-import type { HostOs, WebHostFacts } from '@chatic/runtime-web';
+import type { HostOs, WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { appBridge } from '../../app/bridge/appBridge';
 import { webSignIn } from './signIn';

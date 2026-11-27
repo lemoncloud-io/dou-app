@@ -162,7 +162,7 @@ sequenceDiagram
     Main->>Main: pendingNavigationStore.start()
     Main->>Shell: appBridge.notifyWebAppReady()
     Shell-->>Main: capability report (buffered events flush)
-    Main->>Main: setNativeCacheSupport(report) (@chatic/runtime-web)
+    Main->>Main: setNativeCacheSupport(report) (@chatic/runtime-hybrid-web)
     Main->>App: render(<App />)
     App->>RT: runtime.connection.RuntimeConnectionHost gates its subtree
     RT-->>Router: session initialized
@@ -208,12 +208,12 @@ Files you cannot guess from the name:
 - `app/runtime/useSiteSwitch.ts` — the place (site) switch. The cloud switch lives under
   `features/home`.
 - `config/` — the declaration part: the only code besides `main.tsx` that imports
-  `@chatic/runtime-web` or `@chatic/config` (everything under `app/` reads the runtime through
+  `@chatic/runtime-hybrid-web` or `@chatic/config` (everything under `app/` reads the runtime through
   `@chatic/runtime-react`). See [The runtime declarations](#the-runtime-declarations).
 - `app/storage/` — the two stores this app's features keep their own state in: `deviceStore` (outlives
   the tab — drafts, recent emoji, the sent-invite log, the browser's log queue) and `tabStore` (dies
   with it — the pending invite channel, the crash sentinel, the debug unlock). `main.tsx` points them
-  at what `resolveStorageStores()` (`@chatic/runtime-web`) built; a zustand `persist` store names one through
+  at what `resolveStorageStores()` (`@chatic/runtime-hybrid-web`) built; a zustand `persist` store names one through
   `persistStorageOver`. No feature names `localStorage`/`sessionStorage` itself — the root ESLint
   config refuses it, and refuses a `persist` without a `storage`.
 - `app/bridge/appBridge.ts` — the outbound half of the seam; `GlobalBridgeListener.tsx` the inbound.
@@ -311,7 +311,7 @@ main.tsx
 ├── a late vault reloads (tokens this run wrote to localStorage go first); native → sign-out drops the web token copy
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)
-├── appBridge.notifyWebAppReady() → setNativeCacheSupport (@chatic/runtime-web)
+├── appBridge.notifyWebAppReady() → setNativeCacheSupport (@chatic/runtime-hybrid-web)
 └── render(<App />)
     └── app/app.tsx            HelmetProvider · I18nextProvider · QueryClientProvider · ThemeApplier
         ├── GlobalBridgeListener
@@ -325,8 +325,9 @@ main.tsx
 
 ### The runtime declarations
 
-`main.tsx` boots from a declaration (`defineRuntime` / `startRuntime` from `@chatic/runtime-web` — see
-[runtime-web § The adapters](../../libs/runtime-web/README.md#the-adapters)) instead of wiring the
+`main.tsx` boots from a declaration (`defineRuntime` / `startRuntime` from `@chatic/runtime-hybrid-web`, which sits on runtime-web — see
+[runtime-web § The adapters](../../libs/runtime-web/README.md#the-adapters) and
+[runtime-hybrid-web](../../libs/runtime-hybrid-web/README.md)) instead of wiring the
 runtime by hand. There are two, in `src/config/`, and the entry picks one once:
 
 **The rule** (`chooseWebRuntime`, `config/webRuntime.ts`): `web-hybrid` when the host profile found a

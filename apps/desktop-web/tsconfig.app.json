@@ -15,6 +15,9 @@
             "path": "../../libs/config/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/runtime-hybrid-web/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/runtime-web/tsconfig.lib.json"
         },
         {

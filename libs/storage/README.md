@@ -15,7 +15,7 @@ talking to every shell still in use.
 
 ## Who imports it
 
-- **`@chatic/runtime-web`'s `resolveStorageStores`** is where an app's stores are chosen and built —
+- **`@chatic/runtime-hybrid-web`'s `resolveStorageStores`** is where an app's stores are chosen and built —
   the session's `secret` and `plain`, the vault, and the `device`/`tab` stores for everything else.
   `apps/web` and `apps/desktop-web` call it once and hand the result out (their runtime declaration's
   storage adapter, their config ports, their own `app/storage/`).

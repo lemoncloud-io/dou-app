@@ -1,4 +1,4 @@
-import type { WebCheckout } from '@chatic/runtime-web';
+import type { WebCheckout } from '@chatic/runtime-hybrid-web';
 
 export const leaveForWeb = (url: string, { replace = false }: { replace?: boolean } = {}): void => {
     if (replace) window.location.replace(url);

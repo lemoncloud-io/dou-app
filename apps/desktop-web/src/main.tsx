@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import { logger } from '@chatic/bridges';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
-import { startRuntime } from '@chatic/runtime-web';
+import { startRuntime } from '@chatic/runtime-hybrid-web';
 
 import { desktopStores } from './config/adapters';
 import { desktopWeb } from './config/desktop-web';

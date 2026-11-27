@@ -1,6 +1,6 @@
 import { runtime } from '@chatic/runtime-react';
-import { defineAdapter, webLocalCachePorts } from '@chatic/runtime-web';
-import type { WebHostFacts } from '@chatic/runtime-web';
+import { defineAdapter, webLocalCachePorts } from '@chatic/runtime-hybrid-web';
+import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { desktopStores } from './stores';
 

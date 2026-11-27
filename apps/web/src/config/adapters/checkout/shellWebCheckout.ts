@@ -1,4 +1,4 @@
-import { readShellHarness, shellCheckoutUrl, type ShellHarness, type WebCheckout } from '@chatic/runtime-web';
+import { readShellHarness, shellCheckoutUrl, type ShellHarness, type WebCheckout } from '@chatic/runtime-hybrid-web';
 
 import { leaveForWeb, webCheckout } from './webCheckout';
 

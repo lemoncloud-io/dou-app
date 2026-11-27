@@ -1,6 +1,6 @@
 import { logger, webClient } from '@chatic/bridges';
-import { linksAdapters, pageLinks } from '@chatic/runtime-web';
-import type { LinksPort, ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { linksAdapters, pageLinks } from '@chatic/runtime-hybrid-web';
+import type { LinksPort, ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 import { appBridge } from '../../app/bridge/appBridge';
 import { shellCapabilities } from '../../app/bridge/shellCapabilities';

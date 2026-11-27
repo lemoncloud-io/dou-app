@@ -1,6 +1,6 @@
 import { logger, webClient } from '@chatic/bridges';
 
-import type { StoreCheckout, StoreName, StorePurchase, StorePurchaseError } from '@chatic/runtime-web';
+import type { StoreCheckout, StoreName, StorePurchase, StorePurchaseError } from '@chatic/runtime-hybrid-web';
 
 import { appBridge } from '../../../app/bridge/appBridge';
 

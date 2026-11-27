@@ -5,7 +5,7 @@ shell runs the runtime — the session and its tokens, the sockets, sync, the re
 and the page mirrors it, asking the shell for everything the session decides. This document is the
 contract the two halves share, and both halves of it: the shell's (`RuntimeBridgeHost`) and the page's
 mirror engine (`createMirrorEngine`). The web app's entry point says hello and picks it — through
-runtime-web's `settleSessionOwner` — on a launch whose shell offers.
+runtime-hybrid-web's `settleSessionOwner` — on a launch whose shell offers.
 
 ## Where the cut is
 
@@ -337,7 +337,7 @@ which answers `{ value }` or `{ failure }` rather than throwing.
 `createMirrorEngine({ port, hello })` (`src/remote/mirror/`) is the engine of a page that mirrors a
 runtime running elsewhere. It has every member the in-process engine has — a test holds the two side by
 side — so the React surface cannot tell which it was given. The port (`RuntimeMirrorPort`) is the three
-requests and the two pushes; `@chatic/runtime-web`'s `createBridgedRuntime` is it over the page's
+requests and the two pushes; `@chatic/runtime-hybrid-web`'s `createBridgedRuntime` is it over the page's
 bridge, and a test joins it to a host in the same process, through JSON as the bridge does
 (`src/testing/mirrorLoopback.ts`). The
 port must deliver in order: the mirror relies on a session push sent before an answer arriving before

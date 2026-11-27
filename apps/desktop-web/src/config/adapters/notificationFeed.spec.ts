@@ -16,7 +16,7 @@ import { desktopPush } from './push';
 import { desktopSignIn } from './signIn';
 import { onDesktopNotification } from './notificationFeed';
 
-import type { WebHostFacts } from '@chatic/runtime-web';
+import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 beforeEach(() => vi.clearAllMocks());
 

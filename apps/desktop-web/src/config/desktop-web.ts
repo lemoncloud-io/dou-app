@@ -5,7 +5,7 @@ import {
     foregroundVisibility,
     transportBrowser,
     webHostFacts,
-} from '@chatic/runtime-web';
+} from '@chatic/runtime-hybrid-web';
 
 import { cacheDesktopWebStorage, createWebConfigPorts, desktopStores, storageDesktop } from './adapters';
 import { appShellHost } from './adapters/appShell';

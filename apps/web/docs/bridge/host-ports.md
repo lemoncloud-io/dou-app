@@ -2,7 +2,7 @@
 
 > Scope: the `host` slot of `apps/web/src/config/`'s two declarations, `config/adapters/checkout/`, and
 > `config/adapters/{media,files,links,appShell,signIn,diagnostics,push}.ts`.
-> The port types and the adapters are [`@chatic/runtime-web`](../../../../libs/runtime-web/README.md#the-host-port-adapters);
+> The port types and the adapters are [`@chatic/runtime-hybrid-web`](../../../../libs/runtime-hybrid-web/README.md#the-host-port-adapters);
 > the host profile they read is [`@chatic/bridges`](../../../../libs/bridges/README.md#the-host-profile).
 
 What the host does for a feature — sell a subscription, pick and move files, open links, run the app's
@@ -29,7 +29,7 @@ rule, and only the declaration part and the log pipeline (below) read it: a feat
 members and never branches on `kind`. The contracts are runtime-client's (`host/<port>.ts`). This app's
 two implementations of each are in `src/config/adapters/<port>.ts`: the shell side through `appBridge`
 (and `webClient` for the messages it does not wrap), the page side with what any browser offers.
-runtime-web's `<port>Adapters` turn them into the `<port>.host`, `.shell` and `.browser` adapters the
+runtime-hybrid-web's `<port>Adapters` turn them into the `<port>.host`, `.shell` and `.browser` adapters the
 declarations name.
 
 **What every host does is a method; what only some hosts have is a member that is `null` where the

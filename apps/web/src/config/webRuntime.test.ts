@@ -1,4 +1,4 @@
-import { pageStorageAreas, tabStorageStores } from '@chatic/runtime-web';
+import { pageStorageAreas, tabStorageStores } from '@chatic/runtime-hybrid-web';
 
 import { chooseWebRuntime, declareWebRuntime } from './webRuntime';
 

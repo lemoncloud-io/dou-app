@@ -1,5 +1,3 @@
-import { resetHostProfileForTests } from '@chatic/bridges';
-
 import { webTransportPorts } from './transport';
 
 const setOnline = (value: boolean) => Object.defineProperty(window.navigator, 'onLine', { configurable: true, value });
@@ -8,7 +6,6 @@ const globals = window as unknown as { CHATIC_APP_PLATFORM?: string; WebSocket: 
 afterEach(() => {
     setOnline(true);
     delete globals.CHATIC_APP_PLATFORM;
-    resetHostProfileForTests();
 });
 
 describe('webTransportPorts — online', () => {
@@ -36,11 +33,10 @@ describe('webTransportPorts — online', () => {
 });
 
 describe('webTransportPorts — device', () => {
-    it('reads the shell-injected platform and the user agent', () => {
+    it('reads the user agent and no shell platform, even one a shell injected', () => {
         globals.CHATIC_APP_PLATFORM = 'android';
-        resetHostProfileForTests();
 
-        expect(webTransportPorts().device()).toEqual({ appPlatform: 'android', userAgent: navigator.userAgent });
+        expect(webTransportPorts().device()).toEqual({ appPlatform: undefined, userAgent: navigator.userAgent });
     });
 
     it('asks the platform reader it is handed, at each read', () => {
