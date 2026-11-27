@@ -58,6 +58,13 @@ node scripts/ratchet.js verify-baseline --base origin/develop   # fails if a bas
 
 A count **below** its baseline fails `check` too, until `yarn ratchet:update` lowers it; otherwise the
 room a removed comment left could be filled again unnoticed. Commit the lowered baseline with the change.
+`yarn gate` does this itself for the source and test-typecheck baselines: it runs their check with `--lower`
+(`node scripts/ratchet.js check --only source --lower`), which writes the lowered baseline, following renames,
+instead of failing. Counts are taken from the working tree, so the gate stages the lowered file only when the
+file had no unstaged edits and every file behind a changed entry is staged; otherwise the gate fails and names
+what to stage, in a command of its own before `git commit`.
+A commit with a pathspec (`git commit -- a.ts`) leaves the staged baseline out. CI still fails on a baseline
+left high.
 `update` carries an entry along when `git diff -M` against the merge base with `origin/develop` reports its
 file as renamed, so a `git mv` needs one `yarn ratchet:update` and nothing else (a rename git does not
 detect — more than half the file rewritten — starts from zero). A baseline is never raised by hand:
