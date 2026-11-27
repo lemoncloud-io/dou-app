@@ -5,8 +5,8 @@ const { spawnSync } = require('child_process');
 
 const io = require('./io');
 const { checkStoreNotes } = require('./notes');
-const { tagMessage, parseTagMessage } = require('./finish');
-const { parseTag } = require('./version');
+const { tagMessage, parseTagMessage, parseRows } = require('./finish');
+const { parseTag, releaseBranchFor, parseReleaseBranch } = require('./version');
 const store = require('./store');
 
 const PLATFORMS = ['ios', 'android'];
@@ -71,21 +71,25 @@ async function preflight(ctx, deps) {
 
     const dirty = deps.git(['status', '--porcelain']);
     const head = deps.git(['rev-parse', 'HEAD']);
-    if (ctx.retry) {
+    if (ctx.at) {
         deps.git(['fetch', '--quiet', 'origin', MOBILE_TAGS]);
-        const at = ctx.retry.sha;
+        const at = ctx.at.sha;
         check(
             'at the tag',
             head === at,
-            head === at ? `${ctx.retry.tag} ${at.slice(0, 9)}` : `run git switch --detach ${ctx.retry.tag} first`
+            head === at ? `${ctx.at.tag} ${at.slice(0, 9)}` : `run git switch --detach ${ctx.at.tag} first`
         );
     } else {
         const branch = deps.git(['rev-parse', '--abbrev-ref', 'HEAD']);
+        const allowed = branch === 'develop' || Boolean(parseReleaseBranch(branch));
         check(
             'branch',
-            branch === ctx.branch,
-            branch === ctx.branch ? branch : `on ${branch}; dev builds come from ${ctx.branch}`
+            allowed,
+            allowed
+                ? branch
+                : `on ${branch}; dev builds come from develop, or release/mobile-<major>.<minor> for a hotfix`
         );
+        ctx.branch = allowed ? branch : 'develop';
         deps.git(['fetch', '--quiet', 'origin', ctx.branch, MOBILE_TAGS]);
         const remote = deps.git(['rev-parse', `origin/${ctx.branch}`]);
         check(
@@ -165,6 +169,7 @@ async function releaseDev(options, deps) {
         branch: 'develop',
         env: 'dev',
         retry,
+        at: retry ? { tag: retry.tag, sha: retry.sha } : null,
         platforms: retry ? retry.missing : platformsFor(options.platform),
         storeNotes: options.storeNotes || (retry ? retry.recorded.storeNotes : ''),
     };
@@ -185,7 +190,12 @@ async function releaseDev(options, deps) {
             target = { version: retry.version, build: retry.build, tag: retry.tag, sha: retry.sha };
             deps.log(`\nRetry ${retry.tag}: upload ${ctx.platforms.join(', ')} at ${retry.version} (${retry.build})`);
         } else {
-            const plan = await deps.plan({ bump: options.bump, version: options.version, build: options.build });
+            const plan = await deps.plan({
+                bump: options.bump,
+                version: options.version,
+                build: options.build,
+                branch: ctx.branch,
+            });
             describePlan(plan, deps);
             target = { ...plan.release, sha: plan.to.sha };
         }
@@ -221,6 +231,7 @@ async function releaseDev(options, deps) {
             version: options.version,
             build: options.build,
             storeBuild: floor.max,
+            branch: ctx.branch,
         });
         describePlan(plan, deps);
         target = { ...plan.release, sha: plan.to.sha };
@@ -283,6 +294,7 @@ async function releaseDev(options, deps) {
                 results,
                 sha: target.sha,
                 storeNotes: ctx.storeNotes,
+                branch: ctx.branch,
             }),
         ]);
         deps.git(['push', 'origin', `refs/tags/${target.tag}`]);
@@ -300,6 +312,155 @@ async function releaseDev(options, deps) {
     return { plan, uploaded, results };
 }
 
+async function prodTarget(tagName, platform, deps) {
+    const tag = parseTag(tagName);
+    if (!tag) throw new Error(`prod needs --tag mobile-v<version>-<build> (got ${tagName || 'nothing'})`);
+    deps.git(['fetch', '--quiet', 'origin', MOBILE_TAGS]);
+    const sha = deps.tryGit(['rev-list', '-n', '1', tagName]);
+    if (!sha) throw new Error(`${tagName} does not exist on origin`);
+    const recorded = parseTagMessage(deps.git(['tag', '-l', '--format=%(contents)', tagName]));
+    const onDev = recorded.env === 'dev' ? store.uploadedPlatforms(recorded.results) : [];
+    const wanted = platform ? platformsFor(platform) : PLATFORMS;
+    let release = null;
+    try {
+        release = JSON.parse(await deps.gh(['release', 'view', tagName, '--json', 'body,isPrerelease']));
+    } catch {
+        release = null;
+    }
+    const rows = parseRows(release && release.body);
+    const prodResults = rows.prod ? rows.prod.results : {};
+    const onProd = store.uploadedPlatforms(prodResults);
+    const branch = releaseBranchFor(tag.version);
+    const branchExists =
+        deps.tryGit(['ls-remote', '--exit-code', '--heads', 'origin', `refs/heads/${branch}`]) !== null;
+    let contained = false;
+    if (branchExists) {
+        deps.git(['fetch', '--quiet', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`]);
+        contained = deps.tryGit(['merge-base', '--is-ancestor', sha, `origin/${branch}`]) !== null;
+    }
+    return {
+        ...tag,
+        tag: tagName,
+        sha,
+        recorded,
+        wanted: wanted.filter(name => !onProd.includes(name)),
+        alreadyOnProd: wanted.filter(name => onProd.includes(name)),
+        prodResults,
+        notOnDev: wanted.filter(name => !onDev.includes(name)),
+        devRelease: Boolean(rows.dev),
+        branch,
+        branchExists,
+        contained,
+    };
+}
+
+function prodChecks(target) {
+    const checks = [];
+    const check = (name, ok, detail) => checks.push({ name, ok, detail });
+    const devOk = target.recorded.env === 'dev' && target.devRelease && target.notOnDev.length === 0;
+    let devDetail = `${target.tag} reached the dev app (${target.wanted.join(', ')})`;
+    if (target.recorded.env !== 'dev') devDetail = `${target.tag} is not a dev build tag`;
+    else if (!target.devRelease) devDetail = `${target.tag} has no GitHub release with a dev upload`;
+    else if (target.notOnDev.length) {
+        devDetail = `${target.notOnDev.join(', ')} never reached the dev app at ${target.tag}`;
+    }
+    check('dev record', devOk, devDetail);
+    let branchDetail = `${target.branch} does not exist yet; created at ${target.sha.slice(0, 9)} after the upload`;
+    if (target.branchExists) {
+        branchDetail = target.contained
+            ? `${target.branch} contains ${target.tag}`
+            : `${target.tag} is not on ${target.branch}; ship a build from that branch instead`;
+    }
+    check('release branch', !target.branchExists || target.contained, branchDetail);
+    return checks;
+}
+
+async function releaseProd(options, deps) {
+    if (options.submit) {
+        throw new Error(
+            'Store review submission is not automated yet (it waits for the store release settings to change); run without --submit'
+        );
+    }
+    const target = await prodTarget(options.tag, options.platform, deps);
+    if (target.wanted.length === 0) {
+        throw new Error(`${target.tag} already shipped ${target.alreadyOnProd.join(', ')} to prod; nothing to upload`);
+    }
+    const ctx = {
+        env: 'prod',
+        at: { tag: target.tag, sha: target.sha },
+        platforms: target.wanted,
+        storeNotes: options.storeNotes || target.recorded.storeNotes,
+    };
+    const checks = [...(await preflight(ctx, deps)), ...prodChecks(target)];
+    deps.log(formatChecks(checks));
+    const failed = checks.filter(item => !item.ok);
+    deps.log(
+        `\nProd ${target.tag}: ${target.version} (${target.build}) at ${target.sha.slice(0, 9)}, as built for dev`
+    );
+
+    if (options.dryRun) {
+        deps.log('\nDry run — would run, in order, stopping at the first failure:');
+        deps.log(
+            '  read the latest prod store build numbers (not read in a dry run); stop unless all are below the tag:'
+        );
+        for (const platform of ctx.platforms) {
+            const [command, args] = store.storeBuildCommand(platform, 'prod', '<file>');
+            deps.log(`    (cd apps/mobile && ${command} ${args.join(' ')})`);
+        }
+        for (const platform of ctx.platforms) {
+            const command = uploadCommand(platform, 'prod', ctx.storeNotes);
+            deps.log(
+                `  VERSION_NAME=${target.version} BUILD_NUMBER=${target.build} ${command.slice(0, 3).join(' ')} -m <store notes>`
+            );
+        }
+        if (!target.branchExists) deps.log(`  git push origin ${target.sha.slice(0, 9)}:refs/heads/${target.branch}`);
+        deps.log(`  gh workflow run ${FINISH_WORKFLOW} -f tag=${target.tag} -f env=prod -f platform=<results>`);
+        if (failed.length > 0) throw new Error(`Preflight failed: ${failed.map(item => item.name).join(', ')}`);
+        return { dryRun: true, uploaded: [] };
+    }
+    if (failed.length > 0) throw new Error(`Preflight failed: ${failed.map(item => item.name).join(', ')}`);
+
+    const floor = store.storeFloor(ctx.platforms, 'prod', deps.store);
+    deps.log(`Prod store build numbers: ${store.formatResults(floor.byPlatform)}`);
+    if (floor.max >= target.build) {
+        throw new Error(
+            `The prod store already has build ${floor.max}, not below ${target.build}; ship a newer dev build instead`
+        );
+    }
+
+    const env = { VERSION_NAME: target.version, BUILD_NUMBER: String(target.build) };
+    const outcomes = {};
+    let stop = null;
+    for (const platform of ctx.platforms) {
+        if (stop) break;
+        const command = uploadCommand(platform, 'prod', ctx.storeNotes);
+        const status = deps.run(command[0], command.slice(1), env);
+        outcomes[platform] = status === 0 ? 'success' : 'failure';
+        if (status !== 0) stop = `${platform} upload failed (exit ${status})`;
+    }
+    const results = store.resolveResults(
+        { requested: ctx.platforms, outcomes, env: 'prod', build: target.build },
+        deps.store
+    );
+    deps.log(`Results: ${store.formatResults(results)}`);
+    const uploaded = store.uploadedPlatforms(results);
+    if (uploaded.length === 0) throw new Error(`${stop || 'nothing uploaded'}; nothing reached the prod store`);
+    if (!target.branchExists) {
+        deps.git(['push', 'origin', `${target.sha}:refs/heads/${target.branch}`]);
+        deps.log(`Created ${target.branch} at ${target.sha.slice(0, 9)}`);
+    }
+    const merged = store.mergeResults(target.prodResults, results);
+    await dispatchFinish(target.tag, { ...options, env: 'prod', platformResults: store.formatResults(merged) }, deps);
+    const problems = [
+        stop,
+        ...Object.keys(results)
+            .filter(platform => results[platform] === 'incomplete')
+            .map(platform => `${platform} reached the store but its lane failed; check the store notes`),
+    ].filter(Boolean);
+    if (problems.length > 0) throw new Error(`${problems.join('; ')}. Prod results: ${store.formatResults(results)}`);
+    return { target, uploaded, results };
+}
+
 function buildTaken(deps, build) {
     deps.git(['fetch', '--quiet', 'origin', MOBILE_TAGS]);
     return (
@@ -314,6 +475,7 @@ function buildTaken(deps, build) {
 
 async function dispatchFinish(tag, options, deps) {
     const args = ['workflow', 'run', FINISH_WORKFLOW, '--ref', options.ref || 'develop', '-f', `tag=${tag}`];
+    if (options.env && options.env !== 'dev') args.push('-f', `env=${options.env}`);
     if (options.teamNotes) args.push('-f', `team_notes=${options.teamNotes}`);
     if (options.platformResults) args.push('-f', `platform=${options.platformResults}`);
     try {
@@ -377,6 +539,7 @@ function parseArgs(argv) {
             return rest[i];
         };
         if (arg === '--dry-run') options.dryRun = true;
+        else if (arg === '--submit') options.submit = true;
         else if (arg === '--notes') options.storeNotes = value();
         else if (arg === '--notes-file') options.storeNotes = fs.readFileSync(value(), 'utf8');
         else if (arg === '--team-notes-file') options.teamNotes = fs.readFileSync(value(), 'utf8');
@@ -385,6 +548,8 @@ function parseArgs(argv) {
         else if (arg === '--build') options.build = value() || undefined;
         else if (arg === '--tag') options.tag = value();
         else if (arg === '--ref') options.ref = value();
+        else if (arg === '--env') options.env = value();
+        else if (arg === '--results') options.platformResults = value();
         else if (!arg.startsWith('--') && command === 'finish' && !options.tag) options.tag = arg;
         else if (!arg.startsWith('--') && !options.platform) options.platform = arg;
         else throw new Error(`Unknown argument: ${arg}`);
@@ -395,9 +560,7 @@ function parseArgs(argv) {
 async function run(argv, deps) {
     const options = parseArgs(argv);
     if (options.command === 'dev') return releaseDev(options, deps);
-    if (options.command === 'prod') {
-        throw new Error('prod uploads arrive with release branches; use yarn mobile:deploy:prod for now');
-    }
+    if (options.command === 'prod') return releaseProd(options, deps);
     if (options.command === 'finish') return finishTag(options, deps);
     if (options.command === 'status') return status(deps);
     throw new Error(`Unknown command: ${options.command}`);
@@ -427,6 +590,9 @@ module.exports = {
     requiredKeys,
     missingKeys,
     retryTarget,
+    prodTarget,
+    prodChecks,
+    releaseProd,
     platformsFor,
     preflight,
     formatChecks,

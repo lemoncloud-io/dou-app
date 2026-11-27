@@ -16,11 +16,12 @@ function releaseTitle(plan) {
     return `DoU Mobile ${plan.release.version} (${plan.release.build})`;
 }
 
-function tagMessage({ version, build, env, results, sha, storeNotes }) {
+function tagMessage({ version, build, env, results, sha, storeNotes, branch = 'develop' }) {
     return [
         `DoU Mobile ${version} (${build})`,
         '',
         `env: ${env}`,
+        `branch: ${branch}`,
         `platforms: ${uploadedPlatforms(results).join(', ')}`,
         `requested: ${Object.keys(results).join(', ')}`,
         `results: ${formatResults(results)}`,
@@ -54,6 +55,7 @@ function parseTagMessage(message) {
     }
     return {
         env: field('env'),
+        branch: field('branch') || 'develop',
         platforms,
         requested,
         results,
@@ -72,13 +74,33 @@ function platformCell(results, platform) {
     return results[platform] ? STATUSES[results[platform]] : '-';
 }
 
-function releaseBody({ plan, env, results, actor, runUrl, uploadedAt, storeNotes, teamNotes }) {
+const ENVS = ['dev', 'prod'];
+const TABLE_HEAD = ['| Env | Uploaded | iOS | Android | By | Run |', '| --- | --- | --- | --- | --- | --- |'];
+
+function envRow({ env, uploadedAt, results, actor, runUrl }) {
+    return `| ${env} | ${uploadedAt} | ${platformCell(results, 'ios')} | ${platformCell(results, 'android')} | ${actor} | ${runUrl ? `[run](${runUrl})` : '-'} |`;
+}
+
+function parseRows(body) {
+    const labels = Object.fromEntries(Object.entries(STATUSES).map(([key, label]) => [label, key]));
+    const rows = {};
+    for (const line of (body || '').split('\n')) {
+        const cells = line.split('|').map(cell => cell.trim());
+        if (cells.length < 8 || !ENVS.includes(cells[1])) continue;
+        const results = {};
+        if (labels[cells[3]]) results.ios = labels[cells[3]];
+        if (labels[cells[4]]) results.android = labels[cells[4]];
+        rows[cells[1]] = { line, results };
+    }
+    return rows;
+}
+
+function releaseBody({ plan, rows, storeNotes, teamNotes }) {
     const compareFrom = plan.lastTag || plan.base.commit;
     const compare = plan.repo ? `https://github.com/${plan.repo}/compare/${compareFrom}...${plan.release.tag}` : null;
     return [
-        '| Env | Uploaded | iOS | Android | By | Run |',
-        '| --- | --- | --- | --- | --- | --- |',
-        `| ${env} | ${uploadedAt} | ${platformCell(results, 'ios')} | ${platformCell(results, 'android')} | ${actor} | ${runUrl ? `[run](${runUrl})` : '-'} |`,
+        ...TABLE_HEAD,
+        ...rows,
         '',
         '## Team notes',
         '',
@@ -103,15 +125,17 @@ function prComment({ plan, env, releaseUrl }) {
     return `${marker(plan.release.tag, env)}\nShipped in ${env} ${plan.release.version} (${plan.release.build}) · ${releaseUrl}`;
 }
 
-async function ensureRelease(deps, plan, env, bodyFile) {
+async function readRelease(deps, tag) {
+    try {
+        return JSON.parse(await deps.gh(['release', 'view', tag, '--json', 'body,isPrerelease']));
+    } catch {
+        return null;
+    }
+}
+
+async function ensureRelease(deps, plan, env, bodyFile, exists) {
     const tag = plan.release.tag;
     const prerelease = env === 'dev' ? '--prerelease' : '--prerelease=false';
-    let exists = true;
-    try {
-        await deps.gh(['release', 'view', tag, '--json', 'url']);
-    } catch {
-        exists = false;
-    }
     const args = ['--title', releaseTitle(plan), '--notes-file', bodyFile, prerelease, '--latest=false'];
     if (exists) await deps.gh(['release', 'edit', tag, ...args]);
     else await deps.gh(['release', 'create', tag, '--verify-tag', ...args]);
@@ -150,29 +174,50 @@ async function finish(options, deps) {
     const sha = deps.tryGit(['rev-list', '-n', '1', tag]);
     if (!sha) throw new Error(`${tag} does not exist; finish runs after the tag is pushed`);
     const recorded = parseTagMessage(deps.git(['tag', '-l', '--format=%(contents)', tag]));
-    const env = options.env || recorded.env;
-    if (env !== 'dev') throw new Error(`finish supports env=dev only for now (got ${env})`);
-    const results = options.platforms ? parseResults(options.platforms) : recorded.results;
-    if (uploadedPlatforms(results).length === 0) throw new Error(`${tag} records no uploaded platform`);
+    if (recorded.env !== 'dev') throw new Error(`${tag} is not a dev build tag (env: ${recorded.env})`);
+    const env = options.env || 'dev';
+    if (!ENVS.includes(env)) throw new Error(`env must be dev or prod (got ${env})`);
+    const existing = await readRelease(deps, tag);
+    const rows = parseRows(existing && existing.body);
+    if (env === 'prod' && !rows.dev) {
+        throw new Error(
+            `${tag} has no GitHub release with a dev upload; prod ships only builds that reached the dev app`
+        );
+    }
+    let results;
+    let row;
+    if (options.platforms) results = parseResults(options.platforms);
+    else if (env === 'dev') results = recorded.results;
+    else if (rows.prod) ({ results, line: row } = rows.prod);
+    else throw new Error(`Pass the prod upload results (--platforms ios=uploaded,...) for ${tag}`);
+    if (uploadedPlatforms(results).length === 0) throw new Error(`${tag} records no uploaded platform for ${env}`);
     const storeNotes = (options.storeNotes || '').trim() || recorded.storeNotes;
     if (!storeNotes) throw new Error(`No store notes: pass them or tag ${tag} with them`);
     const plan = await deps.plan(tag);
     const teamNotes = (options.teamNotes || '').trim() || plan.teamNotes;
     const cardNotes = (options.teamNotes || '').trim() || plan.cardNotes;
+    const actor = options.actor ? `@${options.actor}` : '-';
+    const ownRow =
+        row ||
+        envRow({
+            env,
+            results,
+            actor,
+            runUrl: options.runUrl,
+            uploadedAt:
+                env === 'dev' ? deps.git(['tag', '-l', '--format=%(taggerdate:iso8601-strict)', tag]) : deps.now(),
+        });
+    const devRow = env === 'dev' ? ownRow : rows.dev.line;
     const body = releaseBody({
         plan,
-        env,
-        results,
-        actor: options.actor ? `@${options.actor}` : '-',
-        runUrl: options.runUrl,
-        uploadedAt: deps.git(['tag', '-l', '--format=%(taggerdate:iso8601-strict)', tag]),
+        rows: env === 'dev' ? [devRow, ...(rows.prod ? [rows.prod.line] : [])] : [devRow, ownRow],
         storeNotes,
         teamNotes,
     });
-    const summary = { body, tag, env, results, teamNotes, cardNotes };
+    const summary = { body, tag, env, branch: recorded.branch, results, teamNotes, cardNotes };
     if (options.dryRun) return summary;
     deps.writeFile(options.bodyFile, body);
-    const url = await ensureRelease(deps, plan, env, options.bodyFile);
+    const url = await ensureRelease(deps, plan, env, options.bodyFile, Boolean(existing));
     const commented = await commentOnPrs(deps, plan, env, url);
     deps.log(`Release ${url}; commented on ${commented.length} PR(s)`);
     return { ...summary, url, commented };
@@ -210,6 +255,7 @@ const defaultDeps = {
         const { buildPlan, defaultDeps: planDeps } = require('./plan');
         return buildPlan({ forTag: tag }, planDeps);
     },
+    now: () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
     writeFile: (file, text) => {
         fs.mkdirSync(path.dirname(file), { recursive: true });
         fs.writeFileSync(file, text);
@@ -222,7 +268,7 @@ async function main(argv) {
     const result = await finish(options, defaultDeps);
     if (options.cardNotesOut) defaultDeps.writeFile(options.cardNotesOut, `${result.cardNotes.trim()}\n`);
     if (process.env.GITHUB_OUTPUT) {
-        const lines = [`env=${result.env}`, `results=${formatResults(result.results)}`];
+        const lines = [`env=${result.env}`, `branch=${result.branch}`, `results=${formatResults(result.results)}`];
         if (result.url) lines.push(`url=${result.url}`);
         fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('\n')}\n`);
     }
@@ -236,6 +282,8 @@ module.exports = {
     releaseTitle,
     tagMessage,
     parseTagMessage,
+    envRow,
+    parseRows,
     releaseBody,
     prComment,
     finish,

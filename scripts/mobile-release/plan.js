@@ -15,6 +15,8 @@ const {
     resolveVersion,
     compareVersions,
     tagName,
+    bumpVersion,
+    parseReleaseBranch,
 } = require('./version');
 const { parseReplacers, teamNotes } = require('./notes');
 
@@ -173,10 +175,18 @@ async function buildPlan(options, deps) {
     const replacers = parseReplacers(deps.readFile(RELEASE_DRAFTER));
     const proposed = proposeUnit(unitCommits, signals);
     const devTags = reachableTags.filter(name => compareVersions(parseTag(name).version, base.version) > 0);
-    const unit = built ? unitBetween(base.version, built.version) : resolveUnit(proposed.unit, options.bump);
-    const version = built
-        ? built.version
-        : resolveVersion({ base: base.version, unit, devTags, requested: options.version });
+    const hotfix = built ? null : parseReleaseBranch(options.branch);
+    let unit;
+    let version;
+    if (built) {
+        unit = unitBetween(base.version, built.version);
+        version = built.version;
+    } else if (hotfix) {
+        ({ unit, version } = hotfixVersion(hotfix, reachableTags, options));
+    } else {
+        unit = resolveUnit(proposed.unit, options.bump);
+        version = resolveVersion({ base: base.version, unit, devTags, requested: options.version });
+    }
     const store = options.storeBuild === undefined || options.storeBuild === null ? null : Number(options.storeBuild);
     const computed = nextBuildNumber(allTags, Math.max(gradle.versionCode, store || 0));
     const build = built ? built.build : resolveBuild(computed, options.build);
@@ -201,6 +211,7 @@ async function buildPlan(options, deps) {
             version,
             build,
             tag: tagName(version, build),
+            branch: built ? null : options.branch || 'develop',
             buildBasis: { tags: latestBuild(allTags), store, gradle: gradle.versionCode, computed },
         },
         commits: notesCommits.map(({ binaryFiles, inBinary: _inBinary, ...rest }) => ({ ...rest, files: binaryFiles })),
@@ -208,6 +219,22 @@ async function buildPlan(options, deps) {
         teamNotes: teamNotes(prs, directCommits, replacers),
         cardNotes: teamNotes(prs, directCommits, replacers, 'ko'),
     };
+}
+
+function hotfixVersion(branch, reachableTags, options) {
+    if (options.version) throw new Error(`${branch.name} builds take the next patch; drop --version`);
+    if (options.bump && !['auto', 'patch'].includes(options.bump)) {
+        throw new Error(`${branch.name} builds are always patch (got --bump ${options.bump})`);
+    }
+    const sameMinor = reachableTags.map(parseTag).filter(tag => {
+        const [major, minor] = tag.version.split('.').map(Number);
+        return major === branch.major && minor === branch.minor;
+    });
+    if (sameMinor.length === 0) {
+        throw new Error(`${branch.name} has no mobile-v${branch.major}.${branch.minor}.* tag to build a patch on`);
+    }
+    const last = sameMinor.map(tag => tag.version).reduce((a, b) => (compareVersions(a, b) >= 0 ? a : b));
+    return { unit: 'patch', version: bumpVersion(last, 'patch') };
 }
 
 function latestBuild(tags) {
@@ -263,7 +290,10 @@ function summarize(plan) {
             'Proposal',
             `${plan.proposal.unit || 'none'}${plan.proposal.unit === 'major' ? ' (auto ships minor)' : ''} — ${proposalReason(plan.proposal)}`,
         ],
-        ['Release', `${plan.release.version} ${plan.release.unit} → ${plan.release.tag}`],
+        [
+            'Release',
+            `${plan.release.version} ${plan.release.unit} → ${plan.release.tag}${plan.release.branch && plan.release.branch !== 'develop' ? ` (release branch ${plan.release.branch}, patch only)` : ''}`,
+        ],
         ['Build', buildLine(plan.release)],
         ['Notes range', plan.ranges.notes],
         ['PRs', `${plan.prs.length} PR(s), ${plan.commits.filter(c => !c.pr).length} commit(s) without a PR`],
@@ -291,6 +321,7 @@ function parseArgs(argv) {
         else if (arg === '--build') options.build = value() || undefined;
         else if (arg === '--store-build') options.storeBuild = Number(value());
         else if (arg === '--base-ref') options.baseRef = value();
+        else if (arg === '--branch') options.branch = value();
         else if (arg === '--out') options.out = value();
         else throw new Error(`Unknown argument: ${arg}`);
     }
