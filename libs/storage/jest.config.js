@@ -1,4 +1,6 @@
 module.exports = {
+    testPathIgnorePatterns: ['/node_modules/', '<rootDir>/memory/', '<rootDir>/file/'],
+    modulePathIgnorePatterns: ['<rootDir>/memory/', '<rootDir>/file/'],
     testEnvironment: '<rootDir>/../../tools/jest/jsdom-environment.js',
     transform: {
         '^.+\\.[tj]sx?$': [

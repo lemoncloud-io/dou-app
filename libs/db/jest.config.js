@@ -1,4 +1,6 @@
 module.exports = {
+    testPathIgnorePatterns: ['/node_modules/', '<rootDir>/memory/'],
+    modulePathIgnorePatterns: ['<rootDir>/memory/'],
     testEnvironment: '<rootDir>/../../tools/jest/jsdom-environment.js',
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud)/)'],
     moduleNameMapper: {

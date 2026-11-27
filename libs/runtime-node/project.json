@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/runtime-node",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/runtime-node/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:node", "formfactor:any"],
+    "targets": {}
+}

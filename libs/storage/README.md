@@ -54,6 +54,10 @@ libs/storage/src/
 A folder per concern, each with its own `index.ts`; interfaces in that folder's `types.ts`, one class
 per file, each test beside the file it covers. A new store goes in `stores/`.
 
+`memory/` and `file/` beside `src/` are their own projects, the first of the `storage/*` family:
+[`@chatic/storage-memory`](./memory/README.md) and [`@chatic/storage-file`](./file/README.md). This
+project's Jest config skips them.
+
 ## The contract
 
 ```ts

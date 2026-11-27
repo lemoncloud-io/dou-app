@@ -121,6 +121,21 @@
             "path": "./libs/sign-in/mobile"
         },
         {
+            "path": "./libs/runtime-node"
+        },
+        {
+            "path": "./libs/host/node"
+        },
+        {
+            "path": "./libs/storage/memory"
+        },
+        {
+            "path": "./libs/storage/file"
+        },
+        {
+            "path": "./libs/db/memory"
+        },
+        {
             "path": "./libs/runtime-web"
         },
         {
