@@ -1,6 +1,6 @@
 # desktop-tauri
 
-The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the deployed web and answers the bridge from Rust is in [ADR-0384](../../docs/adr/0384-the-tauri-shell-loads-the-deployed-web-and-answers-the-bridge-from-rust.md). The Electron desktop (`apps/desktop`, `apps/desktop-web`) and the Rust engine (`apps/desktop-native`) are separate and untouched.
+The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the deployed web and answers the bridge from Rust is in [ADR-0384](../../docs/adr/0384-the-tauri-shell-loads-the-deployed-web-and-answers-the-bridge-from-rust.md). The Electron desktop (`apps/desktop`, `apps/desktop-web`) and the parked Rust engine (`apps/desktop-native`) are separate and untouched; this shell does not depend on the engine.
 
 ## Layout
 
@@ -12,6 +12,7 @@ The Tauri shell that shows `apps/web` on macOS and Windows. Why it loads the dep
 | `crates/agent-settings` | validation of the MCP permission settings                                                                                                |
 | `crates/connectors`     | registering the launcher with Claude Desktop and Claude Code                                                                             |
 | `crates/vault`          | the encrypted `nativeSecure` store                                                                                                       |
+| `crates/capture`        | PNG of the main webview, taken by the webview itself (the only crate allowed `unsafe`)                                                   |
 | `scripts/`              | `check-bridge-contract.mjs`; `smoke/` (a fixture page and a server for the CI smoke run)                                                 |
 | `docs/`                 | [agent](./docs/agent/README.md), [bridge](./docs/bridge/README.md), [storage](./docs/storage/README.md), [shell](./docs/shell/README.md) |
 
@@ -26,7 +27,11 @@ npx nx run desktop-tauri:rust-lint
 npx nx run desktop-tauri:dev      # cargo tauri dev; needs: cargo install tauri-cli --locked --version '^2'
 ```
 
-`DOU_WEB_URL` and `DOU_STAGE` at build time pick the web address and the stage; `cargo build --release --bin dou-mcp` first, then `cargo tauri build --bundles app` bundles `dou-mcp` next to the app binary so Connectors finds it.
+`DOU_WEB_URL` and `DOU_STAGE` at build time pick the web address and the stage.
+
+## Running instances
+
+`dou-tauri --profile <dir> [--app <folder|URL>]` runs one instance per folder, so two profiles run side by side with separate storage. `--app` loads a built web folder (for example a worktree's `apps/web` dist) or a dev server URL instead of the deployed web and remembers it in `<dir>/app.json`. `dou-shellctl --profile <dir> screenshot out.png` (also `reload`, `focus`, `app-source`, `logs`) talks to the running shell. Details: [shell](./docs/shell/README.md).
 
 For a production bundle that sits beside the dev one, add `--config '{"identifier":"io.chatic.desktop.tauri.prod","productName":"DoU Tauri Prod"}'` and leave `DOU_WEB_URL` and `DOU_STAGE` unset: it opens `https://dou.chatic.io`, uses the production relay, and keeps its app data, agent profile and keychain entry under the `.prod` identifier, apart from the dev app. Without them a debug build opens `https://dou-dev.chatic.io` and a release build `https://dou.chatic.io`.
 

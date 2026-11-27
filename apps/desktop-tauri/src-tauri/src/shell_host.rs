@@ -129,6 +129,7 @@ impl Host for ShellHost {
             .filter(|arg| is_deep_link(arg))
             .filter_map(|arg| url::Url::parse(arg).ok())
             .collect();
+        logs::shell(&format!("second instance with {} link(s)", links.len()));
         if !links.is_empty() {
             crate::handlers::deliver_links(&self.app, links);
         }

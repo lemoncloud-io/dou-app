@@ -447,6 +447,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "capture"
+version = "0.0.0"
+dependencies = [
+ "block2",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "objc2-web-kit",
+ "tauri",
+ "webview2-com",
+ "windows",
+]
+
+[[package]]
 name = "cargo-platform"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1036,6 +1050,7 @@ dependencies = [
  "agent-settings",
  "base64 0.22.1",
  "bridge-host",
+ "capture",
  "connectors",
  "oauth",
  "serde",

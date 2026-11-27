@@ -37,6 +37,7 @@ url = "2"
 uuid = { version = "1", features = ["v4", "v5"] }
 sys-locale = "0.3"
 bridge-host = { path = "../crates/bridge-host" }
+capture = { path = "../crates/capture" }
 
 [[bin]]
 name = "dou-tauri"
