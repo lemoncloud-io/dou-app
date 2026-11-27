@@ -1,0 +1,16 @@
+{
+    "name": "dou-cli",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "apps/dou-cli/src",
+    "projectType": "application",
+    "tags": ["layer:app", "platform:node", "formfactor:any"],
+    "targets": {
+        "build": {
+            "executor": "nx:run-commands",
+            "outputs": ["{workspaceRoot}/dist/apps/dou-cli"],
+            "options": {
+                "command": "esbuild apps/dou-cli/src/main.ts --bundle --platform=node --target=node22 --format=esm --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --tsconfig=apps/dou-cli/tsconfig.app.json --outfile=dist/apps/dou-cli/main.mjs"
+            }
+        }
+    }
+}

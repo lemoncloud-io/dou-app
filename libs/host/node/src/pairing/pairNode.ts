@@ -1,4 +1,5 @@
-import { createPairingRequestFlow, pairingClientOf, readSessionDeviceId, sessionCommands } from '@chatic/runtime/api';
+import { createPairingRequestFlow, readSessionDeviceId, sessionCommands } from '@chatic/runtime/api';
+import { pairingClientOf } from '@chatic/runtime/api/session';
 import type { PairingRequestScreen, PairingRequestState } from '@chatic/runtime/api';
 import { getRepositories } from '@chatic/runtime/engine';
 
