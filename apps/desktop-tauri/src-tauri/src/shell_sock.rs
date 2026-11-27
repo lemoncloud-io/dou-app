@@ -95,6 +95,7 @@ where
         let mut line = String::new();
         match (&mut reader).take(MAX_REQUEST).read_line(&mut line).await {
             Ok(0) | Err(_) => return,
+            Ok(read) if read as u64 >= MAX_REQUEST && !line.ends_with('\n') => return,
             Ok(_) => {}
         }
         let worker = Arc::clone(&host);

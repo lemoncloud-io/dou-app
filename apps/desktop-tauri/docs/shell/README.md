@@ -38,7 +38,7 @@ Changing the source restarts the shell: origin, capability and init script are f
 
 ## Logs
 
-The init script hooks `console.*`, `error` and `unhandledrejection` on the web origin and sends each to the `log_event` command, which the web capability allows. `log_event` checks the caller's origin, cuts a line at 4 KiB and drops more than 200 events a second. `shell.log` and `webview.log` rotate at 1 MiB and keep three older files.
+The init script hooks `console.*`, `error` and `unhandledrejection` on the web origin and sends each to the `log_event` command, which the web capability allows. `log_event` checks the caller's origin, cuts a line at 4 KiB and drops more than 200 events a second. Messages are written as they are, so a page that prints a secret to the console leaves it in `webview.log`. `shell.log` and `webview.log` rotate at 1 MiB and keep three older files.
 
 ## shell.sock
 

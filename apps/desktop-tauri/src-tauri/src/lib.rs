@@ -40,11 +40,20 @@ fn vault_account(custom: bool, paths: &Paths) -> String {
 
 fn hand_over(paths: &Paths, cli: &Cli) -> ! {
     let argv: Vec<String> = cli.deep_links.clone();
-    let outcome = shell_client::call(
-        paths,
-        "second_instance",
-        serde_json::json!({ "argv": argv }),
-    );
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    let outcome = loop {
+        let reply = shell_client::call(
+            paths,
+            "second_instance",
+            serde_json::json!({ "argv": argv }),
+        );
+        match reply {
+            Err(_) if std::time::Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(200));
+            }
+            other => break other,
+        }
+    };
     match outcome {
         Ok(_) => std::process::exit(0),
         Err(error) => stop(&format!(

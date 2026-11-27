@@ -29,7 +29,9 @@ pub fn relaunch_args(current: &[String], app: Option<&str>) -> Vec<String> {
         } else if arg.starts_with("--app=") {
             at += 1;
         } else {
-            out.push(arg.clone());
+            if !is_deep_link(arg) {
+                out.push(arg.clone());
+            }
             at += 1;
         }
     }
@@ -150,10 +152,7 @@ mod tests {
             &list(&["--profile", "/p", "--app", "/old", "chatic://x"]),
             Some("/new"),
         );
-        assert_eq!(
-            args,
-            list(&["--profile", "/p", "chatic://x", "--app", "/new"])
-        );
+        assert_eq!(args, list(&["--profile", "/p", "--app", "/new"]));
         let none = relaunch_args(&list(&["--app=/old", "--profile", "/p"]), None);
         assert_eq!(none, list(&["--profile", "/p"]));
     }

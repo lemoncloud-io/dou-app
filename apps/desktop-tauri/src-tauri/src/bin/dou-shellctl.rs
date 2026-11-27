@@ -30,6 +30,13 @@ fn parse(args: &[String]) -> Result<(PathBuf, Vec<String>), String> {
     Ok((profile.ok_or("--profile is required")?, rest))
 }
 
+fn absolute(text: &str) -> String {
+    if text == "default" || text.starts_with("http://") || text.starts_with("https://") {
+        return text.to_string();
+    }
+    std::fs::canonicalize(text).map_or_else(|_| text.to_string(), |p| p.display().to_string())
+}
+
 fn run(args: &[String]) -> Result<String, String> {
     let (profile, rest) = parse(args)?;
     let paths = Paths::new(
@@ -46,7 +53,7 @@ fn run(args: &[String]) -> Result<String, String> {
         "reload" | "focus" => show(call(&paths, command, json!({}))?),
         "app-source" => {
             let params = match rest.get(1) {
-                Some(text) => json!({ "set": text }),
+                Some(text) => json!({ "set": absolute(text) }),
                 None => json!({}),
             };
             show(call(&paths, "app_source", params)?)
@@ -89,5 +96,31 @@ fn main() {
             eprintln!("{error}\n{USAGE}");
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn list(items: &[&str]) -> Vec<String> {
+        items.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn the_profile_flag_is_taken_from_anywhere() {
+        let (profile, rest) = parse(&list(&["reload", "--profile", "/p"])).expect("parse");
+        assert_eq!(profile, PathBuf::from("/p"));
+        assert_eq!(rest, ["reload"]);
+        assert!(parse(&list(&["reload"])).is_err());
+        assert!(parse(&list(&["--profile"])).is_err());
+    }
+
+    #[test]
+    fn a_folder_is_sent_as_an_absolute_path_and_addresses_are_left_alone() {
+        assert_eq!(absolute("https://x.test"), "https://x.test");
+        assert_eq!(absolute("default"), "default");
+        assert!(std::path::Path::new(&absolute(".")).is_absolute());
+        assert_eq!(absolute("/no/such/folder"), "/no/such/folder");
     }
 }

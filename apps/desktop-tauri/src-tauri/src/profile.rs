@@ -137,10 +137,14 @@ impl Paths {
 #[cfg(unix)]
 fn create_private_dir(dir: &Path) -> io::Result<()> {
     use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+    let existed = dir.is_dir();
     std::fs::DirBuilder::new()
         .recursive(true)
         .mode(0o700)
         .create(dir)?;
+    if existed {
+        return Ok(());
+    }
     std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))
 }
 
