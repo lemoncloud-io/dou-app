@@ -1,4 +1,4 @@
-import type { PushPort } from '@chatic/runtime-client';
+import type { PushPort } from '../../api';
 
 export const browserPush = (): PushPort => ({
     kind: 'browser',

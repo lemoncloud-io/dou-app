@@ -25,6 +25,9 @@
     "references": [
         {
             "path": "../ui-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../design-system/assets/tsconfig.lib.json"
         }
     ]
 }

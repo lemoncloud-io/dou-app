@@ -11,7 +11,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## An app updated from the previous release still boots signed in
 
-- paths: `libs/auth/src/session/**`, `libs/runtime-core/src/session/**`, `libs/session/src/**`, `libs/runtime-mobile/src/**`
+- paths: `libs/auth/src/session/**`, `libs/runtime/src/engine/session/**`, `libs/session/src/**`, `libs/runtime-mobile/src/**`
 - diff: `SESSION_KEYS|secretStorage`
 - check: Seed the store the previous build wrote (vault empty with a page session, and the reverse), boot, and
   confirm the same account is signed in and no guest login replaced it.
@@ -101,14 +101,14 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## A read pinned to one server agrees with the active session
 
-- paths: `libs/data/src/**`, `apps/web/src/app/features/mypage/**`, `apps/web/src/app/hooks/useMyUser*`
+- paths: `libs/data/**/src/**`, `apps/web/src/app/features/mypage/**`, `apps/web/src/app/hooks/useMyUser*`
 - diff: `relay.*(profile|user\.update)|(profile|user\.update).*relay`
 - check: Switch clouds and confirm the MY header and the write target follow the active session.
 - from: ea81a1a59, 8ae94f829 (revert), ADR-0062
 
 ## A boot-path change still reaches a working state
 
-- paths: `apps/web/src/main.tsx`, `apps/web/src/app/runtime/**`, `libs/runtime-core/src/**`, `libs/transport/src/**`
+- paths: `apps/web/src/main.tsx`, `apps/web/src/app/runtime/**`, `libs/runtime/src/engine/**`, `libs/runtime/src/remote/**`, `libs/transport/src/**`
 - check: Reload, cold start after more than an hour away (stale credential), and a foreground report during the
   first connect each reach a usable home screen.
 - from: 17c13d6ce, f797bee74, a94ba9e42
@@ -132,7 +132,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## A value sent across the bridge or a stream survives JSON and a reconnect
 
-- paths: `libs/runtime-core/src/**`, `libs/runtime-web/src/**`, `libs/runtime-mobile/src/**`, `libs/bridges/src/**`,
+- paths: `libs/runtime/src/engine/**`, `libs/runtime/src/remote/**`, `libs/runtime-web/src/**`, `libs/runtime-mobile/src/**`, `libs/bridges/src/**`,
   `libs/transport/src/**`
 - diff: `postMessage\(|\bhello\b|lastEvent\w*|handshake`
 - check: Every result type that crosses carries only JSON (a promise, Map, class or function arrives as `{}`); a
@@ -184,7 +184,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## A file is judged by what it is, and its upload time by its size
 
-- paths: `libs/data/src/**/*ttachment*`, `libs/shared/src/**/*ttachment*`, `apps/*/src/**/upload/**`,
+- paths: `libs/data/**/src/**/*ttachment*`, `libs/shared/src/**/*ttachment*`, `apps/*/src/**/upload/**`,
   `apps/*/src/**/*Upload*`, `apps/*/src/**/xhrPut*`, `apps/*/src/**/image-send/**`
 - diff: `image/gif|application/zip|\bmimeType\b|\bthumbUrl\b`
 - check: Send a GIF (still animates in the room), a .docx the OS types as `application/zip`, and a 300 MB video on a

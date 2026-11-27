@@ -14,7 +14,7 @@ canonical in the backend repo's own spec; this document only covers how the cons
 - **Admin reads never enter the local cache.** Every row here belongs to someone else's account.
   `CloudRepository`'s domain mapping resolves ownership relative to _the viewer's own session_
   (`toDomainCloud`/`resolveCloudType` in
-  [`CloudHttpDataSource.ts`](../../../../libs/data/src/remote/http-data-sources/CloudHttpDataSource.ts)) —
+  [`CloudHttpDataSource.ts`](../../../../libs/data/api/src/http-data-sources/CloudHttpDataSource.ts)) —
   running someone else's cloud through it would misclassify silently. So the admin surface attaches
   only to the subscription lane, which has no local data source at all.
 - **Views pass through unchanged**, matching the subscription lane's existing convention: no domain

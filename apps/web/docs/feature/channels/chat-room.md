@@ -353,7 +353,7 @@ it — so an old message whose sender left `content` empty shows an empty bubble
 
 Message text is a small markdown-like dialect, the one the desktop composer writes: `**bold**`,
 `*italic*`, `~~strike~~`, `` `code` ``, triple-backtick fences, `> ` quote lines and labelled links.
-[`messageTokens.ts`](../../../../../libs/data/src/domain/messageTokens.ts) in `@chatic/data` reads exactly that set,
+[`messageTokens.ts`](../../../../../libs/data/model/src/messageTokens.ts) in `@chatic/data` reads exactly that set,
 with the desktop reader's rules for quotes and marks, so a formatted message reads the same on both.
 Headings and lists stay literal, and there is no escape syntax: a backslash is a backslash.
 

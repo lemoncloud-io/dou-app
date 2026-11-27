@@ -37,6 +37,18 @@
             "path": "./libs/data"
         },
         {
+            "path": "./libs/data/model"
+        },
+        {
+            "path": "./libs/data/api"
+        },
+        {
+            "path": "./libs/data/local"
+        },
+        {
+            "path": "./libs/data/repositories"
+        },
+        {
             "path": "./libs/bridges"
         },
         {
@@ -109,6 +121,33 @@
             "path": "./libs/runtime/react"
         },
         {
+            "path": "./libs/checkout/store"
+        },
+        {
+            "path": "./libs/push/desktop"
+        },
+        {
+            "path": "./libs/push/mobile"
+        },
+        {
+            "path": "./libs/sign-in/mobile"
+        },
+        {
+            "path": "./libs/runtime-node"
+        },
+        {
+            "path": "./libs/host/node"
+        },
+        {
+            "path": "./libs/storage/memory"
+        },
+        {
+            "path": "./libs/storage/file"
+        },
+        {
+            "path": "./libs/db/memory"
+        },
+        {
             "path": "./libs/runtime-web"
         },
         {
@@ -122,6 +161,9 @@
         },
         {
             "path": "./libs/chatic-apps-devtools"
+        },
+        {
+            "path": "./libs/design-system/assets"
         }
     ]
 }

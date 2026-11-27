@@ -10,8 +10,8 @@ const pretendardFaces = [...css.matchAll(/@font-face\s*{([^}]*)}/g)]
     .filter(body => /font-family:\s*Pretendard;/.test(body));
 
 describe('Pretendard loading', () => {
-    it('does not @import a stylesheet, which would block the first paint', () => {
-        expect(css).not.toMatch(/^\s*@import\s/m);
+    it('does not @import a remote stylesheet, which would block the first paint', () => {
+        expect(css).not.toMatch(/@import\s+(url\()?['"]?(https?:)?\/\//);
     });
 
     it('declares the weights the UI uses, each with font-display swap', () => {

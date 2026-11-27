@@ -5,4 +5,4 @@ export * as sync from './socket/sync';
 export * as push from './push';
 export * as settings from './settings';
 
-export * from '@chatic/runtime/facade';
+export * from '@chatic/runtime/api/facade';

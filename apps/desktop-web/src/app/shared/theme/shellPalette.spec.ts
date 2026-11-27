@@ -136,11 +136,11 @@ describe('shellPaletteCss', () => {
 });
 
 describe('PAGE_TOKENS', () => {
-    it.each(Object.entries(PAGE_TOKENS.light))('light --%s matches styles.css', (name, value) => {
+    it.each(Object.entries(PAGE_TOKENS.light))('light --%s matches the desktop tokens', (name, value) => {
         expect(lightPage[name]).toBe(value);
     });
 
-    it.each(Object.entries(PAGE_TOKENS.dark))('dark --%s matches styles.css', (name, value) => {
+    it.each(Object.entries(PAGE_TOKENS.dark))('dark --%s matches the desktop tokens', (name, value) => {
         expect(darkPage[name]).toBe(value);
     });
 });

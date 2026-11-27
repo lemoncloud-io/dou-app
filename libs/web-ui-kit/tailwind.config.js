@@ -1,93 +1,17 @@
 const { join } = require('path');
+const { mobileColors, radius } = require('../design-system/tokens/mobile/src/tailwind.cjs');
 
 module.exports = {
     darkMode: ['class'],
     content: [
         join(__dirname, 'src/**/*!(*.stories|*.spec).{ts,tsx,html}'),
         join(__dirname, 'src/**/*.stories.{ts,tsx}'),
+        join(__dirname, '../design-system/assets/src/**/*!(*.stories|*.spec|*.test).{ts,tsx}'),
     ],
     theme: {
         extend: {
-            colors: {
-                border: 'hsl(var(--border))',
-                input: 'hsl(var(--input))',
-                ring: 'hsl(var(--ring))',
-                background: 'hsl(var(--background))',
-                foreground: 'hsl(var(--foreground))',
-                primary: {
-                    DEFAULT: 'hsl(var(--primary))',
-                    foreground: 'hsl(var(--primary-foreground))',
-                },
-                secondary: {
-                    DEFAULT: 'hsl(var(--secondary))',
-                    foreground: 'hsl(var(--secondary-foreground))',
-                },
-                destructive: {
-                    DEFAULT: 'hsl(var(--destructive))',
-                    foreground: 'hsl(var(--destructive-foreground))',
-                },
-                muted: {
-                    DEFAULT: 'hsl(var(--muted))',
-                    foreground: 'hsl(var(--muted-foreground))',
-                },
-                card: {
-                    DEFAULT: 'hsl(var(--card))',
-                    foreground: 'hsl(var(--card-foreground))',
-                },
-                label: 'hsl(var(--label))',
-                placeholder: 'hsl(var(--placeholder))',
-                description: 'hsl(var(--description))',
-                surface: 'hsl(var(--surface))',
-                'main-accent': 'hsl(var(--main-accent))',
-                'input-border': 'hsl(var(--input-border))',
-                'focus-border': 'hsl(var(--focus-border))',
-                'brand-ink': 'hsl(var(--brand-ink))',
-                'control-idle': 'hsl(var(--control-idle))',
-                'avatar-ring': 'hsl(var(--avatar-ring))',
-                'avatar-stroke': 'hsl(var(--avatar-stroke))',
-                'control-surface': 'hsl(var(--control-surface))',
-                'nav-ink': 'hsl(var(--nav-ink))',
-                'glyph-green': 'hsl(var(--glyph-green))',
-                'glyph-indigo': 'hsl(var(--glyph-indigo))',
-                'glyph-cyan': 'hsl(var(--glyph-cyan))',
-                'tile-ring': 'hsl(var(--tile-ring))',
-                'media-tile': {
-                    DEFAULT: 'hsl(var(--media-tile))',
-                    foreground: 'hsl(var(--media-tile-foreground))',
-                },
-                'bubble-mine': {
-                    DEFAULT: 'hsl(var(--bubble-mine))',
-                    foreground: 'hsl(var(--bubble-mine-foreground))',
-                },
-                'bubble-other': {
-                    DEFAULT: 'hsl(var(--bubble-other))',
-                    foreground: 'hsl(var(--bubble-other-foreground))',
-                },
-                toast: {
-                    DEFAULT: 'hsl(var(--toast))',
-                    foreground: 'hsl(var(--toast-foreground))',
-                },
-                verified: 'hsl(var(--verified))',
-                'point-blue': 'hsl(var(--point-blue))',
-                'point-pink': 'hsl(var(--point-pink))',
-                'point-orange': 'hsl(var(--point-orange))',
-                'alert-red': 'hsl(var(--alert-red))',
-                'chip-ink': 'hsl(var(--chip-ink))',
-                'chip-surface': 'hsl(var(--chip-surface))',
-                'chip-border': 'hsl(var(--chip-border))',
-                'tab-idle': 'hsl(var(--tab-idle))',
-                'action-soft': 'hsl(var(--action-soft))',
-                'notify-name': 'hsl(var(--notify-name))',
-                'notify-ink': 'hsl(var(--notify-ink))',
-                'notify-muted': 'hsl(var(--notify-muted))',
-                'code-inline': 'hsl(var(--code-inline))',
-                overlay: 'hsl(var(--overlay))',
-            },
-            borderRadius: {
-                lg: 'var(--radius)',
-                md: 'calc(var(--radius) - 2px)',
-                sm: 'calc(var(--radius) - 4px)',
-            },
+            colors: mobileColors,
+            borderRadius: radius,
             spacing: {
                 'safe-top': 'var(--safe-top, 0px)',
                 'safe-bottom': 'var(--safe-bottom, 0px)',

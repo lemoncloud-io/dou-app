@@ -1,0 +1,85 @@
+.dark {
+    /* DoU PC dark theme — Figma nodes 254:541 / 259:566. Warm near-neutral grays;
+       same lime accent. */
+    --background: 90 3% 15%; /* #252624 Main Content Panel */
+    --foreground: 60 7% 92%; /* #EBEBE8 */
+    --card: 90 2% 18%; /* #2E2F2D */
+    --card-foreground: 60 7% 92%;
+    --popover: 90 2% 18%;
+    --popover-foreground: 60 7% 92%;
+    --primary-foreground: 120 3% 7%;
+
+    /* On dark surfaces the fill lime already reads as text, so ink = fill. */
+    --primary-ink: 76 87% 49%;
+
+    /* On dark the fill lime rings at 4.75:1 — it stays. */
+    --focus-ring: 76 87% 49%;
+
+    /* 6.84:1 on the dark main pane (#252624, measured). */
+    --link: 212 90% 72%;
+    --secondary: 120 3% 7%; /* #121312 chips, send button */
+    --secondary-foreground: 60 7% 92%;
+    --muted: 120 3% 7%; /* #121312 */
+    --muted-foreground: 82 5% 65%; /* #A8ABA3 timestamps */
+    --accent: 210 2% 22%; /* #38393A hover */
+    --accent-foreground: 60 7% 92%;
+    --rail: 120 3% 7%; /* #121312 Icon Rail */
+    --rail-foreground: 60 2% 76%; /* #C3C3C1 */
+    --rail-muted: 120 3% 7%; /* #121312 active place tile */
+    --rail-elevated: 90 2% 18%; /* #2E2F2D Workspace Rail */
+    --sidebar: 90 2% 18%; /* #2E2F2D Channel List Panel */
+    --sidebar-foreground: 60 7% 92%; /* #EBEBE8 */
+
+    /* Dark initials at 58% measured 3.74:1 on the blue hues; 64% holds 4.92:1. */
+    --avatar-l: 64%;
+    --avatar-fg: 0 0% 8%;
+
+    /* Lifted for text on the dark panes (4.7:1 even on the hover fill); a fill of it
+       then carries dark ink, not white. */
+    --destructive: 3 100% 73%;
+    --destructive-foreground: 0 0% 8%;
+    --warning-foreground: 43 90% 60%; /* light amber text on dark */
+    --border: 96 4% 26%; /* #424540 */
+    --input: 90 2% 24%; /* #3D3E3C composer box */
+
+    /* 4.10:1 on a card, 4.54:1 on the main pane. */
+    --control-border: 90 2% 55%;
+    --ring: var(--focus-ring);
+
+    /* Gray scale (dark) */
+    --label: 60 2% 76%; /* #C3C3C1 */
+    --placeholder: 60 0% 64%; /* #8C8C8B measured 4.02:1 on a card; lifted to clear 4.5:1 */
+    --description: 82 5% 65%; /* #A8ABA3 */
+    --surface: 90 3% 15%;
+    --main-accent: 76 96% 39%; /* #90C304 */
+    --input-border: var(--control-border);
+    --focus-border: 76 87% 49%; /* dark composer focus = #B0EA10 (Figma 259:566) */
+
+    /* Toast (light card on dark bg) */
+    --toast: 210 6% 96%; /* #F4F5F5 - light card */
+    --toast-foreground: 220 7% 14%; /* #222325 - dark text */
+    --toast-muted: 220 4% 35%; /* #53555B - muted dark text */
+
+    /* Dialog */
+    --dialog-subtitle: 60 2% 76%;
+
+    /* Chatic custom tokens (dark) */
+    --bubble-mine: 210 2% 22%;
+    --bubble-other: 90 2% 18%;
+    --bubble-other-foreground: 60 7% 92%;
+    --badge-unread: 349 85% 45%; /* same darkened pink as light — see light.css */
+    --badge-member: 76 87% 49%;
+    --favorite: 35 100% 50%; /* #FF9500 */
+    --tab-active: 60 7% 92%;
+    --tab-inactive: 60 0% 55%;
+    --on-overlay: 0 0% 100%;
+
+    /* The active cloud tile (Figma Icon Rail): a black tile in both themes. */
+    --tile-active: 0 0% 0%;
+
+    /* Layering + elevation primitives (dark). */
+    --elevated: 90 2% 18%; /* #2E2F2D */
+    --hairline: 96 4% 26%; /* #424540 */
+    --well: 120 3% 7%; /* #121312 search bar */
+    --shadow-color: 0 0% 0%;
+}

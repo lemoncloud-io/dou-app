@@ -99,8 +99,9 @@ grep -rln "from '@chatic/ui-kit'" libs/web-ui-kit/src | wc -l
     grep -rnE "(bg|text|border)-\[#" libs/web-ui-kit/src --include='*.tsx' | grep -v '\.stories\.'
     ```
 
-4. **One icon source.** Exactly one file imports `lucide-react` — `resources/icons/index.ts` — and
-   components import `Icon*` aliases from it. Swapping the icon library later touches that file and
+4. **One icon source.** Exactly one file imports `lucide-react` — the icon barrel of
+   `@chatic/design-system-assets`, re-exported here as `resources/icons` — and components import
+   `Icon*` aliases from it. Swapping the icon library later touches that file and
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
 5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
    foundation that needs a composite is a sign the composite is in the wrong layer.
@@ -146,7 +147,7 @@ flowchart TD
     F --> CN
 ```
 
-Arrows never point up. `foundations` imports no composite, `resources` imports nothing at all, and
+Arrows never point up. `foundations` imports no composite, `resources` only re-exports `@chatic/design-system-assets`, and
 foundation groups do not import each other — `avatar` knows nothing about `badge`. Composites compose
 each other exactly once, `ListSection` → `SectionHeader`.
 
@@ -172,9 +173,9 @@ flowchart TD
 libs/web-ui-kit/src/
 ├── index.ts       public barrel — resources, then foundations, then composites
 ├── resources/
-│   ├── styles/tokens.css   155 lines of HSL channels, light + `.dark`
-│   ├── icons/              75 exports: lucide aliases + Figma-exported glyphs
-│   └── assets/             7 brand images, exported as bundler-resolved URLs
+│   ├── styles/tokens.css   Storybook's token layer: the mobile tokens + five values Storybook keeps
+│   ├── icons/              re-exports @chatic/design-system-assets/icons (75 exports)
+│   └── assets/             re-exports @chatic/design-system-assets/images (7 brand images)
 ├── foundations/   13 groups, 44 components
 │   avatar(7) · button(9) · input(8) · badge(8) · brand(2) · chip(2) · audio(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
@@ -316,16 +317,21 @@ supply is the token layer the classes resolve against, and the two hosts do it d
 
 ```text
 Storybook    .storybook/preview.css  →  @import src/resources/styles/tokens.css
-                                        + libs/web-ui-kit/tailwind.config.js
+                                          → @import the mobile tokens (libs/design-system/tokens/mobile)
+                                        + libs/web-ui-kit/tailwind.config.js (mobileColors)
 
-apps/web     src/styles.css          →  re-declares the same custom properties
-                                        + apps/web/tailwind.config.js, whose content globs
-                                          reach this lib through createGlobPatternsForDependencies
+apps/web     src/styles.css          →  @import the mobile tokens
+                                        + apps/web/tailwind.config.js (mobileColors), whose content
+                                          globs reach this lib through createGlobPatternsForDependencies
 ```
 
-`apps/web` does **not** import `tokens.css`. The two files hold the same variables and are kept in
-parity by hand, which is why both carry comments pointing at each other. A token added here without
-being added to `apps/web/src/styles.css` renders correctly in Storybook and transparent in the app.
+Both hosts read one token set, `@chatic/design-system-tokens-mobile`, and one colour map, its
+`mobileColors`. `resources/styles/tokens.css` adds values on top for Storybook only: four colours
+(`--destructive`, `--bubble-other`, `--bubble-other-foreground`, `--toast-foreground`) where the kit's
+copy had drifted from the app's, and `--app-width: initial`, so the kit's own `max-w` fallbacks still
+apply there as before. Moving the tokens kept each host's colours and widths as they were.
+Settling them is a design decision, not part of the move. A token added to the mobile layer reaches
+both hosts at once.
 
 One optional input arrives outside the token layer: `HeaderGlass` reads `data-page-transition` on
 `<html>`, which `@chatic/shared`'s `useNavigateWithTransition` sets while a navigation runs. A host
@@ -342,10 +348,11 @@ touching at the `src/index.ts` level: the top barrel re-exports whole groups.
 
 ### 2. Adding an icon
 
-A lucide glyph becomes a semantic alias in `resources/icons/index.ts`
-(`export const IconPin: LucideIcon = Pin`). A Figma-exported glyph with no lucide equivalent becomes
-its own `IconThing.tsx` in the same folder and is re-exported from that barrel. Never import
-`lucide-react` from a component.
+Icons live in `@chatic/design-system-assets` (`libs/design-system/assets/src/icons`). A lucide glyph
+becomes a semantic alias in its `index.ts` (`export const IconPin: LucideIcon = Pin`). A
+Figma-exported glyph with no lucide equivalent becomes its own `IconThing.tsx` in the same folder
+and is re-exported from that barrel. This lib's `resources/icons` re-exports the set, so components
+keep importing from there. Never import `lucide-react` from a component.
 
 ### 3. Reaching for a Radix primitive
 
@@ -402,12 +409,11 @@ goes full-bleed like `glyph="place"`. Mixing the two paths makes the character o
 
 ### 5. Changing a colour
 
-Change the custom property, not the class. A new token means four edits: the `:root` and `.dark`
-blocks in `resources/styles/tokens.css`, the `colors` map in this lib's `tailwind.config.js`, the
-matching declarations in `apps/web/src/styles.css`, and the same `colors` entry in
-`apps/web/tailwind.config.js` — the app builds its CSS from its own config, so a name only this lib
-knows generates no class there. Missing either of the last two is the failure mode described under
-[Wiring](#wiring).
+Change the custom property, not the class. A new token means two edits in
+`libs/design-system/tokens`: the declaration in `mobile/src/light.css` and `mobile/src/dark.css`
+(or in the common `src/light.css` / `src/dark.css` when desktop has the same value), and the entry in
+`mobileColors` (`mobile/src/tailwind.cjs`). Storybook and `apps/web` both read those files, so
+neither can miss it. See [the tokens README](../design-system/tokens/README.md).
 
 ### 6. Writing a test
 

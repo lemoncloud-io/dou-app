@@ -25,6 +25,9 @@
         },
         {
             "path": "../../libs/bridge-messages"
+        },
+        {
+            "path": "../../libs/push/desktop"
         }
     ]
 }

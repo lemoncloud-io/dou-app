@@ -1,0 +1,14 @@
+:root {
+    --background: 0 0% 100%; /* #FFFFFF main pane */
+    --card: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --primary: 76 87% 49%; /* #B0EA10 main color/GR1 */
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --surface: 0 0% 100%; /* #FFFFFF - input backgrounds */
+    --toast-foreground: 210 6% 96%; /* #F4F5F5 */
+    --toast-muted: 220 3% 81%; /* #CFD0D3 */
+    --bubble-mine-foreground: 0 0% 100%;
+    --badge-unread-foreground: 0 0% 100%;
+    --code-inline: 20 90% 36%; /* #AE4009 - inline code text; 5.4:1 on the well chip */
+}

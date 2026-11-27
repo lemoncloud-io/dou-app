@@ -123,7 +123,7 @@ service (`isChatChannel` plus its background branch):
 | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `apps/web/src/app/features/home/UnreadBadgeRunner.tsx`                                   | Aggregates unread → `setBadgeCount`, re-pushes on foreground return             |
 | `src/app/bridge/BadgeSyncBridge.ts`                                                      | `setBase(n)` TS wrapper — calls native only on Android, no-op on iOS            |
-| `src/app/services/notification/NotificationService.ts`                                   | `setBadgeCount`/`clearBadge` keep notifee and `BadgeSyncBridge.setBase` in sync |
+| `libs/push/mobile/src/NotificationService.ts`                                            | `setBadgeCount`/`clearBadge` keep notifee and `BadgeSyncBridge.setBase` in sync |
 | `android/.../module/BadgeSyncModule.kt`                                                  | `BadgeSync.setBase` / `getBase` native module                                   |
 | `android/.../push/BadgeStore.kt`                                                         | Android shared counter (SharedPreferences)                                      |
 | `android/.../push/ChaticFirebaseMessagingService.kt`                                     | Bumps the counter on a background chat push                                     |
@@ -160,7 +160,7 @@ service (`isChatChannel` plus its background branch):
 
 ## Verification
 
-- **Unit**: `BadgeSyncBridge.test.ts`, `NotificationService.test.ts` (mobile),
+- **Unit**: `BadgeSyncBridge.test.ts`, `NotificationService.test.ts` (`@chatic/push-mobile`),
   `UnreadBadgeRunner.test.tsx` (web).
 - **Device (manual)**: send a background chat push, confirm the badge increments; open the app,
   confirm it reconciles; confirm muted channels count and notice/marketing don't; confirm no

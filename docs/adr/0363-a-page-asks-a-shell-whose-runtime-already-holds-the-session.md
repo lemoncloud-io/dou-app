@@ -8,7 +8,7 @@
 > `apps/mobile/src/app/webview/AppWebView.tsx`
 > · The behaviour is documented in [apps/mobile docs/runtime](../../apps/mobile/docs/runtime/README.md#the-pages-side-of-the-bridge),
 > [apps/web docs/bridge](../../apps/web/docs/bridge/README.md) and
-> [libs/runtime-core docs/bridge](../../libs/runtime-core/docs/bridge/README.md)
+> [libs/runtime-core docs/bridge](../../libs/runtime/docs/remote/README.md)
 > · Amends: [ADR-0309](./0309-the-phone-shell-may-own-the-session-settled-per-launch.md) decision 2 (a page
 > whose own setting says not to never asks)
 

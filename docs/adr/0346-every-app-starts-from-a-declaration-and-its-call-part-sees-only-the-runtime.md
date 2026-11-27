@@ -11,7 +11,7 @@
 > `apps/desktop-web`, `apps/admin`, `apps/landing`, `apps/mobile`; the root lint config and
 > `tools/eslint-rules`
 > · The behaviour is documented in
-> [libs/runtime-client § The runtime declaration](../../libs/runtime-client/README.md#the-runtime-declaration),
+> [libs/runtime-client § The runtime declaration](../../libs/runtime/docs/api/README.md#the-runtime-declaration),
 > the facade in [libs/runtime](../../libs/runtime/README.md), the adapters in
 > [libs/runtime-web](../../libs/runtime-web/README.md) and
 > [libs/runtime-mobile](../../libs/runtime-mobile/README.md), and each app's declaration in its own

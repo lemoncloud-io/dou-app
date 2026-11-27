@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/checkout-store",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/checkout/store/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:mobile", "formfactor:any"],
+    "targets": {}
+}

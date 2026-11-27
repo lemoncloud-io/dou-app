@@ -9,7 +9,7 @@
 > and the root lint config
 > · The behaviour is documented in [apps/web docs/bridge/host-ports.md](../../apps/web/docs/bridge/host-ports.md),
 > [apps/desktop-web docs/host](../../apps/desktop-web/docs/host/README.md),
-> [libs/runtime-client](../../libs/runtime-client/README.md) and
+> [libs/runtime-client](../../libs/runtime/docs/api/README.md) and
 > [libs/runtime-web](../../libs/runtime-web/README.md)
 > · Extended by: [ADR-0359](./0359-every-host-port-carries-its-work.md), which moves the four ports this
 > record left carrying only their choice

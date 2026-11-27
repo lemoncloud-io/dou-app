@@ -9,7 +9,7 @@
 > `tsconfig.base.json` (paths) and `tsconfig.json` (references);
 > `nx.tags` in `libs/{session,transport,sync,auth,data,app-runtime}/package.json`;
 > `libs/runtime` (`boot.ts`, `sessionStorageBoot.ts`, `public-surface.test.ts`)
-> · The behaviour is documented in [libs/runtime-core](../../libs/runtime-core/README.md),
+> · The behaviour is documented in [libs/runtime-core](../../libs/runtime/docs/engine/README.md),
 > [libs/runtime § Wiring](../../libs/runtime/README.md#wiring) and
 > [tools/eslint-rules](../../tools/eslint-rules/README.md)
 

@@ -1,4 +1,4 @@
-import type { AppShellPort } from '@chatic/runtime-client';
+import type { AppShellPort } from '../../api';
 
 export const browserAppShell = (): AppShellPort => ({
     kind: 'browser',

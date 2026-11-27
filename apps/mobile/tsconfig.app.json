@@ -40,6 +40,15 @@
             "path": "../../libs/runtime-mobile/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/checkout/store/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/push/mobile/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/sign-in/mobile/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/perf/tsconfig.lib.json"
         },
         {

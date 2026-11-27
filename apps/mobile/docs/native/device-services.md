@@ -20,12 +20,11 @@ read is in [the WebView document](../webview/README.md#device-contacts).
   A failed `status` reads `DENIED` (askable) rather than `BLOCKED`, so a later request can give the
   real answer where reading it as blocked would not.
 
-## Sign-in (`oauth/OAuthService.ts`)
+## Sign-in (`@chatic/sign-in-mobile`)
 
-`login` resolves `null` **only when the person cancels** (Google's cancelled result, Apple's `CANCELED`
-code). Every genuine failure throws, so the bridge reports it as `success: false`
-(`OAUTH_LOGIN_ERROR`) instead of the cancel-shaped `result: null` that the web reads as a dismissal.
-A new provider must keep that split: a failure that returns `null` is invisible to the web.
+The Google and Apple sign-in service is its own package; its rules (a cancel resolves `null`, every
+other failure throws) are in [its README](../../../../libs/sign-in/mobile/README.md). The app hands it the
+Google web client id from `src/config/families.ts`.
 
 ## SMS (`sms/SmsService.ts`)
 
@@ -78,21 +77,9 @@ fetch is guarded as a server-side request would be.
 - React Native's `URL` global exposes little beyond `href`, so the service splits absolute URLs by
   hand and does not rely on `protocol` or `hostname`.
 
-## Purchases (`subscriptionIap/`)
+## Purchases (`@chatic/checkout-store`)
 
-- **A failed store connection is logged where it happens.** Without that line the person sees "payment
-  failed" while the real reason, that the connection never opened, would exist nowhere.
-- **Android plan changes need the old purchase.** A change carries the previous purchase token and a
-  replacement mode only when both plan ids are present and the old purchase is found by product id.
-  A higher plan (by its place in the configured plan list) replaces with time proration, a lower one is
-  deferred to the end of the period; equal or unknown ranks use proration.
-- **iOS products carry no `localizedPrice`.** The price comes from `displayPrice`; reading the removed
-  field returned `undefined` over it and every iOS plan looked "store unavailable". StoreKit reports a
-  period unit of `empty` for a product with no period, which is dropped so it is never read as a
-  billing period.
-- **Finishing a transaction is its own step, and a failure there is logged and thrown.** iOS does not
-  finish a transaction automatically (`andDangerouslyFinishTransactionAutomatically` is off), so the
-  web finishes it after validating. The store re-presents an unfinished transaction, which is how a
-  purchase that already validated turns into a second charge.
-- **The store's refusal is logged in the service**, not in the bridge handler: the web records that a
-  purchase failed, but only this layer sees why.
+Store purchases are their own package with an `apple` and a `google` strategy; its rules (connection
+and refusal logging, Android plan changes, iOS prices, finishing a transaction) are in
+[its README](../../../../libs/checkout/store/README.md). `src/config/families.ts` picks the strategy once,
+by platform, with the SKU and plan lists from the build's env.

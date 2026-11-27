@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/host-node",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/host/node/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:node", "formfactor:any"],
+    "targets": {}
+}

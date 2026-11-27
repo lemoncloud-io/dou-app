@@ -1,0 +1,144 @@
+:root {
+    /* Message row spacing. `comfy` density — the rows' look before the setting existed; the
+       appearance preference overrides these on the root (useAppearancePrefsStore). */
+    --message-row-py: 0.375rem;
+    --message-gap: 0.125rem;
+
+    /* DoU PC light theme — Figma "DoU PC" file (node 247:10714). Neutral grays
+       from the Solid/Secondary BK ramp; the lime (#B0EA10, main color/GR1) is
+       the only hue. Hex beside each value is the Figma source. */
+    --foreground: 0 0% 10%; /* #1A1A1A */
+    --card-foreground: 0 0% 10%;
+    --popover-foreground: 0 0% 10%;
+
+    /* Dark ink on the lime fill (AA) — white on #B0EA10 is 1.6:1. */
+    --primary-foreground: 0 0% 10%;
+
+    /* Lime as TEXT on light surfaces: the fill is unreadable (1.6:1), this clears 4.5:1. */
+    --primary-ink: 76 80% 26%;
+
+    /* Keyboard focus ring. The fill lime at 60% over white measures 1.26:1,
+       under the 3:1 WCAG 2.4.11 floor for a non-text indicator, so light mode
+       rings in the ink lime instead (5.1:1 on white). */
+    --focus-ring: 76 80% 26%;
+
+    /* Links in message text. They used to take --primary-ink, the same olive
+       lime as primary actions and the focus ring, so a link and a button were
+       the same colour and the accent stopped meaning "act here". A blue is the
+       one hue nobody reads as this brand: 7.59:1 on white (measured). */
+    --link: 217 72% 38%;
+    --secondary: 180 5% 96%; /* #F4F5F5 BK_50 */
+    --secondary-foreground: 0 0% 10%;
+    --muted: 180 5% 96%; /* #F4F5F5 BK_50 */
+
+    /* #84888F BK_600 is 3.6:1 on white. Secondary text also sits on the tinted
+       surfaces (hover, chips, the composer box), where 46% measured 4.33:1 and
+       3.71:1; 40% clears 4.5:1 on every one (apps/desktop-web/src/tokenContrast.spec.ts). */
+    --muted-foreground: 218 5% 40%;
+    --accent: 180 5% 96%; /* #F4F5F5 hover */
+    --accent-foreground: 0 0% 10%;
+
+    /* Shell: the Mist palette, the default — three cool grays that step lighter from the cloud
+       rail to the sidebar. These are what paints before the app starts; from then on every
+       palette, Mist included, comes from apps/desktop-web shellPalette.ts as a generated stylesheet (Mist's dark
+       shell stays in dark.css). */
+    --rail: 220 12% 86%; /* #D6D9DF cloud rail */
+    --rail-foreground: 220 5% 24%; /* #3A3C40 BK_800 */
+    --rail-muted: 220 12% 86%; /* active place tile */
+    --rail-elevated: 220 13% 91%; /* #E5E7EB nav rail */
+    --sidebar: 220 20% 97%; /* #F6F7F9 channel list */
+    --sidebar-foreground: 0 0% 0%;
+
+    /* The open destination's tile on the nav rail: the full lime, dark ink on it. */
+    --rail-active: 76 87% 49%;
+    --rail-active-foreground: 0 0% 10%;
+
+    /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme).
+       White initials at 40% measured 3.33:1 on the yellow hues; 32% holds 4.91:1 on the
+       weakest hue (the sweep in apps/desktop-web/src/tokenContrast.spec.ts). */
+    --avatar-l: 32%;
+    --avatar-fg: 0 0% 100%;
+
+    /* Figma #FF3B30 is 3.58:1 on white as text and carries white at the same 3.58:1 as a
+       fill: every error line and every Delete was under AA. One deeper red serves both. */
+    --destructive: 358 80% 44%;
+    --warning-foreground: 30 85% 32%; /* dark amber text, AA on the /15 tint */
+    --border: 240 5% 92%; /* #EAEAEC BK_100 */
+    --input: 240 6% 90%; /* #E5E5E8 composer box */
+
+    /* The edge of an interactive control: a text field, an unselected option, the
+       Switch's off track. --border and --input measured 1.21:1 on white, so a field
+       read as bare text; WCAG 1.4.11 holds a control boundary to 3:1 (3.83:1 here).
+       Dividers and cards carry no state and keep the --border hairline. */
+    --control-border: 220 5% 52%;
+
+    /* ui-kit's own focus ring. Pointed at --focus-ring so a kit-rendered
+       control and an app-rendered one show the same focus. */
+    --ring: var(--focus-ring);
+    --radius: 0.5rem;
+
+    /* Figma gray scale */
+    --label: 220 5% 24%; /* #3A3C40 BK_800 */
+
+    /* BK_500 #9FA2A7 measures 2.6:1 on white and BK_600 #84888F 3.6:1, both
+       under the 4.5:1 this system holds placeholders and secondary text to.
+       Both take the same one-step darkening --muted-foreground already took. */
+    --placeholder: 218 5% 40%;
+    --description: 218 5% 40%; /* timestamps */
+
+    /* #90C304 main color/GR2 — the deeper lime: send button, composer focus ring. */
+    --main-accent: 76 96% 39%;
+    --input-border: var(--control-border);
+
+    /* Composer focus. Figma's GR2 lime (#90C304) outlines at 2.1:1 on white, under the
+       3:1 a focus indicator needs, so light mode takes the ink lime the focus ring uses. */
+    --focus-border: var(--focus-ring);
+
+    /* Toast (always dark surface) */
+    --toast: 220 7% 14%; /* #222325 BK_900: neutral ink, not the navy only toasts used */
+
+    /* Dialog */
+    --dialog-subtitle: 225 5% 34%; /* #53555B */
+
+    /* Chatic custom tokens */
+    --bubble-mine: 220 4% 14%;
+    --bubble-other: 180 5% 96%;
+    --bubble-other-foreground: 0 0% 10%;
+
+    /* Figma's Colors/Pink #FF2D55 carries white at 3.6:1, under the 4.5:1 an
+       11px semibold count needs. Darkened one step to 5.3:1; the hue is the
+       Figma pink's own, so the badge still reads as the same signal. */
+    --badge-unread: 349 85% 45%;
+    --badge-member: 76 87% 49%;
+    --favorite: 35 100% 50%; /* #FF9500 Colors/Orange — the favorite star */
+    --tab-active: 0 0% 10%;
+    --tab-inactive: 218 5% 46%;
+    --overlay: 0 0% 0%;
+
+    /* Marks drawn on the overlay scrim (a "+n" count, an upload spinner). The
+       scrim is black in both themes, so this is white in both. */
+    --on-overlay: 0 0% 100%;
+
+    /* The active cloud tile (Figma Icon Rail): a black tile in both themes. */
+    --tile-active: 0 0% 0%;
+
+    /* Presence + the self avatar's disc. Figma "1명 Profile" (blue_bk #102346)
+       and Colors/Green #34C759 — fixed in both themes by design, so they are
+       defined here once and not redefined under .dark. */
+    --presence-online: 145 63% 49%;
+    --profile-disc: 219 63% 17%;
+    --profile-disc-foreground: 0 0% 100%;
+
+    /* Theme-preview swatches for the settings picker. Defined once and NOT
+       redefined under .dark: each swatch shows the theme it names, so it must
+       not follow the theme in force. */
+    --swatch-light: 0 0% 100%; /* light --background */
+    --swatch-dark: 90 3% 15%; /* dark --background, #252624 */
+    --swatch-border: 220 4% 55%; /* readable on both grounds */
+
+    /* Layering + elevation primitives. */
+    --elevated: 0 0% 100%;
+    --hairline: 240 5% 92%; /* #EAEAEC */
+    --well: 0 0% 96%; /* #F5F5F5 search bar */
+    --shadow-color: 0 0% 0%;
+}

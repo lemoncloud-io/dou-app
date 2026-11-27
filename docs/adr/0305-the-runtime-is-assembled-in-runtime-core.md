@@ -5,8 +5,8 @@
 > tests, moved from `libs/runtime`); `libs/runtime` (`init.ts`, `boot.ts`, `data/` hooks and
 > group, the source-scanning guards); `nx.tags` of logger, config, perf, http, storage and
 > bridge-messages; root `eslint.config.mjs` (`runtimeLayerConstraints`, `RUNTIME_WIRING`)
-> · The behaviour is documented in [libs/runtime-core](../../libs/runtime-core/README.md) and its
-> [docs/data](../../libs/runtime-core/docs/data/README.md)
+> · The behaviour is documented in [libs/runtime-core](../../libs/runtime/docs/engine/README.md) and its
+> [docs/data](../../libs/runtime/docs/engine/data.md)
 >
 > **Amended by [ADR-0308](./0308-the-react-surface-starts-its-work-from-an-engine.md) (2026-11-11):**
 > `initAppRuntime` now takes the engine `createRuntime` returns, and `AppRuntimeConfig` is gone — an app

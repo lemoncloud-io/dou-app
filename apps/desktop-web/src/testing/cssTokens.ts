@@ -5,16 +5,37 @@ import { contrast } from '../app/shared/theme/shellPalette';
 
 export type Tokens = Record<string, string>;
 
-const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8');
+const tokensRoot = join(__dirname, '..', '..', '..', '..', 'libs', 'design-system', 'tokens');
+
+const read = (...parts: string[]): string => readFileSync(join(tokensRoot, ...parts), 'utf8');
+
+const sources = [
+    read('src', 'light.css'),
+    read('desktop', 'src', 'light.css'),
+    read('src', 'dark.css'),
+    read('desktop', 'src', 'dark.css'),
+    readFileSync(join(__dirname, '..', 'styles.css'), 'utf8'),
+];
+
+const blockOf = (file: string, selector: string): string => {
+    const start = file.indexOf(`${selector} {`);
+    if (start < 0) return '';
+    const open = file.indexOf('{', start);
+    let depth = 0;
+    for (let i = open; i < file.length; i++) {
+        if (file[i] === '{') depth++;
+        if (file[i] === '}' && --depth === 0) return file.slice(open + 1, i);
+    }
+    return '';
+};
 
 export const tokensOf = (selector: string): Tokens => {
-    const start = css.indexOf(`${selector} {`);
-    if (start < 0) return {};
-    const body = css.slice(start, css.indexOf('\n    }', start));
     const tokens: Tokens = {};
-    for (const match of body.matchAll(/--([\w-]+):\s*([^;]+);/g)) {
-        const [, name, value] = match;
-        if (name && value) tokens[name] = value.trim();
+    for (const file of sources) {
+        for (const match of blockOf(file, selector).matchAll(/--([\w-]+):\s*([^;]+);/g)) {
+            const [, name, value] = match;
+            if (name && value) tokens[name] = value.trim();
+        }
     }
     return tokens;
 };

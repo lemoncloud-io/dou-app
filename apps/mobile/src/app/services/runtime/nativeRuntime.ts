@@ -3,13 +3,13 @@ import { Platform } from 'react-native';
 import Config from 'react-native-config';
 import DeviceInfo from 'react-native-device-info';
 
+import { acquirePushToken } from '@chatic/push-mobile';
 import { runNativeRuntime } from '@chatic/runtime-mobile';
 import type { NativeRuntimeRunOptions } from '@chatic/runtime-mobile';
 
 import { startMobileRuntime } from '../../../config/mobile';
 import { getUserAgent } from '../../utils/device';
 import { appRestart } from '../appRestart';
-import { acquirePushToken } from '../notification/pushToken';
 import { provider } from '../provider';
 import { createNativeRuntimeHost } from './nativeRuntimeHost';
 import { launchSessionOwner, launchSessionOwnerChoice } from './launchSessionOwner';

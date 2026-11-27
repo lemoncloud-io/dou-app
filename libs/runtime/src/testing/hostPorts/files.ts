@@ -1,4 +1,4 @@
-import type { FilesPort } from '@chatic/runtime-client';
+import type { FilesPort } from '../../api';
 
 export const browserFiles = (): FilesPort => ({
     kind: 'browser',

@@ -1,9 +1,9 @@
 # push — the hook that starts device-token registration
 
 `runtime.push` holds the React side of push registration. What decides when to register and when not
-to — the once-per-install record, the triggers, the floor, the failure handling — is runtime-core's
+to — the once-per-install record, the triggers, the floor, the failure handling — is the engine's
 `PushRegistration`, with no React in it:
-[runtime-core docs/push/](../../../runtime-core/docs/push/README.md).
+[docs/engine/push](../engine/push.md).
 
 ## Layout
 
@@ -20,7 +20,7 @@ runtime.push.useDeviceTokenRegistration(delegate); // `null` outside a native sh
 ```
 
 The app builds the delegate — how to get a token is shell knowledge — and mounts the hook where it
-chooses ([the delegate contract](../../../runtime-core/docs/push/README.md#the-shared-contract)).
+chooses ([the delegate contract](../engine/push.md#the-shared-contract)).
 
 The hook:
 
@@ -38,5 +38,5 @@ not go through it.
 
 ## Further reading
 
-- [runtime-core docs/push/](../../../runtime-core/docs/push/README.md) — the registration policy, the record, the triggers
+- [docs/engine/push](../engine/push.md) — the registration policy, the record, the triggers
 - [docs/session/](../session/README.md) — `useDynamicDeviceId`

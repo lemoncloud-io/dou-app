@@ -43,8 +43,8 @@ app at once and could change only with a build, while a declaration is read by i
 
 ### The adapters
 
-The same factories as values a runtime declaration plugs in (see runtime-client's
-[The runtime declaration](../runtime-client/README.md#the-runtime-declaration)); the barrel hands on
+The same factories as values a runtime declaration plugs in (see
+[The runtime declaration](../runtime/docs/declare/README.md#the-runtime-declaration)); the barrel hands on
 `defineRuntime`, `startRuntime`, `requires`, `conflicts`, `defineAdapter` and the declaration types. Each
 export is named after its id. A port that sits on one of the app's own native handles is an adapter made
 from that handle, because the app opens it. None declares `supports`: each runs in any React Native
@@ -225,7 +225,7 @@ has to build the string itself.
 
 - Tagged `layer:adapter` and `platform:mobile`: it may not import `@chatic/runtime` (the React
   surface), React, or a `platform:web` package such as `@chatic/runtime-web`. See
-  [the layers](../runtime-core/README.md#layers).
+  [the layers](../runtime/docs/engine/README.md#layers).
 - Nothing in the runtime imports it. The app's runtime modules do (`apps/mobile`'s
   `services/runtime/nativeRuntime.ts`, `runtimeBridge.ts`, `runtimeOffer.ts`), loaded only on a launch
   that runs the runtime, and pass what they build into the assembly.
