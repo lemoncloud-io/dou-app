@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 
 import { app } from 'electron';
-import type { FcmConfig } from './fcm';
+import type { FcmConfig } from '@chatic/push-desktop';
 
 export const IS_DEV_CHANNEL = !app.isPackaged || import.meta.env.MAIN_VITE_CHANNEL === 'dev';
 
