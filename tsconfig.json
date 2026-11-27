@@ -206,6 +206,12 @@
         },
         {
             "path": "./libs/design-system/chat/mobile"
+        },
+        {
+            "path": "./apps/dou-cli"
+        },
+        {
+            "path": "./libs/chatic-apps-sdk"
         }
     ]
 }
