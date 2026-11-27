@@ -9,7 +9,7 @@ Desktop v2 logic runs in TypeScript on `@chatic/runtime` in a Node process the s
 | Path                    | What it is                                                                                                                               |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `src-tauri/`            | the Tauri app crate (`dou-tauri`)                                                                                                        |
-| `ui/`                   | local pages the app serves itself: the loader shown while the web address is checked                                                     |
+| `ui/`                   | local pages the app serves itself: the offline page shown when the web cannot be reached                                                 |
 | `crates/bridge-host`    | the bridge envelope in Rust, free of any UI toolkit                                                                                      |
 | `crates/agent-settings` | validation of the MCP permission settings                                                                                                |
 | `crates/connectors`     | registering the launcher with Claude Desktop and Claude Code                                                                             |
@@ -30,7 +30,7 @@ npx nx run desktop-tauri:rust-lint
 npx nx run desktop-tauri:dev      # cargo tauri dev; needs: cargo install tauri-cli --locked --version '^2'
 ```
 
-`DOU_WEB_URL` and `DOU_STAGE` at build time pick the web address and the stage.
+`DOU_WEB_URL` and `DOU_STAGE` at build time pick the web address and the stage; `DOU_UPDATE_FEED` with `DOU_UPDATE_PUBKEY` turns the updater on and `DOU_BUILD_NUMBER` sets the build number (see [shell](./docs/shell/README.md)).
 
 ## Running instances
 

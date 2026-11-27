@@ -107,6 +107,18 @@ pub fn clouds_value(result: &Value) -> Value {
     )
 }
 
+pub fn bridge_origin(app: &AppHandle) -> String {
+    app.try_state::<crate::bridge::Bridge>()
+        .map(|b| b.origin.clone())
+        .unwrap_or_default()
+}
+
+pub fn current_state(agent: &Agent, web_url: &str) -> Value {
+    let status = request(agent.paths(), "dou/status", json!({}));
+    let sidecar = agent.sidecar().map(|sidecar| sidecar.status());
+    state_value(web_url, &agent.pairing(), sidecar.as_ref(), &status)
+}
+
 async fn blocking<T: Send + 'static>(
     work: impl FnOnce() -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {
@@ -122,22 +134,9 @@ pub async fn agent_state(
     agent: Shared<'_>,
 ) -> Result<Value, String> {
     from_agent_window(&webview)?;
-    let web_url = app
-        .try_state::<crate::bridge::Bridge>()
-        .map(|b| b.origin.clone())
-        .unwrap_or_default();
+    let web_url = bridge_origin(&app);
     let agent = Arc::clone(&agent);
-    blocking(move || {
-        let status = request(agent.paths(), "dou/status", json!({}));
-        let sidecar = agent.sidecar().map(|sidecar| sidecar.status());
-        Ok(state_value(
-            &web_url,
-            &agent.pairing(),
-            sidecar.as_ref(),
-            &status,
-        ))
-    })
-    .await
+    blocking(move || Ok(current_state(&agent, &web_url))).await
 }
 
 #[tauri::command]

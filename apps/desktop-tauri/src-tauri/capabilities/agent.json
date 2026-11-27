@@ -4,6 +4,8 @@
     "description": "The local DoU Agent window",
     "windows": ["agent"],
     "permissions": [
+        "core:event:allow-listen",
+        "core:event:allow-unlisten",
         "allow-agent-state",
         "allow-agent-pair-start",
         "allow-agent-clouds",

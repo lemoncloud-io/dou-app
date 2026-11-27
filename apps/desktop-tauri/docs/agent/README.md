@@ -17,6 +17,10 @@ The shell starts one `dou-cli --profile <dir> serve` per profile (see [shell](..
 
 Without a `dou-cli` beside the app (or, in a debug build, `DOU_CLI_BIN` / `DOU_CLI_NODE_SCRIPT`) the engine shows as stopped and pairing says the sidecar was not found.
 
+## State push
+
+While the Agent window is visible and not minimised, `src-tauri/src/agent_push.rs` builds the window state once a second and emits `agent-state` to that window only when it differs from the last one sent; `agent.js` re-renders the Account tab on the event instead of polling. A hidden, closed or minimised window costs one visibility check a second. Each tick asks the dou-cli sidecar for `dou/status` over `mcp.sock` and reads its process status, the same as the `agent_state` command. The tick lives in Rust because the sidecar sends no change notification; one would replace the tick.
+
 ## Permissions
 
 The Permissions tab edits `settings.json` in the profile folder through `crates/agent-settings`: the tier (off, read, write, full; off by default), the rooms writes are allowed in, and the write rate limit (1–600 a minute, 1–10000 an hour, hour not below minute, at most 500 rooms). The crate owns these types.
@@ -27,6 +31,6 @@ The Permissions tab edits `settings.json` in the profile folder through `crates/
 
 ## The window
 
-`ui/agent/` is plain HTML and JavaScript served from the app, under a strict content security policy, in a window with its own capability. Every `agent_*` command checks that the caller is the window labelled `agent`; the remote web's capability allows `bridge_request` and `log_event` only. The window is opened from the Agent menu (Ctrl or Cmd + Shift + A); a debug build also opens it when `DOU_OPEN_AGENT` is set.
+`ui/agent/` is plain HTML and JavaScript served from the app, under a strict content security policy, in a window with its own capability. Every `agent_*` command checks that the caller is the window labelled `agent`; the remote web's capability allows `bridge_request` and `log_event` only. The window is opened from the Agent menu (Ctrl or Cmd + Shift + A) or the tray (Open DoU Agent…); a debug build also opens it when `DOU_OPEN_AGENT` is set.
 
 `DOU_VAULT_KEY_FILE` (any value) keeps the vault key in a file in the profile folder instead of the OS keychain; read in debug builds only, for unattended runs and CI; a release build ignores it.

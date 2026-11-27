@@ -59,6 +59,7 @@ pub use subview::{
     PendingMini, close_by_host, entry_json, list_views, open_pending_mini, open_source,
     reset_for_new_host, sub_bridge_request, sub_close_request,
 };
+pub use update::pubkey as update_pubkey;
 
 #[cfg(test)]
 mod tests {
@@ -71,6 +72,37 @@ mod tests {
         names.sort_unstable();
         names.dedup();
         assert_eq!(names.len(), HANDLED.len());
+    }
+
+    #[test]
+    fn handled_equals_what_the_handlers_register() {
+        let sources = [
+            include_str!("notify.rs"),
+            include_str!("oauth.rs"),
+            include_str!("simple.rs"),
+            include_str!("storage.rs"),
+            include_str!("subview.rs"),
+            include_str!("unfurl.rs"),
+            include_str!("update.rs"),
+        ];
+        let mut registered: Vec<String> = Vec::new();
+        for source in sources {
+            let production = source.split("#[cfg(test)]").next().unwrap_or(source);
+            let main_host = production
+                .split("pub fn register(")
+                .nth(1)
+                .and_then(|body| body.split("\n}\n").next())
+                .expect("a register function");
+            for part in main_host.split("host.register(").skip(1) {
+                let name = part.split('"').nth(1).expect("a quoted message name");
+                registered.push(name.to_string());
+            }
+        }
+        registered.extend(["WebAppReady".to_string(), "Ping".to_string()]);
+        registered.sort_unstable();
+        let mut handled: Vec<String> = HANDLED.iter().map(|s| s.to_string()).collect();
+        handled.sort_unstable();
+        assert_eq!(registered, handled);
     }
 
     #[test]

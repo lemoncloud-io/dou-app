@@ -1,6 +1,9 @@
 mod agent;
+mod agent_push;
 mod app_source;
 mod bridge;
+#[cfg(test)]
+mod command_drift_tests;
 mod globals;
 pub mod handlers;
 mod logs;
@@ -9,6 +12,7 @@ pub mod profile;
 pub mod shell_client;
 mod shell_host;
 mod shell_sock;
+mod shell_ui;
 pub mod sidecar;
 mod snapshot;
 mod window;
@@ -22,6 +26,15 @@ use crate::app_source::{AppConfig, AppSource};
 use crate::profile::{Cli, Lock, LockError, Paths};
 
 pub const RESTART_ENV: &str = "DOU_SHELL_RESTART";
+
+fn updater_plugin() -> tauri::plugin::TauriPlugin<tauri::Wry, tauri_plugin_updater::Config> {
+    let builder = tauri_plugin_updater::Builder::new();
+    match handlers::update_pubkey() {
+        Some(key) => builder.pubkey(key),
+        None => builder,
+    }
+    .build()
+}
 
 fn stop(message: &str) -> ! {
     eprintln!("{message}");
@@ -86,9 +99,10 @@ pub fn run() {
             }
         })
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(shell_ui::shortcut_plugin())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(updater_plugin())
         .invoke_handler(tauri::generate_handler![
             bridge::bridge_request,
             bridge::log_event,
@@ -209,6 +223,8 @@ pub fn run() {
                 custom_profile.then_some(&paths),
             )?;
             window::install_menu(app.handle())?;
+            agent_push::start(app.handle());
+            shell_ui::install(app.handle())?;
             if std::env::var_os("DOU_OPEN_AGENT").is_some() {
                 window::open_agent(app.handle())?;
             }

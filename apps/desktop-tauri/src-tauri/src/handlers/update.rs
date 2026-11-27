@@ -62,6 +62,22 @@ impl<U: Clone> State<U> {
     }
 }
 
+pub fn enabled_for(feed: Option<&str>, pubkey: Option<&str>) -> bool {
+    let set = |value: Option<&str>| value.is_some_and(|v| !v.trim().is_empty());
+    set(feed) && set(pubkey)
+}
+
+pub fn enabled() -> bool {
+    enabled_for(
+        option_env!("DOU_UPDATE_FEED"),
+        option_env!("DOU_UPDATE_PUBKEY"),
+    )
+}
+
+pub fn pubkey() -> Option<&'static str> {
+    option_env!("DOU_UPDATE_PUBKEY").filter(|_| enabled())
+}
+
 pub fn percent(received: u64, total: Option<u64>) -> u8 {
     match total {
         Some(total) if total > 0 => (received.saturating_mul(100) / total).min(100) as u8,
@@ -141,7 +157,7 @@ async fn download(app: AppHandle, state: Arc<Mutex<State>>, update: Update) {
 pub fn register(host: &mut BridgeHost, context: &Context) {
     let state = Arc::new(Mutex::new(State::default()));
 
-    if let Some(feed) = option_env!("DOU_UPDATE_FEED") {
+    if let (true, Some(feed)) = (enabled(), option_env!("DOU_UPDATE_FEED")) {
         let app = context.app.clone();
         let state = Arc::clone(&state);
         tauri::async_runtime::spawn(async move {
@@ -205,6 +221,15 @@ pub fn register(host: &mut BridgeHost, context: &Context) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_updater_runs_only_with_both_a_feed_and_a_key() {
+        assert!(enabled_for(Some("https://u.test/latest.json"), Some("key")));
+        assert!(!enabled_for(Some("https://u.test/latest.json"), None));
+        assert!(!enabled_for(None, Some("key")));
+        assert!(!enabled_for(Some(" "), Some("key")));
+        assert!(!enabled_for(Some("https://u.test/latest.json"), Some("")));
+    }
 
     #[test]
     fn progress_is_a_whole_percent_and_never_past_one_hundred() {
