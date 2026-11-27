@@ -1,6 +1,6 @@
 # ADR-0387: Desktop v2 runs the TS runtime in Node and Rust is the shell and harness
 
-> Status: Accepted · Decided: 2026-11-27 · Supersedes: ADR-0382 · Amends: ADR-0380 · Scope: `apps/desktop-native/`, `apps/desktop-tauri/`
+> Status: Accepted · Decided: 2026-11-27 · Supersedes: ADR-0382 · Amends: ADR-0380, ADR-0384 · Scope: `apps/desktop-native/`, `apps/desktop-tauri/`
 
 ## Context
 
@@ -8,7 +8,7 @@ ADR-0382 gave desktop v2 a second engine in Rust, held to the TS engine by vecto
 
 ## Decision
 
-1. **The Rust engine is parked.** The crates `dou-auth`, `dou-socket`, `dou-app`, `dou-engine` and `dou-store` stay in the tree, are not extended, and the shell stops depending on them in a follow-up step; until then they are frozen. `dou-control`, `dou-http` and `dou-mcp` are not parked. Work in flight on them stops; their pull requests stay open as drafts.
+1. **The Rust engine is parked.** The crates `dou-auth`, `dou-socket`, `dou-app`, `dou-engine` and `dou-store` stay in the tree, are not extended, and the shell stops depending on them in a follow-up step; until then they are frozen. `dou-control`, `dou-http` and `dou-mcp` are not parked. Work in flight on the parked crates stops; their pull requests stay open as drafts.
 2. **DoU logic runs in TypeScript, in Node.** A headless `apps/dou-cli` process on `@chatic/runtime` through `libs/runtime-node` owns the session, the pairing and the tools. The page does not run the logic, and no Rust copy of it exists.
 3. **The screens are `apps/web`** in its mobile form factor, inside the Tauri webview. A desktop-specific web app is not built for this line.
 4. **The shell starts one Node process per profile** and ships a single-file Node executable with the app. It does not rely on a Node installation and does not let an agent client start the process itself.
