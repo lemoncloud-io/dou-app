@@ -207,3 +207,88 @@ describe('ratchet CLI arguments', () => {
         expect(() => parseArgs(['check', '--fast'])).toThrow('unknown argument --fast');
     });
 });
+
+describe('ratchet verify-baseline between two commits', () => {
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const { execFileSync, spawnSync } = require('child_process');
+
+    const SCRIPT = path.resolve(__dirname, '../ratchet.js');
+    const FILE = 'scripts/ratchet/jscpd-ratchet-baseline.json';
+    const repos = [];
+
+    const newRepo = () => {
+        const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'ratchet-steps-'));
+        repos.push(repo);
+        const git = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim();
+        git('init', '-q');
+        git('config', 'user.email', 'test@example.com');
+        git('config', 'user.name', 'test');
+        fs.mkdirSync(path.join(repo, 'scripts/ratchet'), { recursive: true });
+        fs.writeFileSync(path.join(repo, 'a.ts'), 'export const a = 1;\n'.repeat(20));
+        const commit = (entries, moves = []) => {
+            for (const [from, to] of moves) git('mv', from, to);
+            fs.writeFileSync(path.join(repo, FILE), JSON.stringify(entries));
+            git('add', '-A');
+            git('commit', '-q', '-m', 'step');
+            return git('rev-parse', 'HEAD');
+        };
+        const verify = (base, head) =>
+            spawnSync('node', [SCRIPT, 'verify-baseline', '--base', base, '--head', head], {
+                cwd: repo,
+                env: { ...process.env, RATCHET_ROOT: repo },
+                encoding: 'utf8',
+            });
+        return { repo, commit, verify };
+    };
+
+    afterAll(() => repos.forEach(repo => fs.rmSync(repo, { recursive: true, force: true })));
+
+    it('follows a rename within one step and catches a raise in the next', () => {
+        const { commit, verify } = newRepo();
+        const first = commit({ 'a.ts': 3 });
+        const moved = commit({ 'b.ts': 3 }, [['a.ts', 'b.ts']]);
+        const raised = commit({ 'b.ts': 4 });
+        expect(verify(first, moved).status).toBe(0);
+        const result = verify(moved, raised);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(`was raised in ${moved}..${raised}`);
+        expect(result.stderr).toContain('b.ts: 4 (baseline 3)');
+    });
+
+    it('reads the baselines from --head, not from the working tree', () => {
+        const { repo, commit, verify } = newRepo();
+        const before = commit({ 'a.ts': 2 });
+        const after = commit({ 'a.ts': 1 });
+        fs.writeFileSync(path.join(repo, FILE), JSON.stringify({ 'a.ts': 9 }));
+        expect(verify(before, after).status).toBe(0);
+    });
+
+    it('runs from the paths verify.yml archives for a parent judge, outside the checkout', () => {
+        const workflow = fs.readFileSync(path.resolve(__dirname, '../../.github/workflows/verify.yml'), 'utf8');
+        const paths = workflow
+            .match(/git archive "\$step\^1" ([^|]+)\|/)[1]
+            .trim()
+            .split(/\s+/);
+        const judge = fs.mkdtempSync(path.join(os.tmpdir(), 'ratchet-judge-'));
+        repos.push(judge);
+        for (const entry of paths) {
+            fs.cpSync(path.resolve(__dirname, '../..', entry), path.join(judge, entry), { recursive: true });
+        }
+        const { repo, commit } = newRepo();
+        const before = commit({ 'a.ts': 2 });
+        const after = commit({ 'a.ts': 1 });
+        const result = spawnSync(
+            'node',
+            [path.join(judge, 'scripts/ratchet.js'), 'verify-baseline', '--base', before, '--head', after],
+            { cwd: repo, env: { ...process.env, RATCHET_ROOT: repo }, encoding: 'utf8' }
+        );
+        expect(result.stderr).toBe('');
+        expect(result.status).toBe(0);
+    });
+
+    it('reads --head', () => {
+        expect(parseArgs(['verify-baseline', '--base', 'a', '--head', 'b'])).toMatchObject({ base: 'a', head: 'b' });
+    });
+});
