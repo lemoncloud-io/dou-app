@@ -110,6 +110,7 @@ pub fn install(app: &mut App, web_url: &str) -> Result<Installed, String> {
         &crate::handlers::Context {
             app: app.handle().clone(),
             vault,
+            stage: stage.clone(),
         },
     );
 

@@ -22,7 +22,10 @@ subview = { path = "../crates/subview" }
 tauri-plugin-notification = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-updater = "2"
-tauri-plugin-single-instance = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tauri-plugin-deep-link = "2"
+oauth = { path = "../crates/oauth" }
+unfurl = { path = "../crates/unfurl" }
 base64 = "0.22"
 vault = { path = "../crates/vault" }
 dou-app = { path = "../../desktop-native/crates/dou-app" }
