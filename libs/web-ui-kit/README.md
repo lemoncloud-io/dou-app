@@ -9,10 +9,29 @@ It is not the repo's generic component library. That is [`libs/ui-kit`](../ui-ki
 between the two is the first thing to get right — see [The boundary with
 `libs/ui-kit`](#the-boundary-with-libsui-kit).
 
+## Where the components live
+
+The components themselves now sit in three `libs/design-system` packages, one per layer, and this
+package re-exports them unchanged. `apps/web` keeps importing `@chatic/web-ui-kit`; nothing it
+imports was renamed or removed.
+
+| Layer (folder before) | Package                                                                                   | Folder                                     |
+| --------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `foundations`         | [`@chatic/design-system-components-mobile`](../design-system/components/mobile/README.md) | `libs/design-system/components/mobile/src` |
+| `composites` but chat | [`@chatic/design-system-patterns-mobile`](../design-system/patterns/mobile/README.md)     | `libs/design-system/patterns/mobile/src`   |
+| `composites/chat`     | [`@chatic/design-system-chat-mobile`](../design-system/chat/mobile/README.md)             | `libs/design-system/chat/mobile/src`       |
+
+What is left here is the barrel (`src/index.ts`, with `src/foundations/index.ts` and
+`src/composites/index.ts` as the two old layer entries), `resources/` and the Storybook showcase,
+whose stories now come from the three packages. The design rules below still hold for all of it; a
+path below is under `libs/design-system/<layer>/mobile/src/` unless it says otherwise.
+
 ## Component notes
 
-What each component is for, and the prop and behaviour notes a name or type cannot say, are in
-[`docs/components`](./docs/components/README.md).
+What each component is for, and the prop and behaviour notes a name or type cannot say, are kept
+beside the code: [components](../design-system/components/mobile/docs/components/README.md) (with the
+rules every component follows), [patterns](../design-system/patterns/mobile/docs/components/README.md)
+and [chat](../design-system/chat/mobile/docs/components/README.md).
 
 ## Purpose
 
@@ -53,7 +72,7 @@ It is also a thin arrow. Production code here reaches into `ui-kit` for **3 of i
 in 4 files:
 
 ```bash
-grep -rn "@chatic/ui-kit/components" libs/web-ui-kit/src --include='*.tsx' | grep -v '\.stories\.'
+grep -rn "@chatic/ui-kit/components" libs/design-system/{components,patterns,chat}/mobile/src --include='*.tsx' | grep -v '\.stories\.'
 ```
 
 `alert-dialog` and `sheet` (overlay), `dropdown-menu` (both headers). Every one of them is pulled in
@@ -71,7 +90,7 @@ so the app's snackbar rests above the bar instead of on its buttons.
 `cn` is the one other thing taken from that package, through its barrel `@chatic/ui-kit` — 123 files import it:
 
 ```bash
-grep -rln "from '@chatic/ui-kit'" libs/web-ui-kit/src | wc -l
+grep -rln "from '@chatic/ui-kit'" libs/design-system/{components,patterns,chat}/mobile/src | wc -l
 ```
 
 ## Design principles
@@ -96,15 +115,17 @@ grep -rln "from '@chatic/ui-kit'" libs/web-ui-kit/src | wc -l
    token. Two more are drift, not exception. The grep, not this sentence, is the check:
 
     ```bash
-    grep -rnE "(bg|text|border)-\[#" libs/web-ui-kit/src --include='*.tsx' | grep -v '\.stories\.'
+    grep -rnE "(bg|text|border)-\[#" libs/design-system/{components,patterns,chat}/mobile/src --include='*.tsx' | grep -v '\.stories\.'
     ```
 
 4. **One icon source.** Exactly one file imports `lucide-react` — the icon barrel of
    `@chatic/design-system-assets`, re-exported here as `resources/icons` — and components import
    `Icon*` aliases from it. Swapping the icon library later touches that file and
    nothing else. An alias with no current caller is the normal state of a kit barrel, not dead code.
-5. **Layers only point down.** `composites` → `foundations` → `resources`, and never back up. A
-   foundation that needs a composite is a sign the composite is in the wrong layer.
+5. **Layers only point down.** chat → patterns (`composites`) → components (`foundations`) →
+   `@chatic/design-system-assets`, and never back up — each step is now a package dependency, so the
+   project graph enforces it. A foundation that needs a composite is a sign the composite is in the
+   wrong layer.
 6. **Every component has a test and a story.** 136 spec files and 109 story files against 117 exported
    components. The story is the visual contract for QA and design; the test is the behavioural one.
 
@@ -128,17 +149,23 @@ flowchart TD
 
     App["apps/web<br/><i>98 files</i>"]:::ext
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
+    W["@chatic/web-ui-kit<br/><i>barrel · resources</i>"]:::res
 
-    C["composites × 81<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
-    F["foundations × 44<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
-    R["resources<br/><i>tokens.css · 75 icons · 7 assets</i>"]:::res
+    CH["chat × 22<br/><i>@chatic/design-system-chat-mobile</i>"]:::comp
+    C["patterns × 59<br/><i>@chatic/design-system-patterns-mobile — header · overlay · list · media · …</i>"]:::comp
+    F["components × 44<br/><i>@chatic/design-system-components-mobile — button · input · avatar · badge · …</i>"]:::found
+    R["@chatic/design-system-assets<br/><i>75 icons · 7 images</i>"]:::res
 
     UK["@chatic/ui-kit<br/><i>3 of 21 primitives</i>"]:::ext
     CN["@chatic/ui-kit<br/><i>cn</i>"]:::ext
 
-    App -->|"barrel only"| C
-    App -->|"barrel only"| F
-    SB --> C
+    App -->|"barrel only"| W
+    W --> CH
+    W --> C
+    W --> F
+    SB --> W
+    CH --> C
+    CH --> F
     C --> F
     C --> R
     F --> R
@@ -172,26 +199,32 @@ flowchart TD
 ```text
 libs/web-ui-kit/src/
 ├── index.ts       public barrel — resources, then foundations, then composites
-├── resources/
-│   ├── styles/tokens.css   Storybook's token layer: the mobile tokens + five values Storybook keeps
-│   ├── icons/              re-exports @chatic/design-system-assets/icons (75 exports)
-│   └── assets/             re-exports @chatic/design-system-assets/images (7 brand images)
-├── foundations/   13 groups, 44 components
-│   avatar(7) · button(9) · input(8) · badge(8) · brand(2) · chip(2) · audio(2) ·
-│   bubble · checkbox · divider · switch · text · toast (1 each)
-└── composites/    10 groups, 81 components
-    chat(22) · list(9) · media(12) · overlay(9) · section(5) · header(5) ·
+├── foundations/index.ts   re-exports @chatic/design-system-components-mobile
+├── composites/index.ts    re-exports @chatic/design-system-patterns-mobile and -chat-mobile
+└── resources/
+    ├── styles/tokens.css   Storybook's token layer: the mobile tokens + five values Storybook keeps
+    ├── icons/              re-exports @chatic/design-system-assets/icons (75 exports)
+    └── assets/             re-exports @chatic/design-system-assets/images (7 brand images)
+
+libs/design-system/components/mobile/src/   13 groups, 44 components (was foundations/)
+    avatar(7) · button(9) · input(8) · badge(8) · brand(2) · chip(2) · audio(2) ·
+    bubble · checkbox · divider · switch · text · toast (1 each)
+libs/design-system/patterns/mobile/src/     9 groups, 59 components (was composites/)
+    list(9) · media(12) · overlay(9) · section(5) · header(5) ·
     layout(4) · subscription(7) · feedback(3) · navigation(5)
+libs/design-system/chat/mobile/src/         22 components (was composites/chat/)
 ```
 
-Ten files are internal — used across a group but absent from every barrel, so grepping the public
-API will not find them. The one partial exception is `slidePresence.ts`, whose timing is public while
-its hook is not:
+Ten files are internal — used across a group but absent from every group barrel, so grepping the
+public API will not find them. Two of them are now used across a package boundary, so their
+package's root entry exports what the next package needs, and this barrel passes it on:
+`FLOATING_PANEL` (components, for the photo grid's footer), and `useSlidePresence`, `SLIDE_MOTION`
+and `SLIDE_FALLBACK_MS` (patterns, for the chat `AttachPanel` and its test):
 
-- `foundations/avatar/avatarBase.tsx` — `AvatarFrame`, the circle `ImageAvatar`, `DefaultAvatar`,
+- `components/…/avatar/avatarBase.tsx` — `AvatarFrame`, the circle `ImageAvatar`, `DefaultAvatar`,
   `ProfileAvatar`, `PlaceAvatar` and `ChatAvatar` are drawn in. It owns the stroke (see [Picking an avatar](#4-picking-an-avatar)).
-- `foundations/button/floatingPanel.ts` — the shared class string for floating surfaces.
-- `composites/header/HeaderGlass.tsx` — the blurred header backdrop. Mounted while `<html>` carries
+- `components/…/button/floatingPanel.ts` — the shared class string for floating surfaces.
+- `patterns/…/header/HeaderGlass.tsx` — the blurred header backdrop. Mounted while `<html>` carries
   `data-page-transition` (set by `@chatic/shared`'s `useNavigateWithTransition`), it holds its opaque
   pane until the attribute comes off — 1.5s at most: WebKit paints no `backdrop-filter` inside a view
   transition's snapshots, so the frost would otherwise arrive in one frame as the slide ends. The
@@ -199,17 +232,17 @@ its hook is not:
   the one input in this kit that a component reads in script rather than through a prop, and its name
   is a string declared in both libs: their tests pin the same literal, and nothing else checks that
   the two match.
-- `composites/overlay/viewerShell.ts` — what the two full-screen photo screens, `MediaViewer` and
+- `patterns/…/overlay/viewerShell.ts` — what the two full-screen photo screens, `MediaViewer` and
   `PhotoEditor`, share: the slide-in timing, the guard against events bubbling out of a portal, and
   the pager's swipe thresholds. One copy, so a swipe turns both screens' pages the same way.
-- `composites/overlay/DocumentViewer.tsx` — a document read on the phone in `MediaViewer`'s frame (the
+- `patterns/…/overlay/DocumentViewer.tsx` — a document read on the phone in `MediaViewer`'s frame (the
   same slide-in, close button, position along the top and bottom bar, which takes the host's
   `MediaViewerActionButton`s), with the pages in one scrolling column instead of a pager. It draws no
   document itself: the host passes `pages` with a `renderPage` (pdf.js, in the app), so this kit never
   loads a renderer. Only pages near the view hold a canvas. Pinch and double tap zoom the pages
   (`documentZoom.ts` holds the range, the double-tap rule and the scroll that keeps the fingers' point
   in place).
-- `composites/overlay/slidePresence.ts` — how something slides into its resting place and back out:
+- `patterns/…/overlay/slidePresence.ts` — how something slides into its resting place and back out:
   `AttachPanel` and the photo grid's footer up from below (on `transform`), `SelectedPhotoStrip` and
   `RecentPhotoStrip` open from no height (on `height`). A CSS transition rather than the Radix overlays'
   keyframes, because a keyframe always plays from its first frame and a panel closed halfway up would
@@ -232,28 +265,29 @@ its hook is not:
     both from one eased value cannot part them. Until the host settles a slide the panel rests where it
     started, so a frame the host has not drawn yet shows the slide's first frame; instant changes stay
     the panel's own and clear whatever the host last wrote. For that loop the overlay barrel exports
-    `SLIDE_MS`, `slideEase` and `prefersReducedMotion` — the hook itself stays internal.
+    `SLIDE_MS`, `slideEase` and `prefersReducedMotion`. The hook is not meant for hosts either; it
+    reaches the patterns entry only because `AttachPanel` now sits in another package.
 
-- `composites/media/useBoxSize.ts` — an element's measured size, kept current through a
+- `patterns/…/media/useBoxSize.ts` — an element's measured size, kept current through a
   `ResizeObserver`. An edited photo is drawn by one CSS `matrix()` that has to know its box, which no
   CSS length can supply.
-- `composites/media/editedPhotoLayout.ts` — fits the edit's export plan (`planPhotoEdit`) into a box,
+- `patterns/…/media/editedPhotoLayout.ts` — fits the edit's export plan (`planPhotoEdit`) into a box,
   so the picked strip, the editor and the crop stage draw the pixels the send will produce.
-- `composites/media/PhotoCropStage.tsx` — the crop box, its eight handles and the dimmed photo under
+- `patterns/…/media/PhotoCropStage.tsx` — the crop box, its eight handles and the dimmed photo under
   it: `PhotoEditor`'s crop mode, which owns the draft it edits. Its drag arithmetic is the pure
   `cropBox.ts` beside it, as `MediaViewer`'s zoom is `imageZoom.ts`.
-- `composites/media/cropBox.ts` — `dragCropRect`, the crop box's drag arithmetic: a handle's or the
+- `patterns/…/media/cropBox.ts` — `dragCropRect`, the crop box's drag arithmetic: a handle's or the
   box's drag applied to the crop, kept inside the photo, above a minimum size and on the preset's
   ratio. Pure and unit-tested; kept out of the barrel on purpose, since only the crop stage drags a
   box.
-- `composites/chat/ProgressRing.tsx` — the determinate ring: `MessageFileCard`'s download (with a
+- `chat/…/ProgressRing.tsx` — the determinate ring: `MessageFileCard`'s download (with a
   stop mark, since another press cancels) and upload, and a sending `MessageMediaTiles` tile's mark
   with the percentage inside it. The hosts give it its accessible name and value.
 
 ### Audio and room files
 
 The audio pieces share one vocabulary so every surface that shows an audio file reads the same:
-`foundations/audio` holds the two numbers they print (`formatAudioClock` — `0:07`, `35:47`, `1:12:05` —
+`components/…/audio` holds the two numbers they print (`formatAudioClock` — `0:07`, `35:47`, `1:12:05` —
 and `formatAudioSize` — `17.0MB`, whatever the magnitude), the seek bar (`AudioSeekBar`) and the speed chip
 (`PlaybackRateChip`). The seek bar holds only the drag in progress: it reports where the finger is
 (`onScrub`) and seeks once, when the drag ends. `AudioMessageBubble`, `MiniAudioPlayer`, `AudioDetailLayout`
@@ -342,9 +376,10 @@ headers that fade in at mount, as they did before the attribute existed.
 
 ### 1. Adding a component
 
-Decide the layer with the diagram above, then add three files to the group — `Thing.tsx`,
-`Thing.test.tsx`, `Thing.stories.tsx` — and one line to the group's `index.ts`. Nothing needs
-touching at the `src/index.ts` level: the top barrel re-exports whole groups.
+Decide the layer with the diagram above, then add three files to the group in that layer's package —
+`Thing.tsx`, `Thing.test.tsx`, `Thing.stories.tsx` — and one line to the group's `index.ts`. Nothing
+needs touching at either `src/index.ts`: the package entry re-exports whole groups, and this barrel
+re-exports whole packages.
 
 ### 2. Adding an icon
 
@@ -417,24 +452,22 @@ neither can miss it. See [the tokens README](../design-system/tokens/README.md).
 
 ### 6. Writing a test
 
-`jest.config.js` runs jsdom, registers `@testing-library/jest-dom` through `src/test-setup.ts`, and
-maps CSS and image imports to the stubs in `src/__mocks__/`. It also maps `@chatic/*` to lib sources
+Each of the three packages has its own `jest.config.js`: it runs jsdom, registers
+`@testing-library/jest-dom` through `src/test-setup.ts`, and maps CSS and image imports to the stubs
+in `src/__mocks__/`. This package keeps its `src/__mocks__/` because other projects' jest configs
+point at it; it has no tests of its own any more. Each package's jest config also maps `@chatic/*` to lib sources
 directly, so a change in `libs/ui-kit` is picked up with no build step. Assert behaviour and
 accessible names; leave pixel values to the story.
 
 ## How to verify
 
 ```bash
-npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the lib, the 136 spec files and the stories
-npx jest --config libs/web-ui-kit/jest.config.js
+npx tsc -b libs/web-ui-kit/tsconfig.json --force   # the barrel and the Storybook config
+npx nx run-many -t typecheck,test -p @chatic/design-system-components-mobile @chatic/design-system-patterns-mobile @chatic/design-system-chat-mobile
 ```
 
 - Type checking must be `tsc -b`. Inside the lib, `tsc --noEmit` checks zero files and succeeds, so
   passing it proves nothing.
-- **Stories are not in that check.** `tsconfig.json` references `tsconfig.lib.json` and
-  `tsconfig.spec.json` only. `*.stories.tsx` carries 3 known type errors that
-  `.github/workflows/verify.yml` records as existing debt, and it is built separately by Storybook's
-  own Vite pipeline. To see them: `npx tsc -b libs/web-ui-kit/tsconfig.storybook.json --force`.
 - Jest does not type check — the base sets `isolatedModules`, so ts-jest transpiles. That is why the
   spec project is referenced: without it, a prop a test passes that the component no longer accepts
   compiles fine and fails at runtime, or not at all.
@@ -444,14 +477,15 @@ npx jest --config libs/web-ui-kit/jest.config.js
 - Downstream: `apps/web` is the only consumer of a changed barrel identifier, and `nx typecheck web`
   covers it. Both this project and `web` are in `verify.yml`'s typecheck step, so CI catches a break
   here without a hand check.
-- **Stories are type checked too.** `tsconfig.json` references the lib, spec **and** storybook
-  projects, so a `*.stories.tsx` that no longer matches its component is a build failure rather than
+- **Stories are type checked too.** Each package's `tsconfig.json` references the lib, spec **and**
+  storybook projects, so a `*.stories.tsx` that no longer matches its component is a build failure rather than
   a surprise in the Storybook UI.
 
 ```bash
 npx nx typecheck @chatic/web-ui-kit
 npx nx typecheck web
 npx nx lint web-ui-kit
+npx nx run-many -t lint -p @chatic/design-system-components-mobile @chatic/design-system-patterns-mobile @chatic/design-system-chat-mobile
 npx nx storybook web-ui-kit         # the visual showcase, light/dark toolbar, 390px frame
 npx nx build-storybook web-ui-kit
 ```
