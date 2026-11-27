@@ -97,6 +97,26 @@ async fn polls_claim_until_approved_and_returns_the_approvers_session() {
 }
 
 #[tokio::test]
+async fn a_cloud_approval_without_a_session_asks_for_the_whole_account() {
+    let cloud = r#"{"status":"approved","target":{"type":"cloud","cloudId":"c1"},"approver":{}}"#;
+    let (base, _) = fake_relay(vec![cloud]);
+    let api = RelayApi::new(
+        HttpClient::new("test/1").unwrap(),
+        Endpoints::new(&base, "wss://x"),
+    );
+    let device = device_session();
+    let request = PairingRequest::start(&api, &device, "device-1")
+        .await
+        .unwrap();
+    let error = request
+        .wait(&api, &device, |_| {}, Duration::from_millis(5))
+        .await
+        .unwrap_err();
+    assert_eq!(error, dou_core::Error::PairingNeedsAccount);
+    assert!(error.to_string().contains("Approve my whole account"));
+}
+
+#[tokio::test]
 async fn a_denied_pairing_ends_the_wait() {
     let (base, _) = fake_relay(vec![r#"{"status":"denied"}"#]);
     let api = RelayApi::new(

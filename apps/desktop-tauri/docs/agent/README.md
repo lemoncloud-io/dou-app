@@ -10,7 +10,7 @@ Endpoints are constants per stage (dev and production relay and socket addresses
 
 ## Signing the engine in
 
-The engine is its own device. The Agent window starts a pairing request and shows the code; the person approves it in the DoU window (the web's pairing approve page, which the window can open). Nothing — token, cookie or password — crosses from the page to Rust. The web's own session is not reused: that would make two engines share one credential.
+The engine is its own device. The Agent window starts a pairing request and shows the code; the person approves it in the DoU window (the web's pairing approve page, which the window can open). Nothing — token, cookie or password — crosses from the page to Rust. An approval for a cloud carries no session, so the engine cannot sign in from it: the window then says to approve the whole account (a guest account cannot). The web's own session is not reused: that would make two engines share one credential.
 
 Then the person picks a cloud (listed from the relay) and the engine starts. Switching to another cloud needs an app restart.
 

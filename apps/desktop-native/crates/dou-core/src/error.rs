@@ -12,6 +12,10 @@ pub enum Error {
     Http { status: u16, message: String },
     #[error("pairing ended: {0}")]
     Pairing(String),
+    #[error(
+        "the approval was for a cloud, not your whole account. Start again and choose \"Approve my whole account\"; a guest account cannot sign the engine in"
+    )]
+    PairingNeedsAccount,
     #[error("storage: {0}")]
     Storage(String),
     #[error("network: {0}")]

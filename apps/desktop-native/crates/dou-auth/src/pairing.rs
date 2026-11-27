@@ -103,10 +103,15 @@ fn status_of(answer: &Value) -> &str {
         .unwrap_or("unknown")
 }
 
+fn is_cloud_target(answer: &Value) -> bool {
+    answer.pointer("/target/type").and_then(Value::as_str) == Some("cloud")
+}
+
 fn session_of(answer: Value) -> Result<TokenView> {
-    let session = answer
-        .get("session")
-        .cloned()
-        .ok_or_else(|| Error::Pairing("approved without a session".into()))?;
+    let session = match answer.get("session") {
+        Some(session) => session.clone(),
+        None if is_cloud_target(&answer) => return Err(Error::PairingNeedsAccount),
+        None => return Err(Error::Pairing("approved without a session".into())),
+    };
     serde_json::from_value(session).map_err(|e| Error::InvalidResponse(e.to_string()))
 }
