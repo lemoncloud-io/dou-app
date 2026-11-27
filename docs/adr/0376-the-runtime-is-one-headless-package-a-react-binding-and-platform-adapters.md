@@ -115,7 +115,7 @@ db:      { default: [dbBridge, dbIndexedDb] },
 ```
 
 `storage` is declared the same way, one candidate list per role slot, and the lists reproduce the
-per-environment table in the runtime-web README (a plain browser tab keeps `secret` and `plain` in
+per-environment table in the runtime-hybrid-web README (a plain browser tab keeps `secret` and `plain` in
 `webSession`; a shell with a vault keeps `secret` there).
 
 The engine is chosen once, at start; it does not switch while running. The boot log says which engine ran

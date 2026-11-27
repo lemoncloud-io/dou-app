@@ -1,4 +1,4 @@
-import type { RuntimeDeclaration, SessionOwnerChoice, WebHostFacts } from '@chatic/runtime-web';
+import type { RuntimeDeclaration, SessionOwnerChoice, WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 import { SIGNED_OUT_KEY_PREFIXES } from '../app/runtime/signedOutKeys';
 

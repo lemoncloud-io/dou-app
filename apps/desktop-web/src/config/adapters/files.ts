@@ -1,5 +1,5 @@
-import { filesAdapters } from '@chatic/runtime-web';
-import type { FilesPort, ShellOrBrowserBase, ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { filesAdapters } from '@chatic/runtime-hybrid-web';
+import type { FilesPort, ShellOrBrowserBase, ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 import { pageUploadPut } from '../upload';
 

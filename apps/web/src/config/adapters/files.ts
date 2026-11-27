@@ -1,6 +1,6 @@
 import { logger, webClient } from '@chatic/bridges';
-import { filesAdapters } from '@chatic/runtime-web';
-import type { FilesPort, ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { filesAdapters } from '@chatic/runtime-hybrid-web';
+import type { FilesPort, ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 import { appBridge } from '../../app/bridge/appBridge';
 import { createNativeTransfers, syncFileTransfers, type NativeTransfers } from '../../app/runtime/upload';

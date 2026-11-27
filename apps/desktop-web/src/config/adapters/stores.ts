@@ -1,5 +1,5 @@
-import { readStorageEnvironment, resolveStorageStores } from '@chatic/runtime-web';
-import type { StorageStores } from '@chatic/runtime-web';
+import { readStorageEnvironment, resolveStorageStores } from '@chatic/runtime-hybrid-web';
+import type { StorageStores } from '@chatic/runtime-hybrid-web';
 
 export const desktopStores: StorageStores = resolveStorageStores({
     ...readStorageEnvironment(),

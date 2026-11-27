@@ -2,7 +2,7 @@
 
 > Status: Accepted; decision 6 superseded by [ADR-0374](./0374-the-virtual-shell-s-checkout-and-host-choices-are-the-shell-core-s-options.md) · Decided: 2026-11-24
 > · Scope: `apps/shell-adapter/**` · `apps/web/src/config/adapters/checkout/**` · `apps/web/src/app/features/subscription/**`
-> · `libs/runtime-web/src/hostCapabilities/shellHarness.ts`
+> · `libs/runtime-hybrid-web/src/hostCapabilities/shellHarness.ts`
 > · Builds on: [ADR-0214](./0214-the-virtual-shell-is-a-package.md) · Related: [ADR-0373](./0373-a-web-checkout-sells-inside-the-app-through-a-shared-checkout-library.md)
 
 ## Context

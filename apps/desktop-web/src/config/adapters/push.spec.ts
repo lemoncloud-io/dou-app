@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { WebHostFacts } from '@chatic/runtime-web';
+import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
 
 const { request, onEvent, events } = vi.hoisted(() => {
     const events: Record<string, (message: unknown) => void> = {};

@@ -1,14 +1,7 @@
-import { MemoryStore, NativeSecureStore, TolerantStore } from '@chatic/storage';
+import { MemoryStore, TolerantStore } from '@chatic/storage';
+import type { NativeSecureStore } from '@chatic/storage';
 
-import {
-    createShellVault,
-    localStorageStores,
-    pageStorageAreas,
-    tabStorageStores,
-    vaultStorageStores,
-} from './storeSets';
-
-import type { IWebBridgeClient } from '@chatic/bridges';
+import { localStorageStores, pageStorageAreas, tabStorageStores, vaultStorageStores } from './storeSets';
 
 const areas = () => ({ webLocal: new MemoryStore(), webSession: new MemoryStore() });
 const fakeVault = { name: 'vault' } as unknown as NativeSecureStore;
@@ -83,21 +76,5 @@ describe('pageStorageAreas', () => {
 
         expect(localStorage.getItem('l')).toBe('1');
         expect(sessionStorage.getItem('s')).toBe('1');
-    });
-});
-
-describe('createShellVault', () => {
-    it('falls back to the store it is handed when the shell cannot keep the session', async () => {
-        const request = jest.fn().mockRejectedValue(new Error('no vault'));
-        const fallback = new MemoryStore();
-        fallback.set('k', 'from-fallback');
-
-        const vault = createShellVault({ client: { request } as unknown as IWebBridgeClient, fallback });
-
-        expect(vault).toBeInstanceOf(NativeSecureStore);
-        await vault.hydrate();
-        expect(request).toHaveBeenCalled();
-        expect(vault.status).toBe('unavailable');
-        expect(vault.get('k')).toBe('from-fallback');
     });
 });

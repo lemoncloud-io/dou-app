@@ -1,7 +1,5 @@
-import { BridgeStorageChannel, webClient } from '@chatic/bridges';
-import type { IWebBridgeClient } from '@chatic/bridges';
-import { NativeSecureStore, TolerantStore, WebStore } from '@chatic/storage';
-import type { KeyValueStore } from '@chatic/storage';
+import { TolerantStore, WebStore } from '@chatic/storage';
+import type { KeyValueStore, NativeSecureStore } from '@chatic/storage';
 
 export interface StorageStores {
     secret: KeyValueStore;
@@ -44,14 +42,3 @@ export interface VaultStorageOptions extends WebStorageAreas {
 
 export const vaultStorageStores = ({ vault, plain, ...areas }: VaultStorageOptions): StorageStores =>
     storesAround(areas, { secret: vault, plain: plain ?? areas.webLocal, vault });
-
-export interface ShellVaultOptions {
-    client?: IWebBridgeClient;
-    fallback?: KeyValueStore;
-}
-
-export const createShellVault = ({
-    client = webClient,
-    fallback = WebStore.session(),
-}: ShellVaultOptions = {}): NativeSecureStore =>
-    new NativeSecureStore({ channel: new BridgeStorageChannel(client, 'nativeSecure'), fallback });

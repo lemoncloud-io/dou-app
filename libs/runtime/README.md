@@ -394,7 +394,7 @@ Four rules hold.
 
 ```text
 apps/*/src/main.tsx
-  ├─ resolveStorageStores()               @chatic/runtime-web — every store the app keeps state in, chosen once (apps/web, apps/desktop-web; landing and admin declare their own)
+  ├─ resolveStorageStores()               @chatic/runtime-hybrid-web — every store the app keeps state in, chosen once (apps/web, apps/desktop-web; landing and admin declare their own)
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
   ├─ startRuntime(declaration)            @chatic/runtime-web — the app's src/config/ declaration; runs every step below through initAppRuntime
   ├─ config.init(declaration.config)      @chatic/config — first, this lib reads it lazily
@@ -466,7 +466,7 @@ through `runtime.boot`. What an app sets up for itself before the runtime (`conf
 storage adapter, the log context) and the reaction it registers through
 `runtime.session.authFailureReaction` are the app's own choices and not in the catalogue.
 
-**Choosing the stores.** `resolveStorageStores()` (`@chatic/runtime-web`) is the one place an app's storage
+**Choosing the stores.** `resolveStorageStores()` (`@chatic/runtime-hybrid-web`) is the one place an app's storage
 stores are chosen and built — the storage counterpart of the web cache's `resolveCacheBackendFor`. It reads
 three facts once (in a shell, whether the shell listed `nativeSecure`, and the tab's late-vault mark)
 and returns the session's `secret`/`plain`, the vault when there is one, and the `device`/`tab` stores
@@ -552,20 +552,20 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 
 ## Documents
 
-| Folder                                                         | What it covers                                                                                                                                                    |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [docs/session/](./docs/session/README.md)                      | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                                                |
-| [docs/connection/](./docs/connection/README.md)                | The host that starts the engine's connection controller, and the connection-state hooks — the controller is [docs/engine/connection](./docs/engine/connection.md) |
-| [docs/sync/](./docs/sync/README.md)                            | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                                                      |
-| [docs/data/](./docs/data/README.md)                            | The hooks over the repository graph — the graph itself is [docs/engine/data](./docs/engine/data.md)                                                               |
-| [runtime-web docs/cache/](../runtime-web/docs/cache/README.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it                                |
-| [docs/push/](./docs/push/README.md)                            | The hook that starts device-token registration — the policy is [docs/engine/push](./docs/engine/push.md)                                                          |
-| [docs/layers/](./docs/layers/README.md)                        | The tags between packages, and the four folders' direction inside this one                                                                                        |
-| [docs/engine/](./docs/engine/README.md)                        | The assembly, the engine, and the graph, connection, session and push policy beneath the hooks                                                                    |
-| [docs/remote/](./docs/remote/README.md)                        | The runtime across the bridge: who owns the session each launch, the contract version, the messages, errors                                                       |
-| [docs/api/](./docs/api/README.md)                              | The engine holder, the host ports, settings, and the commands and reads an app calls                                                                              |
-| [docs/declare/](./docs/declare/README.md)                      | The runtime declaration, how a port's adapter is resolved, and the start                                                                                          |
-| [docs/declare/modules](./docs/declare/modules.md)              | The modules a runtime is built from, the three presets, and where a missing port or module is caught                                                              |
+| Folder                                                                       | What it covers                                                                                                                                                    |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/session/](./docs/session/README.md)                                    | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                                                |
+| [docs/connection/](./docs/connection/README.md)                              | The host that starts the engine's connection controller, and the connection-state hooks — the controller is [docs/engine/connection](./docs/engine/connection.md) |
+| [docs/sync/](./docs/sync/README.md)                                          | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                                                      |
+| [docs/data/](./docs/data/README.md)                                          | The hooks over the repository graph — the graph itself is [docs/engine/data](./docs/engine/data.md)                                                               |
+| [runtime-hybrid-web docs/cache/](../runtime-hybrid-web/docs/cache/README.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it                                |
+| [docs/push/](./docs/push/README.md)                                          | The hook that starts device-token registration — the policy is [docs/engine/push](./docs/engine/push.md)                                                          |
+| [docs/layers/](./docs/layers/README.md)                                      | The tags between packages, and the four folders' direction inside this one                                                                                        |
+| [docs/engine/](./docs/engine/README.md)                                      | The assembly, the engine, and the graph, connection, session and push policy beneath the hooks                                                                    |
+| [docs/remote/](./docs/remote/README.md)                                      | The runtime across the bridge: who owns the session each launch, the contract version, the messages, errors                                                       |
+| [docs/api/](./docs/api/README.md)                                            | The engine holder, the host ports, settings, and the commands and reads an app calls                                                                              |
+| [docs/declare/](./docs/declare/README.md)                                    | The runtime declaration, how a port's adapter is resolved, and the start                                                                                          |
+| [docs/declare/modules](./docs/declare/modules.md)                            | The modules a runtime is built from, the three presets, and where a missing port or module is caught                                                              |
 
 The socket manager and the HTTP manager are documented with `@chatic/transport`:
 [transport docs/socket/](../transport/docs/socket/README.md) and [transport docs/http/](../transport/docs/http/README.md).

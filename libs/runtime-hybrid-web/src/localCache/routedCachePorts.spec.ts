@@ -2,7 +2,7 @@ import type { CacheType } from '@chatic/bridge-messages';
 import type { BridgeChannel } from '@chatic/bridges';
 import type { DataContextProvider, ICacheMetricsSource, IGlobalCacheSearchSource } from '@chatic/data';
 
-import type { SearchableWebCacheStore, WebCacheStore } from './cacheStore';
+import type { SearchableWebCacheStore, WebCacheStore } from '@chatic/runtime-web';
 import { readNativeCacheSupport } from './nativeCacheSupport';
 import type { NativeCacheSupport } from './nativeCacheSupport';
 import { routedCachePorts } from './routedCachePorts';

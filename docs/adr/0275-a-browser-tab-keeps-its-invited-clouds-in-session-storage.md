@@ -7,7 +7,7 @@
 > local-authority domain; a storage move needs a bridge first) ·
 > [ADR-0156](./0156-an-invited-cloud-is-entered-with-the-invite-login-answer.md) (an invited cloud
 > belongs to the device user that accepted it)
-> · The module docs are [runtime-web docs/cache](../../libs/runtime-web/docs/cache/README.md)
+> · The module docs are [runtime-hybrid-web docs/cache](../../libs/runtime-hybrid-web/docs/cache/README.md)
 > and [libs/db](../../libs/db/README.md)
 
 ## Context

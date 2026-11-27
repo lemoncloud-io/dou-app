@@ -1,6 +1,6 @@
 import { webClient } from '@chatic/bridges';
-import { mediaAdapters } from '@chatic/runtime-web';
-import type { MediaPort, ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { mediaAdapters } from '@chatic/runtime-hybrid-web';
+import type { MediaPort, ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 import { appBridge } from '../../app/bridge/appBridge';
 

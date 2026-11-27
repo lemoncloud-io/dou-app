@@ -117,7 +117,7 @@ interface StorageLike {
 This is not a new type: it is the shape `@chatic/shared`'s `StorageAdapter` already has, taken
 structurally so this lib imports nothing. `localStorage` and `sessionStorage` satisfy it directly.
 `apps/web` and `apps/desktop-web` pass neither directly: each hands over the two web stores its
-`resolveStorageStores()` (`@chatic/runtime-web`) built, seen as DOM `Storage` through `@chatic/storage`'s `asDomStorage`
+`resolveStorageStores()` (`@chatic/runtime-hybrid-web`) built, seen as DOM `Storage` through `@chatic/storage`'s `asDomStorage`
 (`createWebConfigPorts(stores)`).
 
 A key's `persist` picks which one it lands in, and the **`shell` strategy resolves to the same

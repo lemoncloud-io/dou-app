@@ -1,5 +1,5 @@
-import { diagnosticsAdapters } from '@chatic/runtime-web';
-import type { ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { diagnosticsAdapters } from '@chatic/runtime-hybrid-web';
+import type { ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 export const desktopDiagnostics: ShellOrBrowserImplementations<'diagnostics'> = {
     shell: base => ({ ...base, entry: 'icon', debugMode: null, bootMetrics: null, pendingReports: null }),

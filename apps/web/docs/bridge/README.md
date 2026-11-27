@@ -67,7 +67,7 @@ transfers the shell finished while the page was away; the last two exist only wh
 transfer module (`transfers`). The one per-page native transfer registry behind them is made in
 `config/adapters/files.ts`, on the first upload. The native sender lives in `runtime/upload/` and
 takes the bridge it talks through as an argument, so that adapter is the only place that hands it
-`webClient`; `xhrPut` comes from `@chatic/runtime-web`, and the native sender also uses it for a page
+`webClient`; `xhrPut` comes from `@chatic/runtime-web` (through `@chatic/runtime-hybrid-web`), and the native sender also uses it for a page
 video or document.
 Its consumer and the rest of the story → [feature/channels/image-send.md](../feature/channels/image-send.md).
 
@@ -180,7 +180,7 @@ was injected, the delegate is `null` and the runtime hook is a no-op.
 ## Who holds the session: the hello at boot
 
 On the phone the session can belong to the shell's own runtime instead of the page. Inside a shell
-`main.tsx` starts the `web-hybrid` declaration, whose engine (`engine.mirror` from `@chatic/runtime-web`)
+`main.tsx` starts the `web-hybrid` declaration, whose engine (`engine.mirror`: `engineCandidates` over `engineShell` and `engineLocal` from `@chatic/runtime-hybrid-web`)
 settles which before any port is built (`settleSessionOwner`); a plain tab's `web-browser` settles
 nothing, as no shell can offer there:
 

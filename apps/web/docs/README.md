@@ -98,7 +98,7 @@ Every one of those is a library's. The app calls hooks and it never holds the pr
   come from `@chatic/runtime-react` too.
 - **Settings** — `runtime.settings`, initialised once in `main.tsx`.
 
-Only `src/config/` and `main.tsx` — the declaration — import `@chatic/runtime-web` or `@chatic/config`;
+Only `src/config/` and `main.tsx` — the declaration — import `@chatic/runtime-hybrid-web` or `@chatic/config`;
 everything else takes the runtime from `@chatic/runtime-react` alone.
 
 Direct construction of a socket, a token or a cache adapter inside `apps/web` is a contract

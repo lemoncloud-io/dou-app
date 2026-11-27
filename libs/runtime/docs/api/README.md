@@ -138,7 +138,7 @@ reported outside an allow-list by `@nx/workspace-host-facts`
 port instead.
 
 Reading the shell's declaration into these ports is a page's job and lives in
-[`@chatic/runtime-web`](../../../runtime-web/README.md#the-host-ports-a-page-publishes). An app names the
+[`@chatic/runtime-hybrid-web`](../../../runtime-hybrid-web/README.md#the-host-ports-a-page-publishes). An app names the
 adapters that do it in its runtime declaration ([docs/declare](../declare/README.md)), and `startRuntime` publishes their values into
 `host`, once, before the engine boots.
 

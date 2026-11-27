@@ -1,6 +1,6 @@
 import { webClient } from '@chatic/bridges';
-import { pushAdapters } from '@chatic/runtime-web';
-import type { PushPort, ShellOrBrowserImplementations } from '@chatic/runtime-web';
+import { pushAdapters } from '@chatic/runtime-hybrid-web';
+import type { PushPort, ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 import { appBridge } from '../../app/bridge/appBridge';
 
