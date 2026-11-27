@@ -22,6 +22,7 @@ pub fn web_url() -> String {
 }
 
 static STARTED: OnceLock<Instant> = OnceLock::new();
+static INIT_SCRIPT: OnceLock<String> = OnceLock::new();
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(3);
 const LOAD_DEADLINE: Duration = Duration::from_secs(15);
@@ -89,8 +90,16 @@ async fn reachable(host: String, port: u16) -> bool {
     )
 }
 
+pub fn recreate_main(app: &AppHandle) -> tauri::Result<()> {
+    match INIT_SCRIPT.get() {
+        Some(script) => open_main(app, &web_url(), script),
+        None => Ok(()),
+    }
+}
+
 pub fn open_main(app: &AppHandle, web: &str, init_script: &str) -> tauri::Result<()> {
     let _ = STARTED.set(Instant::now());
+    let _ = INIT_SCRIPT.set(init_script.to_string());
     let address: Url = web
         .parse()
         .map_err(|_| tauri::Error::InvalidUrl(url::ParseError::RelativeUrlWithoutBase))?;

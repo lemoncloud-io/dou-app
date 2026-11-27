@@ -30,7 +30,7 @@ The runs overlap: on loopback the removed hop is cheap, and a first start after 
 
 ## Tray and shortcut
 
-A tray icon (all platforms) has Open DoU, Open DoU Agent… and Quit; a left click opens the main window. The shortcut `CmdOrCtrl+Alt+D` shows the main window, or hides it when it is visible and focused. If another app already owns the shortcut, the app logs that and runs without it. The tray does not change what closing a window does.
+A tray icon (all platforms) has Open DoU, Open DoU Agent… and Quit; a left click opens the main window. The shortcut `CmdOrCtrl+Alt+D` shows the main window, or hides it when it is visible and focused. If another app already owns the shortcut, the app logs that and runs without it. Closing a window still closes it; when the main window is gone, the tray entry, a left click and the shortcut open a new one.
 
 Known limit: clicking an OS notification does not open the room. `tauri-plugin-notification` has no click callback on desktop, and a focus-after-notification guess would navigate on unrelated focus changes. A native callback (macOS `UNUserNotificationCenter`, Windows toast activation) is the follow-up.
 
