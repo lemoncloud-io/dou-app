@@ -37,4 +37,4 @@ node dist/apps/dou-cli/main.mjs --profile <dir> <command>
 - Nothing approves a pairing here: approve the code from the web or the mobile app.
 - The cache is memory only; there is no persistent db yet.
 - One process per profile: `storage.file` overwrites when two processes share a folder.
-- `Booted.stop` does nothing yet; the process exit closes the sockets.
+- `serve` starts the session and the socket slots; `Booted.stop` ends them, and the other commands start neither.

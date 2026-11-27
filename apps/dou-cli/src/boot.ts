@@ -2,7 +2,6 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 
 import { createWebEnvAdapter } from '@chatic/config';
-import { readSessionDeviceId } from '@chatic/runtime/api';
 import {
     authNode,
     cacheMemory,
@@ -16,6 +15,7 @@ import {
     transportNode,
 } from '@chatic/runtime-node';
 
+import { startConnection } from './connection';
 import { nodeDataDirectory } from './profile';
 
 export const USER_AGENT = 'dou-cli/0.0.1';
@@ -55,27 +55,6 @@ export const bootNode: Boot = async ({ profile, writeLine, env = process.env, so
             config: { env: createWebEnvAdapter(name => values[name]) },
         })
     );
-    const stops: (() => void)[] = [];
-    const engine = started.engine;
-    if (sockets && engine) {
-        const deviceId = () => readSessionDeviceId();
-        const session = engine.sessionController({ deviceId });
-        const connection = engine.connectionController({ deviceId });
-        void session.initialize();
-        stops.push(connection.startBackground());
-        let socketsStarted = false;
-        const startSockets = (): void => {
-            if (socketsStarted || !session.isReady()) return;
-            socketsStarted = true;
-            stops.push(connection.startSockets());
-        };
-        stops.push(session.subscribeReady(startSockets));
-        startSockets();
-    }
-    return {
-        stop: async () => {
-            stops.reverse().forEach(stop => stop());
-            stops.length = 0;
-        },
-    };
+    const stopConnection = sockets && started.engine ? startConnection(started.engine) : undefined;
+    return { stop: async () => stopConnection?.() };
 };
