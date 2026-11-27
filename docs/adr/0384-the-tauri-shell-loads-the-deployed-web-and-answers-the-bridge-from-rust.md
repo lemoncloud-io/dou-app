@@ -1,6 +1,6 @@
 # ADR-0384: The Tauri shell loads the deployed web and answers the bridge from Rust
 
-> Status: Accepted · Decided: 2026-11-26 · Scope: `apps/desktop-tauri/`
+> Status: Accepted, amended by ADR-0387 (the engine and the local MCP server run in the TS runtime in Node, not in Rust) · Decided: 2026-11-26 · Scope: `apps/desktop-tauri/`
 
 ## Context
 
@@ -13,7 +13,7 @@ ADR-0383 settled that the desktop native line shows `apps/web` in a Tauri webvie
 - The remote page reaches Rust through two app commands only, scoped to the web origin by a capability. No plugin command is reachable from the page.
 - Social sign-in reuses the desktop-web hand-off page and the existing `chatic` / `chatic-dev` deep-link scheme (ADR-0009, ADR-0178). Electron and Tauri therefore cannot both own the scheme on one machine; the one registered last receives the link. Accepted for internal testing.
 - Updates use the Tauri updater with its own signing key pair, which does not depend on Apple or Windows code signing, so ADR-0003's unsigned distribution still holds.
-- The Rust engine and the local MCP server of ADR-0382 run inside this app and are controlled from a native window of the app, not from the page.
+- The engine and the local MCP server run inside this app (the Rust engine of ADR-0382 is superseded by ADR-0387) and are controlled from a native window of the app, not from the page.
 
 ## Alternatives
 

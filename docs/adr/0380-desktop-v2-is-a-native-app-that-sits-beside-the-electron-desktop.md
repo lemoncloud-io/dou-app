@@ -1,6 +1,6 @@
 # ADR-0380: Desktop v2 is a native app that sits beside the Electron desktop
 
-> Status: Accepted · Decided: 2026-11-26 · Implemented: `feat/desktop-native-engine` (the headless engine and local MCP)
+> Status: Accepted, amended by ADR-0387 (the engine is the TS runtime in Node, not Rust) · Decided: 2026-11-26 · Implemented: `feat/desktop-native-engine` (the headless engine and local MCP)
 > · Scope: `apps/desktop-native/`
 
 ## Context
@@ -19,5 +19,5 @@ Desktop v2 is a separate app in `apps/desktop-native/`. It does not change `apps
 
 ## Consequences
 
-- Two desktop clients exist for a while; fixes to account behaviour land in both engines (see ADR-0382).
+- Two desktop clients exist for a while; fixes to account behaviour land in the TS runtime and, for the Electron app, its own engine (ADR-0382 is superseded by ADR-0387).
 - The native app has its own CI workflow and its own Nx project, so a Rust failure never blocks a web or Electron change.

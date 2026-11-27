@@ -1,6 +1,8 @@
 # desktop-native
 
-The Rust side of DoU desktop v2: a headless engine and a local MCP server that run without a window. The Electron desktop (`apps/desktop`, `apps/desktop-web`) is untouched; why two engines exist is in [ADR-0382](../../docs/adr/0382-desktop-native-has-its-own-rust-engine-held-to-the-ts-engine-by-vectors-and-scenarios.md).
+The Rust side of DoU desktop v2: a headless engine and a local MCP server that run without a window. The Electron desktop (`apps/desktop`, `apps/desktop-web`) is untouched; why two engines existed is in [ADR-0382](../../docs/adr/0382-desktop-native-has-its-own-rust-engine-held-to-the-ts-engine-by-vectors-and-scenarios.md).
+
+The engine crates here (`dou-auth`, `dou-socket`, `dou-app`, `dou-engine`, `dou-store`) are parked: desktop v2 runs the TS runtime in Node and Rust is only the Tauri shell and harness, see [ADR-0387](../../docs/adr/0387-desktop-v2-runs-the-ts-runtime-in-node-and-rust-is-the-shell.md). Do not extend them.
 
 ## Layout
 
