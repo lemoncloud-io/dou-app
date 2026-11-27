@@ -6,3 +6,4 @@
 | [storage](./storage/README.md) | the nativeSecure vault: format, key, reset and failure rules                           |
 | [agent](./agent/README.md)     | the engine and MCP server inside the app, the Agent window, permissions and connectors |
 | [shell](./shell/README.md)     | the main window, the loader and how the web address is chosen                          |
+| [perf](./perf/README.md)       | how the shell is measured against Electron, and the dated results                      |
