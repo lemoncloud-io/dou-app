@@ -187,7 +187,7 @@ describe('ReportDetailBody — IDE로 추적', () => {
                 `# chatic-report id=r1 app=mobile webVersion=0.36.0 at=2026-08-11T07:12:33.000Z\n${STACK}\n`
             )
         );
-        expect(screen.getByText(/Copied/)).toBeTruthy();
+        expect(await screen.findByText(/Copied/)).toBeTruthy();
     });
 
     it('클립보드가 막혀 있으면 직접 복사하라고 알린다', async () => {
