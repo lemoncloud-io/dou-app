@@ -24,6 +24,9 @@
     // `assets` is at the REPO ROOT, not under `libs/` — `../assets/` would fail with TS5083.
     "references": [
         {
+            "path": "../host/web/browser/tsconfig.lib.json"
+        },
+        {
             "path": "../config/tsconfig.lib.json"
         },
         {

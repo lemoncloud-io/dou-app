@@ -64,7 +64,7 @@ read the native's own legacy `themeStore` (updated by the mobile `usePreferenceC
 
 1. `runtime.settings.set('ui.theme', theme, { lane: 'shell' })` — the storage
    `runtime.settings.get('ui.theme')` resolves from on the next boot.
-2. `runtime.appShell.preferences.save('theme', theme)` — `appBridge.savePreferenceConfirmed` underneath
+2. `runtime.appShell.preferences.save('theme', theme)` — a confirmed `SavePreference` request underneath
    (only where the frame keeps a preference store, `null` in a browser; confirmed with one retry) — the
    storage native's own UI reads.
 

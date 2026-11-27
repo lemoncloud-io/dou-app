@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/host-web-browser",
+    "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/host/web/browser/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:web", "formfactor:any"],
+    "targets": {}
+}

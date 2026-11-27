@@ -14,7 +14,7 @@ apps/web/src/
 │   ├── GlobalBridgeListener.tsx      mounts the hook app-wide, above the router
 │   ├── useDeviceTokenRegistration.ts the delegate — the push port's token, the platform, the mirror
 │   └── appBridge.ts                  `fetchPreference`, `savePreferenceConfirmed` (the mirror)
-└── config/adapters/push.ts           the `push` port: `deviceToken` asks the shell (`fetchFcmToken`)
+└── config/adapters/push.ts           the `push` port, `mobileShellPush(webClient)`: `deviceToken` asks the shell (`FetchFcmToken`)
 ```
 
 The hook has one test (`useDeviceTokenRegistration.test.ts`). There is no

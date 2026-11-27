@@ -1,36 +1,15 @@
-import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
+import type { HostOs } from '@chatic/ports';
 
-import { appBridge } from '../../app/bridge/appBridge';
-import { webAppShell } from './appShell';
+import { mobileShellAppShell } from './appShell';
+import type { ShellBridge } from './bridge';
 
-const mockRequest = jest.fn();
-jest.mock('@chatic/bridges', () => ({
-    ...jest.requireActual('@chatic/bridges'),
-    webClient: { request: (...args: unknown[]) => mockRequest(...args) },
-}));
-jest.mock('../../app/bridge/appBridge', () => ({
-    appBridge: {
-        postHaptic: jest.fn(),
-        savePreferenceConfirmed: jest.fn(),
-        fetchPreference: jest.fn(),
-        setCanGoBack: jest.fn(),
-        fetchBadgeCount: jest.fn(),
-        fetchBadgeBase: jest.fn(),
-        checkAppUpdate: jest.fn(),
-        openStore: jest.fn(),
-        openSettings: jest.fn(),
-    },
-}));
+const bridge = { post: jest.fn(), request: jest.fn(), onEvent: jest.fn(() => () => undefined) };
 
-const bridge = appBridge as unknown as Record<keyof typeof appBridge, jest.Mock>;
+const phone = (os: HostOs = 'ios') => mobileShellAppShell(bridge as unknown as ShellBridge)({ kind: 'shell', os });
 
-const facts = {} as WebHostFacts;
-const phone = (os: 'ios' | 'android' | null = 'ios') => webAppShell.shell({ kind: 'shell', os }, facts);
-const browser = () => webAppShell.browser({ kind: 'browser', os: null }, facts);
+beforeEach(() => jest.resetAllMocks());
 
-beforeEach(() => jest.clearAllMocks());
-
-describe('webAppShell — the phone app', () => {
+describe('mobileShellAppShell — the phone app', () => {
     it('owns its window and reports the keyboard, and has none of the desktop app’s members', () => {
         expect(phone()).toMatchObject({
             kind: 'shell',
@@ -45,33 +24,39 @@ describe('webAppShell — the phone app', () => {
     it('plays a haptic as a one-way post', () => {
         phone().haptics?.play('impact');
 
-        expect(bridge.postHaptic).toHaveBeenCalledWith('impact');
+        expect(bridge.post).toHaveBeenCalledWith({ type: 'TriggerHaptic', data: { kind: 'impact' } });
+        expect(bridge.request).not.toHaveBeenCalled();
     });
 
     it('saves a preference with confirmation, and passes a refusal on for the caller to retry', async () => {
-        bridge.savePreferenceConfirmed.mockResolvedValueOnce({ success: true });
+        bridge.request.mockResolvedValueOnce({ success: true });
         await expect(phone().preferences?.save('theme', 'dark')).resolves.toBeUndefined();
-        expect(bridge.savePreferenceConfirmed).toHaveBeenCalledWith({ key: 'theme', value: 'dark' });
+        expect(bridge.request).toHaveBeenCalledWith({ type: 'SavePreference', data: { key: 'theme', value: 'dark' } });
+        expect(bridge.request.mock.calls[0]).toHaveLength(1);
 
-        bridge.savePreferenceConfirmed.mockRejectedValueOnce(new Error('dropped'));
+        bridge.request.mockRejectedValueOnce(new Error('dropped'));
         await expect(phone().preferences?.save('language', 'ko')).rejects.toThrow('dropped');
     });
 
     it('reads the value the shell holds under a preference key', async () => {
-        bridge.fetchPreference.mockResolvedValue({ data: { key: 'theme', value: 'dark' } });
+        bridge.request.mockResolvedValue({ data: { key: 'theme', value: 'dark' } });
 
         await expect(phone().preferences?.read('theme')).resolves.toBe('dark');
-        expect(bridge.fetchPreference).toHaveBeenCalledWith({ key: 'theme' });
+        expect(bridge.request).toHaveBeenCalledWith({ type: 'FetchPreference', data: { key: 'theme' } });
+        expect(bridge.request.mock.calls[0]).toHaveLength(1);
     });
 
     it('tells the shell whether back is the page’s to spend', () => {
         phone().backGesture?.setCanGoBack(true);
 
-        expect(bridge.setCanGoBack).toHaveBeenCalledWith(true);
+        expect(bridge.post).toHaveBeenCalledWith({
+            type: 'SetCanGoBack',
+            data: { canGoBack: true, includesHistory: true },
+        });
     });
 
     it('checks the store, answering only whether an update is there and which version', async () => {
-        bridge.checkAppUpdate.mockResolvedValue({
+        bridge.request.mockResolvedValue({
             success: true,
             data: {
                 platform: 'ios',
@@ -83,10 +68,12 @@ describe('webAppShell — the phone app', () => {
         });
 
         await expect(phone().storeUpdate?.check()).resolves.toEqual({ updateAvailable: true, latestVersion: '1.4.0' });
+        expect(bridge.request).toHaveBeenCalledWith({ type: 'CheckAppUpdate', data: {} });
+        expect(bridge.request.mock.calls[0]).toHaveLength(1);
     });
 
     it('passes a failed store check on, so the caller keeps the last status', async () => {
-        bridge.checkAppUpdate.mockRejectedValue(new Error('NATIVE_NOT_SUPPORTED'));
+        bridge.request.mockRejectedValue(new Error('NATIVE_NOT_SUPPORTED'));
 
         await expect(phone().storeUpdate?.check()).rejects.toThrow('NATIVE_NOT_SUPPORTED');
     });
@@ -94,33 +81,37 @@ describe('webAppShell — the phone app', () => {
     it('opens its own store listing', () => {
         phone().storeUpdate?.openStore();
 
-        expect(bridge.openStore).toHaveBeenCalledTimes(1);
+        expect(bridge.post).toHaveBeenCalledTimes(1);
+        expect(bridge.post).toHaveBeenCalledWith({ type: 'OpenStore', data: {} });
     });
 
     it('opens its own page in the OS settings', () => {
         phone().systemSettings?.open();
 
-        expect(bridge.openSettings).toHaveBeenCalledTimes(1);
+        expect(bridge.post).toHaveBeenCalledTimes(1);
+        expect(bridge.post).toHaveBeenCalledWith({ type: 'OpenSettings', data: {} });
     });
 });
 
-describe('webAppShell — the phone app’s icon badge', () => {
+describe('mobileShellAppShell — the phone app’s icon badge', () => {
     describe('iOS', () => {
         it('reads the live icon badge, never the shared counter', async () => {
-            bridge.fetchBadgeCount.mockResolvedValue({ success: true, data: { count: 4 } });
+            bridge.request.mockResolvedValue({ success: true, data: { count: 4 } });
 
             await expect(phone('ios').iconBadge?.read()).resolves.toBe(4);
-            expect(bridge.fetchBadgeBase).not.toHaveBeenCalled();
+            expect(bridge.request).toHaveBeenCalledTimes(1);
+            expect(bridge.request).toHaveBeenCalledWith({ type: 'FetchBadgeCount', data: {} });
+            expect(bridge.request.mock.calls[0]).toHaveLength(1);
         });
 
         it('is null, not 0, when the read fails', async () => {
-            bridge.fetchBadgeCount.mockRejectedValue(new Error('timeout'));
+            bridge.request.mockRejectedValue(new Error('timeout'));
 
             await expect(phone('ios').iconBadge?.read()).resolves.toBeNull();
         });
 
         it('is null when the shell answers success: false', async () => {
-            bridge.fetchBadgeCount.mockResolvedValue({ success: false });
+            bridge.request.mockResolvedValue({ success: false });
 
             await expect(phone('ios').iconBadge?.read()).resolves.toBeNull();
         });
@@ -128,26 +119,28 @@ describe('webAppShell — the phone app’s icon badge', () => {
 
     describe('Android', () => {
         it('reads the shared counter, never notifee’s badge', async () => {
-            bridge.fetchBadgeBase.mockResolvedValue({ success: true, data: { base: 6 } });
+            bridge.request.mockResolvedValue({ success: true, data: { base: 6 } });
 
             await expect(phone('android').iconBadge?.read()).resolves.toBe(6);
-            expect(bridge.fetchBadgeCount).not.toHaveBeenCalled();
+            expect(bridge.request).toHaveBeenCalledTimes(1);
+            expect(bridge.request).toHaveBeenCalledWith({ type: 'FetchBadgeBase', data: {} });
+            expect(bridge.request.mock.calls[0]).toHaveLength(1);
         });
 
         it('is null when the shell says it cannot answer (base: null)', async () => {
-            bridge.fetchBadgeBase.mockResolvedValue({ success: true, data: { base: null } });
+            bridge.request.mockResolvedValue({ success: true, data: { base: null } });
 
             await expect(phone('android').iconBadge?.read()).resolves.toBeNull();
         });
 
         it('is null when the shell answers success: false', async () => {
-            bridge.fetchBadgeBase.mockResolvedValue({ success: false, error: { code: 'BADGE_ERROR' } });
+            bridge.request.mockResolvedValue({ success: false, error: { code: 'BADGE_ERROR' } });
 
             await expect(phone('android').iconBadge?.read()).resolves.toBeNull();
         });
 
         it('asks again after a failed read', async () => {
-            bridge.fetchBadgeBase
+            bridge.request
                 .mockRejectedValueOnce(new Error('timeout'))
                 .mockResolvedValueOnce({ success: true, data: { base: 2 } });
             const badge = phone('android').iconBadge;
@@ -158,54 +151,37 @@ describe('webAppShell — the phone app’s icon badge', () => {
     });
 });
 
-describe('webAppShell — the phone app’s alternate icons', () => {
+describe('mobileShellAppShell — the phone app’s alternate icons', () => {
     it('reads the icon in use and whether it can change', async () => {
-        mockRequest.mockResolvedValue({ success: true, data: { iconName: 'alt', supported: true } });
+        bridge.request.mockResolvedValue({ success: true, data: { iconName: 'alt', supported: true } });
 
         await expect(phone().appIcon?.current()).resolves.toEqual({ iconName: 'alt', supported: true });
-        expect(mockRequest).toHaveBeenCalledWith({ type: 'FetchAppIcon', data: {} });
+        expect(bridge.request).toHaveBeenCalledWith({ type: 'FetchAppIcon', data: {} });
+        expect(bridge.request.mock.calls[0]).toHaveLength(1);
     });
 
     it('lists the icons on offer', async () => {
-        mockRequest.mockResolvedValue({ success: true, data: { availableIcons: [{ id: 'alt', label: 'Alt' }] } });
+        bridge.request.mockResolvedValue({ success: true, data: { availableIcons: [{ id: 'alt', label: 'Alt' }] } });
 
         await expect(phone().appIcon?.options()).resolves.toEqual([{ id: 'alt', label: 'Alt' }]);
-        expect(mockRequest).toHaveBeenCalledWith({ type: 'FetchAppIconList', data: {} });
+        expect(bridge.request).toHaveBeenCalledWith({ type: 'FetchAppIconList', data: {} });
+        expect(bridge.request.mock.calls[0]).toHaveLength(1);
     });
 
     it('answers null for a status or list the app did not give', async () => {
-        mockRequest.mockResolvedValue({ success: false });
+        bridge.request.mockResolvedValue({ success: false });
 
         await expect(phone().appIcon?.current()).resolves.toBeNull();
         await expect(phone().appIcon?.options()).resolves.toBeNull();
     });
 
     it('answers the icon the app applied, or null when it did not change', async () => {
-        mockRequest.mockResolvedValueOnce({ success: true, data: { success: true, iconName: 'MidnightIcon' } });
+        bridge.request.mockResolvedValueOnce({ success: true, data: { success: true, iconName: 'MidnightIcon' } });
         await expect(phone().appIcon?.change('MidnightIcon')).resolves.toEqual({ iconName: 'MidnightIcon' });
-        expect(mockRequest).toHaveBeenCalledWith({ type: 'ChangeAppIcon', data: { iconName: 'MidnightIcon' } });
+        expect(bridge.request).toHaveBeenCalledWith({ type: 'ChangeAppIcon', data: { iconName: 'MidnightIcon' } });
+        expect(bridge.request.mock.calls[0]).toHaveLength(1);
 
-        mockRequest.mockResolvedValueOnce({ success: true, data: { success: false } });
+        bridge.request.mockResolvedValueOnce({ success: true, data: { success: false } });
         await expect(phone().appIcon?.change(null)).resolves.toBeNull();
-    });
-});
-
-describe('webAppShell — a browser tab', () => {
-    it('is the person’s tab, with no frame members at all', () => {
-        expect(browser()).toEqual({
-            kind: 'browser',
-            os: null,
-            ownsWindow: false,
-            reportsKeyboardHeight: false,
-            haptics: null,
-            preferences: null,
-            backGesture: null,
-            iconBadge: null,
-            dockBadge: null,
-            appIcon: null,
-            storeUpdate: null,
-            selfUpdate: null,
-            systemSettings: null,
-        });
     });
 });

@@ -139,6 +139,12 @@
             "path": "./libs/host/node"
         },
         {
+            "path": "./libs/host/web/browser"
+        },
+        {
+            "path": "./libs/host/web/mobile-shell"
+        },
+        {
             "path": "./libs/storage/memory"
         },
         {

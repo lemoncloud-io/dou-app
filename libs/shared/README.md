@@ -363,6 +363,10 @@ call `onError` — only real failures are reported upward.
 
 ### 5. Uploading a picture
 
+The image code lives in [`@chatic/host-web-browser`](../host/web/browser/README.md#images--mediaimages),
+which also offers it as the `media` port's `images` capability; this barrel re-exports it under the same
+names, so the calls below are unchanged.
+
 One function, `prepareImage`, and the **destination** picks the policy — because the two upload paths
 have opposite constraints, and leaving that to each caller is how one of them ends up sending an
 uncompressed base64 blob.

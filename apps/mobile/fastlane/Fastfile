@@ -67,6 +67,21 @@ def injected_version
   { name: name, build: build }
 end
 
+# `yarn mobile:release` reads the store's latest build number before it picks
+# the next one (a binary can reach the store from a run that then failed before
+# tagging). The lanes write the number to the file given as out:.
+def write_store_build(out, number)
+  UI.user_error!('Pass out:<file> for the build number') if out.to_s.empty?
+  File.write(out, number.to_i.to_s)
+  UI.success("Latest store build number: #{number}")
+end
+
+def store_env(options)
+  env = options[:env].to_s
+  UI.user_error!("env must be dev or prod (got #{env})") unless APP_IDS.key?(env)
+  env
+end
+
 # supply reads release notes from the metadata directory on disk, so write
 # the hand-typed notes to changelogs/default.txt (applies to the uploaded
 # versionCode). The directory is generated per deploy and gitignored.
@@ -125,6 +140,18 @@ platform :ios do
   desc 'Build the prod app and upload to TestFlight'
   lane :prod do
     ios_build_and_upload(env: 'prod')
+  end
+
+  desc 'Write the latest TestFlight build number of the env app to out:'
+  lane :latest_build do |options|
+    env = store_env(options)
+    api_key = app_store_connect_api_key(
+      key_id: cred('ASC_KEY_ID', env),
+      issuer_id: cred('ASC_ISSUER_ID', env),
+      key_filepath: cred_path('ASC_KEY_PATH', env)
+    )
+    number = latest_testflight_build_number(api_key: api_key, app_identifier: APP_IDS[env], initial_build_number: 0)
+    write_store_build(options[:out], number)
   end
 
   private_lane :ios_build_and_upload do |options|
@@ -226,6 +253,24 @@ platform :android do
   desc 'Build the prod app bundle and upload to the Play prod-app track'
   lane :prod do
     android_build_and_upload(env: 'prod')
+  end
+
+  desc 'Write the highest version code on any Play track of the env app to out:'
+  lane :latest_build do |options|
+    env = store_env(options)
+    json_key = cred_path('PLAY_JSON_KEY_PATH', env)
+    UI.user_error!("Play JSON key not found at #{json_key}") unless File.exist?(json_key)
+    tracks = (%w[internal alpha beta production] + [ENV['PLAY_TRACK_DEV'], ENV['PLAY_TRACK_PROD']]).compact.uniq
+    errors = []
+    codes = tracks.flat_map do |track|
+      google_play_track_version_codes(package_name: APP_IDS[env], track: track, json_key: json_key)
+    rescue StandardError => e
+      errors << "#{track}: #{e.message}"
+      []
+    end
+    UI.user_error!("Could not read any Play track: #{errors.join('; ')}") if errors.length == tracks.length
+    errors.each { |error| UI.important("Skipped track #{error}") }
+    write_store_build(options[:out], codes.map(&:to_i).max || 0)
   end
 
   private_lane :android_build_and_upload do |options|

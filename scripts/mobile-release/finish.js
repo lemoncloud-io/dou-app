@@ -4,6 +4,7 @@ const path = require('path');
 
 const io = require('./io');
 const { parseTag } = require('./version');
+const { STATUSES, parseResults, formatResults, uploadedPlatforms } = require('./store');
 
 const STORE_NOTES_HEADER = 'Store notes:';
 
@@ -15,13 +16,14 @@ function releaseTitle(plan) {
     return `DoU Mobile ${plan.release.version} (${plan.release.build})`;
 }
 
-function tagMessage({ version, build, env, platforms, requested = platforms, sha, storeNotes }) {
+function tagMessage({ version, build, env, results, sha, storeNotes }) {
     return [
         `DoU Mobile ${version} (${build})`,
         '',
         `env: ${env}`,
-        `platforms: ${platforms.join(', ')}`,
-        `requested: ${requested.join(', ')}`,
+        `platforms: ${uploadedPlatforms(results).join(', ')}`,
+        `requested: ${Object.keys(results).join(', ')}`,
+        `results: ${formatResults(results)}`,
         `commit: ${sha}`,
         '',
         STORE_NOTES_HEADER,
@@ -41,33 +43,42 @@ function parseTagMessage(message) {
             .split(',')
             .map(item => item.trim())
             .filter(Boolean);
+    const platforms = list('platforms');
+    const requested = list('requested');
+    let results = field('results') ? parseResults(field('results')) : null;
+    if (!results) {
+        results = {};
+        for (const platform of requested.length ? requested : platforms) {
+            results[platform] = platforms.includes(platform) ? 'uploaded' : 'failed';
+        }
+    }
     return {
         env: field('env'),
-        platforms: list('platforms'),
-        requested: list('requested'),
+        platforms,
+        requested,
+        results,
         storeNotes: notesAt === -1 ? '' : text.slice(notesAt + STORE_NOTES_HEADER.length + 2).trim(),
     };
 }
 
 function versionLine(plan) {
-    const reasons = plan.proposal.reasons;
-    const prs = [...new Set(reasons.map(item => item.pr).filter(Boolean))].map(number => `#${number}`);
-    const basis =
-        reasons.length === 0
-            ? 'no commit reached the binary'
-            : `${reasons.length} ${reasons[0].why} commit(s)${prs.length ? ` in ${prs.join(', ')}` : ''}`;
+    const { proposalReason } = require('./plan');
     const chosen =
         plan.release.unit === plan.proposal.autoUnit ? 'as proposed' : `proposed ${plan.proposal.unit || 'none'}`;
-    return `${plan.release.unit} (${chosen}) — ${basis}. Base ${plan.base.version} from ${plan.base.source} \`${plan.base.ref}\`.`;
+    return `${plan.release.unit} (${chosen}) — ${proposalReason(plan.proposal)}. Base ${plan.base.version} from ${plan.base.source} \`${plan.base.ref}\`.`;
 }
 
-function releaseBody({ plan, env, platforms, actor, runUrl, uploadedAt, storeNotes, teamNotes }) {
+function platformCell(results, platform) {
+    return results[platform] ? STATUSES[results[platform]] : '-';
+}
+
+function releaseBody({ plan, env, results, actor, runUrl, uploadedAt, storeNotes, teamNotes }) {
     const compareFrom = plan.lastTag || plan.base.commit;
     const compare = plan.repo ? `https://github.com/${plan.repo}/compare/${compareFrom}...${plan.release.tag}` : null;
     return [
-        '| Env | Uploaded | Platforms | By | Run |',
-        '| --- | --- | --- | --- | --- |',
-        `| ${env} | ${uploadedAt} | ${platforms.join(', ')} | ${actor} | ${runUrl ? `[run](${runUrl})` : '-'} |`,
+        '| Env | Uploaded | iOS | Android | By | Run |',
+        '| --- | --- | --- | --- | --- | --- |',
+        `| ${env} | ${uploadedAt} | ${platformCell(results, 'ios')} | ${platformCell(results, 'android')} | ${actor} | ${runUrl ? `[run](${runUrl})` : '-'} |`,
         '',
         '## Team notes',
         '',
@@ -89,7 +100,7 @@ function releaseBody({ plan, env, platforms, actor, runUrl, uploadedAt, storeNot
 }
 
 function prComment({ plan, env, releaseUrl }) {
-    return `${marker(plan.release.tag, env)}\nIncluded in ${env} ${plan.release.version} (${plan.release.build}): ${releaseUrl}`;
+    return `${marker(plan.release.tag, env)}\nShipped in ${env} ${plan.release.version} (${plan.release.build}) · ${releaseUrl}`;
 }
 
 async function ensureRelease(deps, plan, env, bodyFile) {
@@ -141,33 +152,30 @@ async function finish(options, deps) {
     const recorded = parseTagMessage(deps.git(['tag', '-l', '--format=%(contents)', tag]));
     const env = options.env || recorded.env;
     if (env !== 'dev') throw new Error(`finish supports env=dev only for now (got ${env})`);
-    const platforms = options.platforms
-        ? options.platforms
-              .split(',')
-              .map(item => item.trim())
-              .filter(Boolean)
-        : recorded.platforms;
-    if (platforms.length === 0) throw new Error(`${tag} records no uploaded platform`);
+    const results = options.platforms ? parseResults(options.platforms) : recorded.results;
+    if (uploadedPlatforms(results).length === 0) throw new Error(`${tag} records no uploaded platform`);
     const storeNotes = (options.storeNotes || '').trim() || recorded.storeNotes;
     if (!storeNotes) throw new Error(`No store notes: pass them or tag ${tag} with them`);
     const plan = await deps.plan(tag);
     const teamNotes = (options.teamNotes || '').trim() || plan.teamNotes;
+    const cardNotes = (options.teamNotes || '').trim() || plan.cardNotes;
     const body = releaseBody({
         plan,
         env,
-        platforms,
+        results,
         actor: options.actor ? `@${options.actor}` : '-',
         runUrl: options.runUrl,
         uploadedAt: deps.git(['tag', '-l', '--format=%(taggerdate:iso8601-strict)', tag]),
         storeNotes,
         teamNotes,
     });
-    if (options.dryRun) return { body, tag, teamNotes };
+    const summary = { body, tag, env, results, teamNotes, cardNotes };
+    if (options.dryRun) return summary;
     deps.writeFile(options.bodyFile, body);
     const url = await ensureRelease(deps, plan, env, options.bodyFile);
     const commented = await commentOnPrs(deps, plan, env, url);
     deps.log(`Release ${url}; commented on ${commented.length} PR(s)`);
-    return { body, tag, teamNotes, url, commented };
+    return { ...summary, url, commented };
 }
 
 function parseArgs(argv) {
@@ -180,7 +188,7 @@ function parseArgs(argv) {
         '--run-url': 'runUrl',
         '--actor': 'actor',
         '--body-file': 'bodyFile',
-        '--team-notes-out': 'teamNotesOut',
+        '--card-notes-out': 'cardNotesOut',
     };
     for (let i = 0; i < argv.length; i += 1) {
         if (argv[i] === '--dry-run') options.dryRun = true;
@@ -212,8 +220,12 @@ const defaultDeps = {
 async function main(argv) {
     const options = parseArgs(argv);
     const result = await finish(options, defaultDeps);
-    if (options.teamNotesOut) defaultDeps.writeFile(options.teamNotesOut, `${result.teamNotes.trim()}\n`);
-    if (result.url && process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `url=${result.url}\n`);
+    if (options.cardNotesOut) defaultDeps.writeFile(options.cardNotesOut, `${result.cardNotes.trim()}\n`);
+    if (process.env.GITHUB_OUTPUT) {
+        const lines = [`env=${result.env}`, `results=${formatResults(result.results)}`];
+        if (result.url) lines.push(`url=${result.url}`);
+        fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('\n')}\n`);
+    }
     if (!result.url) process.stdout.write(result.body);
 }
 

@@ -14,7 +14,7 @@ libs/contracts/ports/src/
 └── host/             HostPorts: what a feature asks of the host
     ├── ports.ts      HostPorts, HostPortName, ShellOrBrowser, HostOs
     ├── checkout.ts   CheckoutPort — store · web · none
-    ├── media.ts      MediaPort — picker, photo library, video conversion, camera permission
+    ├── media.ts      MediaPort — picker, photo library, video conversion, camera permission, images
     ├── files.ts      FilesPort — put, and the app's file transfers
     ├── links.ts      LinksPort — open, copy, share sheet and intake, contacts, SMS, link preview, sub web view
     ├── appShell.ts   AppShellPort — the frame around the app: haptics, preferences, badges, icons, updates

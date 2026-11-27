@@ -12,7 +12,7 @@ on:
                 type: string
                 required: false
             platform:
-                description: 'Uploaded platforms, e.g. ios,android; empty reads them from the tag message'
+                description: 'Result per platform, e.g. ios=uploaded,android=failed; empty reads them from the tag message'
                 type: string
                 required: false
             store_notes:
@@ -20,7 +20,7 @@ on:
                 type: string
                 required: false
             team_notes:
-                description: Korean team notes; empty generates them from the commits in the build
+                description: English team notes; empty generates them from the commits in the build
                 type: string
                 required: false
     workflow_call:
@@ -106,7 +106,7 @@ jobs:
               run: |
                   set -euo pipefail
                   ARGS=("$TAG" --run-url "$RUN_URL" --actor "$ACTOR"
-                        --body-file "$RUNNER_TEMP/release-body.md" --team-notes-out "$RUNNER_TEMP/team-notes.md")
+                        --body-file "$RUNNER_TEMP/release-body.md" --card-notes-out "$RUNNER_TEMP/card-notes.md")
                   [ -n "$TARGET_ENV" ] && ARGS+=(--env "$TARGET_ENV")
                   [ -n "$PLATFORMS" ] && ARGS+=(--platforms "$PLATFORMS")
                   [ -n "$STORE_NOTES" ] && ARGS+=(--store-notes "$STORE_NOTES")
@@ -121,27 +121,34 @@ jobs:
                   RESULT: ${{ steps.finish.outcome }}
                   CHECKOUT: ${{ steps.checkout.outcome }}
                   URL: ${{ steps.finish.outputs.url }}
+                  F_ENV: ${{ steps.finish.outputs.env }}
+                  F_RESULTS: ${{ steps.finish.outputs.results }}
                   RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
               run: |
                   set -euo pipefail
                   MESSAGE=$(git tag -l --format='%(contents)' "$TAG" 2>/dev/null || true)
-                  TARGET_ENV=$(printf '%s\n' "$MESSAGE" | sed -n 's/^env: //p' | head -1)
-                  PLATFORMS=$(printf '%s\n' "$MESSAGE" | sed -n 's/^platforms: //p' | head -1)
-                  REQUESTED=$(printf '%s\n' "$MESSAGE" | sed -n 's/^requested: //p' | head -1)
+                  TARGET_ENV=${F_ENV:-$(printf '%s\n' "$MESSAGE" | sed -n 's/^env: //p' | head -1)}
+                  RESULTS=${F_RESULTS:-$(printf '%s\n' "$MESSAGE" | sed -n 's/^results: //p' | head -1)}
                   VERSION=$(printf '%s' "$TAG" | sed -E 's/^mobile-v([0-9.]+)-([0-9]+)$/\1 (\2)/')
                   LABEL="DoU 모바일 ${TARGET_ENV:-?} $VERSION"
+                  count() { printf '%s' "$RESULTS" | tr ',' '\n' | grep -cE "=[[:space:]]*($1)[[:space:]]*$" || true; }
+                  NOT_UPLOADED=$(count 'failed|skipped')
+                  INCOMPLETE=$(count incomplete)
                   if [ "$CHECKOUT" != "success" ]; then
                     STATUS=failure; TITLE="$LABEL 태그 없음"
                     BODY="• $TAG 태그를 origin에서 찾지 못해 릴리스를 만들지 않았습니다"$'\n'"• 로그: $RUN_URL"
                   elif [ "$RESULT" = "success" ]; then
-                    if [ -n "$REQUESTED" ] && [ "$REQUESTED" != "$PLATFORMS" ]; then
+                    if [ "$NOT_UPLOADED" != "0" ]; then
                       STATUS=failure; TITLE="$LABEL 일부만 업로드"
-                      BODY="• 요청: $REQUESTED, 업로드됨: ${PLATFORMS:-?}"$'\n'"• 릴리스: $URL"
+                      BODY="• 결과: ${RESULTS:-?}"$'\n'"• 빠진 플랫폼: yarn mobile:release dev --tag $TAG"$'\n'"• 릴리스: $URL"
+                    elif [ "$INCOMPLETE" != "0" ]; then
+                      STATUS=failure; TITLE="$LABEL 업로드 완료, 확인 필요"
+                      BODY="• 결과: ${RESULTS:-?}"$'\n'"• incomplete: 스토어에는 올라갔지만 레인이 그 뒤에 실패. 스토어 노트를 확인하세요"$'\n'"• 릴리스: $URL"
                     else
                       STATUS=success; TITLE="$LABEL 업로드 완료"
-                      BODY="• 플랫폼: ${PLATFORMS:-?}"$'\n'"• 릴리스: $URL"
+                      BODY="• 결과: ${RESULTS:-?}"$'\n'"• 릴리스: $URL"
                     fi
-                    if [ -f "$RUNNER_TEMP/team-notes.md" ]; then BODY="$BODY"$'\n\n'"$(cat "$RUNNER_TEMP/team-notes.md")"; fi
+                    if [ -f "$RUNNER_TEMP/card-notes.md" ]; then BODY="$BODY"$'\n\n'"$(cat "$RUNNER_TEMP/card-notes.md")"; fi
                   else
                     STATUS=failure; TITLE="$LABEL 마무리 실패"
                     BODY="• 업로드와 태그는 끝남. 릴리스 · PR 댓글이 실패"$'\n'"• 다시: yarn mobile:release finish $TAG"$'\n'"• 로그: $RUN_URL"
