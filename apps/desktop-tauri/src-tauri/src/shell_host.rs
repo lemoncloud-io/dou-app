@@ -24,9 +24,9 @@ pub fn relaunch_args(current: &[String], app: Option<&str>) -> Vec<String> {
     let mut at = 0;
     while at < current.len() {
         let arg = &current[at];
-        if arg == "--app" {
+        if arg == "--app" || arg == "--mini-app" {
             at += 2;
-        } else if arg.starts_with("--app=") {
+        } else if arg.starts_with("--app=") || arg.starts_with("--mini-app=") {
             at += 1;
         } else {
             if !is_deep_link(arg) {
@@ -116,6 +116,25 @@ impl Host for ShellHost {
         logs::tail(&dir, file, lines)
     }
 
+    fn mini_app_open(&self, source: &str) -> Result<Value, String> {
+        let (entry, _) = crate::handlers::open_source(&self.app, source, None)?;
+        Ok(crate::handlers::entry_json(&entry))
+    }
+
+    fn mini_app_list(&self) -> Value {
+        json!({ "views": crate::handlers::list_views(&self.app) })
+    }
+
+    fn mini_app_close(&self, view_id: Option<&str>) -> Result<Value, String> {
+        let current = crate::handlers::list_views(&self.app)
+            .first()
+            .and_then(|view| view["viewId"].as_str().map(str::to_string));
+        let target = view_id.map(str::to_string).or(current);
+        crate::handlers::close_by_host(&self.app, target.as_deref())
+            .map(|()| json!({ "closed": true, "viewId": target }))
+            .map_err(|refusal| refusal.message().to_string())
+    }
+
     fn focus(&self) {
         if let Some(window) = self.app.get_webview_window("main") {
             let _ = window.unminimize();
@@ -153,6 +172,11 @@ mod tests {
             Some("/new"),
         );
         assert_eq!(args, list(&["--profile", "/p", "--app", "/new"]));
+        let mini = relaunch_args(
+            &list(&["--mini-app", "/m", "--profile", "/p", "--mini-app=/n"]),
+            None,
+        );
+        assert_eq!(mini, list(&["--profile", "/p"]));
         let none = relaunch_args(&list(&["--app=/old", "--profile", "/p"]), None);
         assert_eq!(none, list(&["--profile", "/p"]));
     }

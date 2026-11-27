@@ -89,6 +89,8 @@ pub fn install(
         version: BRIDGE_VERSION.to_string(),
         send_to_web: Arc::new(move |message| push_to_web(&handle, &reply_origin, &message)),
         sub_webview_open_scope: Some("anyHttps".to_string()),
+        sub_webview_context: None,
+        max_message_length: None,
     });
 
     let keys: Box<dyn vault::KeySource> =

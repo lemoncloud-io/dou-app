@@ -2,7 +2,7 @@ mod notify;
 mod oauth;
 mod simple;
 mod storage;
-mod subview;
+pub mod subview;
 mod unfurl;
 mod update;
 
@@ -55,6 +55,10 @@ pub fn register_all(host: &mut BridgeHost, context: &Context) {
 
 pub use oauth::listen as listen_for_sign_in;
 pub use oauth::take_links as deliver_links;
+pub use subview::{
+    PendingMini, close_by_host, entry_json, list_views, open_pending_mini, open_source,
+    reset_for_new_host, sub_bridge_request, sub_close_request,
+};
 
 #[cfg(test)]
 mod tests {
@@ -75,6 +79,8 @@ mod tests {
             version: BRIDGE_VERSION.to_string(),
             send_to_web: Arc::new(|_| {}),
             sub_webview_open_scope: None,
+            sub_webview_context: None,
+            max_message_length: None,
         });
         assert_eq!(host.registered(), ["WebAppReady", "Ping"]);
     }

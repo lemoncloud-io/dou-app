@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-sub-close-request"
+description = "Enables the sub_close_request command without any pre-configured scope."
+commands.allow = ["sub_close_request"]
+
+[[permission]]
+identifier = "deny-sub-close-request"
+description = "Denies the sub_close_request command without any pre-configured scope."
+commands.deny = ["sub_close_request"]

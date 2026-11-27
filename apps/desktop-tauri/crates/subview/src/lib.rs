@@ -2,9 +2,13 @@ use std::sync::Mutex;
 
 use serde_json::Value;
 
+pub mod page;
+pub mod policy;
+
 const HUB_HOSTS: [&str; 2] = ["apps.chatic.io", "apps-dev.chatic.io"];
-const DATA_LIMIT: usize = 16 * 1024;
-const TITLE_LIMIT: usize = 100;
+pub const DATA_LIMIT: usize = 16 * 1024;
+pub const TITLE_LIMIT: usize = 100;
+pub const MESSAGE_LIMIT: usize = 64 * 1024;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trust {
@@ -93,6 +97,34 @@ pub fn origin_of(url: &str) -> Option<String> {
     host_of(url).map(|host| format!("https://{host}"))
 }
 
+pub fn local_origin_of(url: &str) -> Option<String> {
+    if url
+        .chars()
+        .any(|c| c == '\\' || c.is_whitespace() || c.is_control())
+    {
+        return None;
+    }
+    let rest = url
+        .get(..7)
+        .filter(|p| p.eq_ignore_ascii_case("http://"))
+        .map(|_| &url[7..])?;
+    let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+    let authority = rest[..end].to_ascii_lowercase();
+    let port = match authority.strip_prefix("localhost") {
+        Some("") => None,
+        Some(tail) => Some(tail.strip_prefix(':')?),
+        None => return None,
+    };
+    if let Some(port) = port
+        && (port.is_empty()
+            || !port.chars().all(|c| c.is_ascii_digit())
+            || port.parse::<u16>().is_err())
+    {
+        return None;
+    }
+    Some(format!("http://{authority}"))
+}
+
 pub fn trust_of(url: &str) -> Option<Trust> {
     let host = host_of(url)?;
     if HUB_HOSTS.contains(&host.as_str()) {
@@ -116,6 +148,22 @@ pub struct OpenRequest {
     pub origin: String,
     pub trust: Trust,
     pub title: Option<String>,
+    pub params: Value,
+    pub app_id: Option<String>,
+}
+
+pub fn parse_dev(url: &str) -> Result<OpenRequest, Refusal> {
+    let Some(origin) = local_origin_of(url) else {
+        return parse_open(&serde_json::json!({ "url": url }));
+    };
+    Ok(OpenRequest {
+        url: url.to_string(),
+        origin,
+        trust: Trust::Reviewed,
+        title: None,
+        params: Value::Object(Default::default()),
+        app_id: None,
+    })
 }
 
 pub fn parse_open(data: &Value) -> Result<OpenRequest, Refusal> {
@@ -125,16 +173,16 @@ pub fn parse_open(data: &Value) -> Result<OpenRequest, Refusal> {
         Some(Value::String(title)) => Some(title.chars().take(TITLE_LIMIT).collect()),
         Some(_) => return Err(Refusal::Invalid),
     };
-    match data.get("params") {
-        None | Some(Value::Null) => {}
-        Some(params @ Value::Object(_)) if params.to_string().len() <= DATA_LIMIT => {}
+    let params = match data.get("params") {
+        None | Some(Value::Null) => Value::Object(Default::default()),
+        Some(params @ Value::Object(_)) if params.to_string().len() <= DATA_LIMIT => params.clone(),
         Some(_) => return Err(Refusal::Invalid),
-    }
-    match data.get("appId") {
-        None | Some(Value::Null) => {}
-        Some(Value::String(id)) if is_app_id(id) => {}
+    };
+    let app_id = match data.get("appId") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(id)) if is_app_id(id) => Some(id.clone()),
         Some(_) => return Err(Refusal::Invalid),
-    }
+    };
     let origin = origin_of(url).ok_or(Refusal::NotAllowed)?;
     let trust = trust_of(url).ok_or(Refusal::NotAllowed)?;
     Ok(OpenRequest {
@@ -142,27 +190,48 @@ pub fn parse_open(data: &Value) -> Result<OpenRequest, Refusal> {
         origin,
         trust,
         title,
+        params,
+        app_id,
     })
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Entry {
+    pub view_id: String,
+    pub url: String,
+    pub origin: String,
+    pub trust: Trust,
+    pub title: Option<String>,
+    pub params: Value,
+    pub dev: bool,
 }
 
 #[derive(Default)]
 pub struct Views {
-    state: Mutex<(u64, Option<String>)>,
+    state: Mutex<(u64, Option<Entry>)>,
 }
 
 impl Views {
-    pub fn open(&self) -> Result<String, Refusal> {
+    pub fn open(&self, request: &OpenRequest, dev: bool) -> Result<Entry, Refusal> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         if state.1.is_some() {
             return Err(Refusal::AlreadyOpen);
         }
         state.0 += 1;
-        let id = format!("sub-{}", state.0);
-        state.1 = Some(id.clone());
-        Ok(id)
+        let entry = Entry {
+            view_id: format!("sub-{}", state.0),
+            url: request.url.clone(),
+            origin: request.origin.clone(),
+            trust: request.trust,
+            title: request.title.clone(),
+            params: request.params.clone(),
+            dev,
+        };
+        state.1 = Some(entry.clone());
+        Ok(entry)
     }
 
-    pub fn current(&self) -> Option<String> {
+    pub fn current(&self) -> Option<Entry> {
         self.state
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -170,11 +239,15 @@ impl Views {
             .clone()
     }
 
-    pub fn close(&self, view_id: Option<&str>) -> Result<String, Refusal> {
+    pub fn list(&self) -> Vec<Entry> {
+        self.current().into_iter().collect()
+    }
+
+    pub fn close(&self, view_id: Option<&str>) -> Result<Entry, Refusal> {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
         match (&state.1, view_id) {
-            (Some(current), Some(asked)) if current == asked => {
-                Ok(state.1.take().unwrap_or_default())
+            (Some(current), Some(asked)) if current.view_id == asked => {
+                state.1.take().ok_or(Refusal::NotOpen)
             }
             _ => Err(Refusal::NotOpen),
         }
@@ -182,7 +255,7 @@ impl Views {
 
     pub fn closed(&self, view_id: &str) -> bool {
         let mut state = self.state.lock().unwrap_or_else(|e| e.into_inner());
-        if state.1.as_deref() == Some(view_id) {
+        if state.1.as_ref().is_some_and(|e| e.view_id == view_id) {
             state.1 = None;
             return true;
         }
@@ -275,19 +348,64 @@ mod tests {
         assert_eq!(request.title.map(|t| t.chars().count()), Some(TITLE_LIMIT));
     }
 
+    fn request() -> OpenRequest {
+        parse_open(&json!({ "url": "https://example.com" })).expect("request")
+    }
+
     #[test]
     fn one_view_at_a_time_and_a_close_must_name_it() {
         let views = Views::default();
-        let id = views.open().expect("first");
-        assert_eq!(views.open(), Err(Refusal::AlreadyOpen));
+        let id = views.open(&request(), false).expect("first").view_id;
+        assert_eq!(views.open(&request(), false), Err(Refusal::AlreadyOpen));
         assert_eq!(views.close(Some("sub-99")), Err(Refusal::NotOpen));
         assert_eq!(views.close(None), Err(Refusal::NotOpen));
-        assert_eq!(views.close(Some(&id)), Ok(id.clone()));
+        assert_eq!(views.close(Some(&id)).map(|e| e.view_id), Ok(id.clone()));
         assert_eq!(views.close(Some(&id)), Err(Refusal::NotOpen));
-        let next = views.open().expect("second");
+        let next = views.open(&request(), false).expect("second").view_id;
         assert_ne!(next, id);
         assert!(!views.closed(&id));
         assert!(views.closed(&next));
         assert!(!views.closed(&next));
+    }
+
+    #[test]
+    fn the_open_entry_is_listed_with_what_the_request_carried() {
+        let views = Views::default();
+        assert!(views.list().is_empty());
+        let request = parse_open(
+            &json!({ "url": "https://calc.apps.chatic.io/x", "title": "T", "params": { "a": 1 } }),
+        )
+        .expect("request");
+        let entry = views.open(&request, false).expect("open");
+        assert_eq!(views.list(), vec![entry.clone()]);
+        assert_eq!(entry.origin, "https://calc.apps.chatic.io");
+        assert_eq!(entry.trust, Trust::Reviewed);
+        assert_eq!(entry.params["a"], 1);
+        assert!(!entry.dev);
+    }
+
+    #[test]
+    fn a_dev_url_may_be_plain_http_on_localhost_only() {
+        let local = parse_dev("http://localhost:5100/index.html").expect("local");
+        assert_eq!(local.origin, "http://localhost:5100");
+        assert_eq!(local.trust, Trust::Reviewed);
+        assert_eq!(
+            parse_dev("https://example.com").map(|r| r.trust),
+            Ok(Trust::External)
+        );
+        for bad in [
+            "http://example.com",
+            "http://localhost.evil.com",
+            "http://localhost:99999",
+            "http://localhost:",
+            "http://user@localhost:80",
+            "http://127.0.0.1:80",
+        ] {
+            assert!(parse_dev(bad).is_err(), "{bad}");
+        }
+        assert_eq!(
+            parse_open(&json!({ "url": "http://localhost:5100" })),
+            Err(Refusal::NotAllowed)
+        );
     }
 }
