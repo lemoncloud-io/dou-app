@@ -1,4 +1,4 @@
-import type { KeyValueStore } from '../types';
+import type { KeyValueStore } from '@chatic/storage-compose';
 
 export interface NativeReadResult {
     status: 'available' | 'unavailable';

@@ -11,7 +11,7 @@
             "path": "./tsconfig.lib.json"
         },
         {
-            "path": "../../../libs/contracts/ports/tsconfig.lib.json"
+            "path": "../compose/tsconfig.lib.json"
         }
     ]
 }

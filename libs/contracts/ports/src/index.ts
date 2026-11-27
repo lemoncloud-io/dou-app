@@ -5,11 +5,14 @@ export type {
     DeviceStorePort,
     ForegroundPort,
     ForegroundSignal,
+    KeyValueStore,
     OptionalKeys,
     RuntimePorts,
     RuntimePortsAreRequired,
     RuntimeStorePorts,
     StoragePort,
+    StoragePorts,
+    StorageRole,
     TransportPort,
 } from './runtime';
 

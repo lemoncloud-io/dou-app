@@ -1,7 +1,23 @@
-import { MemoryStore } from './memoryStore';
 import { TolerantStore } from './tolerantStore';
 
 import type { KeyValueStore } from './types';
+
+const mapStore = (): KeyValueStore => {
+    const values = new Map<string, string>();
+    return {
+        get: key => values.get(key) ?? null,
+        set: (key, value) => {
+            values.set(key, value);
+        },
+        remove: key => {
+            values.delete(key);
+        },
+        clear: () => {
+            values.clear();
+        },
+        keys: () => [...values.keys()],
+    };
+};
 
 const throwing = (): KeyValueStore => ({
     get: () => {
@@ -23,7 +39,7 @@ const throwing = (): KeyValueStore => ({
 
 describe('TolerantStore', () => {
     it('passes every call through to the store it wraps', () => {
-        const inner = new MemoryStore();
+        const inner = mapStore();
         const store = new TolerantStore(inner);
         store.set('k', 'v');
         expect(inner.get('k')).toBe('v');

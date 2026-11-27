@@ -54,6 +54,7 @@ export interface NativeStoragePorts {
     secret: NativeStore;
     plain: KeyValueStore;
     device: KeyValueStore;
+    tab: KeyValueStore;
 }
 
 export interface NativeStorageOptions {
@@ -66,6 +67,7 @@ export const nativeStoragePorts = ({ vault, files, secret }: NativeStorageOption
     secret: nativeSecretStore(vault, secret),
     plain: keyValueStoreOn(files.plain),
     device: keyValueStoreOn(files.device),
+    tab: new MemoryStore(),
 });
 
 const LOCKED_IN_FRONT_RETRY_MS = 1000;

@@ -2,9 +2,11 @@ import { closeSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, wr
 import { dirname, join } from 'node:path';
 
 import { logger } from '@chatic/logger';
-import type { StoragePort } from '@chatic/ports';
+import type { StoragePorts } from '@chatic/ports';
+import type { KeyValueStore } from '@chatic/storage-compose';
+import { memoryStore } from '@chatic/storage-memory';
 
-export type KeyValueStore = StoragePort['device'];
+export type { KeyValueStore };
 
 const isMissing = (error: unknown): boolean => (error as { code?: unknown } | null)?.code === 'ENOENT';
 
@@ -68,8 +70,9 @@ export const fileStore = (path: string): KeyValueStore => {
 
 export const FILE_STORE_NAMES = { secret: 'secret.json', plain: 'plain.json', device: 'device.json' } as const;
 
-export const fileStoragePorts = (directory: string): StoragePort => ({
+export const fileStoragePorts = (directory: string): StoragePorts => ({
     secret: fileStore(join(directory, FILE_STORE_NAMES.secret)),
     plain: fileStore(join(directory, FILE_STORE_NAMES.plain)),
     device: fileStore(join(directory, FILE_STORE_NAMES.device)),
+    tab: memoryStore(),
 });

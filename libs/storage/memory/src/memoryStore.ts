@@ -1,26 +1,36 @@
-import type { StoragePort } from '@chatic/ports';
+import type { KeyValueStore } from '@chatic/storage-compose';
 
-export type KeyValueStore = StoragePort['device'];
+export class MemoryStore implements KeyValueStore {
+    private readonly values = new Map<string, string>();
 
-export const memoryStore = (): KeyValueStore => {
-    const values = new Map<string, string>();
-    return {
-        get: key => values.get(key) ?? null,
-        set: (key, value) => {
-            values.set(key, value);
-        },
-        remove: key => {
-            values.delete(key);
-        },
-        clear: () => {
-            values.clear();
-        },
-        keys: () => [...values.keys()],
-    };
-};
+    get(key: string): string | null {
+        return this.values.get(key) ?? null;
+    }
 
-export const memoryStoragePorts = (): StoragePort => ({
+    set(key: string, value: string): void {
+        this.values.set(key, value);
+    }
+
+    remove(key: string): void {
+        this.values.delete(key);
+    }
+
+    clear(): void {
+        this.values.clear();
+    }
+
+    keys(): string[] {
+        return [...this.values.keys()];
+    }
+}
+
+export const memoryStore = (): KeyValueStore => new MemoryStore();
+
+export type MemoryStoragePorts = Record<'secret' | 'plain' | 'device' | 'tab', KeyValueStore>;
+
+export const memoryStoragePorts = (): MemoryStoragePorts => ({
     secret: memoryStore(),
     plain: memoryStore(),
     device: memoryStore(),
+    tab: memoryStore(),
 });

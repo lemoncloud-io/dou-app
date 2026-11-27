@@ -3,6 +3,8 @@ module.exports = {
     watchman: false,
     moduleNameMapper: {
         '^@chatic/ports$': '<rootDir>/../../contracts/ports/src/index.ts',
+        '^@chatic/storage-(compose|memory|web-local|web-session|vault-bridge)$':
+            '<rootDir>/../../storage/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../$1/src/index.ts',
     },
     transform: {

@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/storage-compose",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/storage/compose/src",
+    "projectType": "library",
+    "tags": ["layer:foundation", "platform:any", "formfactor:any"],
+    "targets": {}
+}

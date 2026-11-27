@@ -1,4 +1,4 @@
-import type { KeyValueStore } from '../types';
+import type { KeyValueStore } from '@chatic/storage-compose';
 import type { NativeStore } from './types';
 
 export const isNativeStore = (store: KeyValueStore): store is NativeStore =>

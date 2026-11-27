@@ -1,4 +1,4 @@
-import type { KeyValueStore } from '../stores/types';
+import type { KeyValueStore } from '../types';
 
 export class DomStorageAdapter implements Storage {
     [name: string]: unknown;

@@ -1,4 +1,5 @@
-import { MemoryStore } from '../memoryStore';
+import { MemoryStore } from '@chatic/storage-memory';
+
 import { isNativeStore } from './isNativeStore.util';
 import { NativeSecureStore } from './nativeSecureStore';
 

@@ -154,6 +154,18 @@
             "path": "./libs/storage/file"
         },
         {
+            "path": "./libs/storage/compose"
+        },
+        {
+            "path": "./libs/storage/web-local"
+        },
+        {
+            "path": "./libs/storage/web-session"
+        },
+        {
+            "path": "./libs/storage/vault-bridge"
+        },
+        {
             "path": "./libs/db/memory"
         },
         {
