@@ -18,7 +18,7 @@ node dist/apps/dou-cli/main.mjs --profile <dir> <command>
 
 ## Sidecar
 
-`--parent-pipe` makes dou-cli exit when its standard input closes: a parent that starts it with a pipe on stdin and keeps the write end open (the desktop shell does) ends it by dying, so no orphan keeps `mcp.sock`. `yarn nx run dou-cli:build-sidecar` turns the bundle into a Node single executable named `dou-cli-<target triple>` in `apps/desktop-tauri/src-tauri/binaries` (override with a folder argument). It needs a Node build with single-executable support (the official builds; Homebrew's lacks it), `rustc` for the triple, and fetches `postject` through `npx` on first use. On macOS it re-signs ad hoc.
+`--parent-pipe` makes dou-cli exit when its standard input closes: a parent that starts it with a pipe on stdin and keeps the write end open (the desktop shell does) ends it by dying, so no orphan keeps `mcp.sock`. `yarn nx run dou-cli:build-sidecar` bundles the CLI again as CommonJS (a Node 22 single executable cannot load an ES module main) and turns that into a Node single executable named `dou-cli-<target triple>` in `apps/desktop-tauri/src-tauri/binaries` (override with a folder argument). It needs a Node build with single-executable support (the official builds; Homebrew's lacks it), `rustc` for the triple, and fetches `postject` through `npx` on first use. On macOS it re-signs ad hoc.
 
 ## Profile
 

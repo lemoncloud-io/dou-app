@@ -7,7 +7,6 @@
     "targets": {
         "build-sidecar": {
             "executor": "nx:run-commands",
-            "dependsOn": ["build"],
             "cache": false,
             "options": {
                 "command": "node apps/dou-cli/scripts/build-sidecar.mjs"

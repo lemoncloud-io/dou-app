@@ -10,7 +10,7 @@ process.once('SIGINT', () => controller.abort());
 process.once('SIGTERM', () => controller.abort());
 if (process.argv.includes(PARENT_PIPE_FLAG)) watchParentPipe(process.stdin, () => controller.abort());
 
-const code = await runCli(process.argv.slice(2), {
+runCli(process.argv.slice(2), {
     boot: bootNode,
     io: {
         out: line => process.stdout.write(`${line}\n`),
@@ -18,8 +18,9 @@ const code = await runCli(process.argv.slice(2), {
     },
     signal: controller.signal,
     hooks: { onReady: (_booted, profile) => startMcp(profile, VERSION) },
-}).catch(error => {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    return 1;
-});
-process.exit(code);
+})
+    .catch(error => {
+        process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+        return 1;
+    })
+    .then(code => process.exit(code));
