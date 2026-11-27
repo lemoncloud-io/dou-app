@@ -21,7 +21,7 @@ server is the goal here.
 What the survey found:
 
 - **The data layer is already complete.**
-  [`JoinRepository.updateJoin`](../../libs/data/src/repositories/JoinRepository.ts) takes
+  [`JoinRepository.updateJoin`](../../libs/data/repositories/src/JoinRepository.ts) takes
   `{ channelId, userId, notify }`, resolves the join id from the local cache, performs an **optimistic
   cache write with rollback on failure**, and calls the `join.update` socket. `DomainJoin`
   (= `CacheJoinView`) already has a `notify` field and `toDomainJoin` passes it through.

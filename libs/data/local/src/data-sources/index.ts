@@ -1,0 +1,64 @@
+import type { DataContextProvider } from '@chatic/data-model';
+import type { LocalCacheStorages } from '../ports';
+import { ChannelLocalDataSource, type IChannelLocalDataSource } from './ChannelLocalDataSource';
+import { ChatLocalDataSource, type IChatLocalDataSource } from './ChatLocalDataSource';
+import { createChatMediaIndexMarks } from './chatMediaIndexMarks';
+import { CloudLocalDataSource, type ICloudLocalDataSource } from './CloudLocalDataSource';
+import { InviteLocalDataSource, type IInviteLocalDataSource } from './InviteLocalDataSource';
+import { JoinLocalDataSource, type IJoinLocalDataSource } from './JoinLocalDataSource';
+import { ProfileLocalDataSource, type IProfileLocalDataSource } from './ProfileLocalDataSource';
+import { PlaceLocalDataSource, type IPlaceLocalDataSource } from './PlaceLocalDataSource';
+import { SyncMetaLocalDataSource, type ISyncMetaLocalDataSource } from './SyncMetaLocalDataSource';
+import { UserLocalDataSource, type IUserLocalDataSource } from './UserLocalDataSource';
+
+export * from './types';
+export * from './ChannelLocalDataSource';
+export * from './ChatLocalDataSource';
+export * from './chatMediaIndexMarks';
+export * from './CloudLocalDataSource';
+export * from './InviteLocalDataSource';
+export * from './JoinLocalDataSource';
+export * from './ProfileLocalDataSource';
+export * from './PlaceLocalDataSource';
+export * from './SyncMetaLocalDataSource';
+export * from './UserLocalDataSource';
+
+export interface LocalDataSources {
+    channel: IChannelLocalDataSource;
+    chat: IChatLocalDataSource;
+    cloud: ICloudLocalDataSource;
+    invite: IInviteLocalDataSource;
+    join: IJoinLocalDataSource;
+    profile: IProfileLocalDataSource;
+    place: IPlaceLocalDataSource;
+    user: IUserLocalDataSource;
+    syncMeta: ISyncMetaLocalDataSource;
+}
+
+export const createLocalDataSources = (
+    contextProvider: DataContextProvider,
+    storages: LocalCacheStorages,
+    options?: {
+        routingFingerprint?: string;
+        cursorsValidAfter?: () => number;
+    }
+): LocalDataSources => ({
+    channel: new ChannelLocalDataSource(contextProvider, storages.channel),
+    chat: new ChatLocalDataSource(
+        contextProvider,
+        storages.chat,
+        createChatMediaIndexMarks(storages.meta, options?.routingFingerprint, options?.cursorsValidAfter)
+    ),
+    cloud: new CloudLocalDataSource(contextProvider, storages.inviteCloud),
+    invite: new InviteLocalDataSource(contextProvider, storages.invite),
+    join: new JoinLocalDataSource(contextProvider, storages.join),
+    profile: new ProfileLocalDataSource(contextProvider, storages.profile),
+    place: new PlaceLocalDataSource(contextProvider, storages.site),
+    user: new UserLocalDataSource(contextProvider, storages.user),
+    syncMeta: new SyncMetaLocalDataSource(
+        contextProvider,
+        storages.meta,
+        options?.routingFingerprint,
+        options?.cursorsValidAfter
+    ),
+});

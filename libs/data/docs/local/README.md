@@ -1,6 +1,6 @@
 # local — storing, reading, emitting streams
 
-> Status: Live · Last updated: 2026-11-15 · Overview in the [lib README](../../README.md) · Canonical code: [local/data-sources/types.ts](../../src/local/data-sources/types.ts) · [local/ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts)
+> Status: Live · Last updated: 2026-11-15 · Overview in the [lib README](../../README.md) · Canonical code: [local/data-sources/types.ts](../../local/src/data-sources/types.ts) · [local/ports/cacheStorage.ts](../../local/src/ports/cacheStorage.ts)
 
 The local layer handles **storing, reading and emitting streams** for the local data an app reads.
 
@@ -77,7 +77,7 @@ three follow the provider's current context. How the partition half works is in
 
 `channel`, `chat`, `cloud`, `invite`, `join`, `place`, `profile`, `user`, `syncMeta` — nine.
 
-Factory: [data-sources/index.ts](../../src/local/data-sources/index.ts) —
+Factory: [data-sources/index.ts](../../local/src/data-sources/index.ts) —
 `createLocalDataSources(contextProvider, storages, options?)`. `options.routingFingerprint` flows only
 into `syncMeta`, so a cursor can notice that its storage moved (ADR-0053).
 
@@ -201,7 +201,7 @@ call to the data source unchanged in the graph's scope — the repository is all
 shell that owns the session the call crosses the bridge as any repository call does. The answer is the
 same in a browser, in a phone shell with the index and in one without it.
 
-**One judge, two stores.** `chatMediaEntries` ([domain/chatMediaEntries.ts](../../src/domain/chatMediaEntries.ts))
+**One judge, two stores.** `chatMediaEntries` ([domain/chatMediaEntries.ts](../../model/src/chatMediaEntries.ts))
 turns a message into its entries — `image`, `video`, `file`, `audio` (the attachment's `uploadSlotKind`)
 and `link` (the `url` runs of the bubble's own tokenizer, so an address inside code is not a link,
 and one URL counts once per message). An unsent, failed, deleted, system or event row has none; a
@@ -246,7 +246,7 @@ below the fill's version, checked in the same transaction as the write. A write 
 the current version and already put the right entries; a deleted or cleared row is gone; either way
 the item is skipped. A row already at the current version is not sent at all, and neither is a row
 with no version and no entries, since nothing was ever indexed for it. The mark is read by its own rule
-([data-sources/chatMediaIndexMarks.ts](../../src/local/data-sources/chatMediaIndexMarks.ts)), not by
+([data-sources/chatMediaIndexMarks.ts](../../local/src/data-sources/chatMediaIndexMarks.ts)), not by
 `getSyncedAt`: a sync cursor retires after the `meta` TTL (30 minutes), which would refill every room
 every half hour. A mark has no age. It holds while it was written under the current routing
 fingerprint and after the last cache clear (`cursorsValidAfter`), and raising
@@ -324,11 +324,11 @@ only the middle of it is type-checked. Work top to bottom.
 | #   | Where                                                                                                                                                                                                                                                                 | Caught by                                                                                             |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | 1   | `CacheType` in [`libs/bridge-messages`](../../../bridge-messages/src/types/model/cache.ts) — the bridge vocabulary, not a local name                                                                                                                                  | the compiler, everywhere the union is switched on                                                     |
-| 2   | A slot in `createCacheStorages` ([ports/cacheStorage.ts](../../src/local/ports/cacheStorage.ts))                                                                                                                                                                      | [cacheStorage.test.ts](../../src/local/ports/cacheStorage.test.ts) pins the slots **and their order** |
-| 3   | The data source itself — extend `BaseLocalDataSource`, then add the key to `LocalDataSources` and its line in `createLocalDataSources` ([data-sources/index.ts](../../src/local/data-sources/index.ts))                                                               | the compiler                                                                                          |
+| 2   | A slot in `createCacheStorages` ([ports/cacheStorage.ts](../../local/src/ports/cacheStorage.ts))                                                                                                                                                                      | [cacheStorage.test.ts](../../local/src/ports/cacheStorage.test.ts) pins the slots **and their order** |
+| 3   | The data source itself — extend `BaseLocalDataSource`, then add the key to `LocalDataSources` and its line in `createLocalDataSources` ([data-sources/index.ts](../../local/src/data-sources/index.ts))                                                               | the compiler                                                                                          |
 | 4   | `REQUIRED_DOMAIN_VERSION` in runtime-web [`nativeCacheSupport.ts`](../../../runtime-web/src/localCache/nativeCacheSupport.ts), when the domain needs a minimum shell version — the app declares its own side in `apps/mobile` `services/cache/cacheDomainVersions.ts` | **nothing**                                                                                           |
 | 5   | The SQLite side in `apps/mobile` — a data source, a `CacheCrudService` arm, and the table in `database/sqlite/schema.ts`. `@chatic/db` needs no line: `NativeDBAdapter` is generic over `CacheType`                                                                   | **nothing**                                                                                           |
-| 6   | A repository — `buildRepositories` plus `DOMAIN_KEYS` in [repositories/index.test.ts](../../src/repositories/index.test.ts)                                                                                                                                           | that test                                                                                             |
+| 6   | A repository — `buildRepositories` plus `DOMAIN_KEYS` in [repositories/index.test.ts](../../repositories/src/index.test.ts)                                                                                                                                           | that test                                                                                             |
 
 **Steps 4 and 5 fail in silence, and the silence is by design.** `resolveCacheBackendFor` sends a type
 the installed shell cannot hold to web storage instead (ADR-0053) — that is the deliberate fallback
@@ -344,5 +344,5 @@ it is finished when the shell that stores it has shipped.
 - The context must be read at **call time**, not at construction time (a repository injects the scope it captured via `contextOverride`).
 - The request-time context and the response-time context can differ → capture the scope in the repository.
 - Reach storage only through `this.storage(...)`. An operation that awaits starts with `const scope = this.resolveContext(contextOverride)` and passes `scope` to everything after it — storage, stamps, re-emits. A second read of the provider inside the same operation, made without an override, can answer a different partition than the first.
-- Local suites build on one fixture, `createPartitionedMemoryStorage(type)` (`__mocks__/MemoryCacheStorage.ts`) — the production `createScopedCacheStorage` over in-memory maps, so every test runs on real partitions and the routing under test is the real one. `slot.forScope({ cid, uid })` returns the very storage the data source uses for that scope: seed it, read it back, or spy on it. A suite does not write its own in-memory storage.
+- Local suites build on one fixture, `createPartitionedMemoryStorage(type)` (`local/src/testing/MemoryCacheStorage.ts`, imported as `@chatic/data-local/testing` from the repository tests) — the production `createScopedCacheStorage` over in-memory maps, so every test runs on real partitions and the routing under test is the real one. `slot.forScope({ cid, uid })` returns the very storage the data source uses for that scope: seed it, read it back, or spy on it. A suite does not write its own in-memory storage.
 - Scope poisoning and the `chat.feed` merge policy are the repository's responsibility → [notes for implementers and tests](../repositories/README.md#notes-for-implementers-and-tests).

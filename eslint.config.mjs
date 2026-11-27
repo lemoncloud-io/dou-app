@@ -276,6 +276,14 @@ const RUNTIME_WIRING = {
     allowedFiles: ['libs/runtime/src/engine/createRuntime.ts'],
 };
 
+const DATA_SUBPACKAGES = ['@chatic/data-model', '@chatic/data-api', '@chatic/data-local', '@chatic/data-repositories'];
+
+const DATA_SUBPACKAGE_MESSAGE =
+    'Import from the `@chatic/data` barrel. Its four packages are for one another and for that barrel — see libs/data/README.md.';
+
+const DATA_LAYER_MESSAGE =
+    'The data packages stand model ← api · local ← repositories, and @chatic/data only re-exports them — see libs/data/README.md.';
+
 /**
  * The packages closed to everything but the runtime modules, and the inner paths closed to everything —
  * the shared block of `@typescript-eslint/no-restricted-imports` below says why. Held here because a
@@ -313,12 +321,17 @@ const CLOSED_PATHS = [
         message:
             'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core re-exports the engine and the remote connection of @chatic/runtime — see libs/runtime/README.md.',
     },
+    ...DATA_SUBPACKAGES.map(name => ({ name, message: DATA_SUBPACKAGE_MESSAGE })),
 ];
 
 const CLOSED_PATTERNS = [
     {
         group: ['@chatic/data/*'],
         message: 'Import from the `@chatic/data` barrel. Paths inside it are closed — see libs/data/README.md.',
+    },
+    {
+        group: ['@chatic/data-model/*', '@chatic/data-api/*', '@chatic/data-local/*', '@chatic/data-repositories/*'],
+        message: 'Import a data package from its barrel. Paths inside it are closed — see libs/data/README.md.',
     },
     {
         group: ['@chatic/runtime-client/*'],
@@ -351,6 +364,19 @@ const CLOSED_PATTERNS = [
             'Declare the runtime in the app src/config/ and start it with `startRuntime` from @chatic/runtime-web (a page) or @chatic/runtime-mobile (React Native), and read it through `runtime` from @chatic/runtime-react. @chatic/runtime-core re-exports the engine and the remote connection of @chatic/runtime — see libs/runtime/README.md.',
     },
 ];
+
+const dataPaths = open => [
+    ...CLOSED_PATHS.filter(path => !DATA_SUBPACKAGES.includes(path.name)),
+    ...['@chatic/data', ...DATA_SUBPACKAGES, '@chatic/data-local/testing']
+        .filter(name => !open.includes(name))
+        .map(name => ({ name, message: DATA_LAYER_MESSAGE })),
+];
+
+const DATA_TEST_PATTERNS = CLOSED_PATTERNS.map(pattern =>
+    pattern.group.includes('@chatic/data-local/*')
+        ? { ...pattern, group: [...pattern.group, '!@chatic/data-local/testing'] }
+        : pattern
+);
 
 const CONTRACT_PATHS = [
     {
@@ -395,10 +421,11 @@ const BINDING_MESSAGE =
  * block's message, because the barrel is closed here as well.
  */
 const APP_CALL_PART_PATHS = [
-    ...CLOSED_PATHS,
+    ...CLOSED_PATHS.filter(path => !DATA_SUBPACKAGES.includes(path.name)),
     { name: '@chatic/host', message: HOST_MESSAGE },
     { name: '@chatic/config', message: SETTINGS_MESSAGE },
     { name: '@chatic/data', message: DATA_MESSAGE },
+    ...DATA_SUBPACKAGES.map(name => ({ name, message: DATA_MESSAGE })),
     { name: '@chatic/runtime-web', message: ADAPTER_MESSAGE },
     { name: '@chatic/runtime-mobile', message: ADAPTER_MESSAGE },
     { name: '@chatic/db', message: DB_MESSAGE },
@@ -454,7 +481,9 @@ const STORAGE_GLOBALS = [
  * IndexedDB port in IndexedDB's own types, so for it this list is the only check. Listed by name, because `no-restricted-globals` has no "everything
  * a page has"; these are the ones a runtime is tempted by.
  */
-const CORE_LIB_SOURCES = ['session', 'transport', 'sync', 'auth', 'data'].map(name => `libs/${name}/src/**/*.ts`);
+const CORE_LIB_SOURCES = ['session', 'transport', 'sync', 'auth', 'data', 'data/*'].map(
+    name => `libs/${name}/src/**/*.ts`
+);
 
 const PAGE_GLOBAL_MESSAGE =
     'The core packages run outside a page too. Take what the platform answers through a port its adapter fills — see libs/runtime/README.md.';
@@ -606,6 +635,72 @@ export default [
         files: ['**/*.ts', '**/*.tsx'],
         rules: {
             '@typescript-eslint/no-restricted-imports': ['error', { paths: CLOSED_PATHS, patterns: CLOSED_PATTERNS }],
+        },
+    },
+    {
+        basePath: REPO_ROOT,
+        files: ['libs/data/src/**/*.ts'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                {
+                    paths: dataPaths([
+                        '@chatic/data-model',
+                        '@chatic/data-api',
+                        '@chatic/data-local',
+                        '@chatic/data-repositories',
+                    ]),
+                    patterns: CLOSED_PATTERNS,
+                },
+            ],
+        },
+    },
+    {
+        basePath: REPO_ROOT,
+        files: ['libs/data/model/src/**/*.ts'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': ['error', { paths: dataPaths([]), patterns: CLOSED_PATTERNS }],
+        },
+    },
+    {
+        basePath: REPO_ROOT,
+        files: ['libs/data/api/src/**/*.ts', 'libs/data/local/src/**/*.ts'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                { paths: dataPaths(['@chatic/data-model']), patterns: CLOSED_PATTERNS },
+            ],
+        },
+    },
+    {
+        basePath: REPO_ROOT,
+        files: ['libs/data/repositories/src/**/*.ts'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                {
+                    paths: dataPaths(['@chatic/data-model', '@chatic/data-api', '@chatic/data-local']),
+                    patterns: CLOSED_PATTERNS,
+                },
+            ],
+        },
+    },
+    {
+        basePath: REPO_ROOT,
+        files: ['libs/data/repositories/src/**/*.test.ts'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                {
+                    paths: dataPaths([
+                        '@chatic/data-model',
+                        '@chatic/data-api',
+                        '@chatic/data-local',
+                        '@chatic/data-local/testing',
+                    ]),
+                    patterns: DATA_TEST_PATTERNS,
+                },
+            ],
         },
     },
     {

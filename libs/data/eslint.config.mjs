@@ -7,6 +7,6 @@ export default [
         rules: {},
     },
     {
-        ignores: ['**/out-tsc'],
+        ignores: ['**/out-tsc', 'model/**', 'api/**', 'local/**', 'repositories/**'],
     },
 ];
