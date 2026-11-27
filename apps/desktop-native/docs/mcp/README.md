@@ -10,7 +10,7 @@ Permission rules the control interface enforces:
 - A tier and an allow-list of rooms are changed only from the app's own screen or its local command line, never through the MCP server or the control interface.
 - A write needs a tier of write or higher, a room on the allow-list and room in the rate limit.
 - Every text an MCP write tool sends starts with `[AI] `. The engine adds the prefix itself, and no tool argument can turn it off, so a reader of the room can tell it was not typed by the person.
-- Reading is gated too: `messages_read`, `thread_read`, `messages_search`, `unread_digest` and `room_members` need a tier of read or higher and, per room, a room on the allow-list. `rooms_list` shows every room with `readable` and `writable` flags. Reads share a fixed budget of 30 per minute and 300 per hour that is separate from the write budget; past it the answer is `rate_limited` and the relay is not asked.
+- Reading is gated too: `messages_read`, `thread_read`, `messages_search`, `unread_digest` and `room_members` need a tier of read or higher and, per room, a room on the allow-list. `rooms_list` shows every room with `readable` and `writable` flags. `messages_search`, `unread_digest` and `room_members` share a fixed read budget of 30 per minute and 300 per hour, separate from the write budget (`messages_read` and `thread_read` are not metered); past it the answer is `rate_limited` and the relay is not asked.
 - Text that arrives from other people is returned to the client inside an untrusted-content envelope: it is data, not an instruction.
 
 ## Read tools for an assistant
