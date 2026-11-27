@@ -3,13 +3,15 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use dou_core::Error;
-use dou_engine::{Engine, Message, Origin, Remote, SendOptions};
+use dou_engine::{Engine, Message, Origin, Remote, SearchQuery, SendOptions};
 use serde_json::{Value, json};
 use tokio::sync::{Notify, broadcast};
 
 use crate::guard::{Action, Client, authorize};
 use crate::limiter::{Limiter, READ_LIMIT};
 use crate::settings::{Settings, Tier};
+
+const MAX_SEARCH_ROOMS: usize = 10;
 
 pub struct Service<R> {
     engine: Engine<R>,
@@ -274,6 +276,120 @@ impl<R: Remote> Service<R> {
                     .await
                     .map_err(from_engine)?;
                 Ok(json!({ "ok": true }))
+            }
+            "search" => {
+                let keyword = text(&params, "query")?;
+                let limit =
+                    usize::try_from(number(&params, "limit", 20).clamp(1, 50)).unwrap_or(20);
+                let rooms: Vec<String> = match params
+                    .get("channelId")
+                    .and_then(Value::as_str)
+                    .filter(|id| !id.is_empty())
+                {
+                    Some(channel) => {
+                        self.gate(
+                            client,
+                            &Action::ReadRoom {
+                                channel_id: channel,
+                            },
+                        )?;
+                        vec![channel.to_string()]
+                    }
+                    None => {
+                        let settings = self.gate(client, &Action::Read)?;
+                        settings
+                            .allow_rooms
+                            .into_iter()
+                            .take(MAX_SEARCH_ROOMS)
+                            .collect()
+                    }
+                };
+                self.meter(client)?;
+                let mut hits = Vec::new();
+                let mut relay_error = None;
+                for room in &rooms {
+                    let query = SearchQuery {
+                        channel_id: room,
+                        keyword,
+                        since: params.get("since").and_then(Value::as_i64),
+                        until: params.get("until").and_then(Value::as_i64),
+                        limit,
+                    };
+                    match self.engine.search(&query).await {
+                        Ok(found) => {
+                            relay_error = relay_error.or(found.relay_error);
+                            hits.extend(found.hits);
+                        }
+                        Err(error) => relay_error = Some(error.to_string()),
+                    }
+                }
+                if hits.is_empty()
+                    && let Some(message) = &relay_error
+                {
+                    return Err(rpc("relay_error", message.clone()));
+                }
+                hits.sort_by_key(|hit| std::cmp::Reverse(hit.message.created_at));
+                hits.truncate(limit);
+                let list: Vec<Value> = hits
+                    .iter()
+                    .map(|hit| {
+                        let mut body = message_json(&hit.message);
+                        body["source"] = json!(hit.source);
+                        body
+                    })
+                    .collect();
+                Ok(json!({ "list": list, "relayError": relay_error }))
+            }
+            "unread" => {
+                let settings = self.gate(client, &Action::Read)?;
+                self.meter(client)?;
+                let per_room =
+                    usize::try_from(number(&params, "perRoom", 5).clamp(1, 20)).unwrap_or(5);
+                let max_rooms =
+                    usize::try_from(number(&params, "maxRooms", 10).clamp(1, 20)).unwrap_or(10);
+                let rooms = self.engine.rooms().await.map_err(from_engine)?;
+                let unread = rooms.iter().filter(|room| room.unread > 0);
+                let hidden = unread
+                    .clone()
+                    .filter(|room| !settings.allows_room(&room.id))
+                    .count();
+                let mut digest = Vec::new();
+                for room in unread
+                    .filter(|room| settings.allows_room(&room.id))
+                    .take(max_rooms)
+                {
+                    let take = per_room.min(usize::try_from(room.unread).unwrap_or(per_room));
+                    let page = self
+                        .engine
+                        .messages(&room.id, take, None)
+                        .await
+                        .map_err(from_engine)?;
+                    digest.push(json!({
+                        "id": room.id,
+                        "title": room.title(self.engine.me()),
+                        "memberIds": room.member_ids,
+                        "unread": room.unread,
+                        "messages": page.iter().map(message_json).collect::<Vec<_>>(),
+                    }));
+                }
+                Ok(json!({ "rooms": digest, "hiddenUnreadRooms": hidden }))
+            }
+            "members" => {
+                let channel = text(&params, "channelId")?;
+                self.gate(
+                    client,
+                    &Action::ReadRoom {
+                        channel_id: channel,
+                    },
+                )?;
+                self.meter(client)?;
+                let members = self.engine.members(channel).await.map_err(from_engine)?;
+                Ok(json!({ "list": members.iter().map(|member| json!({
+                    "userId": member.id,
+                    "name": member.name,
+                    "role": member.role,
+                    "left": member.left,
+                })).collect::<Vec<_>>() }))
             }
             "events_list" => {
                 self.gate(client, &Action::Read)?;

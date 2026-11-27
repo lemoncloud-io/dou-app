@@ -174,7 +174,7 @@
 
         const tierNames = {
             off: 'Off — nothing is exposed',
-            read: 'Read — rooms and messages',
+            read: 'Read — selected rooms: messages, search, unread digest, members',
             write: 'Write — read, plus send in allowed rooms',
             full: 'Full — everything the engine can do',
         };
@@ -255,7 +255,7 @@
             el('h2', {}, 'What Claude may do'),
             el('p', { class: 'muted' }, 'Changed only here. Claude cannot change these, and the default is Off.'),
             tierBox,
-            el('h2', {}, 'Rooms Claude may write to'),
+            el('h2', {}, 'Rooms Claude may read and write'),
             roomBox,
             el('h2', {}, 'Rate limit for writes'),
             el('div', { class: 'row' }, perMinute, ' per minute ', perHour, ' per hour'),

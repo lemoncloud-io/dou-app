@@ -6,9 +6,42 @@ use dou_store::Store;
 use serde_json::{Value, json};
 
 use crate::events::{ChatContext, EventKind, classify_chat};
-use crate::model::{Message, Room};
+use crate::model::{Member, Message, Room};
 
 pub const AI_PREFIX: &str = "[AI] ";
+
+const RELAY_PAGE: usize = 100;
+const RELAY_PAGES: usize = 5;
+
+#[derive(Debug, Clone, Copy)]
+pub struct SearchQuery<'a> {
+    pub channel_id: &'a str,
+    pub keyword: &'a str,
+    pub since: Option<i64>,
+    pub until: Option<i64>,
+    pub limit: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Hit {
+    pub message: Message,
+    pub source: &'static str,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct SearchOutcome {
+    pub hits: Vec<Hit>,
+    pub relay_error: Option<String>,
+}
+
+fn matches(message: &Message, query: &SearchQuery<'_>) -> bool {
+    message
+        .content
+        .to_lowercase()
+        .contains(&query.keyword.to_lowercase())
+        && query.since.is_none_or(|since| message.created_at >= since)
+        && query.until.is_none_or(|until| message.created_at <= until)
+}
 
 pub trait Remote: Send + Sync {
     fn request(&self, ty: &str, data: Option<Value>) -> impl Future<Output = Result<Value>> + Send;
@@ -110,6 +143,79 @@ impl<R: Remote> Engine<R> {
         }
         messages.sort_by_key(|m| m.chat_no);
         Ok(messages)
+    }
+
+    pub async fn search(&self, query: &SearchQuery<'_>) -> Result<SearchOutcome> {
+        let mut hits: Vec<Hit> = self
+            .store
+            .search_messages(
+                &self.cid,
+                query.channel_id,
+                query.keyword,
+                query.since,
+                query.until,
+                query.limit,
+            )?
+            .iter()
+            .filter_map(Message::from_json)
+            .map(|message| Hit {
+                message,
+                source: "local",
+            })
+            .collect();
+        let mut relay_error = None;
+        let mut before = None;
+        'pages: for _ in 0..RELAY_PAGES {
+            if hits.len() >= query.limit {
+                break;
+            }
+            let page = match self.messages(query.channel_id, RELAY_PAGE, before).await {
+                Ok(page) => page,
+                Err(error) => {
+                    relay_error = Some(error.to_string());
+                    break;
+                }
+            };
+            let Some(oldest) = page.first() else { break };
+            let (oldest_no, oldest_at, full) =
+                (oldest.chat_no, oldest.created_at, page.len() >= RELAY_PAGE);
+            for message in page.into_iter().rev() {
+                let known = hits
+                    .iter()
+                    .any(|hit| hit.message.chat_no == message.chat_no);
+                if !known && matches(&message, query) {
+                    hits.push(Hit {
+                        message,
+                        source: "relay",
+                    });
+                    if hits.len() >= query.limit {
+                        break 'pages;
+                    }
+                }
+            }
+            if !full || query.since.is_some_and(|since| oldest_at < since) {
+                break;
+            }
+            before = Some(oldest_no);
+        }
+        hits.sort_by_key(|hit| std::cmp::Reverse(hit.message.chat_no));
+        hits.truncate(query.limit);
+        Ok(SearchOutcome { hits, relay_error })
+    }
+
+    pub async fn members(&self, channel_id: &str) -> Result<Vec<Member>> {
+        let answer = self
+            .remote
+            .request(
+                "channel.list-user",
+                Some(json!({ "channelId": channel_id })),
+            )
+            .await?;
+        let list = answer
+            .get("list")
+            .and_then(Value::as_array)
+            .ok_or_else(|| invalid("channel.list-user has no list"))?;
+        Ok(list.iter().filter_map(Member::from_json).collect())
     }
 
     pub async fn mark_read(&self, channel_id: &str, chat_no: i64) -> Result<()> {
@@ -295,6 +401,106 @@ mod tests {
         let page = engine.messages("r", 2, None).await.unwrap();
         assert_eq!(page.iter().map(|m| m.chat_no).collect::<Vec<_>>(), [2, 3]);
         assert!(engine.store().message("c1", "r", 3).unwrap().is_some());
+    }
+
+    fn dated(no: i64, text: &str, at: i64) -> Value {
+        let mut value = chat(no, "o");
+        value["content"] = json!(text);
+        value["createdAt"] = json!(at);
+        value
+    }
+
+    fn query(keyword: &str) -> SearchQuery<'_> {
+        SearchQuery {
+            channel_id: "r",
+            keyword,
+            since: None,
+            until: None,
+            limit: 5,
+        }
+    }
+
+    #[tokio::test]
+    async fn search_answers_from_the_store_and_stops_when_the_limit_is_met() {
+        let engine = engine(vec![]);
+        for no in 1..=3 {
+            engine
+                .store()
+                .upsert_message("c1", "r", no, &dated(no, "hello", no))
+                .unwrap();
+        }
+        let found = engine
+            .search(&SearchQuery {
+                limit: 3,
+                ..query("hello")
+            })
+            .await
+            .unwrap();
+        assert_eq!(found.hits.len(), 3);
+        assert!(found.hits.iter().all(|hit| hit.source == "local"));
+        assert!(engine.remote.calls.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn search_tops_up_from_the_relay_without_repeating_a_local_hit() {
+        let engine = engine(vec![
+            json!({ "list": [dated(1, "hello old", 10), dated(2, "no", 20), dated(3, "hello new", 30)] }),
+        ]);
+        engine
+            .store()
+            .upsert_message("c1", "r", 3, &dated(3, "hello new", 30))
+            .unwrap();
+        let found = engine.search(&query("hello")).await.unwrap();
+        let seen: Vec<(i64, &str)> = found
+            .hits
+            .iter()
+            .map(|hit| (hit.message.chat_no, hit.source))
+            .collect();
+        assert_eq!(seen, [(3, "local"), (1, "relay")]);
+        assert_eq!(found.relay_error, None);
+    }
+
+    #[tokio::test]
+    async fn search_keeps_local_hits_and_reports_a_relay_failure() {
+        let engine = engine(vec![]);
+        engine
+            .store()
+            .upsert_message("c1", "r", 1, &dated(1, "hello", 5))
+            .unwrap();
+        let found = engine.search(&query("hello")).await.unwrap();
+        assert_eq!(found.hits.len(), 1);
+        assert!(found.relay_error.is_some());
+    }
+
+    #[tokio::test]
+    async fn search_respects_the_time_window_on_relay_pages() {
+        let engine = engine(vec![
+            json!({ "list": [dated(1, "hello a", 10), dated(2, "hello b", 50)] }),
+        ]);
+        let found = engine
+            .search(&SearchQuery {
+                since: Some(40),
+                until: Some(60),
+                ..query("hello")
+            })
+            .await
+            .unwrap();
+        assert_eq!(found.hits.len(), 1);
+        assert_eq!(found.hits[0].message.chat_no, 2);
+    }
+
+    #[tokio::test]
+    async fn members_come_from_the_channel_user_list() {
+        let engine = engine(vec![json!({ "list": [
+            { "id": "u1", "name": "Mina", "$join": { "role": "owner", "joined": 1 } },
+            { "id": "u2", "nick": "Jun", "$join": { "joined": 0, "joinedNo": 4 } },
+        ] })]);
+        let members = engine.members("r").await.unwrap();
+        assert_eq!(members[0].role, "owner");
+        assert_eq!(members[1].name.as_deref(), Some("Jun"));
+        assert!(members[1].left && !members[0].left);
+        let calls = engine.remote.calls.lock().unwrap();
+        assert_eq!(calls[0].0, "channel.list-user");
     }
 
     #[tokio::test]

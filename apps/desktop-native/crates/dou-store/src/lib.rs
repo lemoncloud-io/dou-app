@@ -149,6 +149,44 @@ impl Store {
             .collect()
     }
 
+    pub fn search_messages(
+        &self,
+        cid: &str,
+        channel_id: &str,
+        keyword: &str,
+        since: Option<i64>,
+        until: Option<i64>,
+        limit: usize,
+    ) -> Result<Vec<Value>> {
+        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        let rows: Vec<String> = self.with(|c| {
+            let mut statement = c.prepare(
+                "SELECT body FROM messages
+                 WHERE cid = ?1 AND channel_id = ?2
+                   AND instr(lower(coalesce(json_extract(body, '$.content'), '')), lower(?3)) > 0
+                   AND coalesce(json_extract(body, '$.createdAt'), 0) >= ?4
+                   AND coalesce(json_extract(body, '$.createdAt'), 0) <= ?5
+                 ORDER BY chat_no DESC LIMIT ?6",
+            )?;
+            statement
+                .query_map(
+                    params![
+                        cid,
+                        channel_id,
+                        keyword,
+                        since.unwrap_or(i64::MIN),
+                        until.unwrap_or(i64::MAX),
+                        limit
+                    ],
+                    |row| row.get(0),
+                )?
+                .collect()
+        })?;
+        rows.iter()
+            .map(|text| serde_json::from_str(text).map_err(json_error))
+            .collect()
+    }
+
     pub fn journal_append(&self, kind: &str, body: &Value) -> Result<i64> {
         self.with(|c| {
             c.execute(
@@ -192,6 +230,45 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+
+    #[test]
+    fn search_matches_text_ignoring_case_inside_one_room_and_the_time_window() {
+        let store = Store::in_memory().unwrap();
+        let rows = [
+            ("a", 1, "Hello world", 100),
+            ("a", 2, "nothing", 200),
+            ("a", 3, "say HELLO again", 300),
+            ("b", 1, "hello elsewhere", 100),
+        ];
+        for (room, no, text, at) in rows {
+            store
+                .upsert_message(
+                    "c",
+                    room,
+                    no,
+                    &json!({ "chatNo": no, "content": text, "createdAt": at }),
+                )
+                .unwrap();
+        }
+        let hit = |since, until, limit| -> Vec<i64> {
+            store
+                .search_messages("c", "a", "hello", since, until, limit)
+                .unwrap()
+                .iter()
+                .map(|m| m["chatNo"].as_i64().unwrap())
+                .collect()
+        };
+        assert_eq!(hit(None, None, 10), [3, 1]);
+        assert_eq!(hit(Some(200), None, 10), [3]);
+        assert_eq!(hit(None, Some(150), 10), [1]);
+        assert_eq!(hit(None, None, 1), [3]);
+        assert!(
+            store
+                .search_messages("c", "a", "100%", None, None, 5)
+                .unwrap()
+                .is_empty()
+        );
+    }
 
     #[test]
     fn messages_come_back_oldest_first_and_an_upsert_replaces_by_chat_no() {

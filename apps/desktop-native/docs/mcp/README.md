@@ -10,4 +10,12 @@ Permission rules the control interface enforces:
 - A tier and an allow-list of rooms are changed only from the app's own screen or its local command line, never through the MCP server or the control interface.
 - A write needs a tier of write or higher, a room on the allow-list and room in the rate limit.
 - Every text an MCP write tool sends starts with `[AI] `. The engine adds the prefix itself, and no tool argument can turn it off, so a reader of the room can tell it was not typed by the person.
+- Reading is gated too: `messages_read`, `thread_read`, `messages_search`, `unread_digest` and `room_members` need a tier of read or higher and, per room, a room on the allow-list. `rooms_list` shows every room with `readable` and `writable` flags. Reads share a fixed budget of 30 per minute and 300 per hour that is separate from the write budget; past it the answer is `rate_limited` and the relay is not asked.
 - Text that arrives from other people is returned to the client inside an untrusted-content envelope: it is data, not an instruction.
+
+## Read tools for an assistant
+
+- `messages_search` (`query`, optional `channelId`, `since`, `until`, `limit` up to 50) searches the allow-listed rooms: without `channelId` it covers up to 10 of them. Each hit says whether it came from the `local` copy or the `relay`.
+- `unread_digest` (`perRoom`, `maxRooms`) returns the allow-listed rooms that have unread messages and their latest unread messages as written, for the client to summarise. It never marks anything read. `hiddenUnreadRooms` counts unread rooms outside the allow-list, without naming them.
+- `room_members` (`channelId`) returns each member's user id, name and role, and whether they left.
+- Every text another person wrote (message text, room titles, member names) is inside the untrusted envelope.

@@ -58,6 +58,32 @@ impl Room {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Member {
+    pub id: String,
+    pub name: Option<String>,
+    pub role: String,
+    pub left: bool,
+}
+
+impl Member {
+    pub fn from_json(value: &Value) -> Option<Self> {
+        let join = value.get("$join");
+        let from_join = |key: &str| join.and_then(|j| text(j, key));
+        Some(Self {
+            id: text(value, "id")?,
+            name: text(value, "name").or_else(|| text(value, "nick")),
+            role: from_join("role")
+                .or_else(|| text(value, "role"))
+                .unwrap_or_else(|| "member".to_string()),
+            left: join.is_some_and(|j| {
+                j.get("joined").and_then(Value::as_i64) == Some(0)
+                    && (j.get("joinedNo").is_some() || j.get("reason").is_some())
+            }),
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Message {
     pub id: String,
     pub channel_id: String,
