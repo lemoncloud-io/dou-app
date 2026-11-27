@@ -7,7 +7,7 @@ import type { NativeCacheSupport } from './nativeCacheSupport';
 
 export const isPhoneAppBridge = (bridge: BridgeChannel | null): boolean => bridge === 'react-native-webview';
 
-export interface CacheRoutingHost {
+interface CacheRoutingHost {
     bridge: BridgeChannel | null;
     support: NativeCacheSupport | null;
 }

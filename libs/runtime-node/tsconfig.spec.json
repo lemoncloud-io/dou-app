@@ -1,0 +1,53 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../dist/out-tsc/runtime-node-spec",
+        "lib": ["es2022"],
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/contracts/ports/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/runtime/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/storage/memory/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/storage/file/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/db/memory/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/host/node/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/transport/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/auth/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/config/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/storage/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/data/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/session/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/logger/tsconfig.lib.json"
+        }
+    ]
+}

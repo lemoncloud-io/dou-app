@@ -15,6 +15,7 @@ module.exports = {
         '^@chatic/runtime/(.*)$': '<rootDir>/src/$1',
         '^@chatic/sync/(.*)$': '<rootDir>/../sync/src/$1',
         '^@chatic/auth/(.*)$': '<rootDir>/../auth/src/$1',
+        '^@chatic/data-(model|api|local|repositories)$': '<rootDir>/../data/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/../web-ui-kit/src/__mocks__/styleMock.js',
         '\\.(png|jpe?g|gif|svg|webp)$': '<rootDir>/../web-ui-kit/src/__mocks__/fileMock.js',

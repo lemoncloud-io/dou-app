@@ -46,7 +46,7 @@ The target screens (two dialogs, five nodes):
 
 ### Backend capability (survey)
 
-- `JoinRepository.updateJoin` ([libs/data/.../JoinRepository.ts:125](../../libs/data/src/repositories/JoinRepository.ts))
+- `JoinRepository.updateJoin` ([libs/data/.../JoinRepository.ts:125](../../libs/data/repositories/src/JoinRepository.ts))
   wraps the `join.update` action. Its input is `{ channelId?, userId?, id?, nick?, notify? }` — it
   applies **`nick` (text) and `notify` only, and has no thumbnail field**. Without an explicit id it
   resolves the join from the local cache by `channelId + userId`. No app hook wraps this method yet.

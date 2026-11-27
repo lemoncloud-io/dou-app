@@ -4,17 +4,34 @@
 barrel — domain models and mappers, local cache storage and stream emission, outbound calls to the
 server, and the repository facade that ties the three together.
 
+The code lives in four packages under this folder; `@chatic/data` itself only re-exports them, so its
+barrel is the same one it always was.
+
+| Package                     | Folder          | Holds                                                                         | Depends on          |
+| --------------------------- | --------------- | ----------------------------------------------------------------------------- | ------------------- |
+| `@chatic/data-model`        | `model/`        | domain types, constants, mappers, the upload types, `DataContext`             | no data package     |
+| `@chatic/data-api`          | `api/`          | server calls: gateways, socket and HTTP data sources (mini-app data included) | model               |
+| `@chatic/data-local`        | `local/`        | local data sources, the cache ports, the state outbox's machine               | model               |
+| `@chatic/data-repositories` | `repositories/` | the repository facades, the image send, the outbox's join states              | model · api · local |
+
+`api` and `local` do not import each other, `repositories` is imported only by the `@chatic/data`
+barrel, and no code outside `libs/data` imports one of the four packages; the root lint holds all
+three. A Node consumer that only calls the server will take `model` and `api` once that lint opens
+them to it. `@chatic/data-local/testing` hands the in-memory cache storage to the repository tests,
+and only to them.
+
 This document covers the **overview and structure** only. The per-layer detail is canonical under
 [`docs/`](#documents).
 
 ## Purpose
 
-Apps see the `@chatic/data` barrel and nothing else. Imports that reach past it into internal paths
-number **zero**, which is why this lib can be rearranged with no blast radius outside it. The consumer
+Apps see the `@chatic/data` barrel and nothing else. Imports that reach past it, or past one of the four
+packages' barrels, into internal paths number **zero** — the one exception is
+`@chatic/data-local/testing` in the repository tests, which is why this lib can be rearranged with no blast radius outside it. The consumer
 count keeps moving, so it is not written down here — only the invariant is checked.
 
 ```bash
-grep -rn "@chatic/data/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
+grep -rnE "@chatic/data(-[a-z]+)?/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
 This lib **does not own the socket connection's lifecycle.** Connecting, re-authenticating and sync
@@ -28,12 +45,12 @@ makes no difference.
 1. **Reads always come from a local stream.** The UI subscribes to `observe*` only. Rendering a remote response directly is a contract violation.
 2. **Remote is a side-effect command.** Writes and refreshes are explicit method calls, and there is no event bus. The one exception to "the call reaches the server" is a **state write** — a read cursor, a notification setting, a room name: its repository writes it locally, then hands it to the state outbox, which sends it when the cloud's socket can carry it ([docs/outbox/](./docs/outbox/README.md)). The outbox decides only what goes out and how values combine; when it goes out comes from the runtime through a port.
 3. **The UI never calls the network directly.** Every data call goes through a repository (ADR-0036).
-4. **Remote is the axis; what sits under it is the transport.** `remote/` is the opposite side of local, and inside it the split is `socket-` and `http-`.
+4. **Remote is the axis; what sits under it is the transport.** `api/` is the opposite side of `local/`, and inside it the split is `socket-` and `http-`.
 5. **Capture the context at request time.** A late response must not poison a scope that has since switched. Capturing the scope is the repository's job, and local receives it through `contextOverride` — which decides the storage partition the answer is written to, not only which observers hear about it (ADR-0112).
 6. **Server payload, server view and local domain model are not assumed to share a shape.** Where the responsibility boundary differs, the type is separate.
-7. **This lib does not choose a cache adapter.** It declares the platform's side as `LocalCachePorts` (`local/ports/platform.ts`): where each domain's rows live, the storage for it, the search across clouds and the metrics. Which domain uses IndexedDB, native SQLite or the tab's sessionStorage in a page is `@chatic/runtime-web`'s answer (`resolveCacheBackendFor`); the runtime's assembly asks once per domain per session.
+7. **This lib does not choose a cache adapter.** It declares the platform's side as `LocalCachePorts` (`local/src/ports/platform.ts`): where each domain's rows live, the storage for it, the search across clouds and the metrics. Which domain uses IndexedDB, native SQLite or the tab's sessionStorage in a page is `@chatic/runtime-web`'s answer (`resolveCacheBackendFor`); the runtime's assembly asks once per domain per session.
 8. **This lib does not import `@chatic/bridges`.** Its eslint config refuses the package, type-only imports included, and `logger` comes from `@chatic/logger`. Repositories and their storage ports have to be able to run in a runtime with no WebView bridge; a storage adapter that does talk to the bridge is handed in through a port by whoever assembles the graph, as principle 7 already has it.
-9. **This lib reads no page.** The root lint refuses the page's globals here (`window`, `navigator`, `indexedDB`, `XMLHttpRequest`, …), because the data layer runs in the native process too. The page's own upload, `xhrPut`, lives in `@chatic/runtime-web` as an implementation of this lib's `PutPort`. Unlike session, transport, sync and auth, this lib still compiles with the DOM's types: its IndexedDB port is declared in them (`local/ports/indexeddb.ts`), until the IndexedDB assembly moves out of the core.
+9. **This lib reads no page.** The root lint refuses the page's globals here (`window`, `navigator`, `indexedDB`, `XMLHttpRequest`, …), because the data layer runs in the native process too. The page's own upload, `xhrPut`, lives in `@chatic/runtime-web` as an implementation of this lib's `PutPort`. Unlike session, transport, sync and auth, this lib still compiles with the DOM's types: its IndexedDB port is declared in them (`local/src/ports/indexeddb.ts`), until the IndexedDB assembly moves out of the core.
 
 ## Scope
 
@@ -107,25 +124,26 @@ sequenceDiagram
 ### Directories
 
 ```text
-libs/data/src/
-├── index.ts          public barrel (10 lines of export *)
-├── domain/           domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind, the attachment formats the server takes, chatMedia.ts — the media/file split of a message's uploads — mention.ts — the mention a send carries and whether a message calls its reader — chatSender.ts — whether a message came in through the webhook, which draws it as a card and its sender as a bot — pushCloudId.ts — a push's `cid` read as a cloud id, the relay's `'#'` becoming `RELAY_CLOUD_ID` — messageTokens.ts — the message bubble's tokenizer, moved here from apps/web — chatMediaEntries.ts — a message's room media index entries — and chatNotificationEntries.ts — what a row can tell an inbox, with no reader in mind)
-├── local/
-│   ├── data-sources/ 9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
-│   ├── ports/        CacheStorage · indexeddb · metrics · policy · search ports
-│   └── stableHash.ts scope key hash
-├── remote/
+libs/data/
+├── src/index.ts      @chatic/data — re-exports the four packages, and names the outbox types for this graph
+├── model/src/        domain models + mappers + shared predicates (chat preview, join window, message edit, chat images, attachment kind, the attachment formats the server takes, chatMedia.ts — the media/file split of a message's uploads — mention.ts — the mention a send carries and whether a message calls its reader — chatSender.ts — whether a message came in through the webhook, which draws it as a card and its sender as a bot — pushCloudId.ts — a push's `cid` read as a cloud id, the relay's `'#'` becoming `RELAY_CLOUD_ID` — messageTokens.ts — the message bubble's tokenizer, moved here from apps/web — chatMediaEntries.ts — a message's room media index entries — and chatNotificationEntries.ts — what a row can tell an inbox, with no reader in mind), uploads.ts — the upload ports and the answers' guard — and context.ts — DataContext
+├── api/src/
 │   ├── gateways/     socket.ts · http.ts — Pick<> only the capabilities a domain uses
 │   ├── socket-data-sources/  12 sources + factory
 │   └── http-data-sources/    5 sources + factory
-├── repositories/     13 facades + BaseRepository + DataContext + scopeGuards + feedCoverage
-├── outbox/           the state outbox: ports, the machine, the join states
-└── uploads/          sendImageMessage + its ports, the upload answers' guard
+├── local/src/
+│   ├── data-sources/ 9 per-domain LocalDataSources + the BaseLocalDataSource stream engine
+│   ├── ports/        CacheStorage · indexeddb · metrics · policy · search ports
+│   ├── outbox/       the state outbox: ports and the machine, generic over the repository graph
+│   ├── testing/      the in-memory cache storage the tests share
+│   └── stableHash.ts scope key hash
+└── repositories/src/ 13 facades + BaseRepository + scopeGuards + feedCoverage + inviteCacheView
+    ├── outbox/       the join states the outbox delivers through the join repository
+    └── uploads/      sendImageMessage
 ```
 
-Two file names hide what they hold: `BaseRepository` and `DataContext` live in
-`repositories/types.ts`, and `BaseLocalDataSource` lives in `local/data-sources/types.ts`.
-There is no `BaseRepository.ts` to open.
+Two file names hide what they hold: `BaseRepository` lives in `repositories/src/types.ts`, and
+`BaseLocalDataSource` lives in `local/src/data-sources/types.ts`. There is no `BaseRepository.ts` to open.
 
 ## Usage
 
@@ -204,7 +222,7 @@ next `since` is kept by `syncMeta`.
 
 Channel sync refreshes the channel **list** only. It does not fetch messages. The server ships a
 `lastChat$` on each channel, but the mapper **deliberately does not read it** — the last message and its
-timestamp belong to the chat cache (ADR-0057, `domain/mappers.ts`).
+timestamp belong to the chat cache (ADR-0057, `model/src/mappers.ts`).
 
 ### 4. Switching clouds
 
@@ -265,15 +283,15 @@ consumer side.
 ## How to verify
 
 ```bash
-npx tsc -b libs/data/tsconfig.json         # the lib AND its tests
-npx jest --config libs/data/jest.config.js
+npx tsc -b libs/data libs/data/model libs/data/api libs/data/local libs/data/repositories   # the barrel, each package AND its tests
+for p in model api local repositories; do npx jest --config libs/data/$p/jest.config.js; done
 ```
 
 - Type checking must be `tsc -b`. Inside `libs/data`, `tsc --noEmit` checks zero files and succeeds.
-- **`tsconfig.json` covers both projects**, because its `references` name `tsconfig.lib.json` and `tsconfig.spec.json`. That matters: the lib config excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the spec project a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs the same thing, plus every dependency's own typecheck, and all of it is green.
+- **Each package's `tsconfig.json` covers both projects**, because its `references` name `tsconfig.lib.json` and `tsconfig.spec.json`. That matters: the lib config excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the spec project a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data-<package>` runs the same thing, plus every dependency's own typecheck, and all of it is green.
 - All 27 data sources have a matching test, and so do all 14 repositories. The commands above are what answer this, not this sentence.
 - Downstream check: a changed barrel identifier reaches seven projects — `apps/web`, `apps/desktop-web`,
   `libs/runtime`, `libs/db`, `libs/block-kit`, `apps/admin` and `@chatic/mobile`.
   `.github/workflows/verify.yml` type checks every one of them except `apps/desktop-web` and
   `@chatic/mobile`, so those two are the ones to run by hand.
-- A stale `dist`/`out-tsc` produces phantom errors. After physically moving a directory, force-delete them with `rm -rf libs/data/dist libs/data/out-tsc` and look again.
+- A stale `dist`/`out-tsc` produces phantom errors. After physically moving a directory, force-delete them with `rm -rf libs/data/dist libs/data/*/dist dist/out-tsc` and look again.

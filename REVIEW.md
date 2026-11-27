@@ -101,7 +101,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## A read pinned to one server agrees with the active session
 
-- paths: `libs/data/src/**`, `apps/web/src/app/features/mypage/**`, `apps/web/src/app/hooks/useMyUser*`
+- paths: `libs/data/**/src/**`, `apps/web/src/app/features/mypage/**`, `apps/web/src/app/hooks/useMyUser*`
 - diff: `relay.*(profile|user\.update)|(profile|user\.update).*relay`
 - check: Switch clouds and confirm the MY header and the write target follow the active session.
 - from: ea81a1a59, 8ae94f829 (revert), ADR-0062
@@ -184,7 +184,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## A file is judged by what it is, and its upload time by its size
 
-- paths: `libs/data/src/**/*ttachment*`, `libs/shared/src/**/*ttachment*`, `apps/*/src/**/upload/**`,
+- paths: `libs/data/**/src/**/*ttachment*`, `libs/shared/src/**/*ttachment*`, `apps/*/src/**/upload/**`,
   `apps/*/src/**/*Upload*`, `apps/*/src/**/xhrPut*`, `apps/*/src/**/image-send/**`
 - diff: `image/gif|application/zip|\bmimeType\b|\bthumbUrl\b`
 - check: Send a GIF (still animates in the room), a .docx the OS types as `application/zip`, and a 300 MB video on a

@@ -12,8 +12,6 @@ import {
 import { chooseCandidate, logHybridChoice, type Candidate } from '../candidates';
 import { createShellVault } from './shellVault';
 
-export type { StorageStores } from '@chatic/runtime-web';
-
 export interface StorageEnvironment {
     inShell: boolean;
     shellKeepsVault: boolean;

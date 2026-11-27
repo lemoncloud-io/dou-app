@@ -19,7 +19,7 @@ and renders a local cache.
 The message stream is [`useChats`](../../apps/web/src/app/features/channels/hooks/useChats.ts)'s
 `chatRepository.observeList` — a cache subscription. And nowhere on the departure path is the chat cache cleared:
 
-- [`ChannelRepository.leaveChannel`](../../libs/data/src/repositories/ChannelRepository.ts) only clears the
+- [`ChannelRepository.leaveChannel`](../../libs/data/repositories/src/ChannelRepository.ts) only clears the
   **channel** cache.
 - `ChatSyncPlan` has no `onRemove` — a comment in [`plans.ts`](../../libs/sync/src/plans.ts)
   deliberately states the design: "message history is kept for lazy-load/offline."
@@ -38,7 +38,7 @@ already searchable today, independent of rejoining).
 
 ### A separate bug that blocks this in front
 
-[`ChannelRepository`](../../libs/data/src/repositories/ChannelRepository.ts)'s `leftChannelIds` is an in-memory Set
+[`ChannelRepository`](../../libs/data/repositories/src/ChannelRepository.ts)'s `leftChannelIds` is an in-memory Set
 that filters **both** `refreshList` and `syncChannels`, but it's only ever cleared on a leave-failure rollback.
 [`DataManager`](../../libs/runtime/src/engine/data/DataManager.ts) constructs repositories once in its constructor and
 only swaps context via `ensure()`, so this Set survives even a cloud switch. In other words, **leave, then get
@@ -50,7 +50,7 @@ without fixing this first.
 The native chat table already filters by the `channel_id` column
 ([`ChatDataSource`](../../apps/mobile/src/app/data/cache/ChatDataSource.ts)) — the exact path used to read a room's
 feed — so **every deployed app build supports it.** A channel-scoped purge therefore doesn't require a new bridge
-message. The warning in [`storages/types.ts`](../../libs/data/src/local/data-sources/types.ts) about "pulling an
+message. The warning in [`storages/types.ts`](../../libs/data/local/src/data-sources/types.ts) about "pulling an
 entire table over the bridge" is about the base calling `loadAll()` with no arguments, and doesn't apply to a chat
 call carrying `ChatQueryOptions.channelId`.
 

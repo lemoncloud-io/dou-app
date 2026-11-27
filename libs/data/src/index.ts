@@ -1,11 +1,15 @@
-export * from './domain';
-export * from './local/data-sources';
-export * from './local/ports';
-export * from './local/stableHash';
-export * from './remote/gateways';
-export * from './remote/socket-data-sources';
-export * from './remote/http-data-sources';
-export * from './remote/miniAppSaveRefused';
-export * from './repositories';
-export * from './outbox';
-export * from './uploads';
+import type {
+    OutboxTransport as GraphOutboxTransport,
+    StateSpec as GraphStateSpec,
+    StateSpecs as GraphStateSpecs,
+} from '@chatic/data-local';
+import type { DataRepositories } from '@chatic/data-repositories';
+
+export * from '@chatic/data-model';
+export * from '@chatic/data-api';
+export * from '@chatic/data-local';
+export * from '@chatic/data-repositories';
+
+export type OutboxTransport = GraphOutboxTransport<DataRepositories>;
+export type StateSpec<V> = GraphStateSpec<V, DataRepositories>;
+export type StateSpecs = GraphStateSpecs<DataRepositories>;

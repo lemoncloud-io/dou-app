@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/data-repositories",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/data/repositories/src",
+    "projectType": "library",
+    "tags": ["layer:core-lib", "platform:any", "formfactor:any"],
+    "targets": {}
+}

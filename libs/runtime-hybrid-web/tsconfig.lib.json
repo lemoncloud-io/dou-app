@@ -27,9 +27,6 @@
             "path": "../runtime/tsconfig.lib.json"
         },
         {
-            "path": "../session/tsconfig.lib.json"
-        },
-        {
             "path": "../logger/tsconfig.lib.json"
         },
         {
