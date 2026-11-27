@@ -2,6 +2,19 @@
 
 ## [2026-11-27] - No version updates
 
+### Features
+
+- (agent-tools) MCP tool registry and permission gate in TypeScript
+- (agent-tools) add MCP tool registry and permission gate (WIP)
+- (agent-tools) add runtime backend adapter and module docs
+
+### Bug Fixes
+
+- (agent-tools) gate events by room and meter every read
+- (agent-tools) harden subscribe and event waits
+
+## [2026-11-27] - No version updates
+
 ### Chores
 
 - (tsconfig) commit the nx sync result for project references
