@@ -130,8 +130,8 @@ export const useRefundSubscriptionByAdmin = () => {
 
     return useMutation({
         mutationFn: async ({ userId, reason, endpoint }: RefundByAdminInput) => {
-            if (relayStageOf(endpoint) !== 'd1') {
-                throw new Error(`Refunds are open on Development only — refusing ${endpoint || '(no endpoint)'}.`);
+            if (!relayStageOf(endpoint)) {
+                throw new Error(`Refunds need a relay naming its stage — refusing ${endpoint || '(no endpoint)'}.`);
             }
             return subscription.refundSubscriptionByAdmin(userId, { reason: reason.trim() }, { endpoint });
         },

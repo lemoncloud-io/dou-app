@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
     describeRefundFailure,
+    isRefundConfirmationValid,
     isRefundReasonValid,
     isWebSubscription,
     refundAvailability,
@@ -45,14 +46,19 @@ describe('refundAvailability', () => {
         expect(refundAvailability(membership(), DEV)).toEqual({ enabled: true });
     });
 
-    it('is disabled on Production, whatever the membership', () => {
-        const result = refundAvailability(membership(), PROD);
-        expect(result.enabled).toBe(false);
-        expect(result.reason).toMatch(/Production refunds are not open/);
+    it('is enabled for a running web subscription on Production', () => {
+        expect(refundAvailability(membership(), PROD)).toEqual({ enabled: true });
+    });
+
+    it('applies the same status checks on Production', () => {
+        expect(refundAvailability(membership({ status: 'pending' }), PROD).enabled).toBe(false);
+        expect(refundAvailability(membership({ status: 'expired' }), PROD).enabled).toBe(false);
     });
 
     it('is disabled when the endpoint names no known stage', () => {
-        expect(refundAvailability(membership(), 'https://api.example.com/v1').enabled).toBe(false);
+        const result = refundAvailability(membership(), 'https://api.example.com/v1');
+        expect(result.enabled).toBe(false);
+        expect(result.reason).toMatch(/No relay to refund on/);
     });
 
     it('says there is no relay, not "Production", when no endpoint was produced', () => {
@@ -95,6 +101,22 @@ describe('isRefundReasonValid', () => {
 
     it('accepts any non-blank reason', () => {
         expect(isRefundReasonValid('test refund')).toBe(true);
+    });
+});
+
+describe('isRefundConfirmationValid', () => {
+    it('needs nothing typed on Development', () => {
+        expect(isRefundConfirmationValid('d1', '1000904', '')).toBe(true);
+    });
+
+    it('needs the exact userId typed on Production', () => {
+        expect(isRefundConfirmationValid('v1', '1000904', '')).toBe(false);
+        expect(isRefundConfirmationValid('v1', '1000904', '100090')).toBe(false);
+        expect(isRefundConfirmationValid('v1', '1000904', ' 1000904 ')).toBe(true);
+    });
+
+    it('never passes on Production without a userId', () => {
+        expect(isRefundConfirmationValid('v1', '', '')).toBe(false);
     });
 });
 

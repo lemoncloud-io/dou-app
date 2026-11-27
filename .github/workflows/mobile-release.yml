@@ -1,0 +1,364 @@
+name: mobile-release
+
+on:
+    workflow_dispatch:
+        inputs:
+            action:
+                description: 'upload builds and uploads; release, rollout and halt arrive with store submission'
+                type: choice
+                options: [upload, release, rollout, halt]
+                default: upload
+            env:
+                description: 'Store app to upload to (prod arrives in a later change)'
+                type: choice
+                options: [dev, prod]
+                required: true
+            platform:
+                description: Platforms, uploaded iOS first; a failure stops the next one
+                type: choice
+                options: [all, ios, android]
+                default: all
+            tag:
+                description: 'prod only: the mobile-v tag of a build that went to the dev app first'
+                type: string
+                required: false
+            ref:
+                description: 'dev only: branch to build'
+                type: string
+                default: develop
+            version:
+                description: 'X.Y.Z, empty to use the proposal (must be higher than the last prod version)'
+                type: string
+                required: false
+            bump:
+                description: 'Bump unit; auto takes the proposal from commit types and never ships major'
+                type: choice
+                options: [auto, patch, minor, major]
+                default: auto
+            store_notes:
+                description: 'English, at most 500 characters: TestFlight What to Test and Play release notes'
+                type: string
+                required: false
+            team_notes:
+                description: Korean team notes for the release and the channel card; empty to generate them
+                type: string
+                required: false
+            submit:
+                description: 'prod only: submit for review after the upload'
+                type: boolean
+                default: true
+            rollout:
+                description: 'rollout only: percentage (1-100) or complete'
+                type: string
+                required: false
+
+permissions:
+    contents: read
+
+concurrency:
+    group: mobile-release
+    cancel-in-progress: false
+
+env:
+    SKIP_MOBILE_POD: '1'
+
+jobs:
+    preflight:
+        name: Preflight
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  sparse-checkout: scripts
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - name: Check inputs
+              env:
+                  ACTION: ${{ inputs.action }}
+                  TARGET_ENV: ${{ inputs.env }}
+                  REF: ${{ inputs.ref }}
+                  TAG: ${{ inputs.tag }}
+                  VERSION: ${{ inputs.version }}
+                  ROLLOUT: ${{ inputs.rollout }}
+                  STORE_NOTES: ${{ inputs.store_notes }}
+              run: |
+                  set -euo pipefail
+                  fail() { echo "::error::$1"; exit 1; }
+                  [ "$ACTION" = "upload" ] || fail "action=$ACTION is not available yet: release, rollout and halt arrive with store submission."
+                  [ "$TARGET_ENV" = "dev" ] || fail "env=$TARGET_ENV is not available yet: prod uploads arrive with release branches."
+                  [ -z "$TAG" ] || fail "tag is for prod uploads; leave it empty for dev."
+                  [ -z "$ROLLOUT" ] || fail "rollout is for action=rollout."
+                  [ "$REF" = "develop" ] || fail "dev builds come from develop; release/mobile-* hotfix builds arrive with release branches."
+                  if [ -n "$VERSION" ] && ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then fail "version must be X.Y.Z (got $VERSION)."; fi
+                  printf '%s' "$STORE_NOTES" > "$RUNNER_TEMP/store-notes.txt"
+                  node scripts/mobile-release/index.js check-notes "$RUNNER_TEMP/store-notes.txt" || fail "store_notes must be 1-500 characters."
+
+    build:
+        name: Upload (${{ inputs.env }}, ${{ inputs.platform }})
+        needs: preflight
+        runs-on: macos-latest
+        timeout-minutes: 150
+        environment: mobile-${{ inputs.env }}
+        outputs:
+            version: ${{ steps.plan.outputs.version }}
+            build: ${{ steps.plan.outputs.build }}
+            tag: ${{ steps.plan.outputs.tag }}
+            sha: ${{ steps.plan.outputs.sha }}
+            uploaded: ${{ steps.uploaded.outputs.platforms }}
+        env:
+            TARGET_ENV: ${{ inputs.env }}
+            WITH_IOS: ${{ inputs.platform != 'android' }}
+            WITH_ANDROID: ${{ inputs.platform != 'ios' }}
+        steps:
+            - name: Work directory
+              run: echo "WORK=$RUNNER_TEMP/mobile-release" >> "$GITHUB_ENV"
+
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ inputs.ref }}
+                  fetch-depth: 0
+                  fetch-tags: true
+                  persist-credentials: false
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - uses: actions/setup-java@v4
+              if: ${{ env.WITH_ANDROID == 'true' }}
+              with:
+                  distribution: temurin
+                  java-version: '17'
+
+            - name: Install dependencies
+              run: |
+                  for i in 1 2 3; do
+                    yarn install --frozen-lockfile && exit 0
+                    echo "install attempt $i failed; retrying in 30s"
+                    sleep 30
+                  done
+                  exit 1
+
+            - name: Plan version and notes
+              id: plan
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  BUMP: ${{ inputs.bump }}
+                  VERSION: ${{ inputs.version }}
+                  STORE_NOTES: ${{ inputs.store_notes }}
+              run: |
+                  set -euo pipefail
+                  mkdir -p "$WORK"
+                  node scripts/mobile-release/plan.js --json --bump "$BUMP" --version "$VERSION" --out "$WORK/plan.json"
+                  printf '%s' "$STORE_NOTES" > "$WORK/store-notes.txt"
+                  node -e '
+                    const p = require(process.argv[1]);
+                    const out = [`version=${p.release.version}`, `build=${p.release.build}`, `tag=${p.release.tag}`, `sha=${p.to.sha}`];
+                    require("fs").appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");
+                    console.log(`${p.release.tag}: ${p.release.unit} (proposed ${p.proposal.unit}), ${p.prs.length} PR(s)`);
+                  ' "$WORK/plan.json"
+                  if git rev-parse -q --verify "refs/tags/$(node -p 'require(process.argv[1]).release.tag' "$WORK/plan.json")" >/dev/null; then
+                    echo "::error::The computed tag already exists; fetch the tags and check the plan."
+                    exit 1
+                  fi
+
+            - name: Keep the plan
+              uses: actions/upload-artifact@v4
+              with:
+                  name: mobile-release-plan
+                  path: ${{ runner.temp }}/mobile-release
+                  if-no-files-found: error
+
+            - name: Restore app env files
+              env:
+                  MOBILE_ENV_FILE_BASE64: ${{ secrets.MOBILE_ENV_FILE_BASE64 }}
+                  GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+                  GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+              run: |
+                  set -euo pipefail
+                  restore() { [ -n "$1" ] || { echo "::error::Missing secret $2 in environment mobile-$TARGET_ENV"; exit 1; }; mkdir -p "$(dirname "$3")"; printf '%s' "$1" | base64 --decode > "$3"; }
+                  STAGE=$([ "$TARGET_ENV" = "prod" ] && echo Prod || echo Dev)
+                  restore "$MOBILE_ENV_FILE_BASE64" MOBILE_ENV_FILE_BASE64 "apps/mobile/.env.$TARGET_ENV"
+                  if [ "$WITH_ANDROID" = "true" ]; then
+                    restore "$GOOGLE_SERVICES_JSON_BASE64" GOOGLE_SERVICES_JSON_BASE64 "apps/mobile/android/app/src/$TARGET_ENV/google-services.json"
+                  fi
+                  if [ "$WITH_IOS" = "true" ]; then
+                    restore "$GOOGLE_SERVICE_INFO_PLIST_BASE64" GOOGLE_SERVICE_INFO_PLIST_BASE64 "apps/mobile/ios/Firebase/GoogleService-Info-$STAGE.plist"
+                  fi
+
+            - name: Restore store keys
+              env:
+                  ASC_API_KEY_P8_BASE64: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
+                  PLAY_JSON_KEY_BASE64: ${{ secrets.PLAY_JSON_KEY_BASE64 }}
+                  ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+              run: |
+                  set -euo pipefail
+                  KEYS="$RUNNER_TEMP/keys"
+                  mkdir -p "$KEYS"
+                  restore() { [ -n "$1" ] || { echo "::error::Missing secret $2 in environment mobile-$TARGET_ENV"; exit 1; }; printf '%s' "$1" | base64 --decode > "$3"; }
+                  if [ "$WITH_IOS" = "true" ]; then
+                    restore "$ASC_API_KEY_P8_BASE64" ASC_API_KEY_P8_BASE64 "$KEYS/asc.p8"
+                    echo "ASC_KEY_PATH=$KEYS/asc.p8" >> "$GITHUB_ENV"
+                  fi
+                  if [ "$WITH_ANDROID" = "true" ]; then
+                    restore "$PLAY_JSON_KEY_BASE64" PLAY_JSON_KEY_BASE64 "$KEYS/play.json"
+                    restore "$ANDROID_KEYSTORE_BASE64" ANDROID_KEYSTORE_BASE64 "$KEYS/upload.keystore"
+                    echo "PLAY_JSON_KEY_PATH=$KEYS/play.json" >> "$GITHUB_ENV"
+                    echo "ANDROID_KEYSTORE_FILE=$KEYS/upload.keystore" >> "$GITHUB_ENV"
+                  fi
+
+            - name: Install fastlane
+              run: command -v fastlane >/dev/null || brew install fastlane
+
+            - name: Set up iOS signing
+              if: ${{ env.WITH_IOS == 'true' }}
+              run: |
+                  echo "::notice::The CI iOS signing method is not decided yet; the lane signs automatically with the App Store Connect API key, as a local deploy does."
+
+            - name: Install pods
+              if: ${{ env.WITH_IOS == 'true' }}
+              run: yarn mobile:pod
+
+            - name: Upload iOS
+              id: ios
+              if: ${{ env.WITH_IOS == 'true' }}
+              working-directory: apps/mobile
+              env:
+                  ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+                  ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+                  VERSION_NAME: ${{ steps.plan.outputs.version }}
+                  BUILD_NUMBER: ${{ steps.plan.outputs.build }}
+              run: |
+                  export RELEASE_NOTES="$(cat "$WORK/store-notes.txt")"
+                  fastlane ios "$TARGET_ENV"
+
+            - name: Upload Android
+              id: android
+              if: ${{ env.WITH_ANDROID == 'true' }}
+              working-directory: apps/mobile
+              env:
+                  ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+                  ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+                  ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+                  VERSION_NAME: ${{ steps.plan.outputs.version }}
+                  BUILD_NUMBER: ${{ steps.plan.outputs.build }}
+              run: |
+                  export RELEASE_NOTES="$(cat "$WORK/store-notes.txt")"
+                  fastlane android "$TARGET_ENV"
+
+            - name: Record uploaded platforms
+              id: uploaded
+              if: ${{ always() }}
+              env:
+                  IOS: ${{ steps.ios.outcome }}
+                  ANDROID: ${{ steps.android.outcome }}
+              run: |
+                  P=()
+                  [ "$IOS" = "success" ] && P+=(ios)
+                  [ "$ANDROID" = "success" ] && P+=(android)
+                  echo "platforms=$(IFS=,; echo "${P[*]}")" >> "$GITHUB_OUTPUT"
+
+            - name: Keep Hermes sourcemaps
+              if: ${{ always() }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sourcemaps-mobile-${{ inputs.env }}-${{ steps.plan.outputs.sha }}
+                  path: .sourcemaps/
+                  include-hidden-files: true
+                  if-no-files-found: warn
+                  retention-days: 90
+
+            - name: Remove restored keys
+              if: ${{ always() }}
+              run: rm -rf "$RUNNER_TEMP/keys"
+
+    tag:
+        name: Push the tag
+        needs: build
+        if: ${{ always() && needs.build.outputs.uploaded != '' }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  ref: ${{ needs.build.outputs.sha }}
+                  sparse-checkout: scripts
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+
+            - uses: actions/download-artifact@v4
+              with:
+                  name: mobile-release-plan
+                  path: ${{ runner.temp }}/mobile-release
+
+            - name: Tag the uploaded build
+              env:
+                  WORK: ${{ runner.temp }}/mobile-release
+                  TARGET_ENV: ${{ inputs.env }}
+                  PLATFORMS: ${{ needs.build.outputs.uploaded }}
+                  REQUESTED: ${{ inputs.platform }}
+                  TAG: ${{ needs.build.outputs.tag }}
+                  SHA: ${{ needs.build.outputs.sha }}
+              run: |
+                  set -euo pipefail
+                  git config user.name 'github-actions[bot]'
+                  git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+                  git fetch --quiet --depth=1 origin "$SHA"
+                  node -e '
+                    const fs = require("fs");
+                    const { tagMessage } = require("./scripts/mobile-release/finish");
+                    const p = require(process.argv[1]);
+                    const requested = process.env.REQUESTED === "all" ? ["ios", "android"] : [process.env.REQUESTED];
+                    fs.writeFileSync(process.argv[2], tagMessage({
+                      version: p.release.version, build: p.release.build, env: process.env.TARGET_ENV,
+                      platforms: process.env.PLATFORMS.split(","), requested, sha: p.to.sha,
+                      storeNotes: fs.readFileSync(process.argv[3], "utf8"),
+                    }));
+                  ' "$WORK/plan.json" "$WORK/tag-message.txt" "$WORK/store-notes.txt"
+                  git tag -a --cleanup=verbatim "$TAG" "$SHA" -F "$WORK/tag-message.txt"
+                  git push origin "refs/tags/$TAG"
+
+    finish:
+        name: Finish
+        needs: [build, tag]
+        if: ${{ always() && needs.tag.result == 'success' }}
+        permissions:
+            contents: write
+            pull-requests: write
+            issues: write
+        uses: ./.github/workflows/mobile-release-finish.yml
+        with:
+            tag: ${{ needs.build.outputs.tag }}
+            env: ${{ inputs.env }}
+            platform: ${{ needs.build.outputs.uploaded }}
+            store_notes: ${{ inputs.store_notes }}
+            team_notes: ${{ inputs.team_notes }}
+        secrets: inherit
+
+    notify-failure:
+        name: Notify DoU of a failed upload or tag
+        needs: [preflight, build, tag]
+        if: ${{ always() && needs.preflight.result == 'success' && needs.tag.result != 'success' }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        steps:
+            - name: Notify DoU
+              uses: lemoncloud-io/actions/notify-dou@v1
+              with:
+                  url: ${{ secrets.DOU_WEBHOOK_URL }}
+                  token: ${{ secrets.DOU_WEBHOOK_TOKEN }}
+                  channel-id: ${{ secrets.DOU_CHANNEL_ID }}
+                  status: failure
+                  title: DoU 모바일 ${{ inputs.env }} ${{ needs.build.outputs.tag || '' }} ${{ needs.build.outputs.uploaded == '' && '업로드 실패' || '태그 실패' }} (원격)
+                  text: |
+                      • 요청: ${{ inputs.platform }}, 업로드됨: ${{ needs.build.outputs.uploaded || '없음' }}
+                      • ${{ needs.build.outputs.uploaded == '' && '태그 없음. 다시 돌려도 같은 번호를 씁니다' || '스토어에는 올라갔지만 태그가 없습니다. 이 번호를 다시 쓰지 않게 태그를 손으로 다세요' }}
+                      • 로그: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
