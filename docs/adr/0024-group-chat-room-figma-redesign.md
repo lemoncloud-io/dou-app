@@ -25,15 +25,15 @@ The requirements:
 
 **What comparing Figma against the code found — the basis for narrowing the redesign:**
 
-| Item                        | The code today                                                                                   | Figma                                                    | Verdict                    |
-| --------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------- | -------------------------- |
-| My bubble colour            | `--bubble-mine` = #102346                                                                          | #102346 (`blue_bk`)                                       | Already matches            |
-| Read accent colour          | `--main-accent` = #90C304                                                                          | #90c304 (`main2_Color`)                                   | Already matches            |
-| Bubble padding, radius, tail | `px-[14px] py-2`, 18px radius, one square corner (mine top-right, theirs top-left)                 | The same (14/8 padding, the same tail)                    | Already matches            |
-| Message avatar size         | 39px (`size-[39px]`)                                                                               | 32px (`1-person Profile` 32×32)                           | **Change needed**          |
-| Read status                 | The unread **number only**, in `--main-accent`                                                     | `read N` (green) · `unread N` (grey), labels split by a bullet (•) | **Change needed (behaviour and visuals)** |
-| Header                      | One avatar plus the title (one line)                                                               | The title (line 1) plus an **avatar stack and total count** (line 2) | **Change needed**          |
-| Empty state body            | "Invite friends" already built                                                                     | The same                                                  | No change (header only)    |
+| Item                         | The code today                                                                     | Figma                                                                | Verdict                                   |
+| ---------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------- |
+| My bubble colour             | `--bubble-mine` = #102346                                                          | #102346 (`blue_bk`)                                                  | Already matches                           |
+| Read accent colour           | `--main-accent` = #90C304                                                          | #90c304 (`main2_Color`)                                              | Already matches                           |
+| Bubble padding, radius, tail | `px-[14px] py-2`, 18px radius, one square corner (mine top-right, theirs top-left) | The same (14/8 padding, the same tail)                               | Already matches                           |
+| Message avatar size          | 39px (`size-[39px]`)                                                               | 32px (`1-person Profile` 32×32)                                      | **Change needed**                         |
+| Read status                  | The unread **number only**, in `--main-accent`                                     | `read N` (green) · `unread N` (grey), labels split by a bullet (•)   | **Change needed (behaviour and visuals)** |
+| Header                       | One avatar plus the title (one line)                                               | The title (line 1) plus an **avatar stack and total count** (line 2) | **Change needed**                         |
+| Empty state body             | "Invite friends" already built                                                     | The same                                                             | No change (header only)                   |
 
 So the bubble's colour, radius, padding and tail already match Figma. The real changes are three:
 **① a two-line header (avatar stack plus total), ② expanding the read status into read and unread, and
@@ -42,7 +42,7 @@ So the bubble's colour, radius, padding and tail already match Figma. The real c
 Every piece of data needed already exists: `channel.ownerId`, `channel.memberCount`, `activeMemberIds`,
 `profileMap` (nick and thumbnail) and `getReadCount` (which returns readCount and unreadCount
 together). So do the components:
-[`AvatarGroup`](../../libs/web-ui-kit/src/foundations/avatar/AvatarGroup.tsx) (an overlapping stack
+[`AvatarGroup`](../../libs/design-system/components/mobile/src/avatar/AvatarGroup.tsx) (an overlapping stack
 plus a count, 6px overlap — matching Figma), `ImageAvatar` / `DefaultAvatar`, `IconGroup` /
 `IconChevronRight`. No new icon resource is needed.
 
@@ -51,7 +51,7 @@ plus a count, 6px overlap — matching Figma), `ImageAvatar` / `DefaultAvatar`, 
 ### In scope
 
 1. **Add a participant meta row to the header.** Give
-   [`ChatRoomHeader`](../../libs/web-ui-kit/src/composites/header/ChatRoomHeader.tsx) an optional `meta`
+   [`ChatRoomHeader`](../../libs/design-system/patterns/mobile/src/header/ChatRoomHeader.tsx) an optional `meta`
    slot rendered under the title (a two-line structure). Only a group channel passes the avatar stack
    and total into it.
     - The stack reuses `AvatarGroup` with `max={5}`. The page assembles the avatar nodes: **the owner
@@ -60,7 +60,7 @@ plus a count, 6px overlap — matching Figma), `ImageAvatar` / `DefaultAvatar`, 
       `DefaultAvatar` with no thumbnail. 20px circles, 6px overlap (matching Figma).
     - **The total is `channel.memberCount`** (everyone, me included). An empty room shows `1`.
 2. **Expand the read status into read and unread.** Extend
-   [`ReadReceipt`](../../libs/web-ui-kit/src/composites/chat/ReadReceipt.tsx) to render `read N`
+   [`ReadReceipt`](../../libs/design-system/chat/mobile/src/ReadReceipt.tsx) to render `read N`
    (`--main-accent` green) · a bullet (•) · `unread N` (`text-description` grey). It takes
    `readCount` / `unreadCount` and `readLabel` / `unreadLabel` as props.
     - When it shows: the existing group condition (`showReadReceipt && isReady`) stays. When shown,
