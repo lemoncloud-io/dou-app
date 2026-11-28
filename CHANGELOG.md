@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (runtime-react) lift useCreatePlace into runtime.data
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (bridge-messages) split the cache model and both message maps by area
 
 ## [2026-11-28] - No version updates
