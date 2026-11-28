@@ -9,17 +9,9 @@ export const settingsPath = (profile: string): string => join(profile, 'settings
 export const readSettingsFile =
     (profile: string): (() => Settings) =>
     () => {
-        let text: string;
         try {
-            text = readFileSync(settingsPath(profile), 'utf8');
-        } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ENOENT') return defaultSettings();
-            return { ...defaultSettings(), tier: 'off' };
-        }
-        try {
-            JSON.parse(text);
+            return parseSettings(readFileSync(settingsPath(profile), 'utf8'));
         } catch {
-            return { ...defaultSettings(), tier: 'off' };
+            return defaultSettings();
         }
-        return parseSettings(text);
     };
