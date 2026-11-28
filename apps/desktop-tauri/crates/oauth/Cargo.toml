@@ -1,0 +1,13 @@
+[package]
+name = "oauth"
+description = "Social sign-in through the system browser: the start record, the authorize address and the one door a deep link passes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+url = "2"

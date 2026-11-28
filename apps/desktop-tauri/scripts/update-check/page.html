@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>update check</title>
+<body>
+    update check
+</body>
+<script>
+    const handler = window.ChaticMessageHandler;
+    const say = (type, data) => handler.postMessage(JSON.stringify({ type, refId: type, version: '2.35.0', data }));
+    const log = line => fetch('/log?line=' + encodeURIComponent(line));
+    log('loaded version ' + window.CHATIC_APP_CURRENT_VERSION);
+    window.addEventListener('message', event => {
+        const reply = JSON.parse(event.data);
+        if (reply.type === 'OnWebAppReady') return log('ready');
+        if (reply.type !== 'OnUpdateStatus') return;
+        log('status ' + JSON.stringify(reply.data));
+        if (reply.data.status === 'available') say('StartUpdateDownload', {});
+        if (reply.data.status === 'downloaded') say('RestartToUpdate', {});
+    });
+    say('WebAppReady', {});
+</script>

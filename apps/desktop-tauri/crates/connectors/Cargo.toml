@@ -1,0 +1,16 @@
+[package]
+name = "connectors"
+description = "Registering the DoU MCP launcher with Claude Desktop and Claude Code"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+serde_json = { workspace = true, features = ["preserve_order"] }
+
+[dev-dependencies]
+tempfile = "3"
