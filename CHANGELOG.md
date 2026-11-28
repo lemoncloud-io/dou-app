@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (shared) split @chatic/shared into format, preferences and family packages
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (runtime-react) lift useCreatePlace into runtime.data
 
 ## [2026-11-28] - No version updates
