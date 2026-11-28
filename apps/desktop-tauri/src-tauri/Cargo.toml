@@ -30,7 +30,7 @@ base64 = "0.22"
 vault = { path = "../crates/vault" }
 agent-settings = { path = "../crates/agent-settings" }
 connectors = { path = "../crates/connectors" }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "sync", "time"] }
 tiny_http = "0.12"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 serde.workspace = true

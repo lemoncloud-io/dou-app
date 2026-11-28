@@ -1,11 +1,22 @@
 use bridge_host::BridgeHost;
 use serde_json::{Value, json};
+use tauri::AppHandle;
 use tauri_plugin_notification::NotificationExt;
 
 use super::{Context, sync};
+use crate::fcm::{BODY_MAX, TITLE_MAX};
 
-const TITLE_MAX: usize = 200;
-const BODY_MAX: usize = 1000;
+pub fn present(app: &AppHandle, title: &str, body: &str) -> bool {
+    if title.trim().is_empty() {
+        return false;
+    }
+    app.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show()
+        .is_ok()
+}
 
 pub fn fields_of(message: &Value) -> Option<(String, String)> {
     let data = &message["data"];
@@ -32,13 +43,7 @@ pub fn register(host: &mut BridgeHost, context: &Context) {
                     "error": { "code": "INVALID", "message": "A title is required." },
                 });
             };
-            let shown = app
-                .notification()
-                .builder()
-                .title(title)
-                .body(body)
-                .show()
-                .is_ok();
+            let shown = present(&app, &title, &body);
             json!({ "type": "OnShowNotification", "success": true, "data": { "success": shown } })
         }),
     );

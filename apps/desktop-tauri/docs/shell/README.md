@@ -72,17 +72,19 @@ The init script hooks `console.*`, `error` and `unhandledrejection` on the web o
 
 A Unix socket (mode 0600, in the 0700 profile folder) or, on Windows, a named pipe with a random name that rejects remote clients. Newline-delimited JSON-RPC 2.0, one request per line.
 
-| Method            | Params              | Result                                                                                   |
-| ----------------- | ------------------- | ---------------------------------------------------------------------------------------- |
-| `reload`          | none                | `{ reloaded }`                                                                           |
-| `app_source`      | `{ set? }`          | the current source, or `{ restarting, source }`                                          |
-| `screenshot`      | none                | `{ format: "png", base64 }` of the main webview                                          |
-| `logs_tail`       | `{ file?, lines? }` | `{ file, lines }` (`shell`, `webview`; 100 lines)                                        |
-| `mini_app_open`   | `{ source }`        | the opened view: `{ viewId, url, origin, trust, title, dev }` (folder or URL, not saved) |
-| `mini_app_list`   | none                | `{ views }`, none or one                                                                 |
-| `mini_app_close`  | `{ viewId? }`       | `{ closed, viewId }`; without `viewId` the open one closes                               |
-| `focus`           | none                | `{ focused }`                                                                            |
-| `second_instance` | `{ argv }`          | `{ accepted }`                                                                           |
+| Method            | Params                               | Result                                                                                   |
+| ----------------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `reload`          | none                                 | `{ reloaded }`                                                                           |
+| `app_source`      | `{ set? }`                           | the current source, or `{ restarting, source }`                                          |
+| `screenshot`      | none                                 | `{ format: "png", base64 }` of the main webview                                          |
+| `logs_tail`       | `{ file?, lines? }`                  | `{ file, lines }` (`shell`, `webview`; 100 lines)                                        |
+| `mini_app_open`   | `{ source }`                         | the opened view: `{ viewId, url, origin, trust, title, dev }` (folder or URL, not saved) |
+| `mini_app_list`   | none                                 | `{ views }`, none or one                                                                 |
+| `mini_app_close`  | `{ viewId? }`                        | `{ closed, viewId }`; without `viewId` the open one closes                               |
+| `focus`           | none                                 | `{ focused }`                                                                            |
+| `second_instance` | `{ argv }`                           | `{ accepted }`                                                                           |
+| `push_token`      | `{ token }`                          | `{ accepted }`; `null` means push is off in the sidecar ([Push](#push))                  |
+| `push_message`    | `{ title?, body?, deeplink?, data }` | `{ accepted }` ([Push](#push))                                                           |
 
 The screenshot is taken by the webview (`takeSnapshot` on WKWebView, `CapturePreview` on WebView2) in `crates/capture`, so it needs no screen recording permission and has no window chrome.
 
@@ -99,6 +101,13 @@ The shell starts `dou-cli --profile <dir> --parent-pipe serve` and keeps its std
 - **Pairing:** the shell pauses the sidecar, runs `dou-cli pair`, then resumes it (one process per profile may own the session files).
 - **`dou-mcp --profile <dir>`:** a byte pipe from stdin and stdout to `mcp.sock`. It waits up to 15 seconds for the socket, then exits 1 with one line. Claude Code registers this command from the Connectors tab.
 - **Bundling:** `tauri.sidecar.conf.json` adds `dou-cli` and `dou-mcp` as external binaries; `yarn nx run dou-cli:build-sidecar` and `node apps/desktop-tauri/scripts/stage-dou-mcp.mjs` put them in `src-tauri/binaries` named by target triple, then `cargo tauri build --config src-tauri/tauri.sidecar.conf.json`. The default build does not need them. On macOS the bundler signs every binary with the hardened runtime, so `src-tauri/Entitlements.plist` grants `com.apple.security.cs.allow-jit`: without it Node in `dou-cli` cannot allocate JIT memory and dies at start with `SIGTRAP`. The bundler applies one entitlements file to every binary in the app, so the shell and the Rust helpers carry it too. `.github/workflows/build-desktop-tauri.yml` runs these steps on macOS and Windows runners and uploads the `.dmg` and the NSIS `.exe`; the install guide is in the app README.
+
+## Push
+
+dou-cli receives FCM and hands it to the shell over `shell.sock` ([dou-cli Push](../../../dou-cli/README.md#push)); the shell keeps no FCM code of its own.
+
+- **Token:** `src-tauri/src/fcm.rs` holds the token in one slot that starts waiting when a sidecar was found and off when not. `push_token` fills it (`null` turns it off); a token that differs from the one held is pushed to the web as `OnFetchFcmToken`, the same token again is not. `FetchFcmToken` reads the slot ([bridge](../bridge/README.md#simple-handlers)). The log has the token length, never the token.
+- **A push:** `push_message` cuts the title to 200 and the body to 1000 characters and keeps only string `data` values. When the main window is visible, focused and not minimised, the push goes to the web as `OnReceiveNotification` with `{ notification: { title, body, data } }`, the shape the Electron shell sends, and the web shows its in-app banner. Otherwise the shell shows an OS notification with the same presenter `ShowNotification` uses; a push with no title shows nothing.
 
 ## Tray and shortcut
 

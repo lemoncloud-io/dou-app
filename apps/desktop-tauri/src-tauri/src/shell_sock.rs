@@ -20,6 +20,8 @@ pub trait Host: Send + Sync + 'static {
     fn mini_app_list(&self) -> Value;
     fn mini_app_close(&self, view_id: Option<&str>) -> Result<Value, String>;
     fn second_instance(&self, argv: Vec<String>);
+    fn push_token(&self, token: Option<String>);
+    fn push_message(&self, push: crate::fcm::Push);
 }
 
 fn failure(id: &Value, code: i64, message: &str) -> Value {
@@ -91,6 +93,24 @@ pub fn dispatch(host: &dyn Host, line: &str) -> Value {
                 Ok(json!({ "accepted": true }))
             }
             _ => Err((-32602, "argv must be a list of strings".to_string())),
+        },
+        "push_token" => match params.get("token") {
+            None | Some(Value::Null) => {
+                host.push_token(None);
+                Ok(json!({ "accepted": true }))
+            }
+            Some(Value::String(token)) if token.len() <= crate::fcm::TOKEN_MAX => {
+                host.push_token(Some(token.clone()));
+                Ok(json!({ "accepted": true }))
+            }
+            Some(_) => Err((-32602, "token must be a string or null".to_string())),
+        },
+        "push_message" => match crate::fcm::push_of(params) {
+            Some(push) => {
+                host.push_message(push);
+                Ok(json!({ "accepted": true }))
+            }
+            None => Err((-32602, "a push needs a data object".to_string())),
         },
         _ => Err((-32601, format!("unknown method {method}"))),
     };
@@ -232,6 +252,19 @@ mod tests {
                 .expect("lock")
                 .push(format!("second:{}", argv.join(",")));
         }
+        fn push_token(&self, token: Option<String>) {
+            self.calls
+                .lock()
+                .expect("lock")
+                .push(format!("token:{}", token.unwrap_or_else(|| "-".into())));
+        }
+        fn push_message(&self, push: crate::fcm::Push) {
+            self.calls.lock().expect("lock").push(format!(
+                "push:{}:{}",
+                push.title,
+                push.data.len()
+            ));
+        }
     }
 
     fn ask(host: &Fake, request: Value) -> Value {
@@ -264,6 +297,39 @@ mod tests {
         assert_eq!(tail["result"]["lines"][0], "webview:5");
         let default_tail = ask(&host, json!({ "id": 1, "method": "logs_tail" }));
         assert_eq!(default_tail["result"]["lines"][0], "shell:100");
+    }
+
+    #[test]
+    fn the_push_methods_reach_the_host() {
+        let host = Fake::default();
+        let token = ask(
+            &host,
+            json!({ "id": 1, "method": "push_token", "params": { "token": "t1" } }),
+        );
+        assert_eq!(token["result"]["accepted"], true);
+        ask(
+            &host,
+            json!({ "id": 2, "method": "push_token", "params": { "token": null } }),
+        );
+        let push = ask(
+            &host,
+            json!({ "id": 3, "method": "push_message", "params": { "title": "Alex", "data": { "cid": "c" } } }),
+        );
+        assert_eq!(push["result"]["accepted"], true);
+        let bad = ask(
+            &host,
+            json!({ "id": 4, "method": "push_message", "params": { "title": "Alex" } }),
+        );
+        assert_eq!(bad["error"]["code"], -32602);
+        let long = ask(
+            &host,
+            json!({ "id": 5, "method": "push_token", "params": { "token": "a".repeat(crate::fcm::TOKEN_MAX + 1) } }),
+        );
+        assert_eq!(long["error"]["code"], -32602);
+        assert_eq!(
+            *host.calls.lock().expect("lock"),
+            vec!["token:t1", "token:-", "push:Alex:1"]
+        );
     }
 
     #[test]

@@ -44,6 +44,12 @@ pub fn push_event(app: &AppHandle, event_type: &str, data: serde_json::Value) {
     }
 }
 
+pub fn reset_ready(app: &AppHandle) {
+    if let Some(bridge) = app.try_state::<Bridge>() {
+        bridge.host.reset_ready();
+    }
+}
+
 fn push_to_web(app: &AppHandle, origin: &str, message: &str) {
     let Some(window) = app.get_webview_window("main") else {
         return;

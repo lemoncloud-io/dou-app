@@ -4,6 +4,7 @@ mod app_source;
 mod bridge;
 #[cfg(test)]
 mod command_drift_tests;
+mod fcm;
 mod globals;
 pub mod handlers;
 mod logs;
@@ -91,6 +92,7 @@ pub fn run() {
             }
             match payload.event() {
                 tauri::webview::PageLoadEvent::Started => {
+                    bridge::reset_ready(webview.app_handle());
                     handlers::reset_for_new_host(webview.app_handle());
                 }
                 tauri::webview::PageLoadEvent::Finished => {
@@ -210,6 +212,7 @@ pub fn run() {
             if node.is_none() {
                 logs::shell("dou-cli sidecar not found; MCP and the engine are off");
             }
+            app.manage(Arc::new(fcm::TokenSlot::new(node.is_some())));
             app.manage(Arc::new(agent::Agent::new(
                 paths.clone(),
                 node,
