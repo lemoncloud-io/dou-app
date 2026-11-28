@@ -18,7 +18,7 @@ export const DEFAULT_RATE_LIMIT: Readonly<RateLimit> = { perMinute: 10, perHour:
 export const READ_RATE_LIMIT: Readonly<RateLimit> = { perMinute: 30, perHour: 300 };
 
 export const defaultSettings = (): Settings => ({
-    tier: 'read',
+    tier: 'off',
     allowRooms: [],
     rateLimit: { ...DEFAULT_RATE_LIMIT },
 });

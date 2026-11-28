@@ -33,6 +33,6 @@ When the shell is not running a harness tool returns the tool error `shell_unava
 
 ## Permissions
 
-`<profile>/settings.json` is read on every call ([permissions](../../../../libs/agent-tools/docs/permissions/README.md)). A missing file means the default (tier `read`, no rooms). A file that cannot be read or parsed means tier `off`. Harness tools follow the tier only: `off` refuses all, `read` refuses the ones marked write. The owner edits the file from the shell's Agent window; no tool changes it.
+`<profile>/settings.json` is read on every call ([permissions](../../../../libs/agent-tools/docs/permissions/README.md)). A missing file, or one that cannot be read or parsed, means the default: tier `off`, no rooms. Harness tools follow the tier only: `off` refuses all, `read` refuses the ones marked write. The owner edits the file from the shell's Agent window; no tool changes it.
 
 A screenshot shows whatever is on screen, including rooms outside `allowRooms`; it is allowed at tier `read` because the owner who runs the harness sees the same screen.

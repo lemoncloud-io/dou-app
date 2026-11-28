@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createConnection, createServer } from 'node:net';
 import type { Server } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -83,6 +83,7 @@ posix('dou-cli MCP server', () => {
     });
 
     it('re-reads settings.json on every call: tier read refuses send, a later write tier allows it', async () => {
+        writeFileSync(join(profile, 'settings.json'), JSON.stringify({ tier: 'read' }));
         const { handler, backend } = build();
         const send = () =>
             rpc(handler, 'tools/call', { name: 'message_send', arguments: { channelId: 'r1', text: 'hi' } });
@@ -95,11 +96,15 @@ posix('dou-cli MCP server', () => {
         expect((backend as ReturnType<typeof fakeBackend>).sent).toHaveLength(1);
     });
 
-    it('treats a broken settings.json as tier off', async () => {
+    it('treats a missing, broken or unreadable settings.json as tier off', async () => {
         const { handler } = build();
+        const list = () => rpc(handler, 'tools/call', { name: 'rooms_list', arguments: {} });
+        expect(JSON.parse((await list()).result.content[0].text).code).toBe('tier_off');
         writeFileSync(join(profile, 'settings.json'), '{ nope');
-        const result = await rpc(handler, 'tools/call', { name: 'rooms_list', arguments: {} });
-        expect(JSON.parse(result.result.content[0].text).code).toBe('tier_off');
+        expect(JSON.parse((await list()).result.content[0].text).code).toBe('tier_off');
+        rmSync(join(profile, 'settings.json'));
+        mkdirSync(join(profile, 'settings.json'));
+        expect(JSON.parse((await list()).result.content[0].text).code).toBe('tier_off');
     });
 
     it('forwards harness tools to shell.sock and returns the screenshot as image content', async () => {
@@ -130,6 +135,7 @@ posix('dou-cli MCP server', () => {
 
     it('gates harness tools by tier: read blocks mutating ones, off blocks all', async () => {
         await startShell();
+        writeFileSync(join(profile, 'settings.json'), JSON.stringify({ tier: 'read' }));
         const { handler } = build();
         const reload = await rpc(handler, 'tools/call', { name: 'app_reload', arguments: {} });
         expect(JSON.parse(reload.result.content[0].text).code).toBe('tier_read_only');

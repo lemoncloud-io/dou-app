@@ -1,10 +1,19 @@
 import { DEFAULT_RATE_LIMIT, parseSettings } from './settings';
 
 describe('parseSettings', () => {
-    it('a missing, broken or non-object input means tier read with the default limits', () => {
+    it('a missing, broken or non-object input means tier off with the default limits', () => {
         for (const input of [undefined, null, '{ not json', 42, []]) {
-            expect(parseSettings(input)).toEqual({ tier: 'read', allowRooms: [], rateLimit: DEFAULT_RATE_LIMIT });
+            expect(parseSettings(input)).toEqual({ tier: 'off', allowRooms: [], rateLimit: DEFAULT_RATE_LIMIT });
         }
+    });
+
+    it('an object without a tier is tier off', () => {
+        expect(parseSettings('{}').tier).toBe('off');
+        expect(parseSettings({ allowRooms: ['r1'] })).toEqual({
+            tier: 'off',
+            allowRooms: ['r1'],
+            rateLimit: DEFAULT_RATE_LIMIT,
+        });
     });
 
     it('an unknown tier fails closed to off', () => {

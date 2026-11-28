@@ -3,8 +3,9 @@
 Every tool call passes `authorize` before it reaches the backend. A refusal throws an `AgentToolError` with a code and
 never calls the backend.
 
-`settings.json` has the shape of the Rust `dou-control` settings: `{ "tier": "read", "allowRooms": [], "rateLimit": {
-"perMinute": 10, "perHour": 100 } }`. The default tier is `read`.
+`settings.json` has the shape of the Rust `dou-control` settings, for example `{ "tier": "read", "allowRooms": [],
+"rateLimit": { "perMinute": 10, "perHour": 100 } }`. The default tier is `off`: a missing file, or a file with no
+`tier`, gives `off`, as the desktop Agent window reads it, so an agent reads nothing until the owner picks a tier.
 
 | Tier            | Reads                                       | Writes                                                |
 | --------------- | ------------------------------------------- | ----------------------------------------------------- |
