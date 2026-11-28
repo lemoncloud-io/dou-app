@@ -46,16 +46,25 @@ const GROUPS: Record<string, readonly string[]> = {
         'getIdentityContext',
         'getRelaySessionUser',
         'getUidInCloud',
+        'inviteFlowMutation',
+        'inviteInfoQuery',
         'isInOwnCloudSession',
         'isPairedSession',
         'isRefusedForEndedPairing',
         'isSessionKey',
+        'loginMutation',
+        'loginRelayGuestByDeviceMutation',
+        'loginRelaySocialMutation',
+        'logoutCloudSessionMutation',
         'logoutSession',
         'pairingClientOf',
         'patchRelaySessionUser',
         'registerSessionLogoutCallback',
         'registerUserWithInviteCode',
         'retryPhoneLogin',
+        'siteSwitchMutation',
+        'switchCloudSessionMutation',
+        'traceCloudSwitch',
         'updateAccountProfile',
         'useCloudCredentialGuard',
         'useDynamicDeviceId',
@@ -170,8 +179,7 @@ const GROUPS: Record<string, readonly string[]> = {
     ],
 };
 
-const REACT_ADDITION =
-    /^(use[A-Z]|Runtime(Auth|Connection)Host$|SWITCH_(CLOUD|SITE)_MUTATION_KEY$|cloudsKeys$|globalCacheRefKey$)/;
+const REACT_ADDITION = /^(use[A-Z]|Runtime(Auth|Connection)Host$|globalCacheRefKey$)/;
 
 const PORTS = ['appShell', 'checkout', 'diagnostics', 'files', 'links', 'media', 'signIn'] as const;
 
@@ -273,8 +281,9 @@ describe('@chatic/runtime-react public surface', () => {
 
     it('publishes the same top-level names as @chatic/runtime, with its own runtime', () => {
         expect(Object.keys(api).sort()).toEqual(Object.keys(headless).sort());
-        for (const name of DOMAIN_VALUES)
-            {expect(api[name as keyof typeof api]).toBe(headless[name as keyof typeof headless]);}
+        for (const name of DOMAIN_VALUES) {
+            expect(api[name as keyof typeof api]).toBe(headless[name as keyof typeof headless]);
+        }
         expect(api.runtime).not.toBe(headless.runtime);
     });
 

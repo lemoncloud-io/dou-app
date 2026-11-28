@@ -1,14 +1,12 @@
 import { useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 
-import { SWITCH_SITE_MUTATION_KEY } from '../../mutationKeys';
-
-import { sessionCommands } from '@chatic/runtime-client';
+import { siteSwitchMutation } from '@chatic/runtime/api/session';
 
 export const useSiteSwitch = () => {
     const mutation = useMutation({
-        mutationKey: SWITCH_SITE_MUTATION_KEY,
-        mutationFn: (siteId: string) => sessionCommands().switchSite(siteId),
+        mutationKey: siteSwitchMutation.mutationKey,
+        mutationFn: siteSwitchMutation.mutationFn,
     });
 
     const { mutateAsync } = mutation;

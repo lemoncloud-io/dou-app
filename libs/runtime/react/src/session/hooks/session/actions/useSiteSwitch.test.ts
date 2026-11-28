@@ -4,7 +4,6 @@ import { useMutation } from '@tanstack/react-query';
 import { useSiteSwitch } from './useSiteSwitch';
 
 jest.mock('@tanstack/react-query', () => ({ useMutation: jest.fn() }));
-jest.mock('../../mutationKeys', () => ({ SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'] }));
 
 describe('useSiteSwitch — memo 안정성 (#10)', () => {
     it('mutation 객체가 매 렌더 새 참조여도 switchSite 콜백 참조는 유지된다', () => {

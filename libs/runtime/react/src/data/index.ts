@@ -12,4 +12,3 @@ export type {
 export { useGlobalCacheSearch, globalCacheRefKey } from './hooks/useGlobalCacheSearch';
 export { useInvitedCloudNameSync } from './hooks/useInvitedCloudNameSync';
 export { usePairedCloudNameSync } from './hooks/usePairedCloudNameSync';
-export { cloudsKeys } from './hooks/queryKeys';

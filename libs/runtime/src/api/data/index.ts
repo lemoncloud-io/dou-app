@@ -6,6 +6,7 @@ export { isAcceptedBy, withAcceptor } from '../../engine';
 export { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './dataCommands';
 export { syncPairedCloudName } from './dataCommands';
 export { clearLocalCaches } from './dataCommands';
+export { cloudsKeys } from './queryKeys';
 export type { ClearLocalCachesResult } from '../../engine';
 export { requestSyncCursorReset } from './dataCommands';
 export { setStateOutboxObserver } from './dataCommands';
