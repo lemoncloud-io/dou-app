@@ -204,7 +204,7 @@ apps/web  runtime/logging/
   │                       localStorage persistence, tab-scoped, with orphan adoption
   └─ logQueueView.ts      the read-only view the debug monitor and the loss observer share
 
-libs/bridges  setupBridgeLogger()  logHub.subscribe(nativeForwarder)   ← hybrid only, one SendLog per entry
+libs/bridge/client  setupBridgeLogger()  logHub.subscribe(nativeForwarder)   ← hybrid only, one SendLog per entry
 
 apps/mobile  services/provider.ts  logHub.subscribe(×3): Crashlytics · MMKV store · console
              webview/hooks/useLogHandler.ts   SendLog → ingestLogEntry

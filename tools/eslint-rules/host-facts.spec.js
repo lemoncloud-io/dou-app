@@ -9,7 +9,7 @@ const rule = require('./host-facts');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const at = file => path.join(REPO_ROOT, file);
 
-const options = [{ allowedFiles: ['libs/bridges/', 'apps/web/src/config/webRuntime.ts'] }];
+const options = [{ allowedFiles: ['libs/bridge/client/', 'apps/web/src/config/webRuntime.ts'] }];
 const FEATURE = at('apps/web/src/app/features/subscription/hooks/usePlanCatalog.ts');
 
 const global = name => ({ messageId: 'global', data: { name } });
@@ -27,7 +27,7 @@ new RuleTester({
         },
         {
             code: 'export const isNative = () => !!window.ReactNativeWebView; window.CHATIC_APP_STAGE;',
-            filename: at('libs/bridges/src/common/utils.ts'),
+            filename: at('libs/bridge/client/src/common/utils.ts'),
             options,
         },
         // Reading the host profile is the sanctioned way, and is not a read off the global object.
@@ -53,6 +53,12 @@ new RuleTester({
         },
         {
             code: "import { isNative as inShell } from '@chatic/bridges'; inShell();",
+            filename: FEATURE,
+            options,
+            errors: [probe('isNative()')],
+        },
+        {
+            code: "import { isNative } from '@chatic/bridge-client'; isNative();",
             filename: FEATURE,
             options,
             errors: [probe('isNative()')],

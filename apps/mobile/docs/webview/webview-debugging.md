@@ -10,8 +10,8 @@ The app already forwards WebView logs to native, landing in the Metro terminal a
 queue:
 
 ```
-[web] logger.*(...)              libs/bridges/src/logger/logger.ts
-  → SendLog message, one per entry   libs/bridges/src/logger/appLogInfoCodec.ts
+[web] logger.*(...)              libs/logger/src/core/CoreLogger.ts
+  → SendLog message, one per entry   libs/bridge/client/src/logger/appLogInfoCodec.ts
   → [app] useLogHandler → ingestLogEntry → logHub
       ├─ console sink (__DEV__ only, all levels)
       ├─ Crashlytics breadcrumb (non-debug)

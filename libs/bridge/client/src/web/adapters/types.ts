@@ -1,4 +1,4 @@
-import type { EventMessage, RequestMessage, ResponseMessage } from '../../common';
+import type { EventMessage, RequestMessage, ResponseMessage } from '@chatic/bridge-host';
 
 export interface InboundMessageMeta {
     length: number;

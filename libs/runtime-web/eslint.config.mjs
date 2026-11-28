@@ -13,12 +13,12 @@ export default [
                             name: `@chatic/${name}`,
                             message: `@chatic/${name} is for the runtime modules; an adapter fills ports and reads none of it.`,
                         })),
-                        {
-                            name: '@chatic/bridges',
+                        ...['@chatic/bridges', '@chatic/bridge-client', '@chatic/bridge-host'].map(name => ({
+                            name,
                             allowTypeImports: true,
                             message:
                                 'runtime-web is browser-only: it never talks to a shell. Shell delegation lives in @chatic/runtime-hybrid-web.',
-                        },
+                        })),
                         {
                             name: '@chatic/runtime-hybrid-web',
                             message: 'runtime-hybrid-web is built on runtime-web, never the other way round.',

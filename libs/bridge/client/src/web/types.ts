@@ -5,7 +5,7 @@ import type {
     WebMessageResponse,
     WebMessageType,
 } from '@chatic/bridge-messages';
-import type { IMessageQueue, RequestMessage } from '../common';
+import type { IMessageQueue, RequestMessage } from '@chatic/bridge-host';
 import type { BridgeAdapter } from './adapters/types';
 
 export interface PendingRequest {

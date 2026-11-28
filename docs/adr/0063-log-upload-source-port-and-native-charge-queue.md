@@ -47,7 +47,7 @@ Web entries have a copy in the web queue, but native-originated logs (RN global 
 `NativeLogger`) have no copy and are permanently lost.
 
 Per-entry relaying is also a bridge-cost problem. The response round trip has already been removed
-([AppBridgeHost.ts:214](../../libs/bridges/src/app/AppBridgeHost.ts:214)), but the upward `postMessage` itself still
+([AppBridgeHost.ts:214](../../libs/bridge/host/src/app/AppBridgeHost.ts:214)), but the upward `postMessage` itself still
 fires once per log.
 
 ### ③ Destructive poll has a transmission-loss window
@@ -202,7 +202,7 @@ too would be a regression from the current state, and that is not acceptable.
 ### Interim measure (already applied)
 
 Alternative (b) was **already applied as an emergency measure** — a `debug` relay gate in
-[nativeForwarder.ts](../../libs/bridges/src/logger/nativeForwarder.ts). It's a web-only change, so it stops the
+[nativeForwarder.ts](../../libs/bridge/client/src/logger/nativeForwarder.ts). It's a web-only change, so it stops the
 bleeding from ② without waiting for an app deploy. **The gate lifts** once this decision's app deploy goes out
 (decision 2 carries `debug` back in batch form).
 

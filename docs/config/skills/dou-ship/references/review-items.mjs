@@ -14,7 +14,7 @@ const git = (...a) =>
     execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'pipe'] });
 const SOURCE_LINES = [
     ':(glob)apps/*/src/**',
-    ':(glob)libs/*/src/**',
+    ':(glob)libs/**/src/**',
     ':(glob)apps/mobile/android/**',
     ':(glob)apps/mobile/ios/**',
     ':(glob)**/package.json',

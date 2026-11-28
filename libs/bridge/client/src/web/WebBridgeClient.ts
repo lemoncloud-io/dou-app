@@ -1,8 +1,16 @@
 import { logger } from '@chatic/logger';
 
 import type { BridgeAdapter, InboundMessageMeta } from './adapters/types';
-import type { EventMessage, RequestMessage, ResponseMessage, IMessageQueue } from '../common';
-import { isNative, MessageQueue } from '../common';
+import {
+    BRIDGE_VERSION,
+    MessageQueue,
+    type EventMessage,
+    type IMessageQueue,
+    type RequestMessage,
+    type ResponseMessage,
+} from '@chatic/bridge-host';
+
+import { isNative } from '../common';
 import type {
     BridgeRequestObserver,
     IWebBridgeClient,
@@ -19,7 +27,6 @@ import {
     type WebMessageResponse,
     type WebMessageType,
 } from '@chatic/bridge-messages';
-import { BRIDGE_VERSION } from '../version';
 
 const RESUMED_TIMEOUT_FLOOR_MS = 2000;
 

@@ -14,7 +14,7 @@ const path = require('node:path');
  * what the host declared.
  *
  * So this reports, outside the allowed files:
- * - any use of `isNative` imported from `@chatic/bridges` — called, or handed on as a value — under
+ * - any use of `isNative` imported from `@chatic/bridges` or `@chatic/bridge-client` — called, or handed on as a value — under
  *   any local name or through a namespace import;
  * - any use of `isNativeApp`, the runtime's second answer to the same question
  *   (`runtime.boot.isNativeApp()`), called or handed on;
@@ -40,7 +40,7 @@ const path = require('node:path');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const GLOBAL_PREFIX = 'CHATIC_APP_';
 const GLOBAL_OBJECTS = new Set(['window', 'globalThis', 'self']);
-const BRIDGES = '@chatic/bridges';
+const BRIDGES = new Set(['@chatic/bridges', '@chatic/bridge-client']);
 const APP_PROBE = 'isNativeApp';
 
 /** `window` through casts, non-null assertions and parentheses: `(window as unknown as X)`. */
@@ -155,7 +155,7 @@ module.exports = {
 
         return {
             ImportDeclaration(node) {
-                if (node.source.value !== BRIDGES) return;
+                if (!BRIDGES.has(node.source.value)) return;
                 for (const spec of node.specifiers) {
                     if (spec.type === 'ImportNamespaceSpecifier') bridgesNamespaces.add(spec.local.name);
                     if (spec.type !== 'ImportSpecifier') continue;

@@ -26,7 +26,7 @@ The target structure is:
 `apps/web/src/app/runtime/logging/logUploader.ts:206` performs queue push, storage persist, native charge, and
 upload notify in sequence. That's not 3 listeners — it's "1 listener wrapping 4 procedures."
 
-**② `apps/web` doesn't own the web's console listener.** [setupBridgeLogger.ts](../../libs/bridges/src/logger/setupBridgeLogger.ts)
+**② `apps/web` doesn't own the web's console listener.** [setupBridgeLogger.ts](../../libs/bridge/client/src/logger/setupBridgeLogger.ts)
 branches on `isNative()` to attach the console/native sinks. The web listener lives in `libs/bridges`.
 
 **③ There are 2 web→native paths.** Per-entry `nativeForwarder` (bridges) and batched `LogChargePump` (web)

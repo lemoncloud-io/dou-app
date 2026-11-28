@@ -4,6 +4,8 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 
 const bridgesAlias = {
     '@chatic/bridges': resolve(__dirname, '../../libs/bridges/src/index.ts'),
+    '@chatic/bridge-client': resolve(__dirname, '../../libs/bridge/client/src/index.ts'),
+    '@chatic/bridge-host': resolve(__dirname, '../../libs/bridge/host/src/index.ts'),
     '@chatic/bridge-messages': resolve(__dirname, '../../libs/bridge-messages/src/index.ts'),
     '@chatic/logger': resolve(__dirname, '../../libs/logger/src/index.ts'),
     '@chatic/push-desktop': resolve(__dirname, '../../libs/push/desktop/src/index.ts'),

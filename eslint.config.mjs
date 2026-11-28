@@ -135,8 +135,8 @@ const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
  *   other way — `layer:runtime`'s allow-list has no `layer:adapter`.
  * - `layer:binding` — `@chatic/runtime-react`, what React apps import: the headless runtime plus the hooks.
  *   It never imports an adapter directly (an allow-list): which platform fills the ports is the entry's.
- * - `layer:bridge` — `@chatic/bridges` (with `@chatic/fake-shell` and `@chatic/chatic-apps-sdk`), the transport across the WebView boundary: the web-side
- *   client, the shell-side host and the `webClient` singleton. The core libs and the runtime may not
+ * - `layer:bridge` — `@chatic/bridge-client`, `@chatic/bridge-host`, their old entry `@chatic/bridges`, `@chatic/fake-shell`, `@chatic/chatic-apps-sdk`:
+ *   the transport across the WebView boundary — the web-side client, the shell-side host and the `webClient` singleton. The core libs and the runtime may not
  *   depend on it: none of what they hold — the session, the sockets, sync, the data layer, the
  *   assembly — is specific to a WebView, and an import of it would tie them to that boundary. What a
  *   page's bridge answers reaches them through a port its adapter fills, and `logger`, the one name
@@ -791,7 +791,7 @@ export default [
     },
     {
         // Asking the host what it is — `isNative()`, a `CHATIC_APP_*` global — belongs to
-        // `@chatic/bridges`; features reach the host through the ports the app's runtime declaration
+        // `@chatic/bridge-client`; features reach the host through the ports the app's runtime declaration
         // publishes (`runtime.<port>`). The rule
         // says why; the allow-list (tools/eslint-rules/host-facts-allowlist.js) starts with every file
         // that did it and shrinks as each domain moves onto its port. Tests and fakes play the host on
