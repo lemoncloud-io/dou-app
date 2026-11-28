@@ -36,6 +36,9 @@
             "path": "../../libs/policy-content/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/design-system/components/desktop/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/ui-kit/tsconfig.lib.json"
         },
         {

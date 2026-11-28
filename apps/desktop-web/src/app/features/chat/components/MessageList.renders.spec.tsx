@@ -7,7 +7,7 @@ import { act, cleanup, render } from '@testing-library/react';
 import type { DomainChat } from '@chatic/runtime-react';
 import { TooltipProvider } from '@chatic/ui-kit';
 
-import type * as SharedModule from '../../../shared';
+import type * as DesignSystemModule from '@chatic/design-system-components-desktop';
 
 vi.mock('@chatic/runtime-react', async () =>
     (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
@@ -24,8 +24,8 @@ vi.mock('@chatic/runtime-react', async () =>
 );
 
 const rowRenders = vi.hoisted(() => ({ count: 0 }));
-vi.mock('../../../shared', async importOriginal => {
-    const actual = await importOriginal<typeof SharedModule>();
+vi.mock('@chatic/design-system-components-desktop', async importOriginal => {
+    const actual = await importOriginal<typeof DesignSystemModule>();
     return {
         ...actual,
         useMediaQuery: (query: string) => {

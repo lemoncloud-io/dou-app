@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/ui-kit';
+import { Hint } from '@chatic/design-system-components-desktop';
 
 import { type ReactionTally, emojiNameKey } from '../utils';
-import { Hint } from '../../../shared';
 
 interface ReactionBarProps {
     tallies: ReactionTally[];

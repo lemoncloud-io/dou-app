@@ -4,7 +4,7 @@ import { Check, ChevronRight, Hash, MessageCircle, Sparkles, User, UserPlus, typ
 
 import { cn } from '@chatic/ui-kit';
 
-import { PANE_HEADER, PANEL_TITLE } from '../../../shared';
+import { PANE_HEADER, PANEL_TITLE } from '@chatic/design-system-components-desktop';
 import { welcomeProgress, type WelcomeSignals, type WelcomeStepKey } from '../utils';
 
 const STEP_ICON: Record<WelcomeStepKey, LucideIcon> = {

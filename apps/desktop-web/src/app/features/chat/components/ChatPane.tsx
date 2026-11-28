@@ -7,9 +7,9 @@ import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { Hash, PanelLeft, Plus, Search, Star, Ticket, User } from 'lucide-react';
 import type { ChatMentionBody, DomainChannel, DomainChat } from '@chatic/runtime-react';
 import { cn, Button } from '@chatic/ui-kit';
+import { Hint, PANE_HEADER, PANE_TITLE } from '@chatic/design-system-components-desktop';
 
 import {
-    Hint,
     MOD_KEY,
     channelKind,
     dmCounterpartId,
@@ -30,8 +30,6 @@ import {
     useReadReceipts,
     useSelectedChannelStore,
     useSiteProfileMap,
-    PANE_HEADER,
-    PANE_TITLE,
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { useChannelActions, useChannelSettingsStore } from '../../channels';

@@ -30,6 +30,7 @@ import {
     PopoverTrigger,
     toast,
 } from '@chatic/ui-kit';
+import { Hint, Skeleton, useMediaQuery } from '@chatic/design-system-components-desktop';
 
 import { ConfirmDialog } from '../../channels';
 import {
@@ -43,14 +44,11 @@ import {
     type ReactionTally,
 } from '../utils';
 import {
-    Hint,
-    Skeleton,
     UserProfilePopover,
     avatarStyle,
     formatClockTime,
     formatShortDate,
     messagePreview,
-    useMediaQuery,
     useSavedItemsStore,
 } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';

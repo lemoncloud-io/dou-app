@@ -1,4 +1,4 @@
-import { Skeleton } from '../../../shared';
+import { Skeleton } from '@chatic/design-system-components-desktop';
 
 interface AvatarRowsSkeletonProps {
     label: string;

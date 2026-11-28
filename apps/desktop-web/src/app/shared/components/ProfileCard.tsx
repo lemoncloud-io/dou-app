@@ -6,8 +6,9 @@ import { Check, Copy, MessageCircle, StickyNote } from 'lucide-react';
 import { runtime } from '@chatic/runtime-react';
 
 import { Avatar, AvatarFallback, AvatarImage, Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit';
+import { useCopyToClipboard } from '@chatic/design-system-components-desktop';
 
-import { useCopyToClipboard, useDisplayProfile, useStartDm, useUser } from '../hooks';
+import { useDisplayProfile, useStartDm, useUser } from '../hooks';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
 import { avatarStyle } from '../utils';
 

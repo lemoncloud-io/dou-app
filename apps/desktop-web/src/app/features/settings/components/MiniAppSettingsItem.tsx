@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { SettingsNavRow, SettingsRowGroup } from '../../../shared';
+import { SettingsNavRow, SettingsRowGroup } from '@chatic/design-system-components-desktop';
 import { isPreProductionBuild, useMiniAppLauncher, useSubWebViewOpenScope } from '../hooks/useMiniAppLauncher';
 import { MiniAppDialogs } from './MiniAppDialogs';
 

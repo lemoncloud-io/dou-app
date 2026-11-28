@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { Send, Smile } from 'lucide-react';
 
 import { cn, Popover, PopoverContent, PopoverTrigger } from '@chatic/ui-kit';
+import { Hint } from '@chatic/design-system-components-desktop';
 
 import { EmojiPicker } from '../EmojiPicker';
-import { Hint } from '../../../../shared';
 import { COMPOSER_ACTION_BUTTON } from './composerActionButton';
 
 export const ComposerEmojiButton = ({ onEmoji }: { onEmoji: (emoji: string) => void }) => {

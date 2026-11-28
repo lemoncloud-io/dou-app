@@ -15,8 +15,9 @@ import {
 import { Link } from 'lucide-react';
 
 import { Button, Dialog, DialogContent, DialogFooter, DialogTitle, Input, Label } from '@chatic/ui-kit';
+import { Hint } from '@chatic/design-system-components-desktop';
 
-import { Hint, isLabelledLinkAddress, toLabelledLinkWords } from '../../../../shared';
+import { isLabelledLinkAddress, toLabelledLinkWords } from '../../../../shared';
 
 export const normalizeLinkAddress = (raw: string): string | null => {
     const value = raw.trim();

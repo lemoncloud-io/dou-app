@@ -1,7 +1,7 @@
 import { LayoutGrid } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { RailTile } from '../../../shared';
+import { RailTile } from '@chatic/design-system-components-desktop';
 import { isPreProductionBuild, useMiniAppLauncher, useSubWebViewOpenScope } from '../hooks/useMiniAppLauncher';
 import { MiniAppDialogs } from './MiniAppDialogs';
 

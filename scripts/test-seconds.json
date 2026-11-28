@@ -9,6 +9,7 @@
     "@chatic/db": 11,
     "@chatic/design-system-assets": 6,
     "@chatic/design-system-chat-mobile": 15,
+    "@chatic/design-system-components-desktop": 5,
     "@chatic/design-system-components-mobile": 12,
     "@chatic/design-system-patterns-mobile": 20,
     "@chatic/desktop": 15,

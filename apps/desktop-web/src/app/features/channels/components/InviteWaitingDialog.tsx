@@ -4,10 +4,10 @@ import { useTranslation } from 'react-i18next';
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, DialogFooter, toast } from '@chatic/ui-kit';
+import { useCopyToClipboard } from '@chatic/design-system-components-desktop';
 
 import {
     resolveInviteCode,
-    useCopyToClipboard,
     useDesktopInviteMutations,
     useInviteCountdown,
     useSelectedChannelStore,

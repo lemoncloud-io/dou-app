@@ -3,7 +3,8 @@
 The frame around the conversation: the cloud-and-place rail, the nav rail, the sidebar column (or drawer), the
 trailing panels, and how they share the window at each width. `DesktopLayout`
 (`src/app/features/chat/components/DesktopLayout.tsx`) owns the frame. The shared pieces are in
-`src/app/shared/components/` and `src/app/shared/hooks/`.
+`src/app/shared/components/` and `src/app/shared/hooks/`; the ones with no runtime, shell or copy dependency
+(`RailTile`, `ScrollHint`, `useViewportNarrow` and its widths) are in `@chatic/design-system-components-desktop`.
 
 ## Documents
 

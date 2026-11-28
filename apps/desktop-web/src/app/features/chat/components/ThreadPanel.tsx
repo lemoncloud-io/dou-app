@@ -6,9 +6,9 @@ import { X } from 'lucide-react';
 import { isEventChat, RELAY_CLOUD_ID } from '@chatic/runtime-react';
 import type { ChatMentionBody, DomainChannel } from '@chatic/runtime-react';
 import { Button } from '@chatic/ui-kit';
+import { Hint, PANE_HEADER, PANEL_TITLE } from '@chatic/design-system-components-desktop';
 
 import {
-    Hint,
     chatSenderName,
     lastChatNoOf,
     messagePreview,
@@ -21,8 +21,6 @@ import {
     useChannelReadCounts,
     useChats,
     ResizablePanel,
-    PANE_HEADER,
-    PANEL_TITLE,
 } from '../../../shared';
 import type { ChannelMember } from '../../channels';
 import { buildMemberNames, buildThread, foldReactions } from '../utils';

@@ -19,7 +19,7 @@ import {
     toast,
 } from '@chatic/ui-kit';
 
-import { FormError, FormField } from '../../../shared';
+import { FormError, FormField } from '@chatic/design-system-components-desktop';
 
 import type { MiniAppUrlSave, useMiniAppLauncher } from '../hooks/useMiniAppLauncher';
 

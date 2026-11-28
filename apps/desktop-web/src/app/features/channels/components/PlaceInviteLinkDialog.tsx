@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button, Dialog, DialogContent, DialogDescription, DialogTitle, Input } from '@chatic/ui-kit';
 
-import { useCopyToClipboard } from '../../../shared';
+import { useCopyToClipboard } from '@chatic/design-system-components-desktop';
 import { useInviteLinkStore } from '../stores/useInviteLinkStore';
 
 export const PlaceInviteLinkDialog = () => {

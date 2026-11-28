@@ -6,9 +6,9 @@ import { MessagesSquare } from 'lucide-react';
 import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 import { cn } from '@chatic/ui-kit';
 import { runtime } from '@chatic/runtime-react';
+import { PANE_HEADER } from '@chatic/design-system-components-desktop';
 
 import {
-    PANE_HEADER,
     formatListTime,
     isThreadUnread,
     messagePreview,

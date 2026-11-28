@@ -8,6 +8,7 @@ module.exports = {
     content: [
         join(__dirname, '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html}'),
         join(__dirname, '../../libs/{ui-kit,block-kit}/src/**/*!(*.stories|*.spec|*.test).{ts,tsx}'),
+        join(__dirname, '../../libs/design-system/components/desktop/src/**/*!(*.stories|*.spec|*.test).{ts,tsx}'),
         ...createGlobPatternsForDependencies(__dirname),
     ],
     prefix: '',

@@ -4,17 +4,15 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 
 import { cn } from '@chatic/ui-kit';
+import { COMPACT_SHELL_WIDTH, useEscapeClose, useViewportNarrow } from '@chatic/design-system-components-desktop';
 
 import {
-    COMPACT_SHELL_WIDTH,
     MIN_CHAT_WIDTH,
     PANEL_DOCK_WIDTH,
     PanelResizeHandle,
     PanelShellContext,
-    useEscapeClose,
     usePanelWidth,
     useSelectedChannelStore,
-    useViewportNarrow,
 } from '../../../shared';
 import { UnsendableFilesHost, VoiceDetailHost } from './images';
 

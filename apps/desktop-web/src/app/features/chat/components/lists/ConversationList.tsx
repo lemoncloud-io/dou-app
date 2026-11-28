@@ -6,7 +6,8 @@ import { Plus, Search } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/runtime-react';
 import { cn } from '@chatic/ui-kit';
-import { formatListTime, Skeleton } from '../../../../shared';
+import { Skeleton } from '@chatic/design-system-components-desktop';
+import { formatListTime } from '../../../../shared';
 import { threadRootId } from '../../utils';
 
 export const markThreadReply = (lastChat: Pick<DomainChat, 'parentId'>, line: string, t: TFunction): string =>

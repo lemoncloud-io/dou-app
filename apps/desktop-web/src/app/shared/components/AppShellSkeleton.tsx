@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { Skeleton } from './Skeleton';
+import { Skeleton } from '@chatic/design-system-components-desktop';
 
 export const AppShellSkeleton = () => {
     const { t } = useTranslation();

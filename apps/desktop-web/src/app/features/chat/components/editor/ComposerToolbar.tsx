@@ -16,7 +16,7 @@ import {
 } from 'lexical';
 
 import { cn } from '@chatic/ui-kit';
-import { Hint } from '../../../../shared';
+import { Hint } from '@chatic/design-system-components-desktop';
 import { toggleCodeBlock } from './composerPlugins';
 import { $selectedLink, LinkButton } from './LinkButton';
 

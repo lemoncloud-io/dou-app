@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/ui-kit';
+import { SettingsNavRow, SettingsRowGroup } from '@chatic/design-system-components-desktop';
 
 import { notifyModesFor, type ChannelNotifyMode } from '../stores';
 import { radioGroupOptions } from '../utils';
-import { SettingsNavRow, SettingsRowGroup } from './SettingsRow';
 
 const MODES = notifyModesFor(false);
 

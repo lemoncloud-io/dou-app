@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { Hint } from '../../../../shared';
+import { Hint } from '@chatic/design-system-components-desktop';
 
 export const CancelUploadButton = ({ name, onCancel }: { name: string; onCancel: () => void }) => {
     const { t } = useTranslation();

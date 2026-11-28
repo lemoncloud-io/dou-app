@@ -121,6 +121,7 @@
             "@chatic/design-system-assets/icons": ["libs/design-system/assets/src/icons/index.ts"],
             "@chatic/design-system-assets/images": ["libs/design-system/assets/src/images/index.ts"],
             "@chatic/design-system-chat-mobile": ["libs/design-system/chat/mobile/src/index.ts"],
+            "@chatic/design-system-components-desktop": ["libs/design-system/components/desktop/src/index.ts"],
             "@chatic/design-system-components-mobile": ["libs/design-system/components/mobile/src/index.ts"],
             "@chatic/design-system-patterns-mobile": ["libs/design-system/patterns/mobile/src/index.ts"],
             "@chatic/db": ["libs/db/src/index.ts"],

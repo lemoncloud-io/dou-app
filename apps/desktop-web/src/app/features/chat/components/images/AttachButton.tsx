@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus } from 'lucide-react';
 
 import { CHAT_ATTACHMENT_ACCEPT } from '@chatic/runtime-react';
-import { Hint } from '../../../../shared';
+import { Hint } from '@chatic/design-system-components-desktop';
 import { COMPOSER_ACTION_BUTTON } from '../editor/composerActionButton';
 
 interface AttachButtonProps {

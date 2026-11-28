@@ -5,15 +5,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@chatic/ui-kit';
 
 import { runtime } from '@chatic/runtime-react';
+import { SettingsNavRow, SettingsRowGroup } from '@chatic/design-system-components-desktop';
 
-import {
-    PageShell,
-    SettingsNavRow,
-    SettingsRowGroup,
-    useCloudSessionCatalog,
-    useCloudSwitchFlow,
-    usePlaces,
-} from '../../../shared';
+import { PageShell, useCloudSessionCatalog, useCloudSwitchFlow, usePlaces } from '../../../shared';
 
 export const CloudPlacesPage = () => {
     const { t } = useTranslation();

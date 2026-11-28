@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next';
 
+import { Hint } from '@chatic/design-system-components-desktop';
+
 import { splitFileName } from '../../utils';
-import { Hint } from '../../../../shared';
 
 export const FileName = ({ name, onOpen }: { name: string; onOpen?: () => void }) => {
     const { t } = useTranslation();

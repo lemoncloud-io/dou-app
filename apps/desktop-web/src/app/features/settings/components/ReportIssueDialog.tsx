@@ -4,8 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { runtime } from '@chatic/runtime-react';
 import { logger } from '@chatic/bridges';
 import { Button, Dialog, DialogContent, DialogFooter, DialogTitle, Input, Textarea, toast } from '@chatic/ui-kit';
+import { FormError, FormField } from '@chatic/design-system-components-desktop';
 
-import { FormError, FormField, toastFailure } from '../../../shared';
+import { toastFailure } from '../../../shared';
 
 import { getAppVersionInfo } from '../../../shared/utils/getAppVersion';
 

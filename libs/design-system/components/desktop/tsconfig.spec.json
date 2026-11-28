@@ -1,0 +1,18 @@
+{
+    "extends": "../../../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "../../../../dist/out-tsc/design-system-components-desktop-spec",
+        "jsx": "react-jsx",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
+    "exclude": ["out-tsc", "dist"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "../../../ui-kit/tsconfig.lib.json"
+        }
+    ]
+}

@@ -524,7 +524,7 @@ const PERSIST_WITHOUT_STORAGE = {
 // ignore the app's TooltipProvider — desktop-web hints go through `Hint`.
 const NATIVE_TITLE_TOOLTIP = {
     selector: "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='title']",
-    message: 'Use `Hint` (apps/desktop-web shared/components) instead of a native `title` tooltip.',
+    message: 'Use `Hint` from @chatic/design-system-components-desktop instead of a native `title` tooltip.',
 };
 
 /** What nx's `flat/react` preset lists under one of the `no-restricted-*` rules, severity left off. */
@@ -847,7 +847,7 @@ export default [
     {
         // No native `title` tooltip in desktop-web — every .tsx file, tests included.
         basePath: REPO_ROOT,
-        files: ['apps/desktop-web/src/**/*.tsx'],
+        files: ['apps/desktop-web/src/**/*.tsx', 'libs/design-system/components/desktop/src/**/*.tsx'],
         rules: {
             'no-restricted-syntax': ['error', NATIVE_TITLE_TOOLTIP],
         },

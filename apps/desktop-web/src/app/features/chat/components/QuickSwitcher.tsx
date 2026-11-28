@@ -5,8 +5,9 @@ import { Hash, Search, User } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/runtime-react';
 import { cn, Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
+import { useListboxNav } from '@chatic/design-system-components-desktop';
 
-import { bareChannelName, channelKind, useChannelLabels, useLastChannelStore, useListboxNav } from '../../../shared';
+import { bareChannelName, channelKind, useChannelLabels, useLastChannelStore } from '../../../shared';
 import { useSearchDialogStore } from '../../search';
 import { useQuickSwitcherStore } from '../stores';
 
