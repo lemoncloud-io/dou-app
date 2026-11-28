@@ -47,14 +47,36 @@ jobs:
             - uses: Swatinem/rust-cache@v2
               with:
                   workspaces: apps/desktop-native
+                  save-if: ${{ github.event_name != 'pull_request' }}
 
             - uses: actions/setup-node@v4
               with:
                   node-version-file: .nvmrc
-                  cache: yarn
+
+            - name: Get Yarn cache path
+              id: yarn-cache-dir-path
+              shell: bash
+              working-directory: .
+              run: echo "dir=$(yarn cache dir)" >> "$GITHUB_OUTPUT"
+
+            - name: Restore the yarn cache
+              id: yarn-cache
+              uses: actions/cache/restore@v4
+              with:
+                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  key: ${{ runner.os }}-desktop-yarn-${{ hashFiles('yarn.lock') }}
+                  restore-keys: |
+                      ${{ runner.os }}-desktop-yarn-
 
             - run: yarn install --frozen-lockfile --ignore-scripts
               working-directory: .
+
+            - name: Save the yarn cache
+              if: ${{ github.event_name != 'pull_request' && steps.yarn-cache.outputs.cache-hit != 'true' }}
+              uses: actions/cache/save@v4
+              with:
+                  path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+                  key: ${{ steps.yarn-cache.outputs.cache-primary-key }}
 
             - run: npx nx run desktop-native:vectors-check
               working-directory: .
