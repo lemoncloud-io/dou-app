@@ -113,7 +113,11 @@ jobs:
             - name: run the bundled sidecar once
               if: runner.os == 'macOS'
               shell: bash
-              run: apps/desktop-tauri/target/release/bundle/macos/*.app/Contents/MacOS/dou-cli --help
+              run: |
+                  mnt="$(mktemp -d)"
+                  hdiutil attach -nobrowse -readonly -mountpoint "$mnt" apps/desktop-tauri/target/release/bundle/dmg/*.dmg
+                  "$mnt"/*.app/Contents/MacOS/dou-cli --help
+                  hdiutil detach -force "$mnt"
 
             - name: list the installer contents
               shell: bash
