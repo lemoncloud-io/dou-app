@@ -273,7 +273,9 @@ A downloaded ZIP replaces the remote web, so every step assumes the archive is h
 - **Channel-scoped settings stay off the bridge.** Custom UI and launch-at-login have their own IPC channels (and
   `electronAPI` entries) because the bridge vocabulary is shared with the phone, and a desktop-only setting must
   not bump the bridge version. Launch-at-login is read back from the OS rather than echoed: macOS 13+ can answer
-  `requires-approval` and leave it off.
+  `requires-approval` and leave it off. The rule and the contract live in
+  [`@chatic/host-desktop`](../../libs/host/desktop/README.md#launch-at-login); `src/main/loginItemIpc.ts` wires
+  them to the IPC.
 - **Dev channel isolation.** An unpackaged or dev-channel shell gets its own app name, `userData`, single-instance
   lock and deep-link scheme (`chatic-dev`), otherwise it collides with the installed app (the second instance
   quits silently, and OAuth hand-offs relaunch the production app instead of the one under test).

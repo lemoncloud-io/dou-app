@@ -1,7 +1,12 @@
 import { app, ipcMain } from 'electron';
+import {
+    createLoginItem,
+    LOGIN_ITEM_CHANNEL,
+    LOGIN_ITEM_UNSUPPORTED,
+    type LaunchAtLoginState,
+} from '@chatic/host-desktop';
+
 import { fromTrustedFrame } from './ipcSenderGate';
-import { createLoginItem, LOGIN_ITEM_UNSUPPORTED } from './loginItem';
-import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
 
 export const registerLoginItemIpc = (): void => {
     const loginItem = createLoginItem(app, process.platform);

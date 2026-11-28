@@ -2,5 +2,9 @@ export { createDownloadLog, createDownloadTargets, savesWithoutAsking } from './
 export type { DownloadLog, DownloadTargets } from './downloads';
 export { DOWNLOAD_DONE_CHANNEL, DOWNLOAD_REVEAL_CHANNEL } from './downloadsContract';
 export type { DownloadDone } from './downloadsContract';
+export { createLoginItem, LOGIN_ITEM_UNSUPPORTED } from './loginItem';
+export type { LoginItemController, LoginItemHost } from './loginItem';
+export { LOGIN_ITEM_CHANNEL } from './loginItemContract';
+export type { LaunchAtLoginState } from './loginItemContract';
 export { fetchUrlMetadata, isPrivateHost } from './unfurl';
 export type { UrlMetadataResult } from './unfurl';

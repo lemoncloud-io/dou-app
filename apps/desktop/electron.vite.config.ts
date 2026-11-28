@@ -9,6 +9,7 @@ const bridgesAlias = {
     '@chatic/bridge-messages': resolve(__dirname, '../../libs/bridge-messages/src/index.ts'),
     '@chatic/logger': resolve(__dirname, '../../libs/logger/src/index.ts'),
     '@chatic/host-desktop/downloadsContract': resolve(__dirname, '../../libs/host/desktop/src/downloadsContract.ts'),
+    '@chatic/host-desktop/loginItemContract': resolve(__dirname, '../../libs/host/desktop/src/loginItemContract.ts'),
     '@chatic/host-desktop': resolve(__dirname, '../../libs/host/desktop/src/index.ts'),
     '@chatic/mini-app-host': resolve(__dirname, '../../libs/mini-app/host/src/index.ts'),
     '@chatic/mini-app-protocol': resolve(__dirname, '../../libs/mini-app/protocol/src/index.ts'),
