@@ -108,12 +108,11 @@ dou-cli receives FCM and hands it to the shell over `shell.sock` ([dou-cli Push]
 
 - **Token:** `src-tauri/src/fcm.rs` holds the token in one slot that starts waiting when a sidecar was found and off when not. `push_token` fills it (`null` turns it off); a token that differs from the one held is pushed to the web as `OnFetchFcmToken`, the same token again is not. `FetchFcmToken` reads the slot ([bridge](../bridge/README.md#simple-handlers)). The log has the token length, never the token.
 - **A push:** `push_message` cuts the title to 200 and the body to 1000 characters and keeps only string `data` values. When the main window is visible, focused and not minimised, the push goes to the web as `OnReceiveNotification` with `{ notification: { title, body, data } }`, the shape the Electron shell sends, and the web shows its in-app banner. Otherwise the shell shows an OS notification with the same presenter `ShowNotification` uses; a push with no title shows nothing.
+- **A click:** the OS notification carries the room path, worked out the way the mobile app reads a push: `link`, then `clickAction`, then `deeplink`, the scheme stripped and `cid`, `sid` and `chatId` added from `data` when the path lacks them; a push with no link and type `cloud` opens `/?cid=…`. Only a path that starts with `/` and is at most 2048 characters is kept. `tauri-plugin-notification` reports the click through `on_action` (`tap`); the shell then shows the main window, or opens a new one when it was closed, and pushes `OnNavigate` with `{ path }`. A new main page load clears the bridge's ready flag, so `OnNavigate` waits for the page to listen again. Windows reports a click only while the toast is on screen, not from the Action Center. A debug run on macOS shows its notifications under the Terminal app, since the plugin uses that bundle id outside a built app.
 
 ## Tray and shortcut
 
 A tray icon (all platforms) has Open DoU, Open DoU Agent… and Quit; a left click opens the main window. The shortcut `CmdOrCtrl+Alt+D` shows the main window, or hides it when it is visible and focused. If another app already owns the shortcut, the app logs that and runs without it. Closing a window still closes it; when the main window is gone, the tray entry, a left click and the shortcut open a new one.
-
-Known limit: clicking an OS notification does not open the room. `tauri-plugin-notification` has no click callback on desktop, and a focus-after-notification guess would navigate on unrelated focus changes. A native callback (macOS `UNUserNotificationCenter`, Windows toast activation) is the follow-up.
 
 ## Updater and build values
 

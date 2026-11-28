@@ -186,7 +186,13 @@ impl Host for ShellHost {
                 crate::fcm::in_app_event(&push),
             ),
             Route::Os => {
-                if !crate::handlers::present_notification(&self.app, &push.title, &push.body) {
+                let path = crate::fcm::tap_path(&push.data, push.deeplink.as_deref());
+                if !crate::handlers::present_notification(
+                    &self.app,
+                    &push.title,
+                    &push.body,
+                    path.as_deref(),
+                ) {
                     logs::shell("a push was not shown: no title or the OS refused it");
                 }
             }

@@ -219,6 +219,7 @@ pub fn run() {
                 locate("pair"),
             )));
             handlers::listen_for_sign_in(app.handle());
+            handlers::listen_for_taps(app.handle());
             window::open_main(
                 app.handle(),
                 &resolved.web_url,
