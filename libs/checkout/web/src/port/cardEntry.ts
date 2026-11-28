@@ -1,4 +1,4 @@
-import type { Money, RegistrationOutcome } from '../types';
+import type { Money, RegistrationOutcome } from '@chatic/subscription';
 
 export interface CardEntryTerms {
     amount?: Money;

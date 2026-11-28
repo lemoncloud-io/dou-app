@@ -583,7 +583,7 @@ names the country and the currency and never a provider — the last boundary co
 - **The card dialog.** `CardEntryWindow`, mounted at the route root when the server port is in use, is
   where the dollar provider's field goes. The port asks for it through `cardEntry.ts`, a channel
   that names no provider; `stripeWindow.ts` fills the request in and is the one place
-  `@stripe/stripe-js` is imported (both in `@chatic/web-checkout`, the second behind its `windows` entry). Under the field the dialog states the recurring charge — the amount,
+  `@stripe/stripe-js` is imported (both in `@chatic/checkout-web`, the second behind its `windows` entry). Under the field the dialog states the recurring charge — the amount,
   when it first falls, monthly after, and how to cancel — and the card is registered (`confirmSetup`)
   only once that is ticked. A field to fix keeps the dialog open; a refused card ends it as a failed
   window and a 3-D Secure check not completed as a closed one (`stripeResult.ts`), so W-09 reads them as
@@ -632,8 +632,9 @@ gateway names the eight `/subscriptions/0/*` requests and declares their shapes,
 `SubscriptionRepository` (`fetchMembershipInfo`, `startSubscription`, `cancelSubscription`, …) is what
 `lib/port/http/runtime.ts` hands the port as its `SubscriptionApi`. The translation into the screens' view types, the rules around the calls and the provider windows
 (`paymentPort.ts`, `wire.ts`, `errors.ts`, `portOneWindow.ts`, `stripeWindow.ts`) live in
-[`@chatic/web-checkout`](../../libs/web-checkout/README.md), which the web app's shell-only checkout uses
-too. What stays in this app is sign-in (`createHttpPort.ts` adds `startSignIn`, `completeSignIn` and
+[`@chatic/checkout-web`](../../libs/checkout/web/README.md) and the rules in
+[`@chatic/subscription`](../../libs/subscription/README.md), both imported through `@chatic/web-checkout`, which the
+web app's shell-only checkout uses too. What stays in this app is sign-in (`createHttpPort.ts` adds `startSignIn`, `completeSignIn` and
 `signOut` to the library's port), the screens and their words.
 
 The subscription has no read of its own. The membership (`GET /memberships/0/mine`) carries the record
@@ -657,7 +658,7 @@ missed results first, so one read answers both the account and its subscription 
 - A store's record (`apple`, `google`) comes on the membership too, and is not the web subscription: a
   store-billed account reads as having none here (`webSubscriptionOf` in `wire.ts`).
 
-What the screens get from the server differs from the tests' fake server in a few places, all in `@chatic/web-checkout`'s `wire.ts`:
+What the screens get from the server differs from the tests' fake server in a few places, all in `@chatic/checkout-web`'s `wire.ts`:
 
 - The web products are `dou-web-tier-0N` on the server and `pro-tier-0N` on the screens, matched by tier.
 - The server keeps one subscription per account. A first payment it has not settled reads `pending`:

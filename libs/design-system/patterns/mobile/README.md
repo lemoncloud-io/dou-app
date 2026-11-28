@@ -1,20 +1,21 @@
 # @chatic/design-system-patterns-mobile
 
 The screen blocks of the mobile chat surface — headers, sheets and dialogs, viewers, list rows,
-sections, layouts, media pickers and editors, subscription cards, empty states. They compose the
-components package. It was `libs/web-ui-kit/src/composites`, except `chat`.
+sections, layouts, media pickers and editors, empty states. They compose the components package. It was
+`libs/web-ui-kit/src/composites`, except `chat` and `subscription`; the subscription cards are now
+[`@chatic/subscription-ui`](../../../subscription/ui/README.md), which this package's entry re-exports unchanged.
 
 `apps/web` does not import this package directly: it imports `@chatic/web-ui-kit`, which re-exports it
 unchanged.
 
-| Tags                                          | Depends on                                                                                      |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `layer:ui` `platform:web` `formfactor:mobile` | `@chatic/design-system-components-mobile`, `@chatic/ui-kit` and `@chatic/design-system-assets`. |
+| Tags                                          | Depends on                                                                                                                 |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `layer:ui` `platform:web` `formfactor:mobile` | `@chatic/design-system-components-mobile`, `@chatic/ui-kit`, `@chatic/design-system-assets` and `@chatic/subscription-ui`. |
 
 ## Layout
 
-`header` · `overlay` · `layout` · `navigation` · `section` · `list` · `feedback` · `subscription` ·
-`media`. `src/index.ts` re-exports the groups, plus `useSlidePresence`, `SLIDE_MOTION` and
+`header` · `overlay` · `layout` · `navigation` · `section` · `list` · `feedback` · `media`. `src/index.ts`
+re-exports the groups and `@chatic/subscription-ui`, plus `useSlidePresence`, `SLIDE_MOTION` and
 `SLIDE_FALLBACK_MS` from `overlay/slidePresence.ts`, which the chat package's `AttachPanel` uses.
 
 ## Rules

@@ -5,6 +5,6 @@ export * from './navigation';
 export * from './section';
 export * from './list';
 export * from './feedback';
-export * from './subscription';
+export * from '@chatic/subscription-ui';
 export * from './media';
 export { SLIDE_FALLBACK_MS, SLIDE_MOTION, useSlidePresence } from './overlay/slidePresence';

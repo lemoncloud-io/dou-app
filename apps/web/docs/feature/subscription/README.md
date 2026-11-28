@@ -273,8 +273,9 @@ Where the web sells — a browser tab, or a virtual shell that declares the web 
 picker with `/subscription/checkout` (`InAppCheckoutRoute` → `pages/inAppCheckout/InAppCheckoutPage`)
 instead of the website: a billing country, the plans, the payer fields the won provider needs, then a card
 window and the start of the subscription, on the app's own session. Managing a subscription ("manage on the
-web") still leaves for the website through `runtime.checkout.open`. The calls, the provider windows and the
-rules come from [`@chatic/web-checkout`](../../../../../libs/web-checkout/README.md), shared with the website;
+web") still leaves for the website through `runtime.checkout.open`. The calls and the provider windows come
+from [`@chatic/checkout-web`](../../../../../libs/checkout/web/README.md) and the rules from
+[`@chatic/subscription`](../../../../../libs/subscription/README.md), both through `@chatic/web-checkout` and shared with the website;
 the screen and its words are this app's. The server answers these calls for an account's main user only, so a
 guest or a paired device is told to sign in with Google. Leaving the screen re-reads the membership.
 

@@ -1,2 +1,1 @@
-export { portOneWindow } from './http/portOneWindow';
-export { createStripeWindow } from './http/stripeWindow';
+export { createStripeWindow, portOneWindow } from '@chatic/checkout-web/windows';

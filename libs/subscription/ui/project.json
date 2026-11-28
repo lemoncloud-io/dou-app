@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/subscription-ui",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/subscription/ui/src",
+    "projectType": "library",
+    "tags": ["layer:ui", "platform:web", "formfactor:mobile"],
+    "targets": {}
+}

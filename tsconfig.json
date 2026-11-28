@@ -124,6 +124,15 @@
             "path": "./libs/checkout/store"
         },
         {
+            "path": "./libs/checkout/web"
+        },
+        {
+            "path": "./libs/subscription"
+        },
+        {
+            "path": "./libs/subscription/ui"
+        },
+        {
             "path": "./libs/push/desktop"
         },
         {

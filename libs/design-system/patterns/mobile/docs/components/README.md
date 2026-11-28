@@ -10,4 +10,6 @@ file per area. The rules every component follows are kept once, in
 | [overlay](./overlay.md)                       | Bottom sheet, dialogs, viewers, slide and drag helpers                         |
 | [shell](./shell.md)                           | Headers, bottom navigation, tabs, screen layout, pull to refresh, empty states |
 | [lists-and-sections](./lists-and-sections.md) | Rows, swipe actions, section headers, collapsible sections                     |
-| [subscription](./subscription.md)             | Plan cards, status banner, key/value tables                                    |
+
+The subscription cards moved to [`@chatic/subscription-ui`](../../../../../subscription/ui/docs/components/README.md);
+this package re-exports them.

@@ -17,6 +17,7 @@ const config: StorybookConfig = {
         '../../design-system/components/mobile/src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))',
         '../../design-system/patterns/mobile/src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))',
         '../../design-system/chat/mobile/src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))',
+        '../../subscription/ui/src/**/*.@(mdx|stories.@(js|jsx|ts|tsx))',
     ],
     addons: [],
     framework: {

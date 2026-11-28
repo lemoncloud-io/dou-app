@@ -8,6 +8,7 @@ module.exports = {
         '^@chatic/design-system-(components|patterns|chat)-mobile$':
             '<rootDir>/../../../../libs/design-system/$1/mobile/src/index.ts',
         '^@chatic/design-system-(.*)$': '<rootDir>/../../../../libs/design-system/$1/src/index.ts',
+        '^@chatic/subscription-ui$': '<rootDir>/../../../../libs/subscription/ui/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../../../libs/$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/src/__mocks__/styleMock.js',
         '\\.(png|jpe?g|gif|svg|webp)$': '<rootDir>/src/__mocks__/fileMock.js',
