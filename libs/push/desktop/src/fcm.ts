@@ -1,7 +1,4 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-
-import { app, powerMonitor, powerSaveBlocker } from 'electron';
 
 import { AndroidFCM, Client, type PushReceiverMessage } from '@liamcottle/push-receiver';
 
@@ -15,6 +12,13 @@ export interface FcmConfig {
     packageName: string;
 }
 
+export interface PushHost {
+    credentialsPath: string;
+    onWake?(reconnect: () => void): void;
+    onFocus?(reconnect: () => void): void;
+    keepAwake?(): void;
+}
+
 export interface FcmPush {
     title?: string;
     body?: string;
@@ -26,20 +30,17 @@ const RECONNECT_MS = 5_000;
 const WATCHDOG_MS = 3 * 60 * 1_000;
 const FOCUS_RECONNECT_THROTTLE_MS = 30_000;
 const REMINT_MS = 12 * 60 * 60 * 1_000;
-const credsFile = (): string => join(app.getPath('userData'), 'chatic-fcm.json');
-
-const loadCreds = (): SavedCreds | null => {
+const loadCreds = (path: string): SavedCreds | null => {
     try {
-        const f = credsFile();
-        return existsSync(f) ? parseSavedCreds(readFileSync(f, 'utf8')) : null;
+        return existsSync(path) ? parseSavedCreds(readFileSync(path, 'utf8')) : null;
     } catch {
         return null;
     }
 };
 
-const saveCreds = (creds: SavedCreds): void => {
+const saveCreds = (path: string, creds: SavedCreds): void => {
     try {
-        writeFileSync(credsFile(), JSON.stringify(creds));
+        writeFileSync(path, JSON.stringify(creds));
     } catch {
         return;
     }
@@ -126,17 +127,19 @@ let started = false;
 
 export const startFcm = async (
     config: FcmConfig,
-    handlers: { onToken: (token: string) => void; onPush: (push: FcmPush) => void }
+    handlers: { onToken: (token: string) => void; onPush: (push: FcmPush) => void },
+    host: PushHost
 ): Promise<void> => {
     if (!config.apiKey || !config.senderId || !config.appId) return;
     if (started) return;
     started = true;
 
-    powerSaveBlocker.start('prevent-app-suspension');
+    host.keepAwake?.();
 
-    const session = await obtainCreds(config, loadCreds());
+    const save = (creds: SavedCreds): void => saveCreds(host.credentialsPath, creds);
+    const session = await obtainCreds(config, loadCreds(host.credentialsPath));
     if (!session) return;
-    saveCreds(session);
+    save(session);
 
     handlers.onToken(session.token);
 
@@ -162,7 +165,7 @@ export const startFcm = async (
             if (client !== c) return;
             if (message.persistentId) {
                 session.persistentIds = appendPersistentId(session.persistentIds, message.persistentId);
-                saveCreds(session);
+                save(session);
             }
             const data = appDataToObject(message.appData);
             const payload = parseJsonObject(data.payload);
@@ -194,10 +197,8 @@ export const startFcm = async (
 
     connect();
 
-    powerMonitor.on('resume', connect);
-    powerMonitor.on('unlock-screen', connect);
-
-    app.on('browser-window-focus', () => {
+    host.onWake?.(connect);
+    host.onFocus?.(() => {
         if (Date.now() - lastConnectAt >= FOCUS_RECONNECT_THROTTLE_MS) connect();
     });
 
@@ -214,7 +215,7 @@ export const startFcm = async (
             session.androidId = next.androidId;
             session.securityToken = next.securityToken;
             if (next.token) session.token = next.token;
-            saveCreds(session);
+            save(session);
             if (tokenChanged) handlers.onToken(session.token);
             if (identityChanged) connect();
         } catch (error) {
