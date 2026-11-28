@@ -10,8 +10,9 @@ const USAGE = `Usage: yarn mobile:release <command>
   dev [all|ios|android] --notes "<store notes>" | --notes-file <file> [--team-notes-file <file>]
       [--bump auto|major|minor|patch] [--version X.Y.Z] [--build N] [--dry-run]
   dev [all|ios|android] --tag <mobile-v tag> [--dry-run]   upload the platforms that tag is missing
-  prod                      not available yet
-  finish <mobile-v tag> [--team-notes-file <file>]
+  prod [all|ios|android] --tag <mobile-v tag> [--notes "<store notes>"] [--dry-run]
+      ship a build that reached the dev app to the prod apps; cuts release/mobile-<major>.<minor>
+  finish <mobile-v tag> [--env prod --results ios=uploaded,...] [--team-notes-file <file>]
   status
   check-notes <store-notes-file>
   ios-version --version X.Y.Z --build N
@@ -68,6 +69,29 @@ function retryInfo(argv) {
     );
 }
 
+async function prodInfo(argv) {
+    const release = require('./release');
+    const options = flags(argv);
+    const target = await release.prodTarget(options._[0], options.platform, release.defaultDeps);
+    const checks = release.prodChecks(target);
+    console.error(release.formatChecks(checks));
+    if (target.wanted.length === 0) throw new Error(`${target.tag} already shipped every requested platform to prod`);
+    const failed = checks.filter(item => !item.ok);
+    if (failed.length > 0) throw new Error(`Prod checks failed: ${failed.map(item => item.name).join(', ')}`);
+    console.log(
+        JSON.stringify({
+            tag: target.tag,
+            version: target.version,
+            build: target.build,
+            sha: target.sha,
+            platforms: target.wanted,
+            branch: target.branch,
+            branchExists: target.branchExists,
+            previous: require('./store').formatResults(target.prodResults),
+        })
+    );
+}
+
 function results(argv) {
     const store = require('./store');
     const options = flags(argv);
@@ -96,6 +120,7 @@ async function run(argv) {
     if (command === 'check-notes') return checkNotes(rest[0]);
     if (command === 'store-build') return storeBuild(rest);
     if (command === 'retry-info') return retryInfo(rest);
+    if (command === 'prod-info') return prodInfo(rest);
     if (command === 'results') return results(rest);
     console.log(USAGE);
     if (command && command !== 'help' && command !== '--help') process.exitCode = 1;

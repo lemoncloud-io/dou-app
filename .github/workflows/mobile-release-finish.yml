@@ -8,7 +8,7 @@ on:
                 type: string
                 required: true
             env:
-                description: 'dev or prod; empty reads it from the tag message'
+                description: 'dev or prod; empty means dev (the tag records the dev upload)'
                 type: string
                 required: false
             platform:
@@ -123,6 +123,7 @@ jobs:
                   URL: ${{ steps.finish.outputs.url }}
                   F_ENV: ${{ steps.finish.outputs.env }}
                   F_RESULTS: ${{ steps.finish.outputs.results }}
+                  F_BRANCH: ${{ steps.finish.outputs.branch }}
                   RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
               run: |
                   set -euo pipefail
@@ -130,7 +131,12 @@ jobs:
                   TARGET_ENV=${F_ENV:-$(printf '%s\n' "$MESSAGE" | sed -n 's/^env: //p' | head -1)}
                   RESULTS=${F_RESULTS:-$(printf '%s\n' "$MESSAGE" | sed -n 's/^results: //p' | head -1)}
                   VERSION=$(printf '%s' "$TAG" | sed -E 's/^mobile-v([0-9.]+)-([0-9]+)$/\1 (\2)/')
+                  BRANCH=${F_BRANCH:-$(printf '%s\n' "$MESSAGE" | sed -n 's/^branch: //p' | head -1)}
                   LABEL="DoU 모바일 ${TARGET_ENV:-?} $VERSION"
+                  [ "${TARGET_ENV:-}" = "prod" ] && LABEL="$LABEL [prod]"
+                  case "${BRANCH:-develop}" in release/mobile-*) LABEL="$LABEL (릴리스 브랜치 빌드: $BRANCH)" ;; esac
+                  RETRY_CMD="yarn mobile:release dev --tag $TAG"
+                  [ "${TARGET_ENV:-}" = "prod" ] && RETRY_CMD="yarn mobile:release prod <platform> --tag $TAG"
                   count() { printf '%s' "$RESULTS" | tr ',' '\n' | grep -cE "=[[:space:]]*($1)[[:space:]]*$" || true; }
                   NOT_UPLOADED=$(count 'failed|skipped')
                   INCOMPLETE=$(count incomplete)
@@ -140,7 +146,7 @@ jobs:
                   elif [ "$RESULT" = "success" ]; then
                     if [ "$NOT_UPLOADED" != "0" ]; then
                       STATUS=failure; TITLE="$LABEL 일부만 업로드"
-                      BODY="• 결과: ${RESULTS:-?}"$'\n'"• 빠진 플랫폼: yarn mobile:release dev --tag $TAG"$'\n'"• 릴리스: $URL"
+                      BODY="• 결과: ${RESULTS:-?}"$'\n'"• 빠진 플랫폼: $RETRY_CMD"$'\n'"• 릴리스: $URL"
                     elif [ "$INCOMPLETE" != "0" ]; then
                       STATUS=failure; TITLE="$LABEL 업로드 완료, 확인 필요"
                       BODY="• 결과: ${RESULTS:-?}"$'\n'"• incomplete: 스토어에는 올라갔지만 레인이 그 뒤에 실패. 스토어 노트를 확인하세요"$'\n'"• 릴리스: $URL"
@@ -151,7 +157,9 @@ jobs:
                     if [ -f "$RUNNER_TEMP/card-notes.md" ]; then BODY="$BODY"$'\n\n'"$(cat "$RUNNER_TEMP/card-notes.md")"; fi
                   else
                     STATUS=failure; TITLE="$LABEL 마무리 실패"
-                    BODY="• 업로드와 태그는 끝남. 릴리스 · PR 댓글이 실패"$'\n'"• 다시: yarn mobile:release finish $TAG"$'\n'"• 로그: $RUN_URL"
+                    FINISH_CMD="yarn mobile:release finish $TAG"
+                    [ "${TARGET_ENV:-}" = "prod" ] && FINISH_CMD="$FINISH_CMD --env prod --results ${RESULTS:-<results>}"
+                    BODY="• 업로드는 끝남. 릴리스 · PR 댓글이 실패"$'\n'"• 다시: $FINISH_CMD"$'\n'"• 로그: $RUN_URL"
                   fi
                   {
                     echo "status=$STATUS"

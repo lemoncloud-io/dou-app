@@ -2,6 +2,17 @@ const TAG_PREFIX = 'mobile-v';
 const TAG = /^mobile-v(\d+\.\d+\.\d+)-(\d+)$/;
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const UNITS = ['major', 'minor', 'patch'];
+const RELEASE_BRANCH = /^release\/mobile-(\d+)\.(\d+)$/;
+
+function releaseBranchFor(version) {
+    const [major, minor] = version.split('.');
+    return `release/mobile-${major}.${minor}`;
+}
+
+function parseReleaseBranch(name) {
+    const match = RELEASE_BRANCH.exec(name || '');
+    return match ? { name, major: Number(match[1]), minor: Number(match[2]) } : null;
+}
 
 function parseTag(name) {
     const match = TAG.exec(name || '');
@@ -72,6 +83,8 @@ function resolveVersion({ base, unit, devTags = [], requested }) {
 module.exports = {
     TAG_PREFIX,
     UNITS,
+    releaseBranchFor,
+    parseReleaseBranch,
     parseTag,
     tagName,
     compareVersions,
