@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import { useCustomMutation } from '@chatic/shared';
+import { useCustomMutation } from '../../../reactUtils/hooks/useCustomMutation';
 import { verifyAlias } from '@chatic/runtime-client';
 import type { VerifyAliasBody, VerifyAliasView } from '@chatic/runtime-client';
 import type { AxiosError } from 'axios';

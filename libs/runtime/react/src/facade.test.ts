@@ -22,6 +22,7 @@ const BARRELS = [
     'data/index.ts',
     'socket/sync/index.ts',
     'push/index.ts',
+    'reactUtils/index.ts',
 ];
 
 const nonReexports = (file: string): string[] => {

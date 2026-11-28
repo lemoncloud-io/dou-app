@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/preferences",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/features/preferences/src",
+    "projectType": "library",
+    "tags": ["layer:feature", "platform:any", "formfactor:any"],
+    "targets": {}
+}

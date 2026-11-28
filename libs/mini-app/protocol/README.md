@@ -31,7 +31,7 @@ the page manifest) are in [`@chatic/mini-app-host`](../host/README.md).
   `/apps/<appId>?…`, and the web to read that path; mobile also builds a page's `appLink` with it. It
   maps no id to a page — that is the web's list, and later the server's — and reads the
   `/sub-webview?url=…` path older apps hand over. It parses by hand, not with `URL`, for the reason the invite decoder in
-  [`@chatic/shared`](../../shared/README.md) gives about React Native, whose query parser throws on a
+  [`@chatic/format`](../../foundation/format/README.md) gives about React Native, whose query parser throws on a
   malformed `%` escape.
 
 - **`subWebViewTrust.ts` is the only place that decides what a sub WebView opens**, and how far

@@ -10,6 +10,11 @@
             "import": "./src/index.ts",
             "default": "./src/index.ts"
         },
+        "./react-utils": {
+            "types": "./src/reactUtils/index.ts",
+            "import": "./src/reactUtils/index.ts",
+            "default": "./src/reactUtils/index.ts"
+        },
         "./testing": {
             "types": "./src/testing/index.ts",
             "import": "./src/testing/index.ts",

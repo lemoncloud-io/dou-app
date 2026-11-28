@@ -19,7 +19,7 @@ jest.mock('@chatic/data', () => ({
     ...jest.requireActual('@chatic/data'),
     sendImageMessage: (...args: unknown[]) => mockSendImageMessage(...args),
 }));
-jest.mock('@chatic/shared', () => ({ prepareChatAttachment: jest.fn(), makeVideoPoster: jest.fn() }));
+jest.mock('@chatic/host-web-browser', () => ({ prepareChatAttachment: jest.fn(), makeVideoPoster: jest.fn() }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn() } }));
 
 const chat = {

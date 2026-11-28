@@ -32,9 +32,6 @@
             "path": "../../logger/tsconfig.lib.json"
         },
         {
-            "path": "../../shared/tsconfig.lib.json"
-        },
-        {
             "path": "../../bridge-messages/tsconfig.lib.json"
         },
         {
@@ -57,6 +54,9 @@
         },
         {
             "path": "../../perf/tsconfig.lib.json"
+        },
+        {
+            "path": "../../host/web/browser/tsconfig.lib.json"
         }
     ]
 }

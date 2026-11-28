@@ -8,7 +8,7 @@ import { useVerifyAlias } from './useVerifyAlias';
 jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@chatic/shared', () => ({
+jest.mock('../../../reactUtils/hooks/useCustomMutation', () => ({
     useCustomMutation: (mutationFn: unknown) => mutationFn,
 }));
 jest.mock('@chatic/runtime-client/session/authLookups', () => ({

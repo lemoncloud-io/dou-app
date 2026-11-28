@@ -526,7 +526,7 @@
     "libs/session/src/store/identityStore.ts": {"type:IIdentityStore":1},
     "libs/session/src/store/ports/index.ts": {"export:PAIRED_CLOUDS_KEY":1,"export:PAIRED_CLOUD_NAMES_KEY":1,"type:PortName":1},
     "libs/session/src/store/relayStore.ts": {"type:IRelayStore":1},
-    "libs/shared/src/hooks/waitForDestination.ts": {"export:DESTINATION_WAIT_CAP_MS":1,"type:WaitForDestinationOptions":1},
+    "libs/runtime/react/src/reactUtils/hooks/waitForDestination.ts": {"export:DESTINATION_WAIT_CAP_MS":1,"type:WaitForDestinationOptions":1},
     "libs/transport/src/http/HttpManager.ts": {"export:API_REQUEST_SAMPLES_PER_MINUTE":1,"export:onAuthFailure":1},
     "libs/transport/src/socket/socketFailureReporter.ts": {"type:ISocketFailureReporter":1,"type:SocketFailureClass":1},
     "libs/ui-kit/eslint.config.mjs": {"file":1},

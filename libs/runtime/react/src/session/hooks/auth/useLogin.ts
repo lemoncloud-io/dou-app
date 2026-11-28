@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useCustomMutation } from '@chatic/shared';
+import { useCustomMutation } from '../../../reactUtils/hooks/useCustomMutation';
 import type { SessionAccountView } from '@chatic/runtime-client';
 import { loginMutation } from '@chatic/runtime/api/session';
 import type { LoginVariables } from '@chatic/runtime/api/session';

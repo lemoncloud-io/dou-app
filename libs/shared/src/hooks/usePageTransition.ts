@@ -6,7 +6,8 @@ import type { NavigateWithTransitionFn } from '@lemoncloud/react-page-transition
 
 import { hostProfile } from '@chatic/bridges';
 
-import { waitForDestination } from './waitForDestination';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- waitForDestination moved to runtime-react, which is not buildable; this hook stays here until its owner is decided
+import { waitForDestination } from '@chatic/runtime-react/react-utils';
 
 const getPageTransitionPlatform = (platform: string | undefined): PlatformType | undefined => {
     switch (platform) {

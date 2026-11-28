@@ -51,8 +51,15 @@ The request and result types (`ImageRequest`, `ImageResult`, `CompressProfile`) 
 
 How the image code decides what it does — one function with the destination's policy, `'inline'` always
 compressed, the original kept at full size, a GIF never redrawn, EXIF read through `<img>`, the poster's
-seek and settle — is written up in the [shared README](../../../shared/README.md#5-uploading-a-picture),
+seek and settle — is written up in the [shared README](../../../shared/README.md#uploading-a-picture),
 where its callers look for it.
+
+## Store links
+
+`STORE_URLS` (the App Store and Google Play listings of the phone app) and `getStoreUrl(platform)`, which
+returns the listing for `'ios'` or `'android'` and `undefined` for anything else. desktop-web points users to
+the phone app with them, and the phone shell's update prompt opens them. They came from `@chatic/shared`,
+which still re-exports them, so `apps/mobile` and `@chatic/host-mobile` keep reaching them through it.
 
 ## Rules
 

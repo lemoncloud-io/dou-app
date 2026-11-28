@@ -19,7 +19,7 @@ jest.mock('@lemoncloud/page-transition-core', () => ({
 
 const landed = Promise.resolve();
 const waitForDestination = jest.fn((_options: { traversal: boolean }) => landed);
-jest.mock('./waitForDestination', () => ({
+jest.mock('@chatic/runtime-react/react-utils', () => ({
     waitForDestination: (options: { traversal: boolean }) => waitForDestination(options),
 }));
 

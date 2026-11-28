@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 
 import type { ChatAttachmentSource, DomainChat, SendImagePorts, SendImageResult, ShellFileRef } from '@chatic/data';
 
-import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- the image code moved to host-web-browser; this hook read it through @chatic/shared, which now re-exports runtime-react, until the media port's images capability replaces the direct call
+import { makeVideoPoster, prepareChatAttachment } from '@chatic/host-web-browser';
 
 import { getCloudRepositories } from '@chatic/runtime-core';
 import { beginMediaSendTiming } from '@chatic/runtime-core';
@@ -27,7 +28,7 @@ jest.mock('@chatic/data', () => ({
     sendImageMessage: (...args: unknown[]) => mockSendImageMessage(...args),
 }));
 
-jest.mock('@chatic/shared', () => ({ prepareChatAttachment: jest.fn(), makeVideoPoster: jest.fn() }));
+jest.mock('@chatic/host-web-browser', () => ({ prepareChatAttachment: jest.fn(), makeVideoPoster: jest.fn() }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn() } }));
 
 const put = jest.fn();

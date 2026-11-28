@@ -31,6 +31,13 @@ documented with the headless package, in [`libs/runtime/docs/`](../docs/).
 `@chatic/runtime-react/testing` is the headless fake built over this facade (`fakeRuntimeOf`), so a mocked
 group keeps its real hooks.
 
+`@chatic/runtime-react/react-utils` is a separate entry for generic React utilities that came from
+`@chatic/shared` (which still re-exports them): `useCustomMutation`, `useDebounce`, `useInterval`,
+`useGlobalLoader` with its `useLoaderStore`, `useVersionCheck`, and `waitForDestination`. They know nothing
+about the runtime, so they are not part of the facade or of `public-surface.test.ts`, and the "two apps or
+more" rule below is about the facade's domain hooks, not these. The session and data hooks import
+`useCustomMutation` from `src/reactUtils/` by relative path.
+
 A test mocks the package the app imports:
 
 ```ts
@@ -48,11 +55,12 @@ jest.mock('@chatic/runtime-react', () =>
 - **Two apps or more.** A hook belongs here when two or more apps use it; a hook or screen state one app
   uses stays in that app.
 - **Tags.** `layer:binding`, `platform:web`, `formfactor:any`. The platform is `web` while what this package
-  re-exports still reaches `@chatic/shared` and the DOM; it becomes `platform:any` when those leave.
+  re-exports still reaches the DOM (`@chatic/host-web-browser`'s image code, `useVersionCheck`'s `fetch` of
+  `/version.json`); it becomes `platform:any` when those leave.
 - **Mock what the app imports.** A test mocks `@chatic/runtime-react`, never `@chatic/runtime`: once the
   hooks live here, a mock of the headless package would leave them real. Lint bans the import, not the mock.
 - **Resolution.** The package sits at `libs/runtime/react`, one folder deeper than the jest catch-all
   `^@chatic/(.*)$` assumes, so a jest config that maps that catch-all lists `@chatic/runtime-react` and its
-  `/testing` before it, as `apps/web`'s does — and `^@chatic/runtime/(.*)$` too, since the group barrels
+  `/testing` and `/react-utils` before it, as `apps/web`'s does — and `^@chatic/runtime/(.*)$` too, since the group barrels
   re-export the headless package's subpaths (`@chatic/runtime/session`, …) that the catch-all would send to a
   folder that does not exist. Vite and vitest resolve them through the tsconfig paths.

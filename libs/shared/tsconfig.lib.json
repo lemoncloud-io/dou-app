@@ -16,10 +16,16 @@
             "path": "../mini-app/protocol/tsconfig.lib.json"
         },
         {
-            "path": "../config/tsconfig.lib.json"
+            "path": "../bridges/tsconfig.lib.json"
         },
         {
-            "path": "../bridges/tsconfig.lib.json"
+            "path": "../foundation/format/tsconfig.lib.json"
+        },
+        {
+            "path": "../features/preferences/tsconfig.lib.json"
+        },
+        {
+            "path": "../runtime/react/tsconfig.lib.json"
         },
         {
             "path": "../ui-kit/tsconfig.lib.json"

@@ -8,6 +8,10 @@ module.exports = {
         '^@chatic/storage-(compose|memory|web-local|web-session|vault-bridge)$': '<rootDir>/../storage/$1/src/index.ts',
         '^@chatic/mini-app-(protocol|host)$': '<rootDir>/../mini-app/$1/src/index.ts',
         '^@chatic/bridge-(client|host)$': '<rootDir>/../bridge/$1/src/index.ts',
+        '^@chatic/format/phone$': '<rootDir>/../foundation/format/src/phoneNumber.ts',
+        '^@chatic/format$': '<rootDir>/../foundation/format/src/index.ts',
+        '^@chatic/preferences$': '<rootDir>/../features/preferences/src/index.ts',
+        '^@chatic/runtime-react/react-utils$': '<rootDir>/../runtime/react/src/reactUtils/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
     },
     transform: {
