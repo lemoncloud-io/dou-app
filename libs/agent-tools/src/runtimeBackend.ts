@@ -61,10 +61,8 @@ export interface RuntimeRepositories {
         fetchList(query: Record<string, never>): Promise<{ list: RuntimeChannel[] }>;
     };
     user: {
-        listPlaceMembers(query: {
-            placeId: string;
-            sessionPlaceId: string | null;
-        }): Promise<{ members: RuntimeMember[] }>;
+        refreshList(query: { channelId: string }): Promise<unknown>;
+        cacheReadList(query: { channelId: string }): Promise<{ list: RuntimeMember[] } | null>;
     };
 }
 
@@ -173,12 +171,13 @@ export const runtimeBackend = (runtime: RuntimeSurface): AgentBackend => {
             return { hits, localOnly: true };
         },
         async members(channelId): Promise<AgentMember[]> {
-            const server = runtime.session.getActiveServerContext();
             const room = (await rooms()).find(item => item.id === channelId);
-            const placeId = server.siteId ?? '';
-            const result = await repositories().user.listPlaceMembers({ placeId, sessionPlaceId: server.siteId });
-            const byId = new Map(result.members.map(member => [member.id, member]));
-            return (room?.memberIds ?? []).map(userId => ({
+            if (!room) return [];
+            const user = repositories().user;
+            await user.refreshList({ channelId });
+            const roster = await user.cacheReadList({ channelId });
+            const byId = new Map((roster?.list ?? []).map(member => [member.id, member]));
+            return room.memberIds.map(userId => ({
                 userId,
                 name: byId.get(userId)?.name ?? byId.get(userId)?.nick ?? '',
                 role: 'member',

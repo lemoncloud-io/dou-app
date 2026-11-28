@@ -32,9 +32,11 @@ const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[]; se
         reactions: [] as unknown[],
         refreshed: [] as unknown[],
         cids: [] as string[],
+        rosters: [] as unknown[],
     };
     let observer: ((result: RuntimeLastChat[]) => void) | undefined;
     let unobserved = 0;
+    let roster: Array<{ id: string; name?: string; nick?: string }> = [];
     let cacheRead = async (id: string): Promise<RuntimeChat | null> =>
         (options.chats ?? []).find(item => item.id === id) ?? null;
     const repositories = {
@@ -58,12 +60,14 @@ const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[]; se
         },
         channel: { fetchList: async () => ({ list: options.channels ?? [channel()] }) },
         user: {
-            listPlaceMembers: async () => ({
-                members: [
+            refreshList: async (query: unknown) => {
+                calls.rosters.push(query);
+                roster = [
                     { id: 'u1', name: 'Me' },
                     { id: 'u2', nick: 'Mina' },
-                ],
-            }),
+                ];
+            },
+            cacheReadList: async () => ({ list: roster }),
         },
     };
     const surface: RuntimeSurface = {
@@ -153,12 +157,24 @@ describe('runtimeBackend', () => {
         expect(result.relayError).toBeUndefined();
     });
 
-    it('names members from the place member list', async () => {
-        const { backend } = build();
+    it('names members from the refreshed room roster', async () => {
+        const { backend, calls } = build();
         expect(await backend.members('r1')).toEqual([
             { userId: 'u1', name: 'Me', role: 'member', left: false },
             { userId: 'u2', name: 'Mina', role: 'member', left: false },
         ]);
+        expect(calls.rosters).toEqual([{ channelId: 'r1' }]);
+    });
+
+    it('lists the members of a relay room that has no place', async () => {
+        const { backend } = build({ server: { kind: 'relay', siteId: null } });
+        expect((await backend.members('r1')).map(member => member.name)).toEqual(['Me', 'Mina']);
+    });
+
+    it('answers no members for a room it does not list, without asking for a roster', async () => {
+        const { backend, calls } = build();
+        expect(await backend.members('elsewhere')).toEqual([]);
+        expect(calls.rosters).toEqual([]);
     });
 
     it('emits only new messages from others after the first observation', async () => {
