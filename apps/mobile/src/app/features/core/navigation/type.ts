@@ -1,5 +1,4 @@
-// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; the sub-webview trust rules move to a platform-free mini-app protocol package
-import type { SubWebViewTrust } from '@chatic/shared/subWebViewTrust';
+import type { SubWebViewTrust } from '@chatic/mini-app-protocol';
 
 export type RootStackParamList = {
     Main: undefined;

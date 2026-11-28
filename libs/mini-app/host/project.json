@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/mini-app-host",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/mini-app/host/src",
+    "projectType": "library",
+    "tags": ["layer:core-lib", "platform:any", "formfactor:any"],
+    "targets": {}
+}

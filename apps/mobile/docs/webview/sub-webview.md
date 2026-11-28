@@ -63,14 +63,14 @@ and what the page's manifest permits (below):
 
 **The page's manifest decides the gated four** (and the runtime reads, below). Before it loads a hub or reviewed page, the screen
 reads `/.well-known/chatic-app.json` from the opened origin — never from an `external` site, which
-always gets the base set and the bar (see [Where it may go](#where-it-may-go)) (`subWebViewManifest.ts`). Each permission it
+always gets the base set and the bar (see [Where it may go](#where-it-may-go)) (`subWebViewManifest.ts` in [`@chatic/mini-app-host`](../../../../libs/mini-app/host/README.md)). Each permission it
 declares — `clipboard`, `share`, `openUrl`, `userKey` — adds one request; without a manifest, or with
 one the shell cannot read, the page gets the base set only, and `permittedSubBridgeHandlers` leaves
 the rest unregistered, so they answer `NOT_FOUND` as an older app would. The manifest also names the
 page, and sets its display (`titled` asks for the bar; the default, `clean`, has none; `immersive` is
 `clean` without the safe-area padding, see below) and orientation. The display names say what the user
 sees; the first apps called `titled` `standard` and `clean` `fullscreen`, and those names are still read
-(`subWebViewDisplayOf` in `@chatic/shared`, which the desktop reads with too). It is fetched with a
+(`subWebViewDisplayOf` in [`@chatic/mini-app-protocol`](../../../../libs/mini-app/protocol/README.md), which the desktop reads with too). It is fetched with a
 3-second limit, kept in memory per origin for the run of the app, and refreshed behind each later
 open; failures fall back to the defaults and are logged. The strict default is deliberate: pages
 are written by people outside the app's team, who submit a bundle and ask for permissions in its
@@ -353,7 +353,7 @@ Lab says: the allowlist and the review are the gate, not where the link came fro
 ## Where it may go
 
 **A sub WebView opens any plain https site, in one of three tiers**, decided by the rule both shells
-and both webs share (`libs/shared` `subWebViewTrust.ts`, `subWebViewTrustOf`).
+and both webs share (`@chatic/mini-app-protocol` `subWebViewTrust.ts`, `subWebViewTrustOf`).
 `SubWebViewService.open` records the tier on the view, and the screen shows each one differently:
 
 | Tier         | What                                                                      | Manifest          | Bar                                    |
@@ -363,7 +363,7 @@ and both webs share (`libs/shared` `subWebViewTrust.ts`, `subWebViewTrustOf`).
 | `external`   | Any other plain https site — a link a cloud's owner saved                 | **never fetched** | **always shown, titled with the host** |
 
 The `reviewed` tier is what this shell's allowlist always was (`SUB_WEBVIEW_DOMAINS`,
-`isAllowedSubWebViewUrl` in `services/subWebView/subWebViewAllowlist.ts`, now a delegate of the shared
+`isAllowedSubWebViewUrl` in `@chatic/mini-app-host`, now a delegate of the shared
 rule). The app's review pipeline is the only thing that deploys there, so the pattern means "a
 reviewed page", and a new page needs a deploy rather than an app release.
 
@@ -548,7 +548,7 @@ an import the other way ties the main WebView to a screen it should only know th
 | File                                                   | Role                                                                    |
 | ------------------------------------------------------ | ----------------------------------------------------------------------- |
 | `src/app/services/subWebView/SubWebViewService.ts`     | Validates, records the view, reports opened/closed                      |
-| `src/app/services/subWebView/subWebViewAllowlist.ts`   | `SUB_WEBVIEW_DOMAINS`, `isAllowedSubWebViewUrl` (the `reviewed` tier)   |
+| `libs/mini-app/host/src/subWebViewAllowlist.ts`        | `SUB_WEBVIEW_DOMAINS`, `isAllowedSubWebViewUrl` (the `reviewed` tier)   |
 | `src/app/webview/hooks/subWebViewHandlers.ts`          | `OpenSubWebView` / `CloseSubWebView`, and the `OnSubWebViewClosed` push |
 | `src/app/subWebView/SubWebView.tsx`                    | The second WebView: its context, its host, the origin check             |
 | `src/app/subWebView/createSubBridgeHost.ts`            | The sub WebView's own `AppBridgeHost`, with the subset only             |
@@ -565,10 +565,10 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/useSubWebViewBack.ts`              | Android back: the page's claim, then history, then close                |
 | `src/app/subWebView/chaticAppsSdk.contract.test.ts`    | `chatic-apps-sdk` run against this host and its handlers                |
 | `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticSubWebView`, for the opened origin only                   |
-| `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data, 64 KiB message and 100-character title limits          |
-| `src/app/services/subWebView/subWebViewManifest.ts`    | Reads, checks and caches a page's manifest                              |
+| `libs/mini-app/protocol/src/subWebViewTrust.ts`        | The 16 KiB data, 64 KiB message and 100-character title limits          |
+| `libs/mini-app/host/src/subWebViewManifest.ts`         | Reads, checks and caches a page's manifest                              |
 | `libs/host/mobile/src/deeplinks/deeplinkUtils.ts`      | Checks a page's app link and hands it to the web as `/apps/<appId>?…`   |
-| `libs/shared/src/utils/subWebViewLink.ts`              | Reads a page link and builds `appLink` — shared with web and landing    |
+| `libs/mini-app/protocol/src/subWebViewLink.ts`         | Reads a page link and builds `appLink` — shared with web and landing    |
 | `src/app/subWebView/subWebViewNavigation.ts`           | Load, hand to the OS, or drop                                           |
 | `src/app/features/subWebView/SubWebViewScreen.tsx`     | The manifest, then the bar or the floating close control, orientation   |
 | `src/app/features/subWebView/routeSubWebViewEvents.ts` | Navigates to the screen and back as the service reports                 |

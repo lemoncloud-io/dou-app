@@ -4,17 +4,19 @@ import type {
     SubWebViewPermission,
     SubWebViewRuntimePermission,
 } from '@chatic/bridge-messages';
-// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; the sub-webview trust rules move to a platform-free mini-app protocol package
-import { subWebViewDisplayOf } from '@chatic/shared/subWebViewTrust';
+import { subWebViewDisplayOf } from '@chatic/mini-app-protocol';
 
-import type { ILogService } from '../log';
-import { originOf } from '../../utils/url';
+import { originOf } from './origin';
 
 export const SUB_WEBVIEW_MANIFEST_PATH = '/.well-known/chatic-app.json';
 
 export const SUB_WEBVIEW_MANIFEST_TIMEOUT_MS = 3000;
 
 export const SUB_WEBVIEW_MANIFEST_LIMIT = 16 * 1024;
+
+export interface SubWebViewManifestLogger {
+    warn(tag: string, message: string, data?: unknown): void;
+}
 
 export interface ResolvedSubWebViewManifest {
     name?: string;
@@ -91,7 +93,7 @@ export interface SubWebViewManifestOutcome {
 
 export const fetchSubWebViewManifest = async (
     origin: string,
-    deps: { fetch: ManifestFetch; logger: Pick<ILogService, 'warn'>; timeoutMs?: number }
+    deps: { fetch: ManifestFetch; logger: SubWebViewManifestLogger; timeoutMs?: number }
 ): Promise<SubWebViewManifestOutcome> => {
     const fallback = (reason: string, transient: boolean, extra: Record<string, unknown> = {}) => {
         deps.logger.warn('WEBVIEW', `[sub] manifest not used: ${reason}`, { origin, ...extra });
@@ -127,7 +129,7 @@ export interface SubWebViewManifestStore {
 
 export const createSubWebViewManifestStore = (deps: {
     fetch: ManifestFetch;
-    logger: Pick<ILogService, 'warn'>;
+    logger: SubWebViewManifestLogger;
     timeoutMs?: number;
 }): SubWebViewManifestStore => {
     const cached = new Map<string, ResolvedSubWebViewManifest>();
