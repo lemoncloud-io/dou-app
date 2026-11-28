@@ -7,6 +7,10 @@ inputs:
         description: Save the cache after an install on a miss
         required: false
         default: 'false'
+    key-prefix:
+        description: Cache key prefix, so node_modules installed in another environment keeps its own entry
+        required: false
+        default: yarn
 runs:
     using: composite
     steps:
@@ -26,9 +30,9 @@ runs:
               path: |
                   ${{ steps.yarn-cache-dir-path.outputs.dir }}
                   node_modules
-              key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+              key: ${{ runner.os }}-${{ inputs.key-prefix }}-${{ hashFiles('**/yarn.lock') }}
               restore-keys: |
-                  ${{ runner.os }}-yarn-
+                  ${{ runner.os }}-${{ inputs.key-prefix }}-
 
         - name: Install dependencies
           if: ${{ steps.cache.outputs.cache-hit != 'true' }}
@@ -42,4 +46,4 @@ runs:
               path: |
                   ${{ steps.yarn-cache-dir-path.outputs.dir }}
                   node_modules
-              key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+              key: ${{ steps.cache.outputs.cache-primary-key }}

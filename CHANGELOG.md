@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-28] - No version updates
+
+### Refactor
+
+- (mini-app) move the mini app rules into mini-app/protocol and mini-app/host
+
 ## [2026-11-27] - No version updates
 
 ### Features

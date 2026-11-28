@@ -157,6 +157,9 @@
             "path": "./libs/host/web/browser"
         },
         {
+            "path": "./libs/host/web/desktop-shell"
+        },
+        {
             "path": "./libs/host/web/mobile-shell"
         },
         {

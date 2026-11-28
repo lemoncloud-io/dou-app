@@ -1,32 +1,28 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { DesktopShellBridge } from './bridge';
+import { desktopShellNotificationFeed } from './notificationFeed';
+import { desktopShellPush } from './push';
+import { desktopShellSignIn } from './signIn';
 
-const { onEvent, events } = vi.hoisted(() => {
-    const events: Record<string, (message: unknown) => void> = {};
-    return {
-        events,
-        onEvent: vi.fn((type: string, handler: (message: unknown) => void) => {
-            events[type] = handler;
-            return () => delete events[type];
-        }),
-    };
-});
-vi.mock('@chatic/bridges', () => ({ webClient: { onEvent } }));
+const events: Record<string, (message: unknown) => void> = {};
+const bridge = {
+    post: jest.fn(),
+    request: jest.fn(),
+    onEvent: jest.fn((type: string, handler: (message: unknown) => void) => {
+        events[type] = handler;
+        return () => delete events[type];
+    }),
+};
+const asBridge = bridge as unknown as DesktopShellBridge;
 
-import { desktopPush } from './push';
-import { desktopSignIn } from './signIn';
-import { onDesktopNotification } from './notificationFeed';
+beforeEach(() => jest.clearAllMocks());
 
-import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
-
-beforeEach(() => vi.clearAllMocks());
-
-describe('onDesktopNotification', () => {
+describe('desktopShellNotificationFeed', () => {
     it('passes each payload the app sends on OnReceiveNotification, until unsubscribed', () => {
-        const listener = vi.fn();
-        const unsubscribe = onDesktopNotification(listener);
+        const listener = jest.fn();
+        const unsubscribe = desktopShellNotificationFeed(asBridge)(listener);
         const payload = { notification: { title: 'DoU', data: { deeplink: 'chatic-ui:settings' } } };
 
-        expect(onEvent).toHaveBeenCalledWith('OnReceiveNotification', expect.any(Function));
+        expect(bridge.onEvent).toHaveBeenCalledWith('OnReceiveNotification', expect.any(Function));
         events['OnReceiveNotification']?.({ type: 'OnReceiveNotification', data: payload });
         unsubscribe();
 
@@ -36,8 +32,8 @@ describe('onDesktopNotification', () => {
     });
 
     it('drops a message without a payload, and an empty one, without throwing', () => {
-        const listener = vi.fn();
-        onDesktopNotification(listener);
+        const listener = jest.fn();
+        desktopShellNotificationFeed(asBridge)(listener);
 
         expect(() => events['OnReceiveNotification']?.({ type: 'OnReceiveNotification' })).not.toThrow();
         expect(() => events['OnReceiveNotification']?.(undefined)).not.toThrow();
@@ -45,12 +41,11 @@ describe('onDesktopNotification', () => {
     });
 
     it('feeds push the whole payload and sign-in only its deeplink, from the same message', () => {
-        const facts = {} as WebHostFacts;
-        const notification = vi.fn();
-        const deeplink = vi.fn();
-        desktopPush.shell({ kind: 'shell' }, facts).notifications?.onReceive(notification);
+        const notification = jest.fn();
+        const deeplink = jest.fn();
+        desktopShellPush(asBridge)({ kind: 'shell' }).notifications?.onReceive(notification);
         const pushHandler = events['OnReceiveNotification'];
-        desktopSignIn.shell({ kind: 'shell', os: null }, facts).relayOAuth?.handoffLinks?.subscribe(deeplink);
+        desktopShellSignIn(asBridge)({ kind: 'shell', os: null }).relayOAuth?.handoffLinks?.subscribe(deeplink);
         const signInHandler = events['OnReceiveNotification'];
 
         const payload = { notification: { data: { deeplink: 'chatic://oauth?code=c' } } };

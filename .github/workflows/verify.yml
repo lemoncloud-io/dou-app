@@ -491,31 +491,13 @@ jobs:
                   # `nx show projects --affected` compares against the base commit, so it needs history.
                   fetch-depth: 0
 
-            - name: Setup Node.js
-              uses: actions/setup-node@v4
-              with:
-                  node-version-file: '.nvmrc'
-
-            - name: Get Yarn cache path
-              id: yarn-cache-dir-path
-              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-
             # A key of its own: node_modules installed in this image is not the runner's, and the
-            # two must not overwrite each other.
-            - name: Cache dependencies
-              id: cache-dependencies
-              uses: actions/cache@v4
+            # two must not overwrite each other. Saved by one entry of a develop push only, like the
+            # gate's cache above.
+            - uses: ./.github/actions/setup-workspace
               with:
-                  path: |
-                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
-                      node_modules
-                  key: ${{ runner.os }}-playwright-image-yarn-${{ hashFiles('**/yarn.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-playwright-image-yarn-
-
-            - name: Install dependencies
-              if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
-              run: yarn install --frozen-lockfile
+                  key-prefix: playwright-image-yarn
+                  save: ${{ github.event_name != 'pull_request' && matrix.coverage == true }}
 
             # The image's own Playwright package is deleted when the image is built, so the check
             # asks the installed `@playwright/test` where it expects each browser and looks for

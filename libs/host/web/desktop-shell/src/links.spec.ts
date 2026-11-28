@@ -1,20 +1,17 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { logger } from '@chatic/bridges';
 
-import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
+import type { DesktopShellBridge } from './bridge';
+import { desktopShellLinks } from './links';
 
-const bridges = vi.hoisted(() => ({ request: vi.fn(), onEvent: vi.fn(), warn: vi.fn() }));
-vi.mock('@chatic/bridges', () => ({
-    webClient: { request: bridges.request, onEvent: bridges.onEvent },
-    logger: { warn: bridges.warn, info: vi.fn(), error: vi.fn() },
+jest.mock('@chatic/bridges', () => ({
+    logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 
-import { desktopLinks } from './links';
+const bridges = { request: jest.fn(), onEvent: jest.fn(), post: jest.fn() };
+const shell = () => desktopShellLinks(bridges as unknown as DesktopShellBridge)({ kind: 'shell' });
+const warn = logger.warn as jest.Mock;
 
-const facts = {} as WebHostFacts;
-const shell = () => desktopLinks.shell({ kind: 'shell' }, facts);
-const browser = () => desktopLinks.browser({ kind: 'browser' }, facts);
-
-const setClipboard = (writeText: ReturnType<typeof vi.fn> | undefined) =>
+const setClipboard = (writeText: jest.Mock | undefined) =>
     Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
         value: writeText ? { writeText } : undefined,
@@ -23,19 +20,18 @@ const setClipboard = (writeText: ReturnType<typeof vi.fn> | undefined) =>
 beforeEach(() => {
     bridges.request.mockReset();
     bridges.onEvent.mockReset();
-    bridges.warn.mockReset();
+    warn.mockReset();
 });
 
 afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
 });
 
-describe.each([
-    ['inside the desktop app', shell],
-    ['in a browser tab', browser],
-])('desktopLinks — what the page does itself %s', (_, side) => {
+describe('desktopShellLinks — what the page does itself inside the desktop app', () => {
+    const side = shell;
+
     it('opens a URL in a new window with no opener and no referrer', () => {
-        const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+        const open = jest.spyOn(window, 'open').mockImplementation(() => null);
 
         side().openUrl('https://example.com/a');
 
@@ -44,7 +40,7 @@ describe.each([
     });
 
     it('copies with the Clipboard API, and rejects where there is none', async () => {
-        const writeText = vi.fn().mockResolvedValue(undefined);
+        const writeText = jest.fn().mockResolvedValue(undefined);
         setClipboard(writeText);
         await expect(side().copyText('hello')).resolves.toBe(true);
         expect(writeText).toHaveBeenCalledWith('hello');
@@ -58,7 +54,7 @@ describe.each([
     });
 });
 
-describe('desktopLinks — the desktop app', () => {
+describe('desktopShellLinks — the desktop app', () => {
     it("reads a link's preview through the main process", async () => {
         const answer = { success: true, url: 'https://example.com/a', title: 'A' };
         bridges.request.mockResolvedValue({ data: answer });
@@ -84,7 +80,7 @@ describe('desktopLinks — the desktop app', () => {
         bridges.request.mockRejectedValue(error);
 
         await expect(shell().subWebView?.openScope()).resolves.toBeNull();
-        expect(bridges.warn).toHaveBeenCalledWith('BRIDGE', 'sub view handshake failed', { error });
+        expect(warn).toHaveBeenCalledWith('BRIDGE', 'sub view handshake failed', { error });
     });
 
     it('opens a sub view with what the page passed, and answers its view id', async () => {
@@ -108,9 +104,9 @@ describe('desktopLinks — the desktop app', () => {
     });
 
     it('hears every sub view the app closes, with what its page left, until unsubscribed', () => {
-        const unsubscribe = vi.fn();
+        const unsubscribe = jest.fn();
         bridges.onEvent.mockReturnValue(unsubscribe);
-        const listener = vi.fn();
+        const listener = jest.fn();
 
         const stop = shell().subWebView?.onClosed(listener);
 
@@ -121,11 +117,5 @@ describe('desktopLinks — the desktop app', () => {
 
         stop?.();
         expect(unsubscribe).toHaveBeenCalledTimes(1);
-    });
-});
-
-describe('desktopLinks — a browser tab', () => {
-    it('reads no previews and has no sub view', () => {
-        expect(browser()).toMatchObject({ kind: 'browser', linkPreview: null, subWebView: null });
     });
 });

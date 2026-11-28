@@ -51,3 +51,13 @@ export const getLoginItemApi = (): LaunchAtLoginApi | undefined =>
 
 export const getDownloadsApi = (): DownloadsApi | undefined =>
     typeof window === 'undefined' ? undefined : window.electronAPI?.downloads;
+
+export interface ShellApp {
+    appVersion: string;
+    platform: string;
+}
+
+export const getShellApp = (): ShellApp | undefined => {
+    const api = typeof window === 'undefined' ? undefined : window.electronAPI;
+    return api ? { appVersion: api.appVersion, platform: api.platform } : undefined;
+};

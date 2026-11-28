@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import type { LaunchAtLoginState } from '../../../shared/utils/electronApi';
+import type { LaunchAtLoginState } from '@chatic/host-web-desktop-shell';
 
 const api = vi.hoisted(() => ({
     get: vi.fn(async (): Promise<LaunchAtLoginState> => ({ enabled: false, supported: true })),
     set: vi.fn(async (enabled: boolean): Promise<LaunchAtLoginState> => ({ enabled, supported: true })),
 }));
-vi.mock('../../../shared/utils/electronApi', async importOriginal => ({
+vi.mock('@chatic/host-web-desktop-shell', async importOriginal => ({
     ...(await importOriginal<object>()),
     getLoginItemApi: () => api,
 }));

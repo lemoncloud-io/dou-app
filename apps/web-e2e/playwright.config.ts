@@ -11,6 +11,7 @@ const appUserAgent = (prefix: string, platform: string) => `(${prefix}; DoU E2E/
 
 export default defineConfig<E2EOptions>({
     testDir: './src/specs',
+    globalSetup: './src/support/warm-up.ts',
     outputDir: '../../dist/.playwright/apps/web-e2e/test-results',
     snapshotPathTemplate: '{testDir}/{testFileDir}/{testFileName}-snapshots/{arg}-{projectName}{ext}',
     expect: {
@@ -18,7 +19,7 @@ export default defineConfig<E2EOptions>({
     },
     fullyParallel: true,
     forbidOnly: CI,
-    retries: CI ? 1 : 0,
+    retries: 0,
     workers: CI || BROWSER_SERVER ? 2 : undefined,
     reporter: [
         ['list'],
