@@ -1,6 +1,19 @@
 module.exports = {
-    testPathIgnorePatterns: ['/node_modules/', '<rootDir>/memory/', '<rootDir>/indexeddb/', '<rootDir>/bridge/'],
-    modulePathIgnorePatterns: ['<rootDir>/memory/', '<rootDir>/indexeddb/', '<rootDir>/bridge/'],
+    testPathIgnorePatterns: [
+        '/node_modules/',
+        '<rootDir>/memory/',
+        '<rootDir>/indexeddb/',
+        '<rootDir>/bridge/',
+        '<rootDir>/sqlite/',
+        '<rootDir>/sqlite-op/',
+    ],
+    modulePathIgnorePatterns: [
+        '<rootDir>/memory/',
+        '<rootDir>/indexeddb/',
+        '<rootDir>/bridge/',
+        '<rootDir>/sqlite/',
+        '<rootDir>/sqlite-op/',
+    ],
     testEnvironment: '<rootDir>/../../tools/jest/jsdom-environment.js',
     transformIgnorePatterns: ['node_modules/(?!(@chatic|@lemoncloud)/)'],
     moduleNameMapper: {

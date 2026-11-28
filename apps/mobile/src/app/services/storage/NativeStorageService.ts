@@ -6,8 +6,8 @@ import type {
 
 import type { IKeyValueStorage } from '@chatic/storage-mmkv';
 
-import type { ISqliteDatabase } from '../../database/types';
-import { TABLES } from '../../database/sqlite/tables';
+import type { ISqliteDatabase } from '@chatic/db-sqlite';
+import { TABLES } from '@chatic/db-sqlite';
 import type { ILogService } from '../log';
 
 const UNRECOVERABLE_TABLES: readonly string[] = [TABLES.INVITE_CLOUDS];

@@ -2,7 +2,7 @@ import type { WebMessageData } from '@chatic/bridge-messages';
 
 import type { ILogService } from '../log';
 import { createCacheMessageHandlers } from './cacheMessages';
-import type { ICacheCrudService, ICacheSearchService } from './types';
+import type { ICacheCrudService, ICacheSearchService } from '@chatic/db-sqlite';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } as unknown as ILogService;
 

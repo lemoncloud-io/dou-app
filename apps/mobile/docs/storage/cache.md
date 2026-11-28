@@ -5,10 +5,10 @@ SQLite, and the WebView-facing cache service that answers the web client's cache
 
 ## Storage
 
-| Store  | Location                  | Holds                                                                                     |
-| ------ | ------------------------- | ----------------------------------------------------------------------------------------- |
-| SQLite | `src/app/database/sqlite` | Structured records — one table per cache domain, plus the room media index (`chat_media`) |
-| MMKV   | `@chatic/storage-mmkv`    | Small key-value state — preferences, config, the log upload queue                         |
+| Store  | Location                                                                                        | Holds                                                                                     |
+| ------ | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| SQLite | `@chatic/db-sqlite` (schema, data sources, cache services) on `@chatic/db-sqlite-op` (the file) | Structured records — one table per cache domain, plus the room media index (`chat_media`) |
+| MMKV   | `@chatic/storage-mmkv`                                                                          | Small key-value state — preferences, config, the log upload queue                         |
 
 The runtime the app can run the session in has three MMKV files of its own
 (`services/runtime/runtimeStorageFiles.ts`): `chatic-runtime-plain` and `chatic-runtime-device` hold its
@@ -18,7 +18,7 @@ and shares the app's default file — see
 [`@chatic/runtime-mobile`](../../../../libs/runtime-mobile/README.md#the-stores-and-the-cache).
 
 ```bash
-grep -cE "^    [A-Z_]+: '" apps/mobile/src/app/database/sqlite/tables.ts
+grep -cE "^    [A-Z_]+: '" libs/db/sqlite/src/tables.ts
 ```
 
 Eleven tables: one per cache domain, plus `chat_media`, the room media index beside `chats`. MMKV is not used for structured lists or
@@ -33,15 +33,15 @@ flowchart TD
     Runtime["Runtime in this process<br/>(createInProcessCacheClient)"] --> Handlers
     Handler --> Handlers["createCacheMessageHandlers"]
     Handlers --> CacheService["CacheCrudService / CacheSearchService"]
-    CacheService --> DataSource["data/cache/*DataSource"]
+    CacheService --> DataSource["@chatic/db-sqlite<br/>*DataSource"]
     DataSource --> SQLite["SqliteDatabase"]
     OtherService["Other services (preference, config, log queue)"] --> MMKV["MmkvStorage"]
 ```
 
 ## Data sources
 
-`services/provider.ts` builds ten `data/cache/*DataSource` instances lazily, all over the same
-`SqliteDatabase` handle (see [../boot/boot-optimization.md](../boot/boot-optimization.md)):
+`services/provider.ts` builds ten `*DataSource` instances from [`@chatic/db-sqlite`](../../../../libs/db/sqlite/README.md)
+lazily, all over the same `SqliteDatabase` handle that `openSqliteDatabase` from `@chatic/db-sqlite-op` opens (see [../boot/boot-optimization.md](../boot/boot-optimization.md)):
 
 | File                       | Domain                                                     |
 | -------------------------- | ---------------------------------------------------------- |
@@ -207,14 +207,14 @@ shell built before these handlers is never sent them: the web needs all three in
 `cacheContract.ts` is unchanged — `chat` gained a field, which needs no contract edition, and whether
 the index can be queried is told by the message list, not by a domain version.
 
-The SQL is exercised on a real SQLite in tests (`database/sqlite/realSqliteDatabase.ts`, test support
+The SQL is exercised on a real SQLite in tests (`@chatic/db-sqlite` `src/testing/realSqliteDatabase.ts`, test support
 over the `better-sqlite3` dev dependency): `migration12.test.ts` moves a v12 database with rows to v13
-and reads the query plans, and `data/cache/chatMediaIndex.contract.test.ts` runs the contract table
+and reads the query plans, and `dataSources/chatMediaIndex.contract.test.ts` runs the contract table
 `libs/db` runs against IndexedDB (`@chatic/bridge-messages/testing`).
 
 ## The cache contract the handshake reports
 
-`database/sqlite/cacheContract.ts` is what this build promises the web about each cache domain, and
+`@chatic/db-sqlite` `cacheContract.ts` is what this build promises the web about each cache domain, and
 the handshake reports it per domain. The web declares what it requires and the app declares what it
 implements; the two are separate values on purpose, since sharing one would turn a negotiation into
 an identity.
@@ -293,12 +293,12 @@ SQLite):
 
 ## Ownership
 
-- SQL schema and table names belong to `database/sqlite`.
-- Domain row mapping belongs to `data/cache`.
-- The WebView contract belongs to `services/cache` (`cacheMessages.ts`); the handler hooks only wire
-  it to the bridge.
-- `chat_media` holds what the web decided; nothing under `database/sqlite`, `data/cache` or
-  `services/cache` decides a media kind.
+- SQL schema, table names, domain row mapping and the cache services belong to `@chatic/db-sqlite`;
+  opening the file belongs to `@chatic/db-sqlite-op`.
+- The WebView contract belongs to the app's `services/cache` (`cacheMessages.ts`); the handler hooks
+  only wire it to the bridge.
+- `chat_media` holds what the web decided; nothing in `@chatic/db-sqlite` or `services/cache` decides
+  a media kind.
 - The retired chunked-upload module's `upload_tasks` table is dropped by migration 11; file
   transfer persists nothing — see [../native/file-transfer.md](../native/file-transfer.md).
 - MMKV holds small values and queues; it does not grow into structured list or query storage.

@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (host) move the desktop link preview fetch into libs/host/desktop
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (mini-app-host) move the desktop sub window decisions into the library
 
 ## [2026-11-28] - No version updates

@@ -16,7 +16,7 @@ gate, one axis of that judgment. The gate today is **a combination of three diff
 - **`LEGACY_NATIVE_CACHE_TYPES`** — a frozen set of 8 types that every already-shipped app can store.
   Checked before the report, so even apps that never report (old versions) get these types on native.
 - **`supportedCacheTypes`** — the **name list** the app sends in the handshake
-  ([CacheCrudService.ts](../../apps/mobile/src/app/services/cache/CacheCrudService.ts)'s
+  ([CacheCrudService.ts](../../libs/db/sqlite/src/cache/CacheCrudService.ts)'s
   `SUPPORTED_CACHE_TYPES`). A type not in the legacy set is only turned on through this list.
 - **`cacheSchemaVersion` + `MIN_SCHEMA_VERSION_BY_TYPE`** — the **global** SQLite `PRAGMA user_version`
   target the app sends, and the per-type floor the web requires against that global value.
@@ -45,7 +45,7 @@ v1 and v3 send the identical string `'profile'`, so the web cannot tell them apa
 In `MIN_SCHEMA_VERSION_BY_TYPE['profile'] = 12`, the 12 has nothing to do with profile. It may have
 been bumped by some other domain's migration entirely. Since `TARGET_VERSION` is
 `Math.max(...Object.keys(MIGRATIONS)) + 1`
-([schema.ts:293](../../apps/mobile/src/app/database/sqlite/schema.ts)), an unrelated change pushes up
+([schema.ts:250](../../libs/db/sqlite/src/schema.ts:250)), an unrelated change pushes up
 every domain's floor together.
 
 A derived symptom: to exclude only old-version apps without any schema change, you have to add a
@@ -67,7 +67,7 @@ constant:
 cacheSchemaVersion: TARGET_VERSION,
 ```
 
-Meanwhile [SqliteDatabase.ts](../../apps/mobile/src/app/database/sqlite/SqliteDatabase.ts)'s
+Meanwhile [SqliteDatabase.ts](../../libs/db/sqlite/src/SqliteDatabase.ts)'s
 `initTables` swallows failures in a `catch`, and the real `user_version` never leaves that function.
 In other words, even if a migration fails, the app reports **the version it intended, not the version
 it reached.** This does not show up today because migrations are all `CREATE TABLE IF NOT EXISTS`, but

@@ -5,7 +5,7 @@ import type { DataContextProvider } from '@chatic/data';
 import type { RuntimeEngine, StartRuntimeOptions } from '@chatic/runtime-mobile';
 import { NativeRuntimeEnvError, NativeRuntimeNoSessionError } from '@chatic/runtime-mobile';
 
-import type { ICacheCrudService, ICacheSearchService } from '../app/services/cache/types';
+import type { ICacheCrudService, ICacheSearchService } from '@chatic/db-sqlite';
 import type { ILogService } from '../app/services/log';
 import { mobile, startMobileRuntime } from './mobile';
 import type { StartMobileRuntimeOptions } from './mobile';

@@ -1,6 +1,6 @@
 import type { CacheDomainVersions } from '@chatic/bridge-messages';
 
-import { deriveCacheDomainVersions } from '../../database/sqlite/cacheContract';
+import { deriveCacheDomainVersions } from '@chatic/db-sqlite';
 import { provider } from '../provider';
 
 const MEASURE_TIMEOUT_MS = 3_000;
