@@ -45,8 +45,9 @@ Importers do not change; a new implementation imports the family package it need
 | [`@chatic/storage-web-session`](./web-session/README.md)   | `web-session/`  | `webSessionStore()`                                                              | foundation | any      |
 | [`@chatic/storage-vault-bridge`](./vault-bridge/README.md) | `vault-bridge/` | `NativeSecureStore`, `NativeStore`, `NativeStorageChannel`, `isNativeStore`      | foundation | any      |
 | [`@chatic/storage-file`](./file/README.md)                 | `file/`         | `fileStore(path)`, `fileStoragePorts(directory)`                                 | adapter    | node     |
+| [`@chatic/storage-safe-storage`](./safe-storage/README.md) | `safe-storage/` | `SecureStorage`, `safeStorageVault()`, `safeStorageStore()`                      | adapter    | desktop  |
 
-Every package but `file` is `layer:foundation`, as this one has always been: `@chatic/session` and
+Every package but `file` and `safe-storage` is `layer:foundation`, as this one has always been: `@chatic/session` and
 `@chatic/auth` (core) import the stores, and a core package may depend on the foundation but not on an
 adapter or a contract. The web stores stay `platform:any` because they fall back to memory where web
 storage does not exist, and the session's default store is one of them. `memory` and `file` were built

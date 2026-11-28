@@ -95,6 +95,7 @@
             "@chatic/storage-compose": ["libs/storage/compose/src/index.ts"],
             "@chatic/storage-file": ["libs/storage/file/src/index.ts"],
             "@chatic/storage-memory": ["libs/storage/memory/src/index.ts"],
+            "@chatic/storage-safe-storage": ["libs/storage/safe-storage/src/index.ts"],
             "@chatic/storage-vault-bridge": ["libs/storage/vault-bridge/src/index.ts"],
             "@chatic/storage-web-local": ["libs/storage/web-local/src/index.ts"],
             "@chatic/storage-web-session": ["libs/storage/web-session/src/index.ts"],

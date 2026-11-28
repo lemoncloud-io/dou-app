@@ -2,6 +2,7 @@ import { join } from 'node:path';
 
 import { AppBridgeHost } from '@chatic/bridges';
 import { awaitFcmToken, startPush } from '@chatic/push-desktop';
+import type { SecureStorage } from '@chatic/storage-safe-storage';
 import { app, BrowserWindow, nativeTheme } from 'electron';
 import { IS_DEV_CHANNEL, readFcmConfig } from './appChannel';
 import { resolveAppLanguage } from './appLanguage';
@@ -16,7 +17,6 @@ import { registerLoginItemIpc } from './loginItemIpc';
 import { createTray } from './menus';
 import { bindNavigationGates } from './navigationGates';
 import { setBadgeCount, showOsNotification } from './osNotifications';
-import type { SecureStorage } from './secureStorage';
 import { pushDeeplink, pushFcmMessage, pushFcmToken } from './shellEvents';
 import { shellState } from './shellState';
 import { type DesktopSubWebViewService, forwardSubWebViewClosed } from './subWebView/DesktopSubWebViewService';

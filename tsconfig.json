@@ -187,6 +187,9 @@
             "path": "./libs/storage/vault-bridge"
         },
         {
+            "path": "./libs/storage/safe-storage"
+        },
+        {
             "path": "./libs/db/memory"
         },
         {
