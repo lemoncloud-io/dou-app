@@ -109,11 +109,7 @@ pub fn take_links(app: &AppHandle, urls: impl IntoIterator<Item = url::Url>) {
     for url in urls {
         if let Some(data) = receive(&pending, url.as_str(), std::env::consts::OS, now_ms()) {
             push_event(app, "OnOAuthLogin", data);
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            crate::shell_ui::show_main(app);
         }
     }
 }

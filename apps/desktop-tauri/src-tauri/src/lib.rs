@@ -79,6 +79,10 @@ fn hand_over(paths: &Paths, cli: &Cli) -> ! {
     }
 }
 
+fn keeps_running(code: Option<i32>) -> bool {
+    code.is_none()
+}
+
 pub fn run() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let cli = profile::parse_args(&args).unwrap_or_else(|e| stop(&e));
@@ -254,11 +258,32 @@ pub fn run() {
         })
         .build(tauri::generate_context!())
         .expect("the Tauri application failed to build")
-        .run(|app, event| {
-            if matches!(event, tauri::RunEvent::Exit)
-                && let Some(agent) = app.try_state::<Arc<agent::Agent>>()
-            {
-                agent.shutdown();
+        .run(|app, event| match event {
+            tauri::RunEvent::ExitRequested { code, api, .. } if keeps_running(code) => {
+                api.prevent_exit()
             }
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } => shell_ui::show_main(app),
+            tauri::RunEvent::Exit => {
+                if let Some(agent) = app.try_state::<Arc<agent::Agent>>() {
+                    agent.shutdown();
+                }
+            }
+            _ => {}
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn closing_the_last_window_keeps_running_and_an_explicit_exit_quits() {
+        assert!(keeps_running(None));
+        assert!(!keeps_running(Some(0)));
+        assert!(!keeps_running(Some(tauri::RESTART_EXIT_CODE)));
+    }
 }

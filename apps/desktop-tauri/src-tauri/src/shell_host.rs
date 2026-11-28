@@ -137,11 +137,7 @@ impl Host for ShellHost {
     }
 
     fn focus(&self) {
-        if let Some(window) = self.app.get_webview_window("main") {
-            let _ = window.unminimize();
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
+        crate::shell_ui::show_main(&self.app);
     }
 
     fn second_instance(&self, argv: Vec<String>) {
