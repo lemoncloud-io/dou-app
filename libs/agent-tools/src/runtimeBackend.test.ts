@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, runtime } from '@chatic/runtime';
 
 import { runtimeBackend } from './runtimeBackend';
 import type { RuntimeChat, RuntimeChannel, RuntimeLastChat, RuntimeSurface } from './runtimeBackend';
@@ -24,15 +24,19 @@ const channel = (overrides: Partial<RuntimeChannel> = {}): RuntimeChannel => ({
     ...overrides,
 });
 
-const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[] } = {}) => {
+type ServerContext = ReturnType<RuntimeSurface['session']['getActiveServerContext']>;
+
+const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[]; server?: ServerContext } = {}) => {
     const calls = {
         sent: [] as unknown[],
         reactions: [] as unknown[],
         refreshed: [] as unknown[],
         cids: [] as string[],
+        rosters: [] as unknown[],
     };
     let observer: ((result: RuntimeLastChat[]) => void) | undefined;
     let unobserved = 0;
+    let roster: Array<{ id: string; name?: string; nick?: string }> = [];
     let cacheRead = async (id: string): Promise<RuntimeChat | null> =>
         (options.chats ?? []).find(item => item.id === id) ?? null;
     const repositories = {
@@ -56,17 +60,19 @@ const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[] } =
         },
         channel: { fetchList: async () => ({ list: options.channels ?? [channel()] }) },
         user: {
-            listPlaceMembers: async () => ({
-                members: [
+            refreshList: async (query: unknown) => {
+                calls.rosters.push(query);
+                roster = [
                     { id: 'u1', name: 'Me' },
                     { id: 'u2', nick: 'Mina' },
-                ],
-            }),
+                ];
+            },
+            cacheReadList: async () => ({ list: roster }),
         },
     };
     const surface: RuntimeSurface = {
         session: {
-            getActiveServerContext: () => ({ kind: 'cloud', cloudId: 'c1', siteId: 's1' }),
+            getActiveServerContext: () => options.server ?? { kind: 'cloud', cloudId: 'c1', siteId: 's1' },
             getIdentityContext: () => ({ userId: 'u1' }),
         },
         data: {
@@ -93,6 +99,14 @@ const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[] } =
 };
 
 describe('runtimeBackend', () => {
+    it('addresses the relay by the runtime relay slot, not the word relay', async () => {
+        const { backend, calls } = build({ server: { kind: 'relay', siteId: null } });
+        expect(backend.cloud().id).toBe(RELAY_CLOUD_ID);
+        await backend.rooms();
+        await backend.send('r1', 'hello', {});
+        expect(calls.cids).toEqual([RELAY_CLOUD_ID, RELAY_CLOUD_ID]);
+    });
+
     it('stays assignable from the real runtime facade', () => {
         const surface: RuntimeSurface = runtime;
         expect(typeof runtimeBackend(surface).cloud).toBe('function');
@@ -143,12 +157,24 @@ describe('runtimeBackend', () => {
         expect(result.relayError).toBeUndefined();
     });
 
-    it('names members from the place member list', async () => {
-        const { backend } = build();
+    it('names members from the refreshed room roster', async () => {
+        const { backend, calls } = build();
         expect(await backend.members('r1')).toEqual([
             { userId: 'u1', name: 'Me', role: 'member', left: false },
             { userId: 'u2', name: 'Mina', role: 'member', left: false },
         ]);
+        expect(calls.rosters).toEqual([{ channelId: 'r1' }]);
+    });
+
+    it('lists the members of a relay room that has no place', async () => {
+        const { backend } = build({ server: { kind: 'relay', siteId: null } });
+        expect((await backend.members('r1')).map(member => member.name)).toEqual(['Me', 'Mina']);
+    });
+
+    it('answers no members for a room it does not list, without asking for a roster', async () => {
+        const { backend, calls } = build();
+        expect(await backend.members('elsewhere')).toEqual([]);
+        expect(calls.rosters).toEqual([]);
     });
 
     it('emits only new messages from others after the first observation', async () => {

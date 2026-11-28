@@ -4,13 +4,13 @@ Names, schemas and outputs follow the parked Rust `dou-mcp` crate, so existing M
 
 | Tool              | Needs               | What it does                                                                                  |
 | ----------------- | ------------------- | --------------------------------------------------------------------------------------------- |
-| `clouds_list`     | read                | The active cloud and the user id.                                                             |
+| `clouds_list`     | read                | The active cloud and the user id; the relay is `default`, the runtime relay slot.             |
 | `rooms_list`      | read                | Rooms with unread count, plus whether each is readable and writable.                          |
 | `messages_read`   | read, allowed room  | A page of messages, oldest first.                                                             |
 | `thread_read`     | read, allowed room  | A thread parent and its replies.                                                              |
 | `messages_search` | read, allowed rooms | Keyword search in one room or all allowed rooms; local cache only.                            |
 | `unread_digest`   | read                | Unread messages of allowed rooms.                                                             |
-| `room_members`    | read, allowed room  | Members of a room.                                                                            |
+| `room_members`    | read, allowed room  | Members of a room, named from its user roster; works without a place.                         |
 | `settings_get`    | read                | The settings the gate is using.                                                               |
 | `events_list`     | read                | Mentions, direct messages, replies to me and new messages after a cursor; allowed rooms only. |
 | `events_wait`     | read                | Waits for an event after a cursor; returns empty on timeout.                                  |
