@@ -1,7 +1,7 @@
 import type { WebMessageData } from '@chatic/bridge-messages';
 
 import type { ILogService } from '../log';
-import type { ICacheCrudService, ICacheSearchService } from './types';
+import type { ICacheCrudService, ICacheSearchService } from '@chatic/db-sqlite';
 
 export interface CacheMessageServices {
     crud(): ICacheCrudService;

@@ -1,7 +1,7 @@
 import type { IKeyValueStorage } from '@chatic/storage-mmkv';
 
-import type { ISqliteDatabase } from '../../database/types';
-import { TABLES } from '../../database/sqlite/tables';
+import type { ISqliteDatabase } from '@chatic/db-sqlite';
+import { TABLES } from '@chatic/db-sqlite';
 import type { ILogService } from '../log';
 import { NativeStorageService, VAULT_SUMMARY_NAME } from './NativeStorageService';
 

@@ -125,6 +125,8 @@
             "@chatic/db-bridge": ["libs/db/bridge/src/index.ts"],
             "@chatic/db-indexeddb": ["libs/db/indexeddb/src/index.ts"],
             "@chatic/db-memory": ["libs/db/memory/src/index.ts"],
+            "@chatic/db-sqlite": ["libs/db/sqlite/src/index.ts"],
+            "@chatic/db-sqlite-op": ["libs/db/sqlite-op/src/index.ts"],
             "@chatic/theme": ["libs/theme/src/index.ts"],
             "@chatic/ui-kit": ["libs/ui-kit/src/index.ts"],
             "@chatic/ui-kit/*": ["libs/ui-kit/src/*"],

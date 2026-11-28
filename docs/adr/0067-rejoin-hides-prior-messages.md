@@ -48,7 +48,7 @@ without fixing this first.
 ### What was checked about the bridge
 
 The native chat table already filters by the `channel_id` column
-([`ChatDataSource`](../../apps/mobile/src/app/data/cache/ChatDataSource.ts)) — the exact path used to read a room's
+([`ChatDataSource`](../../libs/db/sqlite/src/dataSources/ChatDataSource.ts)) — the exact path used to read a room's
 feed — so **every deployed app build supports it.** A channel-scoped purge therefore doesn't require a new bridge
 message. The warning in [`storages/types.ts`](../../libs/data/local/src/data-sources/types.ts) about "pulling an
 entire table over the bridge" is about the base calling `loadAll()` with no arguments, and doesn't apply to a chat

@@ -58,6 +58,12 @@
             "path": "../../libs/storage/keychain/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/db/sqlite/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/db/sqlite-op/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/perf/tsconfig.lib.json"
         },
         {

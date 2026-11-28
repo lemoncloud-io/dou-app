@@ -202,6 +202,12 @@
             "path": "./libs/db/memory"
         },
         {
+            "path": "./libs/db/sqlite"
+        },
+        {
+            "path": "./libs/db/sqlite-op"
+        },
+        {
             "path": "./libs/db/indexeddb"
         },
         {

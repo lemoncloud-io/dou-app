@@ -27,7 +27,7 @@ grep -rhoE "from '@chatic/[a-z-]+'" --include='*.ts' --include='*.tsx' apps/mobi
   | sort | uniq -c | sort -rn
 ```
 
-Eighteen workspace packages, and `@chatic/bridge-messages` is imported about as often as the rest together.
+Twenty workspace packages, and `@chatic/bridge-messages` is imported about as often as the rest together.
 [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) declares every message name and payload;
 [`@chatic/bridges`](../../libs/bridges/README.md) owns the transport, the reply matching and the
 timeouts on both sides of the boundary; [`@chatic/logger`](../../libs/logger/README.md) owns the log
@@ -48,6 +48,8 @@ previews, deep links, the app icon, the store version, error reports and the res
 and storage in `services/provider.ts`. The key-value storage is
 [`@chatic/storage-mmkv`](../../libs/storage/mmkv/README.md) and the device vault
 [`@chatic/storage-keychain`](../../libs/storage/keychain/README.md); `services/provider.ts` opens both.
+The SQLite schema, data sources and cache services live in [`@chatic/db-sqlite`](../../libs/db/sqlite/README.md);
+[`@chatic/db-sqlite-op`](../../libs/db/sqlite-op/README.md) opens the file.
 
 What this app does **not** own: product screens, routing between them, data fetching and the debug
 panel UI (`apps/web`); the message vocabulary (`@chatic/bridge-messages`); the framing and the request
@@ -115,7 +117,7 @@ flowchart TD
     Handlers["webview/hooks<br/>31 handlers"]
     Services["services/<br/>21 domains"]
     BridgeTS["bridge/<br/>14 native modules"]
-    Store["database/<br/>SQLite"]
+    Store["@chatic/db-sqlite<br/>SQLite"]
 
     Boot --> Screen --> WV
     Web -- "WebMessage" --> WV
@@ -176,12 +178,10 @@ apps/mobile/
 │       ├── webview/       101 files: AppWebView, the router, 31 handlers, injection
 │       ├── subWebView/    the second WebView, for a page on another origin — its own host, answering a
 │       │                  subset of the vocabulary
-│       ├── services/      86 files across 11 domains, assembled in provider.ts
+│       ├── services/      80 files across 11 domains, assembled in provider.ts
 │       ├── bridge/        14 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
 │       │                  push marks, share intake, shared language, system bars, file transfer
-│       ├── database/      SQLite (op-sqlite); table names and row types in types.ts
-│       ├── data/          local data sources over the SQLite tables
 │       ├── features/      core chrome, features/main (MainScreen) and features/subWebView (its bar)
 │       ├── stores/        zustand stores, including debugSettingsStore (resolves the WebView URL)
 │       ├── hooks/         useServices, useResolvedTheme, useAppVersionCheck
@@ -287,7 +287,7 @@ knows which one it is. See [docs/push/README.md](./docs/push/README.md),
 ### 4. The web client reads or writes the cache
 
 `useCrudCacheHandler` and `useSearchCacheHandler` route to `CacheCrudService` and `CacheSearchService`
-over the SQLite data sources in `data/`. The web client holds no rows of its own — this is the only
+over the SQLite data sources in `@chatic/db-sqlite`. The web client holds no rows of its own — this is the only
 durable store on the device besides MMKV. See [docs/storage/cache.md](./docs/storage/cache.md).
 
 ### 5. A log entry crosses the boundary
@@ -324,7 +324,7 @@ Those are the detail, and this README is the map.
 ## How to verify
 
 ```bash
-npx jest --config apps/mobile/jest.config.js     # 102 spec files
+npx jest --config apps/mobile/jest.config.js     # 122 spec files
 npx tsc -b apps/mobile/tsconfig.json             # the app sources
 ```
 

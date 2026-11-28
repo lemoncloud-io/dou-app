@@ -36,8 +36,8 @@ libs/db       IndexedDBAdapter   web    · rows live here, in the browser's Inde
               NativeDBAdapter    native · a bridge client holding no rows
 libs/data     KeyValueTable      session · rows live here, in the tab store (invitecloud in a plain tab only)
                                             ↓ SaveCacheData · FetchCacheData · …
-apps/mobile   CacheCrudService → SqliteDatabase   native · rows live here
-              database/sqlite/schema.ts · tables.ts · services/cache/cacheDomainVersions.ts
+db-sqlite     CacheCrudService → SqliteDatabase   native · rows live here (apps/mobile wires it)
+              schema.ts · tables.ts · apps/mobile services/cache/cacheDomainVersions.ts
 ```
 
 Which of them a domain gets is decided by none of them — `resolveCacheBackendFor` in
@@ -332,7 +332,7 @@ only the middle of it is type-checked. Work top to bottom.
 | 2   | A slot in `createCacheStorages` ([ports/cacheStorage.ts](../../local/src/ports/cacheStorage.ts))                                                                                                                                                                                    | [cacheStorage.test.ts](../../local/src/ports/cacheStorage.test.ts) pins the slots **and their order** |
 | 3   | The data source itself — extend `BaseLocalDataSource`, then add the key to `LocalDataSources` and its line in `createLocalDataSources` ([data-sources/index.ts](../../local/src/data-sources/index.ts))                                                                             | the compiler                                                                                          |
 | 4   | `REQUIRED_DOMAIN_VERSION` in runtime-hybrid-web [`nativeCacheSupport.ts`](../../../runtime-hybrid-web/src/localCache/nativeCacheSupport.ts), when the domain needs a minimum shell version — the app declares its own side in `apps/mobile` `services/cache/cacheDomainVersions.ts` | **nothing**                                                                                           |
-| 5   | The SQLite side in `apps/mobile` — a data source, a `CacheCrudService` arm, and the table in `database/sqlite/schema.ts`. `@chatic/db` needs no line: `NativeDBAdapter` is generic over `CacheType`                                                                                 | **nothing**                                                                                           |
+| 5   | The SQLite side in `@chatic/db-sqlite` — a data source, a `CacheCrudService` arm, and the table in `schema.ts`. `@chatic/db` needs no line: `NativeDBAdapter` is generic over `CacheType`                                                                                           | **nothing**                                                                                           |
 | 6   | A repository — `buildRepositories` plus `DOMAIN_KEYS` in [repositories/index.test.ts](../../repositories/src/index.test.ts)                                                                                                                                                         | that test                                                                                             |
 
 **Steps 4 and 5 fail in silence, and the silence is by design.** `resolveCacheBackendFor` sends a type
