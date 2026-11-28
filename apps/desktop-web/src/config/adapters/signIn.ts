@@ -1,41 +1,11 @@
+import { webClient } from '@chatic/bridges';
+import { desktopBrowserSignIn, desktopShellSignIn } from '@chatic/host-web-desktop-shell';
 import { signInAdapters } from '@chatic/runtime-hybrid-web';
-import type { ShellOrBrowserImplementations, SignInPort } from '@chatic/runtime-hybrid-web';
-
-import { onDesktopNotification } from './notificationFeed';
+import type { ShellOrBrowserImplementations } from '@chatic/runtime-hybrid-web';
 
 export const desktopSignIn: ShellOrBrowserImplementations<'signIn'> = {
-    shell: (base): SignInPort => ({
-        ...base,
-        sessionScope: 'device',
-        approvesPairing: true,
-        requestsPairing: false,
-        providerSignIn: null,
-        relayOAuth: {
-            openAuthorize: url => {
-                window.open(url, '_blank');
-            },
-            returnedCode: 'complete',
-            handoffLinks: {
-                subscribe: listener =>
-                    onDesktopNotification(payload => {
-                        const deeplink: unknown = payload.notification?.data?.deeplink;
-                        if (typeof deeplink === 'string' && deeplink) listener(deeplink);
-                    }),
-            },
-        },
-    }),
-    browser: (base): SignInPort => ({
-        ...base,
-        sessionScope: 'tab',
-        approvesPairing: false,
-        requestsPairing: true,
-        providerSignIn: null,
-        relayOAuth: {
-            openAuthorize: url => window.location.assign(url),
-            returnedCode: 'handoff',
-            handoffLinks: null,
-        },
-    }),
+    shell: desktopShellSignIn(webClient),
+    browser: desktopBrowserSignIn,
 };
 
 export const { host: signInHost, shell: signInShell, browser: signInBrowser } = signInAdapters(desktopSignIn);

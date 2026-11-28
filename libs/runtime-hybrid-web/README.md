@@ -116,8 +116,8 @@ does; it is what lets a toggle move one port onto the page while the rest stay o
 Every port but checkout carries its work, not only the choice (the contracts are `@chatic/ports`'),
 and the work comes from the app's declaration: apps/web hands in the `host/web` family's
 implementations — [`@chatic/host-web-mobile-shell`](../host/web/mobile-shell/README.md), given
-`webClient`, and [`@chatic/host-web-browser`](../host/web/browser/README.md) — and desktop-web still
-its own `webClient` requests. So each `<port>Adapters` (`mediaAdapters`, `filesAdapters`, `linksAdapters`, `appShellAdapters`,
+`webClient`, and [`@chatic/host-web-browser`](../host/web/browser/README.md) — and desktop-web
+[`@chatic/host-web-desktop-shell`](../host/web/desktop-shell/README.md) with the same browser halves. So each `<port>Adapters` (`mediaAdapters`, `filesAdapters`, `linksAdapters`, `appShellAdapters`,
 `signInAdapters`, `diagnosticsAdapters`, `pushAdapters`) takes the app's
 `ShellOrBrowserImplementations<P>` — `shell(base, facts)` and `browser(base, facts)`, each handed the
 choice (`base`, `ShellOrBrowserBase<P>`: `kind`, and `os` for `appShell` and `signIn`) and returning the

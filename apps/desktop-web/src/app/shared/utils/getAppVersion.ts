@@ -1,3 +1,5 @@
+import { getShellApp } from '@chatic/host-web-desktop-shell';
+
 declare const __APP_VERSION__: string;
 
 interface AppVersionInfo {
@@ -9,13 +11,12 @@ interface AppVersionInfo {
 
 export const getAppVersionInfo = (): AppVersionInfo => {
     const desktopWebVersion = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.1';
-    const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
-    const isElectron = electronAPI !== undefined;
+    const shellApp = getShellApp();
 
     return {
         desktopWebVersion,
-        desktopVersion: electronAPI?.appVersion ?? null,
-        isElectron,
-        platform: electronAPI?.platform ?? null,
+        desktopVersion: shellApp?.appVersion ?? null,
+        isElectron: shellApp !== undefined,
+        platform: shellApp?.platform ?? null,
     };
 };

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SettingsRowGroup, SettingsSwitchRow } from '../../../shared';
-import { getLoginItemApi, type LaunchAtLoginState } from '../../../shared/utils/electronApi';
+import { getLoginItemApi, type LaunchAtLoginState } from '@chatic/host-web-desktop-shell';
 
 export const LaunchAtLoginSection = () => {
     const { t } = useTranslation();

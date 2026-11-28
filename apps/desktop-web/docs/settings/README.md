@@ -157,7 +157,7 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
 - **Where it appears.** Only in a shell whose handshake says `subWebViewOpenScope: 'anyHttps'`. The
   web ships before the shell, so it asks rather than assuming: `utils/subWebViewShell.ts` reads
   `runtime.links.subWebView` (`null` in a plain browser), whose desktop shell implementation
-  (`src/config/adapters/links.ts`) sends the one `WebAppReady` desktop-web sends, answered with no side
+  (`desktopShellLinks` in `@chatic/host-web-desktop-shell`) sends the one `WebAppReady` desktop-web sends, answered with no side
   effect. A plain browser, an older shell and the phone do not show it. Neither does the Default Cloud
   (Home), which is the relay's and has no owner and no mini app link. It is also hidden on production:
   mini apps are not released there yet, so the section shows only when `VITE_ENV` is `LOCAL` or `DEV`

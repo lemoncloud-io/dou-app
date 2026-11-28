@@ -1,22 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { DesktopShellBridge } from './bridge';
+import { desktopBrowserSignIn, desktopShellSignIn } from './signIn';
 
-import type { WebHostFacts } from '@chatic/runtime-hybrid-web';
-
-const bridges = vi.hoisted(() => ({
-    onEvent: vi.fn(),
-    unsubscribe: vi.fn(),
+const bridges = {
+    onEvent: jest.fn(),
+    unsubscribe: jest.fn(),
     handler: null as null | ((message: unknown) => void),
-}));
-vi.mock('@chatic/bridges', () => ({
-    webClient: { onEvent: bridges.onEvent },
-    logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() },
-}));
+};
 
-import { desktopSignIn } from './signIn';
-
-const facts = {} as WebHostFacts;
-const shell = () => desktopSignIn.shell({ kind: 'shell', os: null }, facts);
-const browser = () => desktopSignIn.browser({ kind: 'browser', os: null }, facts);
+const shell = () => desktopShellSignIn(bridges as unknown as DesktopShellBridge)({ kind: 'shell', os: null });
+const browser = () => desktopBrowserSignIn({ kind: 'browser', os: null });
 
 beforeEach(() => {
     bridges.unsubscribe.mockReset();
@@ -28,10 +20,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    vi.restoreAllMocks();
+    jest.restoreAllMocks();
 });
 
-describe('desktopSignIn — the desktop app signs in', () => {
+describe('desktopShellSignIn — the desktop app signs in', () => {
     it("holds the device's own sign-in and approves pairings, but never asks for one", () => {
         expect(shell()).toMatchObject({
             kind: 'shell',
@@ -46,7 +38,7 @@ describe('desktopSignIn — the desktop app signs in', () => {
     });
 
     it("opens the relay's authorize page in a new window, which the app routes to the system browser", () => {
-        const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+        const open = jest.spyOn(window, 'open').mockImplementation(() => null);
 
         shell().relayOAuth?.openAuthorize('https://relay.example/oauth/google/authorize');
 
@@ -58,7 +50,7 @@ describe('desktopSignIn — the desktop app signs in', () => {
     });
 
     it('passes on each deeplink the app forwards, and nothing for an event without one', () => {
-        const listener = vi.fn();
+        const listener = jest.fn();
 
         const unsubscribe = shell().relayOAuth?.handoffLinks?.subscribe(listener);
 
@@ -77,7 +69,7 @@ describe('desktopSignIn — the desktop app signs in', () => {
     });
 });
 
-describe('desktopSignIn — the page signs in', () => {
+describe('desktopBrowserSignIn — desktop-web in a browser tab signs in', () => {
     it("keeps a tab's sign-in and asks to pair, never approves", () => {
         expect(browser()).toMatchObject({
             kind: 'browser',
@@ -89,12 +81,13 @@ describe('desktopSignIn — the page signs in', () => {
     });
 
     it("navigates this tab to the relay's authorize page", () => {
-        const assign = vi.fn();
-        vi.spyOn(window, 'location', 'get').mockReturnValue({ ...window.location, assign });
+        const open = jest.spyOn(window, 'open');
+        const authorize = `${window.location.origin}${window.location.pathname}#relay-authorize`;
 
-        browser().relayOAuth?.openAuthorize('https://relay.example/oauth/apple/authorize');
+        browser().relayOAuth?.openAuthorize(authorize);
 
-        expect(assign).toHaveBeenCalledWith('https://relay.example/oauth/apple/authorize');
+        expect(window.location.href).toBe(authorize);
+        expect(open).not.toHaveBeenCalled();
     });
 
     it('hands a returned code back to the app, and receives no deeplinks itself', () => {
