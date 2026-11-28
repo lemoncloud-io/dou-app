@@ -466,6 +466,7 @@ export const ChannelRoomPage = () => {
         handleScroll: handleChatScroll,
         isAwayFromBottom,
         scrollToBottom: scrollChatToBottom,
+        landAtBottom,
         hasPendingRestore: hasPendingScrollRestore,
     } = useChatScroll({
         messages,
@@ -596,7 +597,7 @@ export const ChannelRoomPage = () => {
         entry.decided = true;
         setLandingPending(false);
         if (at.kind !== 'at') {
-            if (!entry.skipLanding) scrollChatToBottom();
+            if (!entry.skipLanding) landAtBottom();
             return;
         }
         const cursor = entry.cursor;
@@ -613,7 +614,7 @@ export const ChannelRoomPage = () => {
         useMessageJumpStore
             .getState()
             .request(stableChannelId, at.chatNo, { highlight: false, block: 'start', quiet: true });
-    }, [stableChannelId, myJoin, channel, messages, hasMore, loadUntil, firstMentionNo, scrollChatToBottom]);
+    }, [stableChannelId, myJoin, channel, messages, hasMore, loadUntil, firstMentionNo, landAtBottom]);
 
     const handleMessagesScroll = useCallback(() => {
         handleChatScroll();

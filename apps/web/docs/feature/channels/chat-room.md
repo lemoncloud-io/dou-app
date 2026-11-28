@@ -654,7 +654,16 @@ network page here, and the oldest drawn one stands in.
   coming back in from the home list is a fresh look at what is new.
 - Until the room has decided, the first page's bottom pin is held (`suppressAutoScroll`): the pin is
   deferred to a frame after every effect and would undo a landing decided in the same flush. With
-  nothing unread, the room pins itself to the newest message once it has decided.
+  nothing unread, the room pins itself to the newest message once it has decided (`landAtBottom`).
+- That landing pin stands down for a reader who has already scrolled away from the bottom since the
+  room drew its first rows, checked when it is asked for and again in the frame that would move the
+  list. The decision waits for my join and the channel, which can arrive after the rows are on screen;
+  a reader who started scrolling up in that gap was thrown back to the newest message, and an older
+  page asked for at the top then landed off screen. A refused older page was never asked for again,
+  because the retry after the backoff only fires while the reader is still near the top. A
+  remembered offset put back on entry is the hook's own scroll, not the reader's, so it does not
+  stand the pin down; and a pin asked for in one room is dropped if the page has moved to another
+  before its frame runs.
 - After landing — at the first unread or at a mention — the latest pill counts from the entry cursor
   for that first stay away from the bottom (`awayFromCursor`), so it says how many unread messages are
   below rather than none.

@@ -12,6 +12,7 @@ let mockMyJoin: Record<string, unknown> | null = null;
 let mockNavigationType = 'PUSH';
 let mockPendingRestore = false;
 const mockScrollToBottom = jest.fn();
+const mockLandAtBottom = jest.fn();
 let mockSelectedCloudId = 'cloud-a';
 let mockChannelId = 'ch1';
 let mockActiveMemberIds: string[] = [];
@@ -256,6 +257,7 @@ jest.mock('../hooks', () => ({
             containerRef: { current: null },
             handleScroll: jest.fn(),
             scrollToBottom: mockScrollToBottom,
+            landAtBottom: mockLandAtBottom,
             hasPendingRestore: () => mockPendingRestore,
         };
     },
@@ -299,6 +301,7 @@ beforeEach(() => {
     mockNavigationType = 'PUSH';
     mockPendingRestore = false;
     mockScrollToBottom.mockReset();
+    mockLandAtBottom.mockReset();
     useMessageJumpStore.setState({ target: null });
     mockGaps = [];
     mockFillGap.mockReset();
@@ -379,7 +382,7 @@ describe('ChannelRoomPage — unread on entry', () => {
 
         expect(screen.queryByRole('separator', { name: 'chat.room.unreadDivider' })).not.toBeInTheDocument();
         expect(useMessageJumpStore.getState().target).toBeNull();
-        expect(mockScrollToBottom).toHaveBeenCalled();
+        expect(mockLandAtBottom).toHaveBeenCalled();
     });
 
     it('lands even with a remembered offset when entered anew, not by a back press', () => {
