@@ -161,8 +161,6 @@
     "apps/desktop/src/main/bridgeHandlers.ts": {"export:DESKTOP_SUB_WEBVIEW_OPEN_SCOPE":1},
     "apps/desktop/src/main/customUiContract.ts": {"export:CUSTOM_UI_CHANNEL":1,"type:CustomUiBoot":1,"type:CustomUiStatus":1},
     "apps/desktop/src/main/customUiProtocol.ts": {"export:CUSTOM_UI_SCHEME_PRIVILEGES":1},
-    "apps/desktop/src/main/downloads.ts": {"type:DownloadLog":1,"type:DownloadTargets":1},
-    "apps/desktop/src/main/downloadsContract.ts": {"file":1},
     "apps/desktop/src/main/index.ts": {"file":1},
     "apps/desktop/src/main/ipcSenderGate.ts": {"type:IpcSenderEvent":1},
     "apps/desktop/src/main/loginItem.ts": {"export:LOGIN_ITEM_UNSUPPORTED":1,"type:LoginItemController":1},

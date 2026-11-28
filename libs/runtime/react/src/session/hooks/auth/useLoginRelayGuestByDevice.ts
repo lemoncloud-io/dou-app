@@ -1,7 +1,4 @@
 import { useMutation } from '@tanstack/react-query';
-import { sessionCommands } from '@chatic/runtime-client';
+import { loginRelayGuestByDeviceMutation } from '@chatic/runtime/api/session';
 
-export const useLoginRelayGuestByDevice = () =>
-    useMutation({
-        mutationFn: (deviceId: string) => sessionCommands().loginGuestByDevice(deviceId),
-    });
+export const useLoginRelayGuestByDevice = () => useMutation({ mutationFn: loginRelayGuestByDeviceMutation.mutationFn });

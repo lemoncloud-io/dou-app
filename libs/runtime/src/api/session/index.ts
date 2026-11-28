@@ -42,3 +42,17 @@ export type { PhoneLoginResult } from '@chatic/auth';
 export { logoutSession } from './sessionCommands';
 export { authFailureReaction } from '@chatic/transport';
 export type { AuthFailureReactionFn, IAuthFailureReaction } from '@chatic/transport';
+export {
+    SWITCH_CLOUD_MUTATION_KEY,
+    SWITCH_SITE_MUTATION_KEY,
+    inviteFlowMutation,
+    inviteInfoQuery,
+    loginMutation,
+    loginRelayGuestByDeviceMutation,
+    loginRelaySocialMutation,
+    logoutCloudSessionMutation,
+    siteSwitchMutation,
+    switchCloudSessionMutation,
+    traceCloudSwitch,
+} from './sessionQueries';
+export type { LoginVariables, SessionMutation, SessionQuery } from './sessionQueries';

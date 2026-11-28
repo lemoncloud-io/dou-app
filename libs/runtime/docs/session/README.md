@@ -54,8 +54,7 @@ caller does not wait — `clearSiteSelection`, `patchRelaySessionUser`, `cancelP
 `forgetInviteLogin` — stay synchronous to the screen and log a failure instead of throwing it.
 `forgetRefusedPairedCloud` still answers at once whether it ended the cloud: it reads the refusal
 itself and whether the cloud is a paired one from the session view, and leaves the ending to the
-engine's `endPairedCloud`. What stays in the page: the mutation keys (`SWITCH_*`), so `useIsMutating`
-still sees a switch, and the `cloud_switch` trace, taken around the command by `useSwitchCloudSession`.
+engine's `endPairedCloud`.
 The calls that change no session — `useFindAlias`, `useVerifyAlias`, `useInviteInfo`, the two
 `useRegisterUser*`, and `fetchInviteInfoWithCode` — go through the engine's auth repository
 (the app API's `authLookups.ts`), so they run wherever the session runs.
@@ -123,9 +122,29 @@ connection host starts ([docs/engine/session](../engine/session.md)).
 
 The two guards in `hooks/app/` take an app-supplied policy; they are below.
 
-[`hooks/mutationKeys.ts`](../../react/src/session/hooks/mutationKeys.ts) holds `SWITCH_SITE_MUTATION_KEY`
-and `SWITCH_CLOUD_MUTATION_KEY`. They are public so an app can observe a switch in flight globally —
+`SWITCH_SITE_MUTATION_KEY` and `SWITCH_CLOUD_MUTATION_KEY` are in the [caching rules](#the-caching-rules). They are public so an app can observe a switch in flight globally —
 `apps/web` uses them to stop periodic background sync while one is running.
+
+### The caching rules
+
+What the login, invite and switch hooks cache by is the headless package's, in the app API's
+[`sessionQueries.ts`](../../src/api/session/sessionQueries.ts), so a consumer with no React (a CLI, an MCP
+server) runs the same calls under the same rules:
+
+| Rule          | Name                                                                                                                                                                                                      | What it says                                                                                                                                                                             |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| query         | `inviteInfoQuery(code, backend, authenticated)`                                                                                                                                                           | keyed `['inviteInfo', code, endpoint]`, the endpoint falling back to `net.relay.backend`; never fresh, no refetch on window focus; off when signed out, with no code or with no endpoint |
+| mutations     | `loginMutation` · `loginRelayGuestByDeviceMutation` · `loginRelaySocialMutation` · `inviteFlowMutation(delegatorId)` · `logoutCloudSessionMutation` · `siteSwitchMutation` · `switchCloudSessionMutation` | the engine command each runs, its key and the query keys it leaves stale (`invalidates`)                                                                                                 |
+| keys          | `SWITCH_SITE_MUTATION_KEY` · `SWITCH_CLOUD_MUTATION_KEY`                                                                                                                                                  | the two switches' keys, so a screen counts a switch in flight with `useIsMutating`                                                                                                       |
+| after a login | `loginMutation.invalidates`                                                                                                                                                                               | `cloudsKeys.all` — the cloud list is stale once someone signs in                                                                                                                         |
+| trace         | `traceCloudSwitch(run)`                                                                                                                                                                                   | the `cloud_switch` perf trace around a cloud switch, outcome `ok` or `error`                                                                                                             |
+
+The rules are plain values, named as TanStack's framework-free query core names its options, and import
+neither React nor react-query. The hooks stay on react-query and only bind them: `useIsMutating` in a
+screen counts the switches only while they are mutations in the app's `QueryClient`, `cloudsKeys.all` is
+invalidated in that same client, and `useInviteInfo` returns react-query's result object, whose loading and
+error fields its callers read. A `useSyncExternalStore` binding would have to rebuild all three, so it
+waits until the cache itself moves down.
 
 ### The two guards
 

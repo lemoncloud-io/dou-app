@@ -1,9 +1,4 @@
 import { useMutation } from '@tanstack/react-query';
-import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
-import { sessionCommands } from '@chatic/runtime-client';
+import { loginRelaySocialMutation } from '@chatic/runtime/api/session';
 
-export const useLoginRelaySocial = () =>
-    useMutation({
-        mutationFn: ({ body, provider }: { body: VerifyNativeTokenBody; provider?: string | null }) =>
-            sessionCommands().loginBySocialToken(body, provider),
-    });
+export const useLoginRelaySocial = () => useMutation({ mutationFn: loginRelaySocialMutation.mutationFn });

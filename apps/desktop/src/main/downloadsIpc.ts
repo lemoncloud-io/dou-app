@@ -2,8 +2,15 @@ import { existsSync } from 'node:fs';
 import { basename } from 'node:path';
 
 import { app, ipcMain, session, shell } from 'electron';
-import { createDownloadLog, type DownloadLog, createDownloadTargets, savesWithoutAsking } from './downloads';
-import { DOWNLOAD_DONE_CHANNEL, DOWNLOAD_REVEAL_CHANNEL, type DownloadDone } from './downloadsContract';
+import {
+    createDownloadLog,
+    type DownloadLog,
+    createDownloadTargets,
+    savesWithoutAsking,
+    DOWNLOAD_DONE_CHANNEL,
+    DOWNLOAD_REVEAL_CHANNEL,
+    type DownloadDone,
+} from '@chatic/host-desktop';
 import { fromTrustedFrame } from './ipcSenderGate';
 import { isTrustedUrl } from './webUrl';
 

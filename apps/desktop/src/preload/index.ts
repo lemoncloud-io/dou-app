@@ -1,7 +1,11 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
+import {
+    DOWNLOAD_DONE_CHANNEL,
+    DOWNLOAD_REVEAL_CHANNEL,
+    type DownloadDone,
+} from '@chatic/host-desktop/downloadsContract';
 
 import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from '../main/customUiContract';
-import { DOWNLOAD_DONE_CHANNEL, DOWNLOAD_REVEAL_CHANNEL, type DownloadDone } from '../main/downloadsContract';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from '../main/loginItemContract';
 import { DESKTOP_STORAGE_MEDIA } from '../main/secureStorage/constants';
 import { utf8ToBase64 } from './base64';

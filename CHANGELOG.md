@@ -4,6 +4,18 @@
 
 ### Refactor
 
+- (host-desktop) move the download rules out of the desktop app
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
+- (runtime) move the session hooks' caching rules into the headless runtime
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (bridges) split into bridge-client and bridge-host packages
 
 ## [2026-11-28] - No version updates

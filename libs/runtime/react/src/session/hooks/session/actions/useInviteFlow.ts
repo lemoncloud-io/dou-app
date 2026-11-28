@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { useSessionIdentity } from '../readers/useSessionIdentity';
-import { registerUserWithInviteCode } from '@chatic/runtime-client';
+import { inviteFlowMutation } from '@chatic/runtime/api/session';
 
 interface InviteFlowArgs {
     code: string;
@@ -11,15 +11,7 @@ interface InviteFlowArgs {
 export const useInviteFlow = () => {
     const { delegatorId } = useSessionIdentity();
 
-    const mutation = useMutation({
-        mutationFn: async ({ code, backend }: InviteFlowArgs) => {
-            if (!delegatorId) {
-                throw new Error('No delegatorId for invite flow');
-            }
-
-            return registerUserWithInviteCode(code, delegatorId, backend);
-        },
-    });
+    const mutation = useMutation({ mutationFn: inviteFlowMutation(delegatorId).mutationFn });
 
     return {
         runInviteFlow: useCallback((args: InviteFlowArgs) => mutation.mutateAsync(args), [mutation]),
