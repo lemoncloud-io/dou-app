@@ -5,8 +5,6 @@ import i18next from 'i18next';
 
 import type * as ChaticSharedModule from '@chatic/shared';
 
-import type * as SharedModule from '../../../shared';
-
 const prepareImage = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/shared', async () => ({
     ...(await vi.importActual<typeof ChaticSharedModule>('@chatic/shared')),
@@ -14,10 +12,11 @@ vi.mock('@chatic/shared', async () => ({
 }));
 
 const createPlace = vi.hoisted(() => vi.fn());
-vi.mock('../../../shared', async () => ({
-    ...(await vi.importActual<typeof SharedModule>('../../../shared')),
-    useCreatePlace: () => ({ createPlace }),
-}));
+vi.mock('@chatic/runtime-react', async () =>
+    (await import('@chatic/runtime-react/testing')).fakeRuntimeModule({
+        data: { useCreatePlace: () => ({ createPlace }) },
+    })
+);
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }));

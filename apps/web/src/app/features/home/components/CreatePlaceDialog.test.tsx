@@ -16,9 +16,13 @@ let profileStep: {
 } | null = null;
 
 jest.mock('../../../hooks', () => ({
-    useCreatePlace: () => ({ createPlace: createPlaceMock }),
     useSetMyPlaceProfile: () => setMyPlaceProfileMock,
 }));
+jest.mock('@chatic/runtime-react', () =>
+    require('@chatic/runtime-react/testing').fakeRuntimeModule({
+        data: { useCreatePlace: () => ({ createPlace: createPlaceMock }) },
+    })
+);
 jest.mock('../../../ui/components/PlaceProfileCreateDialog', () => ({
     PlaceProfileCreateDialog: (props: NonNullable<typeof profileStep>) => {
         profileStep = props;

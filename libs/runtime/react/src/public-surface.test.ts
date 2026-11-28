@@ -130,6 +130,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'setStateOutboxObserver',
         'syncInvitedCloudName',
         'syncPairedCloudName',
+        'useCreatePlace',
         'useGlobalCacheSearch',
         'useImageSendProgress',
         'useInvitedCloudNameSync',

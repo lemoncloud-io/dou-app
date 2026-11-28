@@ -16,7 +16,7 @@ import {
     TextField,
 } from '@chatic/web-ui-kit';
 
-import { useCreatePlace, usePickImage, useSetMyPlaceProfile, useUpdateCloudProfile } from '../../../hooks';
+import { usePickImage, useSetMyPlaceProfile, useUpdateCloudProfile } from '../../../hooks';
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { ROUTES } from '../../../routes/paths';
 import { WizardProgress } from '../components';
@@ -52,7 +52,7 @@ export const SetupWizardPage = () => {
 
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { mutateAsync: updateCloudName } = useUpdateCloudProfile();
-    const { createPlace } = useCreatePlace();
+    const { createPlace } = runtime.data.useCreatePlace();
     const { switchSite } = useSiteSwitch();
     const setMyPlaceProfile = useSetMyPlaceProfile();
 

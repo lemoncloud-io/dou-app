@@ -1,7 +1,8 @@
 import { useCallback } from 'react';
 
-import type { DomainPlace } from '@chatic/runtime-react';
-import { runtime } from '@chatic/runtime-react';
+import type { DomainPlace } from '@chatic/data';
+
+import { useRuntimeRepositories } from './useRuntimeRepositories';
 
 export interface CreatePlaceInput {
     name: string;
@@ -9,7 +10,7 @@ export interface CreatePlaceInput {
 }
 
 export const useCreatePlace = () => {
-    const { place: placeRepository } = runtime.data.useRuntimeRepositories();
+    const { place: placeRepository } = useRuntimeRepositories();
 
     const createPlace = useCallback(
         ({ name, thumbnail }: CreatePlaceInput): Promise<DomainPlace> =>
