@@ -1,6 +1,6 @@
 # Local cache
 
-Source: `cache.ts`. See the [index](./README.md) for conventions. The phone shell keeps a SQLite copy of
+Source: `cache.ts` and the `cache/` folder it re-exports (all but `base-payload.ts`). See the [index](./README.md) for conventions. The phone shell keeps a SQLite copy of
 server data (the web's own IndexedDB is the other store); these messages read and write it. Every cache
 message carries `cacheType` (one of `channel`, `chat`, `user`, `join`, `site`, `invitecloud`, `profile`, `meta`,
 `invite`) plus the `cid` / `uid` partition. Which domain goes to which engine is the runtime's decision, and
