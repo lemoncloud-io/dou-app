@@ -17,7 +17,7 @@ two `export *` lines that re-exports them under its old name, for the consumers 
 
 No React, no react-query, no zustand (`layer:runtime`, held by lint).
 A React app imports [`@chatic/runtime-react`](./react/README.md) instead, whose `runtime` is this one with
-the hook groups added — the hooks, the connection host and the query and mutation keys live there
+the hook groups added — the hooks and the connection host live there
 ([ADR-0378](../../docs/adr/0378-a-react-app-imports-one-runtime-from-runtime-react.md)). A consumer with no
 React (a CLI, an MCP server) imports `runtime` from here. The `docs/` below cover both packages; a hook
 they name lives under `react/src/`.
@@ -42,7 +42,7 @@ grep -rn "@chatic/runtime/" --include='*.ts' --include='*.tsx' apps | grep -v no
 Four apps consume it, through `@chatic/runtime-react`, and nothing else does — `apps/web`,
 `apps/desktop-web`, `apps/admin`, and `apps/landing`'s account surface (sign-in and the subscription
 repository only). The surface itself is locked symbol by symbol by
-[`src/public-surface.test.ts`](./src/public-surface.test.ts): 142 value exports across the eight
+[`src/public-surface.test.ts`](./src/public-surface.test.ts): 151 value exports across the eight
 groups, the seven ports, and the 49 domain values beside `runtime` — a test fails if a group or a port
 appears, or a symbol moves between them.
 
@@ -318,16 +318,16 @@ libs/runtime/src/
 
 libs/runtime/react/src/   @chatic/runtime-react — the same groups, each re-exporting this package's and adding
 ├── connection/       the host and 8 hooks
-├── session/hooks/    readers, actions, guards, pairing; the mutation keys
+├── session/hooks/    readers, actions, guards, pairing
 ├── socket/sync/      the sync registration hooks
-├── data/hooks/       the repository and send hooks; the query keys
+├── data/hooks/       the repository and send hooks
 └── push/hooks/       the hook that starts the engine's `PushRegistration`
 
 libs/runtime-core/src/index.ts     export * from '@chatic/runtime/engine' and '/remote' — until its consumers move
 libs/runtime-client/src/index.ts   export * from '@chatic/runtime/api' and '/declare' — until its consumers move
 ```
 
-runtime-react keeps the hooks, the hosts, the query and mutation keys and the shell's injected device
+runtime-react keeps the hooks, the hosts and the shell's injected device
 ids; what only a page can answer (the host profile, the page's address and user agent) is handed in by
 the platform adapter. Its hooks take the core's types and constants through `@chatic/runtime-client`
 too, so a hook imports one package for the core.
@@ -585,7 +585,7 @@ cd libs/runtime && npx eslint src             # flat config — run it from this
 - Jest does not type check: the base sets `isolatedModules`, so ts-jest transpiles. A fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime unless the spec project is checked too.
 - A test of this package that mocks a module of its own names it by a relative path. One that mocks a module of `@chatic/session`, `@chatic/transport`, `@chatic/sync` or `@chatic/auth` names the concrete file (`@chatic/<package>/<path>`), not the barrel, and imports that file's other symbols by the same path. Mocking the barrel leaves the package's own internal imports on the real file. Production code takes the barrels alone, and eslint keeps it that way.
 - Jest runs in the `node` environment, as the engine's and the app API's tests always did; a test whose fixtures play a page names `tools/jest/jsdom-environment.js` in a docblock, which provides the `TextEncoder`/`TextDecoder` the socket library touches at import (ADR-0371). Jest stubs `@chatic/assets` with a recursive proxy; no test asserts on image URLs. `uuid`, which ships ESM only, is transformed rather than passed through.
-- Seven tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts`, one per package (the headless groups with no hook; runtime-react's 142 symbols, their groups, the ports and the 49 domain values, each headless name the very same value), `facade.test.ts`, one per package (barrels hold re-exports only; runtime-react's other files are hooks or components), `layering.test.ts` (engine ← remote ← api ← declare), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk this package's source and the packages cut from it for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph of each), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
+- Seven tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts`, one per package (the headless groups with no hook; runtime-react's 151 symbols, their groups, the ports and the 49 domain values, each headless name the very same value), `facade.test.ts`, one per package (barrels hold re-exports only; runtime-react's other files are hooks or components), `layering.test.ts` (engine ← remote ← api ← declare), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk this package's source and the packages cut from it for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph of each), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
 - Do not run `yarn install` in a worktree. Node resolution walks up to the parent repo's `node_modules`, so the binaries are already reachable; installing here rewrites `apps/mobile/ios/Podfile.lock` and a leftover symlink poisons the parent on the next install.
 - `.github/workflows/verify.yml` runs `lint`, `typecheck` and `test` for this project on every pull request, so a red gate here is a red CI.
 - Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin` and `libs/data`. That workflow type checks all of them.

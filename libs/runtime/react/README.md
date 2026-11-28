@@ -20,11 +20,12 @@ A consumer with no React — a CLI, an MCP server — imports `runtime` from `@c
 ## What is here
 
 The React half of the runtime: the hooks (`hooks/` under each group), the connection host
-(`RuntimeConnectionHost`, `RuntimeAuthHost`) and the react-query keys. Each group barrel re-exports the
+(`RuntimeConnectionHost`, `RuntimeAuthHost`). The react-query keys and the rules a hook caches by come
+from the headless package, so a hook here only binds them to React. Each group barrel re-exports the
 headless group through its subpath (`export * from '@chatic/runtime/session'`) and adds its hooks, and the
 facade takes `boot`, `report` and the host ports from `@chatic/runtime/facade` unchanged — so every
 headless name is the very same value here. [`src/public-surface.test.ts`](./src/public-surface.test.ts)
-holds both: today's 142 symbols, and each headless name equal to the headless one. How the pieces work is
+holds both: today's 151 symbols, and each headless name equal to the headless one. How the pieces work is
 documented with the headless package, in [`libs/runtime/docs/`](../docs/).
 
 `@chatic/runtime-react/testing` is the headless fake built over this facade (`fakeRuntimeOf`), so a mocked
