@@ -1,0 +1,15 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../../dist/out-tsc/bridge-host-spec",
+        "types": ["jest", "node"],
+        "module": "nodenext",
+        "moduleResolution": "nodenext"
+    },
+    "include": ["jest.config.js", "src/**/*.ts", "src/**/*.d.ts"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        }
+    ]
+}

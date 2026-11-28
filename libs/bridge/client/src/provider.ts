@@ -1,5 +1,5 @@
-import { MessageQueue } from './common';
-import { BRIDGE_VERSION } from './version';
+import { BRIDGE_VERSION, MessageQueue } from '@chatic/bridge-host';
+
 import { NativeBridgeAdapter, WebBridgeClient } from './web';
 import type { IWebBridgeClient } from './web';
 

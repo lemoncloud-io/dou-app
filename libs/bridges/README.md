@@ -5,6 +5,25 @@ the reply back to whoever asked.** It holds the web-side client, the native-side
 channel adapters under the client, the JSON framing between them, and the listener that relays web
 log entries into the native runtime.
 
+## Packages
+
+The code lives in two packages, split by which side of the boundary runs it. `@chatic/bridges` is the
+old entry: it holds no code of its own and re-exports both, plus `@chatic/logger`, so the files that
+import it keep compiling unchanged. A new consumer imports the side it is on.
+
+| Package                                               | Side                           | Holds                                                                                                                            |
+| ----------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| [`@chatic/bridge-host`](../bridge/host/README.md)     | the shell, which answers       | `AppBridgeHost` · `IAppBridgeHost`, `JsonProtocol`, `MessageQueue`, the message and adapter-neutral types, `BRIDGE_VERSION`      |
+| [`@chatic/bridge-client`](../bridge/client/README.md) | the page, which asks the shell | `WebBridgeClient` · `webClient`, both adapters, `isNative()`, the host profile, `BridgeStorageChannel`, the web→native log relay |
+| `@chatic/bridges`                                     | either — the old entry         | `export *` of both, and of `@chatic/logger`                                                                                      |
+
+The client imports the host package (the framing, the queue, the version, and `IAppBridgeHost` for
+`InMemoryAdapter`); the host package never imports the client, and a spec in it fails if it does. The
+host profile reads the globals a shell injected into the page, so despite its name it is page code and
+sits in the client.
+
+Each sentence below that says "this lib" means the two packages together.
+
 [`@chatic/bridge-messages`](../bridge-messages/README.md) is the other half of the boundary. **That package
 declares what a message is; this one decides what happens to it.** Every cross-boundary type —
 including `BridgeError`, which this lib constructs on both sides but does not declare — lives over
@@ -14,25 +33,25 @@ channel exists, giving up on a timeout, answering a message nobody handles.
 
 ## Purpose
 
-Consumers see the `@chatic/bridges` barrel and nothing else. `tsconfig.base.json` maps
-`@chatic/bridges` alone — there is no `@chatic/bridges/*` entry, so a deep import does not resolve:
+Consumers see the three barrels and nothing else. `tsconfig.base.json` maps `@chatic/bridges`,
+`@chatic/bridge-client` and `@chatic/bridge-host` with no `/*` entry, so a deep import does not resolve:
 
 ```bash
 grep -rn "@chatic/bridges/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-The lib imports exactly two workspace packages, and the command that shows it is the whole
-dependency statement:
+Besides each other, the two packages import exactly two workspace packages, and the command that
+shows it is the whole dependency statement:
 
 ```bash
-grep -rhoE "from '@[a-z-]+/[a-z-]+'" --include='*.ts' libs/bridges/src | sort | uniq -c
-#   8 from '@chatic/bridge-messages'
-#  15 from '@chatic/logger'
+grep -rhoE "from '@[a-z-]+/[a-z-]+'" --include='*.ts' libs/bridge/*/src | sort | uniq -c
 ```
 
+It lists `@chatic/bridge-messages`, `@chatic/logger`, and `@chatic/bridge-host` (from the client).
+
 260 files import this barrel, and **the single most imported name through it is `logger`** — 162 of
-the named imports, none of which this package owns. `src/logger/index.ts` re-exports the whole of
-`@chatic/logger` so that consumers written before the split keep compiling. Of the imports that do
+the named imports, none of which this package owns. `src/index.ts` re-exports the whole of
+`@chatic/logger` so that consumers written before the logger split keep compiling. Of the imports that do
 resolve to symbols declared here, `isNative` (69) and `webClient` (28) are almost all of them.
 
 What this lib does **not** own: message names, payload shapes and the request→reply map
@@ -146,7 +165,7 @@ drop rate or forced failure: a test that needs a misbehaving peer builds it as a
 these specs mock one.
 
 ```bash
-grep -rn "InMemoryAdapter\|setAdapter(" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules | grep -v '^libs/bridges'
+grep -rn "InMemoryAdapter\|setAdapter(" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules | grep -v '^libs/bridge/'
 ```
 
 ### A request that outruns its channel
@@ -286,20 +305,28 @@ written for it. The keys and their versions — `checkout` 1, `media` 2, `files`
 ### Directories
 
 ```text
-libs/bridges/src/
-├── index.ts       barrel — common · web · app · provider · logger · version · storage · host
-├── provider.ts    webClient: the one WebBridgeClient, timeoutMs 15000
+libs/bridge/host/src/            @chatic/bridge-host
+├── index.ts       barrel — common · app · version
 ├── version.ts     BRIDGE_VERSION · BRIDGE_VERSION_INFO
-├── common/        JsonProtocol, MessageQueue, isNative, the message/adapter types
+├── common/        JsonProtocol, MessageQueue, the message/protocol/queue types
+└── app/           AppBridgeHost + IAppBridgeHost
+
+libs/bridge/client/src/          @chatic/bridge-client
+├── index.ts       barrel — common · web · provider · logger · storage · host
+├── provider.ts    webClient: the one WebBridgeClient, timeoutMs 15000
+├── common/        isNative
 ├── web/           WebBridgeClient + adapters/ (NativeBridgeAdapter, InMemoryAdapter)
-├── app/           AppBridgeHost + IAppBridgeHost
-├── logger/        the web→native relay, and the @chatic/logger re-export
+├── logger/        the web→native relay
 ├── storage/       BridgeStorageChannel (StorageGet · StorageSave · StorageClear), shellKeepsStorageMedium
 └── host/          hostProfile · buildHostProfile, the boot globals, the capability declaration
+
+libs/bridges/src/                @chatic/bridges
+└── index.ts       export * from the two packages and from @chatic/logger
 ```
 
-30 production files, 9 spec files, about 4,700 lines. The barrel exports this package's classes,
-constants and functions, its interfaces and type aliases, and everything `@chatic/logger` exports.
+The old barrel exports both packages' classes, constants and functions, their interfaces and type
+aliases, and everything `@chatic/logger` exports; `src/index.spec.ts` pins its runtime names to the
+list it had before the split.
 
 Names you would not find by guessing at a filename:
 
@@ -425,7 +452,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 
 ```text
 web runtime                             apps/web · apps/desktop-web · apps/admin
-  └─ webClient                          libs/bridges/src/provider.ts — module singleton
+  └─ webClient                          libs/bridge/client/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
        ├─ version  BRIDGE_VERSION ('2.35.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
@@ -591,23 +618,28 @@ hide and show the page.
 ## How to verify
 
 ```bash
-npx tsc -b libs/bridges/tsconfig.json --force   # lib + specs, via the two project references
-npx jest --config libs/bridges/jest.config.js   # 6 suites, 101 cases
+for p in libs/bridge/host libs/bridge/client libs/bridges; do npx tsc -b $p/tsconfig.json --force; done
+for p in libs/bridge/host libs/bridge/client libs/bridges; do (cd $p && npx jest); done
 ```
 
 - Type checking must be `tsc -b`. Inside the lib, `tsc --noEmit` checks zero files and succeeds, so
-  passing it proves nothing. `nx typecheck @chatic/bridges` runs `tsc --build --emitDeclarationOnly`
-  in the lib directory, which builds the same `tsconfig.json`.
+  passing it proves nothing. `nx typecheck @chatic/bridge-client` (and the other two) runs
+  `tsc --build --emitDeclarationOnly` in the package directory, which builds the same `tsconfig.json`.
 - **`tsconfig.json` references both sub-projects on purpose.** Jest does not type check — the base
   sets `isolatedModules` and ts-jest transpiles — so without the spec reference a mock that has
   drifted from the interface it imitates surfaces only as `… is not a function` at runtime, if at
-  all. Both sub-projects also reference `../bridge-messages/tsconfig.lib.json` and
-  `../logger/tsconfig.lib.json`; a new workspace dependency needs `nx sync` or the build fails
-  downstream, not here.
-- `tsconfig.spec.json` emits to `libs/bridges/out-tsc/jest`, which is **not** where
-  `tsconfig.lib.json` emits (`dist/out-tsc`). A stale copy of either produces phantom errors after a
-  file moves or is deleted, because `tsc -b` does not clean orphaned `.d.ts` files. `rm -rf` both and
-  look again.
+  all. The sub-projects also reference `bridge-messages` and `logger` (and the client references
+  the host); a new workspace dependency needs `nx sync` or the build fails downstream, not here.
+- Each package's `tsconfig.lib.json` emits to its own `dist/`, and its specs to
+  `dist/out-tsc/bridge-<side>-spec`. A stale copy produces phantom errors after a file moves or is
+  deleted, because `tsc -b` does not clean orphaned `.d.ts` files. `rm -rf` them and look again.
+- **A jest config that maps `@chatic/*` by name needs one more line.** The generic
+  `'^@chatic/(.*)$'` mapper looks for `libs/<name>/src`, and the packages sit one folder deeper, so a
+  consumer whose tests load `@chatic/bridges` maps `'^@chatic/bridge-(client|host)$'` to
+  `libs/bridge/$1/src/index.ts` ahead of it. Configs built from `tsconfig.base.json` paths
+  (`apps/mobile`, `apps/desktop`) and the Vite apps need nothing. The desktop main and preload
+  bundles resolve no package names, so `apps/desktop/electron.vite.config.ts` aliases both packages
+  next to `@chatic/bridges`.
 - The specs run under `jsdom` and reach into `window` directly, deleting `ReactNativeWebView`,
   `ChaticMessageHandler` and `webkit` in `beforeEach` and `afterEach`. A spec that adds a channel and
   forgets to remove it changes which branch a later one takes, and `WebBridgeClient` polls on a

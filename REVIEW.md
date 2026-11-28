@@ -46,7 +46,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## Installed older shells still work, or the floor is raised on purpose
 
-- paths: `apps/web/src/app/features/appUpdate/**`, `apps/web/src/app/bridge/**`, `libs/bridges/src/**`,
+- paths: `apps/web/src/app/features/appUpdate/**`, `apps/web/src/app/bridge/**`, `libs/bridge/*/src/**`, `libs/bridges/src/**`,
   `apps/desktop/src/main/bridgeHandlers*`
 - check: If the web now needs a shell handler, fake it as `NOT_FOUND` on the oldest shell above the floor and
   confirm the screen copes; otherwise the PR raises the floor and deletes the fallbacks together.
@@ -77,7 +77,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## A timeout counts visible time, and a reported failure really failed
 
-- paths: `libs/bridges/src/**`, `apps/web/src/app/features/invite/**`, `apps/mobile/src/app/webview/hooks/**`
+- paths: `libs/bridge/*/src/**`, `libs/bridges/src/**`, `apps/web/src/app/features/invite/**`, `apps/mobile/src/app/webview/hooks/**`
 - check: Background the app for 15 s mid-request, and complete a native action that succeeds (SMS composer,
   clipboard); neither is reported as a failure.
 - from: 1930596d6, f24e2e23e, ADR-0211
@@ -132,7 +132,7 @@ twelve weeks (`review-items.mjs --stale 12`) unless its risk is still live. Meas
 
 ## A value sent across the bridge or a stream survives JSON and a reconnect
 
-- paths: `libs/runtime/src/engine/**`, `libs/runtime/src/remote/**`, `libs/runtime-web/src/**`, `libs/runtime-mobile/src/**`, `libs/bridges/src/**`,
+- paths: `libs/runtime/src/engine/**`, `libs/runtime/src/remote/**`, `libs/runtime-web/src/**`, `libs/runtime-mobile/src/**`, `libs/bridge/*/src/**`, `libs/bridges/src/**`,
   `libs/transport/src/**`
 - diff: `postMessage\(|\bhello\b|lastEvent\w*|handshake`
 - check: Every result type that crosses carries only JSON (a promise, Map, class or function arrives as `{}`); a

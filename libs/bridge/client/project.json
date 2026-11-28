@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/bridge-client",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/bridge/client/src",
+    "projectType": "library",
+    "tags": ["layer:bridge", "platform:any", "formfactor:any"],
+    "targets": {}
+}

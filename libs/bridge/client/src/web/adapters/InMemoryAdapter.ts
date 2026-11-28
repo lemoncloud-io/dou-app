@@ -1,7 +1,12 @@
-import type { EventMessage, RequestMessage, ResponseMessage } from '../../common';
+import {
+    JsonProtocol,
+    type EventMessage,
+    type IAppBridgeHost,
+    type RequestMessage,
+    type ResponseMessage,
+} from '@chatic/bridge-host';
+
 import type { BridgeAdapter } from './types';
-import type { IAppBridgeHost } from '../../app';
-import { JsonProtocol } from '../../common';
 
 export class InMemoryAdapter implements BridgeAdapter {
     private handler?: (message: ResponseMessage | EventMessage) => void;

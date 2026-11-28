@@ -1,7 +1,6 @@
 import { WebBridgeClient } from './WebBridgeClient';
 import type { BridgeAdapter } from './adapters';
-import type { ResponseMessage } from '../common';
-import { BRIDGE_VERSION } from '../version';
+import { BRIDGE_VERSION, type ResponseMessage } from '@chatic/bridge-host';
 describe('WebBridgeClient Buffering & Detection', () => {
     let mockAdapter: jest.Mocked<BridgeAdapter>;
     beforeEach(() => {

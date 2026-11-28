@@ -1,8 +1,8 @@
 import { logger } from '@chatic/logger';
 
 import type { BridgeAdapter, InboundMessageMeta } from './types';
-import type { EventMessage, RequestMessage, ResponseMessage, MessageProtocol } from '../../common';
-import { JsonProtocol } from '../../common';
+import type { EventMessage, RequestMessage, ResponseMessage, MessageProtocol } from '@chatic/bridge-host';
+import { JsonProtocol } from '@chatic/bridge-host';
 
 export class NativeBridgeAdapter implements BridgeAdapter {
     private handlers = new Set<(message: ResponseMessage | EventMessage, meta?: InboundMessageMeta) => void>();

@@ -29,7 +29,7 @@ notes a field's name and type do not already say. The types themselves are the s
   (see [system.md](./system.md)). A new field on an old message is optional for the same reason: an
   older shell ignores it, and the reply says whether it was honoured.
 - **`since 2.x.y`** is the bridge protocol version that introduced a message or field
-  (`libs/bridges/src/version.ts` keeps the per-version list). Phone shells from app 0.30.0 on list their
+  (`libs/bridge/host/src/version.ts` keeps the per-version list). Phone shells from app 0.30.0 on list their
   handlers in the handshake.
 - **Empty payloads.** An empty object type is "nothing to carry". A reply described as
   "acknowledgement" carries no data.

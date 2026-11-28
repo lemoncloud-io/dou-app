@@ -7,7 +7,7 @@
  */
 module.exports = [
     // The reader: the host profile and `isNative()` live here.
-    'libs/bridges/',
+    'libs/bridge/client/',
     // The debug overlay, for good: showing the raw host facts is its job.
     'apps/web/src/app/features/debug/overlay/',
     // Every other file that did it when the rule arrived. A domain that moves onto its port takes its

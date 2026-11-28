@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/bridge-host",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/bridge/host/src",
+    "projectType": "library",
+    "tags": ["layer:bridge", "platform:any", "formfactor:any"],
+    "targets": {}
+}

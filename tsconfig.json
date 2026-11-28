@@ -49,6 +49,12 @@
             "path": "./libs/data/repositories"
         },
         {
+            "path": "./libs/bridge/client"
+        },
+        {
+            "path": "./libs/bridge/host"
+        },
+        {
             "path": "./libs/bridges"
         },
         {
