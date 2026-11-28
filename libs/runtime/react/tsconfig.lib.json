@@ -43,9 +43,6 @@
             "path": "../../bridges/tsconfig.lib.json"
         },
         {
-            "path": "../../shared/tsconfig.lib.json"
-        },
-        {
             "path": "../tsconfig.lib.json"
         },
         {
@@ -62,6 +59,9 @@
         },
         {
             "path": "../../auth/tsconfig.lib.json"
+        },
+        {
+            "path": "../../host/web/browser/tsconfig.lib.json"
         }
     ]
 }

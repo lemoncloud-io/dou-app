@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/format",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/foundation/format/src",
+    "projectType": "library",
+    "tags": ["layer:foundation", "platform:any", "formfactor:any"],
+    "targets": {}
+}

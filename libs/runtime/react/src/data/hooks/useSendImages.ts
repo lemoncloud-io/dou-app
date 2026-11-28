@@ -26,7 +26,8 @@ import {
     type UploadPutTarget,
     withCloudHold,
 } from '@chatic/runtime-client';
-import { makeVideoPoster, prepareChatAttachment } from '@chatic/shared';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- the image code moved to host-web-browser; this hook read it through @chatic/shared, which now re-exports runtime-react, until the media port's images capability replaces the direct call
+import { makeVideoPoster, prepareChatAttachment } from '@chatic/host-web-browser';
 
 import { clearImageSendProgress, setImageSendProgress } from './imageSendProgress';
 

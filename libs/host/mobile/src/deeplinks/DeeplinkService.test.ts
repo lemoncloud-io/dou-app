@@ -21,7 +21,7 @@ jest.mock('react-native', () => ({
 }));
 
 jest.mock('@chatic/shared', () => ({
-    ...jest.requireActual('../../../../shared/src/utils/inviteLink'),
+    ...jest.requireActual('../../../../foundation/format/src/inviteLink'),
     ...jest.requireActual('../../../../mini-app/protocol/src/subWebViewLink'),
 }));
 

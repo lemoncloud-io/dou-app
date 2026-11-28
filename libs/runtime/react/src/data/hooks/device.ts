@@ -1,4 +1,4 @@
-import { useCustomMutation } from '@chatic/shared';
+import { useCustomMutation } from '../../reactUtils/hooks/useCustomMutation';
 
 import type { RegisterDeviceTokenBody } from '@lemoncloud/chatic-backend-api';
 import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';

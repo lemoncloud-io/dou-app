@@ -181,6 +181,12 @@
             "path": "./libs/mini-app/host"
         },
         {
+            "path": "./libs/foundation/format"
+        },
+        {
+            "path": "./libs/features/preferences"
+        },
+        {
             "path": "./libs/storage/file"
         },
         {

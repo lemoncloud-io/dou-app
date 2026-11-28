@@ -1,0 +1,18 @@
+{
+    "extends": "../../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        "lib": ["es2022", "dom"],
+        "types": ["node", "vite/client"],
+        "jsx": "react-jsx",
+        "rootDir": "src",
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+    },
+    "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.test.ts", "eslint.config.mjs"],
+    "include": ["src/**/*.ts"],
+    "references": [
+        {
+            "path": "../../config/tsconfig.lib.json"
+        }
+    ]
+}

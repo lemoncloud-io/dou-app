@@ -1,4 +1,5 @@
-export * from './storeUrls';
+// eslint-disable-next-line @nx/enforce-module-boundaries -- the store links moved to host-web-browser; shared keeps its old names until its callers import the family directly
+export { getStoreUrl, STORE_URLS, type StorePlatform } from '@chatic/host-web-browser';
 
 export const ERROR_MESSAGES = {
     network: {

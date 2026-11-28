@@ -44,6 +44,6 @@ describe('runtime — 훅 배치', () => {
             .filter((value, index, all) => all.indexOf(value) === index)
             .sort();
 
-        expect(hookFolders).toEqual(['connection', 'data', 'push', 'session', 'socket/sync']);
+        expect(hookFolders).toEqual(['connection', 'data', 'push', 'reactUtils', 'session', 'socket/sync']);
     });
 });
