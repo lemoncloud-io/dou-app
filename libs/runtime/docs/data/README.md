@@ -52,8 +52,10 @@ the phone app, decided by the injected `ReactNativeWebView` handle (can the page
 user agent, so a browser tab and the desktop shell's message handler leave the name alone; `isNativeApp()` asks
 the same question.
 
-`cloudsKeys` is the only query key left here, because the runtime is one of the things that
-invalidates it — `useLogin` does, right after a login — while the apps invalidate it after their own
+`cloudsKeys` is the only query key left here, and it lives in the headless `data` group
+(`src/api/data/queryKeys.ts`), because the runtime is one of the things that invalidates it — the login
+rule in the session group names it, and `useLogin` applies it right after a login — while the apps
+invalidate it after their own
 cloud-changing actions. The other REST hooks went down to the app layer, where their only
 consumers were screens and react-query was the whole cache; keeping a catalogue copy per app is
 deliberate duplication, and what is shared is the repository call.

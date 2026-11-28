@@ -1,5 +1,4 @@
 export * from '@chatic/runtime/api/session';
-export { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from './hooks/mutationKeys';
 export { useCloudCredentialGuard, useDynamicDeviceId, useSessionStalenessGuard } from './hooks/app';
 export type { CloudCredentialPolicy, SessionStalenessPolicy } from './hooks/app';
 export {
