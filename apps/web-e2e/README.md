@@ -500,6 +500,10 @@ What a passing run does **not** say:
   home are anchored the same way.
 - **Match toast text exactly.** The toaster repeats a toast's text, prefixed, in a live region, so a
   non-exact match trips strict mode.
+- **Wait for `home(page)` before tapping anything on home.** The cloud banner is drawn while home
+  still shows "Loading cloud", and the Chats tab row appears above it when the self chat arrives,
+  moving the banner 40px down. A click measured before that row and sent after it lands on the
+  banner's text, so nothing opens (`subscription-web-checkout.spec.ts`, guest checkout).
 - **The catch-all routes use a `RegExp`, not a predicate.** Playwright can pass only a serializable
   pattern to the browser. With a function it intercepts every request and asks the test process about
   each one, which is every module Vite serves the app as (`FakeBackend.install`).

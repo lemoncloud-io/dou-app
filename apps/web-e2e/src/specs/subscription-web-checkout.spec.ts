@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test';
 
 import { GUEST } from '../fixtures/guest';
 import { installSubscriptions, PLAN, planRow, signedInMember } from '../fixtures/subscription';
-import { myTab } from '../support/app';
+import { home, myTab } from '../support/app';
 import { expect, test } from '../support/test';
 
 test.use({ inApp: false });
@@ -105,6 +105,7 @@ test('a guest gets the in-app checkout too, which asks for a Google sign-in befo
     });
 
     await page.goto('/');
+    await expect(home(page)).toBeVisible();
     await page.getByRole('button', { name: 'Add Cloud' }).click();
     await page.getByRole('button', { name: 'Get started', exact: true }).click();
     await expect(page).toHaveURL(IN_APP_CHECKOUT);
