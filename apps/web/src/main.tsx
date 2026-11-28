@@ -180,7 +180,7 @@ const startApp = (owner: Exclude<SessionOwnerChoice, { sessionOwner: null }>): v
 
 void started.then(
     ({ owner = { sessionOwner: 'web' }, choices, engineChoice }) => {
-        recordPortChoices({ storage: choices.storage.id, cache: choices.cache.id, engine: engineChoice.id });
+        recordPortChoices({ storage: choices.storage.id, cache: choices.db.id, engine: engineChoice.id });
         migrateLegacyPhoneCountry(stores.webLocal);
         setLaunchSessionOwner(owner.sessionOwner ?? undefined);
         if (owner.sessionOwner === null) {

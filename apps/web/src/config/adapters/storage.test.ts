@@ -42,6 +42,7 @@ describe('storage.resolved', () => {
         expect(built.secret).toBe(stores.secret);
         expect(built.plain).toBe(stores.plain);
         expect(built.device).toBe(stores.device);
+        expect(built.tab).toBe(stores.webSession);
         expect(mockPrepare).not.toHaveBeenCalled();
     });
 

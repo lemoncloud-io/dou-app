@@ -44,17 +44,17 @@ const declaration = (extra: { config?: ConfigRuntimePorts } = {}) => {
             auth: {
                 default: defineAdapter({ id: 'auth.location', port: 'auth', create: () => made('auth', 'location') }),
             },
-            cache: {
+            db: {
                 default: defineAdapter({
-                    id: 'cache.indexeddb',
-                    port: 'cache',
-                    create: () => made('cache', 'indexeddb'),
+                    id: 'db.indexeddb',
+                    port: 'db',
+                    create: () => made('db', 'indexeddb'),
                 }),
                 alternatives: [
                     defineAdapter({
-                        id: 'cache.web-storage',
-                        port: 'cache',
-                        create: () => made('cache', 'web-storage'),
+                        id: 'db.web-storage',
+                        port: 'db',
+                        create: () => made('db', 'web-storage'),
                     }),
                 ],
             },
@@ -110,7 +110,7 @@ describe('startRuntime', () => {
             storage: storagePorts,
             transport: { made: 'transport.browser' },
             auth: { made: 'auth.location' },
-            cache: { made: 'cache.indexeddb' },
+            db: { made: 'db.indexeddb' },
             foreground: { made: 'foreground.visibility' },
             signedOutKeyPrefixes: ['log.'],
             data: undefined,
@@ -118,29 +118,29 @@ describe('startRuntime', () => {
         expect(h.initEngine).toHaveBeenCalledWith(engine);
         expect(started.engine).toBe(engine);
         expect(started.facts).toEqual({ shell: false });
-        expect(started.choices.cache.id).toBe('cache.indexeddb');
+        expect(started.choices.db.id).toBe('db.indexeddb');
     });
 
     it('builds the adapter a toggle chose', async () => {
         const { decl } = declaration();
         const h = harness(key =>
-            key === 'port.cache' ? { value: 'cache.web-storage', origin: 'local' } : { value: '', origin: 'default' }
+            key === 'port.db' ? { value: 'db.web-storage', origin: 'local' } : { value: '', origin: 'default' }
         );
         await startRuntime(decl, h.options);
-        expect(h.createRuntime.mock.calls[0][0].cache).toEqual({ made: 'cache.web-storage' });
+        expect(h.createRuntime.mock.calls[0][0].db).toEqual({ made: 'db.web-storage' });
     });
 
     it('logs one line per port, in build order, with the fallback reason', async () => {
         const { decl } = declaration();
         const h = harness(key =>
-            key === 'port.cache' ? { value: 'cache.memory', origin: 'local' } : { value: '', origin: 'default' }
+            key === 'port.db' ? { value: 'db.memory', origin: 'local' } : { value: '', origin: 'default' }
         );
         await startRuntime(decl, h.options);
         expect(h.lines).toEqual([
             'storage → storage.tab (default)',
             'transport → transport.browser (default)',
             'auth → auth.location (default)',
-            "cache → cache.indexeddb (default, fell back: local asked for 'cache.memory', not one of this runtime's cache adapters (cache.indexeddb, cache.web-storage))",
+            "db → db.indexeddb (default, fell back: local asked for 'db.memory', not one of this runtime's db adapters (db.indexeddb, db.web-storage))",
             'foreground → foreground.visibility (default)',
             'engine → engine.core (default)',
         ]);
@@ -150,12 +150,12 @@ describe('startRuntime', () => {
         const { decl } = declaration();
         const config = fakeConfig(true);
         config.snapshot = ((key: string) =>
-            key === 'port.cache'
-                ? { value: 'cache.web-storage', origin: 'shell' }
+            key === 'port.db'
+                ? { value: 'db.web-storage', origin: 'shell' }
                 : { value: '', origin: 'default' }) as unknown as RuntimeConfigAccess['snapshot'];
         const h = harness(undefined, config);
         const started = await startRuntime(decl, h.options);
-        expect(started.choices.cache).toMatchObject({ id: 'cache.web-storage', origin: 'shell' });
+        expect(started.choices.db).toMatchObject({ id: 'db.web-storage', origin: 'shell' });
     });
 
     it('initialises config from the declaration when nothing has yet', async () => {
@@ -380,8 +380,8 @@ describe('startRuntime with an engine adapter', () => {
 
 describe('formatPortChoice', () => {
     it('names the lane that chose the adapter', () => {
-        expect(formatPortChoice({ port: 'cache', id: 'cache.web-storage', origin: 'build' })).toBe(
-            'cache → cache.web-storage (build)'
+        expect(formatPortChoice({ port: 'db', id: 'db.web-storage', origin: 'build' })).toBe(
+            'db → db.web-storage (build)'
         );
     });
 });

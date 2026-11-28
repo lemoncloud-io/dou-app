@@ -19,21 +19,21 @@ change only with a build, while a declaration is read by its own app alone (ADR-
 | `RuntimePorts.transport`  | `webTransportPorts()`     | `navigator.onLine` and the window's online/offline events; `navigator.userAgent`; `new WebSocket(url, protocols)` |
 | `RuntimePorts.auth`       | `webAuthPorts()`          | `location.search`; `location.replace('/?<params>')` at the end of a session                                       |
 | `RuntimePorts.foreground` | `webForegroundPorts()`    | `document.visibilityState` and the document's `visibilitychange` event                                            |
-| `RuntimePorts.cache`      | `webLocalCachePorts(tab)` | every cache domain in IndexedDB, a tab's invited clouds in `tab` (`browserCachePorts`)                            |
+| `RuntimePorts.db`         | `webLocalCachePorts(tab)` | every cache domain in IndexedDB, a tab's invited clouds in `tab` (`browserCachePorts`)                            |
 
 ### Each port on its own
 
-| Port       | Factory (adapter id)                                         | Handed                                                                                        |
-| ---------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
-| transport  | `webTransportPorts(options?)` (`transport.browser`)          | `appPlatform` reader; none by default                                                         |
-| auth       | `webAuthPorts(location?)` (`auth.location`)                  | the page's `location`                                                                         |
-| foreground | `webForegroundPorts(source?)` (`foreground.visibility`)      | a document; the page's own by default                                                         |
-| storage    | `tabStorageStores(areas)` (`storage.tab`)                    | the raw `webLocal`/`webSession` stores (`pageStorageAreas()`)                                 |
-| storage    | `localStorageStores(areas)` (`storage.local`)                | the same                                                                                      |
-| storage    | `vaultStorageStores({ ...areas, vault })`                    | a vault store and optionally where plain state goes; the vault itself is runtime-hybrid-web's |
-| cache      | `indexedDbCache(options?)` (`cache.indexeddb`)               | an IndexedDB connection; the page's one shared connection by default                          |
-| cache      | `webStorageCache({ tab, importFrom })` (`cache.web-storage`) | the raw tab store, and the store a tab's invited clouds are imported from once                |
-| cache      | `browserCachePorts({ indexedDb, webStorage? })`              | routes `invitecloud` to `webStorage` when handed, every other domain to IndexedDB             |
+| Port       | Factory (adapter id)                                      | Handed                                                                                        |
+| ---------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| transport  | `webTransportPorts(options?)` (`transport.browser`)       | `appPlatform` reader; none by default                                                         |
+| auth       | `webAuthPorts(location?)` (`auth.location`)               | the page's `location`                                                                         |
+| foreground | `webForegroundPorts(source?)` (`foreground.visibility`)   | a document; the page's own by default                                                         |
+| storage    | `tabStorageStores(areas)` (`storage.tab`)                 | the raw `webLocal`/`webSession` stores (`pageStorageAreas()`)                                 |
+| storage    | `localStorageStores(areas)` (`storage.local`)             | the same                                                                                      |
+| storage    | `vaultStorageStores({ ...areas, vault })`                 | a vault store and optionally where plain state goes; the vault itself is runtime-hybrid-web's |
+| db         | `indexedDbCache(options?)` (`db.indexeddb`)               | an IndexedDB connection; the page's one shared connection by default                          |
+| db         | `webStorageCache({ tab, importFrom })` (`db.web-storage`) | the raw tab store, and the store a tab's invited clouds are imported from once                |
+| db         | `browserCachePorts({ indexedDb, webStorage? })`           | routes `invitecloud` to `webStorage` when handed, every other domain to IndexedDB             |
 
 `webHostFacts()` answers `BROWSER_HOST_FACTS`: no bridge, no platform, no storage media, no runtime offer,
 no capability declaration — what a plain tab reads from a host profile, without reading one.
@@ -55,8 +55,8 @@ same wrapper over another platform; runtime-hybrid-web's `startRuntime` is one.
 | `foregroundVisibility` | `foreground.visibility` | `webForegroundPorts()`                                                          |
 | `storageTab`           | `storage.tab`           | `tabStorageStores(pageStorageAreas())`                                          |
 | `storageLocal`         | `storage.local`         | `localStorageStores(pageStorageAreas())`                                        |
-| `cacheIndexedDb`       | `cache.indexeddb`       | every domain in IndexedDB                                                       |
-| `cacheWebStorage`      | `cache.web-storage`     | IndexedDB, plus a plain tab's invited clouds in the storage port's `webSession` |
+| `cacheIndexedDb`       | `db.indexeddb`          | every domain in IndexedDB                                                       |
+| `cacheWebStorage`      | `db.web-storage`        | IndexedDB, plus a plain tab's invited clouds in the storage port's `webSession` |
 
 Within one start the page's raw web stores are built once, by the storage adapter: the cache's tab rows
 take that adapter's `webSession` (`tabStoreOf`) rather than opening their own. Where site data is

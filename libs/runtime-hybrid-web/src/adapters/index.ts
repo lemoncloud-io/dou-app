@@ -50,9 +50,9 @@ export const storageVault: WebAdapter<'storage'> = {
     },
 };
 
-export const cacheWebStorage: WebAdapter<'cache'> = {
-    id: 'cache.web-storage',
-    port: 'cache',
+export const cacheWebStorage: WebAdapter<'db'> = {
+    id: 'db.web-storage',
+    port: 'db',
     create: ({ facts, storage }) => {
         const indexedDb = indexedDbCache();
         return routedCachePorts({
@@ -64,9 +64,9 @@ export const cacheWebStorage: WebAdapter<'cache'> = {
     },
 };
 
-export const cacheShellSqlite: WebAdapter<'cache'> = {
-    id: 'cache.shell-sqlite',
-    port: 'cache',
+export const cacheShellSqlite: WebAdapter<'db'> = {
+    id: 'db.shell-sqlite',
+    port: 'db',
     supports: facts => isPhoneAppBridge(facts.bridge),
     create: ({ facts, storage }) => {
         const indexedDb = indexedDbCache();

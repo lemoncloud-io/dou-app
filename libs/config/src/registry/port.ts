@@ -13,6 +13,9 @@ const choice = (port: string, envName: string, title: string, description: strin
     appliesAt: 'restart',
 });
 
+const fromCachePort = (former: unknown): unknown =>
+    typeof former === 'string' ? former.replace(/^cache\./, 'db.') : former;
+
 export const portModule: ConfigRegistryModule = {
     'port.storage': choice('storage', 'STORAGE', 'Storage adapter', 'Where the app keeps its data on this device.'),
     'port.transport': choice('transport', 'TRANSPORT', 'Transport adapter', 'How the app reaches the server.'),
@@ -23,7 +26,10 @@ export const portModule: ConfigRegistryModule = {
         'Foreground adapter',
         'How the app learns it moved to the foreground or the background.'
     ),
-    'port.cache': choice('cache', 'CACHE', 'Cache adapter', 'Where read results are cached.'),
+    'port.db': {
+        ...choice('db', 'DB', 'Db adapter', 'Where the outbox and the cached rows are kept.'),
+        formerKey: { key: 'port.cache', value: fromCachePort },
+    },
     'port.checkout': choice('checkout', 'CHECKOUT', 'Checkout adapter', 'Who sells a subscription.'),
     'port.media': choice('media', 'MEDIA', 'Media adapter', 'Who picks and prepares photos and videos.'),
     'port.files': choice('files', 'FILES', 'Files adapter', "Who uploads and downloads a message's files."),

@@ -241,7 +241,7 @@ describe('the checkout adapters', () => {
 });
 
 describe('host ports through startRuntime', () => {
-    const runtimePort = <P extends 'storage' | 'transport' | 'auth' | 'cache' | 'foreground'>(port: P) => ({
+    const runtimePort = <P extends 'storage' | 'transport' | 'auth' | 'db' | 'foreground'>(port: P) => ({
         default: { id: `${port}.fake` as `${P}.fake`, port, create: () => ({}) as RuntimePorts[P] },
     });
 
@@ -253,7 +253,7 @@ describe('host ports through startRuntime', () => {
                 storage: runtimePort('storage'),
                 transport: runtimePort('transport'),
                 auth: runtimePort('auth'),
-                cache: runtimePort('cache'),
+                db: runtimePort('db'),
                 foreground: runtimePort('foreground'),
             },
             host: {

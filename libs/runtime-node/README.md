@@ -35,7 +35,7 @@ const started = await startRuntime(
             storage: { default: storageFile(directory) },
             transport: { default: transportNode() },
             auth: { default: authNode() },
-            cache: { default: cacheMemory },
+            db: { default: cacheMemory },
             foreground: { default: foregroundNode },
         },
         host: hostNode({ writeLine }), // stdout by default; pass stderr when stdout is a protocol stream
@@ -65,7 +65,7 @@ environment.
 | `authNode(options?)`      | `auth.node`       | `nodeAuthPorts(options)`                                                                   |
 | `storageFile(directory)`  | `storage.file`    | [`@chatic/storage-file`](../storage/file/README.md): one JSON file per role in `directory` |
 | `storageMemory`           | `storage.memory`  | [`@chatic/storage-memory`](../storage/memory/README.md): gone when the process ends        |
-| `cacheMemory`             | `cache.memory`    | [`@chatic/db-memory`](../db/memory/README.md): the cache port, gone when the process ends  |
+| `cacheMemory`             | `db.memory`       | [`@chatic/db-memory`](../db/memory/README.md): the db port, gone when the process ends     |
 | `hostNode(options?)`      | `<port>.node`     | the eight host ports from [`@chatic/host-node`](../host/node/README.md)                    |
 
 ## Limits

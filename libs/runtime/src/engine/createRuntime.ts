@@ -54,7 +54,7 @@ let booted = false;
 
 const absentDataGraph = (): never => {
     throw new Error(
-        "[runtime] the repository graph is not wired — it needs the 'sockets' and 'http' modules and the 'cache' port, " +
+        "[runtime] the repository graph is not wired — it needs the 'sockets' and 'http' modules and the 'db' port, " +
             'and this runtime was started without them'
     );
 };
@@ -72,7 +72,7 @@ export const createRuntime = (config: RuntimeConfig): RuntimeEngine => {
     runtimeStores.configure({ device });
     transportPlatform.configure(portFor(config, 'transport', modules.ports.has('transport')));
     authPlatform.configure(config.auth);
-    localCachePlatform.configure(portFor(config, 'cache', modules.ports.has('cache')));
+    localCachePlatform.configure(portFor(config, 'db', modules.ports.has('db')));
     foregroundPlatform.configure(portFor(config, 'foreground', modules.ports.has('foreground')));
 
     dropLemonLeftovers(sessionStores.of('plain'));

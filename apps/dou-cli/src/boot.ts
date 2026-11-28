@@ -46,7 +46,7 @@ export const bootNode: Boot = async ({ profile, writeLine, env = process.env }) 
                 storage: { default: storageFile(directory) },
                 transport: { default: transportNode() },
                 auth: { default: authNode() },
-                cache: { default: cacheMemory },
+                db: { default: cacheMemory },
                 foreground: { default: foregroundNode },
             },
             host: hostNode({ writeLine }),

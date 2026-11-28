@@ -58,12 +58,12 @@ Where each cache domain goes is [docs/cache](./docs/cache/README.md).
 Beside runtime-web's (`authLocation`, `foregroundVisibility`, `storageTab`, `storageLocal`,
 `cacheIndexedDb`), each built from the facts the host profile gives:
 
-| Export             | Id                   | `supports`                                                    | Builds                                                                                                                                      |
-| ------------------ | -------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `transportBrowser` | `transport.browser`  | any page                                                      | `webTransportPorts()` with the shell's `CHATIC_APP_PLATFORM`                                                                                |
-| `storageVault`     | `storage.vault`      | a shell that keeps a vault (`nativeSecure` in `storageMedia`) | `vaultStorageStores` over `createShellVault()`, loaded through `prepareSecretStorage` (`?logout=1` heard) unless the shell owns the session |
-| `cacheWebStorage`  | `cache.web-storage`  | any page                                                      | IndexedDB, plus a plain tab's invited clouds in the storage port's `webSession`                                                             |
-| `cacheShellSqlite` | `cache.shell-sqlite` | the phone app's bridge                                        | the whole `webLocalCachePorts` table: the shell's SQLite for what it holds, IndexedDB, the storage port's `webSession`                      |
+| Export             | Id                  | `supports`                                                    | Builds                                                                                                                                      |
+| ------------------ | ------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `transportBrowser` | `transport.browser` | any page                                                      | `webTransportPorts()` with the shell's `CHATIC_APP_PLATFORM`                                                                                |
+| `storageVault`     | `storage.vault`     | a shell that keeps a vault (`nativeSecure` in `storageMedia`) | `vaultStorageStores` over `createShellVault()`, loaded through `prepareSecretStorage` (`?logout=1` heard) unless the shell owns the session |
+| `cacheWebStorage`  | `db.web-storage`    | any page                                                      | IndexedDB, plus a plain tab's invited clouds in the storage port's `webSession`                                                             |
+| `cacheShellSqlite` | `db.shell-sqlite`   | the phone app's bridge                                        | the whole `webLocalCachePorts` table: the shell's SQLite for what it holds, IndexedDB, the storage port's `webSession`                      |
 
 `storage.vault` loads the vault the way apps/web's entry does, but what that entry does around it — the
 late-vault reload and the watch on a vault unreadable at launch — stays the app's. On a launch whose
@@ -149,7 +149,7 @@ export const web = defineRuntime({
     name: 'web',
     facts: webHostFacts,
     ports: {
-        /* storage, transport, auth, cache, foreground */
+        /* storage, transport, auth, db, foreground */
     },
     host: {
         checkout: {

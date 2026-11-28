@@ -58,8 +58,8 @@ describe('web adapters — ids and hosts', () => {
             ['foreground', 'foreground.visibility'],
             ['storage', 'storage.tab'],
             ['storage', 'storage.local'],
-            ['cache', 'cache.indexeddb'],
-            ['cache', 'cache.web-storage'],
+            ['db', 'db.indexeddb'],
+            ['db', 'db.web-storage'],
         ]);
     });
 

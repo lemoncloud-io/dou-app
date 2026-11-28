@@ -22,7 +22,7 @@ const PORT_MODULES: { readonly [P in RuntimePortName]: string } = {
     auth: "'session'",
     transport: "'sockets'",
     foreground: "'sockets' or 'push'",
-    cache: "'sync' or 'cache'",
+    db: "'sync' or 'cache'",
 };
 
 const refuse = (message: string): never => {
@@ -48,7 +48,7 @@ export const isOn = (modules: ModuleSet, owner: ModuleName | 'data-graph'): bool
 
 export const describeOwner = (owner: ModuleName | 'data-graph'): string =>
     owner === 'data-graph'
-        ? "the repository graph, which needs the 'sockets' and 'http' modules and the 'cache' port"
+        ? "the repository graph, which needs the 'sockets' and 'http' modules and the 'db' port"
         : `the '${owner}' module`;
 
 export const offMembers = (modules: ModuleSet): EngineMember[] =>

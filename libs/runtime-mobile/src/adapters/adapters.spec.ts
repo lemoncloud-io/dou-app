@@ -56,7 +56,7 @@ describe('mobile adapters', () => {
             ['foreground', 'foreground.app-state'],
             ['auth', 'auth.mobile'],
             ['storage', 'storage.mobile-vault'],
-            ['cache', 'cache.mobile-sqlite'],
+            ['db', 'db.mobile-sqlite'],
         ]);
         expect(adapters.every(adapter => adapter.supports === undefined)).toBe(true);
     });
@@ -73,7 +73,12 @@ describe('mobile adapters', () => {
     it('carries the address a session ended with in the plain store it is handed', async () => {
         const leaveToHome = jest.fn();
         const plain = new MemoryStore();
-        const storage = { secret: new MemoryStore(), plain, device: new MemoryStore() } as RuntimePorts['storage'];
+        const storage = {
+            secret: new MemoryStore(),
+            plain,
+            device: new MemoryStore(),
+            tab: new MemoryStore(),
+        } as RuntimePorts['storage'];
         const auth = await authMobile({ leaveToHome }).create({ facts, storage });
 
         auth.leaveToHome(new URLSearchParams('logout=1'));

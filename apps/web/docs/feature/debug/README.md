@@ -188,11 +188,11 @@ choices — `startRuntime` only logs them under `app.runtime_port` — so
 [`app/runtime/activeStorage.ts`](../../../src/app/runtime/activeStorage.ts) records them as they are
 made:
 
-| Recorded                                | By                                             | When                         |
-| --------------------------------------- | ---------------------------------------------- | ---------------------------- |
-| the store set (`resolveStorageStores`)  | `main.tsx`                                     | before the runtime starts    |
-| the adapter id per port, and the engine | `main.tsx`, from `startRuntime`'s answer       | once the runtime has started |
-| each cache domain's route               | `cache.web-local` (`config/adapters/cache.ts`) | when the data assembly runs  |
+| Recorded                                | By                                          | When                         |
+| --------------------------------------- | ------------------------------------------- | ---------------------------- |
+| the store set (`resolveStorageStores`)  | `main.tsx`                                  | before the runtime starts    |
+| the adapter id per port, and the engine | `main.tsx`, from `startRuntime`'s answer    | once the runtime has started |
+| each cache domain's route               | `db.web-local` (`config/adapters/cache.ts`) | when the data assembly runs  |
 
 The routes are the ones the assembly reported through `routed`, not a fresh `route()` call: the
 assembly asks once per domain and keeps the answer for the session, and inside the phone app the

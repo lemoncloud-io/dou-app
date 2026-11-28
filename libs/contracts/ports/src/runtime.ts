@@ -24,7 +24,7 @@ export interface StoragePorts {
 
 export type StorageRole = keyof StoragePorts;
 
-export type StoragePort = SessionStoragePorts & DeviceStorePort & Partial<Pick<StoragePorts, 'tab'>>;
+export type StoragePort = SessionStoragePorts & DeviceStorePort & Pick<StoragePorts, 'tab'>;
 export type TransportPort = TransportPlatformPorts;
 export type AuthPort = AuthPlatformPorts;
 export type { DbPort };
@@ -34,7 +34,7 @@ export interface RuntimePorts {
     storage: StoragePort;
     transport: TransportPort;
     auth: AuthPort;
-    cache: DbPort;
+    db: DbPort;
     foreground: ForegroundPort;
 }
 

@@ -66,8 +66,8 @@ export const storageMobileVault = ({
     },
 });
 
-export const cacheMobileSqlite = (client: CacheBridgeClient): MobileAdapter<'cache'> => ({
-    id: 'cache.mobile-sqlite',
-    port: 'cache',
+export const cacheMobileSqlite = (client: CacheBridgeClient): MobileAdapter<'db'> => ({
+    id: 'db.mobile-sqlite',
+    port: 'db',
     create: () => nativeLocalCachePorts(client),
 });

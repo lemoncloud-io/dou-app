@@ -25,7 +25,7 @@ const EXPECTED_DEFAULTS = {
     storage: 'storage.mobile-vault',
     transport: 'transport.mobile',
     auth: 'auth.mobile',
-    cache: 'cache.mobile-sqlite',
+    db: 'db.mobile-sqlite',
     foreground: 'foreground.app-state',
 } as const;
 
@@ -203,7 +203,7 @@ describe('startMobileRuntime', () => {
         const { start, crud, built } = setup();
 
         await start();
-        const { cache } = built() as RuntimeConfig;
+        const { db: cache } = built() as RuntimeConfig;
         const context = { getContext: () => ({ cid: 'c1', uid: 'u1' }) } as unknown as DataContextProvider;
         const users = cache.storage('user', cache.route('user'), context, undefined);
 

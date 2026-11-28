@@ -23,7 +23,7 @@ export const desktopWeb = defineRuntime({
         storage: { default: storageDesktop },
         transport: { default: transportBrowser },
         auth: { default: authLocation },
-        cache: { default: cacheDesktopWebStorage },
+        db: { default: cacheDesktopWebStorage },
         foreground: { default: foregroundVisibility },
     },
     host: {

@@ -174,7 +174,7 @@ env file, say — changes nothing and is logged as a fall-back to the default.
 | `storage`    | `storage.mobile-vault` | `secret` on the vault the pages use; `plain` and `device` on the runtime's own MMKV files |
 | `transport`  | `transport.mobile`     | NetInfo, `Platform.OS`, React Native's `WebSocket` with the app's user agent              |
 | `auth`       | `auth.mobile`          | the address a session ended with, carried to the next launch in `plain`                   |
-| `cache`      | `cache.mobile-sqlite`  | the app's SQLite, through the handlers that answer the pages' cache messages              |
+| `db`         | `db.mobile-sqlite`     | the app's SQLite, through the handlers that answer the pages' cache messages              |
 | `foreground` | `foreground.app-state` | React Native's `AppState`                                                                 |
 
 `plain` and `device` are files of their own because the app's other MMKV files hold its own values,

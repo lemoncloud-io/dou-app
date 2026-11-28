@@ -19,7 +19,7 @@ export const landingRuntime = (env: (name: string) => string | undefined) =>
             storage: { default: storageLandingTab },
             transport: { default: transportBrowser },
             auth: { default: authLocation },
-            cache: { default: cacheLandingWebStorage },
+            db: { default: cacheLandingWebStorage },
             foreground: { default: foregroundVisibility },
         },
         constraints: [],

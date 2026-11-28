@@ -30,7 +30,7 @@ const cachePorts = () =>
         routed: () => undefined,
         globalSearch: () => ({}),
         metrics: () => ({}),
-    }) as unknown as RuntimePorts['cache'];
+    }) as unknown as RuntimePorts['db'];
 
 const portMakers: { [P in PortName]: () => RuntimePorts[P] } = {
     storage: () => memoryStorage() as unknown as RuntimePorts['storage'],
@@ -43,7 +43,7 @@ const portMakers: { [P in PortName]: () => RuntimePorts[P] } = {
             online: { read: () => true, subscribe: () => () => undefined },
             device: () => ({ userAgent: 'node' }),
         }),
-    cache: cachePorts,
+    db: cachePorts,
     foreground: () => ({ read: () => true, subscribe: () => () => undefined }),
 };
 
@@ -92,7 +92,7 @@ const boot = async (modules: RuntimeModules | undefined, ports: readonly PortNam
     return { ...loaded, started, lines };
 };
 
-const ALL_PORTS: readonly PortName[] = ['storage', 'transport', 'auth', 'cache', 'foreground'];
+const ALL_PORTS: readonly PortName[] = ['storage', 'transport', 'auth', 'db', 'foreground'];
 
 describe('module presets boot in Node', () => {
     it('all modules — the wiring every app has today', async () => {
@@ -114,13 +114,7 @@ describe('module presets boot in Node', () => {
     });
 
     it('headless — session · http · sockets · sync, no push', async () => {
-        const { started, lines } = await boot(headlessModules(), [
-            'storage',
-            'transport',
-            'auth',
-            'cache',
-            'foreground',
-        ]);
+        const { started, lines } = await boot(headlessModules(), ['storage', 'transport', 'auth', 'db', 'foreground']);
 
         expect(started.modules).toEqual(['session', 'http', 'sockets', 'sync']);
         expect(Object.keys(started.runtime).sort()).toEqual(
@@ -162,7 +156,7 @@ describe('module presets boot in Node', () => {
         } as unknown as RuntimeDeclaration<unknown>;
 
         await expect(loaded.declare.startRuntime(declaration, { config, read: () => undefined })).rejects.toThrow(
-            /broken: .*'sync' module needs the 'sockets' module.*'sync' module needs the 'cache' port/
+            /broken: .*'sync' module needs the 'sockets' module.*'sync' module needs the 'db' port/
         );
     });
 

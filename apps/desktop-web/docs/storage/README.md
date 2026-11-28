@@ -18,9 +18,9 @@ Everything this app keeps between loads goes through a store from `@chatic/stora
 
 The runtime takes its share through the page's runtime declaration (`src/config/desktop-web.ts`): its
 `storage.desktop` adapter hands the session the set's `secret`, `plain` and `device` — loading the vault
-first when there is one — and `cache.desktop-web-storage` keeps the invited-cloud rows in its
+first when there is one — and `db.desktop-web-storage` keeps the invited-cloud rows in its
 `webSession`. They are the app's own adapters, not `@chatic/runtime-hybrid-web`'s `storage.*` and
-`cache.web-storage`, because those build store objects of their own: where site data is blocked every
+`db.web-storage`, because those build store objects of their own: where site data is blocked every
 store is page memory, and a second set would hide the session from the features and from config. Every
 port is fixed to that one adapter, so a `port.*` setting cannot move the session elsewhere.
 
