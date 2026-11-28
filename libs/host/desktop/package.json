@@ -10,6 +10,11 @@
             "import": "./src/index.ts",
             "default": "./src/index.ts"
         },
+        "./downloadsContract": {
+            "types": "./src/downloadsContract.ts",
+            "import": "./src/downloadsContract.ts",
+            "default": "./src/downloadsContract.ts"
+        },
         "./package.json": "./package.json"
     }
 }
