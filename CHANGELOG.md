@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (runtime) move the session hooks' caching rules into the headless runtime
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (bridges) split into bridge-client and bridge-host packages
 
 ## [2026-11-28] - No version updates
