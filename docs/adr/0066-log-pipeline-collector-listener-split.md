@@ -575,7 +575,7 @@ phrase "implemented separately," but leaves identical code duplicated twice. Not
 - **Unsent web logs are lost on a webview refresh.** Since the web accumulates nothing in hybrid, there's no copy
   beyond whatever already made it onto the bridge right after publishing. The reasoning is that being per-entry
   keeps the window as narrow as one entry.
-- **mmkv re-entrancy risk appears.** [MmkvStorage:27](../../apps/mobile/src/app/database/mmkv/MmkvStorage.ts:27)
+- **mmkv re-entrancy risk appears.** [MmkvStorage](../../libs/storage/mmkv/src/MmkvStorage.ts)
   takes an `ILogService` in its constructor and logs storage failures via `logService.error`. If the log storer
   listener uses this as-is, a loop runs: `storage failure → log published → hub → storer listener → storage
 failure`. Today's direct `createMMKV()` call happens (intentionally or not) to avoid this loop. **Reuse the @mmkv

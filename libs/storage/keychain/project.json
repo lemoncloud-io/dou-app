@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/storage-keychain",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/storage/keychain/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:mobile", "formfactor:any"],
+    "targets": {}
+}

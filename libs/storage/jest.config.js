@@ -1,4 +1,14 @@
-const FAMILY = ['memory', 'file', 'compose', 'web-local', 'web-session', 'vault-bridge', 'safe-storage'];
+const FAMILY = [
+    'memory',
+    'file',
+    'compose',
+    'web-local',
+    'web-session',
+    'vault-bridge',
+    'safe-storage',
+    'mmkv',
+    'keychain',
+];
 
 module.exports = {
     testPathIgnorePatterns: ['/node_modules/', ...FAMILY.map(name => `<rootDir>/${name}/`)],

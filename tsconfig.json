@@ -190,6 +190,12 @@
             "path": "./libs/storage/safe-storage"
         },
         {
+            "path": "./libs/storage/mmkv"
+        },
+        {
+            "path": "./libs/storage/keychain"
+        },
+        {
             "path": "./libs/db/memory"
         },
         {

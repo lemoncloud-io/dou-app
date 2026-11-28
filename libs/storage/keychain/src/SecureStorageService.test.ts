@@ -1,6 +1,6 @@
 import * as Keychain from 'react-native-keychain';
 
-import type { ILogService } from '../log';
+import type { Logger } from '@chatic/logger';
 import { SecureStorageService } from './SecureStorageService';
 import type { ISecureStorageInstallFlag } from './types';
 
@@ -16,7 +16,7 @@ jest.mock('react-native-keychain', () => ({
 const keychain = Keychain as jest.Mocked<typeof Keychain>;
 const SERVICE = 'io.chatic.dou.secrets';
 
-const logService = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } as unknown as ILogService;
+const logService = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } as unknown as Logger;
 
 const stored = (values: Record<string, string>) =>
     ({

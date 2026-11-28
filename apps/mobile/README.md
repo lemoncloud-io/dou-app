@@ -27,7 +27,7 @@ grep -rhoE "from '@chatic/[a-z-]+'" --include='*.ts' --include='*.tsx' apps/mobi
   | sort | uniq -c | sort -rn
 ```
 
-Fourteen workspace packages, and `@chatic/bridge-messages` is imported about as often as the rest together.
+Eighteen workspace packages, and `@chatic/bridge-messages` is imported about as often as the rest together.
 [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) declares every message name and payload;
 [`@chatic/bridges`](../../libs/bridges/README.md) owns the transport, the reply matching and the
 timeouts on both sides of the boundary; [`@chatic/logger`](../../libs/logger/README.md) owns the log
@@ -45,7 +45,9 @@ in `src/config/families.ts` and builds them in `services/provider.ts`. The devic
 web asks the shell for (clipboard, contacts, photo and document picking, permissions, SMS, link
 previews, deep links, the app icon, the store version, error reports and the restart note) are
 [`@chatic/host-mobile`](../../libs/host/mobile/README.md); the app hands it its own native modules
-and storage in `services/provider.ts`.
+and storage in `services/provider.ts`. The key-value storage is
+[`@chatic/storage-mmkv`](../../libs/storage/mmkv/README.md) and the device vault
+[`@chatic/storage-keychain`](../../libs/storage/keychain/README.md); `services/provider.ts` opens both.
 
 What this app does **not** own: product screens, routing between them, data fetching and the debug
 panel UI (`apps/web`); the message vocabulary (`@chatic/bridge-messages`); the framing and the request
@@ -113,7 +115,7 @@ flowchart TD
     Handlers["webview/hooks<br/>31 handlers"]
     Services["services/<br/>21 domains"]
     BridgeTS["bridge/<br/>14 native modules"]
-    Store["database/<br/>SQLite · MMKV"]
+    Store["database/<br/>SQLite"]
 
     Boot --> Screen --> WV
     Web -- "WebMessage" --> WV
@@ -174,11 +176,11 @@ apps/mobile/
 │       ├── webview/       101 files: AppWebView, the router, 31 handlers, injection
 │       ├── subWebView/    the second WebView, for a page on another origin — its own host, answering a
 │       │                  subset of the vocabulary
-│       ├── services/      96 files across 12 domains, assembled in provider.ts
+│       ├── services/      86 files across 11 domains, assembled in provider.ts
 │       ├── bridge/        14 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
 │       │                  push marks, share intake, shared language, system bars, file transfer
-│       ├── database/      SQLite (op-sqlite) and MMKV; table names and row types in types.ts
+│       ├── database/      SQLite (op-sqlite); table names and row types in types.ts
 │       ├── data/          local data sources over the SQLite tables
 │       ├── features/      core chrome, features/main (MainScreen) and features/subWebView (its bar)
 │       ├── stores/        zustand stores, including debugSettingsStore (resolves the WebView URL)

@@ -64,9 +64,10 @@ import { BootMetricsService, createNativeTelemetryRecorder } from './perf';
 import type { ISubWebViewService, SubWebViewManifestStore } from './subWebView';
 import { createSubWebViewManifestStore, SubWebViewService } from './subWebView';
 import DeviceInfo from 'react-native-device-info';
-import type { ISecureStorageService } from './secureStorage';
-import { SecureStorageService } from './secureStorage/SecureStorageService';
-import { MmkvSecureStorageInstallFlag } from './secureStorage/MmkvSecureStorageInstallFlag';
+import type { ISecureStorageService } from '@chatic/storage-keychain';
+import { SecureStorageService } from '@chatic/storage-keychain';
+import type { IKeyValueStorage } from '@chatic/storage-mmkv';
+import { MmkvSecureStorageInstallFlag, MmkvStorage } from '@chatic/storage-mmkv';
 
 import {
     ChannelDataSource,
@@ -83,8 +84,8 @@ import {
 import { TestRecordService } from './cache/TestRecordService';
 import type { INativeStorageService } from './storage';
 import { NativeStorageService } from './storage';
-import type { IKeyValueStorage, ISqliteDatabase } from '../database';
-import { MmkvStorage, SqliteDatabase, TABLES } from '../database';
+import type { ISqliteDatabase } from '../database';
+import { SqliteDatabase, TABLES } from '../database';
 import type { ILogUploadQueueService } from './log/uploadQueue/types';
 
 class DependencyProvider {
