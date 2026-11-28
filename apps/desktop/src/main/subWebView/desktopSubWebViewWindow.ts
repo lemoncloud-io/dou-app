@@ -1,6 +1,15 @@
 import type { SubWebViewContext, SubWebViewDisplay } from '@chatic/bridge-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import {
+    acceptsSubWebViewMessage,
+    allowsSubWebViewFrame,
+    barTitleOf,
+    decideDesktopSubWebViewNavigation,
+    displayOf,
+    fetchesManifest,
+    readDesktopSubWebViewManifest,
+} from '@chatic/mini-app-host';
+import {
     type BrowserWindow,
     ipcMain,
     type IpcMainEvent,
@@ -10,20 +19,8 @@ import {
 } from 'electron';
 
 import { createDesktopSubBridgeHost } from './desktopSubBridgeHost';
-import {
-    acceptsSubWebViewMessage,
-    allowsSubWebViewFrame,
-    barTitleOf,
-    decideDesktopSubWebViewNavigation,
-    displayOf,
-    fetchesManifest,
-    modalLayoutOf,
-    partitionOf,
-    readDesktopSubWebViewManifest,
-    subWebViewBootOf,
-    subWebViewWebPreferences,
-} from './desktopSubWebViewPolicy';
 import type { DesktopSubWebViewEntry, DesktopSubWebViewService } from './DesktopSubWebViewService';
+import { modalLayoutOf, partitionOf, subWebViewBootOf, subWebViewWebPreferences } from './desktopSubWebViewSetup';
 import {
     buildSubWebViewChromeHtml,
     chromeDataUrl,
