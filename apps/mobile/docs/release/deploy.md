@@ -95,9 +95,15 @@ computes a version or build number of its own.
 
 ```bash
 git switch --detach mobile-v0.33.0-121
-yarn mobile:release prod all --tag mobile-v0.33.0-121 --dry-run
-yarn mobile:release prod all --tag mobile-v0.33.0-121     # store notes default to the tag's
+yarn mobile:release plan --env prod --tag mobile-v0.33.0-121   # what ships since the last prod release
+yarn mobile:release prod all --tag mobile-v0.33.0-121 --notes-file prod-notes.txt --dry-run
+yarn mobile:release prod all --tag mobile-v0.33.0-121 --notes-file prod-notes.txt
 ```
+
+Prod store notes are written anew for the prod range and confirmed before the run. A prod release
+carries every dev build since the last prod release, so the dev tag's notes cover only part of it;
+`plan --env prod --tag <tag>` lists those pull requests and their team notes. `prod` without
+`--notes`/`--notes-file` (the remote `store_notes`) stops; the dev notes are never used as a default.
 
 1. **Dev record.** The tag must be a dev build tag whose GitHub release has a dev row, and every
    platform asked for must have reached the dev app at that tag. Anything else is refused.
@@ -110,7 +116,8 @@ yarn mobile:release prod all --tag mobile-v0.33.0-121     # store notes default 
    Platforms the release already shows as shipped to prod are skipped, so running `prod` again uploads
    only what is missing and merges the results.
 6. **Finish** with `env=prod`: the release turns from pre-release into a full release, still with
-   `--latest=false`; its table gains a prod row; each included pull request gets "Shipped in prod …".
+   `--latest=false`; its table gains a prod row and the body a "Prod store notes" section; each pull
+   request in the prod range gets "Shipped in prod …".
 
 `--submit` (and the `submit` input) is refused: store review submission comes with store automation,
 after the App Store and Play release settings change.

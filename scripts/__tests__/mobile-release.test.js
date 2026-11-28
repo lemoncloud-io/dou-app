@@ -670,6 +670,31 @@ describe('mobile-release plan', () => {
         ).toBe(2);
     });
 
+    it('prod 노트 범위는 직전 prod 릴리스부터 이 태그까지로, 사이의 dev 빌드를 모두 담는다', async () => {
+        run(['tag', '-a', 'mobile-v0.32.6-100', shas.lib, '-m', 'dev']);
+        run(['tag', '-a', 'mobile-v0.32.6-101', shas.app, '-m', 'dev']);
+        try {
+            const dev = await buildPlan({ prodTags: [], forTag: 'mobile-v0.32.6-101' }, deps());
+            expect(dev.prs.map(pr => pr.number)).toEqual([8]);
+            const prod = await buildPlan({ prodTags: [], forTag: 'mobile-v0.32.6-101', env: 'prod' }, deps());
+            expect(prod.env).toBe('prod');
+            expect(prod.prs.map(pr => pr.number)).toEqual([7, 8]);
+            expect(prod.ranges.notes).toBe(`${shas.bump}..${shas.app}`);
+            expect(summarize(prod)).toContain('(since the last prod release)');
+            const afterProd = await buildPlan(
+                { prodTags: ['mobile-v0.32.6-100'], forTag: 'mobile-v0.32.6-101', env: 'prod' },
+                deps()
+            );
+            expect(afterProd.prs.map(pr => pr.number)).toEqual([8]);
+            await expect(buildPlan({ prodTags: [], env: 'prod' }, deps())).rejects.toThrow('needs --tag');
+            expect(parseArgs(['--env', 'prod', '--tag', 'mobile-v0.32.6-101'])).toEqual(
+                expect.objectContaining({ env: 'prod', forTag: 'mobile-v0.32.6-101' })
+            );
+        } finally {
+            run(['tag', '-d', 'mobile-v0.32.6-100', 'mobile-v0.32.6-101']);
+        }
+    });
+
     it('태그 하나의 노트를 그 태그를 빼고 다시 만든다', async () => {
         run(['tag', '-a', 'mobile-v0.32.6-100', shas.lib, '-m', 'dev']);
         run(['tag', '-a', 'mobile-v0.32.6-101', shas.app, '-m', 'dev']);
@@ -796,7 +821,9 @@ describe('mobile-release finish', () => {
         runUrl: 'D',
         uploadedAt: 'T',
     });
+    const planCalls = [];
     const fakeDeps = ({ tagSha = 'c0ffee', existingBody = null, comments = {} } = {}) => {
+        planCalls.length = 0;
         const calls = [];
         const written = {};
         return {
@@ -818,7 +845,10 @@ describe('mobile-release finish', () => {
                     }
                     return '';
                 },
-                plan: async () => plan,
+                plan: async (...args) => {
+                    planCalls.push(args);
+                    return plan;
+                },
                 now: () => 'NOW',
                 writeFile: (file, text) => {
                     written[file] = text;
@@ -866,9 +896,17 @@ describe('mobile-release finish', () => {
     it('prod는 dev 행을 남긴 채 prod 행을 더하고, 정식 릴리스로 바꾸되 Latest는 가져가지 않는다', async () => {
         const { calls, deps } = fakeDeps({ existingBody: `| Env |\n${devRow}\n` });
         const result = await finish(
-            { ...options, env: 'prod', platforms: 'ios=uploaded,android=uploaded', actor: 'me' },
+            {
+                ...options,
+                env: 'prod',
+                platforms: 'ios=uploaded,android=uploaded',
+                actor: 'me',
+                storeNotes: 'Prod notes.',
+            },
             deps
         );
+        expect(result.body).toContain('## Store notes\n\nFixes.\nMore fixes.\n\n## Prod store notes\n\nProd notes.');
+        expect(planCalls).toEqual([['mobile-v0.33.0-100', 'prod']]);
         const table = result.body.split('\n').filter(line => /^\| (dev|prod) \|/.test(line));
         expect(table).toEqual([devRow, '| prod | NOW | uploaded | uploaded | @me | - |']);
         const edit = calls.find(call => call[0] === 'release' && call[1] === 'edit');
@@ -885,14 +923,17 @@ describe('mobile-release finish', () => {
 
     it('prod를 다시 돌리면 기록된 prod 행을 그대로 쓰고, dev를 다시 돌려도 prod 행은 남는다', async () => {
         const prodRow = '| prod | P | uploaded | failed | @me | [run](R) |';
-        const again = await finish(
-            { ...options, env: 'prod' },
-            fakeDeps({ existingBody: `${devRow}\n${prodRow}` }).deps
-        );
+        const recorded = `${devRow}\n${prodRow}\n\n## Store notes\n\nX\n\n## Prod store notes\n\nProd notes.\n\n## Version\n\nv`;
+        const again = await finish({ ...options, env: 'prod' }, fakeDeps({ existingBody: recorded }).deps);
         expect(again.results).toEqual({ android: 'failed', ios: 'uploaded' });
         expect(again.body).toContain(prodRow);
-        const dev = await finish(options, fakeDeps({ existingBody: `${devRow}\n${prodRow}` }).deps);
+        expect(again.body).toContain('## Prod store notes\n\nProd notes.\n\n## Version');
+        const dev = await finish(options, fakeDeps({ existingBody: recorded }).deps);
         expect(dev.body).toContain(prodRow);
+        expect(dev.body).toContain('## Prod store notes\n\nProd notes.');
+        await expect(
+            finish({ ...options, env: 'prod' }, fakeDeps({ existingBody: `${devRow}\n${prodRow}` }).deps)
+        ).rejects.toThrow('Pass the prod store notes');
         expect(parseRows(`${devRow}\n${prodRow}`).prod.results).toEqual({ ios: 'uploaded', android: 'failed' });
     });
 
@@ -1289,7 +1330,7 @@ describe('mobile-release local release', () => {
         const devRelease = `| Env |\n${envRow({ env: 'dev', results: { ios: 'uploaded', android: 'uploaded' }, actor: '-', uploadedAt: 'T' })}`;
         const prodDeps = (extra = {}) =>
             localDeps({ existingTag: devTag, head: 'feed0000', releaseBody: devRelease, storeBuild: '120', ...extra });
-        const options = { platform: 'android', tag: 'mobile-v0.33.0-121' };
+        const options = { platform: 'android', tag: 'mobile-v0.33.0-121', storeNotes: 'Prod notes.' };
 
         beforeAll(() => {
             fs.writeFileSync(path.join(root, 'apps/mobile/fastlane/play-service-account-prod.json'), 'placeholder');
@@ -1320,12 +1361,18 @@ describe('mobile-release local release', () => {
             expect(runs.map(call => call.slice(1, 5))).toEqual([
                 ['./scripts/deploy-mobile.sh', 'android', 'prod', '-m'],
             ]);
-            expect(runs[0]).toContain('Dev notes.');
+            expect(runs[0]).toContain('Prod notes.');
+            expect(runs[0]).not.toContain('Dev notes.');
             expect(runs[0][runs[0].length - 1]).toEqual({ VERSION_NAME: '0.33.0', BUILD_NUMBER: '121' });
             expect(calls).toContainEqual(['git', 'push', 'origin', 'feed0000:refs/heads/release/mobile-0.33']);
             expect(calls.some(call => call[1] === 'tag' && call[2] === '-a')).toBe(false);
             expect(calls.find(call => call[1] === 'workflow')).toEqual(
-                expect.arrayContaining(['tag=mobile-v0.33.0-121', 'env=prod', 'platform=android=uploaded'])
+                expect.arrayContaining([
+                    'tag=mobile-v0.33.0-121',
+                    'env=prod',
+                    'platform=android=uploaded',
+                    'store_notes=Prod notes.',
+                ])
             );
             expect(result.results).toEqual({ android: 'uploaded' });
         });
@@ -1380,7 +1427,7 @@ describe('mobile-release local release', () => {
                 branchOnOrigin: true,
                 contained: true,
             });
-            await release.releaseProd({ tag: 'mobile-v0.33.0-121' }, deps);
+            await release.releaseProd({ tag: 'mobile-v0.33.0-121', storeNotes: 'Prod notes.' }, deps);
             expect(calls.filter(call => call[0] === 'run').map(call => call[2])).toEqual(['android']);
             expect(calls.find(call => call[1] === 'workflow')).toEqual(
                 expect.arrayContaining(['platform=ios=uploaded, android=uploaded'])
@@ -1390,9 +1437,19 @@ describe('mobile-release local release', () => {
                 branchOnOrigin: true,
                 contained: true,
             });
-            await expect(release.releaseProd({ tag: 'mobile-v0.33.0-121' }, done.deps)).rejects.toThrow(
-                'nothing to upload'
-            );
+            await expect(
+                release.releaseProd({ tag: 'mobile-v0.33.0-121', storeNotes: 'Prod notes.' }, done.deps)
+            ).rejects.toThrow('nothing to upload');
+        });
+
+        it('prod 스토어 노트가 없으면 dry run이어도 멈추고, dev 노트로 채우지 않는다', async () => {
+            for (const extra of [{}, { storeNotes: '  ' }, { dryRun: true }]) {
+                const { calls, deps } = prodDeps();
+                const run = { platform: 'android', tag: 'mobile-v0.33.0-121', ...extra };
+                await expect(release.releaseProd(run, deps)).rejects.toThrow('prod needs store notes');
+                expect(calls.some(call => call[0] === 'run' || call[0] === 'store' || call[1] === 'push')).toBe(false);
+            }
+            expect(release.parseArgs(['prod', '--store-notes', 'x']).storeNotes).toBe('x');
         });
 
         it('태그 커밋에 있지 않으면 멈춘다', async () => {

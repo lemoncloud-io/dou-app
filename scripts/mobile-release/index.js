@@ -88,7 +88,6 @@ async function prodInfo(argv) {
             branch: target.branch,
             branchExists: target.branchExists,
             previous: require('./store').formatResults(target.prodResults),
-            storeNotes: target.recorded.storeNotes,
         })
     );
 }

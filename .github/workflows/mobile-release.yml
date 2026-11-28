@@ -40,7 +40,7 @@ on:
                 options: [auto, patch, minor, major]
                 default: auto
             store_notes:
-                description: 'English, at most 500 characters: TestFlight What to Test and Play release notes'
+                description: 'English, at most 500 characters: TestFlight What to Test and Play release notes; prod needs its own'
                 type: string
                 required: false
             team_notes:
@@ -102,6 +102,7 @@ jobs:
                     [ -n "$TAG" ] || fail "env=prod needs tag: the dev build to ship."
                     [ -z "$VERSION$BUILD" ] || fail "prod ships the tag's version and build; leave version and build empty."
                     [ "$BUMP" = "auto" ] || fail "prod ships the tag's version; leave bump at auto."
+                    [ -n "$STORE_NOTES" ] || fail "prod needs store_notes written for what ships since the last prod release (plan --env prod --tag lists it)."
                   elif ! [[ "$REF" = "develop" || "$REF" =~ ^release/mobile-[0-9]+\.[0-9]+$ ]]; then
                     fail "dev builds come from develop, or release/mobile-<major>.<minor> for a hotfix (got $REF)."
                   fi
@@ -175,7 +176,7 @@ jobs:
                     node -e '
                       const fs = require("fs");
                       const r = require(process.argv[1]);
-                      fs.writeFileSync(process.argv[2], process.env.STORE_NOTES || r.storeNotes);
+                      fs.writeFileSync(process.argv[2], process.env.STORE_NOTES);
                       const out = ["mode=prod", `previous=${r.previous}`, `version=${r.version}`, `build=${r.build}`, `tag=${r.tag}`,
                         `sha=${r.sha}`, `branch=${r.branch}`, `branch_exists=${r.branchExists}`];
                       fs.appendFileSync(process.env.GITHUB_OUTPUT, out.join("\n") + "\n");

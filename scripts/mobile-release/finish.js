@@ -95,7 +95,18 @@ function parseRows(body) {
     return rows;
 }
 
-function releaseBody({ plan, rows, storeNotes, teamNotes }) {
+const PROD_NOTES = '## Prod store notes';
+
+function prodStoreNotes(body) {
+    const text = body || '';
+    const at = text.indexOf(`${PROD_NOTES}\n\n`);
+    if (at === -1) return '';
+    const rest = text.slice(at + PROD_NOTES.length + 2);
+    const end = rest.indexOf('\n## ');
+    return (end === -1 ? rest : rest.slice(0, end)).trim();
+}
+
+function releaseBody({ plan, rows, storeNotes, prodNotes, teamNotes }) {
     const compareFrom = plan.lastTag || plan.base.commit;
     const compare = plan.repo ? `https://github.com/${plan.repo}/compare/${compareFrom}...${plan.release.tag}` : null;
     return [
@@ -110,6 +121,7 @@ function releaseBody({ plan, rows, storeNotes, teamNotes }) {
         '',
         storeNotes.trim(),
         '',
+        ...(prodNotes ? [PROD_NOTES, '', prodNotes.trim(), ''] : []),
         '## Version',
         '',
         versionLine(plan),
@@ -191,9 +203,15 @@ async function finish(options, deps) {
     else if (rows.prod) ({ results, line: row } = rows.prod);
     else throw new Error(`Pass the prod upload results (--platforms ios=uploaded,...) for ${tag}`);
     if (uploadedPlatforms(results).length === 0) throw new Error(`${tag} records no uploaded platform for ${env}`);
-    const storeNotes = (options.storeNotes || '').trim() || recorded.storeNotes;
+    const given = (options.storeNotes || '').trim();
+    const storeNotes = (env === 'dev' && given) || recorded.storeNotes;
     if (!storeNotes) throw new Error(`No store notes: pass them or tag ${tag} with them`);
-    const plan = await deps.plan(tag);
+    const prodNotes =
+        env === 'prod' ? given || prodStoreNotes(existing && existing.body) : prodStoreNotes(existing && existing.body);
+    if (env === 'prod' && !prodNotes) {
+        throw new Error(`Pass the prod store notes (--store-notes) for ${tag}; they are written for the prod range`);
+    }
+    const plan = await deps.plan(tag, env);
     const teamNotes = (options.teamNotes || '').trim() || plan.teamNotes;
     const cardNotes = (options.teamNotes || '').trim() || plan.cardNotes;
     const actor = options.actor ? `@${options.actor}` : '-';
@@ -212,6 +230,7 @@ async function finish(options, deps) {
         plan,
         rows: env === 'dev' ? [devRow, ...(rows.prod ? [rows.prod.line] : [])] : [devRow, ownRow],
         storeNotes,
+        prodNotes,
         teamNotes,
     });
     const summary = { body, tag, env, branch: recorded.branch, results, teamNotes, cardNotes };
@@ -251,9 +270,9 @@ const defaultDeps = {
     git: io.git,
     tryGit: io.tryGit,
     gh: io.gh,
-    plan: tag => {
+    plan: (tag, env) => {
         const { buildPlan, defaultDeps: planDeps } = require('./plan');
-        return buildPlan({ forTag: tag }, planDeps);
+        return buildPlan({ forTag: tag, env }, planDeps);
     },
     now: () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
     writeFile: (file, text) => {
@@ -284,6 +303,7 @@ module.exports = {
     parseTagMessage,
     envRow,
     parseRows,
+    prodStoreNotes,
     releaseBody,
     prComment,
     finish,

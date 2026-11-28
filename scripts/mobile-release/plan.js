@@ -131,6 +131,7 @@ function resolveBase(deps, gradle, prod, to) {
 async function buildPlan(options, deps) {
     const built = options.forTag ? parseTag(options.forTag) : null;
     if (options.forTag && !built) throw new Error(`${options.forTag} is not a mobile-v<version>-<build> tag`);
+    if (options.env === 'prod' && !built) throw new Error('plan --env prod needs --tag <the dev build to ship>');
     const to = built ? built.name : options.to || 'HEAD';
     const toSha = deps.git(['rev-parse', `${to}^{commit}`]);
     const gradle = readGradleVersion(deps.git(['show', `${toSha}:${CONFIG.gradlePath}`]));
@@ -148,7 +149,9 @@ async function buildPlan(options, deps) {
     const lastTag = latestTag(reachableTags);
 
     const unitFrom = options.from ? deps.git(['rev-parse', `${options.from}^{commit}`]) : base.commit;
-    const notesFrom = options.from ? unitFrom : lastTag ? deps.git(['rev-list', '-n', '1', lastTag.name]) : base.commit;
+    let notesFrom = base.commit;
+    if (options.from) notesFrom = unitFrom;
+    else if (options.env !== 'prod' && lastTag) notesFrom = deps.git(['rev-list', '-n', '1', lastTag.name]);
 
     const graph = options.libRoots ? null : deps.nxGraph();
     const roots = binaryRoots(options.libRoots || mobileDependencyRoots(graph));
@@ -196,6 +199,7 @@ async function buildPlan(options, deps) {
         to: { ref: to, sha: toSha },
         base,
         lastTag: lastTag ? lastTag.name : null,
+        env: options.env === 'prod' ? 'prod' : 'dev',
         ranges: { unit: `${unitFrom}..${toSha}`, notes: `${notesFrom}..${toSha}` },
         binaryRoots: roots,
         otherRoots,
@@ -295,7 +299,7 @@ function summarize(plan) {
             `${plan.release.version} ${plan.release.unit} → ${plan.release.tag}${plan.release.branch && plan.release.branch !== 'develop' ? ` (release branch ${plan.release.branch}, patch only)` : ''}`,
         ],
         ['Build', buildLine(plan.release)],
-        ['Notes range', plan.ranges.notes],
+        ['Notes range', `${plan.ranges.notes}${plan.env === 'prod' ? ' (since the last prod release)' : ''}`],
         ['PRs', `${plan.prs.length} PR(s), ${plan.commits.filter(c => !c.pr).length} commit(s) without a PR`],
     ];
     const width = Math.max(...rows.map(([label]) => label.length));
@@ -315,7 +319,8 @@ function parseArgs(argv) {
         else if (arg === '--no-prs') options.prs = false;
         else if (arg === '--from') options.from = value();
         else if (arg === '--to') options.to = value();
-        else if (arg === '--for-tag') options.forTag = value();
+        else if (arg === '--for-tag' || arg === '--tag') options.forTag = value();
+        else if (arg === '--env') options.env = value();
         else if (arg === '--bump') options.bump = value();
         else if (arg === '--version') options.version = value() || undefined;
         else if (arg === '--build') options.build = value() || undefined;

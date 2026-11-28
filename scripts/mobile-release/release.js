@@ -385,11 +385,17 @@ async function releaseProd(options, deps) {
     if (target.wanted.length === 0) {
         throw new Error(`${target.tag} already shipped ${target.alreadyOnProd.join(', ')} to prod; nothing to upload`);
     }
+    if (!(options.storeNotes || '').trim()) {
+        throw new Error(
+            `prod needs store notes written for what ships since the last prod release (--notes or --notes-file); ` +
+                `yarn mobile:release plan --env prod --tag ${target.tag} lists it`
+        );
+    }
     const ctx = {
         env: 'prod',
         at: { tag: target.tag, sha: target.sha },
         platforms: target.wanted,
-        storeNotes: options.storeNotes || target.recorded.storeNotes,
+        storeNotes: options.storeNotes,
     };
     const checks = [...(await preflight(ctx, deps)), ...prodChecks(target)];
     deps.log(formatChecks(checks));
@@ -478,6 +484,7 @@ async function dispatchFinish(tag, options, deps) {
     if (options.env && options.env !== 'dev') args.push('-f', `env=${options.env}`);
     if (options.teamNotes) args.push('-f', `team_notes=${options.teamNotes}`);
     if (options.platformResults) args.push('-f', `platform=${options.platformResults}`);
+    if (options.env === 'prod' && options.storeNotes) args.push('-f', `store_notes=${options.storeNotes.trim()}`);
     try {
         await deps.gh(args);
         deps.log(`Started ${FINISH_WORKFLOW} for ${tag}: gh run list --workflow ${FINISH_WORKFLOW}`);
@@ -540,7 +547,7 @@ function parseArgs(argv) {
         };
         if (arg === '--dry-run') options.dryRun = true;
         else if (arg === '--submit') options.submit = true;
-        else if (arg === '--notes') options.storeNotes = value();
+        else if (arg === '--notes' || arg === '--store-notes') options.storeNotes = value();
         else if (arg === '--notes-file') options.storeNotes = fs.readFileSync(value(), 'utf8');
         else if (arg === '--team-notes-file') options.teamNotes = fs.readFileSync(value(), 'utf8');
         else if (arg === '--bump') options.bump = value();
