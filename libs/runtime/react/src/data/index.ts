@@ -1,5 +1,7 @@
 export * from '@chatic/runtime/api/data';
 export { useRuntimeRepositories } from './hooks/useRuntimeRepositories';
+export { useCreatePlace } from './hooks/useCreatePlace';
+export type { CreatePlaceInput } from './hooks/useCreatePlace';
 export { useSendImages } from './hooks/useSendImages';
 export { useImageSendProgress } from './hooks/imageSendProgress';
 export type {
