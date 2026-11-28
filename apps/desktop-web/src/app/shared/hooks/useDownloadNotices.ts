@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ToastAction, TOAST_DURATION_MS, toast, type ToastActionElement } from '@chatic/ui-kit';
 
-import { getDownloadsApi, type DownloadsApi } from '../utils/electronApi';
+import { getDownloadsApi, getShellApp, type DownloadsApi } from '@chatic/host-web-desktop-shell';
 
 const JOIN_MS = TOAST_DURATION_MS - 500;
 
@@ -54,7 +54,7 @@ const revealAction = (api: DownloadsApi, id: string, t: (key: string) => string)
 };
 
 const revealLabelKey = (): string => {
-    const platform = typeof window === 'undefined' ? '' : window.electronAPI?.platform;
+    const platform = getShellApp()?.platform;
     if (platform === 'darwin') return 'download.showInFinder';
     if (platform === 'win32') return 'download.showInExplorer';
     return 'download.showInFolder';

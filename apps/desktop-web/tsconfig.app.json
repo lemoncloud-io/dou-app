@@ -18,6 +18,12 @@
             "path": "../../libs/runtime-hybrid-web/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/host/web/browser/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/host/web/desktop-shell/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/bridge-messages/tsconfig.lib.json"
         },
         {

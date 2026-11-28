@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/host-web-desktop-shell",
+    "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/host/web/desktop-shell/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:web", "formfactor:any"],
+    "targets": {}
+}

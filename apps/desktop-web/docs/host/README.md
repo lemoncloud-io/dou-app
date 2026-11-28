@@ -5,9 +5,12 @@ pairing and sign-in hand-offs, a plain browser tab. Features never ask which one
 the host ports `runtime.<port>` from `@chatic/runtime-react`, and the app's runtime declaration
 (`src/config/desktop-web.ts`) builds each port once at start from what the host declared.
 
-Every port carries its work as members; this app implements both sides of each in
-`src/config/adapters/<port>.ts` (`media`, `files`, `links`, `appShell`, `signIn`, `diagnostics`,
-`push`). A capability the host does not have is a member that is `null`, so a feature writes
+Every port carries its work as members; `src/config/adapters/<port>.ts` (`media`, `files`, `links`,
+`appShell`, `signIn`, `diagnostics`, `push`) only declares which implementation each side uses. The
+desktop app's side comes from [`@chatic/host-web-desktop-shell`](../../../../libs/host/web/desktop-shell/README.md),
+handed `webClient`; the tab's side from [`@chatic/host-web-browser`](../../../../libs/host/web/browser/README.md),
+except `signIn` (`desktopBrowserSignIn`, which keeps relay OAuth in the tab) and `media` (`desktopMedia` on
+both sides, with no image preparation). A capability the host does not have is a member that is `null`, so a feature writes
 `runtime.appShell.selfUpdate?.restart()` and never reads the port's `kind` or `os` — the root lint rule
 `@nx/workspace-host-port-kind` refuses that outside `src/config/`. `checkout` is fixed to
 `checkout.none` (the desktop app sells nothing), and `media` and `files` to their browser side: the
@@ -41,7 +44,7 @@ page's own inputs and requests. How the ports themselves are built is in
 on one message, `OnReceiveNotification`: a banner click, a menu bar link, a forwarded push and every
 deeplink the app is opened with, an OAuth hand-off's included. `push.notifications` and
 `signIn.relayOAuth.handoffLinks` both read it through one subscription helper
-(`src/config/adapters/notificationFeed.ts`), so a change to how the message is read reaches both at
+(`desktopShellNotificationFeed` in `@chatic/host-web-desktop-shell`), so a change to how the message is read reaches both at
 once, and each listener tells its own payloads apart. No feature subscribes to the message or sends
 `ShowNotification` itself.
 
@@ -67,10 +70,10 @@ this hook hands it the pieces that depend on the host.
 
 ## What the page reads off `window.electronAPI`
 
-`src/app/shared/utils/electronApi.ts` is the one declaration of what the shell's preload exposes.
+`libs/host/web/desktop-shell/src/preload.ts` is the one declaration of what the shell's preload exposes.
 `declare global` merges across the program, so two files asserting their own shape of
 `window.electronAPI` is a compile error, and `vite build` does not typecheck, so it would surface late.
-Features import the types and the `get…Api` readers from there. Every member is optional; outside the
+Features import the types and the `get…Api` and `getShellApp` readers from `@chatic/host-web-desktop-shell`. Every member is optional; outside the
 desktop app, or in an older shell, it is `undefined`.
 
 - The contracts shared with the main process (custom-UI, launch-at-login, downloads) are kept in step

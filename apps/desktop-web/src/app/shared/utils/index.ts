@@ -24,7 +24,6 @@ export * from './resolvePushCloudId';
 export * from './pushLandingPlace';
 export * from './parsePushDeeplink';
 export * from './getAppVersion';
-export * from './electronApi';
 export * from './errors';
 export * from './failureToast';
 export * from './platformKeys';
