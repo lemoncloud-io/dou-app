@@ -36,6 +36,9 @@
             "path": "../../libs/push/desktop"
         },
         {
+            "path": "../../libs/host/desktop"
+        },
+        {
             "path": "../../libs/storage/safe-storage/tsconfig.lib.json"
         }
     ]

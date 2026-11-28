@@ -50,6 +50,7 @@
             "@chatic/checkout-web": ["libs/checkout/web/src/index.ts"],
             "@chatic/checkout-web/windows": ["libs/checkout/web/src/windows.ts"],
             "@chatic/ports": ["libs/contracts/ports/src/index.ts"],
+            "@chatic/host-desktop": ["libs/host/desktop/src/index.ts"],
             "@chatic/host-mobile": ["libs/host/mobile/src/index.ts"],
             "@chatic/host-mobile/links": ["libs/host/mobile/src/links.ts"],
             "@chatic/host-node": ["libs/host/node/src/index.ts"],
