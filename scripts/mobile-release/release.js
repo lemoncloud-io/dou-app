@@ -8,6 +8,7 @@ const { checkStoreNotes } = require('./notes');
 const { tagMessage, parseTagMessage, parseRows } = require('./finish');
 const { parseTag, releaseBranchFor, parseReleaseBranch } = require('./version');
 const store = require('./store');
+const pods = require('./pods');
 
 const PLATFORMS = ['ios', 'android'];
 const RELEASE_WORKFLOW = 'mobile-release.yml';
@@ -146,6 +147,15 @@ function uploadCommand(platform, env, storeNotes) {
     return ['./scripts/deploy-mobile.sh', platform, env, '-m', storeNotes];
 }
 
+async function uploadPlatform(platform, env, storeNotes, buildEnv, deps) {
+    const command = uploadCommand(platform, env, storeNotes);
+    if (platform !== 'ios') return { status: deps.run(command[0], command.slice(1), buildEnv) };
+    return pods.withIosPods(
+        () => deps.run(command[0], command.slice(1), { ...buildEnv, ...pods.UTF8_LOCALE }),
+        deps.pods
+    );
+}
+
 function retryTarget(tagName, platform, deps) {
     if (!parseTag(tagName)) throw new Error(`--tag needs a mobile-v<version>-<build> tag (got ${tagName})`);
     deps.git(['fetch', '--quiet', 'origin', MOBILE_TAGS]);
@@ -204,6 +214,7 @@ async function releaseDev(options, deps) {
             deps.log('  read the latest store build numbers (not read in a dry run):');
             for (const line of storeCommands) deps.log(`    ${line}`);
         }
+        if (ctx.platforms.includes('ios')) deps.log(`  ${pods.DRY_RUN_STEP}`);
         for (const platform of ctx.platforms) {
             const command = uploadCommand(platform, 'dev', ctx.storeNotes);
             deps.log(
@@ -252,10 +263,9 @@ async function releaseDev(options, deps) {
                 break;
             }
         }
-        const command = uploadCommand(platform, 'dev', ctx.storeNotes);
-        const status = deps.run(command[0], command.slice(1), env);
+        const { status, error } = await uploadPlatform(platform, 'dev', ctx.storeNotes, env, deps);
         outcomes[platform] = status === 0 ? 'success' : 'failure';
-        if (status !== 0) stop = `${platform} upload failed (exit ${status})`;
+        if (status !== 0) stop = error || `${platform} upload failed (exit ${status})`;
     }
     const results = store.resolveResults(
         { requested: ctx.platforms, outcomes, env: 'dev', build: target.build },
@@ -413,6 +423,7 @@ async function releaseProd(options, deps) {
             const [command, args] = store.storeBuildCommand(platform, 'prod', '<file>');
             deps.log(`    (cd apps/mobile && ${command} ${args.join(' ')})`);
         }
+        if (ctx.platforms.includes('ios')) deps.log(`  ${pods.DRY_RUN_STEP}`);
         for (const platform of ctx.platforms) {
             const command = uploadCommand(platform, 'prod', ctx.storeNotes);
             deps.log(
@@ -439,10 +450,9 @@ async function releaseProd(options, deps) {
     let stop = null;
     for (const platform of ctx.platforms) {
         if (stop) break;
-        const command = uploadCommand(platform, 'prod', ctx.storeNotes);
-        const status = deps.run(command[0], command.slice(1), env);
+        const { status, error } = await uploadPlatform(platform, 'prod', ctx.storeNotes, env, deps);
         outcomes[platform] = status === 0 ? 'success' : 'failure';
-        if (status !== 0) stop = `${platform} upload failed (exit ${status})`;
+        if (status !== 0) stop = error || `${platform} upload failed (exit ${status})`;
     }
     const results = store.resolveResults(
         { requested: ctx.platforms, outcomes, env: 'prod', build: target.build },
@@ -588,6 +598,7 @@ const defaultDeps = {
     },
     summarize: plan => require('./plan').summarize(plan),
     store: store.defaultDeps,
+    pods: pods.defaultDeps,
     log: message => console.log(message),
 };
 

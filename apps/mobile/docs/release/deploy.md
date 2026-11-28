@@ -81,7 +81,8 @@ yarn mobile:release status
    `--bump` and `--version` override the proposal, `--build` the build number, and `--team-notes-file`
    the generated notes. A computed tag that already exists stops the run.
 4. **Upload.** `scripts/deploy-mobile.sh <platform> dev -m <store notes>` for iOS, then Android, with
-   `VERSION_NAME` and `BUILD_NUMBER` set. A failed platform stops the next one.
+   `VERSION_NAME` and `BUILD_NUMBER` set. A failed platform stops the next one. iOS runs inside the
+   [iOS Pods guard](#ios-pods-guard).
 5. **Tag.** When at least one platform reached the store, an annotated `mobile-v<version>-<build>` tag
    on the built commit, pushed to `origin`. Its message records the environment, the result of each
    platform and the store notes.
@@ -112,7 +113,8 @@ carries every dev build since the last prod release, so the dev tag's notes cove
    commit must be on it, or the run stops. If not, it is created at the tag's commit after the upload.
 4. **Prod store floor.** The latest build of each prod store app is read; unless every one is below the
    tag's build number, the run stops. A dry run does not read the stores.
-5. **Upload** with the tag's `VERSION_NAME` and `BUILD_NUMBER`, iOS first, recording each result.
+5. **Upload** with the tag's `VERSION_NAME` and `BUILD_NUMBER`, iOS first (inside the
+   [iOS Pods guard](#ios-pods-guard)), recording each result.
    Platforms the release already shows as shipped to prod are skipped, so running `prod` again uploads
    only what is missing and merges the results.
 6. **Finish** with `env=prod`: the release turns from pre-release into a full release, still with
@@ -121,6 +123,25 @@ carries every dev build since the last prod release, so the dev tag's notes cove
 
 `--submit` (and the `submit` input) is refused: store review submission comes with store automation,
 after the App Store and Play release settings change.
+
+### iOS Pods guard
+
+`pod install` writes this Mac's hermes-engine checksum into `Podfile.lock` and can reorder
+`project.pbxproj`, so a fresh clone is dirty after it, and the committed `Podfile.lock` makes Xcode's
+"Check Pods Manifest.lock" phase refuse the build. The checksum depends on the machine, so committing
+it does not help. Both `dev` and `prod` therefore wrap the iOS upload, after the clean-tree preflight,
+the way `yarn mobile:verify` wraps its build ([device-verify.md](./device-verify.md#the-tree-is-left-as-found)):
+
+1. Snapshot the bytes of `Podfile.lock` and `project.pbxproj`.
+2. Run `pod install` with `LANG`/`LC_ALL=en_US.UTF-8` when `Pods/` is missing or `Podfile`,
+   `Podfile.lock` or `yarn.lock` changed since the last install in this clone. Otherwise copy
+   `Pods/Manifest.lock` over `Podfile.lock` for the build. The upload runs with the same locale.
+3. When the upload ends (success, failure, or SIGINT/SIGTERM), write both files back to their
+   snapshotted bytes, and print anything else that appeared in the tree without touching it.
+
+The tag still points at the committed `HEAD`. A failed `pod install` counts as a failed iOS upload and
+stops the run; its output is in `release-pod-install.log` under this clone's `mobile:verify` state
+folder, whose path the error prints. `--dry-run` prints this step and installs nothing.
 
 ### Hotfix
 
