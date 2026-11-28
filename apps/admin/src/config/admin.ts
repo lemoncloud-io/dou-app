@@ -10,7 +10,7 @@ export const admin = defineRuntime({
         storage: { default: storageAdminTab },
         transport: { default: transportBrowser },
         auth: { default: authLocation },
-        cache: { default: cacheAdminWebStorage },
+        db: { default: cacheAdminWebStorage },
         foreground: { default: foregroundVisibility },
     },
     constraints: [],

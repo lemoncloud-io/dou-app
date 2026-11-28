@@ -35,7 +35,7 @@ export const consoleRuntime = defineRuntime({
         transport: { default: transportBrowser },
         auth: { default: authLocation },
         foreground: { default: foregroundVisibility },
-        cache: { default: cacheWebStorage, alternatives: [cacheIndexedDb], override: ['local'] },
+        db: { default: cacheWebStorage, alternatives: [cacheIndexedDb], override: ['local'] },
     },
     constraints: [],
 });
@@ -130,8 +130,8 @@ is reported against the adapter it was meant to be:
 
 ```text
 [console] storage → storage.tab (default)
-[console] cache → cache.indexeddb (local)
-[console] cache → cache.web-storage (default, fell back: local asked for 'cache.memory', not one of this runtime's cache adapters (cache.web-storage, cache.indexeddb))
+[console] db → db.indexeddb (local)
+[console] db → db.web-storage (default, fell back: local asked for 'db.memory', not one of this runtime's db adapters (db.web-storage, db.indexeddb))
 [console] engine → engine.core (default)
 ```
 

@@ -16,6 +16,11 @@ export type Persist = 'shell' | 'local' | 'session' | 'none';
 
 export type AppliesAt = 'live' | 'reconnect' | 'restart';
 
+export interface FormerKey {
+    key: string;
+    value?: (former: unknown) => unknown;
+}
+
 export interface ConfigEntry<T = unknown> {
     title: string;
     description: string;
@@ -31,6 +36,7 @@ export interface ConfigEntry<T = unknown> {
     persist: Persist;
     appliesAt?: AppliesAt;
     meta?: boolean;
+    formerKey?: FormerKey;
 }
 
 export interface ConfigSnapshot<T = unknown> {

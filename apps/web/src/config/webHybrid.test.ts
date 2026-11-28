@@ -48,7 +48,7 @@ const EXPECTED_PORTS = {
     storage: 'storage.resolved',
     transport: 'transport.browser',
     auth: 'auth.location',
-    cache: 'cache.web-local',
+    db: 'db.web-local',
     foreground: 'foreground.visibility',
 } as const;
 
@@ -162,7 +162,12 @@ describe('web-hybrid — who holds the session', () => {
             expect.objectContaining({ vault: stores.vault, tab: stores.webSession })
         );
         const [ports] = createRuntime.mock.calls[0] as [{ storage: Record<string, unknown> }];
-        expect(ports.storage).toEqual({ secret: stores.vault, plain: stores.plain, device: stores.device });
+        expect(ports.storage).toEqual({
+            secret: stores.vault,
+            plain: stores.plain,
+            device: stores.device,
+            tab: stores.webSession,
+        });
         expect(webLocalCachePorts).toHaveBeenCalledWith(stores.webSession);
         expect(initEngine).toHaveBeenCalledWith({ core: true });
         expect(started.owner).toEqual({ sessionOwner: 'web' });

@@ -31,7 +31,7 @@ const declarationFor = (storage: ReturnType<typeof storageFile>, lines: string[]
             storage: { default: storage },
             transport: { default: transportNode() },
             auth: { default: authNode() },
-            cache: { default: cacheMemory },
+            db: { default: cacheMemory },
             foreground: { default: foregroundNode },
         },
         host: hostNode({ writeLine: line => lines.push(line) }),
@@ -70,7 +70,7 @@ describe('the headless preset boots in Node on the Node adapters', () => {
                 'storage → storage.file (default)',
                 'transport → transport.node (default)',
                 'auth → auth.node (default)',
-                'cache → cache.memory (default)',
+                'db → db.memory (default)',
                 'foreground → foreground.node (default)',
                 'links → links.node (default)',
             ])

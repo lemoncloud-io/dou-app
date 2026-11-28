@@ -69,9 +69,9 @@ describe('hybrid web adapters — ids and hosts', () => {
             ['storage', 'storage.tab'],
             ['storage', 'storage.local'],
             ['storage', 'storage.vault'],
-            ['cache', 'cache.indexeddb'],
-            ['cache', 'cache.web-storage'],
-            ['cache', 'cache.shell-sqlite'],
+            ['db', 'db.indexeddb'],
+            ['db', 'db.web-storage'],
+            ['db', 'db.shell-sqlite'],
         ]);
     });
 

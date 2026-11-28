@@ -122,7 +122,7 @@ adapter that forgot it, not a fallback discovered on a device.
    `SessionStoragePorts` and `RuntimePorts.transport` is `@chatic/transport`'s
    `TransportPlatformPorts` (the online signal, the device, how a socket is opened) and
    `RuntimePorts.auth` is `@chatic/auth`'s `AuthPlatformPorts` (the address, the way home at logout)
-   and `RuntimePorts.cache` is `@chatic/data`'s `LocalCachePorts` (where each cache domain lives);
+   and `RuntimePorts.db` is `@chatic/data`'s `DbPort` (where each cache domain lives);
    `@chatic/ports` names them, it does not redefine them. `RuntimePorts.foreground` (whether the app is
    in front of the user) is `ForegroundSignal`, and the runtime's own `device` store is
    `RuntimeStorePorts`; both are declared in `@chatic/ports` and re-exported here

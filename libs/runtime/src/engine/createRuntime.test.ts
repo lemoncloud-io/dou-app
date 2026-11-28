@@ -28,7 +28,7 @@ const load = async () => {
 
 const memoryStorage = () => {
     const { MemoryStore } = jest.requireActual<typeof StorageLib>('@chatic/storage');
-    return { secret: new MemoryStore(), plain: new MemoryStore(), device: new MemoryStore() };
+    return { secret: new MemoryStore(), plain: new MemoryStore(), device: new MemoryStore(), tab: new MemoryStore() };
 };
 
 const foregroundPorts = () => ({ read: () => true, subscribe: () => () => undefined });
@@ -68,7 +68,7 @@ describe('createRuntime', () => {
             storage: memoryStorage(),
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 
@@ -85,7 +85,7 @@ describe('createRuntime', () => {
             storage: memoryStorage(),
             transport: ports,
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 
@@ -103,7 +103,7 @@ describe('createRuntime', () => {
             storage: memoryStorage(),
             transport: transport(),
             auth: ports,
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 
@@ -122,7 +122,7 @@ describe('createRuntime', () => {
             storage: memoryStorage(),
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
             data,
         });
@@ -147,7 +147,7 @@ describe('createRuntime', () => {
             storage: memoryStorage(),
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 
@@ -167,7 +167,7 @@ describe('createRuntime', () => {
             storage: memoryStorage(),
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 
@@ -185,7 +185,7 @@ describe('createRuntime', () => {
             storage,
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 
@@ -201,10 +201,10 @@ describe('createRuntime', () => {
         const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
 
         createRuntime({
-            storage: { secret: new MemoryStore(), plain: new MemoryStore(), device },
+            storage: { secret: new MemoryStore(), plain: new MemoryStore(), device, tab: new MemoryStore() },
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 
@@ -222,10 +222,10 @@ describe('createRuntime', () => {
         const { createRuntime } = await load();
 
         createRuntime({
-            storage: { secret: new MemoryStore(), plain, device: new MemoryStore() },
+            storage: { secret: new MemoryStore(), plain, device: new MemoryStore(), tab: new MemoryStore() },
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
             signedOutKeyPrefixes: ['@chatic/web.log.'],
         });
@@ -241,14 +241,14 @@ describe('createRuntime', () => {
             storage: memoryStorage(),
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
         createRuntime({
             storage: memoryStorage(),
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 
@@ -263,7 +263,7 @@ describe('createRuntime', () => {
             storage: memoryStorage(),
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 
@@ -277,7 +277,7 @@ describe('createRuntime', () => {
             storage: memoryStorage(),
             transport: transport(),
             auth: authPorts(),
-            cache: cachePorts(),
+            db: cachePorts(),
             foreground: foregroundPorts(),
         });
 

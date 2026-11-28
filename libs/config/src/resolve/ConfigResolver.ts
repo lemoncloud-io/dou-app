@@ -53,7 +53,7 @@ export class ConfigResolver {
 
         for (const lane of this.policy.order) {
             if (!this.policy.canSupply(entry, lane, isUnlocked)) continue;
-            const read = this.readLane(lane, key);
+            const read = this.readEntryLane(lane, key, entry);
             if (!read.has) continue;
             if (!isValidValue(entry, read.value)) continue;
             return { value: read.value, origin: lane };
@@ -77,6 +77,15 @@ export class ConfigResolver {
         }
 
         return { value: entry.defaultValue, origin: 'default' };
+    }
+
+    private readEntryLane(lane: Lane, key: string, entry: ConfigEntry): { has: boolean; value?: unknown } {
+        const read = this.readLane(lane, key);
+        const former = entry.formerKey;
+        if (read.has || !former) return read;
+        const formerRead = this.readLane(lane, former.key);
+        if (!formerRead.has) return formerRead;
+        return { has: true, value: former.value ? former.value(formerRead.value) : formerRead.value };
     }
 
     private readLane(lane: Lane, key: string): { has: boolean; value?: unknown } {

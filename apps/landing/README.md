@@ -535,16 +535,16 @@ first opened.
 The runtime is declared in `src/config/landing.ts` (`landingRuntime`), one adapter per port and no
 alternatives, so every port is fixed to what the account surface ran before the declaration existed:
 
-| Port         | Adapter                     | What it is                                                                                        |
-| ------------ | --------------------------- | ------------------------------------------------------------------------------------------------- |
-| `storage`    | `storage.landing-tab`       | the session in the tab's `sessionStorage` (`tabStore`, both ports); device state in `deviceStore` |
-| `transport`  | `transport.browser`         | `navigator.onLine`, the user agent and the page's own `WebSocket`                                 |
-| `auth`       | `auth.location`             | `location.search`, and `location.replace('/?…')` at the end of a session                          |
-| `cache`      | `cache.landing-web-storage` | IndexedDB, and a tab's invited clouds in `tabStore` — the page's cache routing                    |
-| `foreground` | `foreground.visibility`     | the document's `visibilityState`                                                                  |
+| Port         | Adapter                  | What it is                                                                                        |
+| ------------ | ------------------------ | ------------------------------------------------------------------------------------------------- |
+| `storage`    | `storage.landing-tab`    | the session in the tab's `sessionStorage` (`tabStore`, both ports); device state in `deviceStore` |
+| `transport`  | `transport.browser`      | `navigator.onLine`, the user agent and the page's own `WebSocket`                                 |
+| `auth`       | `auth.location`          | `location.search`, and `location.replace('/?…')` at the end of a session                          |
+| `db`         | `db.landing-web-storage` | IndexedDB, and a tab's invited clouds in `tabStore` — the page's cache routing                    |
+| `foreground` | `foreground.visibility`  | the document's `visibilityState`                                                                  |
 
-`storage` and `cache` are the site's own adapters (`src/config/adapters/`), not runtime-web's
-`storage.tab` and `cache.web-storage`: those keep the same rows, but over store objects of their own,
+`storage` and `db` are the site's own adapters (`src/config/adapters/`), not runtime-web's
+`storage.tab` and `db.web-storage`: those keep the same rows, but over store objects of their own,
 and the site's must be the objects `src/app/storage/` hands out — where site data is blocked those
 stores are page memory, and one `tabStore` holds the session, config's session lane, the cache's tab
 rows and what the subscription pages carry across a provider's page together. The declaration also

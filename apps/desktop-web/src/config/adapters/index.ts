@@ -21,12 +21,12 @@ export const storageDesktop = defineAdapter<'storage', WebHostFacts>({
                 afterLogout: new URLSearchParams(window.location.search).get('logout') === '1',
             });
         }
-        return { secret, plain, device };
+        return { secret, plain, device, tab: webSession };
     },
 });
 
-export const cacheDesktopWebStorage = defineAdapter<'cache', WebHostFacts>({
-    id: 'cache.desktop-web-storage',
-    port: 'cache',
+export const cacheDesktopWebStorage = defineAdapter<'db', WebHostFacts>({
+    id: 'db.desktop-web-storage',
+    port: 'db',
     create: () => webLocalCachePorts(desktopStores.webSession),
 });

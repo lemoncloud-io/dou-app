@@ -10,7 +10,7 @@ const EXPECTED_DEFAULTS = {
     storage: 'storage.desktop',
     transport: 'transport.browser',
     auth: 'auth.location',
-    cache: 'cache.desktop-web-storage',
+    db: 'db.desktop-web-storage',
     foreground: 'foreground.visibility',
 } as const;
 
@@ -97,6 +97,7 @@ describe('desktop-web runtime declaration', () => {
             secret: desktopStores.secret,
             plain: desktopStores.plain,
             device: desktopStores.device,
+            tab: desktopStores.webSession,
         });
         expect(ports.storage.secret).toBe(desktopStores.secret);
         expect(ports.storage.device).toBe(desktopStores.device);

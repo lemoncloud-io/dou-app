@@ -35,6 +35,6 @@ export const storageResolved = (stores: StorageStores, reload?: () => void) =>
                     watchUnavailableVault(vault, reload);
                 }
             }
-            return { secret: stores.secret, plain: stores.plain, device: stores.device };
+            return { secret: stores.secret, plain: stores.plain, device: stores.device, tab: stores.webSession };
         },
     });

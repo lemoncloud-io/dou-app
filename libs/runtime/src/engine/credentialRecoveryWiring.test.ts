@@ -32,11 +32,16 @@ describe('부팅 전', () => {
 describe('after createRuntime — the credential recovery wiring', () => {
     beforeAll(() => {
         createRuntime({
-            storage: { secret: new MemoryStore(), plain: new MemoryStore(), device: new MemoryStore() },
+            storage: {
+                secret: new MemoryStore(),
+                plain: new MemoryStore(),
+                device: new MemoryStore(),
+                tab: new MemoryStore(),
+            },
             transport: fakeTransportPorts(),
             auth: fakeAuthPorts(),
             foreground: { read: () => true, subscribe: () => () => undefined },
-            cache: {} as never,
+            db: {} as never,
         });
     });
 

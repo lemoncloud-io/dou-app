@@ -26,8 +26,8 @@ modules existed.
 | `session` | `sessionModule()` | `storage` · `auth`         | —                | the session stores, the sign-out sweep, the session view and reads (commands need the graph)    |
 | `http`    | `httpModule()`    | —                          | `session`        | credential recovery for HTTP: a refused HTTP call asks the relay renewer for a fresh credential |
 | `sockets` | `socketsModule()` | `transport` · `foreground` | `session`        | the connection, its controller, the session controller and the two credential guards            |
-| `sync`    | `syncModule()`    | `cache`                    | `sockets`        | the sync data graph and the pending sync-cursor reset                                           |
-| `cache`   | `cacheModule()`   | `cache`                    | `session`        | the local cache ports                                                                           |
+| `sync`    | `syncModule()`    | `db`                       | `sockets`        | the sync data graph and the pending sync-cursor reset                                           |
+| `cache`   | `cacheModule()`   | `db`                       | `session`        | the local cache ports                                                                           |
 | `push`    | `pushModule()`    | `foreground`               | `session`        | device-token registration                                                                       |
 
 `push` needs `foreground` because the engine's push registration re-registers when the app returns
@@ -35,7 +35,7 @@ to the foreground; the host's push port is read by the app API at call time, not
 
 The **repository graph** — `engine.data`, the `data` and `report` groups, and the auth repository the
 sign-in use cases and session commands read — builds socket, local-cache and HTTP data sources together. It is wired when `sockets` and
-`http` are on and the `cache` port is given (by `sync` or `cache`). Without it, a call that reaches the
+`http` are on and the `db` port is given (by `sync` or `cache`). Without it, a call that reaches the
 graph throws, naming what is missing. The relay renewer refreshes a credential over the relay socket,
 so with `http` and no `sockets` a refused HTTP call is not recovered: the renewer answers `false`.
 
@@ -62,7 +62,7 @@ real engine, and checks the declaration-time and type-level rules below.
    only the groups whose modules are on (`RuntimeOf<M>`).
 2. **`startRuntime`.** It checks again before resolving a port, because a declaration can be built
    without `defineRuntime`, and fails with `RuntimeDeclarationError` listing every gap — "the 'sync'
-   module needs the 'sockets' module", "the 'sync' module needs the 'cache' port". It then resolves,
+   module needs the 'sockets' module", "the 'sync' module needs the 'db' port". It then resolves,
    logs and creates only the ports the modules need, in the usual order.
 3. **The call.** `createRuntime` configures a port no module needs with a stand-in that throws on use,
    naming the module it belongs to, and replaces the engine members of a module that is off the same

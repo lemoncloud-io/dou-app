@@ -29,7 +29,7 @@ export const webBrowser = (stores: StorageStores): WebRuntimeDeclaration =>
             storage: { default: storageResolved(stores) },
             transport: { default: transportBrowser },
             auth: { default: authLocation },
-            cache: { default: cacheWebLocal(stores) },
+            db: { default: cacheWebLocal(stores) },
             foreground: { default: foregroundVisibility },
         },
         host: {

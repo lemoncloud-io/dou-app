@@ -70,7 +70,7 @@ describe('engine.mirror', () => {
 
 describe('engine.mirror through startRuntime', () => {
     const declaration = (choice: SessionOwnerChoice, storageContexts: unknown[]) => {
-        const fake = <P extends 'transport' | 'auth' | 'cache' | 'foreground'>(p: P) => ({
+        const fake = <P extends 'transport' | 'auth' | 'db' | 'foreground'>(p: P) => ({
             default: { id: `${p}.fake` as `${P}.fake`, port: p, create: () => ({}) as RuntimePorts[P] },
         });
         return defineRuntime<WebHostFacts, SessionOwnerChoice>({
@@ -89,7 +89,7 @@ describe('engine.mirror through startRuntime', () => {
                 },
                 transport: fake('transport'),
                 auth: fake('auth'),
-                cache: fake('cache'),
+                db: fake('db'),
                 foreground: fake('foreground'),
             },
             engine: { default: engineMirror({ settle: settled(choice) }) },

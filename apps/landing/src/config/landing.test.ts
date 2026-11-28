@@ -8,7 +8,7 @@ const EXPECTED_DEFAULTS = {
     storage: 'storage.landing-tab',
     transport: 'transport.browser',
     auth: 'auth.location',
-    cache: 'cache.landing-web-storage',
+    db: 'db.landing-web-storage',
     foreground: 'foreground.visibility',
 } as const;
 

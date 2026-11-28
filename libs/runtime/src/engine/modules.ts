@@ -32,9 +32,9 @@ export const httpModule = (): RuntimeModule<'http', never, 'session'> => moduleO
 export const socketsModule = (): RuntimeModule<'sockets', 'transport' | 'foreground', 'session'> =>
     moduleOf('sockets', ['transport', 'foreground'], ['session']);
 
-export const syncModule = (): RuntimeModule<'sync', 'cache', 'sockets'> => moduleOf('sync', ['cache'], ['sockets']);
+export const syncModule = (): RuntimeModule<'sync', 'db', 'sockets'> => moduleOf('sync', ['db'], ['sockets']);
 
-export const cacheModule = (): RuntimeModule<'cache', 'cache', 'session'> => moduleOf('cache', ['cache'], ['session']);
+export const cacheModule = (): RuntimeModule<'cache', 'db', 'session'> => moduleOf('cache', ['db'], ['session']);
 
 export const pushModule = (): RuntimeModule<'push', 'foreground', 'session'> =>
     moduleOf('push', ['foreground'], ['session']);
@@ -55,7 +55,7 @@ export type MissingModules<M extends RuntimeModules> = Exclude<M[number]['depend
 export type DataGraphModules = 'sockets' | 'http';
 
 export type HasDataGraph<M extends RuntimeModules> = [DataGraphModules] extends [ModuleNames<M>]
-    ? 'cache' extends RequiredPorts<M>
+    ? 'db' extends RequiredPorts<M>
         ? true
         : false
     : false;
@@ -74,7 +74,7 @@ export const moduleSetOf = (modules: RuntimeModules): ModuleSet => {
         names,
         ports,
         has: name => names.has(name),
-        dataGraph: names.has('sockets') && names.has('http') && ports.has('cache'),
+        dataGraph: names.has('sockets') && names.has('http') && ports.has('db'),
     };
 };
 

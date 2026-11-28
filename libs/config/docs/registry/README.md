@@ -56,24 +56,25 @@ returns a list of strings; `allModules.spec.ts` asserts it is empty. At runtime 
 
 ## The shared contract
 
-Every entry is a `ConfigEntry` (`src/types.ts`). Fourteen fields, seven of them required.
+Every entry is a `ConfigEntry` (`src/types.ts`). Fifteen fields, seven of them required.
 
-| Field           | Required | What it settles                                                                                                                      |
-| --------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `title`         | yes      | The human name a panel shows instead of the dotted key. Written in English — the only consumer is the developer-facing debug overlay |
-| `description`   | yes      | One sentence: what this changes, and why it exists when that is not obvious                                                          |
-| `type`          | yes      | `boolean` · `string` · `number` · `enum` · `json`. Every lane's value is checked against it                                          |
-| `defaultValue`  | yes      | The floor. This is why `get` can be synchronous and never fail                                                                       |
-| `values`        | enum     | The allowed list. An `enum` without one is a policy violation                                                                        |
-| `pattern`       | no       | A `RegExp` a `string` value must match, for an open set of values this lib cannot list. Checked on every row, like `values`          |
-| `byStage`       | no       | Per-stage default. Row 5                                                                                                             |
-| `byPlatform`    | no       | Per-platform default, also row 5                                                                                                     |
-| `envDefaultKey` | no       | The raw build value this key's default comes from. Row 6 — below a declared rule, above the literal                                  |
-| `surface`       | yes      | Which screen would draw a control: `user` · `labs` · `dev` · `internal`                                                              |
-| `writableBy`    | yes      | Who may write it in principle: any of `shell` · `local` · `server`. `[]` means nobody — the build is the only source                 |
-| `persist`       | yes      | Where an override is kept: `shell` · `local` · `session` · `none`                                                                    |
-| `appliesAt`     | no       | `live` · `reconnect` · `restart`. Descriptive metadata for a panel. This lib never forces a reconnect or a restart                   |
-| `meta`          | no       | This key is part of the lock machinery. Two consequences, both below                                                                 |
+| Field           | Required | What it settles                                                                                                                          |
+| --------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`         | yes      | The human name a panel shows instead of the dotted key. Written in English — the only consumer is the developer-facing debug overlay     |
+| `description`   | yes      | One sentence: what this changes, and why it exists when that is not obvious                                                              |
+| `type`          | yes      | `boolean` · `string` · `number` · `enum` · `json`. Every lane's value is checked against it                                              |
+| `defaultValue`  | yes      | The floor. This is why `get` can be synchronous and never fail                                                                           |
+| `values`        | enum     | The allowed list. An `enum` without one is a policy violation                                                                            |
+| `pattern`       | no       | A `RegExp` a `string` value must match, for an open set of values this lib cannot list. Checked on every row, like `values`              |
+| `byStage`       | no       | Per-stage default. Row 5                                                                                                                 |
+| `byPlatform`    | no       | Per-platform default, also row 5                                                                                                         |
+| `envDefaultKey` | no       | The raw build value this key's default comes from. Row 6 — below a declared rule, above the literal                                      |
+| `surface`       | yes      | Which screen would draw a control: `user` · `labs` · `dev` · `internal`                                                                  |
+| `writableBy`    | yes      | Who may write it in principle: any of `shell` · `local` · `server`. `[]` means nobody — the build is the only source                     |
+| `persist`       | yes      | Where an override is kept: `shell` · `local` · `session` · `none`                                                                        |
+| `appliesAt`     | no       | `live` · `reconnect` · `restart`. Descriptive metadata for a panel. This lib never forces a reconnect or a restart                       |
+| `meta`          | no       | This key is part of the lock machinery. Two consequences, both below                                                                     |
+| `formerKey`     | no       | The name this key had before a rename, and how to map its old value. Read on a lane only when that lane holds nothing under the new name |
 
 `surface`, `writableBy` and `persist` are **orthogonal**. A `user` key can persist to the shell
 (`ui.theme`) or to local storage (`ui.pushMuted`); a `dev` key can be unwritable by anyone
@@ -194,10 +195,10 @@ offer disabled.
 ### Port choices — `port.*`
 
 One `string` key per runtime port says which adapter fills it: `port.storage`, `port.transport`,
-`port.auth`, `port.foreground`, `port.cache`, `port.checkout`, `port.media`, `port.files`,
+`port.auth`, `port.foreground`, `port.db`, `port.checkout`, `port.media`, `port.files`,
 `port.links`, `port.appShell`, `port.signIn`, `port.diagnostics`, `port.push` and `port.logSink`.
 The value is an adapter id — `<port>.<adapter>`, the port name exactly as in the key and the adapter
-in lower case with dashes (`cache.memory`, `appShell.native-ios`). The empty string is the floor and
+in lower case with dashes (`db.memory`, `appShell.native-ios`). The empty string is the floor and
 means "use the default the app declared for this port".
 
 This lib stores and resolves the choice and nothing more. Which adapters exist, which one is a port's
@@ -220,6 +221,12 @@ All fifteen — one per port, plus `port.engine` — are declared alike, as deve
 
 The shell lane is not behind the unlock — that gate covers the local lane only, as for every key —
 so a value the native app stored is honoured on PROD too.
+
+**`port.db` was `port.cache`.** The db port was renamed, and so were its adapter ids (`cache.web-storage` is
+`db.web-storage`). A choice a lane saved before that is not lost: `port.db` names `port.cache` as its
+`formerKey`, so on any lane that holds nothing under `port.db` the resolver reads `port.cache` there and
+turns a `cache.<adapter>` value into `db.<adapter>` before checking it. Local storage hydrates both names;
+a value under the new name wins; clearing `port.db` removes both. The build value is `VITE_PORT_DB` only.
 
 To read the choice **with the row it came from**, use `config.snapshot(key)`: its `value` is the id
 and its `origin` is the row that won (`serverEnforced` · `shell` · `local` · `serverDefault` ·

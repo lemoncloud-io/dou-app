@@ -24,7 +24,7 @@ import type * as syncGroup from '../api/sync';
 
 export type PortName = keyof RuntimePorts;
 
-export const PORT_NAMES = ['storage', 'transport', 'auth', 'cache', 'foreground'] as const;
+export const PORT_NAMES = ['storage', 'transport', 'auth', 'db', 'foreground'] as const;
 
 type Assert<T extends true> = T;
 export type PortNamesAreComplete = Assert<

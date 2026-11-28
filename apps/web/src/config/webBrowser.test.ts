@@ -13,7 +13,7 @@ const EXPECTED_PORTS = {
     storage: 'storage.resolved',
     transport: 'transport.browser',
     auth: 'auth.location',
-    cache: 'cache.web-local',
+    db: 'db.web-local',
     foreground: 'foreground.visibility',
 } as const;
 
@@ -98,7 +98,12 @@ describe('web-browser declaration', () => {
         const { stores, createRuntime, initEngine, started } = await start();
 
         const [ports] = createRuntime.mock.calls[0] as [{ storage: Record<string, unknown> }];
-        expect(ports.storage).toEqual({ secret: stores.secret, plain: stores.plain, device: stores.device });
+        expect(ports.storage).toEqual({
+            secret: stores.secret,
+            plain: stores.plain,
+            device: stores.device,
+            tab: stores.webSession,
+        });
         expect(ports.storage.secret).toBe(stores.webSession);
         expect(webLocalCachePorts).toHaveBeenCalledWith(stores.webSession);
         expect(initEngine).toHaveBeenCalledTimes(1);

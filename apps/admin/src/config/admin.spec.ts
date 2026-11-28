@@ -11,7 +11,7 @@ const EXPECTED_DEFAULTS = {
     storage: 'storage.admin-tab',
     transport: 'transport.browser',
     auth: 'auth.location',
-    cache: 'cache.admin-web-storage',
+    db: 'db.admin-web-storage',
     foreground: 'foreground.visibility',
 } as const;
 

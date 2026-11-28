@@ -28,13 +28,13 @@ libs/contracts/ports/src/
 |                          | Runtime ports                                                                                              | Host ports                                                                                |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Type                     | `RuntimePorts`                                                                                             | `HostPorts`                                                                               |
-| Members                  | `storage` · `transport` · `auth` · `cache` · `foreground`                                                  | `checkout` · `media` · `files` · `links` · `appShell` · `signIn` · `diagnostics` · `push` |
+| Members                  | `storage` · `transport` · `auth` · `db` · `foreground`                                                     | `checkout` · `media` · `files` · `links` · `appShell` · `signIn` · `diagnostics` · `push` |
 | Read by                  | the engine (`@chatic/runtime`'s `createRuntime`)                                                           | features, as `runtime.<port>`                                                             |
 | When a platform lacks it | not possible: every field is required, and `RuntimePortsAreRequired` stops compiling if one turns optional | the member is `null`, or `checkout.kind` is `'none'`                                      |
 | Published by             | the app's entry, through `startRuntime` (which calls `createRuntime`)                                      | the app's entry, through `startRuntime` (which calls `host.publish`)                      |
 
 Each runtime port has a short name beside the one its owning package gave it: `StoragePort`
-(`SessionStoragePorts`, the runtime's `device` store and an optional `tab`), `TransportPort` (`TransportPlatformPorts`),
+(`SessionStoragePorts`, the runtime's `device` store and `tab`), `TransportPort` (`TransportPlatformPorts`),
 `AuthPort` (`AuthPlatformPorts`), `DbPort` (`LocalCachePorts`; `CachePort` stays as an alias) and `ForegroundPort`. The older names
 stay as aliases (`ForegroundSignal`, `RuntimeStorePorts`, and the core packages' own), so nothing that
 already names a port changes.
@@ -44,14 +44,15 @@ already names a port changes.
 sync cursors) and `tab` (what ends with the tab, such as a small cache domain) — over one contract,
 `KeyValueStore`, re-exported here from [`@chatic/storage-compose`](../../storage/compose/README.md). The
 contract is declared there, in the foundation, because the core packages declare their own ports against
-it and may not depend on this package. The runtime's `StoragePort` takes `tab` as optional until every
-app's storage adapter hands one; the adapters in `libs/` already do.
+it and may not depend on this package. The runtime's `StoragePort` requires all four, so every app's
+storage adapter hands a `tab` store.
 
-**The db port keeps the member name `cache` for now.** Its type is `DbPort`: the outbox and other rows that
-must not expire live there too, so the port is the medium, not the policy (ADR-0375 decision 5). The member
-itself is still `RuntimePorts.cache`, because the apps' declarations (`ports: { cache: … }`), their adapters
-(`port: 'cache'`) and the saved port choice `port.cache` read that name; renaming it is a step that changes
-those together.
+**The db port is `RuntimePorts.db`.** Its type is `DbPort`: the outbox and other rows that must not expire
+live there too, so the port is the medium, not the policy (ADR-0375 decision 5). The apps declare it as
+`ports: { db: … }`, its adapters are `port: 'db'` with ids `db.<adapter>`, and the saved choice is `port.db`. A
+choice saved before the rename, under `port.cache` with a `cache.<adapter>` id, is still read: config reads it
+when `port.db` holds nothing and hands it on as `db.<adapter>`. The `cache` module, the data settings under
+`data.cache` and the bridge's cache messages keep their names; they are the policy and the wire, not the port.
 
 `@chatic/runtime` re-exports these types from the modules that used to define them (`src/engine/ports.ts`,
 `src/api/host/`), under the same names, and so do `@chatic/runtime-core` and `@chatic/runtime-client`, which

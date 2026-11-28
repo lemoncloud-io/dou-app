@@ -45,9 +45,9 @@ export const storageMemory: NodeAdapter<'storage'> = {
     create: () => memoryStoragePorts(),
 };
 
-export const cacheMemory: NodeAdapter<'cache'> = {
-    id: 'cache.memory',
-    port: 'cache',
+export const cacheMemory: NodeAdapter<'db'> = {
+    id: 'db.memory',
+    port: 'db',
     create: () => memoryDbPorts(),
 };
 

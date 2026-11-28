@@ -15,6 +15,7 @@ export type {
     ConfigEntry,
     ConfigRegistryModule,
     ConfigSnapshot,
+    FormerKey,
     Lane,
     Persist,
     Platform,
@@ -130,9 +131,11 @@ export class ConfigFacade {
         }
 
         const before = resolver.snapshot(key)?.value;
-        this.store.clear(LANE_OF[options.lane], key);
-        if (entry.persist === 'shell') void this.ports?.shell?.clear(key);
-        this.storageFor(entry.persist)?.removeItem(storageKeyFor(key));
+        for (const stored of entry.formerKey ? [key, entry.formerKey.key] : [key]) {
+            this.store.clear(LANE_OF[options.lane], stored);
+            if (entry.persist === 'shell') void this.ports?.shell?.clear(stored);
+            this.storageFor(entry.persist)?.removeItem(storageKeyFor(stored));
+        }
         const after = resolver.snapshot(key)?.value;
         if (before !== after) this.store.notify([key]);
         return { ok: true };
@@ -183,8 +186,10 @@ export class ConfigFacade {
             if (!entry) continue;
             const storage = this.storageFor(entry.persist);
             if (!storage) continue;
-            const value = decodeValue(storage.getItem(storageKeyFor(key)));
-            if (value.has) this.store.write('local', key, value.value);
+            for (const stored of entry.formerKey ? [key, entry.formerKey.key] : [key]) {
+                const value = decodeValue(storage.getItem(storageKeyFor(stored)));
+                if (value.has) this.store.write('local', stored, value.value);
+            }
         }
     }
 

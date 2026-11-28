@@ -6,11 +6,11 @@ import { deviceStore, tabStore } from '../../app/storage';
 export const storageLandingTab = defineAdapter<'storage', WebHostFacts>({
     id: 'storage.landing-tab',
     port: 'storage',
-    create: () => ({ secret: tabStore, plain: tabStore, device: deviceStore }),
+    create: () => ({ secret: tabStore, plain: tabStore, device: deviceStore, tab: tabStore }),
 });
 
-export const cacheLandingWebStorage = defineAdapter<'cache', WebHostFacts>({
-    id: 'cache.landing-web-storage',
-    port: 'cache',
+export const cacheLandingWebStorage = defineAdapter<'db', WebHostFacts>({
+    id: 'db.landing-web-storage',
+    port: 'db',
     create: () => webLocalCachePorts(tabStore),
 });

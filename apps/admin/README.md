@@ -70,16 +70,16 @@ per-stage service bases and the build's stage through the declaration's config p
 
 Every port is fixed — no alternatives — to what the console ran before the declaration existed:
 
-| Port         | Adapter                   | What it is                                                                                        |
-| ------------ | ------------------------- | ------------------------------------------------------------------------------------------------- |
-| `storage`    | `storage.admin-tab`       | the session in the tab's `sessionStorage` (`tabStore`, both ports); device state in `deviceStore` |
-| `transport`  | `transport.browser`       | `navigator.onLine`, the user agent and the page's own `WebSocket`                                 |
-| `auth`       | `auth.location`           | `location.search`, and `location.replace('/?…')` at the end of a session                          |
-| `cache`      | `cache.admin-web-storage` | IndexedDB, and a tab's invited clouds in `tabStore` — the page's cache routing                    |
-| `foreground` | `foreground.visibility`   | the document's `visibilityState`                                                                  |
+| Port         | Adapter                 | What it is                                                                                        |
+| ------------ | ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `storage`    | `storage.admin-tab`     | the session in the tab's `sessionStorage` (`tabStore`, both ports); device state in `deviceStore` |
+| `transport`  | `transport.browser`     | `navigator.onLine`, the user agent and the page's own `WebSocket`                                 |
+| `auth`       | `auth.location`         | `location.search`, and `location.replace('/?…')` at the end of a session                          |
+| `db`         | `db.admin-web-storage`  | IndexedDB, and a tab's invited clouds in `tabStore` — the page's cache routing                    |
+| `foreground` | `foreground.visibility` | the document's `visibilityState`                                                                  |
 
-`storage` and `cache` are the console's own adapters (`src/config/adapters/`), not runtime-web's
-`storage.tab` and `cache.web-storage`. Those keep the same rows in the same web storages, but over
+`storage` and `db` are the console's own adapters (`src/config/adapters/`), not runtime-web's
+`storage.tab` and `db.web-storage`. Those keep the same rows in the same web storages, but over
 store objects of their own; the console's must be the objects `src/app/storage/` hands out, because
 where site data is blocked those stores are page memory, and one `tabStore` holds the session,
 config's session lane and the cache's tab rows together.
@@ -91,7 +91,7 @@ and the line says why. The start logs one line per port under `app.runtime_port`
 [admin] storage → storage.admin-tab (default)
 [admin] transport → transport.browser (default)
 [admin] auth → auth.location (default)
-[admin] cache → cache.admin-web-storage (default)
+[admin] db → db.admin-web-storage (default)
 [admin] foreground → foreground.visibility (default)
 ```
 

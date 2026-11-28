@@ -56,7 +56,7 @@ process.
 | `foregroundAppState`                      | `foreground.app-state` | `nativeForegroundPorts()`                                                                                                                  |
 | `authMobile({ leaveToHome })`             | `auth.mobile`          | `nativeAuthPorts` over the built `plain` store                                                                                             |
 | `storageMobileVault({ vault, files, … })` | `storage.mobile-vault` | `nativeStoragePorts`, loaded by `loadNativeSession` — steps 2 and 3 below, so a vault with no session throws `NativeRuntimeNoSessionError` |
-| `cacheMobileSqlite(client)`               | `cache.mobile-sqlite`  | `nativeLocalCachePorts(client)`                                                                                                            |
+| `cacheMobileSqlite(client)`               | `db.mobile-sqlite`     | `nativeLocalCachePorts(client)`                                                                                                            |
 
 `storageMobileVault`'s `onLoad` hears how the load went — the vault's first answer and the
 secret-storage step's row (`NativeSessionLoad`) — once the vault holds a session, and is not called when
@@ -82,7 +82,7 @@ The ports the adapters fill, the same in every React Native app:
 | `RuntimePorts.foreground` | `nativeForegroundPorts()` | `AppState`: in front unless `background`; a subscriber hears only a change of that answer                                     |
 | `RuntimePorts.auth`       | `nativeAuthPorts()`       | the parameters the last session ended with, carried in the plain store to the next boot; the app's `leaveToHome`              |
 
-`storage` and `cache` are the app's: they sit on native modules the app links (its keychain item, its
+`storage` and `db` are the app's: they sit on native modules the app links (its keychain item, its
 MMKV files, its SQLite), and the app opens those. What is the same for any app that keeps its state that
 way is here, as the builders above — `nativeStoragePorts` and `nativeLocalCachePorts` for the two ports,
 over `nativeSecretStore` and `keyValueStoreOn`; `apps/mobile` puts them together in

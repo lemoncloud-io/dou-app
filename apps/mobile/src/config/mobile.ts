@@ -56,7 +56,7 @@ export const mobile = ({
             storage: { default: storageMobileVault({ vault, files, onLoad: onSessionLoad }) },
             transport: { default: transportMobile },
             auth: { default: authMobile({ leaveToHome }) },
-            cache: { default: cacheMobileSqlite(createInProcessCacheClient(createCacheMessageHandlers(cache))) },
+            db: { default: cacheMobileSqlite(createInProcessCacheClient(createCacheMessageHandlers(cache))) },
             foreground: { default: foregroundAppState },
         },
         constraints: [],

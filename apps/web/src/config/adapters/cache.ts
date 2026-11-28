@@ -14,8 +14,8 @@ export const recordingRoutes = (ports: DbPort): DbPort => ({
 });
 
 export const cacheWebLocal = (stores: Pick<StorageStores, 'webSession'>) =>
-    defineAdapter<'cache', WebHostFacts>({
-        id: 'cache.web-local',
-        port: 'cache',
+    defineAdapter<'db', WebHostFacts>({
+        id: 'db.web-local',
+        port: 'db',
         create: () => recordingRoutes(webLocalCachePorts(stores.webSession)),
     });

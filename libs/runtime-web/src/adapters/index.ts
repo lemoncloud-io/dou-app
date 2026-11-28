@@ -47,15 +47,15 @@ export const storageLocal: WebAdapter<'storage'> = {
     create: () => localStorageStores(pageStorageAreas()),
 };
 
-export const cacheIndexedDb: WebAdapter<'cache'> = {
-    id: 'cache.indexeddb',
-    port: 'cache',
+export const cacheIndexedDb: WebAdapter<'db'> = {
+    id: 'db.indexeddb',
+    port: 'db',
     create: () => browserCachePorts({ indexedDb: indexedDbCache() }),
 };
 
-export const cacheWebStorage: WebAdapter<'cache'> = {
-    id: 'cache.web-storage',
-    port: 'cache',
+export const cacheWebStorage: WebAdapter<'db'> = {
+    id: 'db.web-storage',
+    port: 'db',
     create: ({ storage }) => {
         const indexedDb = indexedDbCache();
         return browserCachePorts({

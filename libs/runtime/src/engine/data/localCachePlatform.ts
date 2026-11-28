@@ -16,7 +16,7 @@ class LocalCachePlatform implements ILocalCachePlatform {
         if (!this.configured) {
             throw new Error(
                 '[data] the local cache ports were used before any were configured — the entry point has to pass ' +
-                    '`cache` to createRuntime() before the data graph is built.'
+                    '`db` to createRuntime() before the data graph is built.'
             );
         }
         return this.configured;
