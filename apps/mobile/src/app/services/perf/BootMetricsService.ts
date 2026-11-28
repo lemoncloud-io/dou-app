@@ -2,7 +2,7 @@ import { recordPerfSample, startPerfTrace } from '@chatic/perf';
 import type { BootRecord, BootType, NativeBootMarkKey, SendBootMetricsPayload } from '@chatic/bridge-messages';
 import type { PerfTrace } from '@chatic/perf';
 
-import type { IKeyValueStorage } from '../../database';
+import type { IKeyValueStorage } from '@chatic/storage-mmkv';
 import type { WebRevealReason } from '../bootSplash/types';
 import type { ILogService } from '../log';
 

@@ -1,12 +1,10 @@
 import type { MMKV } from 'react-native-mmkv';
 import { createMMKV } from 'react-native-mmkv';
 
-import type { ISecureStorageInstallFlag } from './types';
-
 export const SECURE_STORAGE_MMKV_ID = 'secure-storage';
 export const SECURE_STORAGE_INSTALLED_KEY = 'secure-storage.installed';
 
-export class MmkvSecureStorageInstallFlag implements ISecureStorageInstallFlag {
+export class MmkvSecureStorageInstallFlag {
     private readonly mmkv: MMKV;
 
     constructor(mmkv: MMKV = createMMKV({ id: SECURE_STORAGE_MMKV_ID })) {

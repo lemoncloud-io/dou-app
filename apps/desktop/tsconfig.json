@@ -27,6 +27,12 @@
             "path": "../../libs/bridge-messages"
         },
         {
+            "path": "../../libs/mini-app/host/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/mini-app/protocol/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/push/desktop"
         },
         {

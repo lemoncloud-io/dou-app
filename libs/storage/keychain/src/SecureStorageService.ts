@@ -2,7 +2,7 @@ import { AppState } from 'react-native';
 import * as Keychain from 'react-native-keychain';
 import type { OnStorageGetPayload } from '@chatic/bridge-messages';
 
-import type { ILogService } from '../log';
+import type { Logger } from '@chatic/logger';
 import type { ForegroundSubscriber, ISecureStorageInstallFlag, ISecureStorageService, VaultState } from './types';
 
 const TAG = 'SECURE_STORAGE';
@@ -48,7 +48,7 @@ export class SecureStorageService implements ISecureStorageService {
     private unsubscribeForeground: (() => void) | null = null;
 
     constructor(
-        private readonly logService: ILogService,
+        private readonly logService: Logger,
         private readonly installFlag: ISecureStorageInstallFlag,
         bundleId: string,
         private readonly subscribeForeground: ForegroundSubscriber = defaultForegroundSubscriber

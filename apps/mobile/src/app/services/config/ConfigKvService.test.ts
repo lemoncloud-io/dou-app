@@ -1,6 +1,6 @@
 import { ConfigKvService } from './ConfigKvService';
 import type { ILogService } from '../log';
-import type { IKeyValueStorage } from '../../database';
+import type { IKeyValueStorage } from '@chatic/storage-mmkv';
 
 describe('ConfigKvService', () => {
     const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } as unknown as ILogService;

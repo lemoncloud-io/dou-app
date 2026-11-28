@@ -70,7 +70,8 @@ an update that did not apply. The log starts over at a launch that finds it past
 write is ignored: the log can never fail an update.
 
 The handshake (`WebAppReady`) also says `subWebViewOpenScope: 'anyHttps'` — set by
-`DESKTOP_MAIN_HOST_OPTIONS` in `bridgeHandlers.ts`, which `mainWindow.ts` and the contract suite both use.
+`DESKTOP_MAIN_HOST_OPTIONS` in `bridgeHandlers.ts` from `@chatic/mini-app-host`'s
+`DESKTOP_SUB_WEBVIEW_OPEN_SCOPE`, which `mainWindow.ts` and the contract suite both use.
 
 ## Back and Forward
 
@@ -100,9 +101,8 @@ phone shell's sub WebView, and pages talk to it the same way: what a page and th
 other is the protocol in `apps/mobile/docs/webview/mini-app-protocol.md`, whose desktop section
 lists what differs.
 
-**What opens** is the shared rule `libs/shared/src/utils/subWebViewTrust.ts` — the one file of
-`@chatic/shared` the main bundle aliases (`electron.vite.config.ts`), since the barrel carries React.
-Any plain https URL opens, in one of three tiers: `firstParty` (the hub, `https://apps.chatic.io` and
+**What opens** is `checkDesktopSubWebViewOpen` in `@chatic/mini-app-host`, over the trust tiers of
+`@chatic/mini-app-protocol` (`subWebViewTrustOf`). Any plain https URL opens, in one of three tiers: `firstParty` (the hub, `https://apps.chatic.io` and
 `https://apps-dev.chatic.io` exactly), `reviewed` (one label under those domains — the phone shell's
 allowlist) and `external` (anything else: a link a cloud's owner registered). Userinfo, a port, a
 backslash, whitespace, control characters and IP literals are refused as `NOT_ALLOWED`. The phone
@@ -145,9 +145,14 @@ never on the command line, where the names in it would be readable by any proces
 That preload imports nothing the main preload does: the two are
 built together, and a shared module becomes a chunk a sandboxed preload cannot load.
 
-The decisions live in electron-free modules (`DesktopSubWebViewService.ts`,
-`desktopSubWebViewPolicy.ts`, `desktopSubBridgeHost.ts`); `desktopSubWebViewWindow.ts` wires them to
-electron and runs under jest against a fake electron (`desktopSubWebView.test.ts`).
+The decisions — what an open request may open and in which tier, where a navigation goes, which
+frames load, whose messages are heard, what a manifest gives the bar — are
+[`@chatic/mini-app-host`](../../libs/mini-app/host/README.md)'s (`desktop/desktopSubWebViewPolicy.ts`),
+aliased into the main bundle with `@chatic/mini-app-protocol` beneath it. What stays here is
+electron's side: the one open view (`DesktopSubWebViewService.ts`), the page view's session,
+preferences, boot script and layout (`desktopSubWebViewSetup.ts`), the page's bridge
+(`desktopSubBridgeHost.ts`) and the chrome; `desktopSubWebViewWindow.ts` wires them to electron and
+runs under jest against a fake electron (`desktopSubWebView.test.ts`).
 
 ## Injected globals
 
