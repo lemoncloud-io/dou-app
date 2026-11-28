@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (bridges) split into bridge-client and bridge-host packages
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (mobile,db) move the app sqlite schema and cache services into @chatic/db-sqlite
 
 ## [2026-11-28] - No version updates
