@@ -27,6 +27,15 @@ the rest are empty or local, so a developer's own `apps/web/.env` does not reach
 server already on that port is reused as it is, with whatever environment it was started with; in CI
 it always starts its own.
 
+Before the first scenario, `src/support/warm-up.ts` opens the app once in Chromium and imports every
+module the app loads lazily (each relative `import('./…')` under `apps/web/src`), again until a pass
+ends with no page reload. A cold Vite server compiles
+modules and bundles newly found dependencies on first request, and a dependency found that way
+reloads the page; without the warm-up, the first scenario of each worker and the first one to open a
+lazy screen ran into that and timed out. A failed scenario is not retried, in CI or locally: a test
+that passes only on a second attempt is a bug in the test or the app, so fix its cause or delete it
+with the reason.
+
 The last two call Playwright directly rather than through Nx, so its own arguments pass through —
 one file, one browser:
 

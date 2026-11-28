@@ -1,4 +1,4 @@
-import { fitsSubWebViewData, isSubWebViewAppId, isSubWebViewParams, SUB_WEBVIEW_DATA_LIMIT } from './subWebViewData';
+import { fitsSubWebViewData, isSubWebViewAppId, isSubWebViewParams, SUB_WEBVIEW_DATA_LIMIT } from './subWebViewTrust';
 
 describe('fitsSubWebViewData', () => {
     it.each([

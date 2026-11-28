@@ -8,13 +8,11 @@ import type {
     WebMessageHandlerResponse,
 } from '@chatic/bridge-messages';
 import type { ShareAction } from 'react-native';
-// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; the sub-webview trust rules move to a platform-free mini-app protocol package
-import { subWebViewTrustOf } from '@chatic/shared/subWebViewTrust';
+import { SUB_WEBVIEW_TITLE_LIMIT, subWebViewTrustOf } from '@chatic/mini-app-protocol';
 
 import type { IHapticBridge } from '../bridge';
 import { HAPTIC_KINDS } from '../bridge/hapticKinds';
 import type { IClipboardService, IPermissionService, ISubWebViewService } from '../services';
-import { SUB_WEBVIEW_TITLE_LIMIT } from '../services/subWebView/subWebViewData';
 import {
     SUB_WEBVIEW_STORAGE_LIMIT,
     type StorageResult,

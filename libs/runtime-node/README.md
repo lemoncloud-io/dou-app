@@ -70,8 +70,7 @@ environment.
 
 ## Limits
 
-- **Signing in.** No Node sign-in path exists yet: a Node process will sign in by device pairing, and
-  `@chatic/host-node` neither requests nor approves pairing. A session already in the storage files is used.
+- **Signing in.** A Node process signs in by device pairing: `pairNode` in [`@chatic/host-node`](../host/node/README.md) requests a pairing and ends it for both a relay and a cloud approval, and the session lands in the `storageFile` directory. Nothing approves a pairing from Node, and there is no provider or OAuth sign-in. [`apps/dou-cli`](../../apps/dou-cli/README.md) is the caller (`dou-cli pair`).
 - **Reporting an issue.** `startRuntime` here is `@chatic/runtime`'s own, with no platform handed in, so
   `runtime.report.reportIssue` rejects; a Node reporter is a later step.
 - **Waking after sleep.** The process is always online and in the foreground, so no online or visible
