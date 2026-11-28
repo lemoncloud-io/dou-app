@@ -4,6 +4,16 @@
 
 ### Refactor
 
+- (storage) move the desktop device vault into storage-safe-storage
+
+### Other
+
+- test: (storage) keep safe-storage out of the storage jest run
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (host) move desktop-web host adapters to host-web-desktop-shell
 
 ## [2026-11-28] - No version updates
