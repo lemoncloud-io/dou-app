@@ -300,12 +300,9 @@ A downloaded ZIP replaces the remote web, so every step assumes the archive is h
   could drop an executable into Downloads. Names in flight count as taken, since `will-download` asks for a path
   before any byte is written. The origin check reads the top-level page, which is fine while the app embeds no
   other origin.
-- **Link previews (`FetchUrlMetadata`)** run in main (CORS), and anyone can make a message contain any URL, so the
-  fetch is guarded against reaching the internal network: http(s) only, private, loopback and link-local hosts
-  (IPv4, IPv6, mapped and compatible forms, single-label names, `.local`/`.internal`) refused before every request,
-  redirects followed by hand (at most five) so each hop is checked first, a 3 s total timeout, a 256 KB read cap,
-  and only an https image URL returned. Not covered: a public name that resolves to a private address (DNS
-  rebinding), since the check sees the name.
+- **Link previews (`FetchUrlMetadata`)** run in main (CORS) through
+  [`@chatic/host-desktop`](../../libs/host/desktop/README.md), which guards the fetch against reaching the internal
+  network; `src/main/unfurl.ts` only re-exports it.
 - **Language** is the OS locale's bare language subtag (`ja`, `zh`), as the phone injects it, not a `PageLanguage`
   value (`jp`, `cn`); inventing the mapping here would make the two clients disagree. Menu labels follow the OS
   locale too, since the in-app language choice never reaches main.

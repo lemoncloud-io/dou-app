@@ -229,7 +229,6 @@
     "apps/desktop/src/main/subWebView/DesktopSubWebViewService.ts": 27,
     "apps/desktop/src/main/subWebView/desktopSubBridgeHost.ts": 36,
     "apps/desktop/src/main/subWebView/desktopSubWebView.test.ts": 20,
-    "apps/desktop/src/main/unfurl.ts": 10,
     "apps/desktop/src/main/updater.test.ts": 6,
     "apps/landing/eslint.config.mjs": 12,
     "apps/landing/src/app/features/deeplink/hooks/useAppLauncher.test.ts": 16,

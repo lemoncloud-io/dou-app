@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/host-desktop",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/host/desktop/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:desktop", "formfactor:any"],
+    "targets": {}
+}

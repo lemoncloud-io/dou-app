@@ -174,7 +174,6 @@
     "apps/desktop/src/main/subWebView/desktopSubBridgeHost.ts": {"type:DesktopSubBridgeDeps":1},
     "apps/desktop/src/main/subWebView/desktopSubWebViewPolicy.ts": {"type:DesktopSubWebViewNavigation":1},
     "apps/desktop/src/main/subWebView/desktopSubWebViewWindow.ts": {"type:DesktopSubWebViewWindowDeps":1},
-    "apps/desktop/src/main/unfurl.ts": {"type:UrlMetadataResult":1},
     "apps/desktop/src/main/updateCadence.ts": {"type:UpdateCheckGate":1},
     "apps/desktop/src/main/updaterLog.ts": {"type:UpdaterLog":1},
     "apps/desktop/src/main/webUrl.ts": {"export:CUSTOM_UI_HOST":1},
