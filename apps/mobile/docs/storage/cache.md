@@ -8,7 +8,7 @@ SQLite, and the WebView-facing cache service that answers the web client's cache
 | Store  | Location                  | Holds                                                                                     |
 | ------ | ------------------------- | ----------------------------------------------------------------------------------------- |
 | SQLite | `src/app/database/sqlite` | Structured records — one table per cache domain, plus the room media index (`chat_media`) |
-| MMKV   | `src/app/database/mmkv`   | Small key-value state — preferences, config, the log upload queue                         |
+| MMKV   | `@chatic/storage-mmkv`    | Small key-value state — preferences, config, the log upload queue                         |
 
 The runtime the app can run the session in has three MMKV files of its own
 (`services/runtime/runtimeStorageFiles.ts`): `chatic-runtime-plain` and `chatic-runtime-device` hold its

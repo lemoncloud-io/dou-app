@@ -1,4 +1,4 @@
-import type { IKeyValueStorage } from '../../database';
+import type { IKeyValueStorage } from '@chatic/storage-mmkv';
 import type { ILogService } from '../log';
 import type { IConfigKvService } from './types';
 

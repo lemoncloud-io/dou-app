@@ -6,13 +6,14 @@ session's secrets). The web keeps a copy in memory and reads it synchronously; t
 fill that copy at boot and write it back. The contract — payloads, reasons, `reset` — is
 `libs/bridge-messages/src/types/model/storage.ts`; this page is how the phone keeps it.
 
-| File                                                             | Role                                                              |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `src/app/services/secureStorage/SecureStorageService.ts`         | The vault: start-up read, in-memory copy, serialized writes       |
-| `src/app/services/secureStorage/MmkvSecureStorageInstallFlag.ts` | The reinstall flag, in its own MMKV instance                      |
-| `src/app/webview/hooks/secureStorageHandlers.ts`                 | `StorageGet` / `StorageSave` / `StorageClear`, and the media list |
-| `src/config/mobile.ts`                                           | The app runtime's `secret` store on the same vault, in-process    |
-| `android/app/src/main/res/xml/data_extraction_rules.xml`         | Keeps the vault and its flag off cloud backup and device transfer |
+| File                                                                                             | Role                                                              |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| [`@chatic/storage-keychain`](../../../../libs/storage/keychain/README.md) `SecureStorageService` | The vault: start-up read, in-memory copy, serialized writes       |
+| [`@chatic/storage-mmkv`](../../../../libs/storage/mmkv/README.md) `MmkvSecureStorageInstallFlag` | The reinstall flag, in its own MMKV instance                      |
+| `src/app/services/provider.ts`                                                                   | Builds the vault with the flag and the bundle id, and starts it   |
+| `src/app/webview/hooks/secureStorageHandlers.ts`                                                 | `StorageGet` / `StorageSave` / `StorageClear`, and the media list |
+| `src/config/mobile.ts`                                                                           | The app runtime's `secret` store on the same vault, in-process    |
+| `android/app/src/main/res/xml/data_extraction_rules.xml`                                         | Keeps the vault and its flag off cloud backup and device transfer |
 
 ## Where it lives
 

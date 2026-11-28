@@ -1,5 +1,5 @@
 import { serializeLogs } from '@chatic/logger';
-import { MmkvStorage } from '../../../database/mmkv';
+import { MmkvStorage } from '@chatic/storage-mmkv';
 
 import type { LogEntry } from '@chatic/logger';
 import type { ILogService } from '../types';
