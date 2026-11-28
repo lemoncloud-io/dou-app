@@ -16,6 +16,7 @@ import { registerLoginItemIpc } from './loginItemIpc';
 import { createTray } from './menus';
 import { bindNavigationGates } from './navigationGates';
 import { setBadgeCount, showOsNotification } from './osNotifications';
+import { electronPushHost } from './pushHost';
 import type { SecureStorage } from './secureStorage';
 import { pushDeeplink, pushFcmMessage, pushFcmToken } from './shellEvents';
 import { shellState } from './shellState';
@@ -97,10 +98,14 @@ export const createWindow = ({ secureStorage, subWebViewService }: MainWindowDep
         shellState.isQuitting = true;
     });
 
-    startPush(readFcmConfig(), {
-        onToken: token => pushFcmToken(host, token),
-        onPush: push => pushFcmMessage(host, push),
-    });
+    startPush(
+        readFcmConfig(),
+        {
+            onToken: token => pushFcmToken(host, token),
+            onPush: push => pushFcmMessage(host, push),
+        },
+        electronPushHost()
+    );
 
     registerBridgeIpc(host);
 

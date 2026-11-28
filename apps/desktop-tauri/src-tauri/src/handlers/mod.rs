@@ -54,6 +54,7 @@ pub fn register_all(host: &mut BridgeHost, context: &Context) {
     unfurl::register(host, context);
 }
 
+pub use notify::{listen_for_taps, present as present_notification};
 pub use oauth::listen as listen_for_sign_in;
 pub use oauth::take_links as deliver_links;
 pub use subview::{

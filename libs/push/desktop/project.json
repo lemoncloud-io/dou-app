@@ -3,6 +3,6 @@
     "$schema": "../../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "libs/push/desktop/src",
     "projectType": "library",
-    "tags": ["layer:adapter", "platform:desktop", "formfactor:any"],
+    "tags": ["layer:adapter", "platform:desktop", "platform:node", "formfactor:any"],
     "targets": {}
 }

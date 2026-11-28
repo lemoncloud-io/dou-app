@@ -1,5 +1,7 @@
 #[cfg(any(windows, test))]
 use base64::Engine as _;
+use std::sync::Arc;
+
 use bridge_host::BridgeHost;
 use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
@@ -16,8 +18,8 @@ pub fn save_preference(message: &Value) -> Value {
     })
 }
 
-pub fn fcm_token() -> Value {
-    json!({ "type": "OnFetchFcmToken", "success": true, "data": { "token": "" } })
+pub fn fcm_token(token: &str) -> Value {
+    json!({ "type": "OnFetchFcmToken", "success": true, "data": { "token": token } })
 }
 
 const URL_MAX: usize = 2048;
@@ -61,7 +63,22 @@ fn set_badge(app: &AppHandle, count: i64, _overlay: Option<&str>) -> bool {
 
 pub fn register(host: &mut BridgeHost, context: &Context) {
     host.register("SavePreference", sync(|message| save_preference(&message)));
-    host.register("FetchFcmToken", sync(|_| fcm_token()));
+    let app = context.app.clone();
+    host.register(
+        "FetchFcmToken",
+        Arc::new(move |_| {
+            let slot = app
+                .try_state::<Arc<crate::fcm::TokenSlot>>()
+                .map(|slot| Arc::clone(&slot));
+            Box::pin(async move {
+                let token = match slot {
+                    Some(slot) => slot.wait(crate::fcm::TOKEN_WAIT).await,
+                    None => String::new(),
+                };
+                Ok(Some(fcm_token(&token)))
+            })
+        }),
+    );
 
     let app = context.app.clone();
     host.register(
@@ -109,8 +126,9 @@ mod tests {
     }
 
     #[test]
-    fn the_fcm_token_is_empty() {
-        assert_eq!(fcm_token()["data"]["token"], "");
+    fn the_fcm_token_reply_carries_the_token() {
+        assert_eq!(fcm_token("t1")["data"]["token"], "t1");
+        assert_eq!(fcm_token("")["type"], "OnFetchFcmToken");
     }
 
     #[test]

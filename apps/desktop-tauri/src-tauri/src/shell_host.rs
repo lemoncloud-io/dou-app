@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use tauri::{AppHandle, Manager};
 
 use crate::app_source::{AppConfig, AppSource};
+use crate::fcm::{Push, Route, TokenSlot};
 use crate::logs;
 use crate::profile::{Paths, is_deep_link};
 use crate::shell_sock::Host;
@@ -136,11 +137,7 @@ impl Host for ShellHost {
     }
 
     fn focus(&self) {
-        if let Some(window) = self.app.get_webview_window("main") {
-            let _ = window.unminimize();
-            let _ = window.show();
-            let _ = window.set_focus();
-        }
+        crate::shell_ui::show_main(&self.app);
     }
 
     fn second_instance(&self, argv: Vec<String>) {
@@ -153,6 +150,48 @@ impl Host for ShellHost {
         logs::shell(&format!("second instance with {} link(s)", links.len()));
         if !links.is_empty() {
             crate::handlers::deliver_links(&self.app, links);
+        }
+    }
+
+    fn push_token(&self, token: Option<String>) {
+        logs::shell(&match &token {
+            Some(token) => format!("push token from the sidecar ({} chars)", token.len()),
+            None => "push is off in the sidecar".to_string(),
+        });
+        let Some(slot) = self.app.try_state::<Arc<TokenSlot>>() else {
+            return;
+        };
+        if let Some(fresh) = slot.set(token) {
+            crate::bridge::push_event(&self.app, "OnFetchFcmToken", json!({ "token": fresh }));
+        }
+    }
+
+    fn push_message(&self, push: Push) {
+        let route = match self.app.get_webview_window("main") {
+            Some(window) => crate::fcm::route(
+                window.is_visible().unwrap_or(false),
+                window.is_focused().unwrap_or(false),
+                window.is_minimized().unwrap_or(true),
+            ),
+            None => Route::Os,
+        };
+        match route {
+            Route::InApp => crate::bridge::push_event(
+                &self.app,
+                "OnReceiveNotification",
+                crate::fcm::in_app_event(&push),
+            ),
+            Route::Os => {
+                let path = crate::fcm::tap_path(&push.data, push.deeplink.as_deref());
+                if !crate::handlers::present_notification(
+                    &self.app,
+                    &push.title,
+                    &push.body,
+                    path.as_deref(),
+                ) {
+                    logs::shell("a push was not shown: no title or the OS refused it");
+                }
+            }
         }
     }
 }

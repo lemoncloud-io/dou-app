@@ -115,6 +115,7 @@ async fn reachable(host: String, port: u16) -> bool {
 }
 
 pub fn recreate_main(app: &AppHandle) -> tauri::Result<()> {
+    crate::bridge::reset_ready(app);
     match MAIN.get() {
         Some(main) => open_main(app, &main.web, &main.init_script, main.profile.as_ref()),
         None => Ok(()),

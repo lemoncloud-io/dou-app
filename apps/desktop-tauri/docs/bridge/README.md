@@ -15,7 +15,7 @@ The capability `web-bridge` (added at start-up for the baked origin) is the only
 - `WebAppReady` answers `OnWebAppReady` with the shell version, the request's protocol version, the request types it handles, their response types and `subWebViewOpenScope: 'anyHttps'`.
 - `Ping` answers `Pong` with the payload.
 - A request type with no handler answers `ERROR` / `NOT_FOUND` (recoverable); a handler that fails answers `ERROR` with its code (not recoverable). Both echo `refId`, `version` and `nonce`.
-- Pushed events wait until the page's first request that is not a log, storage or runtime one, then go out before that request's answer.
+- Pushed events wait until the page's first request that is not a log, storage or runtime one, then go out before that request's answer. Each new page load in the main window (a reload, or the window opened again) waits again, so an event pushed while the page loads reaches the new page.
 - A message that is not a JSON object with a string `type` is dropped without an answer.
 
 ## Injected globals
@@ -24,7 +24,7 @@ The capability `web-bridge` (added at start-up for the baked origin) is the only
 
 ## Simple handlers
 
-`SavePreference` is accepted and not stored (the page keeps its theme). `FetchFcmToken` answers an empty token until FCM exists. `SetBadgeCount` sets the dock badge on macOS and draws the page's PNG overlay on the Windows taskbar button. `OpenURL` opens an http or https address in the system browser and refuses anything else. `OpenSubWebView` and `CloseSubWebView` open and close a mini-app window; see [Mini-apps](#mini-apps). `StartUpdateDownload` and `RestartToUpdate` drive `tauri-plugin-updater`: a build made with `DOU_UPDATE_FEED=<url of latest.json>` checks it every 30 minutes and pushes `OnUpdateStatus` (`available`, `downloading` with a percent, `downloaded`, `error`); without that variable the shell never checks. The feed is checked against the minisign public key in `tauri.conf.json` and the signature must carry the version. That key belongs to a throwaway pair made for the local run; replace it with the release key before shipping, and keep the private key out of the repository. `ShowNotification` shows an OS notification with the title (at most 200 characters, required) and the body (at most 1000); the `deeplink` is not used yet, so a click does not open the room. A second launch brings the running window to the front instead of starting another process. `OAuthLogin` and `FetchUrlMetadata` have their own sections below.
+`SavePreference` is accepted and not stored (the page keeps its theme). `FetchFcmToken` answers the FCM token the dou-cli sidecar registered ([Push](../shell/README.md#push)): at once when there is one, `''` at once when there is no sidecar or push is off, otherwise after waiting up to 30 seconds (`''` when none came). Each new token is also pushed as `OnFetchFcmToken` with `{ token }`. `SetBadgeCount` sets the dock badge on macOS and draws the page's PNG overlay on the Windows taskbar button. `OpenURL` opens an http or https address in the system browser and refuses anything else. `OpenSubWebView` and `CloseSubWebView` open and close a mini-app window; see [Mini-apps](#mini-apps). `StartUpdateDownload` and `RestartToUpdate` drive `tauri-plugin-updater`: a build made with `DOU_UPDATE_FEED=<url of latest.json>` checks it every 30 minutes and pushes `OnUpdateStatus` (`available`, `downloading` with a percent, `downloaded`, `error`); without that variable the shell never checks. The feed is checked against the minisign public key in `tauri.conf.json` and the signature must carry the version. That key belongs to a throwaway pair made for the local run; replace it with the release key before shipping, and keep the private key out of the repository. `ShowNotification` shows an OS notification with the title (at most 200 characters, required) and the body (at most 1000); a click opens the `deeplink` path the way a push does ([Push](../shell/README.md#push)). A second launch brings the running window to the front, or opens a new one when it was closed, instead of starting another process. `OAuthLogin` and `FetchUrlMetadata` have their own sections below.
 
 ## What is handled
 
@@ -38,16 +38,16 @@ npx nx run desktop-tauri:check-bridge-contract
 
 The web page behind the bridge is remote content, so a script injected into it can send any bridge message. The shell limits what that can do. `handlers/limits.rs` holds the numbers and `bridge_request` applies them before a message reaches a handler; a refused message is answered with an `ERROR` carrying the request's `refId`.
 
-| Guard | Tauri shell | Electron (`apps/desktop/src/main`) |
-| --- | --- | --- |
-| Caller | the `main` window at the web origin only | the main window's web contents |
-| Message size | 256 KiB, else `INVALID` | none |
-| Rate per minute | all messages 300; `ShowNotification` and `OpenURL` 10; `OpenSubWebView` 6; `OAuthLogin` 5; `StorageSave` and `FetchUrlMetadata` 30; else `RATE_LIMITED` | none (sub-webview hand-offs to the OS browser stop after 3 in a row) |
-| Sub-webview scope | `reviewed`: hub hosts and their subdomains only (`apps.chatic.io`, `apps-dev.chatic.io`); any other https host is `NOT_ALLOWED` | `anyHttps` |
-| `OpenURL` | http or https, at most 2048 characters | not handled |
-| `StorageSave` | key 256, value 64 KiB, one save 256 KiB; else `INVALID` | none |
-| `ShowNotification` | title 200, body 1000 characters | none |
-| Local UI CSP | `connect-src` is the IPC and the two web origins; `http://localhost:*` only in `devCsp` | not applicable |
+| Guard              | Tauri shell                                                                                                                                             | Electron (`apps/desktop/src/main`)                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Caller             | the `main` window at the web origin only                                                                                                                | the main window's web contents                                       |
+| Message size       | 256 KiB, else `INVALID`                                                                                                                                 | none                                                                 |
+| Rate per minute    | all messages 300; `ShowNotification` and `OpenURL` 10; `OpenSubWebView` 6; `OAuthLogin` 5; `StorageSave` and `FetchUrlMetadata` 30; else `RATE_LIMITED` | none (sub-webview hand-offs to the OS browser stop after 3 in a row) |
+| Sub-webview scope  | `reviewed`: hub hosts and their subdomains only (`apps.chatic.io`, `apps-dev.chatic.io`); any other https host is `NOT_ALLOWED`                         | `anyHttps`                                                           |
+| `OpenURL`          | http or https, at most 2048 characters                                                                                                                  | not handled                                                          |
+| `StorageSave`      | key 256, value 64 KiB, one save 256 KiB; else `INVALID`                                                                                                 | none                                                                 |
+| `ShowNotification` | title 200, body 1000 characters                                                                                                                         | none                                                                 |
+| Local UI CSP       | `connect-src` is the IPC and the two web origins; `http://localhost:*` only in `devCsp`                                                                 | not applicable                                                       |
 
 Tauri is stricter on purpose. A build that points `DOU_WEB_URL` at another host must add that origin to `connect-src` in `tauri.conf.json`, or the loader page cannot reach it.
 

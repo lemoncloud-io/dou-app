@@ -1,4 +1,4 @@
-import { type FcmConfig, type FcmPush, startFcm } from './fcm';
+import { type FcmConfig, type FcmPush, type PushHost, reportFailure, startFcm } from './fcm';
 
 let fcmToken: string | null = null;
 let fcmTokenWaiters: Array<(token: string) => void> = [];
@@ -24,13 +24,18 @@ export const awaitFcmToken = (): Promise<string> => {
 
 export const startPush = (
     config: FcmConfig,
-    handlers: { onToken: (token: string) => void; onPush: (push: FcmPush) => void }
+    handlers: { onToken: (token: string) => void; onPush: (push: FcmPush) => void },
+    host: PushHost
 ): void => {
-    void startFcm(config, {
-        onToken: token => {
-            onFcmToken(token);
-            handlers.onToken(token);
+    void startFcm(
+        config,
+        {
+            onToken: token => {
+                onFcmToken(token);
+                handlers.onToken(token);
+            },
+            onPush: push => handlers.onPush(push),
         },
-        onPush: push => handlers.onPush(push),
-    }).catch(error => console.error('[fcm] start failed', error));
+        host
+    ).catch(error => reportFailure(host, 'start', error));
 };

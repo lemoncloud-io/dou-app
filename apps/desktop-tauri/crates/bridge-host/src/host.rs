@@ -150,6 +150,10 @@ impl BridgeHost {
         self.process(&request_type, request).await;
     }
 
+    pub fn reset_ready(&self) {
+        lock(&self.ready).is_ready = false;
+    }
+
     fn mark_ready(&self) {
         let pending: Vec<String> = {
             let mut state = lock(&self.ready);
@@ -357,6 +361,22 @@ mod tests {
         host.handle_message(&request("Ping", "p", json!({}))).await;
         host.push_event("OnBackPressed", json!({}));
         assert_eq!(lock(&log).len(), 2);
+    }
+
+    #[tokio::test]
+    async fn events_wait_for_a_new_page() {
+        let (host, log) = host_with_log();
+        host.handle_message(&request("Ping", "p", json!({}))).await;
+        host.reset_ready();
+        host.push_event("OnNavigate", json!({ "path": "/x" }));
+        assert_eq!(lock(&log).len(), 1);
+
+        host.handle_message(&request("WebAppReady", "w", json!({})))
+            .await;
+        let sent = lock(&log);
+        assert_eq!(sent.len(), 3);
+        assert_eq!(sent[1]["type"], "OnNavigate");
+        assert_eq!(sent[2]["type"], "OnWebAppReady");
     }
 
     #[tokio::test]

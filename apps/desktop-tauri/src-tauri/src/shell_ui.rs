@@ -23,14 +23,41 @@ pub fn toggle_action(visible: bool, minimized: bool, focused: bool) -> Toggle {
 }
 
 pub fn show_main(app: &AppHandle) {
+    let handle = app.clone();
+    if let Err(error) = app.run_on_main_thread(move || show_main_now(&handle)) {
+        eprintln!("the main window could not be shown: {error}");
+    }
+}
+
+fn show_main_now(app: &AppHandle) {
+    if app.get_webview_window("main").is_none()
+        && let Err(error) = crate::window::recreate_main(app)
+    {
+        eprintln!("the main window could not be reopened: {error}");
+        return;
+    }
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
-    } else if let Err(error) = crate::window::recreate_main(app) {
-        eprintln!("the main window could not be reopened: {error}");
+    }
+    bring_app_forward();
+}
+
+#[cfg(target_os = "macos")]
+fn bring_app_forward() {
+    if let Some(main_thread) = objc2::MainThreadMarker::new() {
+        #[expect(
+            deprecated,
+            reason = "NSApplication.activate() needs macOS 14; this call still activates there and on older systems"
+        )]
+        objc2_app_kit::NSApplication::sharedApplication(main_thread)
+            .activateIgnoringOtherApps(true);
     }
 }
+
+#[cfg(not(target_os = "macos"))]
+fn bring_app_forward() {}
 
 fn toggle_main(app: &AppHandle) {
     let Some(window) = app.get_webview_window("main") else {
