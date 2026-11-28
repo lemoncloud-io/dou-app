@@ -169,7 +169,8 @@ The preload (`src/preload/index.ts`) sets these on `window` before the page runs
 
 ## Device vault (`nativeSecure`)
 
-`src/main/secureStorage/` (interfaces in `types.ts`). One JSON `Record<string, string>`, encrypted with Electron
+[`@chatic/storage-safe-storage`](../../libs/storage/safe-storage/README.md); `src/main/deviceVault.ts` hands it
+electron's `safeStorage`, the `userData` folder and the platform. One JSON `Record<string, string>`, encrypted with Electron
 `safeStorage` (Keychain on macOS, DPAPI on Windows, Secret Service or KWallet on Linux) into
 `userData/secrets.bin`.
 
