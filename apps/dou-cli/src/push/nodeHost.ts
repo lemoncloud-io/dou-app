@@ -12,21 +12,21 @@ export interface NodePushHost {
 }
 
 export const createNodePushHost = (profile: string, now: () => number = Date.now): NodePushHost => {
-    const timers: ReturnType<typeof setInterval>[] = [];
+    let timer: ReturnType<typeof setInterval> | undefined;
     return {
         host: {
             credentialsPath: join(nodeDataDirectory(profile), 'fcm.json'),
             onWake: reconnect => {
+                clearInterval(timer);
                 let last = now();
-                const timer = setInterval(() => {
+                timer = setInterval(() => {
                     const at = now();
                     if (at - last > 2 * WAKE_TICK_MS) reconnect();
                     last = at;
                 }, WAKE_TICK_MS);
                 timer.unref?.();
-                timers.push(timer);
             },
         },
-        dispose: () => timers.splice(0).forEach(timer => clearInterval(timer)),
+        dispose: () => clearInterval(timer),
     };
 };

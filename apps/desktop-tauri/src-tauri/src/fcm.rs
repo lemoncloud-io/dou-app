@@ -87,14 +87,12 @@ pub struct Push {
     pub data: Map<String, Value>,
 }
 
+pub fn clip(text: &str, max: usize) -> String {
+    text.chars().take(max).collect()
+}
+
 fn clipped(value: &Value, max: usize) -> String {
-    value
-        .as_str()
-        .unwrap_or_default()
-        .trim()
-        .chars()
-        .take(max)
-        .collect()
+    clip(value.as_str().unwrap_or_default().trim(), max)
 }
 
 pub fn push_of(params: &Value) -> Option<Push> {

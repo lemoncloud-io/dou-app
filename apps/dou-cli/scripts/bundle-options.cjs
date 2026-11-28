@@ -47,4 +47,16 @@ const pushProtos = {
     },
 };
 
-module.exports = { FCM_KEYS, fcmDefine, protoTexts, pushProtos };
+const douCliBuild = (root, options) => ({
+    entryPoints: [join(root, 'apps/dou-cli/src/main.ts')],
+    bundle: true,
+    platform: 'node',
+    target: 'node22',
+    tsconfig: join(root, 'apps/dou-cli/tsconfig.app.json'),
+    plugins: [pushProtos],
+    define: fcmDefine(process.env),
+    logLevel: 'warning',
+    ...options,
+});
+
+module.exports = { FCM_KEYS, douCliBuild, fcmDefine, protoTexts, pushProtos };

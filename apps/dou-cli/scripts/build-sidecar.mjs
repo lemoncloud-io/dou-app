@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { build } from 'esbuild';
 
-const { fcmDefine, pushProtos } = createRequire(import.meta.url)('./bundle-options.cjs');
+const { douCliBuild } = createRequire(import.meta.url)('./bundle-options.cjs');
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const outDir = resolve(process.argv[2] ?? join(root, 'apps/desktop-tauri/src-tauri/binaries'));
@@ -35,18 +35,7 @@ const work = mkdtempSync(join(tmpdir(), 'dou-sea-'));
 const config = join(work, 'sea.json');
 const blob = join(work, 'sea.blob');
 const bundle = join(work, 'main.cjs');
-await build({
-    entryPoints: [join(root, 'apps/dou-cli/src/main.ts')],
-    bundle: true,
-    platform: 'node',
-    target: 'node22',
-    format: 'cjs',
-    tsconfig: join(root, 'apps/dou-cli/tsconfig.app.json'),
-    outfile: bundle,
-    plugins: [pushProtos],
-    define: fcmDefine(process.env),
-    logLevel: 'warning',
-});
+await build(douCliBuild(root, { format: 'cjs', outfile: bundle }));
 writeFileSync(config, JSON.stringify({ main: bundle, output: blob, disableExperimentalSEAWarning: true }));
 
 execFileSync(process.execPath, ['--experimental-sea-config', config], { stdio: 'inherit' });

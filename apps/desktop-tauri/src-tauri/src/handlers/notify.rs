@@ -4,7 +4,7 @@ use tauri::AppHandle;
 use tauri_plugin_notification::NotificationExt;
 
 use super::{Context, sync};
-use crate::fcm::{BODY_MAX, TITLE_MAX};
+use crate::fcm::{BODY_MAX, TITLE_MAX, clip};
 
 pub fn present(app: &AppHandle, title: &str, body: &str, path: Option<&str>) -> bool {
     if title.trim().is_empty() {
@@ -48,10 +48,7 @@ pub fn fields_of(message: &Value) -> Option<(String, String)> {
     if title.is_empty() {
         return None;
     }
-    Some((
-        title.chars().take(TITLE_MAX).collect(),
-        body.chars().take(BODY_MAX).collect(),
-    ))
+    Some((clip(title, TITLE_MAX), clip(body, BODY_MAX)))
 }
 
 pub fn register(host: &mut BridgeHost, context: &Context) {

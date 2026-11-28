@@ -77,14 +77,16 @@ export const startSidecarPush = ({
         sendToken(token, 0, generation);
     };
 
+    const stop = (): void => {
+        disposed = true;
+        clearTimeout(timer);
+    };
+
     const config = readFcmConfig(env, built);
     if (!config) {
         log('push: FCM is not configured, push is off');
         deliverToken(null);
-        return () => {
-            disposed = true;
-            clearTimeout(timer);
-        };
+        return stop;
     }
 
     const node = createNodePushHost(profile);
@@ -108,8 +110,7 @@ export const startSidecarPush = ({
         host
     );
     return () => {
-        disposed = true;
-        clearTimeout(timer);
+        stop();
         node.dispose();
     };
 };
