@@ -4,13 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/ui-kit';
 import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
+import { runtime } from '@chatic/runtime-react';
 
 import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
-import { useCreatePlace, useSetMyPlaceProfile } from '../../../hooks';
+import { useSetMyPlaceProfile } from '../../../hooks';
 import { PlaceProfileCreateDialog } from '../../../ui/components/PlaceProfileCreateDialog';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
@@ -35,7 +36,7 @@ const logImageEncodeFailure = (error: unknown, file: File): void =>
 export const CreatePlaceDialog = ({ open, onOpenChange }: CreatePlaceDialogProps) => {
     const { t } = useTranslation();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { createPlace } = useCreatePlace();
+    const { createPlace } = runtime.data.useCreatePlace();
     const { switchSite } = useSiteSwitch();
     const setMyPlaceProfile = useSetMyPlaceProfile();
 

@@ -5,6 +5,7 @@ import { ImagePlus } from 'lucide-react';
 
 import { logger } from '@chatic/bridges';
 import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
+import { runtime } from '@chatic/runtime-react';
 import {
     Avatar,
     AvatarFallback,
@@ -20,7 +21,7 @@ import {
     toast,
 } from '@chatic/ui-kit';
 
-import { useCreatePlace, toastFailure } from '../../../shared';
+import { toastFailure } from '../../../shared';
 import { useCreatePlaceDialogStore } from '../stores';
 import { PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, placeFailure, type PlaceFailure } from '../utils';
 
@@ -46,7 +47,7 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
     const { t } = useTranslation();
     const isOpen = useCreatePlaceDialogStore(s => s.isOpen);
     const setOpen = useCreatePlaceDialogStore(s => s.setOpen);
-    const { createPlace } = useCreatePlace();
+    const { createPlace } = runtime.data.useCreatePlace();
 
     const [name, setName] = useState('');
     const [thumbnail, setThumbnail] = useState<string | undefined>(undefined);

@@ -39,6 +39,7 @@ handed to the engine ([image-send.md](./image-send.md)).
 | Hook                               | Returns                                                                                                                                     |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `useRuntimeRepositories()`         | The page's graph (`PageRepositories`), bound to the current scope                                                                           |
+| `useCreatePlace()`                 | `{ createPlace }` — creates a place in the selected cloud; `createPlace` keeps one identity per repository graph                            |
 | `useGlobalCacheSearch()`           | `{ search, resolveContext }` — a search across every cloud's partition                                                                      |
 | `useInvitedCloudNameSync()`        | Fills in an invited cloud's name once its socket verifies. Native only                                                                      |
 | `usePairedCloudNameSync()`         | Reads a paired cloud's name once per entry. Browser and shells alike                                                                        |

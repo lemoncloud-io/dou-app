@@ -14,7 +14,6 @@ const calls: string[] = [];
 
 jest.mock('../../../hooks', () => ({
     useUpdateCloudProfile: () => ({ mutateAsync: updateCloudName }),
-    useCreatePlace: () => ({ createPlace }),
     useSetMyPlaceProfile: () => setMyPlaceProfile,
     usePickImage: () => ({ open: jest.fn(), inputProps: { type: 'file', hidden: true } }),
 }));
@@ -24,6 +23,7 @@ jest.mock('@chatic/runtime-react', () =>
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'previous-site' }),
         },
+        data: { useCreatePlace: () => ({ createPlace }) },
     })
 );
 jest.mock('@chatic/shared', () => ({
