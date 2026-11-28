@@ -4,7 +4,7 @@ Names, schemas and outputs follow the parked Rust `dou-mcp` crate, so existing M
 
 | Tool              | Needs               | What it does                                                                                  |
 | ----------------- | ------------------- | --------------------------------------------------------------------------------------------- |
-| `clouds_list`     | read                | The active cloud and the user id.                                                             |
+| `clouds_list`     | read                | The active cloud and the user id; the relay is `default`, the runtime relay slot.             |
 | `rooms_list`      | read                | Rooms with unread count, plus whether each is readable and writable.                          |
 | `messages_read`   | read, allowed room  | A page of messages, oldest first.                                                             |
 | `thread_read`     | read, allowed room  | A thread parent and its replies.                                                              |

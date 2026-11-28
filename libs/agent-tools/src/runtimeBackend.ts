@@ -87,7 +87,7 @@ export interface RuntimeSurface {
     };
 }
 
-const RELAY_CLOUD = 'relay';
+const RELAY_CLOUD = 'default';
 const SEARCH_WINDOW = 500;
 const SUBSCRIBE_RETRY_MS = 5000;
 

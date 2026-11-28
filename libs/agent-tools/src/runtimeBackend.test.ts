@@ -1,4 +1,4 @@
-import { runtime } from '@chatic/runtime';
+import { RELAY_CLOUD_ID, runtime } from '@chatic/runtime';
 
 import { runtimeBackend } from './runtimeBackend';
 import type { RuntimeChat, RuntimeChannel, RuntimeLastChat, RuntimeSurface } from './runtimeBackend';
@@ -24,7 +24,9 @@ const channel = (overrides: Partial<RuntimeChannel> = {}): RuntimeChannel => ({
     ...overrides,
 });
 
-const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[] } = {}) => {
+type ServerContext = ReturnType<RuntimeSurface['session']['getActiveServerContext']>;
+
+const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[]; server?: ServerContext } = {}) => {
     const calls = {
         sent: [] as unknown[],
         reactions: [] as unknown[],
@@ -66,7 +68,7 @@ const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[] } =
     };
     const surface: RuntimeSurface = {
         session: {
-            getActiveServerContext: () => ({ kind: 'cloud', cloudId: 'c1', siteId: 's1' }),
+            getActiveServerContext: () => options.server ?? { kind: 'cloud', cloudId: 'c1', siteId: 's1' },
             getIdentityContext: () => ({ userId: 'u1' }),
         },
         data: {
@@ -93,6 +95,14 @@ const build = (options: { chats?: RuntimeChat[]; channels?: RuntimeChannel[] } =
 };
 
 describe('runtimeBackend', () => {
+    it('addresses the relay by the runtime relay slot, not the word relay', async () => {
+        const { backend, calls } = build({ server: { kind: 'relay', siteId: null } });
+        expect(backend.cloud().id).toBe(RELAY_CLOUD_ID);
+        await backend.rooms();
+        await backend.send('r1', 'hello', {});
+        expect(calls.cids).toEqual([RELAY_CLOUD_ID, RELAY_CLOUD_ID]);
+    });
+
     it('stays assignable from the real runtime facade', () => {
         const surface: RuntimeSurface = runtime;
         expect(typeof runtimeBackend(surface).cloud).toBe('function');
