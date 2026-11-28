@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/mini-app-protocol",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/mini-app/protocol/src",
+    "projectType": "library",
+    "tags": ["layer:foundation", "platform:any", "formfactor:any"],
+    "targets": {}
+}

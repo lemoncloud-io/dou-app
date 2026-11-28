@@ -6,7 +6,7 @@ jest.mock('react-native-config', () => ({
 
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('../../../../shared/src/utils/inviteLink'),
-    ...jest.requireActual('../../../../shared/src/utils/subWebViewLink'),
+    ...jest.requireActual('../../../../mini-app/protocol/src/subWebViewLink'),
 }));
 
 describe('resolveDeepLink — sub WebView page link', () => {

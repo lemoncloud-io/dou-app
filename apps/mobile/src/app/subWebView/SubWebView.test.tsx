@@ -93,7 +93,7 @@ const mockCreateRuntimeBridge = jest.fn((_deps: unknown) => ({
 jest.mock('./subWebViewRuntimeBridge', () => ({
     createAppSubWebViewRuntimeBridge: (deps: unknown) => mockCreateRuntimeBridge(deps),
 }));
-jest.mock('@chatic/shared', () => jest.requireActual('../../../../../libs/shared/src/utils/subWebViewLink'));
+jest.mock('@chatic/shared', () => jest.requireActual('../../../../../libs/mini-app/protocol/src/subWebViewLink'));
 
 const URL_ = 'https://foo.apps.chatic.io/a';
 

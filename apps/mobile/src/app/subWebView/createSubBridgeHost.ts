@@ -1,7 +1,7 @@
 import type { SubWebViewContext, WebMessageType } from '@chatic/bridge-messages';
 import { AppBridgeHost, type IAppBridgeHost } from '@chatic/bridges';
 
-import { SUB_WEBVIEW_MESSAGE_LIMIT } from '../services/subWebView/subWebViewData';
+import { SUB_WEBVIEW_MESSAGE_LIMIT } from '@chatic/mini-app-protocol';
 import type { SubBridgeHandlers } from './subBridgeHandlers';
 import type { SubWebViewRuntimeHandlers } from './subWebViewRuntimeBridge';
 

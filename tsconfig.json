@@ -151,6 +151,12 @@
             "path": "./libs/storage/memory"
         },
         {
+            "path": "./libs/mini-app/protocol"
+        },
+        {
+            "path": "./libs/mini-app/host"
+        },
+        {
             "path": "./libs/storage/file"
         },
         {
@@ -203,6 +209,9 @@
         },
         {
             "path": "./libs/design-system/chat/mobile"
+        },
+        {
+            "path": "./libs/chatic-apps-sdk"
         }
     ]
 }

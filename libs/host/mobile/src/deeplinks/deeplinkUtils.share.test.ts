@@ -6,7 +6,7 @@ jest.mock('react-native-config', () => ({
 
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('../../../../shared/src/utils/inviteLink'),
-    ...jest.requireActual('../../../../shared/src/utils/subWebViewLink'),
+    ...jest.requireActual('../../../../mini-app/protocol/src/subWebViewLink'),
 }));
 
 const id = '3f2b8c1e-9a4d-4c7b-8e21-5d6f7a8b9c0d';
