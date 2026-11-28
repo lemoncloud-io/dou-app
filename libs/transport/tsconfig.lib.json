@@ -29,9 +29,6 @@
             "path": "../perf/tsconfig.lib.json"
         },
         {
-            "path": "../storage/tsconfig.lib.json"
-        },
-        {
             "path": "../session/tsconfig.lib.json"
         },
         {

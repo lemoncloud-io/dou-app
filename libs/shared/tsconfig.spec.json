@@ -30,6 +30,9 @@
             "path": "../config/tsconfig.lib.json"
         },
         {
+            "path": "../mini-app/protocol/tsconfig.lib.json"
+        },
+        {
             "path": "../bridges/tsconfig.lib.json"
         },
         {

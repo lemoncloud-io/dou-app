@@ -12,8 +12,7 @@ import type {
     SubWebViewPermission,
     SubWebViewRuntimePermission,
 } from '@chatic/bridge-messages';
-// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; these link and store-URL helpers move to platform-free packages (mini-app protocol, host links)
-import { subWebViewAppLinkOfId, subWebViewAppLinkOfOrigin, type SubWebViewTrust } from '@chatic/shared';
+import { subWebViewAppLinkOfId, subWebViewAppLinkOfOrigin, type SubWebViewTrust } from '@chatic/mini-app-protocol';
 
 import { HapticBridge } from '../bridge';
 import { useResolvedTheme } from '../hooks';

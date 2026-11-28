@@ -252,7 +252,7 @@ When DoU's own web opens a mini app — the hub, or one of the links a cloud's o
 ## The desktop shell
 
 The desktop app shows a sub WebView as a modal over its window. What it opens, and how far it trusts
-it, is one of three tiers, decided by one shared rule (`libs/shared` `subWebViewTrustOf`):
+it, is one of three tiers, decided by one shared rule (`@chatic/mini-app-protocol` `subWebViewTrustOf`):
 
 | Tier         | What                                                                      | Manifest             | Bar title                   |
 | ------------ | ------------------------------------------------------------------------- | -------------------- | --------------------------- |

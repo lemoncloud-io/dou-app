@@ -16,6 +16,8 @@ describe('nodeHostPorts', () => {
         expect(host.push.deviceToken).toBeNull();
         expect(host.files.transfers).toBeNull();
         expect(host.signIn.sessionScope).toBe('device');
+        expect(host.signIn.requestsPairing).toBe(true);
+        expect(host.signIn.approvesPairing).toBe(false);
         expect(host.appShell.os).toBeNull();
     });
 });
