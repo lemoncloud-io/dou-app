@@ -215,8 +215,6 @@
     "apps/mobile/src/app/bridge/SharedLanguageBridge.ts": {"type:ISharedLanguageBridge":1},
     "apps/mobile/src/app/bridge/TransferManagerBridge.ts": {"export:TRANSFER_STATE_EVENT":1,"type:TransferManagerError":1},
     "apps/mobile/src/app/customZip/customZipController.ts": {"type:CustomZipState":1},
-    "apps/mobile/src/app/database/sqlite/cacheContract.ts": {"type:CacheDomainContract":1},
-    "apps/mobile/src/app/database/sqlite/index.ts": {"file":1},
     "apps/mobile/src/app/hooks/useAppVersionCheck.ts": {"type:VersionCheckResult":1},
     "apps/mobile/src/app/hooks/useQueryString.ts": {"export:useQueryString":1},
     "apps/mobile/src/app/hooks/useResolvedTheme.ts": {"type:ResolvedTheme":1},

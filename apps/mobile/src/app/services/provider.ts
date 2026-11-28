@@ -57,8 +57,6 @@ import type { IConfigKvService } from './config';
 import { ConfigKvService } from './config';
 import type { IPreferenceService } from './preference';
 import { PreferenceService } from './preference';
-import type { ICacheCrudService, ICacheSearchService } from './cache';
-import { CacheCrudService, CacheSearchService } from './cache';
 import type { IBootMetricsService } from './perf';
 import { BootMetricsService, createNativeTelemetryRecorder } from './perf';
 import type { ISubWebViewService, SubWebViewManifestStore } from './subWebView';
@@ -69,23 +67,26 @@ import { SecureStorageService } from '@chatic/storage-keychain';
 import type { IKeyValueStorage } from '@chatic/storage-mmkv';
 import { MmkvSecureStorageInstallFlag, MmkvStorage } from '@chatic/storage-mmkv';
 
+import type { INativeStorageService } from './storage';
+import { NativeStorageService } from './storage';
+import type { ICacheCrudService, ICacheSearchService, ISqliteDatabase } from '@chatic/db-sqlite';
 import {
+    CacheCrudService,
+    CacheSearchService,
     ChannelDataSource,
     ChatDataSource,
     InviteCloudDataSource,
     InviteDataSource,
     JoinDataSource,
-    SiteDataSource,
-    UserDataSource,
-    ProfileDataSource,
     MetaDataSource,
+    ProfileDataSource,
+    SiteDataSource,
+    TABLES,
     TestRecordDataSource,
-} from '../data/cache';
-import { TestRecordService } from './cache/TestRecordService';
-import type { INativeStorageService } from './storage';
-import { NativeStorageService } from './storage';
-import type { ISqliteDatabase } from '../database';
-import { SqliteDatabase, TABLES } from '../database';
+    TestRecordService,
+    UserDataSource,
+} from '@chatic/db-sqlite';
+import { openSqliteDatabase } from '@chatic/db-sqlite-op';
 import type { ILogUploadQueueService } from './log/uploadQueue/types';
 
 class DependencyProvider {
@@ -204,7 +205,7 @@ class DependencyProvider {
 
     public get sqliteDatabase(): ISqliteDatabase {
         if (!this._sqliteDatabase) {
-            this._sqliteDatabase = new SqliteDatabase(this.logService);
+            this._sqliteDatabase = openSqliteDatabase(this.logService);
         }
         return this._sqliteDatabase;
     }

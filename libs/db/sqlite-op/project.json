@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/db-sqlite-op",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/db/sqlite-op/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:mobile", "formfactor:any"],
+    "targets": {}
+}

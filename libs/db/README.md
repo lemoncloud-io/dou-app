@@ -85,7 +85,8 @@ instrumentation (`nativeCacheMetrics`); two `IGlobalCacheSearchSource` implement
 emission, observer keys and merge semantics on top of a storage (`@chatic/data`, `local/data-sources/`);
 which backend a type is routed to (`@chatic/runtime-web`'s `resolveCacheBackendFor` in a page,
 `@chatic/runtime-mobile`'s `nativeLocalCachePorts` in the phone app); the SQLite
-implementation on the far side of the bridge (`apps/mobile`); the bridge transport itself
+implementation on the far side of the bridge ([`@chatic/db-sqlite`](./sqlite/README.md) on
+[`@chatic/db-sqlite-op`](./sqlite-op/README.md), wired by `apps/mobile`); the bridge transport itself
 (`@chatic/bridges`).
 
 ## Structure
@@ -181,7 +182,10 @@ libs/db/
 │                 IndexedDbGlobalSearchSource
 ├── bridge/       @chatic/db-bridge — NativeDBAdapter, CacheBridgeClient, nativeCacheMetrics,
 │                 NativeGlobalSearchSource
-└── memory/       @chatic/db-memory — the volatile db port, for Node and tests
+├── memory/       @chatic/db-memory — the volatile db port, for Node and tests
+├── sqlite/       @chatic/db-sqlite — the app SQLite schema, migrations, data sources and cache
+│                 services, over a driver handed in
+└── sqlite-op/    @chatic/db-sqlite-op — the op-sqlite driver that opens the phone's dou.sqlite
 ```
 
 | Package                                         | Layer   | Platform |
@@ -189,6 +193,8 @@ libs/db/
 | [`@chatic/db-indexeddb`](./indexeddb/README.md) | adapter | any      |
 | [`@chatic/db-bridge`](./bridge/README.md)       | adapter | any      |
 | [`@chatic/db-memory`](./memory/README.md)       | adapter | any      |
+| [`@chatic/db-sqlite`](./sqlite/README.md)       | adapter | any      |
+| [`@chatic/db-sqlite-op`](./sqlite-op/README.md) | adapter | mobile   |
 
 `indexeddb` stays `platform:any` for now, as `@chatic/db` always was: the phone runtime and app import
 `@chatic/db`, and a `platform:mobile` project may not reach a `web` one. It narrows to `web` once they

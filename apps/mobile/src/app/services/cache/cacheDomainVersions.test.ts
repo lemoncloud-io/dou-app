@@ -1,4 +1,4 @@
-import { TARGET_VERSION } from '../../database/sqlite/schema';
+import { TARGET_VERSION } from '@chatic/db-sqlite';
 import { resetCacheDomainVersions, resolveCacheDomainVersions } from './cacheDomainVersions';
 
 const mockGetSchemaVersion = jest.fn();

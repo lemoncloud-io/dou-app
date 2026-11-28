@@ -1,0 +1,19 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "outDir": "../../../dist/out-tsc/db-sqlite-op-spec",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "../sqlite/tsconfig.lib.json"
+        },
+        {
+            "path": "../../logger/tsconfig.lib.json"
+        }
+    ]
+}

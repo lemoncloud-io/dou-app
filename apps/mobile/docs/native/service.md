@@ -16,8 +16,9 @@ services/<domain>/
 └── index.ts        export * from './types'; export * from './<Domain>Service'
 ```
 
-`cache/` is the exception with a domain to itself: `CacheCrudService`, `CacheSearchService` and
-`TestRecordService` share one directory because they share the same SQLite data sources.
+`cache/` holds the bridge-facing cache handlers (`cacheMessages.ts`, `inProcessCacheClient.ts`) and the
+per-domain version measurement; `CacheCrudService`, `CacheSearchService`, `TestRecordService` and the
+SQLite data sources they share are [`@chatic/db-sqlite`](../../../../libs/db/sqlite/README.md).
 `services/provider.ts` assembles every instance; `services/index.ts` re-exports the domains and the
 commonly used singletons. Confirm the count and the shape together:
 
