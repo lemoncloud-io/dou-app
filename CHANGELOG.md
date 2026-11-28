@@ -2,6 +2,12 @@
 
 ## [2026-11-28] - No version updates
 
+### Bug Fixes
+
+- (web/channels) keep a reader who scrolled up from being pinned back on room entry
+
+## [2026-11-28] - No version updates
+
 ### Refactor
 
 - (storage) move the desktop device vault into storage-safe-storage
