@@ -6,6 +6,7 @@ module.exports = {
         '^@chatic/assets$': '<rootDir>/../../apps/web/__mocks__/assetsMock.js',
         '^@chatic/host-web-browser$': '<rootDir>/../host/web/browser/src/index.ts',
         '^@chatic/storage-(compose|memory|web-local|web-session|vault-bridge)$': '<rootDir>/../storage/$1/src/index.ts',
+        '^@chatic/mini-app-(protocol|host)$': '<rootDir>/../mini-app/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
     },
     transform: {

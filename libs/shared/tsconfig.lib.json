@@ -13,7 +13,7 @@
             "path": "../host/web/browser/tsconfig.lib.json"
         },
         {
-            "path": "../bridge-messages/tsconfig.lib.json"
+            "path": "../mini-app/protocol/tsconfig.lib.json"
         },
         {
             "path": "../config/tsconfig.lib.json"

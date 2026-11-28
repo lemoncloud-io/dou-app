@@ -1,10 +1,13 @@
 import type { SubWebViewCloseReason } from '@chatic/bridge-messages';
 
-// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; the sub-webview trust rules move to a platform-free mini-app protocol package
-import { subWebViewTrustOf } from '@chatic/shared/subWebViewTrust';
+import {
+    fitsSubWebViewData,
+    isSubWebViewAppId,
+    isSubWebViewParams,
+    subWebViewTrustOf,
+} from '@chatic/mini-app-protocol';
 
 import type { ILogService } from '../log';
-import { fitsSubWebViewData, isSubWebViewAppId, isSubWebViewParams } from './subWebViewData';
 import type {
     ISubWebViewService,
     SubWebViewCloseResult,

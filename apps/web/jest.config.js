@@ -20,6 +20,7 @@ module.exports = {
         '^@chatic/storage-(compose|memory|web-local|web-session|vault-bridge)$':
             '<rootDir>/../../libs/storage/$1/src/index.ts',
         '^@chatic/host-web-(browser|mobile-shell)$': '<rootDir>/../../libs/host/web/$1/src/index.ts',
+        '^@chatic/mini-app-(protocol|host)$': '<rootDir>/../../libs/mini-app/$1/src/index.ts',
         '^@chatic/(.*)$': '<rootDir>/../../libs/$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/../../libs/web-ui-kit/src/__mocks__/styleMock.js',
         '\\.(png|jpe?g|gif|svg|webp)$': '<rootDir>/../../libs/web-ui-kit/src/__mocks__/fileMock.js',
