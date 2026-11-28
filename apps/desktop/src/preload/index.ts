@@ -4,9 +4,9 @@ import {
     DOWNLOAD_REVEAL_CHANNEL,
     type DownloadDone,
 } from '@chatic/host-desktop/downloadsContract';
+import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from '@chatic/host-desktop/loginItemContract';
 
 import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from '../main/customUiContract';
-import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from '../main/loginItemContract';
 import { DESKTOP_STORAGE_MEDIA } from '../main/secureStorage/constants';
 import { utf8ToBase64 } from './base64';
 
