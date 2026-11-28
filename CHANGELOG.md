@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (host-desktop) move launch at login into @chatic/host-desktop
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (design-system) move desktop ui parts into components-desktop
 
 ## [2026-11-28] - No version updates
