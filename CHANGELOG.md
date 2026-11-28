@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (mini-app-host) move the desktop sub window decisions into the library
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (mobile,storage) move mmkv and keychain storage into @chatic/storage-mmkv and -keychain
 
 ## [2026-11-28] - No version updates
