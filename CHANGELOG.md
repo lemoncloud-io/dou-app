@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (design-system) move desktop ui parts into components-desktop
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (runtime,config) rename the runtime port key cache to db
 
 ## [2026-11-28] - No version updates
