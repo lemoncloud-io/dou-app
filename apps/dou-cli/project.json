@@ -16,8 +16,27 @@
             "executor": "nx:run-commands",
             "outputs": ["{workspaceRoot}/dist/apps/dou-cli"],
             "options": {
-                "command": "esbuild apps/dou-cli/src/main.ts --bundle --platform=node --target=node22 --format=esm --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --tsconfig=apps/dou-cli/tsconfig.app.json --outfile=dist/apps/dou-cli/main.mjs"
-            }
+                "command": "node apps/dou-cli/scripts/build.mjs"
+            },
+            "inputs": [
+                "default",
+                "^default",
+                {
+                    "env": "VITE_FCM_API_KEY"
+                },
+                {
+                    "env": "VITE_FCM_PROJECT_ID"
+                },
+                {
+                    "env": "VITE_FCM_SENDER_ID"
+                },
+                {
+                    "env": "VITE_FCM_APP_ID"
+                },
+                {
+                    "env": "VITE_FCM_PACKAGE"
+                }
+            ]
         }
     }
 }

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { PushHost } from './fcm';
+import type * as PushModule from './push';
 
 jest.mock('@liamcottle/push-receiver', () => {
     const clients: FakeClient[] = [];
@@ -47,7 +48,7 @@ const settle = async (): Promise<void> => {
 };
 
 const load = () => {
-    let push!: typeof import('./push');
+    let push!: typeof PushModule;
     let receiver!: ReceiverMock;
     jest.isolateModules(() => {
         push = jest.requireActual('./push');
@@ -147,6 +148,24 @@ describe('startPush with a host', () => {
         jest.setSystemTime(1_000_000 + 31_000);
         hooks.focus?.();
         expect(receiver.clients).toHaveLength(2);
+    });
+
+    it('hands each failure to the host onError instead of the console', async () => {
+        const { push, receiver } = load();
+        writeFileSync(join(dir, 'fcm.json'), JSON.stringify(saved));
+        receiver.AndroidFCM.installRequest.mockRejectedValue(new Error('refresh down'));
+        receiver.AndroidFCM.register.mockRejectedValue(new Error('register down'));
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const onError = jest.fn();
+        const onToken = jest.fn();
+
+        push.startPush(config, { onToken, onPush: jest.fn() }, { ...hostAt(join(dir, 'fcm.json')).host, onError });
+        await settle();
+        warn.mockRestore();
+
+        expect(onError.mock.calls.map(([stage]) => stage)).toEqual(['refresh', 'register']);
+        expect(warn).not.toHaveBeenCalled();
+        expect(onToken).toHaveBeenCalledWith('old-token');
     });
 
     it('takes the keep-awake hold only when FCM is configured', async () => {

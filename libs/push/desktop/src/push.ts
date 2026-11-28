@@ -1,4 +1,4 @@
-import { type FcmConfig, type FcmPush, type PushHost, startFcm } from './fcm';
+import { type FcmConfig, type FcmPush, type PushHost, reportFailure, startFcm } from './fcm';
 
 let fcmToken: string | null = null;
 let fcmTokenWaiters: Array<(token: string) => void> = [];
@@ -37,5 +37,5 @@ export const startPush = (
             onPush: push => handlers.onPush(push),
         },
         host
-    ).catch(error => console.error('[fcm] start failed', error));
+    ).catch(error => reportFailure(host, 'start', error));
 };

@@ -12,12 +12,28 @@ export interface FcmConfig {
     packageName: string;
 }
 
+export type PushFailure = 'start' | 'refresh' | 'register' | 'connect' | 'remint';
+
 export interface PushHost {
     credentialsPath: string;
     onWake?(reconnect: () => void): void;
     onFocus?(reconnect: () => void): void;
     keepAwake?(): void;
+    onError?(stage: PushFailure, error: unknown): void;
 }
+
+const FAILURE_TEXT: Record<PushFailure, string> = {
+    start: 'start failed',
+    refresh: 'token refresh failed, re-registering',
+    register: 'register failed',
+    connect: 'connect failed',
+    remint: 'periodic re-mint failed',
+};
+
+export const reportFailure = (host: PushHost, stage: PushFailure, error: unknown): void => {
+    if (host.onError) return host.onError(stage, error);
+    (stage === 'start' ? console.error : console.warn)(`[fcm] ${FAILURE_TEXT[stage]}`, error);
+};
 
 export interface FcmPush {
     title?: string;
@@ -90,7 +106,7 @@ const fullRegister = async (config: FcmConfig, persistentIds: string[]): Promise
     };
 };
 
-const obtainCreds = async (config: FcmConfig, saved: SavedCreds | null): Promise<SavedCreds | null> => {
+const obtainCreds = async (config: FcmConfig, saved: SavedCreds | null, host: PushHost): Promise<SavedCreds | null> => {
     if (saved?.androidId && saved?.securityToken) {
         try {
             const installAuth = await AndroidFCM.installRequest(
@@ -112,13 +128,13 @@ const obtainCreds = async (config: FcmConfig, saved: SavedCreds | null): Promise
             );
             if (token) return { ...saved, token };
         } catch (error) {
-            console.warn('[fcm] token refresh failed, re-registering', error);
+            reportFailure(host, 'refresh', error);
         }
     }
     try {
         return await fullRegister(config, saved?.persistentIds ?? []);
     } catch (error) {
-        console.warn('[fcm] register failed', error);
+        reportFailure(host, 'register', error);
         return saved?.token && saved.androidId && saved.securityToken ? saved : null;
     }
 };
@@ -137,7 +153,7 @@ export const startFcm = async (
     host.keepAwake?.();
 
     const save = (creds: SavedCreds): void => saveCreds(host.credentialsPath, creds);
-    const session = await obtainCreds(config, loadCreds(host.credentialsPath));
+    const session = await obtainCreds(config, loadCreds(host.credentialsPath), host);
     if (!session) return;
     save(session);
 
@@ -190,7 +206,7 @@ export const startFcm = async (
 
         c.connect().catch(error => {
             if (client !== c) return;
-            console.warn('[fcm] connect failed', error);
+            reportFailure(host, 'connect', error);
             scheduleReconnect();
         });
     };
@@ -206,7 +222,7 @@ export const startFcm = async (
 
     const remint = async (): Promise<void> => {
         try {
-            const next = await obtainCreds(config, session);
+            const next = await obtainCreds(config, session, host);
             if (!next) return;
             const identityChanged =
                 next.androidId !== session.androidId || next.securityToken !== session.securityToken;
@@ -219,7 +235,7 @@ export const startFcm = async (
             if (tokenChanged) handlers.onToken(session.token);
             if (identityChanged) connect();
         } catch (error) {
-            console.warn('[fcm] periodic re-mint failed', error);
+            reportFailure(host, 'remint', error);
         }
     };
     setInterval(() => void remint(), REMINT_MS);

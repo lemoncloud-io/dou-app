@@ -121,6 +121,32 @@ describe('dou-cli commands', () => {
         );
     });
 
+    it('serve hands onReady the profile and the same env map the boot got', async () => {
+        const h = harness();
+        const directory = mkdtempSync(join(tmpdir(), 'dou-cli-env-'));
+        const path = join(directory, '.env');
+        writeFileSync(path, 'VITE_FCM_PACKAGE=io.example\n');
+        const controller = new AbortController();
+        const onReady = jest.fn();
+        try {
+            const done = runCli(['--env-file', path, '--profile', directory, 'serve'], {
+                ...h,
+                signal: controller.signal,
+                hooks: { onReady },
+            });
+            await new Promise(resolve => setImmediate(resolve));
+            controller.abort();
+            await done;
+        } finally {
+            rmSync(directory, { recursive: true, force: true });
+        }
+        expect(onReady).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.any(String),
+            expect.objectContaining({ VITE_FCM_PACKAGE: 'io.example' })
+        );
+    });
+
     it('accepts --parent-pipe in front of a command', async () => {
         const h = harness();
         await expect(runCli(['--parent-pipe', 'whoami'], h)).resolves.toBe(0);

@@ -25,17 +25,17 @@ The app hands in the FCM config (it reads it from its own env), what to do with 
 and the host; the bridge events, the IPC and the OS notifications stay in the app. The Electron app's
 host is `apps/desktop/src/main/pushHost.ts` and its wiring `mainWindow.ts` (bridge side:
 [`apps/desktop/README.md`](../../../apps/desktop/README.md)); the sidecar's is
-[`apps/dou-cli`](../../../apps/dou-cli/README.md#push). An app that installs this package lists
-`@liamcottle/push-receiver` in its own `package.json` dependencies, so the bundler keeps it external and
-the packager ships it.
+[`apps/dou-cli`](../../../apps/dou-cli/README.md#push). The Electron app lists
+`@liamcottle/push-receiver` in its own `package.json` dependencies, so its bundler keeps it external and
+the packager ships it; dou-cli bundles it and inlines the `.proto` files it loads.
 
-| Export                              | Does                                                                           |
-| ----------------------------------- | ------------------------------------------------------------------------------ |
-| `startPush(config, handlers, host)` | starts FCM once; a call with no `apiKey`, `senderId` or `appId` does nothing   |
-| `awaitFcmToken()`                   | the token once registration lands, or `''` after 30 s                          |
-| `FcmConfig`                         | `apiKey` · `projectId` · `senderId` · `appId` · `packageName`                  |
-| `FcmPush`                           | `title` · `body` · `deeplink` and the flattened `data` of one push             |
-| `PushHost`                          | `credentialsPath` · `onWake(reconnect)` · `onFocus(reconnect)` · `keepAwake()` |
+| Export                              | Does                                                                                                     |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `startPush(config, handlers, host)` | starts FCM once; a call with no `apiKey`, `senderId` or `appId` does nothing                             |
+| `awaitFcmToken()`                   | the token once registration lands, or `''` after 30 s                                                    |
+| `FcmConfig`                         | `apiKey` · `projectId` · `senderId` · `appId` · `packageName`                                            |
+| `FcmPush`                           | `title` · `body` · `deeplink` and the flattened `data` of one push                                       |
+| `PushHost`                          | `credentialsPath` · `onWake(reconnect)` · `onFocus(reconnect)` · `keepAwake()` · `onError(stage, error)` |
 
 ## Rules
 
@@ -54,5 +54,8 @@ the packager ships it.
   comes up from the cached ones.
 - **Credentials are best-effort.** They are saved at the host's `credentialsPath` (the Electron app:
   `chatic-fcm.json` under `userData`); a failed write means a fresh register on the next launch.
+- **Failures go to the host.** A failed start, token refresh, register, connect or periodic re-mint calls
+  `onError(stage, error)`; a host without it gets the error object on the console. The sidecar logs the stage
+  and the error code only, since an error can carry the request that held the config.
 - **The push is flattened** from the backend's nested `data.payload` and loc args; the receiver decides
   presentation.
