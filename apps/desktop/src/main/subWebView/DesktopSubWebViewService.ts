@@ -1,14 +1,9 @@
 import type { SubWebViewCloseReason, SubWebViewErrorCode } from '@chatic/bridge-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
+import { checkDesktopSubWebViewOpen } from '@chatic/mini-app-host';
+import type { SubWebViewTrust } from '@chatic/mini-app-protocol';
 // eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; the sub-webview trust rules move to a platform-free mini-app protocol package
-import {
-    fitsSubWebViewData,
-    isSubWebViewAppId,
-    isSubWebViewParams,
-    subWebViewOriginOf,
-    subWebViewTrustOf,
-    type SubWebViewTrust,
-} from '@chatic/shared/subWebViewTrust';
+import { fitsSubWebViewData } from '@chatic/shared/subWebViewTrust';
 
 export interface DesktopSubWebViewEntry {
     viewId: string;
@@ -46,23 +41,18 @@ export class DesktopSubWebViewService {
     }
 
     open(request: { url: unknown; title?: unknown; params?: unknown; appId?: unknown }): DesktopSubWebViewOpenResult {
-        const { url, title, params, appId } = request;
-        if (typeof url !== 'string' || !/^https:\/\//i.test(url)) return { ok: false, code: 'INVALID' };
-        if (title !== undefined && typeof title !== 'string') return { ok: false, code: 'INVALID' };
-        if (params !== undefined && !isSubWebViewParams(params)) return { ok: false, code: 'INVALID' };
-        if (appId !== undefined && !isSubWebViewAppId(appId)) return { ok: false, code: 'INVALID' };
-        const trust = subWebViewTrustOf(url);
-        const origin = subWebViewOriginOf(url);
-        if (!trust || !origin) return { ok: false, code: 'NOT_ALLOWED' };
+        const checked = checkDesktopSubWebViewOpen(request);
+        if (!checked.ok) return checked;
         if (this.view) return { ok: false, code: 'ALREADY_OPEN' };
 
+        const { url, origin, trust, title, params } = checked;
         const view: DesktopSubWebViewEntry = {
             viewId: this.nextViewId(),
             url,
             origin,
             trust,
             ...(title ? { title } : {}),
-            params: params ?? {},
+            params,
         };
         this.view = view;
         this.emit({ type: 'opened', view });
