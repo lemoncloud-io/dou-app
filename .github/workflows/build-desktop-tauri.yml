@@ -89,6 +89,11 @@ jobs:
               working-directory: apps/desktop-tauri/src-tauri
               run: cargo tauri build --bundles ${{ matrix.bundles }} --config tauri.sidecar.conf.json -- --locked
 
+            - name: run the bundled sidecar once
+              if: runner.os == 'macOS'
+              shell: bash
+              run: apps/desktop-tauri/target/release/bundle/macos/*.app/Contents/MacOS/dou-cli --help
+
             - name: list the installer contents
               shell: bash
               run: ls -l ${{ matrix.artifact }}

@@ -28,7 +28,7 @@
         "active": true,
         "targets": "all",
         "icon": ["icons/icon.png", "icons/icon.icns", "icons/icon.ico"],
-        "macOS": { "signingIdentity": "-" },
+        "macOS": { "signingIdentity": "-", "entitlements": "Entitlements.plist" },
         "windows": { "nsis": { "installMode": "currentUser" } }
     }
 }
