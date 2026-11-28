@@ -104,7 +104,7 @@ The shell starts `dou-cli --profile <dir> --parent-pipe serve` and keeps its std
 
 ## Push
 
-dou-cli receives FCM and hands it to the shell over `shell.sock` ([dou-cli Push](../../../dou-cli/README.md#push)); the shell keeps no FCM code of its own.
+dou-cli receives FCM and hands it to the shell over `shell.sock` ([dou-cli Push](../../../dou-cli/README.md#push)); the shell has no FCM client of its own.
 
 - **Token:** `src-tauri/src/fcm.rs` holds the token in one slot that starts waiting when a sidecar was found and off when not. `push_token` fills it (`null` turns it off); a token that differs from the one held is pushed to the web as `OnFetchFcmToken`, the same token again is not. `FetchFcmToken` reads the slot ([bridge](../bridge/README.md#simple-handlers)). The log has the token length, never the token.
 - **A push:** `push_message` cuts the title to 200 and the body to 1000 characters and keeps only string `data` values. When the main window is visible, focused and not minimised, the push goes to the web as `OnReceiveNotification` with `{ notification: { title, body, data } }`, the shape the Electron shell sends, and the web shows its in-app banner. Otherwise the shell shows an OS notification with the same presenter `ShowNotification` uses; a push with no title shows nothing.
