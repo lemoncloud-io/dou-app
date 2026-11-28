@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (bridge-messages) split the cache model and both message maps by area
+
+## [2026-11-28] - No version updates
+
+### Refactor
+
 - (host-desktop) move launch at login into @chatic/host-desktop
 
 ## [2026-11-28] - No version updates
