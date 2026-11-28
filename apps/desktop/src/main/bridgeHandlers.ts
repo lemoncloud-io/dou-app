@@ -1,7 +1,8 @@
 import type { SubWebViewErrorCode, SubWebViewOpenScope } from '@chatic/bridge-messages';
 import type { AppBridgeHostConfig, IAppBridgeHost } from '@chatic/bridges';
+import type { ISecureStorage } from '@chatic/storage-safe-storage';
 
-import { DESKTOP_STORAGE_MEDIA, type ISecureStorage } from './secureStorage';
+import { DESKTOP_STORAGE_MEDIA } from './secureStorage/constants';
 import type { DesktopSubWebViewService } from './subWebView/DesktopSubWebViewService';
 import { fetchUrlMetadata } from './unfurl';
 

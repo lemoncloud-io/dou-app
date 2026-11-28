@@ -1,0 +1,8 @@
+{
+    "name": "@chatic/storage-safe-storage",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/storage/safe-storage/src",
+    "projectType": "library",
+    "tags": ["layer:adapter", "platform:desktop", "formfactor:any"],
+    "targets": {}
+}

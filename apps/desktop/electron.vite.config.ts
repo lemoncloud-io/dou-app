@@ -7,6 +7,7 @@ const bridgesAlias = {
     '@chatic/bridge-messages': resolve(__dirname, '../../libs/bridge-messages/src/index.ts'),
     '@chatic/logger': resolve(__dirname, '../../libs/logger/src/index.ts'),
     '@chatic/push-desktop': resolve(__dirname, '../../libs/push/desktop/src/index.ts'),
+    '@chatic/storage-safe-storage': resolve(__dirname, '../../libs/storage/safe-storage/src/index.ts'),
     '@chatic/shared/subWebViewTrust': resolve(__dirname, '../../libs/shared/src/utils/subWebViewTrust.ts'),
 };
 
