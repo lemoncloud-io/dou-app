@@ -209,6 +209,117 @@ describe('useChatScroll', () => {
     });
 });
 
+describe('useChatScroll — landing at the bottom on entry', () => {
+    const scrollEvents = new Map<HTMLElement, () => void>();
+    const fireScroll = (container: HTMLElement) => scrollEvents.get(container)?.();
+    let rooms = 0;
+    const entering = (channelId = `room-${++rooms}`) => {
+        const inputRef = createRef<HTMLTextAreaElement>();
+        const props = {
+            hasMore: false,
+            isLoadingMore: false,
+            loadMore: jest.fn(),
+            inputRef,
+            channelId,
+            suppressAutoScroll: false,
+        };
+        const view = renderHook(p => useChatScroll(p), {
+            initialProps: { ...props, messages: [] as ClientChatView[] },
+        });
+        const container = document.createElement('div');
+        container.scrollTo = jest.fn();
+        sizeContainer(container, { scrollHeight: 4000, clientHeight: 500 });
+        (view.result.current.containerRef as React.MutableRefObject<HTMLDivElement | null>).current = container;
+        view.rerender({ ...props, messages: [message('m1')] });
+        act(() => flushFrames());
+        (container.scrollTo as jest.Mock).mockClear();
+        const scrollTo = (top: number) => {
+            container.scrollTop = top;
+            act(() => view.result.current.handleScroll());
+        };
+        const land = () => act(() => view.result.current.landAtBottom());
+        scrollEvents.set(container, () => view.result.current.handleScroll());
+        const switchTo = (next: string) => {
+            view.rerender({ ...props, channelId: next, messages: [], suppressAutoScroll: true });
+            view.rerender({ ...props, channelId: next, messages: [message('n1')], suppressAutoScroll: true });
+        };
+        return { container, scrollTo, land, switchTo };
+    };
+
+    it('pins to the newest message when the reader has not moved', () => {
+        const { container, land } = entering();
+
+        land();
+        act(() => flushFrames());
+
+        expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    });
+
+    it('stands down for a reader who scrolled up before the room decided', () => {
+        const { container, scrollTo, land } = entering();
+        scrollTo(-2400);
+
+        land();
+        act(() => flushFrames());
+
+        expect(container.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('stands down for a reader who scrolls up before the pinning frame runs', () => {
+        const { container, scrollTo, land } = entering();
+
+        land();
+        scrollTo(-2400);
+        act(() => flushFrames());
+
+        expect(container.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('still pins a reader who scrolled back within the bottom slack', () => {
+        const { container, scrollTo, land } = entering();
+        scrollTo(-800);
+        scrollTo(-20);
+
+        land();
+        act(() => flushFrames());
+
+        expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    });
+
+    it('does not take a remembered offset restored on entry for the reader scrolling', () => {
+        stashScroll('c-restored', -2400);
+        const { container, land } = entering('c-restored');
+        expect(container.scrollTop).toBe(-2400);
+        act(() => fireScroll(container));
+
+        land();
+        act(() => flushFrames());
+
+        expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    });
+
+    it('drops a landing frame queued for the room the reader has already left', () => {
+        const { container, land, switchTo } = entering();
+
+        land();
+        switchTo(`room-${++rooms}`);
+        act(() => flushFrames());
+
+        expect(container.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it("forgets the last room's scrolling when the channel changes", () => {
+        const { container, scrollTo, land, switchTo } = entering();
+        scrollTo(-2400);
+
+        switchTo(`room-${++rooms}`);
+        land();
+        act(() => flushFrames());
+
+        expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+    });
+});
+
 describe('useChatScroll — asking for older pages', () => {
     const props = (overrides: Partial<Parameters<typeof useChatScroll>[0]> = {}) => ({
         messages: [message('m2')],

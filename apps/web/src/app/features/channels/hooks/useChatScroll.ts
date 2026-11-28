@@ -56,6 +56,15 @@ export const useChatScroll = ({
     const lastScrollAtRef = useRef(0);
     const assignedTopRef = useRef<number | null>(null);
     const anchorRef = useRef<{ node: Element; top: number } | null>(null);
+    const drawnRef = useRef(false);
+    const readerScrolledRef = useRef(false);
+    const channelIdRef = useRef(channelId);
+
+    useLayoutEffect(() => {
+        channelIdRef.current = channelId;
+        drawnRef.current = false;
+        readerScrolledRef.current = false;
+    }, [channelId]);
 
     const captureView = useCallback(() => {
         const el = containerRef.current;
@@ -80,9 +89,15 @@ export const useChatScroll = ({
         }
     }, [containerRef, readingHistoryRef]);
 
-    const scrollToBottom = useCallback(
-        (smooth = false) => {
+    const readerLeftBottom = useCallback(() => {
+        const el = containerRef.current;
+        return readerScrolledRef.current && !!el && Math.abs(el.scrollTop) > BOTTOM_PIN_SLACK_PX;
+    }, [containerRef]);
+
+    const pinToBottom = useCallback(
+        (smooth: boolean, unless?: () => boolean) => {
             requestAnimationFrame(() => {
+                if (unless?.()) return;
                 if (containerRef.current) {
                     if (channelId) stashScroll(channelId, 0);
                     lastScrollTopRef.current = 0;
@@ -95,6 +110,13 @@ export const useChatScroll = ({
         },
         [channelId, containerRef, readingHistoryRef]
     );
+
+    const scrollToBottom = useCallback((smooth = false) => pinToBottom(smooth), [pinToBottom]);
+
+    const landAtBottom = useCallback(() => {
+        if (readerLeftBottom()) return;
+        pinToBottom(false, () => channelIdRef.current !== channelId || readerLeftBottom());
+    }, [channelId, pinToBottom, readerLeftBottom]);
 
     const holdView = useCallback(() => {
         const el = containerRef.current;
@@ -113,8 +135,12 @@ export const useChatScroll = ({
         const lastMessage = messages[messages.length - 1];
         const previousLastId = prevLastMessageIdRef.current;
         prevLastMessageIdRef.current = lastMessage?.id;
+        if (messages.length > 0) drawnRef.current = true;
         if (hasPendingRestore()) {
-            if (messages.length > 0) consumePendingRestore();
+            if (messages.length > 0) {
+                assignedTopRef.current = containerRef.current?.scrollTop ?? null;
+                consumePendingRestore();
+            }
             return;
         }
         if (!lastMessage || suppressAutoScrollRef.current) return;
@@ -182,12 +208,20 @@ export const useChatScroll = ({
             assignedTopRef.current = null;
         } else {
             lastScrollAtRef.current = performance.now();
+            if (drawnRef.current) readerScrolledRef.current = true;
         }
         captureView();
         checkLoadMore();
     }, [restorationOnScroll, containerRef, captureView, checkLoadMore]);
 
-    return { containerRef, handleScroll: handleScrollEvent, isAwayFromBottom, scrollToBottom, hasPendingRestore };
+    return {
+        containerRef,
+        handleScroll: handleScrollEvent,
+        isAwayFromBottom,
+        scrollToBottom,
+        landAtBottom,
+        hasPendingRestore,
+    };
 };
 
 const containsMessage = (messages: ClientChatView[], id: string | undefined): boolean => {
