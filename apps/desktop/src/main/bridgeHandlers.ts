@@ -1,5 +1,6 @@
-import type { SubWebViewErrorCode, SubWebViewOpenScope } from '@chatic/bridge-messages';
+import type { SubWebViewErrorCode } from '@chatic/bridge-messages';
 import type { AppBridgeHostConfig, IAppBridgeHost } from '@chatic/bridges';
+import { DESKTOP_SUB_WEBVIEW_OPEN_SCOPE } from '@chatic/mini-app-host';
 import type { ISecureStorage } from '@chatic/storage-safe-storage';
 
 import { DESKTOP_STORAGE_MEDIA } from './secureStorage/constants';
@@ -13,8 +14,6 @@ export interface DesktopBridgeDeps {
     secureStorage: Pick<ISecureStorage, 'get' | 'save' | 'clear'>;
     subWebView: Pick<DesktopSubWebViewService, 'open' | 'close'>;
 }
-
-export const DESKTOP_SUB_WEBVIEW_OPEN_SCOPE: SubWebViewOpenScope = 'anyHttps';
 
 export const DESKTOP_MAIN_HOST_OPTIONS = {
     subWebViewOpenScope: DESKTOP_SUB_WEBVIEW_OPEN_SCOPE,

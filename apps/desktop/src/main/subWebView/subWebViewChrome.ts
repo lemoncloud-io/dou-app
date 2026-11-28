@@ -1,4 +1,4 @@
-import { SUB_WEBVIEW_BAR_HEIGHT, type Rect } from './desktopSubWebViewPolicy';
+import { SUB_WEBVIEW_BAR_HEIGHT, type Rect } from './desktopSubWebViewSetup';
 import { SUB_WEBVIEW_CLOSE_URL } from './subWebViewContract';
 
 const base64 = (value: string): string => Buffer.from(value, 'utf8').toString('base64');
