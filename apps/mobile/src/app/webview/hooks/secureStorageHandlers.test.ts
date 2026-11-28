@@ -1,7 +1,7 @@
 import type { WebMessageData } from '@chatic/bridge-messages';
 
 import type { ILogService } from '../../services/log';
-import type { ISecureStorageService } from '../../services/secureStorage';
+import type { ISecureStorageService } from '@chatic/storage-keychain';
 import { createSecureStorageHandlers } from './secureStorageHandlers';
 
 const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } as unknown as ILogService;

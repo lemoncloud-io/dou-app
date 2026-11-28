@@ -1,11 +1,43 @@
-import type { SubWebViewContext, SubWebViewDisplay } from '@chatic/bridge-messages';
-// eslint-disable-next-line @nx/enforce-module-boundaries -- shared is web-only; the sub-webview trust rules move to a platform-free mini-app protocol package
+import type { SubWebViewDisplay, SubWebViewErrorCode, SubWebViewOpenScope } from '@chatic/bridge-messages';
 import {
+    isSubWebViewAppId,
+    isSubWebViewParams,
     SUB_WEBVIEW_TITLE_LIMIT,
     subWebViewDisplayOf,
     subWebViewOriginOf,
     type SubWebViewTrust,
-} from '@chatic/shared/subWebViewTrust';
+    subWebViewTrustOf,
+} from '@chatic/mini-app-protocol';
+
+export const DESKTOP_SUB_WEBVIEW_OPEN_SCOPE: SubWebViewOpenScope = 'anyHttps';
+
+export type DesktopSubWebViewOpenCheck =
+    | {
+          ok: true;
+          url: string;
+          origin: string;
+          trust: SubWebViewTrust;
+          title?: string;
+          params: Record<string, unknown>;
+      }
+    | { ok: false; code: Extract<SubWebViewErrorCode, 'INVALID' | 'NOT_ALLOWED'> };
+
+export const checkDesktopSubWebViewOpen = (request: {
+    url: unknown;
+    title?: unknown;
+    params?: unknown;
+    appId?: unknown;
+}): DesktopSubWebViewOpenCheck => {
+    const { url, title, params, appId } = request;
+    if (typeof url !== 'string' || !/^https:\/\//i.test(url)) return { ok: false, code: 'INVALID' };
+    if (title !== undefined && typeof title !== 'string') return { ok: false, code: 'INVALID' };
+    if (params !== undefined && !isSubWebViewParams(params)) return { ok: false, code: 'INVALID' };
+    if (appId !== undefined && !isSubWebViewAppId(appId)) return { ok: false, code: 'INVALID' };
+    const trust = subWebViewTrustOf(url);
+    const origin = subWebViewOriginOf(url);
+    if (!trust || !origin) return { ok: false, code: 'NOT_ALLOWED' };
+    return { ok: true, url, origin, trust, ...(title ? { title } : {}), params: params ?? {} };
+};
 
 export type DesktopSubWebViewNavigation = 'load' | 'external' | 'block';
 
@@ -62,78 +94,4 @@ export const barTitleOf = (
         title => typeof title === 'string' && title.trim()
     );
     return pick ? pick.trim().slice(0, SUB_WEBVIEW_TITLE_LIMIT) : host;
-};
-
-export const partitionOf = (origin: string): string => `persist:sub-webview:${origin}`;
-
-export const subWebViewWebPreferences = (input: { preload: string; origin: string }) => ({
-    preload: input.preload,
-    partition: partitionOf(input.origin),
-    contextIsolation: true,
-    sandbox: true,
-    nodeIntegration: false,
-    nodeIntegrationInSubFrames: false,
-    webviewTag: false,
-});
-
-export const subWebViewBootOf = (context: SubWebViewContext, origin: string): { origin: string; script: string } => ({
-    origin,
-    script: buildDesktopSubWebViewContextScript(context, origin),
-});
-
-export const buildDesktopSubWebViewContextScript = (context: SubWebViewContext, openedOrigin: string): string => {
-    const literal = (value: unknown) =>
-        JSON.stringify(value)
-            .replace(/\u2028/g, '\\u2028')
-            .replace(/\u2029/g, '\\u2029');
-    return `(function () {
-    if (window.location.origin !== ${literal(openedOrigin)}) return;
-    if (Object.prototype.hasOwnProperty.call(window, 'ChaticSubWebView')) return;
-    var freeze = function (value) {
-        if (value && typeof value === 'object') {
-            Object.keys(value).forEach(function (key) { freeze(value[key]); });
-            Object.freeze(value);
-        }
-        return value;
-    };
-    Object.defineProperty(window, 'ChaticSubWebView', {
-        value: freeze(JSON.parse(${literal(JSON.stringify(context))})),
-        enumerable: true,
-        writable: false,
-        configurable: false,
-    });
-})();`;
-};
-
-export const SUB_WEBVIEW_BAR_HEIGHT = 44;
-
-const MODAL_MAX_WIDTH = 960;
-const MODAL_MARGIN = 40;
-
-export interface Rect {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-}
-
-export const modalLayoutOf = (
-    content: { width: number; height: number },
-    display: SubWebViewDisplay
-): { card: Rect; page: Rect } => {
-    const card =
-        display === 'clean'
-            ? { x: 0, y: 0, width: content.width, height: content.height }
-            : (() => {
-                  const width = Math.max(0, Math.min(MODAL_MAX_WIDTH, content.width - MODAL_MARGIN * 2));
-                  const height = Math.max(0, content.height - MODAL_MARGIN * 2);
-                  return { x: Math.round((content.width - width) / 2), y: MODAL_MARGIN, width, height };
-              })();
-    const page = {
-        x: card.x,
-        y: card.y + SUB_WEBVIEW_BAR_HEIGHT,
-        width: card.width,
-        height: Math.max(0, card.height - SUB_WEBVIEW_BAR_HEIGHT),
-    };
-    return { card, page };
 };

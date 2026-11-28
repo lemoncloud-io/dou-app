@@ -52,7 +52,7 @@ overlapping.
    `#121212` painted first.** This matches the reported symptom exactly.
 
     MMKV itself supports a synchronous read
-    ([`MmkvStorage.ts:26`](../../apps/mobile/src/app/database/mmkv/MmkvStorage.ts) `getString`). The
+    ([`MmkvStorage.ts:27`](../../libs/storage/mmkv/src/MmkvStorage.ts) `getString`). The
     asynchrony is not a storage limitation — it comes from the layer that wraps it in a `Promise`.
 
 3. **`SystemBars` only reacts to a value change → the cause of it not sticking after returning from

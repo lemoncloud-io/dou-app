@@ -1,14 +1,15 @@
 import type { MMKV } from 'react-native-mmkv';
 import { createMMKV } from 'react-native-mmkv';
-import type { IKeyValueStorage } from '../types';
-import type { ILogService } from '../../services';
+import type { Logger } from '@chatic/logger';
+
+import type { IKeyValueStorage } from './types';
 
 export class MmkvStorage implements IKeyValueStorage {
     private readonly _mmkv: MMKV;
-    private readonly logService: ILogService;
+    private readonly logService: Logger;
 
-    constructor(logService: ILogService) {
-        this._mmkv = createMMKV();
+    constructor(logService: Logger, mmkv: MMKV = createMMKV()) {
+        this._mmkv = mmkv;
         this.logService = logService;
     }
 

@@ -52,6 +52,12 @@
             "path": "../../libs/host/mobile/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/storage/mmkv/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/storage/keychain/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/perf/tsconfig.lib.json"
         },
         {

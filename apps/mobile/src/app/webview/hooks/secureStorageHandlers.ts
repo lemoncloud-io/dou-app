@@ -3,7 +3,7 @@ import type { WebMessageData, WebMessageHandlerResponse } from '@chatic/bridge-m
 import { invalid, isKeptMedium, isStringArray, isStringRecord } from '../utils/storageRequest.util';
 
 import type { ILogService } from '../../services/log';
-import type { ISecureStorageService } from '../../services/secureStorage';
+import type { ISecureStorageService } from '@chatic/storage-keychain';
 
 export const createSecureStorageHandlers = (
     vault: ISecureStorageService,
