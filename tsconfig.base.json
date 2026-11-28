@@ -52,6 +52,7 @@
             "@chatic/ports": ["libs/contracts/ports/src/index.ts"],
             "@chatic/host-desktop": ["libs/host/desktop/src/index.ts"],
             "@chatic/host-desktop/downloadsContract": ["libs/host/desktop/src/downloadsContract.ts"],
+            "@chatic/host-desktop/loginItemContract": ["libs/host/desktop/src/loginItemContract.ts"],
             "@chatic/host-mobile": ["libs/host/mobile/src/index.ts"],
             "@chatic/host-mobile/links": ["libs/host/mobile/src/links.ts"],
             "@chatic/host-node": ["libs/host/node/src/index.ts"],

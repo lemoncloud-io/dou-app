@@ -15,6 +15,11 @@
             "import": "./src/downloadsContract.ts",
             "default": "./src/downloadsContract.ts"
         },
+        "./loginItemContract": {
+            "types": "./src/loginItemContract.ts",
+            "import": "./src/loginItemContract.ts",
+            "default": "./src/loginItemContract.ts"
+        },
         "./package.json": "./package.json"
     }
 }

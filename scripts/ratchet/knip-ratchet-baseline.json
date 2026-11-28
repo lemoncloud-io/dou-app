@@ -163,8 +163,6 @@
     "apps/desktop/src/main/customUiProtocol.ts": {"export:CUSTOM_UI_SCHEME_PRIVILEGES":1},
     "apps/desktop/src/main/index.ts": {"file":1},
     "apps/desktop/src/main/ipcSenderGate.ts": {"type:IpcSenderEvent":1},
-    "apps/desktop/src/main/loginItem.ts": {"export:LOGIN_ITEM_UNSUPPORTED":1,"type:LoginItemController":1},
-    "apps/desktop/src/main/loginItemContract.ts": {"export:LOGIN_ITEM_CHANNEL":1},
     "apps/desktop/src/main/secureStorage/constants.ts": {"export:SECURE_STORAGE_FILE":1},
     "apps/desktop/src/main/secureStorage/index.ts": {"export:SECURE_STORAGE_FILE":1,"export:SecureStorage":1,"type:SecureStorageDeps":1},
     "apps/desktop/src/main/subWebView/DesktopSubWebViewService.ts": {"type:DesktopSubWebViewCloseResult":1,"type:DesktopSubWebViewEvent":1,"type:DesktopSubWebViewOpenResult":1},

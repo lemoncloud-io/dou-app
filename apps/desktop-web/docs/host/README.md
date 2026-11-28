@@ -77,8 +77,10 @@ Features import the types and the `get…Api` and `getShellApp` readers from `@c
 desktop app, or in an older shell, it is `undefined`.
 
 - The contracts shared with the main process (custom-UI, launch-at-login, downloads) are kept in step
-  by hand with their `apps/desktop/src/main/*Contract.ts` files. An app-to-app import is blocked by the
-  workspace rules and a shared library for a few fields was not worth it. A change to one needs the
+  by hand with their `*Contract.ts` files (custom UI in `apps/desktop/src/main/`, launch-at-login and
+  downloads in `libs/host/desktop/src/`). The workspace rules block both imports: custom UI's would be
+  app-to-app, and `@chatic/host-desktop` is `platform:desktop`, which `platform:web` code cannot import.
+  A change to one needs the
   other, and nothing checks that the preload object satisfies the page's declaration, which is inherent to
   `contextBridge`.
 - **Launch at login** reports `enabled` as the OS read back after a write, never the requested value,
