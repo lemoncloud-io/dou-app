@@ -1,5 +1,4 @@
 import { renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
 
 import { useEscapeClose } from './useEscapeClose';
 
@@ -11,14 +10,14 @@ const press = (prevented: boolean) => {
 
 describe('useEscapeClose', () => {
     it('closes the panel on Escape', () => {
-        const close = vi.fn();
+        const close = jest.fn();
         renderHook(() => useEscapeClose(close));
         press(false);
         expect(close).toHaveBeenCalledTimes(1);
     });
 
     it('leaves an Escape something inside the panel already handled', () => {
-        const close = vi.fn();
+        const close = jest.fn();
         renderHook(() => useEscapeClose(close));
         press(true);
         expect(close).not.toHaveBeenCalled();

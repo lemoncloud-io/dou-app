@@ -2,8 +2,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@chatic/ui-kit';
+import { SettingsNavRow, SettingsRowGroup } from '@chatic/design-system-components-desktop';
 
-import { PageShell, SettingsNavRow, SettingsRowGroup, useCloudSessionCatalog } from '../../../shared';
+import { PageShell, useCloudSessionCatalog } from '../../../shared';
 
 export const CloudListPage = () => {
     const { t } = useTranslation();

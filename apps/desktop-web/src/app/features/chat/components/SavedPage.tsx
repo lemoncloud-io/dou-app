@@ -5,10 +5,9 @@ import { AudioLines, Bookmark, FileText, Film, Image, Paperclip, type LucideIcon
 
 import type { ChatAttachmentKind, DomainChannel, DomainChat, DomainPlace } from '@chatic/runtime-react';
 import { cn, Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit';
+import { Hint, PANE_HEADER } from '@chatic/design-system-components-desktop';
 
 import {
-    Hint,
-    PANE_HEADER,
     attachmentLabel,
     avatarStyle,
     formatListTime,

@@ -5,6 +5,7 @@ import { Search, X } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/runtime-react';
 import { cn, Button, Input } from '@chatic/ui-kit';
+import { useCopyToClipboard, PANE_HEADER, PANEL_TITLE } from '@chatic/design-system-components-desktop';
 
 import {
     displayName,
@@ -12,10 +13,7 @@ import {
     isSelfChannel,
     ResizablePanel,
     useChannelNotifyChange,
-    useCopyToClipboard,
     useSelectedChannelStore,
-    PANE_HEADER,
-    PANEL_TITLE,
     radioGroupOptions,
 } from '../../../shared';
 import type { ChannelMember } from '../hooks';

@@ -15,6 +15,7 @@ import {
     Label,
     toast,
 } from '@chatic/ui-kit';
+import { useCopyToClipboard } from '@chatic/design-system-components-desktop';
 
 import {
     classifyWireError,
@@ -22,7 +23,6 @@ import {
     isRelayGuest,
     parseInvitePhone,
     socketErrorStatus,
-    useCopyToClipboard,
     useDesktopInviteMutations,
     useWelcomeStore,
     welcomeKey,

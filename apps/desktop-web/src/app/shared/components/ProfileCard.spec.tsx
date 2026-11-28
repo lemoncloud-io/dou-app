@@ -20,8 +20,12 @@ vi.mock('@chatic/runtime-react', async () =>
 vi.mock('../hooks', () => ({
     useUser: () => user,
     useDisplayProfile: (_id: string, name: string, thumbnail?: string) => ({ name, thumbnail }),
-    useCopyToClipboard: () => [false, vi.fn()],
     useStartDm: () => ({ startDm, openSelf, isStarting, isAvailable: canStartDm, canOpenSelf }),
+}));
+
+vi.mock('@chatic/design-system-components-desktop', async () => ({
+    ...(await vi.importActual<object>('@chatic/design-system-components-desktop')),
+    useCopyToClipboard: () => [false, vi.fn()],
 }));
 
 import { ProfileCardContent } from './ProfileCard';

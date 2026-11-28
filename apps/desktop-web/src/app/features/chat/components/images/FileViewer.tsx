@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, Download, X } from 'lucide-react';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
+import { Hint } from '@chatic/design-system-components-desktop';
 
 import {
     HTML_PREVIEW_MAX_BYTES,
@@ -18,7 +19,6 @@ import { loadPdf, preloadPdf, type PdfDocument } from '../../utils/pdf';
 import { AuthorAvatar, type ImageAuthor } from './ImageViewer';
 import { ImageSpinner } from './ImageSpinner';
 import { PdfPages } from './PdfPages';
-import { Hint } from '../../../../shared';
 
 interface FileViewerProps {
     file: ChatFile;

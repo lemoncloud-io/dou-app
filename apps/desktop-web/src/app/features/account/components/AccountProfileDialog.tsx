@@ -17,8 +17,9 @@ import {
     AvatarImage,
     toast,
 } from '@chatic/ui-kit';
+import { FormError, FormField } from '@chatic/design-system-components-desktop';
 
-import { useRelayAccount, type RelayAccount, FormError, FormField, toastFailure } from '../../../shared';
+import { useRelayAccount, type RelayAccount, toastFailure } from '../../../shared';
 
 export const ACCOUNT_NAME_MAX = 30;
 const ACCOUNT_PHOTO_MAX_BYTES = 10 * 1024 * 1024;

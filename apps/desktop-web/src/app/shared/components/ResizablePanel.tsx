@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 
 import { cn } from '@chatic/ui-kit';
 
-import { useEscapeClose } from '../hooks/useEscapeClose';
+import { useEscapeClose } from '@chatic/design-system-components-desktop';
 import { usePanelWidth } from '../hooks/usePanelWidth';
 import { focusComposerIfDropped } from '../utils/composerFocus';
 import { PanelResizeHandle } from './PanelResizeHandle';

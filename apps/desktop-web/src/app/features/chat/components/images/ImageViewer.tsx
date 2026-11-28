@@ -14,8 +14,9 @@ import {
     DialogDescription,
     DialogTitle,
 } from '@chatic/ui-kit';
+import { Hint } from '@chatic/design-system-components-desktop';
 
-import { avatarStyle, Hint } from '../../../../shared';
+import { avatarStyle } from '../../../../shared';
 import type { ChatImage } from '../../utils';
 import { ImageActions } from './ImageActions';
 import {

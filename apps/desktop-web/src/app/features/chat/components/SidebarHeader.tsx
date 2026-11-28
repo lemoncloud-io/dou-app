@@ -5,7 +5,7 @@ import { Bookmark, MessagesSquare, Search, UserPen } from 'lucide-react';
 
 import { cn } from '@chatic/ui-kit';
 
-import { Skeleton } from '../../../shared';
+import { Skeleton } from '@chatic/design-system-components-desktop';
 import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
 interface SidebarHeaderProps {

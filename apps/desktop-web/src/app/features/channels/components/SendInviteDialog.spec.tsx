@@ -39,7 +39,8 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
 }));
 
 const copy = vi.hoisted(() => vi.fn());
-vi.mock('../../../shared/hooks/useCopyToClipboard', () => ({
+vi.mock('@chatic/design-system-components-desktop', async () => ({
+    ...(await vi.importActual<object>('@chatic/design-system-components-desktop')),
     useCopyToClipboard: () => [false, copy] as const,
 }));
 

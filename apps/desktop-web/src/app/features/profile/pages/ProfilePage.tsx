@@ -5,15 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { runtime } from '@chatic/runtime-react';
 import type { DomainProfile } from '@chatic/runtime-react';
 import { Avatar, AvatarFallback, AvatarImage, Button } from '@chatic/ui-kit';
+import { Skeleton, useCopyToClipboard } from '@chatic/design-system-components-desktop';
 
 import {
     PageShell,
-    Skeleton,
     avatarStyle,
     isPlaceholderName,
     resolveDisplay,
     useAccountName,
-    useCopyToClipboard,
     useCurrentPlace,
     useMyProfile,
     useSiteProfileMap,

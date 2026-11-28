@@ -28,12 +28,12 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@chatic/ui-kit';
+import { Hint } from '@chatic/design-system-components-desktop';
 
 import { formatFileSize, formatPlaybackTime, splitFileName } from '../../utils';
 import { AuthorAvatar, type ImageAuthor } from './ImageViewer';
 import { useSmoothProgress, useVoicePlayback } from './voicePlayback';
 import { useWaveform } from './voiceWaveform';
-import { Hint } from '../../../../shared';
 
 const SKIP_SECONDS = 15;
 const HINT_DELAY = 500;

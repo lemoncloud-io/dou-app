@@ -4,13 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { FileText, Film, Pause, Play, X } from 'lucide-react';
 
 import { cn } from '@chatic/ui-kit';
+import { Hint } from '@chatic/design-system-components-desktop';
 
 import type { ComposerAttachment } from '../../hooks';
 import { MAX_ATTACHMENTS, formatFileSize, formatPlaybackTime } from '../../utils';
 import { ComposerPreview, canPreviewAttachment, isAudioAttachment } from './ComposerPreview';
 import { ImageSpinner } from './ImageSpinner';
 import { useVoicePlayback } from './voicePlayback';
-import { Hint, hoverReveal } from '../../../../shared';
+import { hoverReveal } from '../../../../shared';
 
 interface ComposerAttachmentsProps {
     attachments: ComposerAttachment[];

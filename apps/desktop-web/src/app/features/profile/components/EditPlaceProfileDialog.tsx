@@ -16,11 +16,10 @@ import {
     Input,
     toast,
 } from '@chatic/ui-kit';
+import { FormError, FormField } from '@chatic/design-system-components-desktop';
 
 import {
     avatarStyle,
-    FormError,
-    FormField,
     isPlaceholderName,
     useAccountName,
     useCurrentPlace,

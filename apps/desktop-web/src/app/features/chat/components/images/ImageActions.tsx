@@ -5,7 +5,7 @@ import { Copy, Download, Forward, Link2, MessageSquareReply, MoreVertical, Trash
 
 import { cn, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@chatic/ui-kit';
 
-import { Hint } from '../../../../shared';
+import { Hint } from '@chatic/design-system-components-desktop';
 
 interface ImageActionsProps {
     onDownload: () => void;

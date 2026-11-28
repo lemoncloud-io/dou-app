@@ -6,10 +6,9 @@ import { AtSign, BellOff, Hash, Pencil, Plus, Star } from 'lucide-react';
 import { RELAY_CLOUD_ID, type DomainChannel, runtime } from '@chatic/runtime-react';
 import { cn, Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit';
 import { applyChannelOrder, moveChannel, placeScopeKey, useChannelOrder, usePinnedChannels } from '@chatic/shared';
+import { Hint, Skeleton } from '@chatic/design-system-components-desktop';
 
 import {
-    Hint,
-    Skeleton,
     avatarStyle,
     bareChannelName,
     isSelfChannel,

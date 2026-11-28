@@ -25,7 +25,6 @@ vi.mock('@chatic/runtime-react', async () =>
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<object>('../../../shared/utils/displayName')),
     ...(await vi.importActual<object>('../../../shared/utils/avatarColor')),
-    ...(await vi.importActual<object>('../../../shared/components/Skeleton')),
     ...(await vi.importActual<object>('../../../shared/utils/displayProfile')),
     useSiteProfileMap: () => placeProfiles,
     useStartDm: () => ({ startDm, openSelf, isStarting, isAvailable: true, canOpenSelf }),

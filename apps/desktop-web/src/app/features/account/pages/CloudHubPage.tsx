@@ -5,13 +5,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button, Input, Label, toast } from '@chatic/ui-kit';
 
 import { runtime } from '@chatic/runtime-react';
+import { SettingsActionRow, SettingsNavRow, SettingsRowGroup } from '@chatic/design-system-components-desktop';
 
 import {
     NotifyLevelSection,
     PageShell,
-    SettingsActionRow,
-    SettingsNavRow,
-    SettingsRowGroup,
     useAccountResetOnLogout,
     useCloudSessionCatalog,
     CLOUD_NAME_MAX,

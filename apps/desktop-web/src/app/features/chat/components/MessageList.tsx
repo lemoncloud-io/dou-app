@@ -16,13 +16,10 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 import { isMentioningViewer } from '@chatic/runtime-react';
 import type { DomainChat } from '@chatic/runtime-react';
 import { cn, toast } from '@chatic/ui-kit';
+import { Hint, Skeleton, useReducedMotion, useRovingFocus } from '@chatic/design-system-components-desktop';
 
 import {
-    Hint,
-    Skeleton,
     resolveDisplay,
-    useReducedMotion,
-    useRovingFocus,
     useSiteProfileMap,
     viewerPlaceProfile,
     type MemberReadCursor,

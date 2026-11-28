@@ -2,10 +2,10 @@ import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/ui-kit';
+import { Hint } from '@chatic/design-system-components-desktop';
 
 import { useRecentEmojiStore } from '../stores';
 import { EMOJI_CATEGORIES, emojiNameKey } from '../utils';
-import { Hint } from '../../../shared';
 
 interface EmojiPickerProps {
     onPick: (emoji: string) => void;

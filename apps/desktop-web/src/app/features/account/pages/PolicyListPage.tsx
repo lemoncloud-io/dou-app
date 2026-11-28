@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { PageShell, SettingsNavRow, SettingsRowGroup } from '../../../shared';
+import { SettingsNavRow, SettingsRowGroup } from '@chatic/design-system-components-desktop';
+
+import { PageShell } from '../../../shared';
 
 export const PolicyListPage = () => {
     const { t } = useTranslation();

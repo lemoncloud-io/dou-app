@@ -5,7 +5,7 @@ a key, where focus goes when something closes, and controls that wait for hover.
 
 ## The feed is one tab stop
 
-`useRovingFocus` (`shared/hooks/useRovingFocus.ts`) runs on the feed (`MessageList`). ADR-0132 records
+`useRovingFocus` (`@chatic/design-system-components-desktop`) runs on the feed (`MessageList`). ADR-0132 records
 the decision.
 
 - Each message row is a `data-roving-item` rendered with `tabIndex={-1}`, and each author block
@@ -65,7 +65,7 @@ it opened is on screen. The grouped timestamp in a message's left gutter shows o
 
 ## One key, one layer
 
-- `useEscapeClose` (`shared/hooks/useEscapeClose.ts`) closes a panel on Escape, but not an Escape that
+- `useEscapeClose` (`@chatic/design-system-components-desktop`) closes a panel on Escape, but not an Escape that
   something above it already handled (`defaultPrevented`). Escape in the inline message editor
   cancels the edit and used to close the thread panel as well. The editor takes the key itself, from
   the body, a toolbar button or Cancel alike; an Escape the emoji picker or the mention list took

@@ -2,8 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { Hint } from './Hint';
-import { PANE_HEADER, PANEL_TITLE } from './paneHeader';
+import { Hint, PANE_HEADER, PANEL_TITLE } from '@chatic/design-system-components-desktop';
 import { ResizablePanel } from './ResizablePanel';
 import { useProfilePanelStore } from '../stores/useProfilePanelStore';
 import { ProfileCardContent } from './ProfileCard';

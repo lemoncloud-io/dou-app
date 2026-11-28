@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { Button, Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit';
+import { SettingsNavRow, SettingsRowGroup } from '@chatic/design-system-components-desktop';
 
-import { isPlaceholderName, PageShell, SettingsNavRow, SettingsRowGroup, useRelayAccount } from '../../../shared';
+import { isPlaceholderName, PageShell, useRelayAccount } from '../../../shared';
 import { isPhoneLoginEnabled, isSocialLoginEnabled } from '../../auth';
 import { useJoinDialogStore } from '../../auth/stores/useJoinDialogStore';
 import { isDevicePairingEnabled } from '../../pairing/utils/devicePairing';

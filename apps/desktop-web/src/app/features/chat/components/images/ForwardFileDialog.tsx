@@ -6,10 +6,11 @@ import { create } from 'zustand';
 
 import { runtime, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/runtime-react';
 import { cn, Dialog, DialogContent, DialogDescription, DialogTitle, toast } from '@chatic/ui-kit';
+import { useListboxNav } from '@chatic/design-system-components-desktop';
 
 import { fetchFileBytes } from '../../utils';
 import { rankChannels } from '../QuickSwitcher';
-import { channelKind, toastFailure, useChannelLabels, useLastChannelStore, useListboxNav } from '../../../../shared';
+import { channelKind, toastFailure, useChannelLabels, useLastChannelStore } from '../../../../shared';
 
 export interface ForwardRequest {
     url: string;

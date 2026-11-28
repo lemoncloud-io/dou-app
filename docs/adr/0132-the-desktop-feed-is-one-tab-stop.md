@@ -1,7 +1,7 @@
 # ADR-0132: The desktop feed is one tab stop, and a message's controls are reached through it
 
 > Status: Accepted · Decided: 2026-09-29 · Implemented: PR #508 (`fix/desktop-chat-critique`)
-> · Scope: `apps/desktop-web/src/app/shared/hooks/useRovingFocus.ts` ·
+> · Scope: `libs/design-system/components/desktop/src/hooks/useRovingFocus.ts` ·
 > `apps/desktop-web/src/app/features/chat/components/MessageList.tsx` ·
 > `apps/desktop-web/src/app/features/chat/components/MessageRow.tsx`
 > · The module doc is [keyboard.md](../../apps/desktop-web/docs/chat/keyboard.md)

@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 
 const copy = vi.hoisted(() => vi.fn());
-vi.mock('../../../shared/hooks/useCopyToClipboard', () => ({
+vi.mock('@chatic/design-system-components-desktop', async () => ({
+    ...(await vi.importActual<object>('@chatic/design-system-components-desktop')),
     useCopyToClipboard: () => [false, copy] as const,
 }));
 

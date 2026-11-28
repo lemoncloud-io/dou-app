@@ -4,17 +4,9 @@ import { useNavigate } from 'react-router-dom';
 
 import { cn, Button } from '@chatic/ui-kit';
 import { runtime } from '@chatic/runtime-react';
+import { SettingsNavRow, SettingsRowGroup, SettingsSwitchRow } from '@chatic/design-system-components-desktop';
 
-import {
-    PageShell,
-    SettingsNavRow,
-    SettingsRowGroup,
-    SettingsSwitchRow,
-    formatHourMinute,
-    parseHourMinute,
-    useNotificationPrefsStore,
-    VersionInfo,
-} from '../../../shared';
+import { PageShell, formatHourMinute, parseHourMinute, useNotificationPrefsStore, VersionInfo } from '../../../shared';
 import { NotificationSnoozeButton } from '../../chat/components/NotificationSnoozeButton';
 import { canApprovePairing } from '../../pairing/utils/devicePairing';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';

@@ -244,6 +244,9 @@
             "path": "./libs/design-system/components/mobile"
         },
         {
+            "path": "./libs/design-system/components/desktop"
+        },
+        {
             "path": "./libs/design-system/patterns/mobile"
         },
         {

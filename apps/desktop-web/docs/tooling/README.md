@@ -30,7 +30,8 @@ undefined`) and leaves a white screen in the production build only. Rollup chunk
 
 ## Tailwind
 
-- **The libraries that ship markup are named in `content`.** `createGlobPatternsForDependencies` reads
+- **The libraries that ship markup are named in `content`** (UI kit, block kit,
+  `@chatic/design-system-components-desktop`). `createGlobPatternsForDependencies` reads
   the Nx project graph and returns nothing when Vite runs without one (plain `vite` or `vite build`).
   That left every class only the UI kit uses ungenerated: menus drew transparent and dialogs landed
   off-screen.

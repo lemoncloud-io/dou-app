@@ -129,7 +129,6 @@
     "apps/desktop-web/src/app/shared/hooks/useRelayAccount.ts": {"type:RelayAccountUpdate":1},
     "apps/desktop-web/src/app/shared/hooks/useRemoveCloud.ts": {"type:DeleteOwnedCloudResult":1},
     "apps/desktop-web/src/app/shared/hooks/useUpdatePlace.ts": {"type:UpdatePlaceInput":1},
-    "apps/desktop-web/src/app/shared/hooks/useViewportNarrow.ts": {"export:NARROW_SHELL_WIDTH":1},
     "apps/desktop-web/src/app/shared/stores/createOpenStateStore.ts": {"type:OpenState":1},
     "apps/desktop-web/src/app/shared/stores/useAppearancePrefsStore.ts": {"type:FontSize":1,"type:MessageDensity":1},
     "apps/desktop-web/src/app/shared/stores/useJoinedCloudsStore.ts": {"type:JoinedCloud":1},

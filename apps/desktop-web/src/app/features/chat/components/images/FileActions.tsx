@@ -4,7 +4,7 @@ import { Download, Forward, Link2, MessageSquareReply, MoreVertical, Trash2 } fr
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@chatic/ui-kit';
 
-import { Hint } from '../../../../shared';
+import { Hint } from '@chatic/design-system-components-desktop';
 
 const ICON_BUTTON =
     'focus-ring tactile hit-target flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-foreground/[0.08] hover:text-foreground data-[state=open]:bg-foreground/[0.08]';

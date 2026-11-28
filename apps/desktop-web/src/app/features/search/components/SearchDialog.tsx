@@ -6,6 +6,7 @@ import { Hash, Search, User } from 'lucide-react';
 import { runtime } from '@chatic/runtime-react';
 import type { DomainChannel, DomainChat } from '@chatic/runtime-react';
 import { cn, Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit';
+import { useListboxNav } from '@chatic/design-system-components-desktop';
 
 import {
     channelKind,
@@ -15,7 +16,6 @@ import {
     senderNameIn,
     useAuthorNames,
     useChannelLabels,
-    useListboxNav,
     usePlaceProfilesStore,
 } from '../../../shared';
 import { SEARCH_MAX_CHANNELS, useMessageSearch } from '../hooks';

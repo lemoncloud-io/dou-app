@@ -3,7 +3,9 @@ import { Bell, Hash, House, MessageCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { type NavDestination, RailTile, useNavStore } from '../../../shared';
+import { RailTile } from '@chatic/design-system-components-desktop';
+
+import { type NavDestination, useNavStore } from '../../../shared';
 import { AccountMenu } from './AccountMenu';
 
 const ICONS: Record<NavDestination, LucideIcon> = {

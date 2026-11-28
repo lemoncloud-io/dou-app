@@ -8,6 +8,7 @@ import { Home, MailPlus, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-
 import type { DomainPlace } from '@chatic/runtime-react';
 import { cn, ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, toast } from '@chatic/ui-kit';
 import { usePlaceOrder } from '@chatic/shared';
+import { Hint, ScrollHint, useScrollOverflow } from '@chatic/design-system-components-desktop';
 
 import { ConfirmDialog, useSendInviteStore } from '../../channels';
 import {
@@ -19,14 +20,7 @@ import {
     type PlaceFailure,
 } from '../utils';
 
-import {
-    Hint,
-    MobileAppPointer,
-    ScrollHint,
-    useDebugModeStore,
-    useScrollOverflow,
-    toastFailure,
-} from '../../../shared';
+import { MobileAppPointer, useDebugModeStore, toastFailure } from '../../../shared';
 import { SortableList } from './SortableList';
 
 interface PlaceRailProps {
