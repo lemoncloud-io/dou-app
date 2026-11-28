@@ -19,5 +19,13 @@
         "eslint.config.cjs",
         "eslint.config.mjs"
     ],
-    "include": ["src/**/*.ts"]
+    "include": ["src/**/*.ts"],
+    "references": [
+        {
+            "path": "../subscription/tsconfig.lib.json"
+        },
+        {
+            "path": "../checkout/web/tsconfig.lib.json"
+        }
+    ]
 }

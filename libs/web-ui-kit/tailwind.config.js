@@ -13,6 +13,8 @@ module.exports = {
         join(__dirname, '../design-system/patterns/mobile/src/**/*.stories.{ts,tsx}'),
         join(__dirname, '../design-system/chat/mobile/src/**/*!(*.stories|*.spec).{ts,tsx,html}'),
         join(__dirname, '../design-system/chat/mobile/src/**/*.stories.{ts,tsx}'),
+        join(__dirname, '../subscription/ui/src/**/*!(*.stories|*.spec).{ts,tsx,html}'),
+        join(__dirname, '../subscription/ui/src/**/*.stories.{ts,tsx}'),
     ],
     theme: {
         extend: {

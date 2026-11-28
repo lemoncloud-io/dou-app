@@ -15,7 +15,7 @@ The other topics sit beside the components they describe:
 | [overlay](../../../../patterns/mobile/docs/components/overlay.md)                       | `@chatic/design-system-patterns-mobile` | Bottom sheet, dialogs, viewers, slide and drag helpers                         |
 | [shell](../../../../patterns/mobile/docs/components/shell.md)                           | `@chatic/design-system-patterns-mobile` | Headers, bottom navigation, tabs, screen layout, pull to refresh, empty states |
 | [lists-and-sections](../../../../patterns/mobile/docs/components/lists-and-sections.md) | `@chatic/design-system-patterns-mobile` | Rows, swipe actions, section headers, collapsible sections                     |
-| [subscription](../../../../patterns/mobile/docs/components/subscription.md)             | `@chatic/design-system-patterns-mobile` | Plan cards, status banner, key/value tables                                    |
+| [subscription](../../../../../subscription/ui/docs/components/subscription.md)          | `@chatic/subscription-ui`               | Plan cards, status banner, key/value tables                                    |
 | [chat](../../../../chat/mobile/docs/components/chat.md)                                 | `@chatic/design-system-chat-mobile`     | Attach panel, message bubbles' content (audio, file, media), receipts, threads |
 
 The rules below hold for all three packages.

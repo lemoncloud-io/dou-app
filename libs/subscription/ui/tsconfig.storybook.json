@@ -1,0 +1,27 @@
+{
+    "extends": "../../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "../../../dist/out-tsc/subscription-ui-storybook",
+        "jsx": "preserve",
+        "types": [
+            "@nx/react/typings/styled-jsx.d.ts",
+            "@nx/react/typings/cssmodule.d.ts",
+            "@nx/react/typings/image.d.ts"
+        ]
+    },
+    "include": ["src/**/*.stories.ts", "src/**/*.stories.tsx"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "../../ui-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../design-system/assets/tsconfig.lib.json"
+        },
+        {
+            "path": "../../design-system/components/mobile/tsconfig.lib.json"
+        }
+    ]
+}

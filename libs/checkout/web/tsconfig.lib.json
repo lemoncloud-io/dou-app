@@ -1,0 +1,17 @@
+{
+    "extends": "../../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        "types": ["node"],
+        "lib": ["es2022", "dom"],
+        "rootDir": "src",
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+    },
+    "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.test.ts", "eslint.config.mjs"],
+    "include": ["src/**/*.ts"],
+    "references": [
+        {
+            "path": "../../subscription/tsconfig.lib.json"
+        }
+    ]
+}

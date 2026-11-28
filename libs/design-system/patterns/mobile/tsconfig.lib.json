@@ -30,6 +30,9 @@
         },
         {
             "path": "../../../ui-kit/tsconfig.lib.json"
+        },
+        {
+            "path": "../../../subscription/ui/tsconfig.lib.json"
         }
     ]
 }

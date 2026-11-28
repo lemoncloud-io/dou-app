@@ -20,7 +20,7 @@ import type {
     SignInProvider,
     SignInResult,
     Subscription,
-} from '../types';
+} from '@chatic/subscription';
 
 export interface SubscriptionPort {
     getSession(): Promise<Account | null>;

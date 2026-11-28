@@ -5,5 +5,16 @@
         "lib": ["es2022", "dom"],
         "types": ["jest", "node"]
     },
-    "include": ["src/**/*.ts", "src/**/*.d.ts"]
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    "references": [
+        {
+            "path": "./tsconfig.lib.json"
+        },
+        {
+            "path": "../subscription/tsconfig.lib.json"
+        },
+        {
+            "path": "../checkout/web/tsconfig.lib.json"
+        }
+    ]
 }
