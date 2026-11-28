@@ -1136,6 +1136,23 @@ describe('mobile-release local release', () => {
                 },
                 summarize: () => 'summary',
                 log: () => undefined,
+                pods: {
+                    root,
+                    treeGuard: {
+                        snapshot: () => ({}),
+                        restore: () => {
+                            calls.push(['pods', 'restore']);
+                            return [];
+                        },
+                        changedSince: () => [],
+                    },
+                    ensurePods: async () => {
+                        calls.push(['pods', 'install']);
+                    },
+                    signals: { on: () => undefined, off: () => undefined },
+                    exit: () => undefined,
+                    log: () => undefined,
+                },
                 store: {
                     root: '/repo',
                     tmpdir: () => '/tmp',
@@ -1194,7 +1211,15 @@ describe('mobile-release local release', () => {
         expect(calls.filter(call => call[0] === 'store').map(call => call[1])).toEqual(['ios', 'android']);
         const runs = calls.filter(call => call[0] === 'run');
         expect(runs.map(call => call[2])).toEqual(['ios', 'android']);
-        expect(runs[0][runs[0].length - 1]).toEqual({ VERSION_NAME: '0.33.0', BUILD_NUMBER: '100' });
+        expect(runs[0][runs[0].length - 1]).toEqual({
+            VERSION_NAME: '0.33.0',
+            BUILD_NUMBER: '100',
+            LANG: 'en_US.UTF-8',
+            LC_ALL: 'en_US.UTF-8',
+        });
+        expect(runs[1][runs[1].length - 1]).toEqual({ VERSION_NAME: '0.33.0', BUILD_NUMBER: '100' });
+        const order = calls.filter(call => call[0] === 'pods' || call[0] === 'run').map(call => call[1]);
+        expect(order).toEqual(['install', './scripts/deploy-mobile.sh', 'restore', './scripts/deploy-mobile.sh']);
         const tag = calls.find(call => call[1] === 'tag' && call[2] === '-a');
         expect(tag.slice(0, 6)).toEqual(['git', 'tag', '-a', '--cleanup=verbatim', 'mobile-v0.33.0-100', 'c0ffee00']);
         expect(parseTagMessage(tag[7])).toEqual({
@@ -1216,6 +1241,29 @@ describe('mobile-release local release', () => {
             '-f',
             'tag=mobile-v0.33.0-100',
         ]);
+    });
+
+    it('iOS pod 설치가 실패하면 업로드하지 않고, 다음 플랫폼도 태그도 없이 파일을 되돌린다', async () => {
+        const { calls, deps } = localDeps();
+        deps.pods.ensurePods = async () => {
+            calls.push(['pods', 'install']);
+            throw Object.assign(new Error('pod install failed.'), { fix: ['Read /x/release-pod-install.log'] });
+        };
+        await expect(release.releaseDev({ platform: 'all', storeNotes: 'Fixes.' }, deps)).rejects.toThrow(
+            'ios pods not ready (pod install failed. Read /x/release-pod-install.log); nothing reached the store'
+        );
+        expect(calls.some(call => call[0] === 'run')).toBe(false);
+        expect(calls).toContainEqual(['pods', 'restore']);
+        expect(calls.some(call => call[1] === 'tag' && call[2] === '-a')).toBe(false);
+    });
+
+    it('--dry-run은 iOS가 있으면 pod 설치와 되돌리기 단계를 보여 주고, 설치하지는 않는다', async () => {
+        const { calls, deps } = localDeps();
+        const logs = [];
+        deps.log = line => logs.push(line);
+        await release.releaseDev({ platform: 'ios', storeNotes: 'Fixes.', dryRun: true }, deps);
+        expect(logs.join('\n')).toContain('ios: pod install (UTF-8 locale) when Pods are missing or out of date');
+        expect(calls.some(call => call[0] === 'pods')).toBe(false);
     });
 
     it('첫 플랫폼이 실패하고 스토어에도 없으면 다음을 올리지 않고 태그도 없다', async () => {
@@ -1456,6 +1504,135 @@ describe('mobile-release local release', () => {
             const { deps } = prodDeps({ head: 'c0ffee00' });
             await expect(release.releaseProd(options, deps)).rejects.toThrow('at the tag');
         });
+    });
+});
+
+describe('mobile-release pods', () => {
+    const { EventEmitter } = require('events');
+    const { withIosPods } = require('../mobile-release/pods');
+    const treeGuard = require('../mobile-verify/treeGuard');
+    const LOCK = 'apps/mobile/ios/Podfile.lock';
+    const PBX = 'apps/mobile/ios/Chatic.xcodeproj/project.pbxproj';
+    let root;
+    const write = (file, text) => {
+        fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+        fs.writeFileSync(path.join(root, file), text);
+    };
+    const read = file => fs.readFileSync(path.join(root, file), 'utf8');
+    const git = args => execFileSync('git', args, { cwd: root, stdio: ['ignore', 'pipe', 'ignore'] });
+
+    beforeEach(() => {
+        root = fs.mkdtempSync(path.join(os.tmpdir(), 'mobile-release-pods-'));
+        git(['init', '-q']);
+        git(['config', 'user.email', 'test@example.com']);
+        git(['config', 'user.name', 'tester']);
+        write(LOCK, 'hermes-engine: committed\n');
+        write(PBX, 'groups: committed\n');
+        git(['add', '-A']);
+        git(['commit', '-q', '-m', 'init']);
+    });
+    afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+
+    const podDeps = overrides => {
+        const logs = [];
+        const exits = [];
+        const signals = new EventEmitter();
+        const deps = {
+            root,
+            treeGuard,
+            ensurePods: async () => write(LOCK, 'hermes-engine: installed\n'),
+            signals,
+            exit: code => exits.push(code),
+            log: line => logs.push(line),
+            ...overrides,
+        };
+        return { deps, logs, exits, signals };
+    };
+    const rewriteDuringBuild = status => () => {
+        write(PBX, 'groups: reordered\n');
+        write('apps/mobile/ios/build/leftover.txt', 'x');
+        return status;
+    };
+
+    it('업로드가 성공하면 Manifest.lock으로 바꾼 Podfile.lock과 pbxproj를 커밋된 바이트로 되돌리고, 새 파일은 알리기만 한다', async () => {
+        const { deps, logs, signals } = podDeps();
+        let lockDuringBuild = null;
+        const result = await withIosPods(() => {
+            lockDuringBuild = read(LOCK);
+            return rewriteDuringBuild(0)();
+        }, deps);
+        expect(result).toEqual({ status: 0 });
+        expect(lockDuringBuild).toBe('hermes-engine: installed\n');
+        expect(read(LOCK)).toBe('hermes-engine: committed\n');
+        expect(read(PBX)).toBe('groups: committed\n');
+        expect(fs.existsSync(path.join(root, 'apps/mobile/ios/build/leftover.txt'))).toBe(true);
+        expect(logs.join('\n')).toContain(`Restored what the iOS build rewrote: ${LOCK}, ${PBX}`);
+        expect(logs.join('\n')).toContain('left as is): apps/mobile/ios/build/leftover.txt');
+        expect(signals.listenerCount('SIGINT') + signals.listenerCount('SIGTERM')).toBe(0);
+    });
+
+    it('업로드가 실패해도 되돌린다', async () => {
+        const { deps } = podDeps();
+        const result = await withIosPods(rewriteDuringBuild(1), deps);
+        expect(result).toEqual({ status: 1 });
+        expect(read(LOCK)).toBe('hermes-engine: committed\n');
+        expect(read(PBX)).toBe('groups: committed\n');
+    });
+
+    it('업로드가 예외로 끝나도 되돌린다', async () => {
+        const { deps } = podDeps();
+        await expect(
+            withIosPods(() => {
+                write(PBX, 'groups: reordered\n');
+                throw new Error('spawn failed');
+            }, deps)
+        ).rejects.toThrow('spawn failed');
+        expect(read(LOCK)).toBe('hermes-engine: committed\n');
+        expect(read(PBX)).toBe('groups: committed\n');
+    });
+
+    it('pod 설치가 실패하면 업로드하지 않고, 설치가 남긴 변경을 되돌린다', async () => {
+        const { deps } = podDeps({
+            ensurePods: async () => {
+                write(LOCK, 'hermes-engine: half\n');
+                write(PBX, 'groups: half\n');
+                throw Object.assign(new Error('pod install failed.'), { fix: ['Read /x/log', 'Then retry'] });
+            },
+        });
+        let uploaded = false;
+        const result = await withIosPods(() => {
+            uploaded = true;
+            return 0;
+        }, deps);
+        expect(uploaded).toBe(false);
+        expect(result).toEqual({ status: null, error: 'ios pods not ready (pod install failed. Read /x/log)' });
+        expect(read(LOCK)).toBe('hermes-engine: committed\n');
+        expect(read(PBX)).toBe('groups: committed\n');
+    });
+
+    it('SIGINT·SIGTERM을 받으면 바로 되돌리고 그 신호의 종료 코드로 끝낸다', async () => {
+        for (const [signal, code] of [
+            ['SIGINT', 130],
+            ['SIGTERM', 143],
+        ]) {
+            const { deps, exits, signals } = podDeps();
+            let restoredAtSignal = null;
+            await withIosPods(() => {
+                write(PBX, 'groups: reordered\n');
+                signals.emit(signal);
+                restoredAtSignal = read(LOCK) === 'hermes-engine: committed\n' && read(PBX) === 'groups: committed\n';
+                return 1;
+            }, deps);
+            expect(restoredAtSignal).toBe(true);
+            expect(exits).toEqual([code]);
+        }
+    });
+
+    it('개발자가 커밋하지 않은 Podfile.lock 수정은 그 바이트 그대로 되돌린다', async () => {
+        write(LOCK, 'hermes-engine: my edit\n');
+        const { deps } = podDeps();
+        await withIosPods(() => 0, deps);
+        expect(read(LOCK)).toBe('hermes-engine: my edit\n');
     });
 });
 
