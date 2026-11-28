@@ -2,6 +2,16 @@
 
 ## [2026-11-28] - No version updates
 
+### Refactor
+
+- (libs) split web-checkout into subscription rules and checkout-web
+
+### Other
+
+- test: (subscription) compile import.meta through the shared jest transformer
+
+## [2026-11-28] - No version updates
+
 ### Bug Fixes
 
 - (web/channels) keep a reader who scrolled up from being pinned back on room entry
